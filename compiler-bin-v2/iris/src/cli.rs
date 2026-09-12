@@ -5,6 +5,7 @@ use std::{env, fs};
 
 use configuration::{Configuration, ConfigurationSettings};
 use iris_build::BuildConfig;
+use iris_package_manager::{AddConfig, NewConfig};
 use itertools::Itertools;
 use thiserror::Error;
 use tracing::level_filters::LevelFilter;
@@ -27,6 +28,10 @@ pub struct Program {
 
 #[derive(Debug, Subcommands)]
 pub enum Command {
+    /// Create a Spago project in the current directory.
+    New(NewOptions),
+    /// Add dependencies to a Spago package.
+    Add(AddOptions),
     /// Build a Spago workspace or package.
     Build(BuildOptions),
     /// Run the language server over standard input and output.
@@ -36,6 +41,46 @@ pub enum Command {
 pub struct LspConfig {
     pub configuration: Configuration,
     pub logging: LoggingFilters,
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct NewOptions {
+    /// Package name. Defaults to the current directory name.
+    #[usage(long, value_name = "NAME")]
+    name: Option<String>,
+}
+
+impl NewOptions {
+    pub fn into_config(self) -> NewConfig {
+        NewConfig { name: self.name }
+    }
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct AddOptions {
+    /// Workspace package whose dependencies should change.
+    #[usage(short, long, value_name = "NAME")]
+    package: Option<String>,
+
+    /// Add packages as test dependencies.
+    #[usage(long)]
+    test: bool,
+
+    /// Packages to add.
+    #[usage(value_name = "DEPENDENCY", required = true)]
+    dependencies: Vec<String>,
+}
+
+impl AddOptions {
+    pub fn into_config(self) -> AddConfig {
+        AddConfig {
+            package: self.package,
+            dependencies: self.dependencies,
+            test_dependencies: self.test,
+        }
+    }
 }
 
 #[derive(Debug, Args)]

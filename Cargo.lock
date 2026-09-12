@@ -1794,6 +1794,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-package-manager"
+version = "0.1.0"
+dependencies = [
+ "ignore",
+ "itertools 0.15.0",
+ "serde",
+ "serde_yml",
+ "spago",
+ "thiserror",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3073,6 +3085,7 @@ dependencies = [
  "configuration",
  "iris-build",
  "iris-lsp",
+ "iris-package-manager",
  "itertools 0.15.0",
  "serde_json",
  "thiserror",

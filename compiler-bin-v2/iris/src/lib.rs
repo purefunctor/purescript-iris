@@ -7,6 +7,20 @@ pub(crate) const VERSION: &str = env!("IRIS_VERSION");
 pub fn run() -> i32 {
     let program = cli::Program::parse_with_diagnostics();
     match program.command {
+        cli::Command::New(options) => match iris_package_manager::create(options.into_config()) {
+            Ok(()) => 0,
+            Err(error) => {
+                eprintln!("{error}");
+                1
+            }
+        },
+        cli::Command::Add(options) => match iris_package_manager::add(options.into_config()) {
+            Ok(()) => 0,
+            Err(error) => {
+                eprintln!("{error}");
+                1
+            }
+        },
         cli::Command::Build(options) => match iris_build::build(options.into_config()) {
             Ok(()) => 0,
             Err(error) => {

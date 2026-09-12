@@ -19,6 +19,7 @@ path = "src/bin/iris.rs"
 configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
 iris-build = { version = "0.1.0", path = "../build" }
 iris-lsp = { version = "0.1.0", path = "../lsp" }
+iris-package-manager = { version = "0.1.0", path = "../package-manager" }
 itertools = "0.15.0"
 serde_json = "1.0.151"
 thiserror = "2.0.20"

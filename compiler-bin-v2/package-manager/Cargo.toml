@@ -1,0 +1,16 @@
+[package]
+name = "iris-package-manager"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license = "BSD-3-Clause"
+description = "PureScript package management commands for Iris."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+ignore = "0.4.33"
+itertools = "0.15.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_yml = "0.0.12"
+spago = { version = "0.1.0", path = "../../compiler-lsp/spago" }
+thiserror = "2.0.20"
