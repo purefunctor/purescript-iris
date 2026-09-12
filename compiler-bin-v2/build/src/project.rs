@@ -1,4 +1,3 @@
-use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::{env, io};
 
@@ -10,19 +9,18 @@ use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink};
 use super::plan::PackageInput;
 use super::workspace::{Workspace, WorkspaceError};
-use crate::cli::ColorChoice;
 
-pub(crate) struct BuildConfig {
+pub struct BuildConfig {
     pub package: Option<String>,
     pub output: Option<PathBuf>,
     pub quiet: bool,
-    pub color: ColorChoice,
+    pub color: bool,
     pub resilient: bool,
     pub diagnostics: bool,
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum ProjectError {
+enum ProjectError {
     #[error(transparent)]
     Compile(#[from] CompileError),
     #[error(transparent)]
@@ -35,14 +33,21 @@ pub(crate) enum ProjectError {
     CurrentDirectory(io::Error),
 }
 
-impl ProjectError {
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct BuildError(ProjectError);
+
+impl BuildError {
     pub fn diagnostics_were_suppressed(&self) -> bool {
-        matches!(self, ProjectError::Compile(CompileError::Diagnostics { reported: false }))
+        matches!(self.0, ProjectError::Compile(CompileError::Diagnostics { reported: false }))
     }
 }
 
-pub(crate) fn build(config: BuildConfig) -> Result<(), ProjectError> {
-    let color = use_color(config.color);
+pub fn build(config: BuildConfig) -> Result<(), BuildError> {
+    build_project(config).map_err(BuildError)
+}
+
+fn build_project(config: BuildConfig) -> Result<(), ProjectError> {
     let current_directory = env::current_dir().map_err(ProjectError::CurrentDirectory)?;
     let workspace = Workspace::discover(&current_directory, config.package.as_deref())?;
     let spago = spago::SpagoCommand::new(&current_directory)?;
@@ -50,7 +55,7 @@ pub(crate) fn build(config: BuildConfig) -> Result<(), ProjectError> {
     let source_globs = spago.source_globs(workspace.selected.as_deref(), !config.quiet)?;
     let package_sources = spago::source_files_by_package(&workspace.root)?;
 
-    let progress = ProgressRuntime::start(!config.quiet, color);
+    let progress = ProgressRuntime::start(!config.quiet, config.color);
     let events = ProgressEventSink::new(progress.reporter());
     events.send(BuildEvent::Preparing);
     let packages = package_sources.into_iter().map(|(name, package)| {
@@ -69,21 +74,10 @@ pub(crate) fn build(config: BuildConfig) -> Result<(), ProjectError> {
         output,
         source_globs,
         packages,
-        color,
+        color: config.color,
         diagnostics: config.diagnostics,
         resilient: config.resilient,
         events: &events,
     })?;
     Ok(())
-}
-
-fn use_color(choice: ColorChoice) -> bool {
-    match choice {
-        ColorChoice::Auto => {
-            let no_color = env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty());
-            io::stderr().is_terminal() && !no_color
-        }
-        ColorChoice::Always => true,
-        ColorChoice::Never => false,
-    }
 }

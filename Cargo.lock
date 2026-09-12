@@ -1738,6 +1738,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 
 [[package]]
+name = "iris-build"
+version = "0.1.0"
+dependencies = [
+ "building",
+ "compiler-progress",
+ "diagnostics",
+ "dunce",
+ "files",
+ "globset",
+ "ignore",
+ "itertools 0.15.0",
+ "javascript",
+ "line-index",
+ "path-absolutize",
+ "petgraph",
+ "prim-constants",
+ "rayon",
+ "serde",
+ "serde_yml",
+ "spago",
+ "thiserror",
+ "url",
+ "walkdir",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3014,27 +3040,9 @@ dependencies = [
 name = "purescript-iris-v2"
 version = "0.1.0"
 dependencies = [
- "building",
- "compiler-progress",
- "diagnostics",
- "dunce",
- "files",
- "globset",
- "ignore",
+ "iris-build",
  "itertools 0.15.0",
- "javascript",
- "line-index",
- "path-absolutize",
- "petgraph",
- "prim-constants",
- "rayon",
- "serde",
- "serde_yml",
- "spago",
- "thiserror",
- "url",
  "usage-rs",
- "walkdir",
 ]
 
 [[package]]

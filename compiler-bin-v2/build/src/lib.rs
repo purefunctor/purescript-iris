@@ -4,6 +4,8 @@ pub mod plan;
 
 mod compilation;
 mod compile;
-pub(crate) mod project;
+mod project;
 mod walk;
 mod workspace;
+
+pub use project::{BuildConfig, BuildError, build};

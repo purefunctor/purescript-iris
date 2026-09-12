@@ -1,10 +1,11 @@
+use std::env;
 use std::ffi::OsStr;
+use std::io::{self, IsTerminal};
 use std::path::PathBuf;
 
+use iris_build::BuildConfig;
 use itertools::Itertools;
 use usage::{Args, Subcommands, ValueEnum};
-
-use crate::build::project::BuildConfig;
 
 #[derive(Debug, usage::Cli)]
 #[usage(
@@ -67,10 +68,21 @@ impl Command {
             package: options.package,
             output: options.output,
             quiet: options.quiet,
-            color: options.color,
+            color: use_color(options.color),
             resilient: options.resilient,
             diagnostics: !options.no_diagnostics,
         }
+    }
+}
+
+fn use_color(choice: ColorChoice) -> bool {
+    match choice {
+        ColorChoice::Auto => {
+            let no_color = env::var_os("NO_COLOR").is_some_and(|value| !value.is_empty());
+            io::stderr().is_terminal() && !no_color
+        }
+        ColorChoice::Always => true,
+        ColorChoice::Never => false,
     }
 }
 

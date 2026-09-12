@@ -137,9 +137,9 @@ mod tests {
 
     use itertools::Itertools;
 
-    use super::super::events::{BuildEvent, RecordedBuildEvents};
-    use super::super::plan::{PackageInput, SelectedSource};
     use super::*;
+    use crate::events::{BuildEvent, RecordedBuildEvents};
+    use crate::plan::{PackageInput, SelectedSource};
 
     fn plan() -> BuildPlan {
         let selected_sources = ["root", "independent", "dependent"].into_iter().map(|path| {

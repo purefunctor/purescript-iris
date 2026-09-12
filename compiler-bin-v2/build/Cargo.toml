@@ -1,0 +1,30 @@
+[package]
+name = "iris-build"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license = "BSD-3-Clause"
+description = "PureScript package build planning and execution for Iris."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+building = { version = "0.1.0", path = "../../compiler-core/building" }
+compiler-progress = { version = "0.1.0", path = "../progress" }
+diagnostics = { version = "0.1.0", path = "../../compiler-frontend/diagnostics" }
+dunce = "1.0.5"
+files = { version = "0.1.0", path = "../../compiler-core/files" }
+globset = "0.4.20"
+ignore = "0.4.33"
+itertools = "0.15.0"
+javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
+line-index = "0.1.2"
+path-absolutize = "4.0.1"
+petgraph = "0.8.3"
+prim-constants = { version = "0.1.0", path = "../../compiler-core/prim-constants" }
+rayon = "1.12.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_yml = "0.0.12"
+spago = { version = "0.1.0", path = "../../compiler-lsp/spago" }
+thiserror = "2.0.20"
+url = "2.5.8"
+walkdir = "2.5.0"
