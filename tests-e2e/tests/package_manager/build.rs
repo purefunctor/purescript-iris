@@ -186,10 +186,13 @@ fn builds_the_whole_workspace_from_a_root_package_subdirectory() {
         r#"workspace: {}
 package:
   name: application
-  dependencies: []
+  dependencies: [library]
 "#,
     );
-    workspace.write("src/Application.purs", "module Application where\n");
+    workspace.write(
+        "src/Application.purs",
+        "module Application where\n\nimport Library (library)\n\napplication = library\n",
+    );
     workspace.write(
         "packages/library/spago.yaml",
         r#"package:
@@ -197,7 +200,7 @@ package:
   dependencies: []
 "#,
     );
-    workspace.write("packages/library/src/Library.purs", "module Library where\n");
+    workspace.write("packages/library/src/Library.purs", "module Library where\n\nlibrary = 42\n");
 
     let output = workspace.command_in("src", &["build", "--quiet"]);
     assert_success(&output);

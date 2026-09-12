@@ -43,6 +43,7 @@ lsp-types.workspace = true
 notify = "8.2.0"
 parking_lot = "0.12.5"
 path-absolutize = "4.0.1"
+petgraph = "0.8.3"
 prim-constants = { version = "0.1.0", path = "../compiler-core/prim-constants" }
 radix_trie = "0.3.0"
 ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }

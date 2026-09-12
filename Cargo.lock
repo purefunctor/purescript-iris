@@ -2973,6 +2973,7 @@ dependencies = [
  "notify",
  "parking_lot",
  "path-absolutize",
+ "petgraph",
  "prim-constants",
  "radix_trie",
  "ratatui",

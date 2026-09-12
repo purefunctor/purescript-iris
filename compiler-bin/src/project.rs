@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::{self, Command, ExitStatus};
 use std::{env, fs, io};
 
+use itertools::Itertools;
 use thiserror::Error;
 use url::Url;
 
@@ -22,6 +23,8 @@ pub enum ProjectError {
     Compile(#[from] CompileError),
     #[error(transparent)]
     Spago(#[from] SpagoError),
+    #[error(transparent)]
+    SpagoLock(#[from] spago::LockfileGlobSetError),
     #[error(transparent)]
     Watch(#[from] WatchError),
     #[error(transparent)]
@@ -232,10 +235,18 @@ fn compile_workspace(
     resilience: Resilience,
 ) -> Result<(), ProjectError> {
     let (sources, output) = prepare_workspace_build(workspace, current_directory, config)?;
-    compile::compile_inputs(
+    let packages = spago::source_files_by_package(&workspace.root)?;
+    let packages = packages.into_iter().map(|(name, package)| compile::PackageInput {
+        name: name.to_string(),
+        sources: package.sources,
+        dependencies: package.dependencies.into_iter().map(|name| name.to_string()).collect_vec(),
+    });
+    let packages = packages.collect_vec();
+    compile::compile_package_inputs(
         &workspace.root,
         &output,
         &sources,
+        packages,
         config.quiet,
         config.color,
         resilience,
