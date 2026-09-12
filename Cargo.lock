@@ -1761,6 +1761,7 @@ dependencies = [
  "iris-build",
  "iris-lsp",
  "iris-package",
+ "iris-watch",
  "itertools 0.15.0",
  "serde_json",
  "thiserror",
@@ -1819,6 +1820,19 @@ dependencies = [
  "itertools 0.15.0",
  "ratatui",
  "terminal-colorsaurus",
+]
+
+[[package]]
+name = "iris-watch"
+version = "0.1.0"
+dependencies = [
+ "iris-build",
+ "iris-progress",
+ "itertools 0.15.0",
+ "jiff",
+ "notify",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

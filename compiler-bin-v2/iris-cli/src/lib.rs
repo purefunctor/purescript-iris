@@ -30,6 +30,21 @@ pub fn run() -> i32 {
                 1
             }
         },
+        cli::Command::Watch(options) => {
+            let config = options.into_config();
+            let project = match iris_build::prepare_project(config.project) {
+                Ok(project) => project,
+                Err(error) => {
+                    eprintln!("{error}");
+                    return 1;
+                }
+            };
+            if let Err(error) = iris_watch::watch(project, config.watch) {
+                eprintln!("{error}");
+                return 1;
+            }
+            0
+        }
         cli::Command::Lsp(options) => {
             let config = match options.into_config() {
                 Ok(config) => config,

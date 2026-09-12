@@ -6,6 +6,7 @@ members = [
   "compiler-bin-v2/iris-lsp",
   "compiler-bin-v2/iris-package",
   "compiler-bin-v2/iris-progress",
+  "compiler-bin-v2/iris-watch",
   "compiler-backend/*",
   "compiler-core/*",
   "compiler-frontend/*",

@@ -20,6 +20,7 @@ configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-lsp = { version = "0.1.0", path = "../iris-lsp" }
 iris-package = { version = "0.1.0", path = "../iris-package" }
+iris-watch = { version = "0.1.0", path = "../iris-watch" }
 itertools = "0.15.0"
 serde_json = "1.0.151"
 thiserror = "2.0.20"

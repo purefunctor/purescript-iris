@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 use configuration::{Configuration, ConfigurationSettings};
-use iris_build::BuildConfig;
+use iris_build::{BuildConfig, ProjectConfig};
 use iris_package::{AddConfig, NewConfig};
 use itertools::Itertools;
 use thiserror::Error;
@@ -34,6 +34,8 @@ pub enum Command {
     Add(AddOptions),
     /// Build a Spago workspace or package.
     Build(BuildOptions),
+    /// Build a Spago workspace or package and rebuild when inputs change.
+    Watch(WatchOptions),
     /// Run the language server over standard input and output.
     Lsp(LspOptions),
 }
@@ -41,6 +43,11 @@ pub enum Command {
 pub struct LspConfig {
     pub configuration: Configuration,
     pub logging: LoggingFilters,
+}
+
+pub struct WatchConfig {
+    pub project: ProjectConfig,
+    pub watch: iris_watch::WatchConfig,
 }
 
 #[derive(Debug, Args)]
@@ -127,6 +134,47 @@ impl BuildOptions {
             color: use_color(self.color),
             resilient: self.resilient,
             diagnostics: !self.no_diagnostics,
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct WatchOptions {
+    /// Workspace package to build.
+    #[usage(short, long, value_name = "NAME")]
+    package: Option<String>,
+
+    /// Output directory. Defaults to output in the workspace root.
+    #[usage(short, long, value_name = "DIR")]
+    output: Option<PathBuf>,
+
+    /// Suppress watch summaries and Spago output.
+    #[usage(short, long)]
+    quiet: bool,
+
+    /// When to use colors in diagnostics and watch output.
+    #[usage(long, value_enum, default = "auto")]
+    color: ColorChoice,
+
+    /// Suppress compiler warnings and errors without hiding watch summaries.
+    #[usage(long)]
+    no_diagnostics: bool,
+}
+
+impl WatchOptions {
+    pub fn into_config(self) -> WatchConfig {
+        WatchConfig {
+            project: ProjectConfig {
+                package: self.package,
+                output: self.output,
+                quiet: self.quiet,
+            },
+            watch: iris_watch::WatchConfig {
+                quiet: self.quiet,
+                color: use_color(self.color),
+                diagnostics: !self.no_diagnostics,
+            },
         }
     }
 }
