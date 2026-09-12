@@ -35,6 +35,7 @@ pub(crate) struct BuildConfig<'a> {
     pub current_directory: &'a Path,
     pub color: bool,
     pub progress: bool,
+    pub diagnostics: bool,
     pub resilience: Resilience,
 }
 
@@ -71,7 +72,7 @@ pub(crate) enum BuildOutcome {
 #[derive(Debug, Error)]
 pub(crate) enum CompileError {
     #[error("compilation failed")]
-    Diagnostics,
+    Diagnostics { reported: bool },
     #[error("failed to convert path to a file URL: {0}")]
     InvalidPath(PathBuf),
     #[error(transparent)]
@@ -91,7 +92,7 @@ pub(crate) enum CompileError {
 pub fn start(config: CompileConfig) {
     let json_errors = config.json_errors;
     if let Err(error) = compile(config) {
-        if !matches!(error, CompileError::Diagnostics) {
+        if !matches!(error, CompileError::Diagnostics { .. }) {
             eprintln!("Compilation exited: {error}");
         }
         tracing::error!(?error, "Compilation exited");
@@ -125,6 +126,7 @@ fn compile(config: CompileConfig) -> Result<(), CompileError> {
         current_directory: &current_directory,
         color: use_color(config.color),
         progress: !config.quiet,
+        diagnostics: true,
         resilience: Resilience::Strict,
     };
     compile_source_paths(&build_config, source_paths, started, preparation_progress)
@@ -137,6 +139,7 @@ pub(crate) fn compile_package_inputs(
     packages: Vec<PackageInput>,
     quiet: bool,
     color: ColorChoice,
+    diagnostics: bool,
     resilience: Resilience,
 ) -> Result<(), CompileError> {
     let started = Instant::now();
@@ -156,8 +159,14 @@ pub(crate) fn compile_package_inputs(
         }
     };
 
-    let build_config =
-        BuildConfig { output, current_directory: root, color, progress: !quiet, resilience };
+    let build_config = BuildConfig {
+        output,
+        current_directory: root,
+        color,
+        progress: !quiet,
+        diagnostics,
+        resilience,
+    };
     compile_package_source_paths(&build_config, source_paths, packages, started, &package_progress)
 }
 
@@ -181,7 +190,7 @@ fn compile_source_paths(
     }
 
     if matches!(build(&compilation, config)?, BuildOutcome::Diagnostics) {
-        return Err(CompileError::Diagnostics);
+        return Err(CompileError::Diagnostics { reported: true });
     }
 
     if config.progress {
@@ -290,6 +299,7 @@ fn compile_package_source_paths(
         current_directory: config.current_directory,
         color: config.color,
         progress: false,
+        diagnostics: config.diagnostics,
         resilience: config.resilience,
     };
     package_progress.finish(started.elapsed());
@@ -298,7 +308,7 @@ fn compile_package_source_paths(
         finalize_build(&compilation, &source_ids, &finalization_config)?,
         BuildOutcome::Diagnostics
     ) {
-        return Err(CompileError::Diagnostics);
+        return Err(CompileError::Diagnostics { reported: config.diagnostics });
     }
     Ok(())
 }
@@ -582,29 +592,32 @@ fn report_diagnostics(
         .any(|diagnostic| diagnostic.severity == Severity::Error);
     let has_diagnostics = diagnostics.iter().any(|collected| !collected.diagnostics().is_empty());
 
-    if has_diagnostics {
+    if config.diagnostics && has_diagnostics {
         if config.progress && io::stderr().is_terminal() {
             eprint!("\n\n");
         } else if !config.progress {
             eprintln!();
         }
     }
-    for collected in diagnostics {
-        if collected.diagnostics().is_empty() {
-            continue;
+    if config.diagnostics {
+        for collected in diagnostics {
+            if collected.diagnostics().is_empty() {
+                continue;
+            }
+            let source_path = compilation
+                .source_path(collected.file_id)
+                .expect("input source has no lifecycle path");
+            let display_path = display_source_path(&source_path, config.current_directory);
+            let line_index = line_index::LineIndex::new(&collected.content);
+            let rendered = diagnostics::format_rich_with_path(
+                collected.diagnostics(),
+                &collected.content,
+                &line_index,
+                &display_path,
+                config.color,
+            );
+            eprint!("{rendered}");
         }
-        let source_path =
-            compilation.source_path(collected.file_id).expect("input source has no lifecycle path");
-        let display_path = display_source_path(&source_path, config.current_directory);
-        let line_index = line_index::LineIndex::new(&collected.content);
-        let rendered = diagnostics::format_rich_with_path(
-            collected.diagnostics(),
-            &collected.content,
-            &line_index,
-            &display_path,
-            config.color,
-        );
-        eprint!("{rendered}");
     }
     Ok(has_errors)
 }

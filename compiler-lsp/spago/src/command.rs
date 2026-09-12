@@ -41,11 +41,13 @@ impl SpagoCommand {
         })
     }
 
-    pub fn fetch(&self, selected: Option<&str>) -> Result<(), SpagoError> {
+    pub fn fetch(&self, selected: Option<&str>, show_output: bool) -> Result<(), SpagoError> {
         let mut arguments = vec!["fetch".to_owned()];
         add_selection(&mut arguments, selected);
         let output = self.execute(&arguments)?;
-        forward_output(&output)?;
+        if show_output {
+            forward_output(&output)?;
+        }
         ensure_success("fetch", &output)
     }
 
@@ -65,11 +67,17 @@ impl SpagoCommand {
         ensure_success("fetch", &output)
     }
 
-    pub fn source_globs(&self, selected: Option<&str>) -> Result<Vec<PathBuf>, SpagoError> {
+    pub fn source_globs(
+        &self,
+        selected: Option<&str>,
+        show_output: bool,
+    ) -> Result<Vec<PathBuf>, SpagoError> {
         let mut arguments = vec!["sources".to_owned(), "--json".to_owned()];
         add_selection(&mut arguments, selected);
         let output = self.execute(&arguments)?;
-        io::stderr().write_all(&output.stderr).map_err(SpagoError::Execute)?;
+        if show_output {
+            io::stderr().write_all(&output.stderr).map_err(SpagoError::Execute)?;
+        }
         ensure_success("sources --json", &output)?;
         let sources: Vec<PathBuf> =
             serde_json::from_slice(&output.stdout).map_err(SpagoError::InvalidSources)?;
@@ -163,9 +171,9 @@ exit 9
         );
         let command = test_command(&temporary, &executable);
 
-        command.fetch(Some("application")).unwrap();
+        command.fetch(Some("application"), true).unwrap();
         command.add("application", &["console".to_owned(), "effect".to_owned()], true).unwrap();
-        let sources = command.source_globs(Some("application")).unwrap();
+        let sources = command.source_globs(Some("application"), true).unwrap();
 
         assert_eq!(
             sources,
@@ -192,12 +200,12 @@ esac
         );
         let command = test_command(&temporary, &executable);
 
-        assert!(matches!(command.fetch(None), Err(SpagoError::Failed { .. })));
+        assert!(matches!(command.fetch(None, true), Err(SpagoError::Failed { .. })));
         assert!(matches!(
-            command.source_globs(Some("invalid")),
+            command.source_globs(Some("invalid"), true),
             Err(SpagoError::InvalidSources(_))
         ));
-        assert!(matches!(command.source_globs(Some("empty")), Err(SpagoError::EmptySources)));
+        assert!(matches!(command.source_globs(Some("empty"), true), Err(SpagoError::EmptySources)));
     }
 
     #[cfg(unix)]

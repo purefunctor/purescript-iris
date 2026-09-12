@@ -111,6 +111,7 @@ fn rebuild(workspace: &mut WatchWorkspace, config: &WatchConfig) -> Result<(), C
         current_directory: &workspace.current_directory,
         color: compile::use_color(config.color),
         progress: false,
+        diagnostics: true,
         resilience: Resilience::Strict,
     };
     match compile::build(&workspace.compilation, &build_config)? {

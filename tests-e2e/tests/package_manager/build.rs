@@ -1,4 +1,18 @@
+use std::process::Output;
+
 use super::support::{TestWorkspace, assert_success};
+
+fn snapshot_output(name: &str, output: &Output) {
+    let status = output.status.code().map_or_else(|| "signal".to_owned(), |code| code.to_string());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!(
+            name,
+            format!("status: {status}\n--- stdout\n{stdout}--- stderr\n{stderr}")
+        );
+    });
+}
 
 fn diagnostic_settings(workspace: &TestWorkspace) -> insta::Settings {
     let mut settings = insta::Settings::clone_current();
@@ -76,15 +90,8 @@ broken = missing
     );
 
     let output = workspace.command(&["build", "--quiet", "--resilient"]);
-    assert!(
-        !output.status.success(),
-        "command unexpectedly succeeded\nstdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    let stderr = String::from_utf8_lossy(&output.stderr);
     let _settings = diagnostic_settings(&workspace).bind_to_scope();
-    insta::assert_snapshot!("resilient_source_diagnostics", stderr);
+    snapshot_output("resilient_source_diagnostics", &output);
 
     let generated = workspace.read("output/Main/index.js");
     assert!(generated.contains("Generated code reached a source error"));
@@ -94,6 +101,60 @@ broken = missing
         "",
         &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
     );
+}
+
+#[test]
+fn suppresses_error_diagnostics_without_changing_failure_status() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+broken = missing
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet", "--no-diagnostics"]);
+
+    snapshot_output("suppressed_error_diagnostics", &output);
+}
+
+#[test]
+fn suppresses_warning_diagnostics_without_changing_success_status() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Choice = Present Int | Absent
+
+value (Present number) = number
+"#,
+    );
+
+    let reported = workspace.command(&["build", "--quiet"]);
+    assert_success(&reported);
+    let reported_stderr = String::from_utf8_lossy(&reported.stderr);
+    assert!(reported_stderr.contains("Warning! · [MissingPatterns]"));
+
+    let output = workspace.command(&["build", "--quiet", "--no-diagnostics"]);
+    snapshot_output("suppressed_warning_diagnostics", &output);
 }
 
 #[test]
@@ -120,16 +181,12 @@ second = first
     );
 
     let strict = workspace.command(&["build", "--quiet"]);
-    assert!(!strict.status.success());
-    let stderr = String::from_utf8_lossy(&strict.stderr);
     let _settings = diagnostic_settings(&workspace).bind_to_scope();
-    insta::assert_snapshot!("strict_initializer_cycle_diagnostics", stderr);
+    snapshot_output("strict_initializer_cycle_diagnostics", &strict);
     assert!(!workspace.path().join("output/Main/index.js").exists());
 
     let resilient = workspace.command(&["build", "--quiet", "--resilient"]);
-    assert!(!resilient.status.success());
-    let stderr = String::from_utf8_lossy(&resilient.stderr);
-    insta::assert_snapshot!("resilient_initializer_cycle_diagnostics", stderr);
+    snapshot_output("resilient_initializer_cycle_diagnostics", &resilient);
     let generated = workspace.read("output/Main/index.js");
     assert!(generated.contains("Top-level value initializer cycle"));
     assert!(!generated.contains("@__PURE__"));
@@ -167,10 +224,8 @@ partialProps = props
     );
 
     let output = workspace.command(&["build", "--quiet"]);
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
     let _settings = diagnostic_settings(&workspace).bind_to_scope();
-    insta::assert_snapshot!("backend_failure_diagnostics", stderr);
+    snapshot_output("backend_failure_diagnostics", &output);
     assert!(!workspace.path().join("output/Main/index.js").exists());
     workspace.assert_spago_calls(
         "",

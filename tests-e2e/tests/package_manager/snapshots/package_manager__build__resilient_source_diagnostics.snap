@@ -1,7 +1,10 @@
 ---
 source: tests-e2e/tests/package_manager/build.rs
-expression: stderr
 ---
+status: 1
+--- stdout
+--- stderr
+
 Error! · [NotInScope] · src/Main.purs:5:10
   •
   │

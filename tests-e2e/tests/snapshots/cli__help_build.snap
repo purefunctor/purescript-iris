@@ -21,5 +21,6 @@ Flags:
                                     [possible values: auto, always, never]
                                     (default: auto)
       --resilient                   Write JavaScript output even when compilation reports errors.
+      --no-diagnostics              Suppress compiler warnings and errors without hiding build progress.
   -h, --help                        Print help
 --- stderr

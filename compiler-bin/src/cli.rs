@@ -274,6 +274,10 @@ pub struct ProjectBuildCommandOptions {
     /// Write JavaScript output even when compilation reports errors.
     #[usage(long)]
     pub resilient: bool,
+
+    /// Suppress compiler warnings and errors without hiding build progress.
+    #[usage(long)]
+    pub no_diagnostics: bool,
 }
 
 #[derive(Debug, Args)]
@@ -521,10 +525,12 @@ mod tests {
 
     #[test]
     fn build_accepts_resilient_output() {
-        let options = build(&["--resilient"]);
+        let options = build(&["--resilient", "--no-diagnostics"]);
 
         assert!(options.resilient);
+        assert!(options.no_diagnostics);
         assert!(!build(&[]).resilient);
+        assert!(!build(&[]).no_diagnostics);
     }
 
     #[test]

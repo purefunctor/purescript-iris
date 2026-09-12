@@ -50,7 +50,9 @@ pub fn run() {
             } else {
                 compile::Resilience::Strict
             };
-            project::start(project::build(project_build_config(options.build), resilience));
+            let mut config = project_build_config(options.build);
+            config.diagnostics = !options.no_diagnostics;
+            project::start(project::build(config, resilience));
         }
         cli::Command::Add(options) => {
             project::start(project::add(project::AddProjectConfig {
@@ -134,5 +136,6 @@ fn project_build_config(options: cli::ProjectBuildOptions) -> project::BuildProj
         output: options.output,
         quiet: options.quiet,
         color: options.color,
+        diagnostics: true,
     }
 }

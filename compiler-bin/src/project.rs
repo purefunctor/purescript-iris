@@ -68,6 +68,7 @@ pub struct BuildProjectConfig {
     pub output: Option<PathBuf>,
     pub quiet: bool,
     pub color: ColorChoice,
+    pub diagnostics: bool,
 }
 
 pub struct AddProjectConfig {
@@ -90,7 +91,9 @@ pub struct TestProjectConfig {
 
 pub fn start(result: Result<(), ProjectError>) {
     if let Err(error) = result {
-        eprintln!("{error}");
+        if !matches!(&error, ProjectError::Compile(CompileError::Diagnostics { reported: false })) {
+            eprintln!("{error}");
+        }
         let exit_code = match error {
             ProjectError::NodeFailed(status) => status.code().unwrap_or(1),
             _ => 1,
@@ -249,6 +252,7 @@ fn compile_workspace(
         packages,
         config.quiet,
         config.color,
+        config.diagnostics,
         resilience,
     )?;
     Ok(())
@@ -260,8 +264,8 @@ fn prepare_workspace_build(
     config: &BuildProjectConfig,
 ) -> Result<(Vec<PathBuf>, PathBuf), ProjectError> {
     let spago = SpagoCommand::new(current_directory)?;
-    spago.fetch(workspace.selected.as_deref())?;
-    let sources = spago.source_globs(workspace.selected.as_deref())?;
+    spago.fetch(workspace.selected.as_deref(), !config.quiet)?;
+    let sources = spago.source_globs(workspace.selected.as_deref(), !config.quiet)?;
     let output = output(workspace, config);
     Ok((sources, output))
 }
