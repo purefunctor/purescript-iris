@@ -10,16 +10,6 @@ pub struct TestWorkspace {
     temporary: tempfile::TempDir,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum IrisExecutable {
-    V1,
-    V2,
-}
-
-impl IrisExecutable {
-    pub const ALL: [IrisExecutable; 2] = [IrisExecutable::V1, IrisExecutable::V2];
-}
-
 impl TestWorkspace {
     pub fn empty() -> TestWorkspace {
         TestWorkspace { temporary: tempfile::tempdir().unwrap() }
@@ -58,32 +48,11 @@ impl TestWorkspace {
     }
 
     pub fn command(&self, arguments: &[&str]) -> Output {
-        self.command_for(IrisExecutable::V1, arguments)
+        self.command_in("", arguments)
     }
 
     pub fn command_in(&self, directory: &str, arguments: &[&str]) -> Output {
-        self.command_in_for(IrisExecutable::V1, directory, arguments)
-    }
-
-    pub fn command_for(&self, executable: IrisExecutable, arguments: &[&str]) -> Output {
-        self.command_in_for(executable, "", arguments)
-    }
-
-    pub fn command_in_for(
-        &self,
-        executable: IrisExecutable,
-        directory: &str,
-        arguments: &[&str],
-    ) -> Output {
-        self.command_builder_for(executable, directory, arguments).output().unwrap()
-    }
-
-    pub fn v2_command(&self, arguments: &[&str]) -> Output {
-        self.command_for(IrisExecutable::V2, arguments)
-    }
-
-    pub fn v2_command_in(&self, directory: &str, arguments: &[&str]) -> Output {
-        self.command_in_for(IrisExecutable::V2, directory, arguments)
+        self.command_builder(directory, arguments).output().unwrap()
     }
 
     pub fn spawn(&self, arguments: &[&str]) -> Child {
@@ -91,20 +60,7 @@ impl TestWorkspace {
     }
 
     pub fn spawn_in(&self, directory: &str, arguments: &[&str]) -> Child {
-        self.spawn_in_for(IrisExecutable::V1, directory, arguments)
-    }
-
-    pub fn spawn_for(&self, executable: IrisExecutable, arguments: &[&str]) -> Child {
-        self.spawn_in_for(executable, "", arguments)
-    }
-
-    pub fn spawn_in_for(
-        &self,
-        executable: IrisExecutable,
-        directory: &str,
-        arguments: &[&str],
-    ) -> Child {
-        self.command_builder_for(executable, directory, arguments)
+        self.command_builder(directory, arguments)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -113,31 +69,9 @@ impl TestWorkspace {
     }
 
     pub fn command_builder(&self, directory: &str, arguments: &[&str]) -> Command {
-        self.command_builder_for(IrisExecutable::V1, directory, arguments)
-    }
-
-    pub fn command_builder_for(
-        &self,
-        executable: IrisExecutable,
-        directory: &str,
-        arguments: &[&str],
-    ) -> Command {
-        let executable = match executable {
-            IrisExecutable::V1 => env!("CARGO_BIN_EXE_iris-e2e"),
-            IrisExecutable::V2 => env!("CARGO_BIN_EXE_iris-v2-e2e"),
-        };
-        self.command_builder_with(executable, directory, arguments)
-    }
-
-    fn command_builder_with(
-        &self,
-        executable: &str,
-        directory: &str,
-        arguments: &[&str],
-    ) -> Command {
         let current_directory = self.path().join(directory);
         fs::create_dir_all(&current_directory).unwrap();
-        let mut command = Command::new(executable);
+        let mut command = Command::new(env!("CARGO_BIN_EXE_iris-e2e"));
         command
             .args(arguments)
             .current_dir(current_directory)

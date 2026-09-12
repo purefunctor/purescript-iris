@@ -200,4 +200,4 @@ continue to use GitHub's latest release.
 Iris keeps its package version separate from source provenance. Packagers can set
 `IRIS_BUILD_REVISION` to a Git revision when invoking Cargo to include that revision in the reported
 CLI and language-server versions. The value is read at compile time; builds that omit it report the
-version from `compiler-bin/Cargo.toml` unchanged.
+version from `compiler-bin/iris-cli/Cargo.toml` unchanged.

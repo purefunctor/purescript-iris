@@ -7,92 +7,79 @@ use std::time::{Duration, Instant};
 
 use itertools::Itertools;
 
-use super::support::{IrisExecutable, TestWorkspace};
+use super::support::TestWorkspace;
 
 #[test]
 fn watches_a_single_package_with_real_spago() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write(
-            "spago.yaml",
-            r#"workspace: {}
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
 package:
   name: application
   dependencies: []
 "#,
-        );
-        workspace.write(
-            "src/Main.purs",
-            r#"module Main where
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
 
 value = 42
 "#,
-        );
+    );
 
-        let mut watch = WatchProcess::new(workspace.spawn_for(executable, &["watch"]));
-        let output = workspace.path().join("output/Main/index.js");
-        let expected = match executable {
-            IrisExecutable::V1 => "1 file changed: Main",
-            IrisExecutable::V2 => "Loaded 1 input: Main",
-        };
-        watch.wait_for("initial compilation", |stdout, _| {
-            stdout.contains(expected) && output.is_file()
-        });
-        watch.stop();
-        let snapshot = format!("watch_single_package_{executable:?}").to_lowercase();
-        insta::with_settings!({omit_expression => true}, {
-            insta::assert_snapshot!(snapshot, normalized_watch_log(&watch.stdout()));
-        });
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    let output = workspace.path().join("output/Main/index.js");
+    watch.wait_for("initial compilation", |stdout, _| {
+        stdout.contains("Loaded 1 input: Main") && output.is_file()
+    });
+    watch.stop();
+    insta::with_settings!({omit_expression => true}, {
+    insta::assert_snapshot!("watch_single_package", normalized_watch_log(&watch.stdout()));
+    });
 
-        workspace.assert_spago_calls(
-            "",
-            &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
-        );
-    }
+    workspace.assert_spago_calls(
+        "",
+        &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
+    );
 }
 
 #[test]
 fn watches_the_whole_workspace_from_a_root_package_subdirectory() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write(
-            "spago.yaml",
-            r#"workspace: {}
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
 package:
   name: application
   dependencies: []
 "#,
-        );
-        workspace.write("src/Application.purs", "module Application where\n");
-        workspace.write(
-            "packages/library/spago.yaml",
-            r#"package:
+    );
+    workspace.write("src/Application.purs", "module Application where\n");
+    workspace.write(
+        "packages/library/spago.yaml",
+        r#"package:
   name: library
   dependencies: []
 "#,
-        );
-        workspace.write("packages/library/src/Library.purs", "module Library where\n");
+    );
+    workspace.write("packages/library/src/Library.purs", "module Library where\n");
 
-        let mut watch = WatchProcess::new(workspace.spawn_in_for(executable, "src", &["watch"]));
-        let outputs = [
-            workspace.path().join("output/Application/index.js"),
-            workspace.path().join("output/Library/index.js"),
-        ];
-        let expected = match executable {
-            IrisExecutable::V1 => "2 files changed: Application, Library",
-            IrisExecutable::V2 => "Loaded 2 inputs: Application, Library",
-        };
-        watch.wait_for("initial workspace compilation", |stdout, _| {
-            stdout.contains(expected) && outputs.iter().all(|output| output.is_file())
-        });
-        watch.stop();
-        let snapshot = format!("watch_workspace_{executable:?}").to_lowercase();
-        insta::with_settings!({omit_expression => true}, {
-            insta::assert_snapshot!(snapshot, normalized_watch_log(&watch.stdout()));
-        });
+    let mut watch = WatchProcess::new(workspace.spawn_in("src", &["watch"]));
+    let outputs = [
+        workspace.path().join("output/Application/index.js"),
+        workspace.path().join("output/Library/index.js"),
+    ];
+    watch.wait_for("initial workspace compilation", |stdout, _| {
+        stdout.contains("Loaded 2 inputs: Application, Library")
+            && outputs.iter().all(|output| output.is_file())
+    });
+    watch.stop();
+    insta::with_settings!({omit_expression => true}, {
+    insta::assert_snapshot!("watch_workspace", normalized_watch_log(&watch.stdout()));
+    });
 
-        workspace.assert_spago_calls("src", &[&["fetch"], &["sources", "--json"]]);
-    }
+    workspace.assert_spago_calls("src", &[&["fetch"], &["sources", "--json"]]);
 }
 
 #[test]
@@ -102,7 +89,7 @@ fn rebuilds_after_edits_and_recovers_from_diagnostics() {
         .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 42\n");
 
-    let mut watch = WatchProcess::new(workspace.spawn_for(IrisExecutable::V2, &["watch"]));
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     let output = workspace.path().join("output/Main/index.js");
     watch.wait_for("initial compilation", |stdout, _| {
         stdout.contains("Loaded 1 input: Main") && output.is_file()
@@ -134,7 +121,7 @@ fn suppresses_diagnostics_without_hiding_watch_summaries() {
         .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
     workspace.write("src/Main.purs", "module Main where\n\nvalue = missing\n");
 
-    let child = workspace.spawn_for(IrisExecutable::V2, &["watch", "--no-diagnostics"]);
+    let child = workspace.spawn(&["watch", "--no-diagnostics"]);
     let mut watch = WatchProcess::new(child);
     watch.wait_for("suppressed diagnostic build", |stdout, _| {
         stdout.contains("Build completed with diagnostics")
@@ -155,7 +142,7 @@ fn adds_and_removes_sources_and_stale_outputs() {
         .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
     workspace.write("src/Main.purs", "module Main where\n");
 
-    let mut watch = WatchProcess::new(workspace.spawn_for(IrisExecutable::V2, &["watch"]));
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     let main_output = workspace.path().join("output/Main/index.js");
     watch.wait_for("initial compilation", |stdout, _| {
         stdout.contains("Loaded 1 input: Main") && main_output.is_file()
@@ -181,7 +168,7 @@ fn rebuilds_for_ffi_changes_and_reconciles_foreign_outputs() {
     workspace.write("src/Main.purs", "module Main where\n\nforeign import value :: Int\n");
     workspace.write("src/Main.js", "export const value = 42;\n");
 
-    let mut watch = WatchProcess::new(workspace.spawn_for(IrisExecutable::V2, &["watch"]));
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     let javascript_output = workspace.path().join("output/Main/foreign.js");
     watch.wait_for("initial FFI compilation", |stdout, _| {
         stdout.contains("Loaded 1 input: Main")
@@ -211,7 +198,7 @@ fn waits_for_a_deleted_input_directory_and_builds_when_it_returns() {
         .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 42\n");
 
-    let mut watch = WatchProcess::new(workspace.spawn_for(IrisExecutable::V2, &["watch"]));
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     let output = workspace.path().join("output/Main/index.js");
     watch.wait_for("initial compilation", |stdout, _| {
         stdout.contains("Loaded 1 input: Main") && output.is_file()
@@ -236,11 +223,8 @@ fn resolves_relative_output_from_the_invocation_directory_and_excludes_it() {
     workspace.write("src/Main.purs", "module Main where\n");
     workspace.write("src/generated/Ignored.purs", "this is not PureScript\n");
 
-    let child = workspace.spawn_in_for(
-        IrisExecutable::V2,
-        "src",
-        &["watch", "--package", "application", "--output", "generated"],
-    );
+    let child =
+        workspace.spawn_in("src", &["watch", "--package", "application", "--output", "generated"]);
     let mut watch = WatchProcess::new(child);
     let output = workspace.path().join("src/generated/Main/index.js");
     watch.wait_for("custom output compilation", |stdout, _| {
@@ -257,7 +241,7 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
     workspace.write("src/Main.js", "export const value = 42;\n");
     std::fs::create_dir_all(workspace.path().join("output/Main/foreign.js")).unwrap();
 
-    let child = workspace.spawn_for(IrisExecutable::V2, &["watch", "--quiet"]);
+    let child = workspace.spawn(&["watch", "--quiet"]);
     let mut watch = WatchProcess::new(child);
     let partial_output = workspace.path().join("output/Main/index.js");
     watch.wait_for("partial output failure", |_, stderr| {

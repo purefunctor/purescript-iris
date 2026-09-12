@@ -1,12 +1,6 @@
 [workspace]
 members = [
-  "compiler-bin",
-  "compiler-bin-v2/iris-build",
-  "compiler-bin-v2/iris-cli",
-  "compiler-bin-v2/iris-lsp",
-  "compiler-bin-v2/iris-package",
-  "compiler-bin-v2/iris-progress",
-  "compiler-bin-v2/iris-watch",
+  "compiler-bin/*",
   "compiler-backend/*",
   "compiler-core/*",
   "compiler-frontend/*",

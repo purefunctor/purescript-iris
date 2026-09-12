@@ -1,6 +1,0 @@
----
-source: tests-e2e/tests/package_manager/build_v2.rs
----
-status: 1
---- stdout
---- stderr

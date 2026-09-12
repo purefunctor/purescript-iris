@@ -1,4 +1,4 @@
-root_name = "purescript-iris"
+root_name = "iris-cli"
 
 [[third_party_libraries]]
 package_name = "aho-corasick"
@@ -108,6 +108,219 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "approx"
+package_version = "0.5.1"
+repository = "https://github.com/brendanzab/approx"
+license = "Apache-2.0"
+
+[[third_party_libraries.licenses]]
+license = "Apache-2.0"
+text = """
+\r
+                                 Apache License\r
+                           Version 2.0, January 2004\r
+                        http://www.apache.org/licenses/\r
+\r
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\r
+\r
+   1. Definitions.\r
+\r
+      "License" shall mean the terms and conditions for use, reproduction,\r
+      and distribution as defined by Sections 1 through 9 of this document.\r
+\r
+      "Licensor" shall mean the copyright owner or entity authorized by\r
+      the copyright owner that is granting the License.\r
+\r
+      "Legal Entity" shall mean the union of the acting entity and all\r
+      other entities that control, are controlled by, or are under common\r
+      control with that entity. For the purposes of this definition,\r
+      "control" means (i) the power, direct or indirect, to cause the\r
+      direction or management of such entity, whether by contract or\r
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the\r
+      outstanding shares, or (iii) beneficial ownership of such entity.\r
+\r
+      "You" (or "Your") shall mean an individual or Legal Entity\r
+      exercising permissions granted by this License.\r
+\r
+      "Source" form shall mean the preferred form for making modifications,\r
+      including but not limited to software source code, documentation\r
+      source, and configuration files.\r
+\r
+      "Object" form shall mean any form resulting from mechanical\r
+      transformation or translation of a Source form, including but\r
+      not limited to compiled object code, generated documentation,\r
+      and conversions to other media types.\r
+\r
+      "Work" shall mean the work of authorship, whether in Source or\r
+      Object form, made available under the License, as indicated by a\r
+      copyright notice that is included in or attached to the work\r
+      (an example is provided in the Appendix below).\r
+\r
+      "Derivative Works" shall mean any work, whether in Source or Object\r
+      form, that is based on (or derived from) the Work and for which the\r
+      editorial revisions, annotations, elaborations, or other modifications\r
+      represent, as a whole, an original work of authorship. For the purposes\r
+      of this License, Derivative Works shall not include works that remain\r
+      separable from, or merely link (or bind by name) to the interfaces of,\r
+      the Work and Derivative Works thereof.\r
+\r
+      "Contribution" shall mean any work of authorship, including\r
+      the original version of the Work and any modifications or additions\r
+      to that Work or Derivative Works thereof, that is intentionally\r
+      submitted to Licensor for inclusion in the Work by the copyright owner\r
+      or by an individual or Legal Entity authorized to submit on behalf of\r
+      the copyright owner. For the purposes of this definition, "submitted"\r
+      means any form of electronic, verbal, or written communication sent\r
+      to the Licensor or its representatives, including but not limited to\r
+      communication on electronic mailing lists, source code control systems,\r
+      and issue tracking systems that are managed by, or on behalf of, the\r
+      Licensor for the purpose of discussing and improving the Work, but\r
+      excluding communication that is conspicuously marked or otherwise\r
+      designated in writing by the copyright owner as "Not a Contribution."\r
+\r
+      "Contributor" shall mean Licensor and any individual or Legal Entity\r
+      on behalf of whom a Contribution has been received by Licensor and\r
+      subsequently incorporated within the Work.\r
+\r
+   2. Grant of Copyright License. Subject to the terms and conditions of\r
+      this License, each Contributor hereby grants to You a perpetual,\r
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\r
+      copyright license to reproduce, prepare Derivative Works of,\r
+      publicly display, publicly perform, sublicense, and distribute the\r
+      Work and such Derivative Works in Source or Object form.\r
+\r
+   3. Grant of Patent License. Subject to the terms and conditions of\r
+      this License, each Contributor hereby grants to You a perpetual,\r
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\r
+      (except as stated in this section) patent license to make, have made,\r
+      use, offer to sell, sell, import, and otherwise transfer the Work,\r
+      where such license applies only to those patent claims licensable\r
+      by such Contributor that are necessarily infringed by their\r
+      Contribution(s) alone or by combination of their Contribution(s)\r
+      with the Work to which such Contribution(s) was submitted. If You\r
+      institute patent litigation against any entity (including a\r
+      cross-claim or counterclaim in a lawsuit) alleging that the Work\r
+      or a Contribution incorporated within the Work constitutes direct\r
+      or contributory patent infringement, then any patent licenses\r
+      granted to You under this License for that Work shall terminate\r
+      as of the date such litigation is filed.\r
+\r
+   4. Redistribution. You may reproduce and distribute copies of the\r
+      Work or Derivative Works thereof in any medium, with or without\r
+      modifications, and in Source or Object form, provided that You\r
+      meet the following conditions:\r
+\r
+      (a) You must give any other recipients of the Work or\r
+          Derivative Works a copy of this License; and\r
+\r
+      (b) You must cause any modified files to carry prominent notices\r
+          stating that You changed the files; and\r
+\r
+      (c) You must retain, in the Source form of any Derivative Works\r
+          that You distribute, all copyright, patent, trademark, and\r
+          attribution notices from the Source form of the Work,\r
+          excluding those notices that do not pertain to any part of\r
+          the Derivative Works; and\r
+\r
+      (d) If the Work includes a "NOTICE" text file as part of its\r
+          distribution, then any Derivative Works that You distribute must\r
+          include a readable copy of the attribution notices contained\r
+          within such NOTICE file, excluding those notices that do not\r
+          pertain to any part of the Derivative Works, in at least one\r
+          of the following places: within a NOTICE text file distributed\r
+          as part of the Derivative Works; within the Source form or\r
+          documentation, if provided along with the Derivative Works; or,\r
+          within a display generated by the Derivative Works, if and\r
+          wherever such third-party notices normally appear. The contents\r
+          of the NOTICE file are for informational purposes only and\r
+          do not modify the License. You may add Your own attribution\r
+          notices within Derivative Works that You distribute, alongside\r
+          or as an addendum to the NOTICE text from the Work, provided\r
+          that such additional attribution notices cannot be construed\r
+          as modifying the License.\r
+\r
+      You may add Your own copyright statement to Your modifications and\r
+      may provide additional or different license terms and conditions\r
+      for use, reproduction, or distribution of Your modifications, or\r
+      for any such Derivative Works as a whole, provided Your use,\r
+      reproduction, and distribution of the Work otherwise complies with\r
+      the conditions stated in this License.\r
+\r
+   5. Submission of Contributions. Unless You explicitly state otherwise,\r
+      any Contribution intentionally submitted for inclusion in the Work\r
+      by You to the Licensor shall be under the terms and conditions of\r
+      this License, without any additional terms or conditions.\r
+      Notwithstanding the above, nothing herein shall supersede or modify\r
+      the terms of any separate license agreement you may have executed\r
+      with Licensor regarding such Contributions.\r
+\r
+   6. Trademarks. This License does not grant permission to use the trade\r
+      names, trademarks, service marks, or product names of the Licensor,\r
+      except as required for reasonable and customary use in describing the\r
+      origin of the Work and reproducing the content of the NOTICE file.\r
+\r
+   7. Disclaimer of Warranty. Unless required by applicable law or\r
+      agreed to in writing, Licensor provides the Work (and each\r
+      Contributor provides its Contributions) on an "AS IS" BASIS,\r
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or\r
+      implied, including, without limitation, any warranties or conditions\r
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A\r
+      PARTICULAR PURPOSE. You are solely responsible for determining the\r
+      appropriateness of using or redistributing the Work and assume any\r
+      risks associated with Your exercise of permissions under this License.\r
+\r
+   8. Limitation of Liability. In no event and under no legal theory,\r
+      whether in tort (including negligence), contract, or otherwise,\r
+      unless required by applicable law (such as deliberate and grossly\r
+      negligent acts) or agreed to in writing, shall any Contributor be\r
+      liable to You for damages, including any direct, indirect, special,\r
+      incidental, or consequential damages of any character arising as a\r
+      result of this License or out of the use or inability to use the\r
+      Work (including but not limited to damages for loss of goodwill,\r
+      work stoppage, computer failure or malfunction, or any and all\r
+      other commercial damages or losses), even if such Contributor\r
+      has been advised of the possibility of such damages.\r
+\r
+   9. Accepting Warranty or Additional Liability. While redistributing\r
+      the Work or Derivative Works thereof, You may choose to offer,\r
+      and charge a fee for, acceptance of support, warranty, indemnity,\r
+      or other liability obligations and/or rights consistent with this\r
+      License. However, in accepting such obligations, You may act only\r
+      on Your own behalf and on Your sole responsibility, not on behalf\r
+      of any other Contributor, and only if You agree to indemnify,\r
+      defend, and hold each Contributor harmless for any liability\r
+      incurred by, or claims asserted against, such Contributor by reason\r
+      of your accepting any such warranty or additional liability.\r
+\r
+   END OF TERMS AND CONDITIONS\r
+\r
+   APPENDIX: How to apply the Apache License to your work.\r
+\r
+      To apply the Apache License to your work, attach the following\r
+      boilerplate notice, with the fields enclosed by brackets "[]"\r
+      replaced with your own identifying information. (Don't include\r
+      the brackets!)  The text should be enclosed in the appropriate\r
+      comment syntax for the file format. We also recommend that a\r
+      file or class name and description of purpose be included on the\r
+      same "printed page" as the copyright notice for easier\r
+      identification within third-party archives.\r
+\r
+   Copyright [yyyy] [name of copyright owner]\r
+\r
+   Licensed under the Apache License, Version 2.0 (the "License");\r
+   you may not use this file except in compliance with the License.\r
+   You may obtain a copy of the License at\r
+\r
+       http://www.apache.org/licenses/LICENSE-2.0\r
+\r
+   Unless required by applicable law or agreed to in writing, software\r
+   distributed under the License is distributed on an "AS IS" BASIS,\r
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\r
+   See the License for the specific language governing permissions and\r
+   limitations under the License.\r
 """
 
 [[third_party_libraries]]
@@ -387,6 +600,42 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "by_address"
+package_version = "1.2.1"
+repository = "https://github.com/mbrubeck/by_address"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2017 Matt Brubeck
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "bytecount"
 package_version = "0.6.9"
 repository = "https://github.com/llogiq/bytecount"
@@ -532,6 +781,38 @@ text = "NOT FOUND"
 
 [[third_party_libraries]]
 package_name = "compact_str"
+package_version = "0.9.1"
+repository = "https://github.com/ParkMyCar/compact_str"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2021 Parker Timmerman
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "compact_str"
 package_version = "0.10.0"
 repository = "https://github.com/ParkMyCar/compact_str"
 license = "MIT"
@@ -561,6 +842,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
+[[third_party_libraries]]
+package_name = "configuration"
+package_version = "0.1.0"
+repository = ""
+license = "No license specified"
+
+[[third_party_libraries.licenses]]
+license = "No license specified"
+text = "NOT FOUND"
 
 [[third_party_libraries]]
 package_name = "console"
@@ -594,6 +885,37 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 """
+
+[[third_party_libraries]]
+package_name = "convert_case"
+package_version = "0.10.0"
+repository = "https://github.com/rutrum/convert-case"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2025 rutrum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."""
 
 [[third_party_libraries]]
 package_name = "cow-utils"
@@ -742,6 +1064,166 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "crossterm"
+package_version = "0.29.0"
+repository = "https://github.com/crossterm-rs/crossterm"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License\r
+\r
+Copyright (c) 2019 Timon\r
+\r
+Permission is hereby granted, free of charge, to any person obtaining a copy\r
+of this software and associated documentation files (the "Software"), to deal\r
+in the Software without restriction, including without limitation the rights\r
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r
+copies of the Software, and to permit persons to whom the Software is\r
+furnished to do so, subject to the following conditions:\r
+\r
+The above copyright notice and this permission notice shall be included in all\r
+copies or substantial portions of the Software.\r
+\r
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r
+SOFTWARE.\r
+"""
+
+[[third_party_libraries]]
+package_name = "crossterm_winapi"
+package_version = "0.9.1"
+repository = "https://github.com/crossterm-rs/crossterm-winapi"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License\r
+\r
+Copyright (c) 2019 Timon\r
+\r
+Permission is hereby granted, free of charge, to any person obtaining a copy\r
+of this software and associated documentation files (the "Software"), to deal\r
+in the Software without restriction, including without limitation the rights\r
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r
+copies of the Software, and to permit persons to whom the Software is\r
+furnished to do so, subject to the following conditions:\r
+\r
+The above copyright notice and this permission notice shall be included in all\r
+copies or substantial portions of the Software.\r
+\r
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r
+SOFTWARE.\r
+"""
+
+[[third_party_libraries]]
+package_name = "darling"
+package_version = "0.24.1"
+repository = "https://github.com/TedDriggs/darling"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2017 Ted Driggs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "darling_core"
+package_version = "0.24.1"
+repository = "https://github.com/TedDriggs/darling"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2017 Ted Driggs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "darling_macro"
+package_version = "0.24.1"
+repository = "https://github.com/TedDriggs/darling"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2017 Ted Driggs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "defmt"
 package_version = "1.1.1"
 repository = "https://github.com/knurling-rs/defmt"
@@ -822,6 +1304,100 @@ license = "MIT"
 text = "NOT FOUND"
 
 [[third_party_libraries]]
+package_name = "deranged"
+package_version = "0.5.8"
+repository = "https://github.com/jhpratt/deranged"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2024 Jacob Pratt et al.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "derive_more"
+package_version = "2.1.1"
+repository = "https://github.com/JelteF/derive_more"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016 Jelte Fennema
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "derive_more-impl"
+package_version = "2.1.1"
+repository = "https://github.com/JelteF/derive_more"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016 Jelte Fennema
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "diagnostics"
 package_version = "0.1.0"
 repository = ""
@@ -866,14 +1442,34 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
-package_name = "documentation"
-package_version = "0.1.0"
-repository = ""
-license = "No license specified"
+package_name = "document-features"
+package_version = "0.2.12"
+repository = "https://github.com/slint-ui/document-features"
+license = "MIT"
 
 [[third_party_libraries.licenses]]
-license = "No license specified"
-text = "NOT FOUND"
+license = "MIT"
+text = """
+Copyright (c) 2020 Olivier Goffart <ogoffart@sixtyfps.io>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
 
 [[third_party_libraries]]
 package_name = "documenting"
@@ -2211,6 +2807,42 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "heck"
+package_version = "0.5.0"
+repository = "https://github.com/withoutboats/heck"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2015 The Rust Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "icu_collections"
 package_version = "2.3.0"
 repository = "https://github.com/unicode-org/icu4x"
@@ -2610,6 +3242,36 @@ ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation a
 """
 
 [[third_party_libraries]]
+package_name = "ident_case"
+package_version = "1.0.1"
+repository = "https://github.com/TedDriggs/ident_case"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "idna"
 package_version = "1.1.0"
 repository = "https://github.com/servo/rust-url/"
@@ -2760,36 +3422,37 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
-package_name = "indicatif"
-package_version = "0.18.6"
-repository = "https://github.com/console-rs/indicatif"
+package_name = "indoc"
+package_version = "2.0.7"
+repository = "https://github.com/dtolnay/indoc"
 license = "MIT"
 
 [[third_party_libraries.licenses]]
 license = "MIT"
 text = """
-The MIT License (MIT)
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
 
-Copyright (c) 2017 Armin Ronacher <armin.ronacher@active-4.com>
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
@@ -2840,6 +3503,39 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE."""
 
 [[third_party_libraries]]
+package_name = "instability"
+package_version = "0.3.13"
+repository = "https://github.com/ratatui/instability"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+# MIT License
+
+Copyright (c) 2020 Stephen M. Coakley
+Copyright (c) The Ratatui Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "interner"
 package_version = "0.1.0"
 repository = ""
@@ -2848,6 +3544,252 @@ license = "No license specified"
 [[third_party_libraries.licenses]]
 license = "No license specified"
 text = "NOT FOUND"
+
+[[third_party_libraries]]
+package_name = "iris-build"
+package_version = "0.1.0"
+repository = "https://github.com/purefunctor/purescript-iris"
+license = "BSD-3-Clause"
+
+[[third_party_libraries.licenses]]
+license = "BSD-3-Clause"
+text = """
+BSD 3-Clause License
+
+Copyright (c) 2023, purefunctor
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Additional license information can be found in the ACKNOWLEDGEMENTS.md file.
+"""
+
+[[third_party_libraries]]
+package_name = "iris-lsp"
+package_version = "0.1.0"
+repository = "https://github.com/purefunctor/purescript-iris"
+license = "BSD-3-Clause"
+
+[[third_party_libraries.licenses]]
+license = "BSD-3-Clause"
+text = """
+BSD 3-Clause License
+
+Copyright (c) 2023, purefunctor
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Additional license information can be found in the ACKNOWLEDGEMENTS.md file.
+"""
+
+[[third_party_libraries]]
+package_name = "iris-package"
+package_version = "0.1.0"
+repository = "https://github.com/purefunctor/purescript-iris"
+license = "BSD-3-Clause"
+
+[[third_party_libraries.licenses]]
+license = "BSD-3-Clause"
+text = """
+BSD 3-Clause License
+
+Copyright (c) 2023, purefunctor
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Additional license information can be found in the ACKNOWLEDGEMENTS.md file.
+"""
+
+[[third_party_libraries]]
+package_name = "iris-progress"
+package_version = "0.1.0"
+repository = "https://github.com/purefunctor/purescript-iris"
+license = "BSD-3-Clause"
+
+[[third_party_libraries.licenses]]
+license = "BSD-3-Clause"
+text = """
+BSD 3-Clause License
+
+Copyright (c) 2023, purefunctor
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Additional license information can be found in the ACKNOWLEDGEMENTS.md file.
+"""
+
+[[third_party_libraries]]
+package_name = "iris-watch"
+package_version = "0.1.0"
+repository = "https://github.com/purefunctor/purescript-iris"
+license = "BSD-3-Clause"
+
+[[third_party_libraries.licenses]]
+license = "BSD-3-Clause"
+text = """
+BSD 3-Clause License
+
+Copyright (c) 2023, purefunctor
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Additional license information can be found in the ACKNOWLEDGEMENTS.md file.
+"""
+
+[[third_party_libraries]]
+package_name = "itertools"
+package_version = "0.14.0"
+repository = "https://github.com/rust-itertools/itertools"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2015
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
 
 [[third_party_libraries]]
 package_name = "itertools"
@@ -3123,6 +4065,39 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "kasuari"
+package_version = "0.4.12"
+repository = "https://github.com/ratatui/kasuari"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016 Dylan Ede
+Copyright (c) 2024 Josh McKinney
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
 
 [[third_party_libraries]]
@@ -3581,6 +4556,38 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "line-clipping"
+package_version = "0.3.8"
+repository = "https://github.com/ratatui/line-clipping"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2024 Josh McKinney
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "line-index"
 package_version = "0.1.2"
 repository = "https://github.com/rust-lang/rust-analyzer/tree/master/lib/line-index"
@@ -3682,6 +4689,42 @@ ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation a
 """
 
 [[third_party_libraries]]
+package_name = "litrs"
+package_version = "1.0.0"
+repository = "https://github.com/LukasKalbertodt/litrs"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2020 Project Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "lock_api"
 package_version = "0.4.14"
 repository = "https://github.com/Amanieu/parking_lot"
@@ -3762,6 +4805,37 @@ license = "No license specified"
 [[third_party_libraries.licenses]]
 license = "No license specified"
 text = "NOT FOUND"
+
+[[third_party_libraries]]
+package_name = "lru"
+package_version = "0.18.4"
+repository = "https://github.com/jeromefroe/lru-rs.git"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2016 Jerome Froelich
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE."""
 
 [[third_party_libraries]]
 package_name = "lsp-types"
@@ -4064,6 +5138,36 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "num-conv"
+package_version = "0.2.2"
+repository = "https://github.com/jhpratt/num-conv"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) Jacob Pratt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "num-integer"
 package_version = "0.1.47"
 repository = "https://github.com/rust-num/num-integer"
@@ -4133,6 +5237,36 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "num_threads"
+package_version = "0.1.7"
+repository = "https://github.com/jhpratt/num_threads"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2021 Jacob Pratt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
 
 [[third_party_libraries]]
@@ -4328,6 +5462,105 @@ license = "MIT"
 [[third_party_libraries.licenses]]
 license = "MIT"
 text = "NOT FOUND"
+
+[[third_party_libraries]]
+package_name = "palette"
+package_version = "0.7.7"
+repository = "https://github.com/Ogeon/palette"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2015 Erik Hedvall
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
+
+[[third_party_libraries]]
+package_name = "palette_derive"
+package_version = "0.7.7"
+repository = "https://github.com/Ogeon/palette"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2015 Erik Hedvall
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
+
+[[third_party_libraries]]
+package_name = "palette_math"
+package_version = "0.7.7"
+repository = "https://github.com/Ogeon/palette"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2015 Erik Hedvall
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+"""
 
 [[third_party_libraries]]
 package_name = "papaya"
@@ -4895,6 +6128,36 @@ ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation a
 """
 
 [[third_party_libraries]]
+package_name = "powerfmt"
+package_version = "0.2.0"
+repository = "https://github.com/jhpratt/powerfmt"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2023 Jacob Pratt et al.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "pretty"
 package_version = "0.12.5"
 repository = "https://github.com/Marwes/pretty.rs"
@@ -5079,6 +6342,138 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "ratatui"
+package_version = "0.30.2"
+repository = "https://github.com/ratatui/ratatui"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016-2022 Florian Dehau
+Copyright (c) 2023-2025 The Ratatui Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "ratatui-core"
+package_version = "0.1.2"
+repository = "https://github.com/ratatui/ratatui"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016-2022 Florian Dehau
+Copyright (c) 2023-2025 The Ratatui Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "ratatui-crossterm"
+package_version = "0.1.2"
+repository = "https://github.com/ratatui/ratatui"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016-2022 Florian Dehau
+Copyright (c) 2023-2025 The Ratatui Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "ratatui-widgets"
+package_version = "0.3.2"
+repository = "https://github.com/ratatui/ratatui"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+The MIT License (MIT)
+
+Copyright (c) 2016-2022 Florian Dehau
+Copyright (c) 2023-2025 The Ratatui Developers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
 
 [[third_party_libraries]]
@@ -6169,6 +7564,78 @@ THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "signal-hook"
+package_version = "0.3.18"
+repository = "https://github.com/vorner/signal-hook"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2017 tokio-jsonrpc developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "signal-hook-mio"
+package_version = "0.2.5"
+repository = "https://github.com/vorner/signal-hook"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2017 tokio-jsonrpc developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "signal-hook-registry"
 package_version = "1.4.8"
 repository = "https://github.com/vorner/signal-hook"
@@ -6550,6 +8017,70 @@ SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "strum"
+package_version = "0.28.0"
+repository = "https://github.com/Peternator7/strum"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2019 Peter Glotfelty
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "strum_macros"
+package_version = "0.28.0"
+repository = "https://github.com/Peternator7/strum"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+MIT License
+
+Copyright (c) 2019 Peter Glotfelty
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "sugar"
 package_version = "0.1.0"
 repository = ""
@@ -6890,38 +8421,6 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
-package_name = "termcolor"
-package_version = "1.4.1"
-repository = "https://github.com/BurntSushi/termcolor"
-license = "MIT"
-
-[[third_party_libraries.licenses]]
-license = "MIT"
-text = """
-The MIT License (MIT)
-
-Copyright (c) 2015 Andrew Gallant
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-"""
-
-[[third_party_libraries]]
 package_name = "terminal-colorsaurus"
 package_version = "1.0.3"
 repository = "https://github.com/tautropfli/terminal-colorsaurus"
@@ -7153,6 +8652,66 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "time"
+package_version = "0.3.55"
+repository = "https://github.com/time-rs/time"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) Jacob Pratt et al.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
+[[third_party_libraries]]
+package_name = "time-core"
+package_version = "0.1.9"
+repository = "https://github.com/time-rs/time"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) Jacob Pratt et al.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 """
 
 [[third_party_libraries]]
@@ -7596,26 +9155,6 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
-
-[[third_party_libraries]]
-package_name = "ts-rs"
-package_version = "12.0.1"
-repository = "https://github.com/Aleph-Alpha/ts-rs"
-license = "MIT"
-
-[[third_party_libraries.licenses]]
-license = "MIT"
-text = "NOT FOUND"
-
-[[third_party_libraries]]
-package_name = "ts-rs-macros"
-package_version = "12.0.1"
-repository = "https://github.com/Aleph-Alpha/ts-rs"
-license = "MIT"
-
-[[third_party_libraries.licenses]]
-license = "MIT"
-text = "NOT FOUND"
 
 [[third_party_libraries]]
 package_name = "typed-arena"
@@ -8416,6 +9955,42 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
+package_name = "unicode-truncate"
+package_version = "2.0.1"
+repository = "https://github.com/Aetf/unicode-truncate"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = """
+Copyright (c) 2019 Aetf <aetf at unlimitedcodeworks dot xyz>
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+"""
+
+[[third_party_libraries]]
 package_name = "unicode-width"
 package_version = "0.2.2"
 repository = "https://github.com/unicode-rs/unicode-width"
@@ -8461,38 +10036,6 @@ license = "MIT"
 license = "MIT"
 text = """
 Copyright (c) 2015 The unicode-categories Developers
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
-[[third_party_libraries]]
-package_name = "unit-prefix"
-package_version = "0.5.2"
-repository = "https://codeberg.org/commons-rs/unit-prefix"
-license = "MIT"
-
-[[third_party_libraries.licenses]]
-license = "MIT"
-text = """
-MIT License
-
-Copyright (c) 2024 Benjamin Sago, Fabio Valentini
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -8852,17 +10395,15 @@ DEALINGS IN THE SOFTWARE.
 """
 
 [[third_party_libraries]]
-package_name = "web-time"
-package_version = "1.1.0"
-repository = "https://github.com/daxpedda/web-time"
+package_name = "winapi"
+package_version = "0.3.9"
+repository = "https://github.com/retep998/winapi-rs"
 license = "MIT"
 
 [[third_party_libraries.licenses]]
 license = "MIT"
 text = """
-MIT License
-
-Copyright (c) 2023 dAxpeDDa
+Copyright (c) 2015-2018 The winapi-rs Developers
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -8882,6 +10423,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
+[[third_party_libraries]]
+package_name = "winapi-i686-pc-windows-gnu"
+package_version = "0.4.0"
+repository = "https://github.com/retep998/winapi-rs"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = "NOT FOUND"
 
 [[third_party_libraries]]
 package_name = "winapi-util"
@@ -8914,6 +10465,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
+[[third_party_libraries]]
+package_name = "winapi-x86_64-pc-windows-gnu"
+package_version = "0.4.0"
+repository = "https://github.com/retep998/winapi-rs"
+license = "MIT"
+
+[[third_party_libraries.licenses]]
+license = "MIT"
+text = "NOT FOUND"
 
 [[third_party_libraries]]
 package_name = "windows-link"

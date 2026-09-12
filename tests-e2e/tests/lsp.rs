@@ -27,7 +27,7 @@ use url::Url;
 #[path = "support.rs"]
 mod support;
 
-use support::{IrisExecutable, TestWorkspace};
+use support::TestWorkspace;
 
 struct ClientState {
     configuration: Mutex<Option<Value>>,
@@ -50,14 +50,12 @@ struct LanguageServer {
 impl LanguageServer {
     fn start(
         workspace: &TestWorkspace,
-        executable: IrisExecutable,
         directory: &str,
         arguments: &[&str],
         root: &Path,
     ) -> LanguageServer {
         LanguageServer::start_with_capabilities(
             workspace,
-            executable,
             directory,
             arguments,
             root,
@@ -68,7 +66,6 @@ impl LanguageServer {
 
     fn start_with_capabilities(
         workspace: &TestWorkspace,
-        executable: IrisExecutable,
         directory: &str,
         arguments: &[&str],
         root: &Path,
@@ -132,7 +129,7 @@ impl LanguageServer {
         });
 
         let runtime = Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
-        let command = workspace.command_builder_for(executable, directory, &arguments);
+        let command = workspace.command_builder(directory, &arguments);
         let mut command = tokio::process::Command::from(command);
         command
             .stdin(Stdio::piped())
@@ -166,7 +163,7 @@ impl LanguageServer {
                 }),
             )
             .await
-            .expect("timed out waiting for initialize response")
+            .expect("invariant violated: timed out waiting for initialize response")
             .unwrap()
         });
         assert_ne!(result.capabilities, Default::default());
@@ -318,7 +315,7 @@ impl LanguageServer {
         self.runtime.block_on(async {
             timeout(Duration::from_secs(10), self.server.shutdown(()))
                 .await
-                .expect("timed out waiting for shutdown response")
+                .expect("invariant violated: timed out waiting for shutdown response")
                 .unwrap();
         });
         self.server.exit(()).unwrap();
@@ -326,7 +323,7 @@ impl LanguageServer {
         let mainloop = self
             .runtime
             .block_on(async { timeout(Duration::from_secs(10), mainloop).await })
-            .expect("timed out stopping language client")
+            .expect("invariant violated: timed out stopping language client")
             .unwrap();
         match mainloop {
             Ok(()) | Err(Error::Eof) => {}
@@ -335,7 +332,7 @@ impl LanguageServer {
         let status = self
             .runtime
             .block_on(async { timeout(Duration::from_secs(10), self.child.wait()).await })
-            .expect("timed out stopping language server")
+            .expect("invariant violated: timed out stopping language server")
             .unwrap();
         let unexpected_requests = self.client.unexpected_requests.lock().unwrap();
         assert!(
@@ -400,53 +397,48 @@ fn assert_diagnostic_triggers_for(
 
 #[test]
 fn empty_configuration_preserves_spago_and_default_diagnostics() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write(
-            "spago.lock",
-            r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
-        );
-        workspace.write("src/Library.purs", "module Library where\nfromSpago = 42\n");
-        workspace.write("config/empty.json", "{}");
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+    );
+    workspace.write("src/Library.purs", "module Library where\nfromSpago = 42\n");
+    workspace.write("config/empty.json", "{}");
 
-        let cases: &[&[&str]] = &[
-            &["lsp"],
-            &["lsp", "--stdio"],
-            &["lsp", "--config", "null"],
-            &["lsp", "--config-file", "config/empty.json"],
-            &[
-                "lsp",
-                "--config",
-                r#"{"sources":{"kind":"spago"},"diagnostics":{"onOpen":null,"onSave":null,"onChange":null}}"#,
-            ],
-        ];
-        for arguments in cases {
-            let mut server =
-                LanguageServer::start(&workspace, executable, "", arguments, workspace.path());
-            let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
-            assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
-            assert_eq!(symbols[0]["name"], "fromSpago");
-            assert_diagnostic_triggers(&mut server, workspace.path(), true, true, false);
-            server.shutdown();
-        }
+    let cases: &[&[&str]] = &[
+        &["lsp"],
+        &["lsp", "--stdio"],
+        &["lsp", "--config", "null"],
+        &["lsp", "--config-file", "config/empty.json"],
+        &[
+            "lsp",
+            "--config",
+            r#"{"sources":{"kind":"spago"},"diagnostics":{"onOpen":null,"onSave":null,"onChange":null}}"#,
+        ],
+    ];
+    for arguments in cases {
+        let mut server = LanguageServer::start(&workspace, "", arguments, workspace.path());
+        let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
+        assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+        assert_eq!(symbols[0]["name"], "fromSpago");
+        assert_diagnostic_triggers(&mut server, workspace.path(), true, true, false);
+        server.shutdown();
     }
 }
 
 #[test]
 fn json_inputs_configure_source_commands_and_diagnostic_triggers() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace
-            .write("project/selected/Library.purs", "module Library where\nfromCommand = 42\n");
-        workspace.write(
-            "launcher/source command.mjs",
-            r#"
+    let workspace = TestWorkspace::empty();
+    workspace.write("project/selected/Library.purs", "module Library where\nfromCommand = 42\n");
+    workspace.write(
+        "launcher/source command.mjs",
+        r#"
 import { writeFileSync } from "node:fs";
 writeFileSync("arguments.json", JSON.stringify(process.argv.slice(2)));
 console.log("selected/*.purs");
 "#,
-        );
-        let configuration = json!({
+    );
+    let configuration = json!({
         "sources": {
             "kind": "command",
             "program": "node",
@@ -454,193 +446,175 @@ console.log("selected/*.purs");
         },
         "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
     }).to_string();
-        let absolute_path = workspace.path().join("settings/server config.json");
-        let root = workspace.path().join("project");
-        let cases: &[&[&str]] = &[
-            &["lsp", "--config", &configuration],
-            &["lsp", "--config-file", "../settings/server config.json"],
-            &["lsp", "--config-file", absolute_path.to_str().unwrap()],
-        ];
-        for arguments in cases {
-            workspace.write("settings/server config.json", &configuration);
-            let mut server =
-                LanguageServer::start(&workspace, executable, "launcher", arguments, &root);
-            workspace.write("settings/server config.json", "invalid after startup");
-            let symbols = server.request("workspace/symbol", json!({"query": "fromCommand"}));
-            assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
-            assert_eq!(symbols[0]["name"], "fromCommand");
-            let expected_uri = Url::from_file_path(root.join("selected/Library.purs")).unwrap();
-            assert_eq!(symbols[0]["location"]["uri"], expected_uri.as_str());
-            let arguments: Value =
-                serde_json::from_str(&workspace.read("launcher/arguments.json")).unwrap();
-            assert_eq!(arguments, json!(["", "path with spaces", "--flag", "λ", "$(not-a-shell)"]));
-            assert_diagnostic_triggers(&mut server, &root, false, false, true);
-            server.shutdown();
-        }
+    let absolute_path = workspace.path().join("settings/server config.json");
+    let root = workspace.path().join("project");
+    let cases: &[&[&str]] = &[
+        &["lsp", "--config", &configuration],
+        &["lsp", "--config-file", "../settings/server config.json"],
+        &["lsp", "--config-file", absolute_path.to_str().unwrap()],
+    ];
+    for arguments in cases {
+        workspace.write("settings/server config.json", &configuration);
+        let mut server = LanguageServer::start(&workspace, "launcher", arguments, &root);
+        workspace.write("settings/server config.json", "invalid after startup");
+        let symbols = server.request("workspace/symbol", json!({"query": "fromCommand"}));
+        assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+        assert_eq!(symbols[0]["name"], "fromCommand");
+        let expected_uri = Url::from_file_path(root.join("selected/Library.purs")).unwrap();
+        assert_eq!(symbols[0]["location"]["uri"], expected_uri.as_str());
+        let arguments: Value =
+            serde_json::from_str(&workspace.read("launcher/arguments.json")).unwrap();
+        assert_eq!(arguments, json!(["", "path with spaces", "--flag", "λ", "$(not-a-shell)"]));
+        assert_diagnostic_triggers(&mut server, &root, false, false, true);
+        server.shutdown();
     }
 }
 
 #[test]
 fn partial_diagnostic_configuration_preserves_omitted_triggers() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write("spago.lock", r#"{"workspace":{"packages":{}},"packages":{}}"#);
-        let mut server = LanguageServer::start(
-            &workspace,
-            executable,
-            "",
-            &["lsp", "--config", r#"{"diagnostics":{"onOpen":false}}"#],
-            workspace.path(),
-        );
-        assert_diagnostic_triggers(&mut server, workspace.path(), false, true, false);
-        server.shutdown();
-    }
+    let workspace = TestWorkspace::empty();
+    workspace.write("spago.lock", r#"{"workspace":{"packages":{}},"packages":{}}"#);
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", r#"{"diagnostics":{"onOpen":false}}"#],
+        workspace.path(),
+    );
+    assert_diagnostic_triggers(&mut server, workspace.path(), false, true, false);
+    server.shutdown();
 }
 
 #[test]
 fn workspace_configuration_applies_initial_and_runtime_snapshots() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write("project/startup/Library.purs", "module Library where\nfromStartup = 1\n");
-        workspace.write("project/runtime/Library.purs", "module Library where\nfromRuntime = 2\n");
-        workspace.write("launcher/startup.mjs", "console.log('../project/startup/*.purs');\n");
-        workspace.write("launcher/runtime.mjs", "console.log('../project/runtime/*.purs');\n");
-        let startup =
-            r#"{"sources":{"kind":"command","program":"node","arguments":["startup.mjs"]}}"#;
-        let runtime = json!({
-            "sources": {"kind": "command", "program": "node", "arguments": ["runtime.mjs"]},
-            "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
-        });
-        let root = workspace.path().join("project");
-        let mut server = LanguageServer::start_with_capabilities(
-            &workspace,
-            executable,
-            "launcher",
-            &["lsp", "--config", startup],
-            &root,
-            json!({"workspace": {"configuration": true}}),
-            Some(runtime),
-        );
+    let workspace = TestWorkspace::empty();
+    workspace.write("project/startup/Library.purs", "module Library where\nfromStartup = 1\n");
+    workspace.write("project/runtime/Library.purs", "module Library where\nfromRuntime = 2\n");
+    workspace.write("launcher/startup.mjs", "console.log('../project/startup/*.purs');\n");
+    workspace.write("launcher/runtime.mjs", "console.log('../project/runtime/*.purs');\n");
+    let startup = r#"{"sources":{"kind":"command","program":"node","arguments":["startup.mjs"]}}"#;
+    let runtime = json!({
+        "sources": {"kind": "command", "program": "node", "arguments": ["runtime.mjs"]},
+        "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
+    });
+    let root = workspace.path().join("project");
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "launcher",
+        &["lsp", "--config", startup],
+        &root,
+        json!({"workspace": {"configuration": true}}),
+        Some(runtime),
+    );
 
-        server.wait_for_symbol("fromRuntime", true);
-        server.wait_for_symbol("fromStartup", false);
-        assert_diagnostic_triggers(&mut server, &root, false, false, true);
-        let runtime_uri = Url::from_file_path(root.join("runtime/Library.purs")).unwrap();
-        server.notify(
-            "textDocument/didOpen",
-            json!({
-                "textDocument": {
-                    "uri": runtime_uri,
-                    "languageId": "purescript",
-                    "version": 1,
-                    "text": "module Library where\nunsavedRuntime = 3\n"
-                }
-            }),
-        );
-        server.wait_for_symbol("unsavedRuntime", true);
+    server.wait_for_symbol("fromRuntime", true);
+    server.wait_for_symbol("fromStartup", false);
+    assert_diagnostic_triggers(&mut server, &root, false, false, true);
+    let runtime_uri = Url::from_file_path(root.join("runtime/Library.purs")).unwrap();
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": runtime_uri,
+                "languageId": "purescript",
+                "version": 1,
+                "text": "module Library where\nunsavedRuntime = 3\n"
+            }
+        }),
+    );
+    server.wait_for_symbol("unsavedRuntime", true);
 
-        server.set_configuration(json!({"diagnostics": {"onOpen": true}}));
-        server.wait_for_symbol("fromStartup", true);
-        server.wait_for_symbol("fromRuntime", false);
-        server.wait_for_symbol("unsavedRuntime", true);
-        server.notify("textDocument/didClose", json!({"textDocument": {"uri": runtime_uri}}));
-        server.wait_for_symbol("unsavedRuntime", false);
-        assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, true, false);
-        assert!(server.client.configuration_requests.load(Ordering::Relaxed) >= 2);
-        server.shutdown();
-    }
+    server.set_configuration(json!({"diagnostics": {"onOpen": true}}));
+    server.wait_for_symbol("fromStartup", true);
+    server.wait_for_symbol("fromRuntime", false);
+    server.wait_for_symbol("unsavedRuntime", true);
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": runtime_uri}}));
+    server.wait_for_symbol("unsavedRuntime", false);
+    assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, true, false);
+    assert!(server.client.configuration_requests.load(Ordering::Relaxed) >= 2);
+    server.shutdown();
 }
 
 #[test]
 fn invalid_runtime_configuration_preserves_the_previous_workspace() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write(
-            "spago.lock",
-            r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
-        );
-        workspace.write("src/Library.purs", "module Library where\nstillLoaded = 42\n");
-        workspace.write(
-            "slow failure.mjs",
-            r#"
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+    );
+    workspace.write("src/Library.purs", "module Library where\nstillLoaded = 42\n");
+    workspace.write(
+        "slow failure.mjs",
+        r#"
 setTimeout(() => {
   process.stderr.write("slow failure\n");
   process.exit(1);
 }, 1000);
 "#,
-        );
-        let mut server = LanguageServer::start_with_capabilities(
-            &workspace,
-            executable,
-            "",
-            &["lsp"],
-            workspace.path(),
-            json!({
-                "workspace": {
-                    "configuration": true,
-                    "didChangeConfiguration": {"dynamicRegistration": true}
-                }
-            }),
-            Some(json!({})),
-        );
-        server.wait_for_symbol("stillLoaded", true);
-
-        server.set_configuration(json!({"diagnostics": {"onOpen": "invalid"}}));
-        let message = server.wait_for_notification("window/showMessage");
-        assert_eq!(message["params"]["type"], 1);
-        assert!(
-            message["params"]["message"]
-                .as_str()
-                .unwrap()
-                .contains("previous Iris settings remain active")
-        );
-        server.wait_for_symbol("stillLoaded", true);
-
-        server.set_configuration(json!({
-            "sources": {
-                "kind": "command",
-                "program": "node",
-                "arguments": ["slow failure.mjs"]
+    );
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({
+            "workspace": {
+                "configuration": true,
+                "didChangeConfiguration": {"dynamicRegistration": true}
             }
-        }));
-        let message = server.wait_for_notification("window/showMessage");
-        assert!(
-            message["params"]["message"]
-                .as_str()
-                .unwrap()
-                .contains("Failed to apply Iris settings")
-        );
-        server.wait_for_symbol("stillLoaded", true);
-        assert!(
-            server
-                .client
-                .registrations
-                .lock()
-                .unwrap()
-                .iter()
-                .any(|registration| registration.method == "workspace/didChangeConfiguration")
-        );
-        server.shutdown();
-    }
+        }),
+        Some(json!({})),
+    );
+    server.wait_for_symbol("stillLoaded", true);
+
+    server.set_configuration(json!({"diagnostics": {"onOpen": "invalid"}}));
+    let message = server.wait_for_notification("window/showMessage");
+    assert_eq!(message["params"]["type"], 1);
+    assert!(
+        message["params"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("previous Iris settings remain active")
+    );
+    server.wait_for_symbol("stillLoaded", true);
+
+    server.set_configuration(json!({
+        "sources": {
+            "kind": "command",
+            "program": "node",
+            "arguments": ["slow failure.mjs"]
+        }
+    }));
+    let message = server.wait_for_notification("window/showMessage");
+    assert!(
+        message["params"]["message"].as_str().unwrap().contains("Failed to apply Iris settings")
+    );
+    server.wait_for_symbol("stillLoaded", true);
+    assert!(
+        server
+            .client
+            .registrations
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|registration| registration.method == "workspace/didChangeConfiguration")
+    );
+    server.shutdown();
 }
 
 #[test]
 fn clients_without_workspace_configuration_keep_startup_settings() {
-    for executable in IrisExecutable::ALL {
-        let workspace = TestWorkspace::empty();
-        workspace.write(
-            "spago.lock",
-            r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
-        );
-        workspace.write("src/Library.purs", "module Library where\nstartupOnly = 42\n");
-        let mut server =
-            LanguageServer::start(&workspace, executable, "", &["lsp"], workspace.path());
-        server.notify(
-            "workspace/didChangeConfiguration",
-            json!({"settings": {"sources": {"kind": "command", "program": "missing"}}}),
-        );
-        server.wait_for_symbol("startupOnly", true);
-        assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
-        server.shutdown();
-    }
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+    );
+    workspace.write("src/Library.purs", "module Library where\nstartupOnly = 42\n");
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    server.notify(
+        "workspace/didChangeConfiguration",
+        json!({"settings": {"sources": {"kind": "command", "program": "missing"}}}),
+    );
+    server.wait_for_symbol("startupOnly", true);
+    assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
+    server.shutdown();
 }

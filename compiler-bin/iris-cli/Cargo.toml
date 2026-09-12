@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Justin Garcia <git@purefunctor.me>"]
 license = "BSD-3-Clause"
-description = "Experimental PureScript compiler command-line interface."
+description = "PureScript compiler command-line interface."
 readme = "../../README.md"
 homepage = "https://github.com/purefunctor/purescript-iris"
 repository = "https://github.com/purefunctor/purescript-iris"
@@ -12,7 +12,7 @@ keywords = ["purescript", "compiler"]
 categories = ["compilers"]
 
 [[bin]]
-name = "iris-v2"
+name = "iris"
 path = "src/bin/iris.rs"
 
 [dependencies]

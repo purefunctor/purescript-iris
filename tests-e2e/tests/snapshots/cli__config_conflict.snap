@@ -6,6 +6,6 @@ status: 2
 --- stderr
 error: the argument '--config' cannot be used with '--config-file'
 
-Usage: iris-v2 lsp [FLAGS]
+Usage: iris lsp [FLAGS]
 
 For more information, try '--help'.

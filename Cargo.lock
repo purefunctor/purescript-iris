@@ -3054,61 +3054,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "purescript-iris"
-version = "0.1.0"
-dependencies = [
- "analyzer",
- "async-lsp",
- "building",
- "checking",
- "configuration",
- "console",
- "diagnostics",
- "documentation",
- "dunce",
- "files",
- "globset",
- "ignore",
- "indexing",
- "indicatif",
- "insta",
- "itertools 0.15.0",
- "javascript",
- "jiff",
- "line-index",
- "lowering",
- "lsp-types",
- "notify",
- "parking_lot",
- "path-absolutize",
- "petgraph",
- "prim-constants",
- "radix_trie",
- "ratatui",
- "rayon",
- "resolving",
- "rustc-hash",
- "serde",
- "serde_json",
- "serde_yml",
- "smol_str",
- "spago",
- "stabilizing",
- "tempfile",
- "terminal-colorsaurus",
- "thiserror",
- "tokio",
- "tokio-util",
- "tower",
- "tracing",
- "tracing-subscriber",
- "ts-rs",
- "url",
- "usage-rs",
- "walkdir",
-]
-
-[[package]]
 name = "quinn"
 version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4203,7 +4148,6 @@ dependencies = [
  "iris-cli",
  "itertools 0.15.0",
  "lsp-types",
- "purescript-iris",
  "regex",
  "serde_json",
  "tempfile",
@@ -4374,7 +4318,6 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",

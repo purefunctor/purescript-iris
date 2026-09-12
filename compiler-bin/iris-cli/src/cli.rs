@@ -15,7 +15,7 @@ use crate::logging::LoggingFilters;
 
 #[derive(Debug, usage::Cli)]
 #[usage(
-    bin = "iris-v2",
+    bin = "iris",
     about = env!("CARGO_PKG_DESCRIPTION"),
     version = crate::VERSION,
     unknown_flags = "error",
@@ -298,7 +298,7 @@ impl Program {
                 std::process::exit(0);
             }
             Err(usage::Error::Version { .. }) => {
-                println!("iris-v2 {}", crate::VERSION);
+                println!("iris {}", crate::VERSION);
                 std::process::exit(0);
             }
             Err(error) => {
@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn maps_build_options_to_configuration() {
-        let arguments = ["iris-v2", "build", "--quiet", "--no-diagnostics", "--resilient"];
+        let arguments = ["iris", "build", "--quiet", "--no-diagnostics", "--resilient"];
         let arguments = arguments.iter().map(OsStr::new).collect_vec();
         let program = Program::try_parse_from(&arguments).unwrap();
         let Command::Build(options) = program.command else {

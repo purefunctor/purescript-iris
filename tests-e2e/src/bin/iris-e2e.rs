@@ -1,3 +1,3 @@
 fn main() {
-    purescript_iris::run();
+    std::process::exit(iris_cli::run());
 }

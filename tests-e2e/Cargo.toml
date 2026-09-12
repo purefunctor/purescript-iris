@@ -6,8 +6,7 @@ publish = false
 autotests = false
 
 [dependencies]
-purescript-iris = { path = "../compiler-bin" }
-iris-cli = { path = "../compiler-bin-v2/iris-cli" }
+iris-cli = { path = "../compiler-bin/iris-cli" }
 
 [dev-dependencies]
 async-lsp = { version = "0.2.4", features = ["tokio"] }
@@ -24,10 +23,6 @@ url = "2.5.8"
 [[bin]]
 name = "iris-e2e"
 path = "src/bin/iris-e2e.rs"
-
-[[bin]]
-name = "iris-v2-e2e"
-path = "src/bin/iris-v2-e2e.rs"
 
 [[bin]]
 name = "spago-e2e"

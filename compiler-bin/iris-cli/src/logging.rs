@@ -37,7 +37,7 @@ where
 }
 
 pub fn start(filters: LoggingFilters) -> io::Result<()> {
-    let path = std::env::temp_dir().join("iris-v2.log");
+    let path = std::env::temp_dir().join("iris.log");
     let file = fs::OpenOptions::new().create(true).append(true).open(path)?;
 
     let output_filter = filter::Targets::new()
