@@ -5,6 +5,7 @@ members = [
   "compiler-core/*",
   "compiler-frontend/*",
   "compiler-lsp/*",
+  "compiler-progress",
   "compiler-scripts",
   "tests-compatibility",
   "tests-e2e",

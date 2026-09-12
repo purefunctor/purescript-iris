@@ -560,6 +560,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "compiler-progress"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "itertools 0.15.0",
+ "ratatui",
+ "terminal-colorsaurus",
+]
+
+[[package]]
 name = "compiler-scripts"
 version = "0.1.0"
 dependencies = [
