@@ -9,7 +9,7 @@ repository = "https://github.com/purefunctor/purescript-iris"
 
 [dependencies]
 building = { version = "0.1.0", path = "../../compiler-core/building" }
-compiler-progress = { version = "0.1.0", path = "../progress" }
+iris-progress = { version = "0.1.0", path = "../iris-progress" }
 diagnostics = { version = "0.1.0", path = "../../compiler-frontend/diagnostics" }
 dunce = "1.0.5"
 files = { version = "0.1.0", path = "../../compiler-core/files" }

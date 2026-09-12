@@ -560,16 +560,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "compiler-progress"
-version = "0.1.0"
-dependencies = [
- "console",
- "itertools 0.15.0",
- "ratatui",
- "terminal-colorsaurus",
-]
-
-[[package]]
 name = "compiler-scripts"
 version = "0.1.0"
 dependencies = [
@@ -1742,12 +1732,12 @@ name = "iris-build"
 version = "0.1.0"
 dependencies = [
  "building",
- "compiler-progress",
  "diagnostics",
  "dunce",
  "files",
  "globset",
  "ignore",
+ "iris-progress",
  "itertools 0.15.0",
  "javascript",
  "line-index",
@@ -1761,6 +1751,22 @@ dependencies = [
  "thiserror",
  "url",
  "walkdir",
+]
+
+[[package]]
+name = "iris-cli"
+version = "0.1.0"
+dependencies = [
+ "configuration",
+ "iris-build",
+ "iris-lsp",
+ "iris-package",
+ "itertools 0.15.0",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+ "usage-rs",
 ]
 
 [[package]]
@@ -1794,7 +1800,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "iris-package-manager"
+name = "iris-package"
 version = "0.1.0"
 dependencies = [
  "ignore",
@@ -1803,6 +1809,16 @@ dependencies = [
  "serde_yml",
  "spago",
  "thiserror",
+]
+
+[[package]]
+name = "iris-progress"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "itertools 0.15.0",
+ "ratatui",
+ "terminal-colorsaurus",
 ]
 
 [[package]]
@@ -3079,22 +3095,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "purescript-iris-v2"
-version = "0.1.0"
-dependencies = [
- "configuration",
- "iris-build",
- "iris-lsp",
- "iris-package-manager",
- "itertools 0.15.0",
- "serde_json",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "usage-rs",
-]
-
-[[package]]
 name = "quinn"
 version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4186,10 +4186,10 @@ version = "0.1.0"
 dependencies = [
  "async-lsp",
  "insta",
+ "iris-cli",
  "itertools 0.15.0",
  "lsp-types",
  "purescript-iris",
- "purescript-iris-v2",
  "regex",
  "serde_json",
  "tempfile",

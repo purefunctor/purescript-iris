@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::{env, io};
 
-use compiler_progress::ProgressRuntime;
+use iris_progress::ProgressRuntime;
 use itertools::Itertools;
 use thiserror::Error;
 

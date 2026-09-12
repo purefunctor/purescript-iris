@@ -1,5 +1,5 @@
 [package]
-name = "compiler-progress"
+name = "iris-progress"
 version = "0.1.0"
 edition = "2024"
 authors = ["Justin Garcia <git@purefunctor.me>"]

@@ -5,7 +5,7 @@ use std::{env, fs};
 
 use configuration::{Configuration, ConfigurationSettings};
 use iris_build::BuildConfig;
-use iris_package_manager::{AddConfig, NewConfig};
+use iris_package::{AddConfig, NewConfig};
 use itertools::Itertools;
 use thiserror::Error;
 use tracing::level_filters::LevelFilter;

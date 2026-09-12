@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use compiler_progress::{ProgressEvent, ProgressOutcome, ProgressReporter};
+use iris_progress::{ProgressEvent, ProgressOutcome, ProgressReporter};
 
 use std::sync::Mutex;
 

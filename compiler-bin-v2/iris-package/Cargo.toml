@@ -1,5 +1,5 @@
 [package]
-name = "iris-package-manager"
+name = "iris-package"
 version = "0.1.0"
 edition = "2024"
 authors = ["Justin Garcia <git@purefunctor.me>"]
