@@ -19,6 +19,7 @@ const ANIMATION_INTERVAL: Duration = Duration::from_millis(80);
 pub const PACKAGE_HISTORY_LENGTH: usize = 10;
 pub const PROGRESS_REGION_WIDTH: usize = 80;
 pub const PROGRESS_REGION_HEIGHT: u16 = PACKAGE_HISTORY_LENGTH as u16 + 3;
+const WATCH_INPUT_DISPLAY_LIMIT: usize = 4;
 
 type ProgressTerminal = Terminal<CrosstermBackend<io::Stderr>>;
 
@@ -27,6 +28,90 @@ pub enum ProgressOutcome {
     Succeeded,
     Diagnostics,
     Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum WatchOutcome {
+    Succeeded,
+    Diagnostics,
+    Failed,
+    Waiting,
+}
+
+pub struct WatchSummary<'a> {
+    pub timestamp: &'a str,
+    pub initial: bool,
+    pub changed_inputs: &'a [String],
+    pub duration: Duration,
+    pub outcome: WatchOutcome,
+}
+
+pub fn render_watch_summary(summary: WatchSummary<'_>, color: bool) -> String {
+    let timestamp =
+        console::Style::new().cyan().dim().force_styling(color).apply_to(summary.timestamp);
+    let (status, style) = match (summary.initial, summary.outcome) {
+        (true, WatchOutcome::Succeeded) => ("Build succeeded", console::Style::new().green()),
+        (false, WatchOutcome::Succeeded) => ("Rebuild succeeded", console::Style::new().green()),
+        (true, WatchOutcome::Diagnostics) => {
+            ("Build completed with diagnostics", console::Style::new().yellow())
+        }
+        (false, WatchOutcome::Diagnostics) => {
+            ("Rebuild completed with diagnostics", console::Style::new().yellow())
+        }
+        (true, WatchOutcome::Failed) => ("Build failed", console::Style::new().red()),
+        (false, WatchOutcome::Failed) => ("Rebuild failed", console::Style::new().red()),
+        (_, WatchOutcome::Waiting) => {
+            ("No input files; waiting for changes", console::Style::new().cyan())
+        }
+    };
+    let status = style.bold().force_styling(color).apply_to(status);
+    let headline = if summary.outcome == WatchOutcome::Waiting {
+        format!("{timestamp}  {status}")
+    } else {
+        let duration = format_watch_duration(summary.duration);
+        format!("{timestamp}  {status} in {duration}")
+    };
+    if summary.changed_inputs.is_empty() {
+        return headline;
+    }
+
+    let count = summary.changed_inputs.len();
+    let noun = if count == 1 { "input" } else { "inputs" };
+    let action = if summary.initial { "Loaded" } else { "Changed" };
+    let prefix = format!("{action} {count} {noun}: ");
+    let available = PROGRESS_REGION_WIDTH.saturating_sub(10 + measure_text_width(&prefix));
+    let displayed = render_watch_inputs(summary.changed_inputs, available);
+    let details =
+        console::Style::new().dim().force_styling(color).apply_to(format!("{prefix}{displayed}"));
+    format!("{headline}\n          {details}")
+}
+
+fn render_watch_inputs(inputs: &[String], width: usize) -> String {
+    let sanitized = inputs.iter().map(|input| sanitize(input));
+    let sanitized = sanitized.collect_vec();
+    let mut displayed_count = inputs.len().min(WATCH_INPUT_DISPLAY_LIMIT);
+    loop {
+        let mut displayed = sanitized[..displayed_count].join(", ");
+        let omitted = inputs.len() - displayed_count;
+        if omitted > 0 {
+            if !displayed.is_empty() {
+                displayed.push_str(", ");
+            }
+            displayed.push_str(&format!("… +{omitted} more"));
+        }
+        if measure_text_width(&displayed) <= width || displayed_count == 0 {
+            return truncate_str(&displayed, width, "…").into_owned();
+        }
+        displayed_count -= 1;
+    }
+}
+
+fn format_watch_duration(duration: Duration) -> String {
+    if duration >= Duration::from_secs(1) {
+        format!("{:.2} s", duration.as_secs_f64())
+    } else {
+        format!("{:.2} ms", duration.as_secs_f64() * 1_000.0)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -590,6 +675,134 @@ mod tests {
             });
         }
         model
+    }
+
+    #[test]
+    fn watch_summaries_distinguish_builds_rebuilds_and_diagnostics() {
+        let inputs = vec!["Application".to_owned(), "Library".to_owned()];
+        let initial = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:34:56",
+                initial: true,
+                changed_inputs: &inputs,
+                duration: Duration::from_micros(12_500),
+                outcome: WatchOutcome::Succeeded,
+            },
+            false,
+        );
+        let colored_initial = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:34:56",
+                initial: true,
+                changed_inputs: &inputs,
+                duration: Duration::from_micros(12_500),
+                outcome: WatchOutcome::Succeeded,
+            },
+            true,
+        );
+        let rebuilt = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:35:01",
+                initial: false,
+                changed_inputs: &inputs[..1],
+                duration: Duration::from_millis(4),
+                outcome: WatchOutcome::Succeeded,
+            },
+            false,
+        );
+        let failed = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:35:02",
+                initial: false,
+                changed_inputs: &inputs[..1],
+                duration: Duration::from_secs_f64(1.25),
+                outcome: WatchOutcome::Diagnostics,
+            },
+            false,
+        );
+
+        assert_eq!(
+            initial,
+            concat!(
+                "12:34:56  Build succeeded in 12.50 ms\n",
+                "          Loaded 2 inputs: Application, Library"
+            )
+        );
+        assert!(colored_initial.contains("\u{1b}["));
+        assert_eq!(console::strip_ansi_codes(&colored_initial), initial);
+        assert_eq!(
+            rebuilt,
+            "12:35:01  Rebuild succeeded in 4.00 ms\n          Changed 1 input: Application"
+        );
+        assert_eq!(
+            failed,
+            concat!(
+                "12:35:02  Rebuild completed with diagnostics in 1.25 s\n",
+                "          Changed 1 input: Application"
+            )
+        );
+    }
+
+    #[test]
+    fn watch_summaries_limit_and_sanitize_inputs() {
+        let inputs = vec![
+            "First".to_owned(),
+            "Second\nModule".to_owned(),
+            "Third".to_owned(),
+            "Fourth".to_owned(),
+            "Fifth".to_owned(),
+        ];
+        let summary = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:34:56",
+                initial: false,
+                changed_inputs: &inputs,
+                duration: Duration::ZERO,
+                outcome: WatchOutcome::Succeeded,
+            },
+            false,
+        );
+
+        assert_eq!(
+            summary,
+            concat!(
+                "12:34:56  Rebuild succeeded in 0.00 ms\n",
+                "          Changed 5 inputs: First, Second�Module, Third, Fourth, … +1 more"
+            )
+        );
+    }
+
+    #[test]
+    fn watch_summaries_distinguish_waiting_and_operational_failure() {
+        let failed = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:34:56",
+                initial: false,
+                changed_inputs: &[],
+                duration: Duration::from_millis(2),
+                outcome: WatchOutcome::Failed,
+            },
+            false,
+        );
+        let waiting = render_watch_summary(
+            WatchSummary {
+                timestamp: "12:34:57",
+                initial: false,
+                changed_inputs: &["src/Main.purs".to_owned()],
+                duration: Duration::ZERO,
+                outcome: WatchOutcome::Waiting,
+            },
+            false,
+        );
+
+        assert_eq!(failed, "12:34:56  Rebuild failed in 2.00 ms");
+        assert_eq!(
+            waiting,
+            concat!(
+                "12:34:57  No input files; waiting for changes\n",
+                "          Changed 1 input: src/Main.purs"
+            )
+        );
     }
 
     fn render_model(
