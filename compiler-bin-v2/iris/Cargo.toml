@@ -16,6 +16,12 @@ name = "iris-v2"
 path = "src/bin/iris.rs"
 
 [dependencies]
+configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
 iris-build = { version = "0.1.0", path = "../build" }
+iris-lsp = { version = "0.1.0", path = "../lsp" }
 itertools = "0.15.0"
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
 usage = { package = "usage-rs", version = "6.8.0" }

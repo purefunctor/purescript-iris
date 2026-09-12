@@ -1,0 +1,36 @@
+[package]
+name = "iris-lsp"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license = "BSD-3-Clause"
+description = "PureScript language server implementation for Iris."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+analyzer = { version = "0.1.0", path = "../../compiler-lsp/analyzer" }
+async-lsp = { version = "0.2.4", features = ["tokio"] }
+building = { version = "0.1.0", path = "../../compiler-core/building" }
+configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
+dunce = "1.0.5"
+files = { version = "0.1.0", path = "../../compiler-core/files" }
+globset = "0.4.20"
+itertools = "0.15.0"
+lsp-types.workspace = true
+parking_lot = "0.12.5"
+path-absolutize = "4.0.1"
+prim-constants = { version = "0.1.0", path = "../../compiler-core/prim-constants" }
+rustc-hash = "2.1.3"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+spago = { version = "0.1.0", path = "../../compiler-lsp/spago" }
+tempfile = "3.27.0"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["io-std", "macros", "rt", "sync", "time"] }
+tower = "0.5.3"
+tracing = "0.1.44"
+url = "2.5.8"
+walkdir = "2.5.0"
+
+[target.'cfg(not(unix))'.dependencies]
+tokio-util = { version = "0.7.19", features = ["compat"] }

@@ -1764,6 +1764,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-lsp"
+version = "0.1.0"
+dependencies = [
+ "analyzer",
+ "async-lsp",
+ "building",
+ "configuration",
+ "dunce",
+ "files",
+ "globset",
+ "itertools 0.15.0",
+ "lsp-types",
+ "parking_lot",
+ "path-absolutize",
+ "prim-constants",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "spago",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tracing",
+ "url",
+ "walkdir",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3040,8 +3070,14 @@ dependencies = [
 name = "purescript-iris-v2"
 version = "0.1.0"
 dependencies = [
+ "configuration",
  "iris-build",
+ "iris-lsp",
  "itertools 0.15.0",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
  "usage-rs",
 ]
 

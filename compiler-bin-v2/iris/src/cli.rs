@@ -1,11 +1,16 @@
-use std::env;
 use std::ffi::OsStr;
 use std::io::{self, IsTerminal};
 use std::path::PathBuf;
+use std::{env, fs};
 
+use configuration::{Configuration, ConfigurationSettings};
 use iris_build::BuildConfig;
 use itertools::Itertools;
+use thiserror::Error;
+use tracing::level_filters::LevelFilter;
 use usage::{Args, Subcommands, ValueEnum};
+
+use crate::logging::LoggingFilters;
 
 #[derive(Debug, usage::Cli)]
 #[usage(
@@ -24,6 +29,13 @@ pub struct Program {
 pub enum Command {
     /// Build a Spago workspace or package.
     Build(BuildOptions),
+    /// Run the language server over standard input and output.
+    Lsp(LspOptions),
+}
+
+pub struct LspConfig {
+    pub configuration: Configuration,
+    pub logging: LoggingFilters,
 }
 
 #[derive(Debug, Args)]
@@ -61,18 +73,99 @@ pub enum ColorChoice {
     Never,
 }
 
-impl Command {
+impl BuildOptions {
     pub fn into_config(self) -> BuildConfig {
-        let Command::Build(options) = self;
         BuildConfig {
-            package: options.package,
-            output: options.output,
-            quiet: options.quiet,
-            color: use_color(options.color),
-            resilient: options.resilient,
-            diagnostics: !options.no_diagnostics,
+            package: self.package,
+            output: self.output,
+            quiet: self.quiet,
+            color: use_color(self.color),
+            resilient: self.resilient,
+            diagnostics: !self.no_diagnostics,
         }
     }
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct LspOptions {
+    /// Use standard input and output for LSP transport.
+    #[usage(long)]
+    stdio: bool,
+
+    /// Log level for the query engine.
+    #[usage(
+        long,
+        value_name = "LEVEL",
+        default = "off",
+        choices("off", "error", "warn", "info", "debug", "trace")
+    )]
+    query_log: LevelFilter,
+
+    /// Log level for the type checker.
+    #[usage(
+        long,
+        value_name = "LEVEL",
+        default = "off",
+        choices("off", "error", "warn", "info", "debug", "trace")
+    )]
+    checking_log: LevelFilter,
+
+    /// Log level for the language server.
+    #[usage(
+        long,
+        value_name = "LEVEL",
+        default = "info",
+        choices("off", "error", "warn", "info", "debug", "trace")
+    )]
+    lsp_log: LevelFilter,
+
+    /// Language server configuration as a JSON object, read once at startup.
+    #[usage(long, value_name = "JSON", conflicts = "--config-file")]
+    config: Option<String>,
+
+    /// Language server configuration file, relative to the working directory.
+    #[usage(long, value_name = "PATH", conflicts = "--config")]
+    config_file: Option<PathBuf>,
+}
+
+#[derive(Debug, Error)]
+pub enum ConfigurationError {
+    #[error("failed to read configuration file {}: {error}", path.display())]
+    ReadFile { path: PathBuf, error: io::Error },
+    #[error("invalid configuration in {input}: {error}")]
+    InvalidJson { input: String, error: serde_json::Error },
+}
+
+impl LspOptions {
+    pub fn into_config(self) -> Result<LspConfig, ConfigurationError> {
+        let configuration = read_configuration(self.config, self.config_file)?;
+        let logging = LoggingFilters {
+            query: self.query_log,
+            checking: self.checking_log,
+            lsp: self.lsp_log,
+        };
+        Ok(LspConfig { configuration, logging })
+    }
+}
+
+fn read_configuration(
+    config: Option<String>,
+    config_file: Option<PathBuf>,
+) -> Result<Configuration, ConfigurationError> {
+    let (input, content) = if let Some(path) = config_file {
+        let content = fs::read_to_string(&path)
+            .map_err(|error| ConfigurationError::ReadFile { path: PathBuf::clone(&path), error })?;
+        (path.display().to_string(), content)
+    } else if let Some(content) = config {
+        ("--config".to_string(), content)
+    } else {
+        return Ok(Configuration::default());
+    };
+    let settings = serde_json::from_str::<Option<ConfigurationSettings>>(&content)
+        .map_err(|error| ConfigurationError::InvalidJson { input, error })?
+        .unwrap_or_default();
+    Ok(settings.apply_to(&Configuration::default()))
 }
 
 fn use_color(choice: ColorChoice) -> bool {
@@ -133,20 +226,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exposes_only_the_build_command() {
+    fn maps_build_options_to_configuration() {
         let arguments = ["iris-v2", "build", "--quiet", "--no-diagnostics", "--resilient"];
         let arguments = arguments.iter().map(OsStr::new).collect_vec();
         let program = Program::try_parse_from(&arguments).unwrap();
-        let config = program.command.into_config();
+        let Command::Build(options) = program.command else {
+            panic!("invariant violated: expected build command");
+        };
+        let config = options.into_config();
 
         assert!(config.quiet);
         assert!(!config.diagnostics);
         assert!(config.resilient);
-    }
-
-    #[test]
-    fn rejects_other_commands() {
-        let arguments = [OsStr::new("iris-v2"), OsStr::new("lsp")];
-        assert!(Program::try_parse_from(&arguments).is_err());
     }
 }
