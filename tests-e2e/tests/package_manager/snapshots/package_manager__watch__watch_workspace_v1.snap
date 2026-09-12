@@ -1,0 +1,4 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+---
+[TIME] 2 files changed: Application, Library

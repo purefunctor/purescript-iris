@@ -91,7 +91,20 @@ impl TestWorkspace {
     }
 
     pub fn spawn_in(&self, directory: &str, arguments: &[&str]) -> Child {
-        self.command_builder(directory, arguments)
+        self.spawn_in_for(IrisExecutable::V1, directory, arguments)
+    }
+
+    pub fn spawn_for(&self, executable: IrisExecutable, arguments: &[&str]) -> Child {
+        self.spawn_in_for(executable, "", arguments)
+    }
+
+    pub fn spawn_in_for(
+        &self,
+        executable: IrisExecutable,
+        directory: &str,
+        arguments: &[&str],
+    ) -> Child {
+        self.command_builder_for(executable, directory, arguments)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

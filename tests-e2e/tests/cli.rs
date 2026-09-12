@@ -300,6 +300,7 @@ fn v2_exposes_ported_commands_only() {
         ("v2_help_new", &["new", "--help"][..]),
         ("v2_help_add", &["add", "--help"][..]),
         ("v2_help_build", &["build", "--help"][..]),
+        ("v2_help_watch", &["watch", "--help"][..]),
         ("v2_help_lsp", &["lsp", "--help"][..]),
     ] {
         let output = workspace.v2_command(arguments);
@@ -309,7 +310,7 @@ fn v2_exposes_ported_commands_only() {
         snapshot_output(name, &output);
     }
 
-    for command in ["compile", "watch", "docs"] {
+    for command in ["compile", "docs"] {
         let output = workspace.v2_command(&[command]);
         assert_eq!(output.status.code(), Some(2), "{command}");
         assert!(output.stdout.is_empty(), "{command} wrote stdout");
