@@ -1,13 +1,18 @@
-use super::support::{TestWorkspace, assert_success};
+use super::support::{IrisExecutable, TestWorkspace, assert_success};
 
 #[test]
 fn creates_a_spago_project_without_running_spago() {
-    let workspace = TestWorkspace::empty();
-    let output = workspace.command(&["new", "--name", "example"]);
-    assert_success(&output);
-    workspace.assert_spago_calls("", &[]);
+    let mut summaries = vec![];
+    for executable in IrisExecutable::ALL {
+        let workspace = TestWorkspace::empty();
+        let output = workspace.command_for(executable, &["new", "--name", "example"]);
+        assert_success(&output);
+        workspace.assert_spago_calls("", &[]);
+        summaries.push(workspace.summary());
+    }
+    assert!(summaries.windows(2).all(|pair| pair[0] == pair[1]));
 
-    insta::assert_snapshot!(workspace.summary(), @r#"
+    insta::assert_snapshot!(summaries[0], @r#"
     --- .gitignore
     .spago/
     output/
@@ -51,38 +56,48 @@ fn creates_a_spago_project_without_running_spago() {
 
 #[test]
 fn does_not_overwrite_existing_project_files() {
-    let workspace = TestWorkspace::empty();
-    workspace.write("src/Main.purs", "original");
+    for executable in IrisExecutable::ALL {
+        let workspace = TestWorkspace::empty();
+        workspace.write("src/Main.purs", "original");
 
-    let output = workspace.command(&["new", "--name", "example"]);
-    assert!(!output.status.success());
-    assert_eq!(workspace.read("src/Main.purs"), "original");
-    assert!(!workspace.path().join("spago.yaml").exists());
+        let output = workspace.command_for(executable, &["new", "--name", "example"]);
+        assert!(!output.status.success());
+        assert_eq!(workspace.read("src/Main.purs"), "original");
+        assert!(!workspace.path().join("spago.yaml").exists());
+    }
 }
 
 #[test]
 fn does_not_create_a_partial_project_when_a_source_directory_is_a_file() {
-    let workspace = TestWorkspace::empty();
-    workspace.write("src", "original");
+    for executable in IrisExecutable::ALL {
+        let workspace = TestWorkspace::empty();
+        workspace.write("src", "original");
 
-    let output = workspace.command(&["new", "--name", "example"]);
-    assert!(!output.status.success());
-    assert_eq!(workspace.read("src"), "original");
-    assert!(!workspace.path().join("spago.yaml").exists());
+        let output = workspace.command_for(executable, &["new", "--name", "example"]);
+        assert!(!output.status.success());
+        assert_eq!(workspace.read("src"), "original");
+        assert!(!workspace.path().join("spago.yaml").exists());
+    }
 }
 
 #[test]
 fn does_not_create_a_nested_workspace() {
-    let workspace = TestWorkspace::empty();
-    workspace.write(
-        "spago.yaml",
-        r#"workspace: {}
+    for executable in IrisExecutable::ALL {
+        let workspace = TestWorkspace::empty();
+        workspace.write(
+            "spago.yaml",
+            r#"workspace: {}
 package:
   name: root
 "#,
-    );
+        );
 
-    let output = workspace.command_in("packages/application", &["new", "--name", "application"]);
-    assert!(!output.status.success());
-    assert!(!workspace.path().join("packages/application/spago.yaml").exists());
+        let output = workspace.command_in_for(
+            executable,
+            "packages/application",
+            &["new", "--name", "application"],
+        );
+        assert!(!output.status.success());
+        assert!(!workspace.path().join("packages/application/spago.yaml").exists());
+    }
 }

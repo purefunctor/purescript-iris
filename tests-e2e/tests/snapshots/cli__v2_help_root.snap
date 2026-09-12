@@ -9,8 +9,10 @@ Experimental PureScript compiler command-line interface.
 Usage: iris-v2 <SUBCOMMAND>
 
 Commands:
+  add    Add dependencies to a Spago package.
   build  Build a Spago workspace or package.
   lsp    Run the language server over standard input and output.
+  new    Create a Spago project in the current directory.
   help   Print this message or the help of the given subcommand(s)
 
 Flags:

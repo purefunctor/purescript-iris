@@ -58,21 +58,32 @@ impl TestWorkspace {
     }
 
     pub fn command(&self, arguments: &[&str]) -> Output {
-        self.command_in("", arguments)
+        self.command_for(IrisExecutable::V1, arguments)
     }
 
     pub fn command_in(&self, directory: &str, arguments: &[&str]) -> Output {
-        self.command_builder(directory, arguments).output().unwrap()
+        self.command_in_for(IrisExecutable::V1, directory, arguments)
+    }
+
+    pub fn command_for(&self, executable: IrisExecutable, arguments: &[&str]) -> Output {
+        self.command_in_for(executable, "", arguments)
+    }
+
+    pub fn command_in_for(
+        &self,
+        executable: IrisExecutable,
+        directory: &str,
+        arguments: &[&str],
+    ) -> Output {
+        self.command_builder_for(executable, directory, arguments).output().unwrap()
     }
 
     pub fn v2_command(&self, arguments: &[&str]) -> Output {
-        self.v2_command_in("", arguments)
+        self.command_for(IrisExecutable::V2, arguments)
     }
 
     pub fn v2_command_in(&self, directory: &str, arguments: &[&str]) -> Output {
-        self.command_builder_with(env!("CARGO_BIN_EXE_iris-v2-e2e"), directory, arguments)
-            .output()
-            .unwrap()
+        self.command_in_for(IrisExecutable::V2, directory, arguments)
     }
 
     pub fn spawn(&self, arguments: &[&str]) -> Child {

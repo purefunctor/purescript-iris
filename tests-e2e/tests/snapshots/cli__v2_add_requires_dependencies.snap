@@ -1,0 +1,12 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 2
+--- stdout
+--- stderr
+error: the following required arguments were not provided:
+  <DEPENDENCY>…
+
+Usage: iris-v2 add [-p --package <NAME>] [--test] <DEPENDENCY>…
+
+For more information, try '--help'.

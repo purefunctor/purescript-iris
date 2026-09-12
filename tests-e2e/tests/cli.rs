@@ -293,10 +293,12 @@ fn typescript_output_resolves_relative_to_the_working_directory() {
 }
 
 #[test]
-fn v2_exposes_build_and_lsp_only() {
+fn v2_exposes_ported_commands_only() {
     let workspace = TestWorkspace::empty();
     for (name, arguments) in [
         ("v2_help_root", &["--help"][..]),
+        ("v2_help_new", &["new", "--help"][..]),
+        ("v2_help_add", &["add", "--help"][..]),
         ("v2_help_build", &["build", "--help"][..]),
         ("v2_help_lsp", &["lsp", "--help"][..]),
     ] {
@@ -312,6 +314,11 @@ fn v2_exposes_build_and_lsp_only() {
         assert_eq!(output.status.code(), Some(2), "{command}");
         assert!(output.stdout.is_empty(), "{command} wrote stdout");
     }
+
+    let output = workspace.v2_command(&["add"]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    snapshot_output("v2_add_requires_dependencies", &output);
 }
 
 #[test]
