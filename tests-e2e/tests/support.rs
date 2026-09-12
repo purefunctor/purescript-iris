@@ -28,7 +28,7 @@ impl TestWorkspace {
     }
 
     pub fn summary(&self) -> String {
-        let mut files = Vec::new();
+        let mut files = vec![];
         collect_files(self.path(), &mut files);
         files.sort();
 
@@ -53,6 +53,16 @@ impl TestWorkspace {
         self.command_builder(directory, arguments).output().unwrap()
     }
 
+    pub fn v2_command(&self, arguments: &[&str]) -> Output {
+        self.v2_command_in("", arguments)
+    }
+
+    pub fn v2_command_in(&self, directory: &str, arguments: &[&str]) -> Output {
+        self.command_builder_with(env!("CARGO_BIN_EXE_iris-v2-e2e"), directory, arguments)
+            .output()
+            .unwrap()
+    }
+
     pub fn spawn(&self, arguments: &[&str]) -> Child {
         self.spawn_in("", arguments)
     }
@@ -67,9 +77,18 @@ impl TestWorkspace {
     }
 
     pub fn command_builder(&self, directory: &str, arguments: &[&str]) -> Command {
+        self.command_builder_with(env!("CARGO_BIN_EXE_iris-e2e"), directory, arguments)
+    }
+
+    fn command_builder_with(
+        &self,
+        executable: &str,
+        directory: &str,
+        arguments: &[&str],
+    ) -> Command {
         let current_directory = self.path().join(directory);
         fs::create_dir_all(&current_directory).unwrap();
-        let mut command = Command::new(env!("CARGO_BIN_EXE_iris-e2e"));
+        let mut command = Command::new(executable);
         command
             .args(arguments)
             .current_dir(current_directory)
@@ -89,7 +108,7 @@ impl TestWorkspace {
             Err(error) => panic!("failed to read Spago call log: {error}"),
         };
         let expected_directory = fs::canonicalize(self.path().join(directory)).unwrap();
-        let mut actual_arguments = Vec::new();
+        let mut actual_arguments = vec![];
         for line in source.lines() {
             let mut fields = line.split('\t');
             let actual_directory = fields.next().unwrap();
