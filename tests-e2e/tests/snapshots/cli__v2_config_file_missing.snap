@@ -1,0 +1,7 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 2
+--- stdout
+--- stderr
+error: failed to read configuration file missing.json: [FILE NOT FOUND]

@@ -291,3 +291,45 @@ fn typescript_output_resolves_relative_to_the_working_directory() {
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert!(workspace.path().join("generated/docs-schema.ts").is_file());
 }
+
+#[test]
+fn v2_exposes_build_and_lsp_only() {
+    let workspace = TestWorkspace::empty();
+    for (name, arguments) in [
+        ("v2_help_root", &["--help"][..]),
+        ("v2_help_build", &["build", "--help"][..]),
+        ("v2_help_lsp", &["lsp", "--help"][..]),
+    ] {
+        let output = workspace.v2_command(arguments);
+        assert!(output.status.success(), "{name}");
+        assert!(!output.stdout.is_empty(), "{name} did not write stdout");
+        assert!(output.stderr.is_empty(), "{name} wrote stderr");
+        snapshot_output(name, &output);
+    }
+
+    for command in ["compile", "watch", "docs"] {
+        let output = workspace.v2_command(&[command]);
+        assert_eq!(output.status.code(), Some(2), "{command}");
+        assert!(output.stdout.is_empty(), "{command} wrote stdout");
+    }
+}
+
+#[test]
+fn v2_rejects_invalid_lsp_configuration_before_starting() {
+    let workspace = TestWorkspace::empty();
+    let cases: &[(&str, &[&str])] = &[
+        ("v2_config_invalid", &["lsp", "--config", "{"]),
+        ("v2_config_conflict", &["lsp", "--config", "{}", "--config-file", "missing.json"]),
+        ("v2_config_file_missing", &["lsp", "--config-file", "missing.json"]),
+    ];
+    for (name, arguments) in cases {
+        let output = workspace.v2_command(arguments);
+        assert_eq!(output.status.code(), Some(2), "{name}");
+        assert!(output.stdout.is_empty(), "{name} wrote stdout");
+        insta::with_settings!({filters => vec![
+            (r"No such file or directory \(os error 2\)|The system cannot find the file specified\. \(os error 2\)", "[FILE NOT FOUND]"),
+        ]}, {
+            snapshot_output(name, &output);
+        });
+    }
+}

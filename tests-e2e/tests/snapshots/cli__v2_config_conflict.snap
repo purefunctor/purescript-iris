@@ -1,0 +1,11 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 2
+--- stdout
+--- stderr
+error: the argument '--config' cannot be used with '--config-file'
+
+Usage: iris-v2 lsp [FLAGS]
+
+For more information, try '--help'.

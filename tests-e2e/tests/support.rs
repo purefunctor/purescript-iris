@@ -4,8 +4,20 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 
+use itertools::Itertools;
+
 pub struct TestWorkspace {
     temporary: tempfile::TempDir,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum IrisExecutable {
+    V1,
+    V2,
+}
+
+impl IrisExecutable {
+    pub const ALL: [IrisExecutable; 2] = [IrisExecutable::V1, IrisExecutable::V2];
 }
 
 impl TestWorkspace {
@@ -77,7 +89,20 @@ impl TestWorkspace {
     }
 
     pub fn command_builder(&self, directory: &str, arguments: &[&str]) -> Command {
-        self.command_builder_with(env!("CARGO_BIN_EXE_iris-e2e"), directory, arguments)
+        self.command_builder_for(IrisExecutable::V1, directory, arguments)
+    }
+
+    pub fn command_builder_for(
+        &self,
+        executable: IrisExecutable,
+        directory: &str,
+        arguments: &[&str],
+    ) -> Command {
+        let executable = match executable {
+            IrisExecutable::V1 => env!("CARGO_BIN_EXE_iris-e2e"),
+            IrisExecutable::V2 => env!("CARGO_BIN_EXE_iris-v2-e2e"),
+        };
+        self.command_builder_with(executable, directory, arguments)
     }
 
     fn command_builder_with(
@@ -114,7 +139,7 @@ impl TestWorkspace {
             let actual_directory = fields.next().unwrap();
             let actual_directory = fs::canonicalize(actual_directory).unwrap();
             assert_eq!(actual_directory, expected_directory);
-            actual_arguments.push(fields.collect::<Vec<_>>());
+            actual_arguments.push(fields.collect_vec());
         }
         assert_eq!(actual_arguments, expected);
     }
