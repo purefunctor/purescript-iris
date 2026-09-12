@@ -45,6 +45,7 @@ parking_lot = "0.12.5"
 path-absolutize = "4.0.1"
 prim-constants = { version = "0.1.0", path = "../compiler-core/prim-constants" }
 radix_trie = "0.3.0"
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
 rayon = "1.12.0"
 resolving = { version = "0.1.0", path = "../compiler-frontend/resolving" }
 rustc-hash = "2.1.3"
