@@ -3011,6 +3011,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "purescript-iris-v2"
+version = "0.1.0"
+dependencies = [
+ "building",
+ "compiler-progress",
+ "diagnostics",
+ "dunce",
+ "files",
+ "globset",
+ "ignore",
+ "itertools 0.15.0",
+ "javascript",
+ "line-index",
+ "path-absolutize",
+ "petgraph",
+ "prim-constants",
+ "rayon",
+ "serde",
+ "serde_yml",
+ "spago",
+ "thiserror",
+ "url",
+ "usage-rs",
+ "walkdir",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
