@@ -9,6 +9,8 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 pub struct Walk {
+    pub roots: BTreeSet<PathBuf>,
+    pub globs: GlobSet,
     pub files: Vec<PathBuf>,
 }
 
@@ -57,9 +59,11 @@ pub fn walk_filtered(
             continue;
         }
 
-        for entry in WalkDir::new(root) {
+        let entries =
+            WalkDir::new(root).into_iter().filter_entry(|entry| !excludes.is_match(entry.path()));
+        for entry in entries {
             let path = entry?.into_path();
-            if globs.is_match(&path) && !excludes.is_match(&path) {
+            if globs.is_match(&path) {
                 files_from_glob.insert(path);
             }
         }
@@ -67,7 +71,7 @@ pub fn walk_filtered(
 
     files.extend(files_from_glob);
 
-    Ok(Walk { files })
+    Ok(Walk { roots, globs, files })
 }
 
 fn build_excludes(
@@ -150,6 +154,20 @@ mod tests {
             relative_files(&root, walk.files),
             vec!["package/src/Main.purs", "package/test/Test.Main.purs"]
         );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn filtered_walk_excludes_directory_trees() {
+        let root = temporary_directory();
+        touch(&root.join("package/src/Main.purs"));
+        touch(&root.join("package/src/generated/Ignored.purs"));
+
+        let walk =
+            walk_filtered(&root, ["package/src/**/*.purs"], ["package/src/generated"]).unwrap();
+
+        assert_eq!(relative_files(&root, walk.files), vec!["package/src/Main.purs"]);
 
         fs::remove_dir_all(root).unwrap();
     }

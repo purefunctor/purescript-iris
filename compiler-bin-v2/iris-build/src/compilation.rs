@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use building::{
     DiskObservation, FileLifecycle, ForeignEvent, LifecycleChange, LifecycleEvent, QueryEngine,
-    SourceEvent, SourceUnitKey,
+    QueryError, SourceEvent, SourceUnitKey,
 };
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
@@ -79,6 +79,18 @@ impl CompilationState {
         sources.collect_vec()
     }
 
+    pub fn source_content(&self, locator: &str) -> Result<Option<Arc<str>>, QueryError> {
+        let Some(file_id) = self.files.source_id(locator) else {
+            return Ok(None);
+        };
+        self.engine.content(file_id).map(Some)
+    }
+
+    pub fn foreign_content(&self, locator: &str) -> Option<Arc<str>> {
+        let file_id = self.files.foreign_id(locator)?;
+        self.engine.foreign_content(file_id)
+    }
+
     pub fn snapshot(&self) -> QueryEngine {
         self.engine.snapshot()
     }
@@ -94,6 +106,16 @@ impl CompilationState {
             .foreign_content(foreign_id)
             .expect("invariant violated: associated foreign file has no engine content");
         Some(content)
+    }
+
+    pub fn module_name(&self, locator: &str) -> Result<Option<String>, QueryError> {
+        let Some(file_id) = self.files.source_id(locator) else {
+            return Ok(None);
+        };
+        let engine = self.engine.snapshot();
+        let content = engine.content(file_id)?;
+        let (parsed, _) = engine.parsed(file_id)?;
+        Ok(parsed.module_name(&content).map(|name| name.to_string()))
     }
 }
 
