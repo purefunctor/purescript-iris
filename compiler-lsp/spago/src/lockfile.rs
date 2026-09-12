@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
 use globset::Glob;
@@ -25,6 +25,23 @@ pub struct Workspace {
 #[derive(Debug, Deserialize)]
 pub struct WorkspacePackage {
     pub path: PathBuf,
+    #[serde(default)]
+    pub core: PackageDependencies,
+    #[serde(default)]
+    pub test: PackageDependencies,
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct PackageDependencies {
+    #[serde(default)]
+    dependencies: Vec<Dependency>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum Dependency {
+    Named(SmolStr),
+    Versioned(BTreeMap<SmolStr, serde_json::Value>),
 }
 
 #[derive(Debug, Deserialize)]
@@ -45,6 +62,7 @@ pub struct PackageSources {
     pub reference: PackageReference,
     pub roots: Vec<PathBuf>,
     pub sources: Vec<PathBuf>,
+    pub dependencies: BTreeSet<SmolStr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,12 +82,18 @@ pub enum PackageEntry {
         rev: SmolStr,
         #[serde(default)]
         subdir: Option<PathBuf>,
+        #[serde(default)]
+        dependencies: Vec<SmolStr>,
     },
     Local {
         path: SmolStr,
+        #[serde(default)]
+        dependencies: Vec<SmolStr>,
     },
     Registry {
         version: SmolStr,
+        #[serde(default)]
+        dependencies: Vec<SmolStr>,
     },
 }
 
@@ -84,19 +108,32 @@ impl Lockfile {
         for (name, package) in &self.workspace.packages {
             let roots = vec![PathBuf::clone(&package.path)];
             let sources = vec![package.path.join("src"), package.path.join("test")];
+            let dependencies = package
+                .core
+                .dependencies
+                .iter()
+                .chain(&package.test.dependencies)
+                .flat_map(Dependency::names)
+                .cloned()
+                .collect();
             packages.insert(
                 SmolStr::clone(name),
-                PackageSources { reference: PackageReference::Workspace, roots, sources },
+                PackageSources {
+                    reference: PackageReference::Workspace,
+                    roots,
+                    sources,
+                    dependencies,
+                },
             );
         }
 
         let base = Path::new(".spago").join("p");
 
         for (name, package) in &self.packages {
-            let mut roots = Vec::new();
-            let mut sources = Vec::new();
+            let mut roots = vec![];
+            let mut sources = vec![];
             let reference = match package {
-                PackageEntry::Git { url, rev, subdir } => {
+                PackageEntry::Git { url, rev, subdir, .. } => {
                     let root = base.join(name).join(rev);
                     roots.push(PathBuf::clone(&root));
                     sources.push(root.join("src"));
@@ -125,14 +162,14 @@ impl Lockfile {
                         subdir: subdir.cloned(),
                     }
                 }
-                PackageEntry::Local { path } => {
+                PackageEntry::Local { path, .. } => {
                     let root = Path::new(path).to_path_buf();
                     roots.push(PathBuf::clone(&root));
                     sources.push(root.join("src"));
                     sources.push(root.join("test"));
                     PackageReference::Local
                 }
-                PackageEntry::Registry { version } => {
+                PackageEntry::Registry { version, .. } => {
                     let name_version = format!("{name}-{version}");
                     let root = base.join(&name_version);
                     roots.push(PathBuf::clone(&root));
@@ -142,7 +179,18 @@ impl Lockfile {
                 }
             };
 
-            packages.insert(SmolStr::clone(name), PackageSources { reference, roots, sources });
+            let dependencies = match package {
+                PackageEntry::Git { dependencies, .. }
+                | PackageEntry::Local { dependencies, .. }
+                | PackageEntry::Registry { dependencies, .. } => {
+                    dependencies.iter().cloned().collect()
+                }
+            };
+
+            packages.insert(
+                SmolStr::clone(name),
+                PackageSources { reference, roots, sources, dependencies },
+            );
         }
 
         packages
@@ -166,6 +214,15 @@ impl Lockfile {
         });
 
         packages.collect()
+    }
+}
+
+impl Dependency {
+    fn names(&self) -> Vec<&SmolStr> {
+        match self {
+            Dependency::Named(name) => vec![name],
+            Dependency::Versioned(packages) => packages.keys().collect_vec(),
+        }
     }
 }
 

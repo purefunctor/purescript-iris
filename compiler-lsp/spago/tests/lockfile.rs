@@ -2,6 +2,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
+use smol_str::SmolStr;
 use spago::lockfile::Lockfile;
 
 const SPAGO_LOCK: &str = include_str!("./fixture/spago.lock");
@@ -105,6 +106,42 @@ fn test_parse_lockfile_without_extra_packages() {
 }
 
 #[test]
+fn test_lockfile_sources_include_direct_dependencies() {
+    let lockfile = serde_json::from_str::<Lockfile>(
+        r#"{
+  "workspace": {
+    "packages": {
+      "application": {
+        "path": ".",
+        "core": { "dependencies": ["effect", { "prelude": ">=6.0.0" }] },
+        "test": { "dependencies": ["assert"] }
+      }
+    }
+  },
+  "packages": {
+    "effect": {
+      "type": "registry",
+      "version": "4.0.0",
+      "dependencies": ["prelude"]
+    }
+  }
+}"#,
+    )
+    .unwrap();
+
+    let packages = lockfile.sources_by_package();
+
+    assert_eq!(
+        packages["application"].dependencies.iter().map(SmolStr::as_str).collect_vec(),
+        vec!["assert", "effect", "prelude"]
+    );
+    assert_eq!(
+        packages["effect"].dependencies.iter().map(SmolStr::as_str).collect_vec(),
+        vec!["prelude"]
+    );
+}
+
+#[test]
 fn test_lockfile_sources_by_package_include_package_roots() {
     let lockfile = serde_json::from_str::<Lockfile>(
         r#"{
@@ -151,6 +188,7 @@ fn test_lockfile_sources_by_package_include_package_roots() {
                 ".spago/p/git-package/abcd/packages/git-package/src",
                 ".spago/p/git-package/abcd/packages/git-package/test",
             ],
+            dependencies: {},
         },
         "local-package": PackageSources {
             reference: Local,
@@ -161,6 +199,7 @@ fn test_lockfile_sources_by_package_include_package_roots() {
                 "../local-package/src",
                 "../local-package/test",
             ],
+            dependencies: {},
         },
         "registry-package": PackageSources {
             reference: Registry {
@@ -173,6 +212,7 @@ fn test_lockfile_sources_by_package_include_package_roots() {
                 ".spago/p/registry-package-1.2.3/src",
                 ".spago/p/registry-package-1.2.3/test",
             ],
+            dependencies: {},
         },
         "workspace-package": PackageSources {
             reference: Workspace,
@@ -183,6 +223,7 @@ fn test_lockfile_sources_by_package_include_package_roots() {
                 "packages/workspace-package/src",
                 "packages/workspace-package/test",
             ],
+            dependencies: {},
         },
     }
     "#);
