@@ -71,7 +71,7 @@ impl Workspace {
         current_directory: &Path,
         requested_package: Option<&str>,
     ) -> Result<Workspace, WorkspaceError> {
-        let current_directory = current_directory.canonicalize().map_err(|source| {
+        let current_directory = dunce::canonicalize(current_directory).map_err(|source| {
             WorkspaceError::CanonicalizeDirectory { path: current_directory.to_path_buf(), source }
         })?;
         let (root, inferred_package) = find_root(&current_directory)?;
