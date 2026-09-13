@@ -19,6 +19,8 @@ pub enum WorkspaceError {
     UnknownPackage { requested: String, available: String },
     #[error("workspace contains no packages")]
     NoPackages,
+    #[error("workspace package selection is ambiguous; use --package <NAME>")]
+    AmbiguousPackage,
     #[error("duplicate workspace package name '{name}' in {first} and {second}")]
     DuplicatePackage { name: String, first: PathBuf, second: PathBuf },
     #[error("failed to read {path}: {source}")]
@@ -53,16 +55,29 @@ pub struct Manifest {
 #[serde(rename_all = "camelCase")]
 pub struct PackageManifest {
     pub name: String,
+    pub run: Option<ExecutionConfig>,
+    pub test: Option<ExecutionConfig>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionConfig {
+    pub main: Option<String>,
+    #[serde(default)]
+    pub exec_args: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct WorkspacePackage {
     pub root: PathBuf,
+    pub manifest: PackageManifest,
+    pub has_tests: bool,
 }
 
 #[derive(Debug)]
 pub struct Workspace {
     pub root: PathBuf,
+    pub packages: BTreeMap<String, WorkspacePackage>,
     pub selected: Option<String>,
 }
 
@@ -97,7 +112,14 @@ impl Workspace {
             None
         };
 
-        Ok(Workspace { root, selected })
+        Ok(Workspace { root, packages, selected })
+    }
+
+    pub fn require_selected(&self) -> Result<&WorkspacePackage, WorkspaceError> {
+        let Some(name) = &self.selected else {
+            return Err(WorkspaceError::AmbiguousPackage);
+        };
+        Ok(&self.packages[name])
     }
 }
 
@@ -144,7 +166,7 @@ fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, 
         }
         Some(Ok(entry.into_path()))
     });
-    let mut manifests = manifests.collect::<Result<Vec<_>, _>>()?;
+    let mut manifests = manifests.process_results(|entries| entries.collect_vec())?;
     manifests.sort_by_key(|path| path.components().count());
 
     let mut nested_workspaces = vec![];
@@ -167,7 +189,11 @@ fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, 
             continue;
         };
         let name = String::clone(&package.name);
-        let workspace_package = WorkspacePackage { root: package_root.to_path_buf() };
+        let workspace_package = WorkspacePackage {
+            root: package_root.to_path_buf(),
+            has_tests: package_root.join("test").is_dir(),
+            manifest: package,
+        };
         if let Some(previous) = packages.insert(String::clone(&name), workspace_package) {
             return Err(WorkspaceError::DuplicatePackage {
                 name,

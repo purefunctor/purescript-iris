@@ -10,7 +10,8 @@ mod walk;
 mod workspace;
 
 pub use project::{
-    BuildConfig, BuildError, PreparedProject, ProjectConfig, ProjectError, build, prepare_project,
+    BuildConfig, BuildError, ExecutionError, PreparedProject, ProjectConfig, ProjectError,
+    RunConfig, TestConfig, build, prepare_project, run, test,
 };
 pub use session::{
     BuildSession, BuildSessionConfig, InputChange, InputChanges, RebuildOutcome, SessionError,

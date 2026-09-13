@@ -27,6 +27,8 @@ fn prints_help_for_every_command_path() {
         ("help_build", &["build", "--help"]),
         ("help_watch", &["watch", "--help"]),
         ("help_lsp", &["lsp", "--help"]),
+        ("help_run", &["run", "--help"]),
+        ("help_test", &["test", "--help"]),
     ];
 
     for (name, arguments) in paths {
@@ -51,10 +53,23 @@ fn prints_version_to_stdout() {
 #[test]
 fn rejects_unpromoted_commands() {
     let workspace = TestWorkspace::empty();
-    for command in ["compile", "run", "test", "docs"] {
+    for command in ["compile", "docs"] {
         let output = workspace.command(&[command]);
         assert_eq!(output.status.code(), Some(2), "{command} was accepted");
         assert!(output.stdout.is_empty(), "{command} wrote stdout");
+    }
+}
+
+#[test]
+fn run_and_test_require_separator_before_trailing_arguments() {
+    let workspace = TestWorkspace::empty();
+    for (name, arguments) in [
+        ("run_requires_separator", &["run", "argument"][..]),
+        ("test_requires_separator", &["test", "argument"][..]),
+    ] {
+        let output = workspace.command(arguments);
+        assert!(!output.status.success(), "{name} unexpectedly succeeded");
+        snapshot_output(name, &output);
     }
 }
 

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 use configuration::{Configuration, ConfigurationSettings};
-use iris_build::{BuildConfig, ProjectConfig};
+use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
 use iris_package::{AddConfig, NewConfig};
 use itertools::Itertools;
 use thiserror::Error;
@@ -38,6 +38,16 @@ pub enum Command {
     Watch(WatchOptions),
     /// Run the language server over standard input and output.
     Lsp(LspOptions),
+    /// Build and run a Spago package with Node.js.
+    Run {
+        #[usage(flatten)]
+        options: RunOptions,
+    },
+    /// Build and test one or more Spago packages with Node.js.
+    Test {
+        #[usage(flatten)]
+        options: TestOptions,
+    },
 }
 
 pub struct LspConfig {
@@ -93,6 +103,21 @@ impl AddOptions {
 #[derive(Debug, Args)]
 #[usage(args_override_self = false)]
 pub struct BuildOptions {
+    #[usage(flatten)]
+    project: ProjectBuildOptions,
+
+    /// Write JavaScript output even when compilation reports errors.
+    #[usage(long)]
+    resilient: bool,
+
+    /// Suppress compiler warnings and errors without hiding build progress.
+    #[usage(long)]
+    no_diagnostics: bool,
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct ProjectBuildOptions {
     /// Workspace package to build.
     #[usage(short, long, value_name = "NAME")]
     package: Option<String>,
@@ -108,14 +133,6 @@ pub struct BuildOptions {
     /// When to use colors in diagnostics and progress output.
     #[usage(long, value_enum, default = "auto")]
     color: ColorChoice,
-
-    /// Write JavaScript output even when compilation reports errors.
-    #[usage(long)]
-    resilient: bool,
-
-    /// Suppress compiler warnings and errors without hiding build progress.
-    #[usage(long)]
-    no_diagnostics: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -128,13 +145,65 @@ pub enum ColorChoice {
 impl BuildOptions {
     pub fn into_config(self) -> BuildConfig {
         BuildConfig {
-            package: self.package,
-            output: self.output,
-            quiet: self.quiet,
-            color: use_color(self.color),
+            package: self.project.package,
+            output: self.project.output,
+            quiet: self.project.quiet,
+            color: use_color(self.project.color),
             resilient: self.resilient,
             diagnostics: !self.no_diagnostics,
         }
+    }
+}
+
+impl ProjectBuildOptions {
+    fn into_project_config(self) -> (ProjectConfig, bool) {
+        let project =
+            ProjectConfig { package: self.package, output: self.output, quiet: self.quiet };
+        (project, use_color(self.color))
+    }
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct RunOptions {
+    #[usage(flatten)]
+    build: ProjectBuildOptions,
+
+    /// Module containing the program entry point.
+    #[usage(long, value_name = "MODULE")]
+    main: Option<String>,
+
+    /// Arguments passed to the program.
+    #[usage(double_dash = "required")]
+    arguments: Vec<String>,
+}
+
+impl RunOptions {
+    pub fn into_config(self) -> RunConfig {
+        let (project, color) = self.build.into_project_config();
+        RunConfig { project, color, main: self.main, arguments: self.arguments }
+    }
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct TestOptions {
+    #[usage(flatten)]
+    build: ProjectBuildOptions,
+
+    /// Module containing the test entry point.
+    #[usage(long, value_name = "MODULE")]
+    main: Option<String>,
+
+    /// Arguments passed to each test program.
+    #[usage(double_dash = "required")]
+    arguments: Vec<String>,
+}
+
+impl TestOptions {
+    pub fn into_config(self) -> TestConfig {
+        let (project, color) = self.build.into_project_config();
+        TestConfig { project, color, main: self.main, arguments: self.arguments }
     }
 }
 

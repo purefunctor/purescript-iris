@@ -70,5 +70,19 @@ pub fn run() -> i32 {
                 }
             }
         }
+        cli::Command::Run { options } => match iris_build::run(options.into_config()) {
+            Ok(()) => 0,
+            Err(error) => {
+                eprintln!("{error}");
+                error.exit_code()
+            }
+        },
+        cli::Command::Test { options } => match iris_build::test(options.into_config()) {
+            Ok(()) => 0,
+            Err(error) => {
+                eprintln!("{error}");
+                error.exit_code()
+            }
+        },
     }
 }
