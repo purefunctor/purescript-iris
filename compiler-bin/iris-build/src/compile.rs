@@ -218,7 +218,7 @@ fn report_diagnostics(
 
 fn display_source_path(source_path: &str, root: &Path) -> String {
     if let Some(file_path) = Url::parse(source_path).ok().and_then(|url| url.to_file_path().ok()) {
-        file_path.strip_prefix(root).unwrap_or(&file_path).display().to_string()
+        file_path.strip_prefix(root).unwrap_or(&file_path).to_string_lossy().replace('\\', "/")
     } else {
         source_path.to_owned()
     }
