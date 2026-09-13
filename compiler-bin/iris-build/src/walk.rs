@@ -22,10 +22,6 @@ pub enum Error {
     WalkDirError(#[from] walkdir::Error),
 }
 
-pub fn walk(root: &Path, paths: impl IntoIterator<Item = impl AsRef<Path>>) -> Result<Walk, Error> {
-    walk_filtered(root, paths, std::iter::empty::<&Path>())
-}
-
 pub fn walk_filtered(
     root: &Path,
     includes: impl IntoIterator<Item = impl AsRef<Path>>,

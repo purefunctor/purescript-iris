@@ -8,10 +8,10 @@ use itertools::Itertools;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::{CompilationState, MaterializedPrim};
-use super::compile::{self, CompileError};
+use super::compilation::CompilationState;
+use super::compile::{self, CompileError, InitialBuildReport};
 use super::events::BuildOutcome;
-use super::project::PreparedProject;
+use super::project::InitializedProject;
 use super::walk;
 
 pub struct BuildSessionConfig {
@@ -71,34 +71,46 @@ pub struct BuildSession {
     source_paths: BTreeSet<PathBuf>,
     generated_outputs: BTreeSet<PathBuf>,
     compilation: CompilationState,
+    initial_report: Option<InitialBuildReport>,
+    initial_inputs: Vec<InputChange>,
     color: bool,
     diagnostics: bool,
 }
 
 impl BuildSession {
     pub fn new(
-        project: PreparedProject,
+        project: InitializedProject,
         config: BuildSessionConfig,
     ) -> Result<BuildSession, SessionError> {
         BuildSession::create(project, config).map_err(SessionError)
     }
 
     fn create(
-        project: PreparedProject,
+        initialized: InitializedProject,
         config: BuildSessionConfig,
     ) -> Result<BuildSession, SessionFailure> {
+        let project = initialized.project;
         let walked = walk::walk_filtered(&project.root, &project.source_globs, [&project.output])?;
         let source_roots = walked.roots.into_iter().collect_vec();
-        let prim = MaterializedPrim::new()?;
+        let initial = initialized.build.into_parts();
+        let initial_inputs = initial.source_paths.iter().map(|path| {
+            let source_path = PathBuf::clone(path);
+            let unit = source_unit(path)?;
+            let module_name = initial.compilation.module_name(unit.source())?;
+            Ok::<_, SessionFailure>(InputChange { source_path, module_name })
+        });
+        let initial_inputs = initial_inputs.process_results(|inputs| inputs.collect_vec())?;
         Ok(BuildSession {
             root: project.root,
             output: project.output,
             inputs: project.source_globs,
             source_roots,
             source_globs: walked.globs,
-            source_paths: BTreeSet::new(),
+            source_paths: initial.source_paths,
             generated_outputs: BTreeSet::new(),
-            compilation: CompilationState::new(prim, ()),
+            compilation: initial.compilation,
+            initial_report: Some(initial.report),
+            initial_inputs,
             color: config.color,
             diagnostics: config.diagnostics,
         })
@@ -112,12 +124,24 @@ impl BuildSession {
         &self.root
     }
 
+    pub fn take_initial_inputs(&mut self) -> Vec<InputChange> {
+        std::mem::take(&mut self.initial_inputs)
+    }
+
     pub fn synchronize_paths(&mut self, paths: &[PathBuf]) -> Result<InputChanges, SessionError> {
-        self.synchronize(paths).map(SessionChange::into_public).map_err(SessionError)
+        let change = self.synchronize(paths).map_err(SessionError)?;
+        if !change.inputs.is_empty() {
+            self.initial_report = None;
+        }
+        Ok(change.into_public())
     }
 
     pub fn rescan(&mut self) -> Result<InputChanges, SessionError> {
-        self.rescan_inputs().map(SessionChange::into_public).map_err(SessionError)
+        let change = self.rescan_inputs().map_err(SessionError)?;
+        if !change.inputs.is_empty() {
+            self.initial_report = None;
+        }
+        Ok(change.into_public())
     }
 
     pub fn rebuild(&mut self) -> Result<RebuildOutcome, SessionError> {
@@ -179,6 +203,19 @@ impl BuildSession {
     }
 
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
+        if let Some(report) = &mut self.initial_report {
+            let result = compile::finish_initial(
+                &self.compilation,
+                report,
+                &self.root,
+                &self.output,
+                self.color,
+                self.diagnostics,
+                &mut self.generated_outputs,
+            )?;
+            self.initial_report = None;
+            return self.finish_rebuild(result);
+        }
         if self.compilation.source_ids().next().is_none() {
             self.reconcile_outputs(BTreeSet::new())?;
             return Ok(RebuildOutcome::NoInputs);
@@ -192,12 +229,20 @@ impl BuildSession {
             self.diagnostics,
             &mut self.generated_outputs,
         )?;
+        self.finish_rebuild(result)
+    }
+
+    fn finish_rebuild(
+        &mut self,
+        result: compile::RebuildResult,
+    ) -> Result<RebuildOutcome, SessionFailure> {
         match result.outcome {
             BuildOutcome::Succeeded => {
                 self.reconcile_outputs(result.outputs)?;
                 Ok(RebuildOutcome::Succeeded)
             }
             BuildOutcome::Diagnostics => Ok(RebuildOutcome::Diagnostics),
+            BuildOutcome::NoInputs => Ok(RebuildOutcome::NoInputs),
         }
     }
 

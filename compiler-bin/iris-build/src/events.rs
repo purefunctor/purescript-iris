@@ -10,6 +10,7 @@ use std::sync::Mutex;
 pub enum BuildOutcome {
     Succeeded,
     Diagnostics,
+    NoInputs,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -24,6 +25,12 @@ pub enum BuildEvent {
 pub trait BuildEventSink: Sync {
     /// A `Finished` event must not return while the sink can still write progress output.
     fn send(&self, event: BuildEvent);
+}
+
+pub struct SilentBuildEvents;
+
+impl BuildEventSink for SilentBuildEvents {
+    fn send(&self, _: BuildEvent) {}
 }
 
 pub struct ProgressEventSink {
@@ -50,6 +57,7 @@ impl BuildEventSink for ProgressEventSink {
                 outcome: match outcome {
                     BuildOutcome::Succeeded => ProgressOutcome::Succeeded,
                     BuildOutcome::Diagnostics => ProgressOutcome::Diagnostics,
+                    BuildOutcome::NoInputs => ProgressOutcome::Succeeded,
                 },
             },
         };

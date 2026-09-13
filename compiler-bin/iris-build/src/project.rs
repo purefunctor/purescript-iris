@@ -9,7 +9,7 @@ use thiserror::Error;
 use url::Url;
 
 use super::compile::{self, CompileError};
-use super::events::{BuildEvent, BuildEventSink, ProgressEventSink};
+use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
 use super::plan::PackageInput;
 use super::workspace::{Workspace, WorkspaceError};
 
@@ -111,9 +111,22 @@ pub struct PreparedProject {
     pub(crate) source_globs: Vec<PathBuf>,
 }
 
+pub struct InitializedProject {
+    pub(crate) project: PreparedProject,
+    pub(crate) build: compile::InitialBuild<(), ()>,
+}
+
 impl PreparedProject {
     pub fn root_directory(&self) -> &std::path::Path {
         &self.root
+    }
+
+    pub fn source_roots(&self) -> Result<Vec<PathBuf>, ProjectError> {
+        let walked = super::walk::walk_filtered(&self.root, &self.source_globs, [&self.output])
+            .map_err(CompileError::from)
+            .map_err(ProjectFailure::from)
+            .map_err(ProjectError)?;
+        Ok(walked.roots.into_iter().collect_vec())
     }
 }
 
@@ -123,6 +136,10 @@ pub fn build(config: BuildConfig) -> Result<(), BuildError> {
 
 pub fn prepare_project(config: ProjectConfig) -> Result<PreparedProject, ProjectError> {
     prepare_project_inner(config).map_err(ProjectError)
+}
+
+pub fn initialize_project(project: PreparedProject) -> Result<InitializedProject, ProjectError> {
+    initialize_project_inner(project).map_err(ProjectError)
 }
 
 pub fn run(config: RunConfig) -> Result<(), ExecutionError> {
@@ -143,20 +160,10 @@ fn build_project(config: BuildConfig) -> Result<(), ProjectFailure> {
 }
 
 fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(), ProjectFailure> {
-    let package_sources = spago::source_files_by_package(&project.root)?;
-
     let progress = ProgressRuntime::start(!config.quiet, config.color);
     let events = ProgressEventSink::new(progress.reporter());
     events.send(BuildEvent::Preparing);
-    let packages = package_sources.into_iter().map(|(name, package)| {
-        let dependencies = package.dependencies.into_iter().map(|name| name.to_string());
-        PackageInput {
-            name: name.to_string(),
-            source_identities: package.sources,
-            dependencies: dependencies.collect_vec(),
-        }
-    });
-    let packages = packages.collect_vec();
+    let packages = package_inputs(&project.root)?;
     compile::build(compile::BuildConfig {
         root: project.root,
         output: project.output,
@@ -168,6 +175,38 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
         events: &events,
     })?;
     Ok(())
+}
+
+fn initialize_project_inner(
+    project: PreparedProject,
+) -> Result<InitializedProject, ProjectFailure> {
+    let PreparedProject { root, output, source_globs } = &project;
+    let packages = package_inputs(root)?;
+    let excluded = [PathBuf::clone(output)];
+    let build = compile::build_initial(compile::InitialBuildConfig {
+        root,
+        source_globs,
+        excluded: &excluded,
+        packages,
+        prim_metadata: (),
+        source_metadata: |_: &Path| (),
+        execution: compile::PackageExecution::Parallel,
+        events: &SilentBuildEvents,
+    })?;
+    Ok(InitializedProject { project, build })
+}
+
+fn package_inputs(root: &Path) -> Result<Vec<PackageInput>, ProjectFailure> {
+    let package_sources = spago::source_files_by_package(root)?;
+    let packages = package_sources.into_iter().map(|(name, package)| {
+        let dependencies = package.dependencies.into_iter().map(|name| name.to_string());
+        PackageInput {
+            name: name.to_string(),
+            source_identities: package.sources,
+            dependencies: dependencies.collect_vec(),
+        }
+    });
+    Ok(packages.collect_vec())
 }
 
 fn run_project(config: RunConfig) -> Result<(), ProjectFailure> {

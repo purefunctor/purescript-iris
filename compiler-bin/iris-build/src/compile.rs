@@ -65,6 +65,7 @@ pub enum PackageExecution {
 pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
     pub root: &'a Path,
     pub source_globs: &'a [PathBuf],
+    pub excluded: &'a [PathBuf],
     pub packages: Vec<PackageInput>,
     pub prim_metadata: Metadata,
     pub source_metadata: SourceMetadata,
@@ -74,10 +75,23 @@ pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
 
 pub struct InitialBuild<Version, Metadata> {
     compilation: CompilationState<Version, Metadata>,
+    source_paths: BTreeSet<PathBuf>,
+    report: InitialBuildReport,
+}
+
+pub(crate) struct InitialBuildReport {
     sources: Vec<FileId>,
     diagnostics: Vec<diagnostics::DiagnosticCollection>,
     has_errors: bool,
+    no_inputs: bool,
+    failure: Option<CompileError>,
     duration: std::time::Duration,
+}
+
+pub(crate) struct InitialBuildParts<Version, Metadata> {
+    pub compilation: CompilationState<Version, Metadata>,
+    pub source_paths: BTreeSet<PathBuf>,
+    pub report: InitialBuildReport,
 }
 
 impl<Version, Metadata> InitialBuild<Version, Metadata> {
@@ -86,19 +100,27 @@ impl<Version, Metadata> InitialBuild<Version, Metadata> {
     }
 
     pub fn sources(&self) -> &[FileId] {
-        &self.sources
+        &self.report.sources
     }
 
     pub fn has_errors(&self) -> bool {
-        self.has_errors
+        self.report.has_errors
     }
 
     pub fn duration(&self) -> std::time::Duration {
-        self.duration
+        self.report.duration
     }
 
     pub fn into_compilation(self) -> CompilationState<Version, Metadata> {
         self.compilation
+    }
+
+    pub(crate) fn into_parts(self) -> InitialBuildParts<Version, Metadata> {
+        InitialBuildParts {
+            compilation: self.compilation,
+            source_paths: self.source_paths,
+            report: self.report,
+        }
     }
 }
 
@@ -113,6 +135,7 @@ where
     let InitialBuildConfig {
         root,
         source_globs,
+        excluded,
         packages,
         prim_metadata,
         source_metadata,
@@ -120,7 +143,7 @@ where
         events,
     } = config;
     let started = Instant::now();
-    let selected_paths = walk::walk(root, source_globs)?.files;
+    let selected_paths = walk::walk_filtered(root, source_globs, excluded)?.files;
     let selected_sources = selected_paths.into_iter().map(|path| {
         let identity = dunce::canonicalize(&path)?;
         Ok::<_, io::Error>(SelectedSource { path, identity })
@@ -134,63 +157,77 @@ where
     });
     let package_inputs = package_inputs.process_results(|packages| packages.collect_vec())?;
     let plan = BuildPlan::new(selected_sources, package_inputs)?;
-    if plan.is_empty() {
-        return Err(CompileError::NoInputs);
-    }
     events.send(BuildEvent::PlanReady { package_count: plan.package_count() });
 
     let prim = MaterializedPrim::new()?;
     let mut compilation = CompilationState::new(prim, prim_metadata);
-    let source_paths = plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
-    let source_paths = source_paths.collect::<BTreeSet<_>>();
+    let planned_source_paths =
+        plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
+    let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
     let mut sources = HashMap::new();
-    for path in source_paths {
-        let metadata = source_metadata(&path);
-        sources.insert(
-            PathBuf::clone(&path),
-            load_source(&mut compilation, &path, metadata)?,
-        );
+    for path in &source_paths {
+        let metadata = source_metadata(path);
+        sources.insert(PathBuf::clone(path), load_source(&mut compilation, path, metadata)?);
     }
 
-    let engine = compilation.snapshot();
+    let engine = compilation.query_engine();
     let execute = |package: &super::plan::PlannedPackage| {
         let package_sources = package.source_paths.iter().map(|path| sources[path]);
         let package_sources = package_sources.collect_vec();
         query_package(&engine, &package_sources)
     };
-    match execution {
-        PackageExecution::Serial => executor::execute_serial(&plan, events, &execute)?,
-        PackageExecution::Parallel => executor::execute_parallel(&plan, events, &execute)?,
-    }
+    let execution = match execution {
+        PackageExecution::Serial => executor::execute_serial(&plan, events, &execute),
+        PackageExecution::Parallel => executor::execute_parallel(&plan, events, &execute),
+    };
 
     let duration = started.elapsed();
     events.send(BuildEvent::Finalizing { duration });
     let sources = sources.into_values().collect_vec();
-    let (diagnostics, has_errors) = collect_diagnostics(&compilation, &sources)?;
-    Ok(InitialBuild { compilation, sources, diagnostics, has_errors, duration })
+    let no_inputs = sources.is_empty();
+    let (diagnostics, has_errors, failure) = match execution {
+        Ok(()) => match collect_diagnostics(&compilation, &sources) {
+            Ok((diagnostics, has_errors)) => (diagnostics, has_errors, None),
+            Err(error) => (vec![], true, Some(error)),
+        },
+        Err(error) => (vec![], true, Some(error)),
+    };
+    let report =
+        InitialBuildReport { sources, diagnostics, has_errors, no_inputs, failure, duration };
+    Ok(InitialBuild { compilation, source_paths, report })
 }
 
 pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
+    let started = Instant::now();
     let BuildConfig { root, output, source_globs, packages, color, diagnostics, resilient, events } =
         config;
+    let excluded = [PathBuf::clone(&output)];
     let initial = build_initial(InitialBuildConfig {
         root: &root,
         source_globs: &source_globs,
+        excluded: &excluded,
         packages,
         prim_metadata: (),
         source_metadata: |_: &Path| (),
         execution: PackageExecution::Parallel,
         events,
     })?;
-    let has_errors = initial.has_errors;
+    let InitialBuildParts { compilation, source_paths: _, mut report } = initial.into_parts();
+    if report.no_inputs {
+        return Err(CompileError::NoInputs);
+    }
+    if let Some(error) = report.failure.take() {
+        return Err(error);
+    }
+    let has_errors = report.has_errors;
     if !has_errors || resilient {
-        let modules = collect_modules(&initial.compilation, &initial.sources)?;
-        write_modules(&initial.compilation, &modules, &output, &mut BTreeSet::new())?;
+        let modules = collect_modules(&compilation, &report.sources)?;
+        write_modules(&compilation, &modules, &output, &mut BTreeSet::new())?;
     }
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
-    events.send(BuildEvent::Finished { duration: initial.duration, outcome });
+    events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });
     if diagnostics {
-        report_diagnostics(&initial.compilation, initial.diagnostics, &root, color);
+        report_diagnostics(&compilation, std::mem::take(&mut report.diagnostics), &root, color);
     }
     if has_errors {
         return Err(CompileError::Diagnostics { reported: diagnostics });
@@ -207,7 +244,7 @@ pub(crate) fn rebuild(
     owned_outputs: &mut BTreeSet<PathBuf>,
 ) -> Result<RebuildResult, CompileError> {
     let sources = compilation.source_ids().collect_vec();
-    let engine = compilation.snapshot();
+    let engine = compilation.query_engine();
     query_package(&engine, &sources)?;
     let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
     if diagnostics {
@@ -220,6 +257,36 @@ pub(crate) fn rebuild(
         write_modules(compilation, &modules, output, owned_outputs)?
     };
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
+    Ok(RebuildResult { outcome, outputs })
+}
+
+pub(crate) fn finish_initial(
+    compilation: &CompilationState,
+    report: &mut InitialBuildReport,
+    root: &Path,
+    output: &Path,
+    color: bool,
+    diagnostics: bool,
+    owned_outputs: &mut BTreeSet<PathBuf>,
+) -> Result<RebuildResult, CompileError> {
+    if report.no_inputs {
+        return Ok(RebuildResult { outcome: BuildOutcome::NoInputs, outputs: BTreeSet::new() });
+    }
+    if let Some(error) = report.failure.take() {
+        return Err(error);
+    }
+    if diagnostics {
+        let diagnostics = std::mem::take(&mut report.diagnostics);
+        report_diagnostics(compilation, diagnostics, root, color);
+    }
+    let outputs = if report.has_errors {
+        BTreeSet::new()
+    } else {
+        let modules = collect_modules(compilation, &report.sources)?;
+        write_modules(compilation, &modules, output, owned_outputs)?
+    };
+    let outcome =
+        if report.has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
     Ok(RebuildResult { outcome, outputs })
 }
 
@@ -262,6 +329,7 @@ where
 
 fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(), CompileError> {
     sources.par_iter().try_for_each(|&file_id| {
+        let engine = engine.snapshot();
         engine.stabilized(file_id)?;
         engine.indexed(file_id)?;
         engine.resolved(file_id)?;

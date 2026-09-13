@@ -5,8 +5,8 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
 use iris_build::{
-    BuildSession, BuildSessionConfig, InputChange, InputChanges, PreparedProject, RebuildOutcome,
-    SessionError,
+    BuildSession, BuildSessionConfig, InputChange, InputChanges, PreparedProject, ProjectError,
+    RebuildOutcome, SessionError, initialize_project,
 };
 use iris_progress::{WatchOutcome, WatchSummary, render_watch_summary};
 use itertools::Itertools;
@@ -30,6 +30,11 @@ enum WatchFailure {
     Notify(#[from] notify::Error),
     #[error(transparent)]
     Session(#[from] SessionError),
+    #[error(transparent)]
+    Project {
+        #[from]
+        source: ProjectError,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -42,22 +47,28 @@ pub fn watch(project: PreparedProject, config: WatchConfig) -> Result<(), WatchE
 
 fn watch_project(project: PreparedProject, config: WatchConfig) -> Result<(), WatchFailure> {
     let root = project.root_directory().to_path_buf();
-    let mut session = BuildSession::new(
-        project,
-        BuildSessionConfig { color: config.color, diagnostics: config.diagnostics },
-    )?;
+    let source_roots = project.source_roots()?;
     let (sender, receiver) = mpsc::channel();
     let mut watcher = RecommendedWatcher::new(sender, notify::Config::default())?;
-    for root in session.source_roots() {
+    for root in &source_roots {
         let root = persistent_watch_root(root);
         watcher.watch(&root, RecursiveMode::Recursive)?;
     }
 
+    let initial_started = Instant::now();
+    let project = initialize_project(project)?;
+    let mut session = BuildSession::new(
+        project,
+        BuildSessionConfig { color: config.color, diagnostics: config.diagnostics },
+    )?;
+
+    let initial_inputs = session.take_initial_inputs();
     let changes = session.rescan()?;
     report_warnings(&changes);
-    let mut pending_inputs = changes.inputs;
+    let mut pending_inputs =
+        if changes.inputs.is_empty() { initial_inputs } else { changes.inputs };
     let mut pending_rebuild =
-        !rebuild_and_report(&mut session, &config, &root, &pending_inputs, true);
+        !rebuild_and_report(&mut session, &config, &root, &pending_inputs, true, initial_started);
 
     let mut needs_rescan = false;
     loop {
@@ -97,7 +108,14 @@ fn watch_project(project: PreparedProject, config: WatchConfig) -> Result<(), Wa
         if !pending_rebuild {
             continue;
         }
-        pending_rebuild = !rebuild_and_report(&mut session, &config, &root, &pending_inputs, false);
+        pending_rebuild = !rebuild_and_report(
+            &mut session,
+            &config,
+            &root,
+            &pending_inputs,
+            false,
+            Instant::now(),
+        );
     }
 }
 
@@ -107,8 +125,8 @@ fn rebuild_and_report(
     root: &Path,
     inputs: &[InputChange],
     initial: bool,
+    started: Instant,
 ) -> bool {
-    let started = Instant::now();
     match session.rebuild() {
         Ok(outcome) => {
             let outcome = match outcome {

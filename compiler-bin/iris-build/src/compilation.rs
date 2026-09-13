@@ -117,6 +117,10 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
         self.engine.snapshot()
     }
 
+    pub(crate) fn query_engine(&self) -> &QueryEngine {
+        &self.engine
+    }
+
     pub fn source_ids(&self) -> impl Iterator<Item = FileId> + '_ {
         self.sources.iter().copied()
     }
