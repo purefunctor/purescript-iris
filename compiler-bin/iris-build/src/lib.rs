@@ -2,7 +2,7 @@ pub mod events;
 pub mod executor;
 pub mod plan;
 
-mod compilation;
+pub mod compilation;
 mod compile;
 mod project;
 mod session;

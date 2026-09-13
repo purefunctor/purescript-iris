@@ -1748,6 +1748,7 @@ dependencies = [
  "serde",
  "serde_yml",
  "spago",
+ "tempfile",
  "thiserror",
  "url",
  "walkdir",

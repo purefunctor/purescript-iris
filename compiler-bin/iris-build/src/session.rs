@@ -8,7 +8,7 @@ use itertools::Itertools;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::CompilationState;
+use super::compilation::{CompilationState, MaterializedPrim};
 use super::compile::{self, CompileError};
 use super::events::BuildOutcome;
 use super::project::PreparedProject;
@@ -89,6 +89,7 @@ impl BuildSession {
     ) -> Result<BuildSession, SessionFailure> {
         let walked = walk::walk_filtered(&project.root, &project.source_globs, [&project.output])?;
         let source_roots = walked.roots.into_iter().collect_vec();
+        let prim = MaterializedPrim::new()?;
         Ok(BuildSession {
             root: project.root,
             output: project.output,
@@ -97,7 +98,7 @@ impl BuildSession {
             source_globs: walked.globs,
             source_paths: BTreeSet::new(),
             generated_outputs: BTreeSet::new(),
-            compilation: CompilationState::new(),
+            compilation: CompilationState::new(prim, ()),
             color: config.color,
             diagnostics: config.diagnostics,
         })
@@ -178,7 +179,7 @@ impl BuildSession {
     }
 
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
-        if self.compilation.input_sources().is_empty() {
+        if self.compilation.source_ids().next().is_none() {
             self.reconcile_outputs(BTreeSet::new())?;
             return Ok(RebuildOutcome::NoInputs);
         }
@@ -251,7 +252,7 @@ fn observe_source_unit(
     let previous_name = compilation.module_name(unit.source())?;
 
     let source = observe_disk(source_path);
-    let mut lifecycle = compilation.observe_source(SourceUnitKey::clone(&unit), source);
+    let mut lifecycle = compilation.observe_source(SourceUnitKey::clone(&unit), source, ());
     for kind in ForeignSourceKind::ALL {
         let foreign = observe_disk(&source_path.with_extension(kind.extension()));
         lifecycle.combine(compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, foreign));

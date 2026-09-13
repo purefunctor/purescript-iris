@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::CompilationState;
+use super::compilation::{CompilationState, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
@@ -78,7 +78,8 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     }
     events.send(BuildEvent::PlanReady { package_count: plan.package_count() });
 
-    let mut compilation = CompilationState::new();
+    let prim = MaterializedPrim::new()?;
+    let mut compilation = CompilationState::new(prim, ());
     let source_paths = plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
     let source_paths = source_paths.collect::<BTreeSet<_>>();
     let mut sources = HashMap::new();
@@ -94,7 +95,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
 
     let duration = started.elapsed();
     events.send(BuildEvent::Finalizing { duration });
-    let all_sources = compilation.input_sources();
+    let all_sources = sources.into_values().collect_vec();
     let (diagnostic_collections, has_errors) = collect_diagnostics(&compilation, &all_sources)?;
     if !has_errors || resilient {
         let modules = collect_modules(&compilation, &all_sources)?;
@@ -119,7 +120,7 @@ pub(crate) fn rebuild(
     diagnostics: bool,
     owned_outputs: &mut BTreeSet<PathBuf>,
 ) -> Result<RebuildResult, CompileError> {
-    let sources = compilation.input_sources();
+    let sources = compilation.source_ids().collect_vec();
     query_package(compilation, &sources)?;
     let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
     if diagnostics {
@@ -143,8 +144,11 @@ fn load_source(compilation: &mut CompilationState, path: &Path) -> Result<FileId
         .map_err(|_| CompileError::InvalidPath(PathBuf::clone(&foreign_path)))?;
     let unit = SourceUnitKey::new(source_url.as_str(), foreign_url.as_str());
     let content = fs::read_to_string(path)?;
-    let change = compilation
-        .observe_source(SourceUnitKey::clone(&unit), DiskObservation::Found(content.into()));
+    let change = compilation.observe_source(
+        SourceUnitKey::clone(&unit),
+        DiskObservation::Found(content.into()),
+        (),
+    );
     let file_id = change
         .changed_sources()
         .next()
