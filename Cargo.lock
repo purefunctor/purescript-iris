@@ -1747,6 +1747,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_yml",
+ "smol_str",
  "spago",
  "tempfile",
  "thiserror",
@@ -1790,6 +1791,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "smol_str",
  "spago",
  "tempfile",
  "thiserror",
@@ -1820,6 +1822,7 @@ dependencies = [
  "console",
  "itertools 0.15.0",
  "ratatui",
+ "smol_str",
  "terminal-colorsaurus",
 ]
 

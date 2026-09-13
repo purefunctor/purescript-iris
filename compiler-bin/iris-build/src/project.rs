@@ -198,13 +198,10 @@ fn initialize_project_inner(
 
 fn package_inputs(root: &Path) -> Result<Vec<PackageInput>, ProjectFailure> {
     let package_sources = spago::source_files_by_package(root)?;
-    let packages = package_sources.into_iter().map(|(name, package)| {
-        let dependencies = package.dependencies.into_iter().map(|name| name.to_string());
-        PackageInput {
-            name: name.to_string(),
-            source_identities: package.sources,
-            dependencies: dependencies.collect_vec(),
-        }
+    let packages = package_sources.into_iter().map(|(name, package)| PackageInput {
+        name,
+        source_identities: package.sources,
+        dependencies: package.dependencies.into_iter().collect_vec(),
     });
     Ok(packages.collect_vec())
 }

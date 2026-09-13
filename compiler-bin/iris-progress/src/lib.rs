@@ -13,6 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{Terminal, TerminalOptions, Viewport};
+use smol_str::SmolStr;
 use terminal_colorsaurus::QueryOptions;
 
 const ANIMATION_INTERVAL: Duration = Duration::from_millis(80);
@@ -118,14 +119,14 @@ fn format_watch_duration(duration: Duration) -> String {
 pub enum ProgressEvent {
     Preparing,
     PlanReady { package_count: usize },
-    PackageCompleted { package_name: String, duration: Duration },
+    PackageCompleted { package_name: SmolStr, duration: Duration },
     Finalizing { duration: Duration },
     Finished { duration: Duration, outcome: ProgressOutcome },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompletedPackage {
-    pub package_name: String,
+    pub package_name: SmolStr,
     pub duration: Duration,
 }
 
@@ -670,7 +671,7 @@ mod tests {
         model.apply(ProgressEvent::PlanReady { package_count });
         for name in names {
             model.apply(ProgressEvent::PackageCompleted {
-                package_name: (*name).to_owned(),
+                package_name: SmolStr::new(name),
                 duration: Duration::from_millis(125),
             });
         }
@@ -826,7 +827,7 @@ mod tests {
         let mut model = ProgressModel::default();
         model.apply(ProgressEvent::PlanReady { package_count: 2 });
         model.apply(ProgressEvent::PackageCompleted {
-            package_name: "diagnostic-package".to_owned(),
+            package_name: SmolStr::new("diagnostic-package"),
             duration: Duration::from_millis(5),
         });
         model.apply(ProgressEvent::Finalizing { duration: Duration::from_millis(750) });
@@ -853,7 +854,7 @@ mod tests {
         model.apply(ProgressEvent::PlanReady { package_count: names.len() });
         for package_name in names {
             model.apply(ProgressEvent::PackageCompleted {
-                package_name,
+                package_name: SmolStr::new(package_name),
                 duration: Duration::from_millis(1),
             });
         }
@@ -957,7 +958,7 @@ mod tests {
             ("a-much-longer-package-name", Duration::from_micros(123_450)),
         ] {
             model.apply(ProgressEvent::PackageCompleted {
-                package_name: package_name.to_owned(),
+                package_name: SmolStr::new(package_name),
                 duration,
             });
         }

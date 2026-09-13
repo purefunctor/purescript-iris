@@ -7,6 +7,7 @@ use std::slice;
 use itertools::Itertools;
 use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraphMap;
+use smol_str::SmolStr;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -23,14 +24,14 @@ pub struct SelectedSource {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PackageInput {
-    pub name: String,
+    pub name: SmolStr,
     pub source_identities: Vec<PathBuf>,
-    pub dependencies: Vec<String>,
+    pub dependencies: Vec<SmolStr>,
 }
 
 #[derive(Debug)]
 pub struct PlannedPackage {
-    pub name: String,
+    pub name: SmolStr,
     pub source_paths: Vec<PathBuf>,
 }
 
@@ -51,9 +52,9 @@ pub struct BuildPlan {
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum BuildPlanError {
     #[error("Spago package '{0}' appears more than once in the build plan")]
-    DuplicatePackage(String),
+    DuplicatePackage(SmolStr),
     #[error("source {path} belongs to both Spago packages {first_package} and {second_package}")]
-    ConflictingPackageSource { path: PathBuf, first_package: String, second_package: String },
+    ConflictingPackageSource { path: PathBuf, first_package: SmolStr, second_package: SmolStr },
     #[error("Spago selected source {0}, but the lockfile does not assign it to a package")]
     UnownedPackageSource(PathBuf),
 }
@@ -63,33 +64,33 @@ impl BuildPlan {
         selected_sources: Vec<SelectedSource>,
         package_inputs: Vec<PackageInput>,
     ) -> Result<BuildPlan, BuildPlanError> {
-        let mut owners: HashMap<PathBuf, String> = HashMap::new();
+        let mut owners: HashMap<PathBuf, SmolStr> = HashMap::new();
         let mut package_names = HashSet::new();
         for package in &package_inputs {
-            if !package_names.insert(String::clone(&package.name)) {
-                return Err(BuildPlanError::DuplicatePackage(String::clone(&package.name)));
+            if !package_names.insert(SmolStr::clone(&package.name)) {
+                return Err(BuildPlanError::DuplicatePackage(SmolStr::clone(&package.name)));
             }
             for source_identity in &package.source_identities {
                 if let Some(first_package) = owners.get(source_identity) {
                     if first_package != &package.name {
                         return Err(BuildPlanError::ConflictingPackageSource {
                             path: PathBuf::clone(source_identity),
-                            first_package: String::clone(first_package),
-                            second_package: String::clone(&package.name),
+                            first_package: SmolStr::clone(first_package),
+                            second_package: SmolStr::clone(&package.name),
                         });
                     }
                 } else {
-                    owners.insert(PathBuf::clone(source_identity), String::clone(&package.name));
+                    owners.insert(PathBuf::clone(source_identity), SmolStr::clone(&package.name));
                 }
             }
         }
 
-        let mut selected_by_package: HashMap<String, Vec<PathBuf>> = HashMap::new();
+        let mut selected_by_package: HashMap<SmolStr, Vec<PathBuf>> = HashMap::new();
         for source in selected_sources {
             let Some(owner) = owners.get(&source.identity) else {
                 return Err(BuildPlanError::UnownedPackageSource(source.path));
             };
-            selected_by_package.entry(String::clone(owner)).or_default().push(source.path);
+            selected_by_package.entry(SmolStr::clone(owner)).or_default().push(source.path);
         }
 
         let retained = selected_by_package.keys().cloned().collect::<HashSet<_>>();
@@ -101,7 +102,7 @@ impl BuildPlan {
             .filter(|package| retained.contains(&package.name))
             .map(|package| {
                 let dependencies = contract_dependencies(package, &retained, &packages_by_name);
-                (String::clone(&package.name), dependencies)
+                (SmolStr::clone(&package.name), dependencies)
             });
         let contracted_dependencies = contracted_dependencies.collect::<HashMap<_, _>>();
 
@@ -159,21 +160,21 @@ impl BuildPlan {
 
 fn contract_dependencies(
     package: &PackageInput,
-    retained: &HashSet<String>,
+    retained: &HashSet<SmolStr>,
     packages_by_name: &HashMap<&str, &PackageInput>,
-) -> Vec<String> {
+) -> Vec<SmolStr> {
     let mut dependencies = vec![];
     let mut visited = HashSet::new();
-    let pending = package.dependencies.iter().rev().map(String::as_str);
+    let pending = package.dependencies.iter().rev().map(SmolStr::as_str);
     let mut pending = pending.collect_vec();
     while let Some(dependency) = pending.pop() {
         if !visited.insert(dependency) {
             continue;
         }
         if retained.contains(dependency) {
-            dependencies.push(dependency.to_owned());
+            dependencies.push(SmolStr::new(dependency));
         } else if let Some(package) = packages_by_name.get(dependency) {
-            pending.extend(package.dependencies.iter().rev().map(String::as_str));
+            pending.extend(package.dependencies.iter().rev().map(SmolStr::as_str));
         }
     }
     dependencies
@@ -250,9 +251,9 @@ mod tests {
     fn package(name: &str, sources: &[&str], dependencies: &[&str]) -> PackageInput {
         let source_identities = sources.iter().map(PathBuf::from);
         let source_identities = source_identities.collect_vec();
-        let dependencies = dependencies.iter().map(|dependency| (*dependency).to_owned());
+        let dependencies = dependencies.iter().map(|dependency| SmolStr::new(dependency));
         PackageInput {
-            name: name.to_owned(),
+            name: SmolStr::new(name),
             source_identities,
             dependencies: dependencies.collect_vec(),
         }
@@ -279,7 +280,10 @@ mod tests {
             vec![package("duplicate", &["First.purs"], &[]), package("duplicate", &[], &[])],
         );
 
-        assert_eq!(result.unwrap_err(), BuildPlanError::DuplicatePackage("duplicate".to_owned()));
+        assert_eq!(
+            result.unwrap_err(),
+            BuildPlanError::DuplicatePackage(SmolStr::new("duplicate"))
+        );
     }
 
     #[test]

@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use itertools::Itertools;
 use rayon::prelude::*;
+use smol_str::SmolStr;
 
 use super::events::{BuildEvent, BuildEventSink};
 use super::plan::{BuildPlan, PackageGroup, PackageGroupId, PlannedPackage};
@@ -113,7 +114,7 @@ where
     let started = Instant::now();
     execute(package)?;
     events.send(BuildEvent::PackageCompleted {
-        package_name: String::clone(&package.name),
+        package_name: SmolStr::clone(&package.name),
         duration: started.elapsed(),
     });
     Ok(())
@@ -148,19 +149,19 @@ mod tests {
         let selected_sources = selected_sources.collect_vec();
         let packages = vec![
             PackageInput {
-                name: "root".to_owned(),
+                name: SmolStr::new("root"),
                 source_identities: vec![PathBuf::from("root")],
                 dependencies: vec![],
             },
             PackageInput {
-                name: "independent".to_owned(),
+                name: SmolStr::new("independent"),
                 source_identities: vec![PathBuf::from("independent")],
                 dependencies: vec![],
             },
             PackageInput {
-                name: "dependent".to_owned(),
+                name: SmolStr::new("dependent"),
                 source_identities: vec![PathBuf::from("dependent")],
-                dependencies: vec!["root".to_owned(), "independent".to_owned()],
+                dependencies: vec![SmolStr::new("root"), SmolStr::new("independent")],
             },
         ];
         BuildPlan::new(selected_sources, packages).unwrap()
@@ -185,7 +186,7 @@ mod tests {
             if package.name == "independent" {
                 independent_completed.store(true, Ordering::Release);
             }
-            executed.lock().unwrap().push(String::clone(&package.name));
+            executed.lock().unwrap().push(SmolStr::clone(&package.name));
             Ok::<_, ()>(())
         })
         .unwrap();
@@ -195,7 +196,11 @@ mod tests {
         let executed = executed.into_iter().collect::<HashSet<_>>();
         assert_eq!(
             executed,
-            HashSet::from(["root".to_owned(), "independent".to_owned(), "dependent".to_owned()])
+            HashSet::from([
+                SmolStr::new("root"),
+                SmolStr::new("independent"),
+                SmolStr::new("dependent"),
+            ])
         );
         let completions = events.into_events().into_iter().filter_map(|event| match event {
             BuildEvent::PackageCompleted { package_name, .. } => Some(package_name),
@@ -214,7 +219,7 @@ mod tests {
         let executed = Mutex::new(vec![]);
 
         execute_serial(&plan, events, &|package| {
-            executed.lock().unwrap().push(String::clone(&package.name));
+            executed.lock().unwrap().push(SmolStr::clone(&package.name));
             Ok::<_, ()>(())
         })
         .unwrap();

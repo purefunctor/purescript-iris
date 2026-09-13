@@ -41,6 +41,7 @@ use lsp_types::*;
 use parking_lot::{RwLock, RwLockReadGuard};
 use path_absolutize::Absolutize;
 use rustc_hash::FxHashSet;
+use smol_str::SmolStr;
 use tokio::task;
 use tower::ServiceBuilder;
 
@@ -601,7 +602,7 @@ fn discover_manual(
     let metadata = metadata.collect();
 
     let package = PackageInput {
-        name: "unmanaged".to_string(),
+        name: SmolStr::new("unmanaged"),
         source_identities: Vec::clone(&files),
         dependencies: vec![],
     };
@@ -619,13 +620,10 @@ fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspErro
 
     let packages = spago::source_files_by_package(root).map_err(LspError::SpagoLock)?;
 
-    let package_inputs = packages.iter().map(|(name, package)| {
-        let dependencies = package.dependencies.iter().map(ToString::to_string).collect_vec();
-        PackageInput {
-            name: name.to_string(),
-            source_identities: Vec::clone(&package.sources),
-            dependencies,
-        }
+    let package_inputs = packages.iter().map(|(name, package)| PackageInput {
+        name: SmolStr::clone(name),
+        source_identities: Vec::clone(&package.sources),
+        dependencies: package.dependencies.iter().cloned().collect_vec(),
     });
     let package_inputs = package_inputs.collect_vec();
 

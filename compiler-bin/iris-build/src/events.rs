@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use iris_progress::{ProgressEvent, ProgressOutcome, ProgressReporter};
+use smol_str::SmolStr;
 
 use std::sync::Mutex;
 
@@ -17,7 +18,7 @@ pub enum BuildOutcome {
 pub enum BuildEvent {
     Preparing,
     PlanReady { package_count: usize },
-    PackageCompleted { package_name: String, duration: Duration },
+    PackageCompleted { package_name: SmolStr, duration: Duration },
     Finalizing { duration: Duration },
     Finished { duration: Duration, outcome: BuildOutcome },
 }

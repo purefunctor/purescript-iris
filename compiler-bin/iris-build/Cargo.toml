@@ -24,6 +24,7 @@ prim-constants = { version = "0.1.0", path = "../../compiler-core/prim-constants
 rayon = "1.12.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_yml = "0.0.12"
+smol_str = "0.3.6"
 spago = { version = "0.1.0", path = "../../compiler-lsp/spago" }
 tempfile = "3.27.0"
 thiserror = "2.0.20"
