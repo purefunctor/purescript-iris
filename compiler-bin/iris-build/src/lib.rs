@@ -3,7 +3,7 @@ pub mod executor;
 pub mod plan;
 
 pub mod compilation;
-mod compile;
+pub mod compile;
 mod project;
 mod session;
 mod walk;

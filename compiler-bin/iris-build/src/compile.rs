@@ -29,7 +29,7 @@ pub(crate) struct BuildConfig<'a> {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum CompileError {
+pub enum CompileError {
     #[error("compilation failed")]
     Diagnostics { reported: bool },
     #[error("failed to convert path to a file URL: {0}")]
@@ -56,22 +56,83 @@ struct ModuleWrite {
     result: Result<(), CompileError>,
 }
 
-pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
-    let BuildConfig { root, output, source_globs, packages, color, diagnostics, resilient, events } =
-        config;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PackageExecution {
+    Serial,
+    Parallel,
+}
+
+pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
+    pub root: &'a Path,
+    pub source_globs: &'a [PathBuf],
+    pub packages: Vec<PackageInput>,
+    pub prim_metadata: Metadata,
+    pub source_metadata: SourceMetadata,
+    pub execution: PackageExecution,
+    pub events: &'a dyn BuildEventSink,
+}
+
+pub struct InitialBuild<Version, Metadata> {
+    compilation: CompilationState<Version, Metadata>,
+    sources: Vec<FileId>,
+    diagnostics: Vec<diagnostics::DiagnosticCollection>,
+    has_errors: bool,
+    duration: std::time::Duration,
+}
+
+impl<Version, Metadata> InitialBuild<Version, Metadata> {
+    pub fn compilation(&self) -> &CompilationState<Version, Metadata> {
+        &self.compilation
+    }
+
+    pub fn sources(&self) -> &[FileId] {
+        &self.sources
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.has_errors
+    }
+
+    pub fn duration(&self) -> std::time::Duration {
+        self.duration
+    }
+
+    pub fn into_compilation(self) -> CompilationState<Version, Metadata> {
+        self.compilation
+    }
+}
+
+pub fn build_initial<Version, Metadata, SourceMetadata>(
+    config: InitialBuildConfig<'_, Metadata, SourceMetadata>,
+) -> Result<InitialBuild<Version, Metadata>, CompileError>
+where
+    Version: Clone + Ord,
+    Metadata: Clone,
+    SourceMetadata: for<'path> Fn(&'path Path) -> Metadata,
+{
+    let InitialBuildConfig {
+        root,
+        source_globs,
+        packages,
+        prim_metadata,
+        source_metadata,
+        execution,
+        events,
+    } = config;
     let started = Instant::now();
-    let selected_paths = walk::walk(&root, &source_globs)?.files;
+    let selected_paths = walk::walk(root, source_globs)?.files;
     let selected_sources = selected_paths.into_iter().map(|path| {
         let identity = dunce::canonicalize(&path)?;
-        Ok(SelectedSource { path, identity })
+        Ok::<_, io::Error>(SelectedSource { path, identity })
     });
-    let selected_sources = selected_sources.collect::<Result<Vec<_>, io::Error>>()?;
+    let selected_sources = selected_sources.process_results(|sources| sources.collect_vec())?;
     let package_inputs = packages.into_iter().map(|package| {
         let source_identities = package.source_identities.into_iter().map(dunce::canonicalize);
-        let source_identities = source_identities.collect::<Result<Vec<_>, io::Error>>()?;
-        Ok(PackageInput { source_identities, ..package })
+        let source_identities =
+            source_identities.process_results(|sources| sources.collect_vec())?;
+        Ok::<_, io::Error>(PackageInput { source_identities, ..package })
     });
-    let package_inputs = package_inputs.collect::<Result<Vec<_>, io::Error>>()?;
+    let package_inputs = package_inputs.process_results(|packages| packages.collect_vec())?;
     let plan = BuildPlan::new(selected_sources, package_inputs)?;
     if plan.is_empty() {
         return Err(CompileError::NoInputs);
@@ -79,32 +140,57 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     events.send(BuildEvent::PlanReady { package_count: plan.package_count() });
 
     let prim = MaterializedPrim::new()?;
-    let mut compilation = CompilationState::new(prim, ());
+    let mut compilation = CompilationState::new(prim, prim_metadata);
     let source_paths = plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
     let source_paths = source_paths.collect::<BTreeSet<_>>();
     let mut sources = HashMap::new();
     for path in source_paths {
-        sources.insert(PathBuf::clone(&path), load_source(&mut compilation, &path)?);
+        let metadata = source_metadata(&path);
+        sources.insert(
+            PathBuf::clone(&path),
+            load_source(&mut compilation, &path, metadata)?,
+        );
     }
 
-    executor::execute_parallel(&plan, events, &|package| {
+    let engine = compilation.snapshot();
+    let execute = |package: &super::plan::PlannedPackage| {
         let package_sources = package.source_paths.iter().map(|path| sources[path]);
         let package_sources = package_sources.collect_vec();
-        query_package(&compilation, &package_sources)
-    })?;
+        query_package(&engine, &package_sources)
+    };
+    match execution {
+        PackageExecution::Serial => executor::execute_serial(&plan, events, &execute)?,
+        PackageExecution::Parallel => executor::execute_parallel(&plan, events, &execute)?,
+    }
 
     let duration = started.elapsed();
     events.send(BuildEvent::Finalizing { duration });
-    let all_sources = sources.into_values().collect_vec();
-    let (diagnostic_collections, has_errors) = collect_diagnostics(&compilation, &all_sources)?;
+    let sources = sources.into_values().collect_vec();
+    let (diagnostics, has_errors) = collect_diagnostics(&compilation, &sources)?;
+    Ok(InitialBuild { compilation, sources, diagnostics, has_errors, duration })
+}
+
+pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
+    let BuildConfig { root, output, source_globs, packages, color, diagnostics, resilient, events } =
+        config;
+    let initial = build_initial(InitialBuildConfig {
+        root: &root,
+        source_globs: &source_globs,
+        packages,
+        prim_metadata: (),
+        source_metadata: |_: &Path| (),
+        execution: PackageExecution::Parallel,
+        events,
+    })?;
+    let has_errors = initial.has_errors;
     if !has_errors || resilient {
-        let modules = collect_modules(&compilation, &all_sources)?;
-        write_modules(&compilation, &modules, &output, &mut BTreeSet::new())?;
+        let modules = collect_modules(&initial.compilation, &initial.sources)?;
+        write_modules(&initial.compilation, &modules, &output, &mut BTreeSet::new())?;
     }
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
-    events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });
+    events.send(BuildEvent::Finished { duration: initial.duration, outcome });
     if diagnostics {
-        report_diagnostics(&compilation, diagnostic_collections, &root, color);
+        report_diagnostics(&initial.compilation, initial.diagnostics, &root, color);
     }
     if has_errors {
         return Err(CompileError::Diagnostics { reported: diagnostics });
@@ -121,7 +207,8 @@ pub(crate) fn rebuild(
     owned_outputs: &mut BTreeSet<PathBuf>,
 ) -> Result<RebuildResult, CompileError> {
     let sources = compilation.source_ids().collect_vec();
-    query_package(compilation, &sources)?;
+    let engine = compilation.snapshot();
+    query_package(&engine, &sources)?;
     let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
     if diagnostics {
         report_diagnostics(compilation, diagnostic_collections, root, color);
@@ -136,7 +223,15 @@ pub(crate) fn rebuild(
     Ok(RebuildResult { outcome, outputs })
 }
 
-fn load_source(compilation: &mut CompilationState, path: &Path) -> Result<FileId, CompileError> {
+fn load_source<Version, Metadata>(
+    compilation: &mut CompilationState<Version, Metadata>,
+    path: &Path,
+    metadata: Metadata,
+) -> Result<FileId, CompileError>
+where
+    Version: Clone + Ord,
+    Metadata: Clone,
+{
     let source_url =
         Url::from_file_path(path).map_err(|_| CompileError::InvalidPath(path.to_path_buf()))?;
     let foreign_path = path.with_extension("js");
@@ -147,7 +242,7 @@ fn load_source(compilation: &mut CompilationState, path: &Path) -> Result<FileId
     let change = compilation.observe_source(
         SourceUnitKey::clone(&unit),
         DiskObservation::Found(content.into()),
-        (),
+        metadata,
     );
     let file_id = change
         .changed_sources()
@@ -165,9 +260,8 @@ fn load_source(compilation: &mut CompilationState, path: &Path) -> Result<FileId
     Ok(file_id)
 }
 
-fn query_package(compilation: &CompilationState, sources: &[FileId]) -> Result<(), CompileError> {
+fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(), CompileError> {
     sources.par_iter().try_for_each(|&file_id| {
-        let engine = compilation.snapshot();
         engine.stabilized(file_id)?;
         engine.indexed(file_id)?;
         engine.resolved(file_id)?;
@@ -179,10 +273,14 @@ fn query_package(compilation: &CompilationState, sources: &[FileId]) -> Result<(
     })
 }
 
-fn collect_diagnostics(
-    compilation: &CompilationState,
+fn collect_diagnostics<Version, Metadata>(
+    compilation: &CompilationState<Version, Metadata>,
     sources: &[FileId],
-) -> Result<(Vec<diagnostics::DiagnosticCollection>, bool), CompileError> {
+) -> Result<(Vec<diagnostics::DiagnosticCollection>, bool), CompileError>
+where
+    Version: Clone + Ord,
+    Metadata: Clone,
+{
     let engine = compilation.snapshot();
     let diagnostics = diagnostics::collect_diagnostics(&engine, sources)?;
     let has_errors = diagnostics
