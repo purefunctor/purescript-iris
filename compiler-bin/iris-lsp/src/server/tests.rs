@@ -10,6 +10,7 @@ use building::lifecycle::{
 };
 use configuration::{Configuration, Diagnostics};
 use files::ForeignSourceKind;
+use iris_build::compilation::{CompilationState, MaterializedPrim};
 use lsp_types::{
     DidCloseTextDocumentParams, Position, Range, TextDocumentContentChangeEvent,
     TextDocumentIdentifier, Url,
@@ -17,9 +18,9 @@ use lsp_types::{
 use tempfile::tempdir;
 
 use super::{
-    State, apply_content_changes, apply_lifecycle_event, did_close, document_kind,
-    materialize_prim, observe_disk, source_unit_from_document_uri, source_unit_from_foreign_uri,
-    source_unit_from_source_uri,
+    SourceMetadata, State, apply_content_changes, apply_lifecycle_event, did_close, document_kind,
+    observe_disk, package_source_roots, source_unit_from_document_uri,
+    source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
 fn test_config() -> Arc<Configuration> {
@@ -29,6 +30,15 @@ fn test_config() -> Arc<Configuration> {
     })
 }
 
+fn test_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> State {
+    let mut state = State::new(config, client, "iris-lsp".to_string(), "test".to_string());
+    let prim = MaterializedPrim::new().unwrap();
+    let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
+    let pending = state.install_compilation(compilation, vec![], Default::default());
+    assert!(pending.is_empty());
+    state
+}
+
 fn assert_source_close_result(
     source_uri: Url,
     foreign_uri: Url,
@@ -36,22 +46,14 @@ fn assert_source_close_result(
 ) {
     let unit = source_unit_from_source_uri(&source_uri).unwrap();
     let config = test_config();
-    let prim_directory = Arc::new(materialize_prim().unwrap());
-
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(
-            Arc::clone(&config),
-            client,
-            "iris-lsp".to_string(),
-            "test".to_string(),
-            Arc::clone(&prim_directory),
-        );
+        let mut state = test_state(Arc::clone(&config), client);
         let event = LifecycleEvent::Source {
             unit: SourceUnitKey::clone(&unit),
             event: SourceEvent::Opened {
                 text: Arc::from("module Main where\n"),
                 version: 1,
-                metadata: true,
+                metadata: SourceMetadata::Unmanaged { editable: true },
             },
         };
         apply_lifecycle_event(&mut state, event);
@@ -69,7 +71,7 @@ fn assert_source_close_result(
         };
         did_close(&mut state, parameters).unwrap();
 
-        let files = state.files.read();
+        let files = state.files().read();
         assert_eq!(files.source_authority(&unit), source_authority);
         assert_eq!(files.foreign_id(foreign_uri.as_str()), None);
         drop(files);
@@ -169,22 +171,14 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
     let foreign_uri = Url::from_file_path(&foreign_path).unwrap();
     let unit = source_unit_from_source_uri(&source_uri).unwrap();
     let config = test_config();
-    let prim_directory = Arc::new(materialize_prim().unwrap());
-
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(
-            Arc::clone(&config),
-            client,
-            "iris-lsp".to_string(),
-            "test".to_string(),
-            Arc::clone(&prim_directory),
-        );
+        let mut state = test_state(Arc::clone(&config), client);
         let event = LifecycleEvent::Source {
             unit: SourceUnitKey::clone(&unit),
             event: SourceEvent::Opened {
                 text: Arc::from("module Main where\n"),
                 version: 1,
-                metadata: true,
+                metadata: SourceMetadata::Unmanaged { editable: true },
             },
         };
         apply_lifecycle_event(&mut state, event);
@@ -203,19 +197,19 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
         did_close(&mut state, parameters).unwrap();
         fs::remove_file(foreign_path).unwrap();
 
-        let source_id = state.files.read().source_id(source_uri.as_str()).unwrap();
-        let foreign_id = state.files.read().foreign_id(foreign_uri.as_str()).unwrap();
+        let source_id = state.files().read().source_id(source_uri.as_str()).unwrap();
+        let foreign_id = state.files().read().foreign_id(foreign_uri.as_str()).unwrap();
         let parameters = DidCloseTextDocumentParams {
             text_document: TextDocumentIdentifier { uri: Url::clone(&source_uri) },
         };
         did_close(&mut state, parameters).unwrap();
 
-        let files = state.files.read();
+        let files = state.files().read();
         assert_eq!(files.source_id(source_uri.as_str()), Some(source_id));
         assert_eq!(files.foreign_id(foreign_uri.as_str()), Some(foreign_id));
-        assert_eq!(state.engine.foreign_file(source_id), Some(foreign_id));
+        assert_eq!(state.engine().foreign_file(source_id), Some(foreign_id));
         assert_eq!(
-            state.engine.foreign_content(foreign_id).unwrap().as_ref(),
+            state.engine().foreign_content(foreign_id).unwrap().as_ref(),
             "export const life = 42;\n",
         );
         drop(files);
@@ -238,6 +232,29 @@ fn disk_observation_distinguishes_content_and_absence() {
 
     fs::remove_file(source_path).unwrap();
     assert_eq!(observe_disk(&source_uri), DiskObservation::NotFound);
+}
+
+#[cfg(unix)]
+#[test]
+fn package_roots_include_canonical_symlink_aliases() {
+    use std::collections::BTreeSet;
+    use std::os::unix::fs::symlink;
+
+    let directory = tempdir().unwrap();
+    let package_directory = directory.path().join("package");
+    let linked_directory = directory.path().join("linked-package");
+    fs::create_dir(&package_directory).unwrap();
+    symlink(&package_directory, &linked_directory).unwrap();
+    let package = spago::PackageSources {
+        reference: spago::PackageReference::Local,
+        roots: vec![linked_directory],
+        sources: vec![],
+        dependencies: BTreeSet::new(),
+    };
+
+    let roots = package_source_roots(directory.path(), &package).unwrap();
+    let canonical = dunce::canonicalize(package_directory).unwrap();
+    assert!(roots.iter().any(|root| root.path == canonical));
 }
 
 #[test]

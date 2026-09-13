@@ -4,6 +4,7 @@ use std::{io, process, str};
 use analyzer::AnalyzerError;
 use async_lsp::ErrorCode;
 use building::QueryError;
+use iris_build::compile::CompileError;
 use lsp_types::Url;
 use spago::LockfileGlobSetError;
 use thiserror::Error;
@@ -17,6 +18,8 @@ pub enum LspError {
     AnalyzerError(#[from] AnalyzerError),
     #[error("QueryError: {0}")]
     QueryError(#[from] QueryError),
+    #[error("CompileError: {0}")]
+    CompileError(#[from] CompileError),
     #[error("Failed to parse file {0}")]
     PathParseFail(PathBuf),
     #[error("Expected a file URI, received {0}")]
@@ -29,6 +32,8 @@ pub enum LspError {
     UrlParseError(#[from] url::ParseError),
     #[error("Invalid or missing workspace root")]
     MissingRoot,
+    #[error("The Iris workspace is not ready")]
+    WorkspaceNotReady,
     #[error("SpagoError: {0}")]
     SpagoLock(#[from] LockfileGlobSetError),
     #[error("IoError: {0}")]
@@ -58,6 +63,9 @@ impl LspError {
     }
 
     pub fn code(&self) -> ErrorCode {
+        if matches!(self, LspError::WorkspaceNotReady) {
+            return ErrorCode::REQUEST_CANCELLED;
+        }
         if let Some(QueryError::Cancelled) = self.as_query_error() {
             return ErrorCode::REQUEST_CANCELLED;
         }
@@ -68,6 +76,9 @@ impl LspError {
     }
 
     pub fn message(&self) -> &str {
+        if matches!(self, LspError::WorkspaceNotReady) {
+            return "Workspace is loading";
+        }
         if let Some(QueryError::Cancelled) = self.as_query_error() {
             return "Request cancelled";
         }

@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap;
 use tokio::task;
 
 use crate::server::error::LspError;
-use crate::server::{State, StateSnapshot};
+use crate::server::{SourceMetadata, State, StateSnapshot};
 
 #[derive(Default)]
 pub struct DiagnosticScheduler {
@@ -31,7 +31,11 @@ struct DiagnosticTicket {
 }
 
 impl DiagnosticScheduler {
-    pub fn invalidate(&mut self, change: &LifecycleChange, files: &FileLifecycle<i32, bool>) {
+    pub fn invalidate(
+        &mut self,
+        change: &LifecycleChange,
+        files: &FileLifecycle<i32, SourceMetadata>,
+    ) {
         match change.analysis() {
             AnalysisInvalidation::None => {}
             AnalysisInvalidation::Sources(sources) => {
@@ -104,7 +108,7 @@ impl DiagnosticScheduler {
 }
 
 pub fn emit_collect_diagnostics(state: &mut State, uri: Url) -> Result<(), LspError> {
-    let files = state.files.read();
+    let files = state.files().read();
     let uri = uri.as_str();
 
     if let Some(file_id) = files.source_id(uri) {
@@ -115,17 +119,17 @@ pub fn emit_collect_diagnostics(state: &mut State, uri: Url) -> Result<(), LspEr
 }
 
 pub fn emit_collect_diagnostics_id(state: &mut State, file_id: FileId) -> Result<(), LspError> {
-    if state.files.read().contains_source(file_id) {
+    if state.files().read().contains_source(file_id) {
         state.client.emit(CollectDiagnostics(file_id))?;
     }
     Ok(())
 }
 
 pub fn emit_collect_all_diagnostics(state: &mut State) -> Result<(), LspError> {
-    let files = state.files.read();
+    let files = state.files().read();
     let editable_files = files
         .source_ids()
-        .filter(|file_id| files.source_metadata(*file_id).copied().unwrap_or(false));
+        .filter(|file_id| files.source_metadata(*file_id).is_some_and(SourceMetadata::editable));
     for file_id in editable_files {
         state.client.emit(CollectDiagnostics(file_id))?;
     }
@@ -139,7 +143,7 @@ pub fn collect_diagnostics(
     CollectDiagnostics(file_id): CollectDiagnostics,
 ) -> Result<(), LspError> {
     let version = {
-        let files = state.files.read();
+        let files = state.files().read();
         if !files.contains_source(file_id) {
             return Ok(());
         }
@@ -156,6 +160,9 @@ fn start_diagnostics(state: &State, ticket: DiagnosticTicket) {
         let _span = tracing::info_span!("collect_diagnostics").entered();
         collect_diagnostics_core(snapshot, ticket)
     });
+    let worker =
+        worker.expect("invariant violated: diagnostics started before the workspace was ready");
+
     let client = ClientSocket::clone(&state.client);
     task::spawn(async move {
         let collected = await_diagnostics(worker).await;
@@ -205,7 +212,7 @@ pub fn finish_diagnostics(
 ) -> Result<(), LspError> {
     let running = state.diagnostics.is_running(ticket);
     let current = running && state.diagnostics.is_current(ticket) && {
-        let files = state.files.read();
+        let files = state.files().read();
         files.contains_source(ticket.file_id)
             && files.source_version(ticket.file_id) == ticket.version
     };
@@ -236,7 +243,7 @@ mod tests {
     };
     use files::Files;
 
-    use super::{DiagnosticScheduler, await_diagnostics};
+    use super::{DiagnosticScheduler, SourceMetadata, await_diagnostics};
 
     fn file_id() -> files::FileId {
         let mut files = Files::default();
@@ -281,7 +288,7 @@ mod tests {
             unit: first_unit,
             event: SourceEvent::DiskObserved {
                 disk: DiskObservation::Found(Arc::from("module Main where\n")),
-                metadata: true,
+                metadata: SourceMetadata::Unmanaged { editable: true },
             },
         };
         lifecycle.apply(&engine, event);
@@ -294,7 +301,7 @@ mod tests {
             unit: second_unit,
             event: SourceEvent::DiskObserved {
                 disk: DiskObservation::Found(Arc::from("module Library where\n")),
-                metadata: true,
+                metadata: SourceMetadata::Unmanaged { editable: true },
             },
         };
         let change = lifecycle.apply(&engine, event);

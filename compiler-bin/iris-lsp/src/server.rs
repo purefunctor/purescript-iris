@@ -30,14 +30,17 @@ use building::lifecycle::{
 };
 use configuration::{Configuration, ConfigurationSettings, SourceDiscovery};
 use files::{FileId, ForeignSourceKind};
+use iris_build::compilation::{CompilationParts, CompilationState, MaterializedPrim};
+use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
+use iris_build::events::SilentBuildEvents;
+use iris_build::plan::PackageInput;
 use itertools::Itertools;
 use lsp_types::notification::Notification;
 use lsp_types::request::Request;
 use lsp_types::*;
 use parking_lot::{RwLock, RwLockReadGuard};
-use prim_constants::MODULE_MAP;
+use path_absolutize::Absolutize;
 use rustc_hash::FxHashSet;
-use tempfile::TempDir;
 use tokio::task;
 use tower::ServiceBuilder;
 
@@ -48,40 +51,49 @@ use crate::server::capabilities::{
 use crate::server::error::{AnalyzerResultExt, LspError};
 use crate::{ServerConfig, ServerError, walk};
 
-fn materialize_prim() -> io::Result<TempDir> {
-    let directory = TempDir::new()?;
-    for (name, content) in MODULE_MAP {
-        let path = directory.path().join(format!("{name}.purs"));
-        fs::write(path, content)?;
-    }
-    Ok(directory)
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum SourceMetadata {
+    Builtin,
+    Package { editable: bool },
+    Unmanaged { editable: bool },
 }
 
-fn configure_materialized_prim(
-    engine: &QueryEngine,
-    files: &mut FileLifecycle<i32, bool>,
-    directory: &TempDir,
-) {
-    for (name, content) in MODULE_MAP {
-        let path = directory.path().join(format!("{name}.purs"));
-        let uri = Url::from_file_path(path)
-            .expect("invariant violated: failed to create Prim module file URL");
-        let unit = source_unit_from_source_uri(&uri)
-            .expect("invariant violated: failed to create Prim source unit");
-        let event = LifecycleEvent::Source {
-            unit,
-            event: SourceEvent::DiskObserved {
-                disk: DiskObservation::Found(Arc::from(*content)),
-                metadata: false,
-            },
-        };
-        let change = files.apply(engine, event);
-        let id = change
-            .changed_sources()
-            .next()
-            .expect("invariant violated: Prim source lifecycle did not insert a source");
-        engine.set_module_file(name, id);
+impl SourceMetadata {
+    fn editable(&self) -> bool {
+        match self {
+            SourceMetadata::Builtin => false,
+            SourceMetadata::Package { editable } | SourceMetadata::Unmanaged { editable } => {
+                *editable
+            }
+        }
     }
+}
+
+struct LspWorkspace {
+    engine: QueryEngine,
+    files: Arc<RwLock<FileLifecycle<i32, SourceMetadata>>>,
+    source_roots: Vec<SourceRoot>,
+    selected_sources: FxHashSet<Arc<str>>,
+    excluded_sources: FxHashSet<Arc<str>>,
+    _prim: MaterializedPrim,
+}
+
+struct SourceRoot {
+    path: PathBuf,
+    metadata: SourceMetadata,
+}
+
+enum WorkspaceState {
+    WaitingForConfiguration { pending: Vec<PendingNotification> },
+    Ready { workspace: LspWorkspace },
+}
+
+enum PendingNotification {
+    DidOpen(DidOpenTextDocumentParams),
+    DidSave(DidSaveTextDocumentParams),
+    DidClose(DidCloseTextDocumentParams),
+    DidChange(DidChangeTextDocumentParams),
+    DidChangeWatchedFiles(DidChangeWatchedFilesParams),
 }
 
 pub struct State {
@@ -89,8 +101,7 @@ pub struct State {
     pub config: Arc<Configuration>,
     pub client: ClientSocket,
 
-    pub engine: QueryEngine,
-    pub files: Arc<RwLock<FileLifecycle<i32, bool>>>,
+    workspace: WorkspaceState,
     pub diagnostics: event::DiagnosticScheduler,
 
     pub workspace_symbols_cache: Arc<RwLock<WorkspaceSymbolsCache>>,
@@ -100,15 +111,11 @@ pub struct State {
     pub configuration_scope: Option<Url>,
     pub configuration_capabilities: ConfigurationCapabilities,
     pub configuration_generation: u64,
-    pub workspace_loaded: bool,
-    pub selected_sources: FxHashSet<Arc<str>>,
-    pub excluded_sources: FxHashSet<Arc<str>>,
     pub position_encoding: PositionEncoding,
     pub analyzer_capabilities: AnalyzerCapabilities,
     pub watched_files_dynamic_registration: bool,
     pub name: String,
     pub version: String,
-    _materialized_prim_directory: Arc<TempDir>,
 }
 
 impl State {
@@ -117,13 +124,7 @@ impl State {
         client: ClientSocket,
         name: String,
         version: String,
-        prim_directory: Arc<TempDir>,
     ) -> State {
-        let engine = QueryEngine::default();
-        let mut files = FileLifecycle::default();
-        configure_materialized_prim(&engine, &mut files, &prim_directory);
-
-        let files = Arc::new(RwLock::new(files));
         let diagnostics = event::DiagnosticScheduler::default();
 
         let workspace_symbols_cache = WorkspaceSymbolsCache::default();
@@ -136,9 +137,6 @@ impl State {
         let configuration_scope = None;
         let configuration_capabilities = ConfigurationCapabilities::default();
         let configuration_generation = 0;
-        let workspace_loaded = false;
-        let selected_sources = FxHashSet::default();
-        let excluded_sources = FxHashSet::default();
         let position_encoding = PositionEncoding::Utf16;
         let analyzer_capabilities = AnalyzerCapabilities::default();
         let watched_files_dynamic_registration = false;
@@ -147,8 +145,7 @@ impl State {
             startup_config: Arc::clone(&config),
             config,
             client,
-            engine,
-            files,
+            workspace: WorkspaceState::WaitingForConfiguration { pending: vec![] },
             diagnostics,
             workspace_symbols_cache,
             suggestions_cache,
@@ -156,34 +153,78 @@ impl State {
             configuration_scope,
             configuration_capabilities,
             configuration_generation,
-            workspace_loaded,
-            selected_sources,
-            excluded_sources,
             position_encoding,
             analyzer_capabilities,
             watched_files_dynamic_registration,
             name,
             version,
-            _materialized_prim_directory: prim_directory,
         }
+    }
+
+    fn workspace(&self) -> Result<&LspWorkspace, LspError> {
+        match &self.workspace {
+            WorkspaceState::WaitingForConfiguration { .. } => Err(LspError::WorkspaceNotReady),
+            WorkspaceState::Ready { workspace } => Ok(workspace),
+        }
+    }
+
+    fn workspace_loaded(&self) -> bool {
+        matches!(self.workspace, WorkspaceState::Ready { .. })
+    }
+
+    fn install_compilation(
+        &mut self,
+        compilation: CompilationState<i32, SourceMetadata>,
+        source_roots: Vec<SourceRoot>,
+        selected_sources: FxHashSet<Arc<str>>,
+    ) -> Vec<PendingNotification> {
+        let CompilationParts { engine, files, prim } = compilation.into_parts();
+        let workspace = LspWorkspace {
+            engine,
+            files: Arc::new(RwLock::new(files)),
+            source_roots,
+            selected_sources,
+            excluded_sources: FxHashSet::default(),
+            _prim: prim,
+        };
+        let previous = mem::replace(&mut self.workspace, WorkspaceState::Ready { workspace });
+        match previous {
+            WorkspaceState::WaitingForConfiguration { pending } => pending,
+            WorkspaceState::Ready { .. } => vec![],
+        }
+    }
+
+    fn engine(&self) -> &QueryEngine {
+        &self
+            .workspace()
+            .expect("invariant violated: LSP operation requires a ready workspace")
+            .engine
+    }
+
+    fn files(&self) -> &Arc<RwLock<FileLifecycle<i32, SourceMetadata>>> {
+        &self
+            .workspace()
+            .expect("invariant violated: LSP operation requires a ready workspace")
+            .files
     }
 
     fn spawn<T>(
         &self,
         action: impl FnOnce(StateSnapshot) -> T + Send + 'static,
-    ) -> task::JoinHandle<T>
+    ) -> Result<task::JoinHandle<T>, LspError>
     where
         T: Send + 'static,
     {
+        let workspace = self.workspace()?;
         let snapshot = StateSnapshot {
-            engine: self.engine.snapshot(),
-            files: Arc::clone(&self.files),
+            engine: workspace.engine.snapshot(),
+            files: Arc::clone(&workspace.files),
             workspace_symbols_cache: Arc::clone(&self.workspace_symbols_cache),
             suggestions_cache: Arc::clone(&self.suggestions_cache),
             position_encoding: self.position_encoding,
             analyzer_capabilities: self.analyzer_capabilities,
         };
-        task::spawn_blocking(move || action(snapshot))
+        Ok(task::spawn_blocking(move || action(snapshot)))
     }
 
     fn invalidate_workspace_symbols(&self) {
@@ -199,7 +240,7 @@ impl State {
 
 struct StateSnapshot {
     engine: QueryEngine,
-    files: Arc<RwLock<FileLifecycle<i32, bool>>>,
+    files: Arc<RwLock<FileLifecycle<i32, SourceMetadata>>>,
     workspace_symbols_cache: Arc<RwLock<WorkspaceSymbolsCache>>,
     suggestions_cache: Arc<RwLock<SuggestionsCache>>,
     position_encoding: PositionEncoding,
@@ -221,7 +262,7 @@ impl StateSnapshot {
 
 struct LspAnalyzerHost<'a> {
     queries: &'a QueryEngine,
-    files: RwLockReadGuard<'a, FileLifecycle<i32, bool>>,
+    files: RwLockReadGuard<'a, FileLifecycle<i32, SourceMetadata>>,
 }
 
 impl AnalyzerHost for LspAnalyzerHost<'_> {
@@ -247,7 +288,7 @@ impl AnalyzerHost for LspAnalyzerHost<'_> {
     }
 
     fn is_editable(&self, file_id: FileId) -> bool {
-        self.files.source_metadata(file_id).copied().unwrap_or(false)
+        self.files.source_metadata(file_id).is_some_and(SourceMetadata::editable)
     }
 }
 
@@ -442,7 +483,7 @@ fn finish_workspace_configuration(
             if let Err(error) = apply_configuration(state, Arc::new(configuration)) {
                 let error = format!("Failed to apply Iris settings: {error}");
                 report_configuration_error(state, &error);
-                if !state.workspace_loaded {
+                if !state.workspace_loaded() {
                     apply_configuration(state, Arc::clone(&state.startup_config))?;
                 }
             }
@@ -450,7 +491,7 @@ fn finish_workspace_configuration(
         }
         Err(error) => {
             report_configuration_error(state, &error);
-            if state.workspace_loaded {
+            if state.workspace_loaded() {
                 Ok(())
             } else {
                 apply_configuration(state, Arc::clone(&state.startup_config))
@@ -471,7 +512,7 @@ fn did_change_configuration(
 
 fn report_configuration_error(state: &mut State, error: &str) {
     tracing::error!("{error}");
-    let message = if state.workspace_loaded {
+    let message = if state.workspace_loaded() {
         format!("{error}. The previous Iris settings remain active.")
     } else {
         format!("{error}. Iris will use its startup settings.")
@@ -528,11 +569,18 @@ fn exit(_state: &mut State, (): ()) -> Result<(), LspError> {
     Ok(())
 }
 
+struct DiscoveredWorkspace {
+    source_globs: Vec<PathBuf>,
+    packages: Vec<PackageInput>,
+    metadata: BTreeMap<PathBuf, SourceMetadata>,
+    source_roots: Vec<SourceRoot>,
+}
+
 fn discover_manual(
     root: &std::path::Path,
     program: &str,
     arguments: &[String],
-) -> Result<Vec<(PathBuf, bool)>, LspError> {
+) -> Result<DiscoveredWorkspace, LspError> {
     tracing::info!("Using '{}'", program);
 
     let mut command = process::Command::new(program);
@@ -545,74 +593,192 @@ fn discover_manual(
     let output = str::from_utf8(&output.stdout)?;
 
     let walk::Walk { files, .. } = walk::walk(root, output.lines())?;
-    let files = files.into_iter().map(|file| {
+
+    let metadata = files.iter().map(|file| {
         let editable = file.starts_with(root);
-        (file, editable)
+        (PathBuf::clone(file), SourceMetadata::Unmanaged { editable })
     });
-    Ok(files.collect_vec())
+    let metadata = metadata.collect();
+
+    let package = PackageInput {
+        name: "unmanaged".to_string(),
+        source_identities: Vec::clone(&files),
+        dependencies: vec![],
+    };
+
+    let source_roots = vec![SourceRoot {
+        path: root.to_path_buf(),
+        metadata: SourceMetadata::Unmanaged { editable: true },
+    }];
+
+    Ok(DiscoveredWorkspace { source_globs: files, packages: vec![package], metadata, source_roots })
 }
 
-fn discover_spago(root: &std::path::Path) -> Result<Vec<(PathBuf, bool)>, LspError> {
+fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
     tracing::info!("Using 'spago.lock'");
 
     let packages = spago::source_files_by_package(root).map_err(LspError::SpagoLock)?;
-    let files = packages.into_values().flat_map(|package| {
-        let editable = package.reference == spago::PackageReference::Workspace;
-        package.sources.into_iter().map(move |file| (file, editable))
-    });
 
-    Ok(files.sorted().collect_vec())
+    let package_inputs = packages.iter().map(|(name, package)| {
+        let dependencies = package.dependencies.iter().map(ToString::to_string).collect_vec();
+        PackageInput {
+            name: name.to_string(),
+            source_identities: Vec::clone(&package.sources),
+            dependencies,
+        }
+    });
+    let package_inputs = package_inputs.collect_vec();
+
+    let metadata = packages.values().flat_map(|package| {
+        let editable = matches!(
+            package.reference,
+            spago::PackageReference::Workspace | spago::PackageReference::Local
+        );
+        package
+            .sources
+            .iter()
+            .map(move |file| (PathBuf::clone(file), SourceMetadata::Package { editable }))
+    });
+    let metadata = metadata.collect::<BTreeMap<_, _>>();
+
+    let source_roots = packages.values().map(|package| package_source_roots(root, package));
+    let source_root_groups =
+        source_roots.process_results(|source_roots| source_roots.collect_vec())?;
+    let mut source_roots = source_root_groups.into_iter().flatten().collect_vec();
+    source_roots
+        .sort_by_key(|source_root| std::cmp::Reverse(source_root.path.components().count()));
+
+    let source_globs = metadata.keys().cloned().collect_vec();
+    Ok(DiscoveredWorkspace { source_globs, packages: package_inputs, metadata, source_roots })
+}
+
+fn package_source_roots(
+    workspace_root: &std::path::Path,
+    package: &spago::PackageSources,
+) -> io::Result<Vec<SourceRoot>> {
+    let editable = matches!(
+        package.reference,
+        spago::PackageReference::Workspace | spago::PackageReference::Local
+    );
+    let metadata = SourceMetadata::Package { editable };
+
+    let mut roots = vec![];
+    for root in &package.roots {
+        let root = workspace_root.join(root).absolutize()?.to_path_buf();
+        roots.push(SourceRoot {
+            path: PathBuf::clone(&root),
+            metadata: SourceMetadata::clone(&metadata),
+        });
+
+        if let Ok(canonical) = dunce::canonicalize(&root)
+            && canonical != root
+        {
+            roots.push(SourceRoot { path: canonical, metadata: SourceMetadata::clone(&metadata) });
+        }
+    }
+
+    Ok(roots)
 }
 
 fn apply_configuration(
     state: &mut State,
     configuration: Arc<Configuration>,
 ) -> Result<(), LspError> {
-    if state.workspace_loaded && configuration.sources == state.config.sources {
+    if state.workspace_loaded() && configuration.sources == state.config.sources {
         state.config = configuration;
         return Ok(());
     }
+
     let root = state.root.as_ref().ok_or(LspError::MissingRoot)?;
-    let files = match &configuration.sources {
+    let discovered = match &configuration.sources {
         SourceDiscovery::Spago {} => discover_spago(root)?,
         SourceDiscovery::Command { program, arguments } => {
             discover_manual(root, program, arguments)?
         }
     };
-    let mut prepared = BTreeMap::new();
-    for (path, editable) in files {
-        let content = fs::read_to_string(&path)?;
-        prepared.insert(path, (Arc::<str>::from(content), editable));
+
+    if state.workspace_loaded() {
+        let mut files = BTreeMap::new();
+        for path in &discovered.source_globs {
+            let content = Arc::from(fs::read_to_string(path)?);
+            let metadata = discovered
+                .metadata
+                .get(path)
+                .cloned()
+                .expect("invariant violated: discovered source has no LSP metadata");
+            files.insert(PathBuf::clone(path), (content, metadata));
+        }
+
+        reconcile_files(state, &files)?;
+        let workspace = match &mut state.workspace {
+            WorkspaceState::WaitingForConfiguration { .. } => {
+                return Err(LspError::WorkspaceNotReady);
+            }
+            WorkspaceState::Ready { workspace } => workspace,
+        };
+        workspace.source_roots = discovered.source_roots;
+        state.config = configuration;
+        return Ok(());
     }
 
-    let refresh_diagnostics = state.workspace_loaded;
-    reconcile_files(state, &prepared, refresh_diagnostics)?;
+    let selected_sources = discovered.source_globs.iter().map(source_uri);
+    let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
+
+    let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
+        root,
+        source_globs: &discovered.source_globs,
+        excluded: &[],
+        packages: discovered.packages,
+        prim_metadata: SourceMetadata::Builtin,
+        source_metadata: |path: &std::path::Path| {
+            discovered
+                .metadata
+                .get(path)
+                .cloned()
+                .expect("invariant violated: discovered source has no LSP metadata")
+        },
+        execution: PackageExecution::Parallel,
+        events: &SilentBuildEvents,
+    })?;
+
+    let pending = state.install_compilation(
+        initial.into_compilation(),
+        discovered.source_roots,
+        selected_sources,
+    );
     state.config = configuration;
-    state.workspace_loaded = true;
+
+    replay_pending_notifications(state, pending);
+    tracing::info!("Loaded {} files.", discovered.source_globs.len());
     Ok(())
+}
+
+fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
+    let uri =
+        Url::from_file_path(path).map_err(|_| LspError::PathParseFail(PathBuf::clone(path)))?;
+    Ok(Arc::from(uri.as_str()))
 }
 
 fn reconcile_files(
     state: &mut State,
-    files: &BTreeMap<PathBuf, (Arc<str>, bool)>,
-    refresh_diagnostics: bool,
+    files: &BTreeMap<PathBuf, (Arc<str>, SourceMetadata)>,
 ) -> Result<(), LspError> {
     tracing::info!("Loading {} files.", files.len());
 
-    let mut selected_sources = FxHashSet::default();
-    for path in files.keys() {
-        let uri =
-            Url::from_file_path(path).map_err(|_| LspError::PathParseFail(PathBuf::clone(path)))?;
-        selected_sources.insert(Arc::from(uri.as_str()));
-    }
-
+    let selected_sources = files.keys().map(source_uri);
+    let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
+    let previous_sources = FxHashSet::clone(&state.workspace()?.selected_sources);
+    let removed_sources = previous_sources.difference(&selected_sources).cloned().collect_vec();
     let mut lifecycle_change = LifecycleChange::default();
-    for source in state.selected_sources.difference(&selected_sources).cloned().collect_vec() {
+    for source in removed_sources {
         let uri = Url::parse(&source)?;
         let unit = source_unit_from_source_uri(&uri)?;
         let event = LifecycleEvent::Source {
             unit: SourceUnitKey::clone(&unit),
-            event: SourceEvent::DiskObserved { disk: DiskObservation::NotFound, metadata: false },
+            event: SourceEvent::DiskObserved {
+                disk: DiskObservation::NotFound,
+                metadata: SourceMetadata::Unmanaged { editable: false },
+            },
         };
         lifecycle_change.combine(apply_lifecycle_event(state, event));
         for kind in ForeignSourceKind::ALL {
@@ -624,7 +790,7 @@ fn reconcile_files(
             lifecycle_change.combine(apply_lifecycle_event(state, event));
         }
     }
-    for (file, (content, editable)) in files {
+    for (file, (content, metadata)) in files {
         let uri =
             Url::from_file_path(file).map_err(|_| LspError::PathParseFail(PathBuf::clone(file)))?;
         let unit = source_unit_from_source_uri(&uri)?;
@@ -632,25 +798,27 @@ fn reconcile_files(
             unit: SourceUnitKey::clone(&unit),
             event: SourceEvent::DiskObserved {
                 disk: DiskObservation::Found(Arc::clone(content)),
-                metadata: *editable,
+                metadata: SourceMetadata::clone(metadata),
             },
         };
         lifecycle_change.combine(apply_lifecycle_event(state, event));
         lifecycle_change.combine(observe_sibling_foreign(state, &unit)?);
     }
     finish_lifecycle_change(state, &lifecycle_change)?;
-    if refresh_diagnostics {
-        emit_diagnostics_for_change(state, &lifecycle_change)?;
-    }
+    emit_diagnostics_for_change(state, &lifecycle_change)?;
 
-    state.excluded_sources.extend(state.selected_sources.difference(&selected_sources).cloned());
+    let workspace = match &mut state.workspace {
+        WorkspaceState::WaitingForConfiguration { .. } => {
+            return Err(LspError::WorkspaceNotReady);
+        }
+        WorkspaceState::Ready { workspace } => workspace,
+    };
+    workspace.excluded_sources.extend(previous_sources.difference(&selected_sources).cloned());
     for selected in &selected_sources {
-        state.excluded_sources.remove(selected);
+        workspace.excluded_sources.remove(selected);
     }
-    state.selected_sources = selected_sources;
-
+    workspace.selected_sources = selected_sources;
     tracing::info!("Loaded {} files.", files.len());
-
     Ok(())
 }
 
@@ -827,20 +995,20 @@ fn document_content(
     document: DocumentKind,
     uri: &Url,
 ) -> Result<Arc<str>, LspError> {
-    let files = state.files.read();
+    let files = state.files().read();
     match document {
         DocumentKind::Source => {
             let file_id = files
                 .source_id(uri.as_str())
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
-            state.engine.content(file_id).map_err(LspError::from)
+            state.engine().content(file_id).map_err(LspError::from)
         }
         DocumentKind::Foreign(_) => {
             let file_id = files
                 .foreign_id(uri.as_str())
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
             state
-                .engine
+                .engine()
                 .foreign_content(file_id)
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))
         }
@@ -938,13 +1106,13 @@ fn did_open(state: &mut State, parameters: DidOpenTextDocumentParams) -> Result<
             apply_lifecycle_event(state, event)
         }
         DocumentKind::Source => {
-            let editable = source_editable(state, &unit, uri);
+            let metadata = source_metadata(state, &unit, uri);
             let event = LifecycleEvent::Source {
                 unit: SourceUnitKey::clone(&unit),
                 event: SourceEvent::Opened {
                     text: Arc::from(parameters.text_document.text.as_str()),
                     version: parameters.text_document.version,
-                    metadata: editable,
+                    metadata,
                 },
             };
             let mut change = apply_lifecycle_event(state, event);
@@ -965,11 +1133,8 @@ fn did_close(state: &mut State, parameters: DidCloseTextDocumentParams) -> Resul
     let uri = parameters.text_document.uri;
     let (document, unit) = source_unit_from_document_uri(&uri)?;
     let source_uri = Arc::<str>::from(unit.source());
-    let disk = if state.excluded_sources.contains(&source_uri) {
-        DiskObservation::NotFound
-    } else {
-        observe_disk(&uri)
-    };
+    let excluded = state.workspace()?.excluded_sources.contains(&source_uri);
+    let disk = if excluded { DiskObservation::NotFound } else { observe_disk(&uri) };
     let change = match document {
         DocumentKind::Foreign(kind) => {
             let event =
@@ -978,7 +1143,7 @@ fn did_close(state: &mut State, parameters: DidCloseTextDocumentParams) -> Resul
         }
         DocumentKind::Source => {
             let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-            let was_open = state.files.read().is_open(&document);
+            let was_open = state.files().read().is_open(&document);
             let event = LifecycleEvent::Source {
                 unit: SourceUnitKey::clone(&unit),
                 event: SourceEvent::Closed { disk },
@@ -1014,14 +1179,14 @@ fn did_change_watched_files(
         match document_kind(&change.uri) {
             Some(DocumentKind::Foreign(kind)) => {
                 let unit = source_unit_from_foreign_uri(&change.uri)?;
-                if state.excluded_sources.contains(unit.source()) {
+                if state.workspace()?.excluded_sources.contains(unit.source()) {
                     continue;
                 }
                 foreign_units.insert((unit, kind));
             }
             Some(DocumentKind::Source) => {
                 let unit = source_unit_from_source_uri(&change.uri)?;
-                if state.excluded_sources.contains(unit.source()) {
+                if state.workspace()?.excluded_sources.contains(unit.source()) {
                     continue;
                 }
                 source_units.insert(unit);
@@ -1034,13 +1199,16 @@ fn did_change_watched_files(
     let mut observed_foreign = FxHashSet::default();
     for unit in source_units {
         let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-        if state.files.read().is_open(&document) {
+        if state.files().read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.source())?;
+        if !source_editable(state, &unit, &uri) {
+            continue;
+        }
         let disk = observe_disk(&uri);
         let source_found = matches!(disk, DiskObservation::Found(_));
-        let metadata = source_editable(state, &unit, &uri);
+        let metadata = source_metadata(state, &unit, &uri);
         let event = LifecycleEvent::Source {
             unit: SourceUnitKey::clone(&unit),
             event: SourceEvent::DiskObserved { disk, metadata },
@@ -1057,11 +1225,15 @@ fn did_change_watched_files(
             continue;
         }
         let document = DocumentKey::Foreign(SourceUnitKey::clone(&unit), kind);
-        if state.files.read().is_open(&document) {
+        if state.files().read().is_open(&document) {
+            continue;
+        }
+        let source_uri = Url::parse(unit.source())?;
+        if !source_editable(state, &unit, &source_uri) {
             continue;
         }
         let tracked = {
-            let files = state.files.read();
+            let files = state.files().read();
             files.source_id(unit.source()).is_some()
                 || files.foreign_id(unit.foreign_for(kind)).is_some()
         };
@@ -1143,15 +1315,19 @@ fn emit_associated_diagnostics(state: &mut State, uri: Url) -> Result<(), LspErr
     event::emit_collect_diagnostics(state, Url::parse(unit.source())?)
 }
 
-fn apply_lifecycle_event(state: &mut State, event: LifecycleEvent<i32, bool>) -> LifecycleChange {
+fn apply_lifecycle_event(
+    state: &mut State,
+    event: LifecycleEvent<i32, SourceMetadata>,
+) -> LifecycleChange {
     // Cancel in-flight queries so that threads holding a read lock over the
     // lifecycle finish before this write waits for expensive LSP requests.
-    state.engine.request_cancel();
-    state.files.write().apply(&state.engine, event)
+    state.engine().request_cancel();
+    state.files().write().apply(state.engine(), event)
 }
 
 fn finish_lifecycle_change(state: &mut State, change: &LifecycleChange) -> Result<(), LspError> {
-    state.diagnostics.invalidate(change, &state.files.read());
+    let files = Arc::clone(state.files());
+    state.diagnostics.invalidate(change, &files.read());
     if !matches!(change.analysis(), AnalysisInvalidation::None) {
         state.invalidate_workspace_symbols();
         state.invalidate_suggestions_cache();
@@ -1176,7 +1352,7 @@ fn observe_sibling_foreign(
     let mut change = LifecycleChange::default();
     for kind in ForeignSourceKind::ALL {
         let document = DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);
-        if state.files.read().is_open(&document) {
+        if state.files().read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.foreign_for(kind))?;
@@ -1202,17 +1378,35 @@ fn observe_disk(uri: &Url) -> DiskObservation {
     }
 }
 
-fn source_editable(state: &State, unit: &SourceUnitKey, uri: &Url) -> bool {
+fn source_metadata(state: &State, unit: &SourceUnitKey, uri: &Url) -> SourceMetadata {
     let previous = {
-        let files = state.files.read();
+        let files = state.files().read();
         let file_id = files.source_id(unit.source());
-        file_id.and_then(|file_id| files.source_metadata(file_id)).copied()
+        file_id.and_then(|file_id| files.source_metadata(file_id)).cloned()
     };
-    previous.unwrap_or_else(|| match (&state.root, uri.to_file_path()) {
-        (Some(root), Ok(path)) => path.starts_with(root),
-        (Some(_), Err(())) => false,
-        (None, _) => true,
+    previous.unwrap_or_else(|| {
+        let path = uri.to_file_path().ok();
+        let package_metadata = path.as_ref().and_then(|path| {
+            state
+                .workspace()
+                .ok()?
+                .source_roots
+                .iter()
+                .find(|source_root| path.starts_with(&source_root.path))
+                .map(|source_root| SourceMetadata::clone(&source_root.metadata))
+        });
+        package_metadata.unwrap_or_else(|| match (&state.root, path) {
+            (Some(root), Some(path)) => {
+                SourceMetadata::Unmanaged { editable: path.starts_with(root) }
+            }
+            (Some(_), None) => SourceMetadata::Unmanaged { editable: false },
+            (None, _) => SourceMetadata::Unmanaged { editable: true },
+        })
     })
+}
+
+fn source_editable(state: &State, unit: &SourceUnitKey, uri: &Url) -> bool {
+    source_metadata(state, unit, uri).editable()
 }
 
 fn emit_diagnostics_for_change(
@@ -1231,6 +1425,23 @@ fn emit_diagnostics_for_change(
     }
 }
 
+fn replay_pending_notifications(state: &mut State, pending: Vec<PendingNotification>) {
+    for notification in pending {
+        let result = match notification {
+            PendingNotification::DidOpen(parameters) => did_open(state, parameters),
+            PendingNotification::DidSave(parameters) => did_save(state, parameters),
+            PendingNotification::DidClose(parameters) => did_close(state, parameters),
+            PendingNotification::DidChange(parameters) => did_change(state, parameters),
+            PendingNotification::DidChangeWatchedFiles(parameters) => {
+                did_change_watched_files(state, parameters)
+            }
+        };
+        if let Err(error) = result {
+            error.emit_trace();
+        }
+    }
+}
+
 trait RequestExtension: BorrowMut<Router<State>> {
     fn request_snapshot<R: Request>(
         &mut self,
@@ -1239,12 +1450,11 @@ trait RequestExtension: BorrowMut<Router<State>> {
         self.borrow_mut().request::<R, _>(move |state, parameters| {
             let task = state.spawn(move |snapshot| action(snapshot, parameters));
             async move {
-                task.await.map_err(LspError::JoinError).flatten().map_err(|error| {
-                    error.emit_trace();
-                    let code = error.code();
-                    let message = error.message();
-                    ResponseError::new(code, message)
-                })
+                let task = task.map_err(response_error)?;
+                task.await
+                    .map_err(LspError::JoinError)
+                    .flatten()
+                    .map_err(|error| response_error(error))
             }
         });
         self
@@ -1257,6 +1467,26 @@ trait RequestExtension: BorrowMut<Router<State>> {
         let this: &mut Router<State> = self.borrow_mut();
         this.notification::<N>(move |state, parameters| {
             let _ = action(state, parameters).inspect_err(|error| error.emit_trace());
+            ControlFlow::Continue(())
+        });
+        self
+    }
+
+    fn workspace_notification<N: Notification>(
+        &mut self,
+        pending: fn(N::Params) -> PendingNotification,
+        action: impl Fn(&mut State, N::Params) -> Result<(), LspError> + Send + Copy + 'static,
+    ) -> &mut Self {
+        let this: &mut Router<State> = self.borrow_mut();
+        this.notification::<N>(move |state, parameters| {
+            let result = match &mut state.workspace {
+                WorkspaceState::WaitingForConfiguration { pending: notifications } => {
+                    notifications.push(pending(parameters));
+                    Ok(())
+                }
+                WorkspaceState::Ready { .. } => action(state, parameters),
+            };
+            let _ = result.inspect_err(|error| error.emit_trace());
             ControlFlow::Continue(())
         });
         self
@@ -1279,10 +1509,14 @@ trait RequestExtension: BorrowMut<Router<State>> {
 
 impl RequestExtension for Router<State> {}
 
+fn response_error(error: LspError) -> ResponseError {
+    error.emit_trace();
+    ResponseError::new(error.code(), error.message())
+}
+
 pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError> {
     let ServerConfig { configuration, name, version } = config;
     let config = Arc::new(configuration);
-    let prim_directory = Arc::new(materialize_prim().map_err(ServerError::new)?);
     let (server, _) = async_lsp::MainLoop::new_server(move |client| {
         let client_socket = ClientSocket::clone(&client);
         let mut router: Router<State, ResponseError> = Router::new(State::new(
@@ -1290,7 +1524,6 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             client_socket,
             String::clone(&name),
             String::clone(&version),
-            Arc::clone(&prim_directory),
         ));
 
         router
@@ -1310,12 +1543,27 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .request_snapshot::<request::SemanticTokensFullRequest>(semantic_tokens)
             .notification_ext::<notification::Initialized>(initialized)
             .notification_ext::<notification::Exit>(exit)
-            .notification_ext::<notification::DidOpenTextDocument>(did_open)
-            .notification_ext::<notification::DidSaveTextDocument>(did_save)
-            .notification_ext::<notification::DidCloseTextDocument>(did_close)
+            .workspace_notification::<notification::DidOpenTextDocument>(
+                PendingNotification::DidOpen,
+                did_open,
+            )
+            .workspace_notification::<notification::DidSaveTextDocument>(
+                PendingNotification::DidSave,
+                did_save,
+            )
+            .workspace_notification::<notification::DidCloseTextDocument>(
+                PendingNotification::DidClose,
+                did_close,
+            )
             .notification_ext::<notification::DidChangeConfiguration>(did_change_configuration)
-            .notification_ext::<notification::DidChangeTextDocument>(did_change)
-            .notification_ext::<notification::DidChangeWatchedFiles>(did_change_watched_files)
+            .workspace_notification::<notification::DidChangeTextDocument>(
+                PendingNotification::DidChange,
+                did_change,
+            )
+            .workspace_notification::<notification::DidChangeWatchedFiles>(
+                PendingNotification::DidChangeWatchedFiles,
+                did_change_watched_files,
+            )
             .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
             .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)
             .event_ext::<ConfigurationReceived>(finish_workspace_configuration);
