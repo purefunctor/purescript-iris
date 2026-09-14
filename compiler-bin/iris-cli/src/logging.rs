@@ -1,6 +1,7 @@
 use std::time::Instant;
 use std::{fs, io};
 
+use directories::ProjectDirs;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{Layer, Registry, filter, fmt};
@@ -37,7 +38,10 @@ where
 }
 
 pub fn start(filters: LoggingFilters) -> io::Result<()> {
-    let path = std::env::temp_dir().join("iris.log");
+    let directories = ProjectDirs::from("com", "iris-lang", "iris")
+        .ok_or_else(|| io::Error::other("user cache directory is unavailable"))?;
+    fs::create_dir_all(directories.cache_dir())?;
+    let path = directories.cache_dir().join("iris.log");
     let file = fs::OpenOptions::new().create(true).append(true).open(path)?;
 
     let output_filter = filter::Targets::new()
