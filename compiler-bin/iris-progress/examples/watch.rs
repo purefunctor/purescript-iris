@@ -27,6 +27,8 @@ fn main() {
             Duration::from_millis(91),
             WatchOutcome::Diagnostics,
         ),
+        ("14:32:29", false, vec!["Effect.Fetch"], Duration::from_millis(18), WatchOutcome::Failed),
+        ("14:32:36", false, vec![], Duration::ZERO, WatchOutcome::Waiting),
     ];
 
     for (timestamp, initial, inputs, duration, outcome) in examples {

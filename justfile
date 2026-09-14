@@ -67,6 +67,11 @@ prepare-release version:
 @format *args="":
   cargo +"${IRIS_NIGHTLY_TOOLCHAIN:-nightly}" fmt {{args}} -- --config imports_granularity=Module
 
+[doc("Preview compilation progress and watch summaries")]
+@progress-examples:
+  cargo run -q -p iris-progress --example compilation
+  cargo run -q -p iris-progress --example watch
+
 [doc("Regenerate the language server configuration JSON Schema")]
 @configuration-schema:
   cargo run -q -p configuration --features schema --example export-schema

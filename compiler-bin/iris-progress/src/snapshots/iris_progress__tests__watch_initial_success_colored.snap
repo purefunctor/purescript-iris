@@ -1,0 +1,4 @@
+---
+source: compiler-bin/iris-progress/src/tests.rs
+---
+"\u{1b}[36m\u{1b}[2m12:34:56\u{1b}[0m  \u{1b}[32m\u{1b}[1mBuild succeeded\u{1b}[0m in 12.50 ms\n          \u{1b}[2mLoaded 2 inputs: Application, Library\u{1b}[0m"

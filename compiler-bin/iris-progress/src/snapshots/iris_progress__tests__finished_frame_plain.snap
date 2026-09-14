@@ -1,0 +1,16 @@
+---
+source: compiler-bin/iris-progress/src/tests.rs
+---
+
+
+
+
+
+
+
+
+short                                    9.50 ms
+a�very-long-package-name               123.45 ms
+────────────────────────────────────────────────
+[=======>--------------------------------------]
+Finished 2 of 12 packages in 3.21s

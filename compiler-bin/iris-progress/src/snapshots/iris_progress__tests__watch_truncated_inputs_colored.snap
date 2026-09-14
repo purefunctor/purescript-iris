@@ -1,0 +1,4 @@
+---
+source: compiler-bin/iris-progress/src/tests.rs
+---
+"\u{1b}[36m\u{1b}[2m12:35:04\u{1b}[0m  \u{1b}[32m\u{1b}[1mRebuild succeeded\u{1b}[0m in 0.00 ms\n          \u{1b}[2mChanged 5 inputs: First, Second�Module, Third, Fourth, … +1 more\u{1b}[0m"
