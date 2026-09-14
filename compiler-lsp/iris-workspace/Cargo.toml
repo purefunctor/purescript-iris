@@ -1,0 +1,27 @@
+[package]
+name = "iris-workspace"
+version = "0.1.0"
+edition = "2024"
+description = "Stateful, transport-independent Iris workspace analysis."
+license = "BSD-3-Clause"
+
+[features]
+test-support = []
+
+[dependencies]
+analyzer = { path = "../analyzer" }
+building = { path = "../../compiler-core/building" }
+configuration = { path = "../configuration" }
+files = { path = "../../compiler-core/files" }
+iris-build = { path = "../../compiler-bin/iris-build" }
+lsp-types.workspace = true
+parking_lot = "0.12.5"
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1", features = ["sync"] }
+url = "2.5.8"
+
+[dev-dependencies]
+iris-workspace = { path = ".", features = ["test-support"] }
+tempfile = "3.27.0"
+tokio = { version = "1", features = ["macros", "rt", "time", "net", "io-util"] }

@@ -1875,6 +1875,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-workspace"
+version = "0.1.0"
+dependencies = [
+ "analyzer",
+ "building",
+ "configuration",
+ "files",
+ "iris-build",
+ "iris-workspace",
+ "lsp-types",
+ "parking_lot",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
