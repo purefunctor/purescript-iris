@@ -3,10 +3,10 @@
 
 use std::time::Duration;
 
-use configuration::{Configuration, SourceDiscovery};
 use iris_workspace::{
-    AnalyzerCapabilities, Command, ConfigurationInput, Document, Event, EventReceiver,
-    InputSequence, LanguageServer, Options, Reply, RequestFailure, Status, Workspace,
+    AnalyzerCapabilities, Command, Configuration, ConfigurationInput, Document, Event,
+    EventReceiver, InputSequence, LanguageServer, Options, Reply, RequestFailure, SourceDiscovery,
+    Status, Workspace, WorkspaceSession,
 };
 use lsp_types::{
     CompletionItem, CompletionResponse, DiagnosticSeverity, DocumentChanges, HoverContents, OneOf,
@@ -40,7 +40,8 @@ fn main() {
         capabilities: AnalyzerCapabilities::default().with_change_annotations(),
         ..Options::default()
     };
-    let (workspace, mut events) = Workspace::start(options).expect("start the workspace service");
+    let WorkspaceSession { workspace, mut events, join } =
+        Workspace::start(options).expect("start the workspace service");
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -58,7 +59,7 @@ fn main() {
 
     // Joining waits for compiler snapshots and discovery descendants to retire. Do it outside
     // the async protocol loop, and before deleting the temporary project's files.
-    workspace.join().expect("join the workspace controller without a panic");
+    join.join().expect("join the workspace controller without a panic");
     result.expect("language-server walkthrough timed out");
     println!("\nAll scenarios passed.");
 }

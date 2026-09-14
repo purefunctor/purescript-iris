@@ -125,6 +125,10 @@ impl<T> Delivery<T> {
     /// Validate at ordered commitment to a reserved final-writer slot, not socket flush.
     /// The adapter must serialize release and commitment with input admission. Do not release
     /// before router serialization, a forwarding queue, or another await.
+    ///
+    /// Stock async-lsp 0.2.4 does not expose deferred output with writer reservation. An adapter
+    /// needs that support before integrating this boundary; `ClientSocket::emit` is too early.
+    /// The runnable example demonstrates workspace behavior, not transport integration.
     pub fn release(self) -> Result<T, RequestFailure> {
         let admission = self.shared.lock();
         if self.cancellation.as_ref().is_some_and(Cancellation::is_cancelled) {
@@ -246,15 +250,28 @@ impl<T> Drop for Request<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Workspace {
     sender: mpsc::Sender<Message>,
     shared: Shared,
     capacity: usize,
+}
+
+pub struct WorkspaceSession {
+    pub workspace: Workspace,
+    pub events: EventReceiver,
+    pub join: WorkspaceJoin,
+}
+
+/// Owns controller-thread cleanup independently of cloneable command handles.
+/// Dropping this owner requests shutdown but does not wait; call `join` to await cleanup.
+pub struct WorkspaceJoin {
+    workspace: Workspace,
     controller: Option<thread::JoinHandle<()>>,
 }
 
 impl Workspace {
-    pub fn start(options: Options) -> std::io::Result<(Workspace, EventReceiver)> {
+    pub fn start(options: Options) -> std::io::Result<WorkspaceSession> {
         Workspace::start_inner(options, crate::testing::Hooks::default())
     }
 
@@ -262,14 +279,14 @@ impl Workspace {
     pub fn start_with_hooks(
         options: Options,
         hooks: crate::testing::Hooks,
-    ) -> std::io::Result<(Workspace, EventReceiver)> {
+    ) -> std::io::Result<WorkspaceSession> {
         Workspace::start_inner(options, hooks)
     }
 
     fn start_inner(
         options: Options,
         hooks: crate::testing::Hooks,
-    ) -> std::io::Result<(Workspace, EventReceiver)> {
+    ) -> std::io::Result<WorkspaceSession> {
         let shared = Arc::new(Mutex::new(Admission::default()));
         let (sender, receiver) = mpsc::channel();
         let (events, event_receiver) = EventSender::channel();
@@ -277,15 +294,10 @@ impl Workspace {
             Controller::new(options, Arc::clone(&shared), sender.clone(), receiver, events, hooks)?;
         let controller =
             thread::Builder::new().name("iris-workspace".into()).spawn(move || controller.run())?;
-        Ok((
-            Workspace {
-                sender,
-                shared,
-                capacity: options.request_capacity,
-                controller: Some(controller),
-            },
-            event_receiver,
-        ))
+        let workspace = Workspace { sender, shared, capacity: options.request_capacity };
+        let join =
+            WorkspaceJoin { workspace: Workspace::clone(&workspace), controller: Some(controller) };
+        Ok(WorkspaceSession { workspace, events: event_receiver, join })
     }
 
     pub fn status(&self) -> Status {
@@ -347,16 +359,19 @@ impl Workspace {
         result.map_err(|_| RequestFailure::Unavailable)?;
         Ok(sequence)
     }
+}
 
-    /// Wait for owned work and process cleanup. Call on a blocking thread, not a protocol loop.
+impl WorkspaceJoin {
+    /// Request shutdown and wait for the controller, worker, and process cleanup. Call on a
+    /// blocking thread, not a protocol loop. `Status::Stopped` alone does not join the controller.
     pub fn join(mut self) -> thread::Result<()> {
-        let _ = self.send(Command::Shutdown);
+        let _ = self.workspace.send(Command::Shutdown);
         self.controller.take().expect("workspace controller missing").join()
     }
 }
 
-impl Drop for Workspace {
+impl Drop for WorkspaceJoin {
     fn drop(&mut self) {
-        let _ = self.send(Command::Shutdown);
+        let _ = self.workspace.send(Command::Shutdown);
     }
 }

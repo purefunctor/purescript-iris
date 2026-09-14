@@ -19,16 +19,25 @@ mod testing;
 
 pub use analyzer::AnalyzerCapabilities;
 pub use analyzer::position::PositionEncoding;
-pub use configuration::Configuration;
+pub use configuration::{Configuration, SourceDiscovery};
 pub use events::EventReceiver;
 pub use language_server::{LanguageServer, LanguageServerFailure};
-pub use transport::{Cancellation, Delivery, Reply, Request, Workspace};
+pub use transport::{
+    Cancellation, Delivery, Reply, Request, Workspace, WorkspaceJoin, WorkspaceSession,
+};
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use iris_build::events::BuildEvent;
-use lsp_types::{Diagnostic, TextDocumentContentChangeEvent, Url};
+use lsp_types::{Diagnostic, SemanticTokensLegend, TextDocumentContentChangeEvent, Url};
+
+/// Token indices in analysis responses refer to these analyzer-owned tables.
+pub fn semantic_tokens_legend() -> SemanticTokensLegend {
+    SemanticTokensLegend {
+        token_types: analyzer::semantic_tokens::TOKEN_TYPES.to_vec(),
+        token_modifiers: analyzer::semantic_tokens::TOKEN_MODIFIERS.to_vec(),
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Generation {
@@ -106,10 +115,20 @@ pub enum Document {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Status {
     AwaitingConfiguration,
-    Rebuilding { generation: Generation, phase: Phase },
-    Ready { generation: Generation, stamp: AnalysisStamp },
-    Failed { generation: Generation, message: Arc<str> },
+    Rebuilding {
+        generation: Generation,
+        phase: Phase,
+    },
+    Ready {
+        generation: Generation,
+        stamp: AnalysisStamp,
+    },
+    Failed {
+        generation: Generation,
+        message: Arc<str>,
+    },
     Stopping,
+    /// The worker has stopped. The controller is joined separately through `WorkspaceJoin`.
     Stopped,
 }
 
@@ -132,10 +151,28 @@ pub enum Outcome {
 #[derive(Debug)]
 pub enum Event {
     StatusChanged(Status),
-    Diagnostics { uri: Url, version: Option<i32>, diagnostics: Vec<Diagnostic> },
-    Progress { generation: Generation, event: BuildEvent },
-    Finished { generation: Generation, outcome: Outcome },
-    InputRejected { sequence: InputSequence, failure: InputFailure },
+    Diagnostics {
+        uri: Url,
+        version: Option<i32>,
+        diagnostics: Vec<Diagnostic>,
+    },
+    /// Indeterminate progress: the current phase, not a delta or percentage.
+    Progress {
+        generation: Generation,
+        phase: Phase,
+    },
+    DiagnosticsFailed {
+        uri: Url,
+        message: Arc<str>,
+    },
+    Finished {
+        generation: Generation,
+        outcome: Outcome,
+    },
+    InputRejected {
+        sequence: InputSequence,
+        failure: InputFailure,
+    },
 }
 
 #[derive(Clone, Debug, thiserror::Error, Eq, PartialEq)]

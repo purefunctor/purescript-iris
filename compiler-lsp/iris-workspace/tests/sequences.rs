@@ -7,7 +7,7 @@ use iris_workspace::testing::{Hooks, Point};
 use iris_workspace::{
     AnalysisStamp, Command, ConfigurationInput, Document, Event, EventReceiver, InputFailure,
     InputSequence, LanguageServer, Options, Outcome, Reply, Request, RequestFailure, Status,
-    Workspace,
+    Workspace, WorkspaceJoin, WorkspaceSession,
 };
 use lsp_types::{
     CompletionItem, CompletionResponse, DocumentSymbolResponse, Hover, HoverContents, Position,
@@ -20,7 +20,8 @@ const CHANGED: &str =
     "module Main where\n\nchanged :: String\nchanged = \"hello\"\n\nuse = changed\n";
 
 struct Harness {
-    workspace: Option<Workspace>,
+    workspace: Workspace,
+    join: Option<WorkspaceJoin>,
     events: EventReceiver,
     hooks: Hooks,
     directory: TempDir,
@@ -31,14 +32,14 @@ impl Deref for Harness {
     type Target = Workspace;
 
     fn deref(&self) -> &Workspace {
-        self.workspace.as_ref().unwrap()
+        &self.workspace
     }
 }
 
 impl Drop for Harness {
     fn drop(&mut self) {
-        if let Some(workspace) = self.workspace.take() {
-            workspace.join().unwrap();
+        if let Some(join) = self.join.take() {
+            join.join().unwrap();
         }
     }
 }
@@ -56,10 +57,10 @@ impl Harness {
         let uri = Url::from_file_path(directory.path().join("Main.purs")).unwrap();
 
         let hooks = Hooks::default();
-        let (workspace, events) =
+        let WorkspaceSession { workspace, events, join } =
             Workspace::start_with_hooks(options, Hooks::clone(&hooks)).unwrap();
 
-        Harness { workspace: Some(workspace), events, hooks, directory, uri }
+        Harness { workspace, join: Some(join), events, hooks, directory, uri }
     }
 
     fn configuration(&self) -> ConfigurationInput {
@@ -647,6 +648,14 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
 
     let tokens = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
     assert!(!tokens.data.is_empty());
+    let legend = iris_workspace::semantic_tokens_legend();
+    let keyword = &tokens.data[0];
+    assert_eq!(keyword.length, 6);
+    assert_eq!(
+        legend.token_types[keyword.token_type as usize],
+        lsp_types::SemanticTokenType::KEYWORD
+    );
+    assert_eq!(legend.token_modifiers, vec![lsp_types::SemanticTokenModifier::DECLARATION]);
 
     async fn prim(harness: &Harness) -> Url {
         let (reply, request) = Reply::channel();
@@ -962,4 +971,39 @@ async fn shutdown_waits_for_cancelled_worker_and_ignores_its_late_acknowledgemen
     }
     assert_eq!(finished, vec![Outcome::Cancelled]);
     assert_eq!(harness.status(), Status::Stopped);
+}
+
+#[tokio::test]
+async fn command_handles_and_cleanup_have_independent_ownership() {
+    let WorkspaceSession { workspace, mut events, join } =
+        Workspace::start(Options::default()).unwrap();
+    let handle = Workspace::clone(&workspace);
+    drop(workspace);
+
+    handle.send(Command::Reload).unwrap();
+    let held = bounded(events.recv()).await.unwrap();
+    handle.send(Command::Shutdown).unwrap();
+    drop(held);
+    drop(events);
+
+    bounded(tokio::task::spawn_blocking(move || join.join())).await.unwrap().unwrap();
+    assert_eq!(handle.status(), Status::Stopped);
+    assert!(matches!(handle.send(Command::Reload), Err(RequestFailure::Unavailable)));
+}
+
+#[tokio::test]
+async fn progress_reports_a_phase_without_requiring_prior_events() {
+    let mut harness = Harness::new(Options::default());
+    let mut acknowledgement = harness.hooks.pause_next(Point::BeforeAcknowledgement);
+    harness.configure();
+    bounded(acknowledgement.entered()).await;
+
+    loop {
+        if let Event::Progress { phase: iris_workspace::Phase::Reconciling, .. } =
+            harness.next().await
+        {
+            break;
+        }
+    }
+    drop(acknowledgement);
 }

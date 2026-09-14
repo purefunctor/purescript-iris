@@ -234,15 +234,17 @@ impl Controller {
             },
             Message::Progress { generation, event } => {
                 if generation == self.generation {
-                    match event {
-                        BuildEvent::PlanReady { .. } => {
-                            self.status(Status::Rebuilding { generation, phase: Phase::Building })
+                    let phase = match event {
+                        BuildEvent::Preparing => Phase::Discovering,
+                        BuildEvent::PlanReady { .. } | BuildEvent::PackageCompleted { .. } => {
+                            Phase::Building
                         }
-                        BuildEvent::Finished { .. } => self
-                            .status(Status::Rebuilding { generation, phase: Phase::Reconciling }),
-                        _ => {}
-                    }
-                    self.emit(Event::Progress { generation, event }, Fence::Generation(generation));
+                        BuildEvent::Finalizing { .. } | BuildEvent::Finished { .. } => {
+                            Phase::Reconciling
+                        }
+                    };
+                    self.status(Status::Rebuilding { generation, phase });
+                    self.emit(Event::Progress { generation, phase }, Fence::Generation(generation));
                 }
             }
             Message::Completed(completed) => {
@@ -274,6 +276,18 @@ impl Controller {
                     }
                     Completed::Analyzed => {}
                     Completed::Diagnostics { uri, stamp, version, result } => {
+                        if let Err(failure) = &result {
+                            if !matches!(failure, RequestFailure::Cancelled | RequestFailure::Stale)
+                            {
+                                self.emit(
+                                    Event::DiagnosticsFailed {
+                                        uri: Url::clone(&uri),
+                                        message: failure.to_string().into(),
+                                    },
+                                    Fence::Unconditional,
+                                );
+                            }
+                        }
                         let mut admission = self.shared.lock();
                         let current = admission.sequence == stamp.revision
                             && matches!(admission.status, Status::Ready { stamp: current, .. } if current == stamp);
