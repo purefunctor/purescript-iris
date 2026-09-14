@@ -207,7 +207,8 @@ mod tests {
         touch(&root.join("src/Main.purs"));
         let canonical_root = dunce::canonicalize(&root).unwrap();
 
-        let walk = walk(&canonical_root, [r"src\**\*.purs"]).unwrap();
+        let walk = walk_filtered(&canonical_root, [r"src\**\*.purs"], std::iter::empty::<&Path>())
+            .unwrap();
 
         assert_eq!(relative_files(&canonical_root, walk.files), vec!["src/Main.purs"]);
         fs::remove_dir_all(root).unwrap();

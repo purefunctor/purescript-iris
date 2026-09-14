@@ -227,7 +227,7 @@ impl Dependency {
 }
 
 fn with_root(root: impl AsRef<Path>) -> impl Fn(PathBuf) -> Option<PathBuf> {
-    move |source| root.as_ref().join(source).canonicalize().ok()
+    move |source| dunce::canonicalize(root.as_ref().join(source)).ok()
 }
 
 fn is_safe_subdir(subdir: &Path) -> bool {

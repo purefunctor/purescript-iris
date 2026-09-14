@@ -304,7 +304,7 @@ fn project_output(root: &Path, configured: Option<&Path>) -> Result<PathBuf, Pro
     } else {
         root.join("output")
     };
-    Ok(output)
+    Ok(dunce::canonicalize(&output).unwrap_or_else(|_| dunce::simplified(&output).to_path_buf()))
 }
 
 fn execute_module(
@@ -344,4 +344,20 @@ fn ensure_node_success(status: ExitStatus) -> Result<(), ProjectFailure> {
         return Err(ProjectFailure::MissingStatus);
     }
     Err(ProjectFailure::NodeFailed { status })
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn configured_output_uses_a_compatible_windows_path() {
+        let output = project_output(
+            Path::new(r"C:\workspace"),
+            Some(Path::new(r"\\?\C:\workspace\src\generated")),
+        )
+        .unwrap();
+
+        assert_eq!(output, Path::new(r"C:\workspace\src\generated"));
+    }
 }

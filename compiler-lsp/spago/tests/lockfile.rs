@@ -265,3 +265,15 @@ fn test_source_files_by_package() {
 
     insta::assert_snapshot!(snapshot);
 }
+
+#[cfg(windows)]
+#[test]
+fn test_source_files_by_package_uses_compatible_windows_paths() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixture");
+
+    for package in spago::source_files_by_package(fixture).unwrap().into_values() {
+        for source in package.sources {
+            assert!(!source.to_string_lossy().starts_with(r"\\?\"), "{source:?}");
+        }
+    }
+}

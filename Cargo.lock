@@ -3844,6 +3844,7 @@ dependencies = [
 name = "spago"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "globset",
  "insta",
  "itertools 0.15.0",
