@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::sync::Arc;
 
@@ -8,19 +9,23 @@ use building::lifecycle::{
     ContentAuthority, DiskObservation, DocumentKind, ForeignEvent, LifecycleEvent, SourceEvent,
     SourceUnitKey,
 };
-use configuration::{Configuration, Diagnostics};
+use configuration::{Configuration, Diagnostics, SourceDiscovery};
 use files::ForeignSourceKind;
 use iris_build::compilation::{CompilationState, MaterializedPrim};
 use lsp_types::{
-    DidCloseTextDocumentParams, Position, Range, TextDocumentContentChangeEvent,
-    TextDocumentIdentifier, Url,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, Position, Range,
+    TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem, Url,
 };
+use serde_json::json;
 use tempfile::tempdir;
 
+use super::workspace::{
+    DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
+};
 use super::{
-    SourceMetadata, State, apply_content_changes, apply_lifecycle_event, did_close, document_kind,
-    observe_disk, package_source_roots, source_unit_from_document_uri,
-    source_unit_from_foreign_uri, source_unit_from_source_uri,
+    ConfigurationReceived, DiscoveredWorkspace, SourceMetadata, State, apply_content_changes,
+    document_kind, finish_workspace_configuration, observe_disk, package_source_roots,
+    source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
 fn test_config() -> Arc<Configuration> {
@@ -31,12 +36,262 @@ fn test_config() -> Arc<Configuration> {
 }
 
 fn test_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> State {
-    let mut state = State::new(config, client, "iris-lsp".to_string(), "test".to_string());
+    let mut state =
+        State::new(Arc::clone(&config), client, "iris-lsp".to_string(), "test".to_string());
     let prim = MaterializedPrim::new().unwrap();
     let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
-    let pending = state.install_compilation(compilation, vec![], Default::default());
+    let prepared = PreparedInitialWorkspace {
+        configuration: Arc::clone(&config),
+        compilation,
+        source_roots: vec![],
+        selected_sources: Default::default(),
+    };
+    let pending = state.workspace.install(prepared).unwrap();
     assert!(pending.is_empty());
     state
+}
+
+fn apply_event(state: &mut State, event: LifecycleEvent<i32, SourceMetadata>) {
+    let _ =
+        state.workspace.test_ready_mut().apply_lifecycle_events([event], DiagnosticTrigger::None);
+}
+
+fn close_document(state: &mut State, parameters: DidCloseTextDocumentParams) {
+    let client = async_lsp::ClientSocket::clone(&state.client);
+    let context = WorkspaceContext {
+        root: state.protocol.root.as_deref(),
+        position_encoding: state.protocol.position_encoding,
+    };
+    state
+        .workspace
+        .dispatch(WorkspaceNotification::DidClose(parameters), context, &client)
+        .unwrap();
+}
+
+fn open_notification(uri: Url, text: &str) -> WorkspaceNotification {
+    WorkspaceNotification::DidOpen(DidOpenTextDocumentParams {
+        text_document: TextDocumentItem {
+            uri,
+            language_id: "purescript".to_string(),
+            version: 1,
+            text: text.to_string(),
+        },
+    })
+}
+
+#[test]
+fn requests_are_cancelled_while_the_workspace_is_loading() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let error = state
+            .spawn(|_| ())
+            .expect_err("invariant violated: waiting workspace produced a snapshot");
+
+        assert_eq!(error.code(), async_lsp::ErrorCode::REQUEST_CANCELLED);
+        assert_eq!(error.message(), "Workspace is loading");
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn installation_is_waiting_only_and_preserves_notification_order() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let first_uri = Url::parse("file:///workspace/First.purs").unwrap();
+        let second_uri = Url::parse("file:///workspace/Second.purs").unwrap();
+        let context = WorkspaceContext { root: None, position_encoding: PositionEncoding::Utf16 };
+        state
+            .workspace
+            .dispatch(
+                open_notification(Url::clone(&first_uri), "module First where\n"),
+                context,
+                &state.client,
+            )
+            .unwrap();
+        let context = WorkspaceContext { root: None, position_encoding: PositionEncoding::Utf16 };
+        state
+            .workspace
+            .dispatch(
+                open_notification(Url::clone(&second_uri), "module Second where\n"),
+                context,
+                &state.client,
+            )
+            .unwrap();
+
+        let prim = MaterializedPrim::new().unwrap();
+        let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
+        let prepared = PreparedInitialWorkspace {
+            configuration: Arc::clone(&config),
+            compilation,
+            source_roots: vec![],
+            selected_sources: Default::default(),
+        };
+        let pending = state.workspace.install(prepared).unwrap();
+        assert!(
+            matches!(&pending[0], WorkspaceNotification::DidOpen(parameters) if parameters.text_document.uri == first_uri)
+        );
+        assert!(
+            matches!(&pending[1], WorkspaceNotification::DidOpen(parameters) if parameters.text_document.uri == second_uri)
+        );
+
+        let prim = MaterializedPrim::new().unwrap();
+        let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
+        let prepared = PreparedInitialWorkspace {
+            configuration: Arc::clone(&config),
+            compilation,
+            source_roots: vec![],
+            selected_sources: Default::default(),
+        };
+        assert!(matches!(
+            state.workspace.install(prepared),
+            Err(super::LspError::WorkspaceAlreadyReady)
+        ));
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn stale_configuration_results_leave_waiting_state_unchanged() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        state.protocol.configuration_generation = 2;
+        let event =
+            ConfigurationReceived { generation: 1, result: Err("stale failure".to_string()) };
+
+        finish_workspace_configuration(&mut state, event).unwrap();
+        let event = ConfigurationReceived {
+            generation: 1,
+            result: Ok(vec![json!({
+                "sources": {"kind": "command", "program": "missing-iris-source-command"}
+            })]),
+        };
+        finish_workspace_configuration(&mut state, event).unwrap();
+
+        assert!(!state.workspace.is_ready());
+        assert_eq!(state.workspace.test_pending_len(), 0);
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn failed_initial_configuration_falls_back_and_replays_notifications() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("spago.lock"),
+        r#"{"workspace":{"packages":{}},"packages":{}}"#,
+    )
+    .unwrap();
+    let source_uri = Url::from_file_path(directory.path().join("Queued.purs")).unwrap();
+    let config = test_config();
+    let root = directory.path().to_path_buf();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        state.protocol.root = Some(root);
+        state.protocol.configuration_generation = 1;
+        let context = WorkspaceContext {
+            root: state.protocol.root.as_deref(),
+            position_encoding: PositionEncoding::Utf16,
+        };
+        state
+            .workspace
+            .dispatch(
+                open_notification(
+                    Url::parse("file:///workspace/Unsupported.txt").unwrap(),
+                    "not PureScript",
+                ),
+                context,
+                &state.client,
+            )
+            .unwrap();
+        let context = WorkspaceContext {
+            root: state.protocol.root.as_deref(),
+            position_encoding: PositionEncoding::Utf16,
+        };
+        state
+            .workspace
+            .dispatch(
+                open_notification(Url::clone(&source_uri), "module Queued where\n"),
+                context,
+                &state.client,
+            )
+            .unwrap();
+        let settings = json!({
+            "sources": {"kind": "command", "program": "missing-iris-source-command"}
+        });
+        let event = ConfigurationReceived { generation: 1, result: Ok(vec![settings]) };
+
+        finish_workspace_configuration(&mut state, event).unwrap();
+
+        {
+            let workspace = state.workspace.test_ready();
+            let files = workspace.files.read();
+            let file_id = files.source_id(source_uri.as_str()).unwrap();
+            assert_eq!(files.source_version(file_id), Some(1));
+            assert_eq!(
+                workspace.engine.content(file_id).unwrap().as_ref(),
+                "module Queued where\n"
+            );
+        }
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn settings_only_updates_preserve_ready_runtime_identity() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = test_state(Arc::clone(&config), client);
+        let workspace = state.workspace.test_ready();
+        let files = Arc::as_ptr(&workspace.files);
+        let symbols = Arc::as_ptr(&workspace.workspace_symbols_cache);
+        let suggestions = Arc::as_ptr(&workspace.suggestions_cache);
+        let mut updated = Configuration::clone(&config);
+        updated.diagnostics.on_open = true;
+
+        assert!(state.workspace.update_configuration_if_sources_equal(Arc::new(updated)));
+
+        let workspace = state.workspace.test_ready();
+        assert!(workspace.configuration.diagnostics.on_open);
+        assert_eq!(Arc::as_ptr(&workspace.files), files);
+        assert_eq!(Arc::as_ptr(&workspace.workspace_symbols_cache), symbols);
+        assert_eq!(Arc::as_ptr(&workspace.suggestions_cache), suggestions);
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
+    let directory = tempdir().unwrap();
+    let missing = directory.path().join("Missing.purs");
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let state = test_state(Arc::clone(&config), client);
+        let workspace = state.workspace.test_ready();
+        let files = Arc::as_ptr(&workspace.files);
+        let configuration = Arc::as_ptr(&workspace.configuration);
+        let updated = Arc::new(Configuration {
+            sources: SourceDiscovery::Command { program: "unused".to_string(), arguments: vec![] },
+            ..Configuration::clone(&config)
+        });
+        let discovered = DiscoveredWorkspace {
+            source_globs: vec![missing],
+            packages: vec![],
+            metadata: BTreeMap::new(),
+            source_roots: vec![],
+        };
+
+        assert!(state.workspace.prepare_reconfiguration(updated, discovered).is_err());
+
+        let workspace = state.workspace.test_ready();
+        assert_eq!(Arc::as_ptr(&workspace.files), files);
+        assert_eq!(Arc::as_ptr(&workspace.configuration), configuration);
+        assert!(workspace.selected_sources.is_empty());
+        assert!(workspace.excluded_sources.is_empty());
+        Router::<State, ResponseError>::new(state)
+    });
 }
 
 fn assert_source_close_result(
@@ -56,7 +311,7 @@ fn assert_source_close_result(
                 metadata: SourceMetadata::Unmanaged { editable: true },
             },
         };
-        apply_lifecycle_event(&mut state, event);
+        apply_event(&mut state, event);
         let event = LifecycleEvent::Foreign {
             unit: SourceUnitKey::clone(&unit),
             kind: ForeignSourceKind::JavaScript,
@@ -64,17 +319,19 @@ fn assert_source_close_result(
                 disk: DiskObservation::Found(Arc::from("export const life = 42;\n")),
             },
         };
-        apply_lifecycle_event(&mut state, event);
+        apply_event(&mut state, event);
 
         let parameters = DidCloseTextDocumentParams {
             text_document: TextDocumentIdentifier { uri: Url::clone(&source_uri) },
         };
-        did_close(&mut state, parameters).unwrap();
+        close_document(&mut state, parameters);
 
-        let files = state.files().read();
-        assert_eq!(files.source_authority(&unit), source_authority);
-        assert_eq!(files.foreign_id(foreign_uri.as_str()), None);
-        drop(files);
+        {
+            let workspace = state.workspace.test_ready();
+            let files = workspace.files.read();
+            assert_eq!(files.source_authority(&unit), source_authority);
+            assert_eq!(files.foreign_id(foreign_uri.as_str()), None);
+        }
 
         Router::<State, ResponseError>::new(state)
     });
@@ -181,7 +438,7 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
                 metadata: SourceMetadata::Unmanaged { editable: true },
             },
         };
-        apply_lifecycle_event(&mut state, event);
+        apply_event(&mut state, event);
         let event = LifecycleEvent::Foreign {
             unit: SourceUnitKey::clone(&unit),
             kind: ForeignSourceKind::JavaScript,
@@ -189,30 +446,33 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
                 disk: DiskObservation::Found(Arc::from("export const life = 42;\n")),
             },
         };
-        apply_lifecycle_event(&mut state, event);
+        apply_event(&mut state, event);
 
         let parameters = DidCloseTextDocumentParams {
             text_document: TextDocumentIdentifier { uri: Url::clone(&source_uri) },
         };
-        did_close(&mut state, parameters).unwrap();
+        close_document(&mut state, parameters);
         fs::remove_file(foreign_path).unwrap();
 
-        let source_id = state.files().read().source_id(source_uri.as_str()).unwrap();
-        let foreign_id = state.files().read().foreign_id(foreign_uri.as_str()).unwrap();
+        let workspace = state.workspace.test_ready();
+        let source_id = workspace.files.read().source_id(source_uri.as_str()).unwrap();
+        let foreign_id = workspace.files.read().foreign_id(foreign_uri.as_str()).unwrap();
         let parameters = DidCloseTextDocumentParams {
             text_document: TextDocumentIdentifier { uri: Url::clone(&source_uri) },
         };
-        did_close(&mut state, parameters).unwrap();
+        close_document(&mut state, parameters);
 
-        let files = state.files().read();
-        assert_eq!(files.source_id(source_uri.as_str()), Some(source_id));
-        assert_eq!(files.foreign_id(foreign_uri.as_str()), Some(foreign_id));
-        assert_eq!(state.engine().foreign_file(source_id), Some(foreign_id));
-        assert_eq!(
-            state.engine().foreign_content(foreign_id).unwrap().as_ref(),
-            "export const life = 42;\n",
-        );
-        drop(files);
+        {
+            let workspace = state.workspace.test_ready();
+            let files = workspace.files.read();
+            assert_eq!(files.source_id(source_uri.as_str()), Some(source_id));
+            assert_eq!(files.foreign_id(foreign_uri.as_str()), Some(foreign_id));
+            assert_eq!(workspace.engine.foreign_file(source_id), Some(foreign_id));
+            assert_eq!(
+                workspace.engine.foreign_content(foreign_id).unwrap().as_ref(),
+                "export const life = 42;\n",
+            );
+        }
 
         Router::<State, ResponseError>::new(state)
     });

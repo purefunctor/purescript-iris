@@ -5,12 +5,13 @@ use async_lsp::{ClientSocket, LanguageClient};
 use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange};
 use files::FileId;
 use itertools::Itertools;
-use lsp_types::{PublishDiagnosticsParams, Url};
+use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
 use tokio::task;
 
 use crate::server::error::LspError;
-use crate::server::{SourceMetadata, State, StateSnapshot};
+use crate::server::workspace::StateSnapshot;
+use crate::server::{SourceMetadata, State};
 
 #[derive(Default)]
 pub struct DiagnosticScheduler {
@@ -24,10 +25,10 @@ struct DiagnosticJob {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct DiagnosticTicket {
-    file_id: FileId,
+pub(super) struct DiagnosticTicket {
+    pub(super) file_id: FileId,
     generation: u64,
-    version: Option<i32>,
+    pub(super) version: Option<i32>,
 }
 
 impl DiagnosticScheduler {
@@ -66,7 +67,11 @@ impl DiagnosticScheduler {
         }
     }
 
-    fn schedule(&mut self, file_id: FileId, version: Option<i32>) -> Option<DiagnosticTicket> {
+    pub(super) fn schedule(
+        &mut self,
+        file_id: FileId,
+        version: Option<i32>,
+    ) -> Option<DiagnosticTicket> {
         let generation = self.generations.get(&file_id).copied().unwrap_or_default();
         let ticket = DiagnosticTicket { file_id, generation, version };
         match self.jobs.entry(file_id) {
@@ -84,15 +89,15 @@ impl DiagnosticScheduler {
         }
     }
 
-    fn is_running(&self, ticket: DiagnosticTicket) -> bool {
+    pub(super) fn is_running(&self, ticket: DiagnosticTicket) -> bool {
         self.jobs.get(&ticket.file_id).is_some_and(|job| job.running == ticket)
     }
 
-    fn is_current(&self, ticket: DiagnosticTicket) -> bool {
+    pub(super) fn is_current(&self, ticket: DiagnosticTicket) -> bool {
         self.generations.get(&ticket.file_id).copied().unwrap_or_default() == ticket.generation
     }
 
-    fn complete(&mut self, ticket: DiagnosticTicket) -> Option<DiagnosticTicket> {
+    pub(super) fn complete(&mut self, ticket: DiagnosticTicket) -> Option<DiagnosticTicket> {
         let job = self.jobs.get_mut(&ticket.file_id)?;
         if job.running != ticket {
             return None;
@@ -107,49 +112,14 @@ impl DiagnosticScheduler {
     }
 }
 
-pub fn emit_collect_diagnostics(state: &mut State, uri: Url) -> Result<(), LspError> {
-    let files = state.files().read();
-    let uri = uri.as_str();
-
-    if let Some(file_id) = files.source_id(uri) {
-        state.client.emit(CollectDiagnostics(file_id))?;
-    }
-
-    Ok(())
-}
-
-pub fn emit_collect_diagnostics_id(state: &mut State, file_id: FileId) -> Result<(), LspError> {
-    if state.files().read().contains_source(file_id) {
-        state.client.emit(CollectDiagnostics(file_id))?;
-    }
-    Ok(())
-}
-
-pub fn emit_collect_all_diagnostics(state: &mut State) -> Result<(), LspError> {
-    let files = state.files().read();
-    let editable_files = files
-        .source_ids()
-        .filter(|file_id| files.source_metadata(*file_id).is_some_and(SourceMetadata::editable));
-    for file_id in editable_files {
-        state.client.emit(CollectDiagnostics(file_id))?;
-    }
-    Ok(())
-}
-
-pub struct CollectDiagnostics(FileId);
+pub struct CollectDiagnostics(pub(super) FileId);
 
 pub fn collect_diagnostics(
     state: &mut State,
     CollectDiagnostics(file_id): CollectDiagnostics,
 ) -> Result<(), LspError> {
-    let version = {
-        let files = state.files().read();
-        if !files.contains_source(file_id) {
-            return Ok(());
-        }
-        files.source_version(file_id)
-    };
-    if let Some(ticket) = state.diagnostics.schedule(file_id, version) {
+    let ticket = state.workspace.schedule_diagnostics(file_id)?;
+    if let Some(ticket) = ticket {
         start_diagnostics(state, ticket);
     }
     Ok(())
@@ -210,16 +180,11 @@ pub fn finish_diagnostics(
     state: &mut State,
     DiagnosticsFinished { ticket, collected }: DiagnosticsFinished,
 ) -> Result<(), LspError> {
-    let running = state.diagnostics.is_running(ticket);
-    let current = running && state.diagnostics.is_current(ticket) && {
-        let files = state.files().read();
-        files.contains_source(ticket.file_id)
-            && files.source_version(ticket.file_id) == ticket.version
-    };
-    let next = state.diagnostics.complete(ticket);
+    let (current, next) = state.workspace.finish_diagnostics(ticket)?;
 
     let publish_result = if current && let Some(collected) = collected {
-        state.client.publish_diagnostics(PublishDiagnosticsParams {
+        let mut client = ClientSocket::clone(&state.client);
+        client.publish_diagnostics(PublishDiagnosticsParams {
             uri: collected.uri,
             diagnostics: collected.diagnostics,
             version: ticket.version,

@@ -34,6 +34,8 @@ pub enum LspError {
     MissingRoot,
     #[error("The Iris workspace is not ready")]
     WorkspaceNotReady,
+    #[error("The Iris workspace is already ready")]
+    WorkspaceAlreadyReady,
     #[error("SpagoError: {0}")]
     SpagoLock(#[from] LockfileGlobSetError),
     #[error("IoError: {0}")]
