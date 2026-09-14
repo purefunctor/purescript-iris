@@ -4,6 +4,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 
+use itertools::Itertools;
+
 pub struct TestWorkspace {
     temporary: tempfile::TempDir,
 }
@@ -28,7 +30,7 @@ impl TestWorkspace {
     }
 
     pub fn summary(&self) -> String {
-        let mut files = Vec::new();
+        let mut files = vec![];
         collect_files(self.path(), &mut files);
         files.sort();
 
@@ -89,13 +91,13 @@ impl TestWorkspace {
             Err(error) => panic!("failed to read Spago call log: {error}"),
         };
         let expected_directory = fs::canonicalize(self.path().join(directory)).unwrap();
-        let mut actual_arguments = Vec::new();
+        let mut actual_arguments = vec![];
         for line in source.lines() {
             let mut fields = line.split('\t');
             let actual_directory = fields.next().unwrap();
             let actual_directory = fs::canonicalize(actual_directory).unwrap();
             assert_eq!(actual_directory, expected_directory);
-            actual_arguments.push(fields.collect::<Vec<_>>());
+            actual_arguments.push(fields.collect_vec());
         }
         assert_eq!(actual_arguments, expected);
     }

@@ -43,7 +43,7 @@ jobs:
           COMMIT_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           package_version=$(cargo metadata --format-version 1 --no-deps |
-            jq -r '.packages[] | select(.name == "purescript-iris") | .version')
+            jq -r '.packages[] | select(.name == "iris-cli") | .version')
           if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Package version must be a stable semantic version, found $package_version." >&2
             exit 1
@@ -138,7 +138,7 @@ jobs:
           IRIS_BUILD_REVISION: ${{ needs.prepare.outputs.revision }}
         with:
           bin: iris
-          package: purescript-iris
+          package: iris-cli
           archive: iris-$target
           include: README.md,LICENSE,ACKNOWLEDGEMENTS.md,THIRDPARTY.toml
           leading-dir: true

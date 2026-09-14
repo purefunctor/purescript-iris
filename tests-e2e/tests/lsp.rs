@@ -73,13 +73,13 @@ impl LanguageServer {
         configuration: Option<Value>,
     ) -> LanguageServer {
         let mut arguments = arguments.to_vec();
-        arguments.extend(["--stdio", "--lsp-log", "off"]);
+        arguments.extend(["--lsp-log", "off"]);
         let (notifications, messages) = mpsc::channel();
         let client = Arc::new(ClientState {
             configuration: Mutex::new(configuration),
             configuration_requests: AtomicUsize::new(0),
-            registrations: Mutex::new(Vec::new()),
-            unexpected_requests: Mutex::new(Vec::new()),
+            registrations: Mutex::new(vec![]),
+            unexpected_requests: Mutex::new(vec![]),
             notifications,
         });
         let client_state = Arc::clone(&client);
@@ -163,7 +163,7 @@ impl LanguageServer {
                 }),
             )
             .await
-            .expect("timed out waiting for initialize response")
+            .expect("invariant violated: timed out waiting for initialize response")
             .unwrap()
         });
         assert_ne!(result.capabilities, Default::default());
@@ -195,19 +195,9 @@ impl LanguageServer {
 
     #[track_caller]
     fn request(&mut self, method: &str, parameters: Value) -> Value {
-        assert_eq!(method, "workspace/symbol");
-        let parameters: WorkspaceSymbolParams = serde_json::from_value(parameters).unwrap();
         for _ in 0..20 {
-            let result = self.runtime.block_on(async {
-                timeout(
-                    Duration::from_secs(10),
-                    self.server.request::<WorkspaceSymbolRequest>(parameters.clone()),
-                )
-                .await
-                .unwrap_or_else(|_| panic!("timed out waiting for response to {method} request"))
-            });
-            match result {
-                Ok(result) => return serde_json::to_value(result).unwrap(),
+            match self.request_once(method, parameters.clone()) {
+                Ok(result) => return result,
                 Err(Error::Response(response)) if response.code == ErrorCode::REQUEST_CANCELLED => {
                 }
                 Err(error) => panic!("{method} request failed: {error}"),
@@ -215,6 +205,21 @@ impl LanguageServer {
             thread::sleep(Duration::from_millis(10));
         }
         panic!("request {method} was repeatedly cancelled");
+    }
+
+    #[track_caller]
+    fn request_once(&mut self, method: &str, parameters: Value) -> Result<Value, Error> {
+        assert_eq!(method, "workspace/symbol");
+        let parameters: WorkspaceSymbolParams = serde_json::from_value(parameters).unwrap();
+        let result = self.runtime.block_on(async {
+            timeout(
+                Duration::from_secs(10),
+                self.server.request::<WorkspaceSymbolRequest>(parameters),
+            )
+            .await
+            .unwrap_or_else(|_| panic!("timed out waiting for response to {method} request"))
+        });
+        result.map(|result| serde_json::to_value(result).unwrap())
     }
 
     fn set_configuration(&mut self, configuration: Value) {
@@ -315,7 +320,7 @@ impl LanguageServer {
         self.runtime.block_on(async {
             timeout(Duration::from_secs(10), self.server.shutdown(()))
                 .await
-                .expect("timed out waiting for shutdown response")
+                .expect("invariant violated: timed out waiting for shutdown response")
                 .unwrap();
         });
         self.server.exit(()).unwrap();
@@ -323,7 +328,7 @@ impl LanguageServer {
         let mainloop = self
             .runtime
             .block_on(async { timeout(Duration::from_secs(10), mainloop).await })
-            .expect("timed out stopping language client")
+            .expect("invariant violated: timed out stopping language client")
             .unwrap();
         match mainloop {
             Ok(()) | Err(Error::Eof) => {}
@@ -332,7 +337,7 @@ impl LanguageServer {
         let status = self
             .runtime
             .block_on(async { timeout(Duration::from_secs(10), self.child.wait()).await })
-            .expect("timed out stopping language server")
+            .expect("invariant violated: timed out stopping language server")
             .unwrap();
         let unexpected_requests = self.client.unexpected_requests.lock().unwrap();
         assert!(
@@ -407,6 +412,7 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
 
     let cases: &[&[&str]] = &[
         &["lsp"],
+        &["lsp", "--stdio"],
         &["lsp", "--config", "null"],
         &["lsp", "--config-file", "config/empty.json"],
         &[
@@ -613,7 +619,11 @@ fn clients_without_workspace_configuration_keep_startup_settings() {
         "workspace/didChangeConfiguration",
         json!({"settings": {"sources": {"kind": "command", "program": "missing"}}}),
     );
-    server.wait_for_symbol("startupOnly", true);
+    let symbols = server
+        .request_once("workspace/symbol", json!({"query": "startupOnly"}))
+        .expect("invariant violated: workspace was not ready after the initialized notification");
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["name"], "startupOnly");
     assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
     server.shutdown();
 }

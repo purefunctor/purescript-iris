@@ -1,0 +1,5 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+---
+[TIME] Build succeeded in [DURATION]
+          Loaded 2 inputs: Application, Library

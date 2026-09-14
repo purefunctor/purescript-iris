@@ -37,3 +37,32 @@ foreign import main :: Effect Unit
         &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
     );
 }
+
+#[test]
+fn preserves_the_node_exit_code() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Unit = Unit
+foreign import data Effect :: Type -> Type
+foreign import main :: Effect Unit
+"#,
+    );
+    workspace.write("src/Main.js", "export const main = () => { process.exitCode = 7; };\n");
+
+    let output = workspace.command(&["run", "--quiet"]);
+
+    assert_eq!(output.status.code(), Some(7));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).starts_with("Node.js exited with status "));
+}

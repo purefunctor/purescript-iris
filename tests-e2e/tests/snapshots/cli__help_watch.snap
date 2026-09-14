@@ -8,17 +8,12 @@ Build a Spago workspace or package and rebuild when inputs change.
 Usage: iris watch [FLAGS]
 
 Flags:
-      --query-log <LevelFilter>     Log level for the query engine.
-                                    [possible values: off, error, warn, info, debug, trace]
-                                    (default: off)
-      --checking-log <LevelFilter>  Log level for the type checker.
-                                    [possible values: off, error, warn, info, debug, trace]
-                                    (default: off)
-  -p, --package <NAME>              Workspace package to build.
-  -o, --output <DIR>                Output directory for compiled modules. Defaults to output in the workspace root.
-  -q, --quiet                       Suppress build progress output.
-      --color <COLOR>               When to use colors in human-readable diagnostics.
-                                    [possible values: auto, always, never]
-                                    (default: auto)
-  -h, --help                        Print help
+  -p, --package <NAME>  Workspace package to build.
+  -o, --output <DIR>    Output directory. Defaults to output in the workspace root.
+  -q, --quiet           Suppress watch summaries and Spago output.
+      --color <COLOR>   When to use colors in diagnostics and watch output.
+                        [possible values: auto, always, never]
+                        (default: auto)
+      --no-diagnostics  Suppress compiler warnings and errors without hiding watch summaries.
+  -h, --help            Print help
 --- stderr

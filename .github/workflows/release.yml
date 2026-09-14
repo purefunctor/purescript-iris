@@ -56,7 +56,7 @@ jobs:
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: iris
-          package: purescript-iris
+          package: iris-cli
           archive: iris-$target
           include: README.md,LICENSE,ACKNOWLEDGEMENTS.md,THIRDPARTY.toml
           leading-dir: true

@@ -1,0 +1,4 @@
+---
+source: compiler-bin/iris-progress/src/tests.rs
+---
+"\u{1b}[36m\u{1b}[2m12:35:01\u{1b}[0m  \u{1b}[33m\u{1b}[1mRebuild completed with diagnostics\u{1b}[0m in 1.25 s\n          \u{1b}[2mChanged 1 input: Application\u{1b}[0m"

@@ -12,6 +12,7 @@ package:
   test:
     main: Application.Test
     dependencies: []
+    execArgs: [from-manifest]
 "#,
     );
     workspace.write(
@@ -25,12 +26,12 @@ foreign import main :: Effect Unit
     );
     workspace.write(
         "test/Application/Test.js",
-        "export const main = () => console.log(\"tests ran\");\n",
+        "export const main = () => console.log(`tests ran: ${process.argv.slice(2).join(\",\")}`);\n",
     );
 
     let output = workspace.command(&["test", "--quiet"]);
     assert_success(&output);
-    assert_eq!(String::from_utf8_lossy(&output.stdout), "tests ran\n");
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "tests ran: from-manifest\n");
     workspace.assert_spago_calls(
         "",
         &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],

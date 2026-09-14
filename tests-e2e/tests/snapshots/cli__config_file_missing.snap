@@ -4,11 +4,4 @@ source: tests-e2e/tests/cli.rs
 status: 2
 --- stdout
 --- stderr
-Error! · [ConfigurationFileRead] · --config-file:1:1
-  •
-  │
-  • Cannot read the configuration file: [FILE NOT FOUND]
-  │
-  │   missing.json
-  │   ╰───────────
-  •
+error: failed to read configuration file missing.json: [FILE NOT FOUND]

@@ -6,7 +6,7 @@ publish = false
 autotests = false
 
 [dependencies]
-purescript-iris = { path = "../compiler-bin" }
+iris-cli = { path = "../compiler-bin/iris-cli" }
 
 [dev-dependencies]
 async-lsp = { version = "0.2.4", features = ["tokio"] }

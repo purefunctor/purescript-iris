@@ -1,0 +1,17 @@
+[package]
+name = "iris-watch"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license = "BSD-3-Clause"
+description = "Incremental project watching for Iris."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+iris-build = { version = "0.1.0", path = "../iris-build" }
+iris-progress = { version = "0.1.0", path = "../iris-progress" }
+itertools = "0.15.0"
+jiff = "0.2.23"
+notify = "8.2.0"
+thiserror = "2.0.20"
+tracing = "0.1.44"

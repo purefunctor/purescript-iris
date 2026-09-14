@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dunce = "1.0.5"
 globset = "0.4.20"
 itertools = "0.15.0"
 rustc-hash = "2.1.3"

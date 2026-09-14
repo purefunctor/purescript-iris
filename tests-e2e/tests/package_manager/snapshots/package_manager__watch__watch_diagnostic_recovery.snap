@@ -1,0 +1,20 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+---
+Error! · [NotInScope] · src/Main.purs:3:9
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   value = missing
+  │           ╰──────
+  •
+
+Error! · [CannotUnify] · src/Main.purs:3:9
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   value = missing
+  │           ╰──────
+  •

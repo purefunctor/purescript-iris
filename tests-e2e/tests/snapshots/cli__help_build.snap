@@ -8,18 +8,13 @@ Build a Spago workspace or package.
 Usage: iris build [FLAGS]
 
 Flags:
-      --query-log <LevelFilter>     Log level for the query engine.
-                                    [possible values: off, error, warn, info, debug, trace]
-                                    (default: off)
-      --checking-log <LevelFilter>  Log level for the type checker.
-                                    [possible values: off, error, warn, info, debug, trace]
-                                    (default: off)
-  -p, --package <NAME>              Workspace package to build.
-  -o, --output <DIR>                Output directory for compiled modules. Defaults to output in the workspace root.
-  -q, --quiet                       Suppress build progress output.
-      --color <COLOR>               When to use colors in human-readable diagnostics.
-                                    [possible values: auto, always, never]
-                                    (default: auto)
-      --resilient                   Write JavaScript output even when compilation reports errors.
-  -h, --help                        Print help
+  -p, --package <NAME>  Workspace package to build.
+  -o, --output <DIR>    Output directory. Defaults to output in the workspace root.
+  -q, --quiet           Suppress build progress and Spago output.
+      --color <COLOR>   When to use colors in diagnostics and progress output.
+                        [possible values: auto, always, never]
+                        (default: auto)
+      --resilient       Write JavaScript output even when compilation reports errors.
+      --no-diagnostics  Suppress compiler warnings and errors without hiding build progress.
+  -h, --help            Print help
 --- stderr
