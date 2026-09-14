@@ -10,9 +10,9 @@ use crate::events::EventSender;
 use crate::transport::{Fence, Shared, WorkerState};
 use crate::worker::{self, Completed, Work};
 use crate::{
-    AnalysisStamp, Cancellation, Command, ConfigurationInput, Delivery, Document, Event,
-    Generation, Incarnation, InputSequence, LanguageServer, Options, Outcome, Phase,
-    RequestFailure, Status,
+    AnalysisStamp, Cancellation, Command, ConfigurationInput, ConfigurationOutcome, Delivery,
+    Document, Event, Generation, Incarnation, InputSequence, LanguageServer, Options, Outcome,
+    Phase, RequestFailure, Status,
 };
 
 const MESSAGE_BATCH_SIZE: usize = 64;
@@ -58,6 +58,7 @@ pub(crate) struct Controller {
     hooks: crate::testing::Hooks,
     documents: Documents,
     configuration: Option<ConfigurationInput>,
+    pending_configuration: Option<InputSequence>,
     generation: Generation,
     sequence: InputSequence,
     incarnation: Incarnation,
@@ -93,6 +94,7 @@ impl Controller {
             hooks,
             documents: Documents::default(),
             configuration: None,
+            pending_configuration: None,
             generation: Generation::default(),
             sequence: InputSequence::default(),
             incarnation: Incarnation::default(),
@@ -157,6 +159,12 @@ impl Controller {
         }
     }
 
+    fn finish_configuration(&mut self, outcome: ConfigurationOutcome) {
+        if let Some(sequence) = self.pending_configuration.take() {
+            self.emit(Event::ConfigurationFinished { sequence, outcome }, Fence::Unconditional);
+        }
+    }
+
     fn clear_diagnostics(&mut self) {
         self.diagnostics.clear();
         let mut admission = self.shared.lock();
@@ -214,8 +222,28 @@ impl Controller {
                     }
                 }
                 Command::Configure(configuration) => {
+                    let unchanged = self.configuration.as_ref().is_some_and(|previous| {
+                        previous.settings == configuration.settings
+                            && previous.root == configuration.root
+                    });
                     self.configuration = Some(configuration);
-                    self.rebuild(sequence, generation);
+                    if generation != self.generation {
+                        self.rebuild(sequence, generation);
+                        self.pending_configuration = Some(sequence);
+                    } else {
+                        self.sequence = sequence;
+                        let outcome = match self.shared.lock().status {
+                            Status::Failed { ref message, .. } => {
+                                ConfigurationOutcome::Failed { message: Arc::clone(message) }
+                            }
+                            _ if unchanged => ConfigurationOutcome::Unchanged,
+                            _ => ConfigurationOutcome::PolicyUpdated,
+                        };
+                        self.emit(
+                            Event::ConfigurationFinished { sequence, outcome },
+                            Fence::Unconditional,
+                        );
+                    }
                 }
                 Command::FilesChanged(uris) if generation == self.generation => {
                     self.sequence = sequence;
@@ -227,6 +255,7 @@ impl Controller {
                     self.sequence = sequence;
                     self.reject_requests(RequestFailure::Cancelled);
                     self.finish_attempt(Outcome::Cancelled);
+                    self.finish_configuration(ConfigurationOutcome::Cancelled);
                     self.lifecycle = Lifecycle::Stopping;
                     self.clear_diagnostics();
                     self.status(Status::Stopping);
@@ -317,6 +346,9 @@ impl Controller {
                             self.clear_diagnostics();
                             self.reject_requests(RequestFailure::Unavailable);
                             self.finish_attempt(Outcome::Failed);
+                            self.finish_configuration(ConfigurationOutcome::Failed {
+                                message: failure.to_string().into(),
+                            });
                             self.lifecycle = Lifecycle::Failed;
                             self.status(Status::Failed {
                                 generation,
@@ -339,6 +371,7 @@ impl Controller {
 
     fn rebuild(&mut self, sequence: InputSequence, generation: Generation) {
         self.finish_attempt(Outcome::Superseded);
+        self.finish_configuration(ConfigurationOutcome::Superseded);
         self.generation = generation;
         self.sequence = sequence;
         self.lifecycle = Lifecycle::PreparationPending;
@@ -419,6 +452,7 @@ impl Controller {
         }
         drop(admission);
         self.finish_attempt(Outcome::Ready);
+        self.finish_configuration(ConfigurationOutcome::Rebuilt);
         self.lifecycle = Lifecycle::Active { stamp };
         while let Some(mut request) = self.requests.pop_front() {
             if request.cancellation().is_cancelled() {

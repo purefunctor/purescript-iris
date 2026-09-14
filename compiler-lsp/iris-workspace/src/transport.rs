@@ -14,8 +14,8 @@ use tokio::sync::oneshot;
 use crate::controller::{Controller, Message};
 use crate::events::EventSender;
 use crate::{
-    AnalysisStamp, Command, EventReceiver, Generation, InputSequence, Options, Phase,
-    RequestFailure, Status,
+    AnalysisStamp, Command, ConfigurationInput, EventReceiver, Generation, InputSequence, Options,
+    Phase, RequestFailure, Status,
 };
 
 #[derive(Clone, Default)]
@@ -56,6 +56,7 @@ pub(crate) struct Admission {
     pub(crate) worker: WorkerState,
     pub(crate) publications: BTreeMap<Url, u64>,
     pub(crate) status_revision: u64,
+    configuration: Option<ConfigurationInput>,
 }
 
 impl Default for Admission {
@@ -68,6 +69,7 @@ impl Default for Admission {
             worker: WorkerState::Idle,
             publications: BTreeMap::new(),
             status_revision: 0,
+            configuration: None,
         }
     }
 }
@@ -325,11 +327,25 @@ impl Workspace {
             request.admit(Arc::clone(&self.shared), stamp);
         } else {
             admission.sequence.advance();
+            let rebuilds = match &command {
+                Command::Configure(configuration) => {
+                    let unchanged_sources =
+                        admission.configuration.as_ref().is_some_and(|previous| {
+                            previous.root == configuration.root
+                                && previous.settings.sources == configuration.settings.sources
+                        });
+                    let rebuilds =
+                        !unchanged_sources || !matches!(admission.status, Status::Ready { .. });
+                    admission.configuration = Some(ConfigurationInput::clone(configuration));
+                    rebuilds
+                }
+                _ => command.rebuilds(),
+            };
             if let WorkerState::Querying { cancellation } = &admission.worker {
                 cancellation.cancel();
             }
             match &command {
-                command if command.rebuilds() => {
+                _ if rebuilds => {
                     admission.generation.advance();
                     if let WorkerState::Preparing { cancellation } = &admission.worker {
                         cancellation.cancel();

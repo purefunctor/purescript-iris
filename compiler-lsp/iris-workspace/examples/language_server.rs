@@ -78,6 +78,19 @@ async fn lifecycle(
     workspace.send(Command::Document(document)).expect("admit the buffer before configuration");
     let sequence =
         workspace.send(Command::Configure(configuration)).expect("configure the project");
+    // Keep the sequence beside the protocol request ID. Configuration outcomes are retained even
+    // if later input replaces this configuration; status updates alone cannot complete requests.
+    loop {
+        let delivery = events.recv().await.expect("receive the configuration outcome");
+        if let Ok(Event::ConfigurationFinished { sequence: completed, outcome }) =
+            delivery.release()
+        {
+            assert_eq!(completed, sequence);
+            assert_eq!(outcome, iris_workspace::ConfigurationOutcome::Rebuilt);
+            println!("  Configuration {}: {outcome:?}", sequence.value);
+            break;
+        }
+    }
     ready(workspace, events, sequence).await;
 
     let (reply, request) = Reply::channel();

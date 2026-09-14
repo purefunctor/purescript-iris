@@ -467,7 +467,13 @@ async fn diagnostics_are_cleared_on_rebuild_and_old_publications_cannot_escape()
     let mut diagnostics = harness.hooks.pause_next(Point::BeforeDiagnostics);
     harness.configure();
     loop {
-        if matches!(harness.next().await, Event::Finished { outcome: Outcome::Ready, .. }) {
+        if matches!(
+            harness.next().await,
+            Event::ConfigurationFinished {
+                outcome: iris_workspace::ConfigurationOutcome::Rebuilt,
+                ..
+            }
+        ) {
             break;
         }
     }
@@ -1006,4 +1012,150 @@ async fn progress_reports_a_phase_without_requiring_prior_events() {
         }
     }
     drop(acknowledgement);
+}
+
+async fn configuration_outcome(
+    harness: &mut Harness,
+    expected: InputSequence,
+) -> iris_workspace::ConfigurationOutcome {
+    loop {
+        if let Event::ConfigurationFinished { sequence, outcome } = harness.next().await {
+            assert_eq!(sequence, expected);
+            return outcome;
+        }
+    }
+}
+
+#[tokio::test]
+async fn configurations_classify_changes_and_retry_the_same_failed_settings() {
+    use iris_workspace::ConfigurationOutcome;
+
+    let mut harness = Harness::new(Options::default());
+    let sequence = harness.configure();
+    assert_eq!(configuration_outcome(&mut harness, sequence).await, ConfigurationOutcome::Rebuilt);
+    let initial = harness.ready(sequence).await;
+
+    let sequence = harness.configure();
+    assert_eq!(
+        configuration_outcome(&mut harness, sequence).await,
+        ConfigurationOutcome::Unchanged
+    );
+    assert_eq!(harness.ready(sequence).await.incarnation, initial.incarnation);
+
+    let mut policy = harness.configuration();
+    policy.settings.diagnostics.on_change = true;
+    let sequence = harness.send(Command::Configure(policy)).unwrap();
+    assert_eq!(
+        configuration_outcome(&mut harness, sequence).await,
+        ConfigurationOutcome::PolicyUpdated
+    );
+    assert_eq!(harness.ready(sequence).await.incarnation, initial.incarnation);
+
+    let source = "module Main where\nvalue :: Int\nvalue = \"wrong\"\n";
+    let sequence = harness.open(source, 1);
+    harness.ready(sequence).await;
+    let uri = Url::clone(&harness.uri);
+    assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
+
+    let script = harness.directory.path().join("sources.cjs");
+    fs::write(&script, "process.stderr.write('cannot discover'); process.exit(7);").unwrap();
+    let mut configuration = harness.configuration();
+    configuration.settings.sources =
+        SourceDiscovery::Command { program: "node".into(), arguments: vec!["sources.cjs".into()] };
+    let sequence =
+        harness.send(Command::Configure(ConfigurationInput::clone(&configuration))).unwrap();
+    let ConfigurationOutcome::Failed { message } =
+        configuration_outcome(&mut harness, sequence).await
+    else {
+        panic!("discovery must fail");
+    };
+    assert!(message.contains("cannot discover"));
+
+    fs::write(script, "console.log('Main.purs');").unwrap();
+    let sequence = harness.send(Command::Configure(configuration)).unwrap();
+    assert_eq!(configuration_outcome(&mut harness, sequence).await, ConfigurationOutcome::Rebuilt);
+    assert_ne!(harness.ready(sequence).await.incarnation, initial.incarnation);
+    assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
+
+    harness.send(Command::Shutdown).unwrap();
+    while let Some(delivery) = bounded(harness.events.recv()).await {
+        assert!(!matches!(delivery.release(), Ok(Event::ConfigurationFinished { .. })));
+    }
+}
+
+#[tokio::test]
+async fn pending_configurations_each_finish_even_without_starting_preparation() {
+    use iris_workspace::ConfigurationOutcome;
+
+    let mut harness = Harness::new(Options::default());
+    let initial = harness.configure();
+    assert_eq!(configuration_outcome(&mut harness, initial).await, ConfigurationOutcome::Rebuilt);
+    harness.ready(initial).await;
+
+    let mut analysis = harness.hooks.pause_next(Point::BeforeAnalysis);
+    let request = harness.hover_request();
+    bounded(analysis.entered()).await;
+
+    let mut configuration = harness.configuration();
+    configuration.settings.sources = SourceDiscovery::Command {
+        program: "node".into(),
+        arguments: vec!["-e".into(), "console.log('Main.*')".into()],
+    };
+    let first = harness.send(Command::Configure(configuration)).unwrap();
+    let second = harness.configure();
+    harness.send(Command::Shutdown).unwrap();
+
+    assert_eq!(configuration_outcome(&mut harness, first).await, ConfigurationOutcome::Superseded);
+    assert_eq!(configuration_outcome(&mut harness, second).await, ConfigurationOutcome::Cancelled);
+    drop(analysis);
+    assert!(matches!(bounded(request).await, Err(RequestFailure::Cancelled)));
+
+    while let Some(delivery) = bounded(harness.events.recv()).await {
+        assert!(!matches!(delivery.release(), Ok(Event::ConfigurationFinished { .. })));
+    }
+}
+
+#[tokio::test]
+async fn running_preparation_reports_supersession_once() {
+    use iris_workspace::ConfigurationOutcome;
+
+    let mut harness = Harness::new(Options::default());
+    let mut acknowledgement = harness.hooks.pause_next(Point::BeforeAcknowledgement);
+    let first = harness.configure();
+    bounded(acknowledgement.entered()).await;
+
+    let second = harness.configure();
+    assert_eq!(configuration_outcome(&mut harness, first).await, ConfigurationOutcome::Superseded);
+    drop(acknowledgement);
+    assert_eq!(configuration_outcome(&mut harness, second).await, ConfigurationOutcome::Rebuilt);
+
+    harness.send(Command::Shutdown).unwrap();
+    while let Some(delivery) = bounded(harness.events.recv()).await {
+        assert!(!matches!(delivery.release(), Ok(Event::ConfigurationFinished { .. })));
+    }
+}
+
+#[tokio::test]
+async fn policy_updates_preserve_pending_diagnostics_and_control_future_edits() {
+    let mut harness = Harness::new(Options::default());
+    let mut diagnostics = harness.hooks.pause_next(Point::BeforeDiagnostics);
+    let initial = harness.configure();
+    configuration_outcome(&mut harness, initial).await;
+    bounded(diagnostics.entered()).await;
+
+    let mut policy = harness.configuration();
+    policy.settings.diagnostics.on_open = false;
+    policy.settings.diagnostics.on_change = true;
+    let sequence = harness.send(Command::Configure(policy)).unwrap();
+    assert_eq!(
+        configuration_outcome(&mut harness, sequence).await,
+        iris_workspace::ConfigurationOutcome::PolicyUpdated
+    );
+    drop(diagnostics);
+
+    let uri = Url::clone(&harness.uri);
+    assert!(diagnostics_for(&mut harness, &uri).await.is_empty());
+    harness.open(ORIGINAL, 1);
+    harness.change("module Main where\nvalue :: Int\nvalue = \"wrong\"\n", 2);
+    assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
 }

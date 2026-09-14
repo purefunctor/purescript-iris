@@ -85,6 +85,10 @@ pub struct ConfigurationInput {
 }
 
 pub enum Command {
+    /// Ready workspaces retain their compiler when root and source discovery are unchanged.
+    /// Diagnostic triggers affect future inputs; pending diagnostics finish against current inputs.
+    /// Other states start a new preparation attempt, including retries of a failed configuration.
+    /// Every accepted command produces a retained `Event::ConfigurationFinished`.
     Configure(ConfigurationInput),
     Reload,
     Document(Document),
@@ -148,6 +152,16 @@ pub enum Outcome {
     Cancelled,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ConfigurationOutcome {
+    Unchanged,
+    PolicyUpdated,
+    Rebuilt,
+    Failed { message: Arc<str> },
+    Superseded,
+    Cancelled,
+}
+
 #[derive(Debug)]
 pub enum Event {
     StatusChanged(Status),
@@ -172,6 +186,11 @@ pub enum Event {
     InputRejected {
         sequence: InputSequence,
         failure: InputFailure,
+    },
+    /// Exactly one retained terminal outcome for each admitted Configure, keyed by its sequence.
+    ConfigurationFinished {
+        sequence: InputSequence,
+        outcome: ConfigurationOutcome,
     },
 }
 
