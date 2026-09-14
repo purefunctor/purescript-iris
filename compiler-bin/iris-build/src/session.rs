@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
@@ -69,6 +69,8 @@ pub struct BuildSession {
     source_roots: Vec<PathBuf>,
     source_globs: globset::GlobSet,
     source_paths: BTreeSet<PathBuf>,
+    source_modules: BTreeMap<PathBuf, String>,
+    retired_modules: BTreeSet<String>,
     generated_outputs: BTreeSet<PathBuf>,
     compilation: CompilationState,
     initial_report: Option<InitialBuildReport>,
@@ -100,6 +102,13 @@ impl BuildSession {
             Ok::<_, SessionFailure>(InputChange { source_path, module_name })
         });
         let initial_inputs = initial_inputs.process_results(|inputs| inputs.collect_vec())?;
+        let source_modules = initial_inputs.iter().filter_map(|input| {
+            input
+                .module_name
+                .as_ref()
+                .map(|name| (PathBuf::clone(&input.source_path), String::clone(name)))
+        });
+        let source_modules = source_modules.collect();
         Ok(BuildSession {
             root: project.root,
             output: project.output,
@@ -107,6 +116,8 @@ impl BuildSession {
             source_roots,
             source_globs: walked.globs,
             source_paths: initial.source_paths,
+            source_modules,
+            retired_modules: BTreeSet::new(),
             generated_outputs: BTreeSet::new(),
             compilation: initial.compilation,
             initial_report: Some(initial.report),
@@ -175,7 +186,7 @@ impl BuildSession {
 
         let mut change = SessionChange::default();
         for path in source_paths {
-            change.combine(observe_source_unit(&mut self.compilation, &path)?);
+            change.combine(self.observe_source_path(&path)?);
             if path.exists() {
                 self.source_paths.insert(path);
             } else {
@@ -195,7 +206,7 @@ impl BuildSession {
 
         let mut change = SessionChange::default();
         for path in affected_paths {
-            change.combine(observe_source_unit(&mut self.compilation, &path)?);
+            change.combine(self.observe_source_path(&path)?);
         }
         self.source_globs = walked.globs;
         self.source_paths = current_paths;
@@ -218,6 +229,7 @@ impl BuildSession {
         }
         if self.compilation.source_ids().next().is_none() {
             self.reconcile_outputs(BTreeSet::new())?;
+            self.retired_modules.clear();
             return Ok(RebuildOutcome::NoInputs);
         }
 
@@ -239,11 +251,54 @@ impl BuildSession {
         match result.outcome {
             BuildOutcome::Succeeded => {
                 self.reconcile_outputs(result.outputs)?;
+                self.retired_modules.clear();
                 Ok(RebuildOutcome::Succeeded)
             }
-            BuildOutcome::Diagnostics => Ok(RebuildOutcome::Diagnostics),
-            BuildOutcome::NoInputs => Ok(RebuildOutcome::NoInputs),
+            BuildOutcome::Diagnostics => {
+                self.reconcile_retired_outputs()?;
+                self.retired_modules.clear();
+                Ok(RebuildOutcome::Diagnostics)
+            }
+            BuildOutcome::NoInputs => {
+                self.retired_modules.clear();
+                Ok(RebuildOutcome::NoInputs)
+            }
         }
+    }
+
+    fn observe_source_path(&mut self, path: &Path) -> Result<SessionChange, SessionFailure> {
+        let previous_name = self.source_modules.get(path).cloned();
+        let change = observe_source_unit(&mut self.compilation, path)?;
+        if path.exists() {
+            let unit = source_unit(path)?;
+            if let Some(current_name) = self.compilation.module_name(unit.source())? {
+                if let Some(previous_name) = previous_name
+                    && previous_name != current_name
+                {
+                    self.retired_modules.insert(previous_name);
+                }
+                self.source_modules.insert(path.to_path_buf(), current_name);
+            }
+        } else if let Some(previous_name) = self.source_modules.remove(path) {
+            self.retired_modules.insert(previous_name);
+        }
+        Ok(change)
+    }
+
+    fn reconcile_retired_outputs(&mut self) -> io::Result<()> {
+        let active_modules = self.source_modules.values().cloned().collect::<BTreeSet<_>>();
+        let retired_roots = self
+            .retired_modules
+            .difference(&active_modules)
+            .map(|module| self.output.join(module))
+            .collect_vec();
+        let current_outputs = self
+            .generated_outputs
+            .iter()
+            .filter(|output| !retired_roots.iter().any(|root| output.starts_with(root)))
+            .cloned()
+            .collect();
+        self.reconcile_outputs(current_outputs)
     }
 
     fn reconcile_outputs(&mut self, current: BTreeSet<PathBuf>) -> io::Result<()> {

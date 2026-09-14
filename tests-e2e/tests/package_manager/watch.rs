@@ -161,6 +161,33 @@ fn adds_and_removes_sources_and_stale_outputs() {
 }
 
 #[test]
+fn removes_stale_outputs_when_remaining_sources_have_diagnostics() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
+    workspace.write("src/Main.purs", "module Main where\n\nvalue = 42\n");
+    workspace.write("src/Extra.purs", "module Extra where\n");
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    let main_output = workspace.path().join("output/Main/index.js");
+    let extra_output = workspace.path().join("output/Extra/index.js");
+    watch.wait_for("initial compilation", |stdout, _| {
+        stdout.contains("Loaded 2 inputs: Extra, Main")
+            && main_output.is_file()
+            && extra_output.is_file()
+    });
+
+    std::fs::remove_file(workspace.path().join("src/Extra.purs")).unwrap();
+    workspace.write("src/Main.purs", "module Main where\n\nvalue = missing\n");
+    watch.wait_for("diagnostic rebuild after source removal", |stdout, stderr| {
+        stdout.contains("Rebuild completed with diagnostics")
+            && stderr.contains("[NotInScope]")
+            && main_output.is_file()
+            && !extra_output.exists()
+    });
+}
+
+#[test]
 fn rebuilds_for_ffi_changes_and_reconciles_foreign_outputs() {
     let workspace = TestWorkspace::empty();
     workspace
