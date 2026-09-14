@@ -200,6 +200,36 @@ fn state_references_removed_file<T>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct SnapshotId(u32);
 
+/// Cooperative cancellation for one operation and its descendant snapshots.
+///
+/// Queries observe cancellation at query entry and before computation. Cancelling
+/// does not interrupt computation between these checks or wake queries waiting
+/// for another snapshot's result. Those waits end when the producer completes or
+/// drops its promise, and may still return a successful result after cancellation.
+/// A cancelled producer drops its promise, so its waiters can receive
+/// [`QueryError::Cancelled`] even when their own operation tokens are not cancelled.
+#[derive(Debug, Clone, Default)]
+pub struct QueryCancellation {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl QueryCancellation {
+    /// Creates an independent, initially uncancelled operation token.
+    pub fn new() -> QueryCancellation {
+        QueryCancellation::default()
+    }
+
+    /// Permanently cancels this token and its clones without waiting for queries.
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    /// Returns whether cancellation has been requested for this operation.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+}
+
 #[derive(Default)]
 struct GlobalState {
     /// An atomic token that determines if query execution had been cancelled.
@@ -339,6 +369,7 @@ struct QueryControl {
     id: SnapshotId,
     local: Arc<LocalState>,
     global: Arc<GlobalState>,
+    cancellation: Option<QueryCancellation>,
 }
 
 impl QueryControl {
@@ -347,7 +378,13 @@ impl QueryControl {
         let local = Arc::new(LocalState::default());
         let global = Arc::clone(&self.global);
         let id = global.next_snapshot();
-        QueryControl { _guard, id, local, global }
+        let cancellation = self.cancellation.clone();
+        QueryControl { _guard, id, local, global, cancellation }
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.global.cancelled.load(Ordering::Relaxed)
+            || self.cancellation.as_ref().is_some_and(QueryCancellation::is_cancelled)
     }
 }
 
@@ -357,7 +394,8 @@ impl Default for QueryControl {
         let local = Arc::new(LocalState::default());
         let global = Arc::new(GlobalState::default());
         let id = global.next_snapshot();
-        QueryControl { _guard, id, local, global }
+        let cancellation = None;
+        QueryControl { _guard, id, local, global, cancellation }
     }
 }
 
@@ -375,6 +413,9 @@ impl QueryEngine {
     /// Snapshots are read locks over the [`QueryEngine`] that must
     /// be sent across threads to perform query execution.
     ///
+    /// Descendants inherit this snapshot's operation cancellation
+    /// token, if any.
+    ///
     /// As with read locks, keeping snapshots alive indefinitely is
     /// a logic error and will cause a deadlock on mutation or on a
     /// [cancellation request].
@@ -386,6 +427,18 @@ impl QueryEngine {
         let interned = self.interned.clone();
         let control = self.control.snapshot();
         QueryEngine { input, derived, interned, control }
+    }
+
+    /// Creates a snapshot using the given operation token instead of inheriting
+    /// this engine's token. Descendants created with [`Self::snapshot`] inherit it.
+    ///
+    /// Cancelling the token does not cancel the engine or independent snapshots.
+    /// The snapshot still holds a read lock until dropped; see [`Self::snapshot`]
+    /// and [`QueryCancellation`] for locking and cooperative cancellation limits.
+    pub fn snapshot_with_cancellation(&self, token: QueryCancellation) -> QueryEngine {
+        let mut snapshot = self.snapshot();
+        snapshot.control.cancellation = Some(token);
+        snapshot
     }
 
     /// Creates a cancellation request for queries.
@@ -495,7 +548,7 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        if self.control.global.cancelled.load(Ordering::Relaxed) {
+        if self.control.is_cancelled() {
             return Err(QueryError::Cancelled);
         }
 
@@ -613,7 +666,7 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        if self.control.global.cancelled.load(Ordering::Relaxed) {
+        if self.control.is_cancelled() {
             return Err(QueryError::Cancelled);
         }
 
