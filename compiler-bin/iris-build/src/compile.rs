@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
 
-use building::{DiskObservation, QueryError, SourceUnitKey};
+use building::{DiskObservation, DocumentKey, QueryError, SourceUnitKey};
 use diagnostics::Severity;
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
@@ -290,7 +290,7 @@ pub(crate) fn finish_initial(
     Ok(RebuildResult { outcome, outputs })
 }
 
-fn load_source<Version, Metadata>(
+pub(crate) fn load_source<Version, Metadata>(
     compilation: &mut CompilationState<Version, Metadata>,
     path: &Path,
     metadata: Metadata,
@@ -305,17 +305,30 @@ where
     let foreign_url = Url::from_file_path(&foreign_path)
         .map_err(|_| CompileError::InvalidPath(PathBuf::clone(&foreign_path)))?;
     let unit = SourceUnitKey::new(source_url.as_str(), foreign_url.as_str());
-    let content = fs::read_to_string(path)?;
-    let change = compilation.observe_source(
-        SourceUnitKey::clone(&unit),
-        DiskObservation::Found(content.into()),
-        metadata,
-    );
-    let file_id = change
-        .changed_sources()
-        .next()
-        .expect("invariant violated: newly loaded source did not change its lifecycle");
+    let file_id = if compilation.files.is_open(&DocumentKey::Source(unit.clone())) {
+        compilation.files.source_id(unit.source()).expect("open source must have an identity")
+    } else {
+        let content = fs::read_to_string(path)?;
+        let change = compilation.observe_source(
+            SourceUnitKey::clone(&unit),
+            DiskObservation::Found(content.into()),
+            metadata,
+        );
+        change.changed_sources().next().expect("newly loaded source must change its lifecycle")
+    };
+    load_foreign(compilation, path, &unit)?;
+    Ok(file_id)
+}
+
+pub(crate) fn load_foreign<Version: Clone + Ord, Metadata: Clone>(
+    compilation: &mut CompilationState<Version, Metadata>,
+    path: &Path,
+    unit: &SourceUnitKey,
+) -> Result<(), CompileError> {
     for kind in ForeignSourceKind::ALL {
+        if compilation.files.is_open(&DocumentKey::Foreign(unit.clone(), kind)) {
+            continue;
+        }
         let foreign_path = path.with_extension(kind.extension());
         let disk = match fs::read_to_string(&foreign_path) {
             Ok(content) => DiskObservation::Found(content.into()),
@@ -324,7 +337,7 @@ where
         };
         compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, disk);
     }
-    Ok(file_id)
+    Ok(())
 }
 
 fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(), CompileError> {

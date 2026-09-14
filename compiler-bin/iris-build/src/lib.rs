@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod events;
 pub mod executor;
 pub mod plan;

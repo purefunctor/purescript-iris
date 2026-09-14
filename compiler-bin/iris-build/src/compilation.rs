@@ -29,22 +29,23 @@ impl MaterializedPrim {
 
 pub struct CompilationState<Version = (), Metadata = ()> {
     engine: QueryEngine,
-    files: FileLifecycle<Version, Metadata>,
+    pub(crate) files: FileLifecycle<Version, Metadata>,
     sources: BTreeSet<FileId>,
-    prim: MaterializedPrim,
+    prim: Arc<MaterializedPrim>,
 }
 
 pub struct CompilationParts<Version, Metadata> {
     pub engine: QueryEngine,
     pub files: FileLifecycle<Version, Metadata>,
-    pub prim: MaterializedPrim,
+    pub prim: Arc<MaterializedPrim>,
 }
 
 impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> {
     pub fn new(
-        prim: MaterializedPrim,
+        prim: impl Into<Arc<MaterializedPrim>>,
         prim_metadata: Metadata,
     ) -> CompilationState<Version, Metadata> {
+        let prim = prim.into();
         let engine = QueryEngine::default();
         let mut files = FileLifecycle::default();
 
@@ -74,6 +75,15 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
         CompilationState { engine, files, sources: BTreeSet::new(), prim }
     }
 
+    pub fn apply(&mut self, event: LifecycleEvent<Version, Metadata>) -> LifecycleChange {
+        let change = self.files.apply(&self.engine, event);
+        self.sources.extend(change.changed_sources());
+        for removed in change.removed_sources() {
+            self.sources.remove(&removed.file_id);
+        }
+        change
+    }
+
     pub fn observe_source(
         &mut self,
         unit: SourceUnitKey,
@@ -82,12 +92,7 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
     ) -> LifecycleChange {
         let event =
             LifecycleEvent::Source { unit, event: SourceEvent::DiskObserved { disk, metadata } };
-        let change = self.files.apply(&self.engine, event);
-        self.sources.extend(change.changed_sources());
-        for removed in change.removed_sources() {
-            self.sources.remove(&removed.file_id);
-        }
-        change
+        self.apply(event)
     }
 
     pub fn observe_foreign(
@@ -98,7 +103,7 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
     ) -> LifecycleChange {
         let event =
             LifecycleEvent::Foreign { unit, kind, event: ForeignEvent::DiskObserved { disk } };
-        self.files.apply(&self.engine, event)
+        self.apply(event)
     }
 
     pub fn source_content(&self, locator: &str) -> Result<Option<Arc<str>>, QueryError> {
@@ -117,7 +122,7 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
         self.engine.snapshot()
     }
 
-    pub(crate) fn query_engine(&self) -> &QueryEngine {
+    pub fn query_engine(&self) -> &QueryEngine {
         &self.engine
     }
 

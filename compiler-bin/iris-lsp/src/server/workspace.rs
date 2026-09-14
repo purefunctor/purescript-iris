@@ -69,7 +69,7 @@ pub(super) struct ReadyWorkspace {
     pub(super) workspace_symbols_cache: Arc<RwLock<WorkspaceSymbolsCache>>,
     pub(super) suggestions_cache: Arc<RwLock<SuggestionsCache>>,
     pub(super) diagnostics: DiagnosticScheduler,
-    _prim: MaterializedPrim,
+    _prim: Arc<MaterializedPrim>,
 }
 
 pub(super) struct PreparedInitialWorkspace {
