@@ -307,6 +307,19 @@ impl Workspace {
     }
 
     pub fn send(&self, mut command: Command) -> Result<InputSequence, RequestFailure> {
+        if let Command::FilesChanged(uris) = &command {
+            for uri in uris {
+                if iris_build::analysis::file_path(uri).is_none() {
+                    return Err(crate::InputFailure::UnsupportedDocument(Url::clone(uri)).into());
+                }
+            }
+        }
+        if let Command::LanguageServer(request) = &mut command {
+            if let Err(failure) = request.validate() {
+                request.reject(RequestFailure::InvalidInput(crate::InputFailure::clone(&failure)));
+                return Err(failure.into());
+            }
+        }
         let mut admission = self.shared.lock();
         if matches!(admission.status, Status::Stopping | Status::Stopped) {
             return Err(RequestFailure::Unavailable);

@@ -20,12 +20,8 @@ pub(crate) struct Documents {
 }
 
 pub(crate) fn document_path(uri: &Url) -> Result<std::path::PathBuf, InputFailure> {
-    let path =
-        uri.to_file_path().map_err(|()| InputFailure::UnsupportedDocument(Url::clone(uri)))?;
-    match path.extension().and_then(|extension| extension.to_str()) {
-        Some("purs" | "js" | "jsx") => Ok(path),
-        _ => Err(InputFailure::UnsupportedDocument(Url::clone(uri))),
-    }
+    iris_build::analysis::document_path(uri)
+        .ok_or_else(|| InputFailure::UnsupportedDocument(Url::clone(uri)))
 }
 
 impl Documents {
@@ -49,6 +45,7 @@ impl Documents {
                 Ok(uri)
             }
             Document::Change { uri, version, changes } => {
+                document_path(&uri)?;
                 let document = self
                     .open
                     .get_mut(&uri)
@@ -82,6 +79,7 @@ impl Documents {
                 Ok(uri)
             }
             Document::Close(uri) => {
+                document_path(&uri)?;
                 self.open.remove(&uri).ok_or_else(|| InputFailure::NotOpen(Url::clone(&uri)))?;
                 Ok(uri)
             }

@@ -81,6 +81,27 @@ pub enum AnalysisError {
     CommandOutput(#[from] std::string::FromUtf8Error),
     #[error("failed to convert path to a file URL: {}", .0.display())]
     InvalidPath(PathBuf),
+    #[error("unsupported analysis document URI: {0}")]
+    UnsupportedDocument(Url),
+}
+
+/// File locators must round-trip through a native path without changing their identity.
+/// This does not canonicalize the filesystem or require the file to exist.
+pub fn file_path(uri: &Url) -> Option<PathBuf> {
+    if uri.query().is_some() || uri.fragment().is_some() {
+        return None;
+    }
+    let path = uri.to_file_path().ok()?;
+    (Url::from_file_path(&path).ok().as_ref() == Some(uri)).then_some(path)
+}
+
+/// Supported source and foreign documents share the same locator rule as disk loading.
+pub fn document_path(uri: &Url) -> Option<PathBuf> {
+    let path = file_path(uri)?;
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("purs" | "js" | "jsx") => Some(path),
+        _ => None,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -104,10 +125,7 @@ impl AnalysisSelection {
     /// Like the editor's open-document policy, files outside known roots participate read-only.
     /// Foreign documents inherit the metadata of their associated PureScript source.
     pub fn metadata(&self, uri: &Url) -> Option<bool> {
-        let path = uri.to_file_path().ok()?;
-        if ![".purs", ".js", ".jsx"].iter().any(|extension| uri.path().ends_with(extension)) {
-            return None;
-        }
+        let path = document_path(uri)?;
         let source = if uri.path().ends_with(".purs") { path } else { path.with_extension("purs") };
         if let Some(editable) = self.metadata.get(&source) {
             return Some(*editable);
@@ -130,6 +148,11 @@ pub fn prepare(
     events: &impl BuildEventSink,
 ) -> Result<PreparedAnalysis, AnalysisError> {
     cancellation.check()?;
+    for overlay in overlays {
+        if document_path(&overlay.uri).is_none() {
+            return Err(AnalysisError::UnsupportedDocument(Url::clone(&overlay.uri)));
+        }
+    }
     let started = Instant::now();
     events.send(BuildEvent::Preparing);
     let root = config.root.absolutize()?.into_owned();

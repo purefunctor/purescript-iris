@@ -170,7 +170,7 @@ impl Compilation {
                 LifecycleEvent::Foreign { unit: SourceUnitKey::clone(&unit), kind, event }
             };
             self.files.apply(&self.engine, event);
-            if source && previous.is_none() && current.is_some() {
+            if source && (previous.is_none() || current.is_none()) {
                 for kind in ForeignSourceKind::ALL {
                     let foreign_path = path.with_extension(kind.extension());
                     let foreign_uri = Url::from_file_path(&foreign_path)

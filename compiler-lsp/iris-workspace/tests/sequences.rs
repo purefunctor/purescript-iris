@@ -1159,3 +1159,159 @@ async fn policy_updates_preserve_pending_diagnostics_and_control_future_edits() 
     harness.change("module Main where\nvalue :: Int\nvalue = \"wrong\"\n", 2);
     assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
 }
+
+#[tokio::test]
+async fn unsupported_uri_aliases_are_rejected_without_disturbing_open_authority() {
+    use iris_build::analysis::{AnalysisConfig, AnalysisError, AnalysisOverlay, CancellationToken};
+    use iris_build::compilation::MaterializedPrim;
+    use iris_build::events::SilentBuildEvents;
+    use std::sync::Arc;
+
+    let mut harness = Harness::new(Options::default());
+    harness.open(CHANGED, 1);
+    let sequence = harness.configure();
+    harness.ready(sequence).await;
+
+    let prim = Arc::new(MaterializedPrim::new().unwrap());
+    let configuration = AnalysisConfig {
+        root: harness.directory.path().to_path_buf(),
+        sources: SourceDiscovery::default(),
+    };
+    let mut aliases = ["?view=1", "#selection", "?view=1#selection", "?", "#"]
+        .map(|suffix| Url::parse(&format!("{}{suffix}", harness.uri)).unwrap())
+        .to_vec();
+    aliases.push(Url::parse(&harness.uri.as_str().replace("Main.purs", "%4dain.purs")).unwrap());
+
+    for uri in aliases {
+        let document = Document::Open { uri: Url::clone(&uri), text: ORIGINAL.into(), version: 2 };
+        let sequence = harness.send(Command::Document(document)).unwrap();
+        loop {
+            if let Event::InputRejected { sequence: rejected, failure } = harness.next().await {
+                assert_eq!(sequence, rejected);
+                assert_eq!(failure, InputFailure::UnsupportedDocument(Url::clone(&uri)));
+                break;
+            }
+        }
+        harness.ready(sequence).await;
+        assert!(harness.hover().await.contains("String"));
+
+        assert!(matches!(
+            harness.send(Command::FilesChanged(vec![Url::clone(&uri)])),
+            Err(RequestFailure::InvalidInput(_))
+        ));
+        let (reply, request) = Reply::channel();
+        let command = LanguageServer::DocumentSymbols { uri: Url::clone(&uri), reply };
+        assert!(matches!(
+            harness.send(Command::LanguageServer(command)),
+            Err(RequestFailure::InvalidInput(_))
+        ));
+        assert!(matches!(bounded(request).await, Err(RequestFailure::InvalidInput(_))));
+
+        let overlay = AnalysisOverlay { uri: Url::clone(&uri), text: ORIGINAL.into(), version: 1 };
+        let result = iris_build::analysis::prepare(
+            &configuration,
+            &[overlay],
+            Arc::clone(&prim),
+            &CancellationToken::new(),
+            &SilentBuildEvents,
+        );
+        assert!(
+            matches!(result, Err(AnalysisError::UnsupportedDocument(rejected)) if rejected == uri)
+        );
+    }
+}
+
+#[tokio::test]
+async fn encoded_file_uris_keep_importers_and_rename_on_the_open_buffer() {
+    let mut harness = Harness::new(Options::default());
+    let importer = "module Main where\nimport Library\nuse :: String\nuse = value\n";
+    fs::write(harness.directory.path().join("Main.purs"), importer).unwrap();
+    let path = harness.directory.path().join("Library Source.purs");
+    fs::write(&path, "module Library where\nvalue :: Int\nvalue = 1\n").unwrap();
+    let uri = Url::from_file_path(&path).unwrap();
+    assert!(uri.as_str().contains("%20"));
+    let localhost = Url::parse(&uri.as_str().replacen("file:///", "file://localhost/", 1)).unwrap();
+    assert_eq!(iris_build::analysis::document_path(&localhost), Some(path));
+
+    let source = "module Library where\nvalue :: String\nvalue = \"buffer\"\n";
+    harness
+        .send(Command::Document(Document::Open {
+            uri: Url::clone(&localhost),
+            text: source.into(),
+            version: 4,
+        }))
+        .unwrap();
+    let sequence = harness.configure();
+    configuration_outcome(&mut harness, sequence).await;
+    let main = Url::clone(&harness.uri);
+    assert!(diagnostics_for(&mut harness, &main).await.is_empty());
+
+    for command in [Command::Reload, Command::FilesChanged(vec![Url::clone(&uri)])] {
+        let sequence = harness.send(command).unwrap();
+        harness.ready(sequence).await;
+        assert!(diagnostics_for(&mut harness, &main).await.is_empty());
+
+        let (reply, request) = Reply::channel();
+        let command = LanguageServer::Rename {
+            uri: Url::clone(&uri),
+            position: Position::new(2, 1),
+            new_name: "renamed".into(),
+            reply,
+        };
+        harness.send(Command::LanguageServer(command)).unwrap();
+        let edit = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
+        let edits = edit.changes.unwrap();
+        assert_eq!(edits.len(), 2);
+        assert!(edits.contains_key(&uri));
+        assert!(edits.contains_key(&main));
+    }
+
+    let sequence = harness.send(Command::Document(Document::Close(uri))).unwrap();
+    harness.ready(sequence).await;
+    assert!(!diagnostics_for(&mut harness, &main).await.is_empty());
+}
+
+#[tokio::test]
+async fn closing_sources_reobserves_deleted_and_changed_foreign_siblings() {
+    for extension in ["js", "jsx"] {
+        let mut harness = Harness::new(Options::default());
+        let source = "module Main where\nforeign import value :: Int\n";
+        fs::write(harness.directory.path().join("Main.purs"), source).unwrap();
+        let sibling = harness.directory.path().join(format!("Main.{extension}"));
+        fs::write(&sibling, "export const value = 1;").unwrap();
+        harness.open(source, 1);
+        let sequence = harness.configure();
+        configuration_outcome(&mut harness, sequence).await;
+        let uri = Url::clone(&harness.uri);
+        assert!(diagnostics_for(&mut harness, &uri).await.is_empty());
+
+        fs::remove_file(&sibling).unwrap();
+        let sequence = harness.send(Command::Document(Document::Close(Url::clone(&uri)))).unwrap();
+        harness.ready(sequence).await;
+        assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
+
+        fs::write(&sibling, "export const value = 1;").unwrap();
+        let sequence = harness.open(source, 2);
+        harness.ready(sequence).await;
+        assert!(diagnostics_for(&mut harness, &uri).await.is_empty());
+
+        fs::write(&sibling, "export const other = 1;").unwrap();
+        let sequence = harness.send(Command::Document(Document::Close(Url::clone(&uri)))).unwrap();
+        harness.ready(sequence).await;
+        assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
+
+        let sequence = harness.open(source, 3);
+        harness.ready(sequence).await;
+        assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
+
+        fs::write(&sibling, [255]).unwrap();
+        harness.send(Command::Document(Document::Close(Url::clone(&uri)))).unwrap();
+        loop {
+            if let Event::StatusChanged(Status::Failed { message, .. }) = harness.next().await {
+                assert!(message.contains(&format!("Main.{extension}")));
+                break;
+            }
+        }
+        assert!(matches!(harness.status(), Status::Failed { .. }));
+    }
+}

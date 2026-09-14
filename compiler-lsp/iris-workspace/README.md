@@ -9,6 +9,10 @@ Text from open editor documents takes precedence over files on disk. The service
 orders input changes without waiting for compiler work to finish. A separate worker runs
 compilation and analysis. Cancelled work may still be running while a rebuild waits to start.
 
+Documents use local file URLs without query strings or fragments. Converting a URL to a local
+path and back must preserve it, so editor buffers and disk reads identify the same document.
+Files need not exist on disk, and filenames containing spaces remain supported.
+
 Rebuilds keep open documents but make analysis unavailable until the latest inputs have been
 loaded. If preparation fails, analysis remains unavailable rather than falling back to the
 previous compiler state. Type errors in the source do not prevent the service from answering

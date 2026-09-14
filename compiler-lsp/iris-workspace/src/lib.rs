@@ -80,6 +80,7 @@ pub struct AnalysisStamp {
 
 #[derive(Clone, Debug)]
 pub struct ConfigurationInput {
+    /// Discovery commands run in this directory, with arguments passed without shell evaluation.
     pub root: PathBuf,
     pub settings: Configuration,
 }
@@ -90,8 +91,10 @@ pub enum Command {
     /// Other states start a new preparation attempt, including retries of a failed configuration.
     /// Every accepted command produces a retained `Event::ConfigurationFinished`.
     Configure(ConfigurationInput),
+    /// Rediscover and reload all sources, then schedule diagnostics for editable sources.
     Reload,
     Document(Document),
+    /// Foreign-only changes reconcile locally. Other changes conservatively rediscover all sources.
     FilesChanged(Vec<Url>),
     LanguageServer(LanguageServer),
     Shutdown,
@@ -109,6 +112,8 @@ impl Command {
     }
 }
 
+/// Documents use file URLs that round-trip through their local path unchanged, without a query
+/// or fragment. This does not resolve filesystem aliases or require a file to exist.
 pub enum Document {
     Open { uri: Url, text: Arc<str>, version: i32 },
     Change { uri: Url, version: i32, changes: Vec<TextDocumentContentChangeEvent> },

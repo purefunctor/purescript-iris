@@ -20,6 +20,7 @@ pub enum LanguageServerFailure {
 
 macro_rules! language_requests {
     ($($name:ident { $($field:ident: $input:ty),* } => $output:ty),* $(,)?) => {
+        /// Reference queries return the analyzer's reference set without declaration-inclusion filtering.
         pub enum LanguageServer {
             $($name { $($field: $input,)* reply: Reply<$output> }),*
         }
@@ -57,6 +58,27 @@ language_requests! {
     WorkspaceSymbols { query: String } => Option<WorkspaceSymbolResponse>,
     SemanticTokens { uri: Url } => Option<SemanticTokens>,
     CodeAction { uri: Url, range: Range, context: CodeActionContext } => Option<CodeActionResponse>,
+}
+
+impl LanguageServer {
+    pub(crate) fn validate(&self) -> Result<(), crate::InputFailure> {
+        let uri = match self {
+            LanguageServer::Hover { uri, .. }
+            | LanguageServer::Definition { uri, .. }
+            | LanguageServer::References { uri, .. }
+            | LanguageServer::Completion { uri, .. }
+            | LanguageServer::Rename { uri, .. }
+            | LanguageServer::PrepareRename { uri, .. }
+            | LanguageServer::DocumentHighlight { uri, .. }
+            | LanguageServer::DocumentSymbols { uri, .. }
+            | LanguageServer::SemanticTokens { uri, .. }
+            | LanguageServer::CodeAction { uri, .. } => uri,
+            LanguageServer::ResolveCompletion { .. } | LanguageServer::WorkspaceSymbols { .. } => {
+                return Ok(());
+            }
+        };
+        crate::documents::document_path(uri).map(|_| ())
+    }
 }
 
 pub(crate) struct Host<'a> {
