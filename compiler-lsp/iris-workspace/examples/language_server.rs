@@ -110,6 +110,7 @@ async fn lifecycle(
     let hover = delivery
         .release()
         .expect("hover must still match current inputs")
+        .expect("hover analysis must succeed")
         .expect("the value declaration must have hover information");
     print_message("Hover after rebuild", serde_json::json!({"result": hover}));
 
@@ -212,7 +213,10 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
         LanguageServer::Completion { uri: Url::clone(uri), position: Position::new(5, 9), reply };
     workspace.send(Command::LanguageServer(command)).expect("admit the completion request");
     let delivery = request.await.expect("compute completion suggestions");
-    let response = delivery.release().expect("completion must still match current inputs");
+    let response = delivery
+        .release()
+        .expect("completion must still match current inputs")
+        .expect("completion analysis must succeed");
     print_message(
         "Completion",
         serde_json::json!({"jsonrpc": "2.0", "id": 101, "result": response}),
@@ -236,7 +240,10 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
     let command = LanguageServer::ResolveCompletion { item: CompletionItem::clone(&item), reply };
     workspace.send(Command::LanguageServer(command)).expect("admit completionItem/resolve");
     let delivery = request.await.expect("resolve the completion's type information");
-    let resolved = delivery.release().expect("resolved completion must still be current");
+    let resolved = delivery
+        .release()
+        .expect("resolved completion must still be current")
+        .expect("completion resolution must succeed");
     print_message(
         "Resolved completion",
         serde_json::json!({"jsonrpc": "2.0", "id": 102, "result": resolved}),
@@ -258,6 +265,7 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
     let edit = delivery
         .release()
         .expect("rename edits must still be current")
+        .expect("annotated rename analysis must succeed")
         .expect("the selected value must be renameable");
     print_message(
         "Rename requiring confirmation",
@@ -291,6 +299,7 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
     let edit = delivery
         .release()
         .expect("count edits must still be current")
+        .expect("non-conflicting rename analysis must succeed")
         .expect("value must have rename edits");
     print_message(
         "Rename to count",
@@ -329,7 +338,10 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
         .send(Command::LanguageServer(command))
         .expect("admit resolution of an outdated completion");
     let delivery = request.await.expect("handle the outdated completion token");
-    let outdated = delivery.release().expect("token rejection must use current analysis");
+    let outdated = delivery
+        .release()
+        .expect("token rejection must use current analysis")
+        .expect("outdated completion handling must succeed");
     assert!(outdated.data.is_none());
     assert!(outdated.detail.is_none());
     println!("  Outdated completion token discarded after didChange.");

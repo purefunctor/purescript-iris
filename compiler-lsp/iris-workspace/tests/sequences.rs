@@ -136,7 +136,8 @@ impl Harness {
     }
 
     async fn hover(&self) -> String {
-        let hover = bounded(self.hover_request()).await.unwrap().release().unwrap().unwrap();
+        let hover =
+            bounded(self.hover_request()).await.unwrap().release().unwrap().unwrap().unwrap();
 
         match hover.contents {
             HoverContents::Markup(markup) => markup.value,
@@ -152,7 +153,7 @@ impl Harness {
         }))
         .unwrap();
 
-        match bounded(request).await.unwrap().release().unwrap().unwrap() {
+        match bounded(request).await.unwrap().release().unwrap().unwrap().unwrap() {
             DocumentSymbolResponse::Flat(symbols) => {
                 symbols.into_iter().map(|symbol| symbol.name).collect()
             }
@@ -171,7 +172,7 @@ impl Harness {
         }))
         .unwrap();
 
-        match bounded(request).await.unwrap().release().unwrap().unwrap() {
+        match bounded(request).await.unwrap().release().unwrap().unwrap().unwrap() {
             CompletionResponse::Array(items) => items,
             CompletionResponse::List(list) => list.items,
         }
@@ -182,7 +183,7 @@ impl Harness {
         self.send(Command::LanguageServer(LanguageServer::ResolveCompletion { item, reply }))
             .unwrap();
 
-        bounded(request).await.unwrap().release().unwrap()
+        bounded(request).await.unwrap().release().unwrap().unwrap()
     }
 }
 
@@ -325,6 +326,49 @@ async fn overload_and_request_cancellation_do_not_block_inputs() {
 }
 
 #[tokio::test]
+async fn computed_rename_rejections_are_fenced_until_publication() {
+    let mut harness = Harness::new(Options::default());
+    let sequence = harness.configure();
+    harness.ready(sequence).await;
+
+    for replacement in [
+        None,
+        Some(Command::Document(Document::Open {
+            uri: Url::clone(&harness.uri),
+            text: ORIGINAL.into(),
+            version: 1,
+        })),
+        Some(Command::Configure(harness.configuration())),
+    ] {
+        let (reply, request) = Reply::channel();
+        let command = LanguageServer::Rename {
+            uri: Url::clone(&harness.uri),
+            position: Position::new(5, 7),
+            new_name: "use".into(),
+            reply,
+        };
+        harness.send(Command::LanguageServer(command)).unwrap();
+        let held = bounded(request).await.unwrap();
+
+        if let Some(command) = replacement {
+            let sequence = harness.send(command).unwrap();
+            assert!(matches!(
+                held.release(),
+                Err(RequestFailure::Stale | RequestFailure::Cancelled)
+            ));
+            harness.ready(sequence).await;
+        } else {
+            assert!(matches!(
+                held.release().unwrap(),
+                Err(RequestFailure::LanguageServer(
+                    iris_workspace::LanguageServerFailure::RenameRejected(_)
+                ))
+            ));
+        }
+    }
+}
+
+#[tokio::test]
 async fn sequential_unicode_edits_are_atomic_and_versions_reset_only_on_reopen() {
     let mut harness = Harness::new(Options::default());
     harness.configure();
@@ -353,7 +397,7 @@ async fn sequential_unicode_edits_are_atomic_and_versions_reset_only_on_reopen()
     };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let hover = bounded(request).await.unwrap().release().unwrap().unwrap();
+    let hover = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
     assert!(format!("{:?}", hover.contents).contains("Int"));
 
     let command = Document::Change {
@@ -537,7 +581,7 @@ async fn closing_a_buffer_only_source_clears_its_diagnostics() {
 
     let (reply, request) = Reply::channel();
     harness.send(Command::LanguageServer(LanguageServer::DocumentSymbols { uri, reply })).unwrap();
-    assert!(bounded(request).await.unwrap().release().unwrap().is_none());
+    assert!(bounded(request).await.unwrap().release().unwrap().unwrap().is_none());
 }
 
 #[tokio::test]
@@ -558,7 +602,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
     };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let locations = bounded(request).await.unwrap().release().unwrap().unwrap();
+    let locations = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
     let reference = locations
         .iter()
         .any(|location| location.uri == harness.uri && location.range.start.line == 5);
@@ -573,7 +617,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
     };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let edit = bounded(request).await.unwrap().release().unwrap().unwrap();
+    let edit = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
     let changes = match edit.document_changes.unwrap() {
         lsp_types::DocumentChanges::Edits(edits) => edits,
         lsp_types::DocumentChanges::Operations(operations) => {
@@ -601,7 +645,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
     let command = LanguageServer::SemanticTokens { uri: Url::clone(&harness.uri), reply };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let tokens = bounded(request).await.unwrap().release().unwrap().unwrap();
+    let tokens = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
     assert!(!tokens.data.is_empty());
 
     async fn prim(harness: &Harness) -> Url {
@@ -613,7 +657,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
         };
         harness.send(Command::LanguageServer(command)).unwrap();
 
-        match bounded(request).await.unwrap().release().unwrap().unwrap() {
+        match bounded(request).await.unwrap().release().unwrap().unwrap().unwrap() {
             lsp_types::GotoDefinitionResponse::Scalar(location) => location.uri,
             lsp_types::GotoDefinitionResponse::Array(locations) => Url::clone(&locations[0].uri),
             lsp_types::GotoDefinitionResponse::Link(locations) => {
@@ -657,7 +701,7 @@ async fn discovery_preserves_root_and_literal_arguments_and_rejects_invalid_outp
     let command = LanguageServer::WorkspaceSymbols { query: "ignored".into(), reply };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let result = bounded(request).await.unwrap().release().unwrap();
+    let result = bounded(request).await.unwrap().release().unwrap().unwrap();
     assert!(match result {
         None => true,
         Some(lsp_types::WorkspaceSymbolResponse::Flat(symbols)) => symbols.is_empty(),
@@ -807,7 +851,7 @@ async fn closing_an_excluded_source_does_not_restore_it_from_disk() {
     let (reply, request) = Reply::channel();
     let command = LanguageServer::DocumentSymbols { uri: Url::clone(&harness.uri), reply };
     harness.send(Command::LanguageServer(command)).unwrap();
-    assert!(bounded(request).await.unwrap().release().unwrap().is_none());
+    assert!(bounded(request).await.unwrap().release().unwrap().unwrap().is_none());
     assert!(harness.uri.to_file_path().unwrap().is_file());
 }
 

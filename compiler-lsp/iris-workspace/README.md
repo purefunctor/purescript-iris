@@ -14,9 +14,19 @@ loaded. If preparation fails, analysis remains unavailable rather than falling b
 previous compiler state. Type errors in the source do not prevent the service from answering
 analysis requests once those inputs are loaded.
 
-Results include a final validity check, `Delivery::release`, which callers must invoke immediately
-before sending them to the editor. This check rejects analysis results and diagnostics that newer
-inputs have made outdated.
+Computed successes and failures remain inside `Delivery` until `Delivery::release` checks their
+validity. Diagnostics use the same check. Admission, channel, and cancellation failures can be
+returned before a delivery exists; computed failures must only be unwrapped after release.
+
+Release belongs at irrevocable, ordered commitment to a reserved slot in the transport's final
+writer, not physical socket flush. The adapter must serialize this commitment with input admission.
+Releasing before a forwarding queue or router serialization is insufficient. Stock async-lsp
+0.2.4 has no public deferred-output reservation API; migration requires transport support for this
+boundary. The runnable example illustrates workspace semantics, not that transport integration.
+
+An event pump may hold one delivery while awaiting writer commitment or discard, then receive the
+next. It must not eagerly release events into an unbounded transport queue. Teardown must drop or
+acknowledge the held delivery so that the pump can exit.
 
 ## Runnable walkthrough
 

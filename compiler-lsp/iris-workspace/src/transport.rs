@@ -122,7 +122,9 @@ impl<T> Delivery<T> {
         Delivery { value, shared, fence, cancellation: None }
     }
 
-    /// This is the output linearization point. Do not queue or await after releasing a value.
+    /// Validate at ordered commitment to a reserved final-writer slot, not socket flush.
+    /// The adapter must serialize release and commitment with input admission. Do not release
+    /// before router serialization, a forwarding queue, or another await.
     pub fn release(self) -> Result<T, RequestFailure> {
         let admission = self.shared.lock();
         if self.cancellation.as_ref().is_some_and(Cancellation::is_cancelled) {
@@ -147,13 +149,16 @@ impl Drop for ReplyAdmission {
 }
 
 pub struct Reply<T> {
-    sender: Option<oneshot::Sender<Result<Delivery<T>, RequestFailure>>>,
+    sender: Option<oneshot::Sender<Result<Delivery<Result<T, RequestFailure>>, RequestFailure>>>,
     pub(crate) cancellation: Cancellation,
     admission: Option<ReplyAdmission>,
 }
 
+/// Admission and cancellation failures are outer errors. Computed successes and failures both
+/// remain guarded until the caller releases the delivery at the publication boundary.
 pub struct Request<T> {
-    receiver: Option<oneshot::Receiver<Result<Delivery<T>, RequestFailure>>>,
+    receiver:
+        Option<oneshot::Receiver<Result<Delivery<Result<T, RequestFailure>>, RequestFailure>>>,
     cancellation: Cancellation,
     completed: bool,
 }
@@ -191,16 +196,14 @@ impl<T> Reply<T> {
         let result = if self.cancellation.is_cancelled() {
             Err(RequestFailure::Cancelled)
         } else {
-            result.and_then(|value| {
-                let admission = self.admission.as_ref().expect("analysis reply must be admitted");
-                let mut delivery = Delivery::new(
-                    value,
-                    Arc::clone(&admission.shared),
-                    Fence::Analysis(admission.stamp),
-                );
-                delivery.cancellation = Some(Cancellation::clone(&self.cancellation));
-                Ok(delivery)
-            })
+            let admission = self.admission.as_ref().expect("analysis reply must be admitted");
+            let mut delivery = Delivery::new(
+                result,
+                Arc::clone(&admission.shared),
+                Fence::Analysis(admission.stamp),
+            );
+            delivery.cancellation = Some(Cancellation::clone(&self.cancellation));
+            Ok(delivery)
         };
         if let Some(sender) = self.sender.take() {
             let _ = sender.send(result);
@@ -215,7 +218,7 @@ impl<T> Request<T> {
 }
 
 impl<T> Future for Request<T> {
-    type Output = Result<Delivery<T>, RequestFailure>;
+    type Output = Result<Delivery<Result<T, RequestFailure>>, RequestFailure>;
 
     fn poll(mut self: Pin<&mut Request<T>>, context: &mut Context<'_>) -> Poll<Self::Output> {
         *self.cancellation.wake.lock() = Some(Waker::clone(context.waker()));
