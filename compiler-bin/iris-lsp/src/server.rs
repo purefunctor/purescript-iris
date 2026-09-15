@@ -141,6 +141,7 @@ impl State {
 
     fn spawn<T>(
         &self,
+        cancellation: QueryCancellation,
         action: impl FnOnce(StateSnapshot) -> T + Send + 'static,
     ) -> Result<task::JoinHandle<T>, LspError>
     where
@@ -149,9 +150,11 @@ impl State {
         if self.stopped {
             return Err(building::QueryError::Cancelled.into());
         }
-        let snapshot = self
-            .workspace
-            .snapshot(self.protocol.position_encoding, self.protocol.analyzer_capabilities)?;
+        let snapshot = self.workspace.snapshot(
+            self.protocol.position_encoding,
+            self.protocol.analyzer_capabilities,
+            cancellation,
+        )?;
         Ok(self.tasks.spawn_blocking(move || action(snapshot)))
     }
 
@@ -602,6 +605,19 @@ fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
     Ok(Arc::from(uri.as_str()))
 }
 
+impl WorkspaceEffects {
+    fn deliver(self, client: &ClientSocket) -> Result<(), LspError> {
+        let mut client = ClientSocket::clone(client);
+        for parameters in self.clear_diagnostics {
+            client.publish_diagnostics(parameters)?;
+        }
+        for ticket in self.collect_diagnostics {
+            client.emit(event::CollectDiagnostics { ticket })?;
+        }
+        Ok(())
+    }
+}
+
 fn collect_diagnostics(
     state: &mut State,
     event::CollectDiagnostics { ticket }: event::CollectDiagnostics,
@@ -930,6 +946,7 @@ fn did_open(
 ) -> Result<(), LspError> {
     let uri = &parameters.text_document.uri;
     let (document, unit) = source_unit_from_document_uri(uri)?;
+    workspace.remember_source_identity(&unit);
 
     let mut events = vec![];
     match document {
@@ -972,8 +989,7 @@ fn did_close(
 ) -> Result<(), LspError> {
     let uri = parameters.text_document.uri;
     let (document, unit) = source_unit_from_document_uri(&uri)?;
-    let source_uri = Arc::<str>::from(unit.source());
-    let excluded = workspace.excluded_sources.contains(&source_uri);
+    let excluded = workspace.source_excluded(&unit);
     let disk = if excluded { DiskObservation::NotFound } else { observe_disk(&uri) };
     let mut events = vec![];
     match document {
@@ -1026,14 +1042,14 @@ fn did_change_watched_files(
         match document_kind(&change.uri) {
             Some(DocumentKind::Foreign(kind)) => {
                 let unit = source_unit_from_foreign_uri(&change.uri)?;
-                if workspace.excluded_sources.contains(unit.source()) {
+                if workspace.source_excluded(&unit) {
                     continue;
                 }
                 foreign_units.insert((unit, kind));
             }
             Some(DocumentKind::Source) => {
                 let unit = source_unit_from_source_uri(&change.uri)?;
-                if workspace.excluded_sources.contains(unit.source()) {
+                if workspace.source_excluded(&unit) {
                     continue;
                 }
                 source_units.insert(unit);
@@ -1053,6 +1069,7 @@ fn did_change_watched_files(
         if !source_editable(workspace, context.root, &unit, &uri) {
             continue;
         }
+        workspace.remember_source_identity(&unit);
         let disk = observe_disk(&uri);
         let source_found = matches!(disk, DiskObservation::Found(_));
         let metadata = source_metadata(workspace, context.root, &unit, &uri);
@@ -1087,6 +1104,7 @@ fn did_change_watched_files(
         if !tracked {
             continue;
         }
+        workspace.remember_source_identity(&unit);
         let uri = Url::parse(unit.foreign_for(kind))?;
         let event = LifecycleEvent::Foreign {
             unit,
@@ -1148,16 +1166,18 @@ fn observe_sibling_foreign(
     unit: &SourceUnitKey,
 ) -> Result<Vec<LifecycleEvent<i32, SourceMetadata>>, LspError> {
     let mut events = vec![];
+    let excluded = workspace.source_excluded(unit);
     for kind in ForeignSourceKind::ALL {
         let document = DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);
         if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.foreign_for(kind))?;
+        let disk = if excluded { DiskObservation::NotFound } else { observe_disk(&uri) };
         events.push(LifecycleEvent::Foreign {
             unit: SourceUnitKey::clone(unit),
             kind,
-            event: ForeignEvent::DiskObserved { disk: observe_disk(&uri) },
+            event: ForeignEvent::DiskObserved { disk },
         });
     }
     Ok(events)
@@ -1214,14 +1234,29 @@ fn source_editable(
     source_metadata(workspace, root, unit, uri).editable()
 }
 
+struct RequestCancellation {
+    cancellation: QueryCancellation,
+}
+
+impl Drop for RequestCancellation {
+    fn drop(&mut self) {
+        self.cancellation.cancel();
+    }
+}
+
 trait RequestExtension: BorrowMut<Router<State>> {
     fn request_snapshot<R: Request>(
         &mut self,
         action: impl Fn(StateSnapshot, R::Params) -> Result<R::Result, LspError> + Send + Copy + 'static,
     ) -> &mut Self {
         self.borrow_mut().request::<R, _>(move |state, parameters| {
-            let task = state.spawn(move |snapshot| action(snapshot, parameters));
+            let cancellation = RequestCancellation { cancellation: QueryCancellation::default() };
+            let task = state
+                .spawn(QueryCancellation::clone(&cancellation.cancellation), move |snapshot| {
+                    action(snapshot, parameters)
+                });
             async move {
+                let _cancellation = cancellation;
                 let task = task.map_err(response_error)?;
                 task.await
                     .map_err(LspError::JoinError)

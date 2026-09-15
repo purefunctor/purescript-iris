@@ -15,13 +15,15 @@ use iris_build::plan::PackageInput;
 use itertools::Itertools;
 use lsp_types::Url;
 use path_absolutize::Absolutize;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 
 use super::error::LspError;
-use super::workspace::{PreparedInitialWorkspace, PreparedSourceReconfiguration, SourceRoot};
+use super::workspace::{
+    PreparedInitialWorkspace, PreparedSourceReconfiguration, SourceRoot, filesystem_identity,
+};
 use super::{SourceMetadata, observe_disk, source_unit_from_source_uri, source_uri};
 use crate::walk;
 
@@ -57,6 +59,8 @@ impl Drop for Preparation {
 pub(super) struct ReconfigurationInput {
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
+    pub(super) source_identities: FxHashMap<Arc<str>, PathBuf>,
+    pub(super) tracked: Vec<SourceUnitKey>,
 }
 
 pub(super) enum PreparedWorkspace {
@@ -119,6 +123,10 @@ pub(super) async fn prepare(
         } else {
             let selected_sources = discovered.source_globs.iter().map(source_uri);
             let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
+            let source_identities = selected_sources.iter().filter_map(|source| {
+                filesystem_identity(source).map(|identity| (Arc::clone(source), identity))
+            });
+            let source_identities = source_identities.collect();
             let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
                 root: &root,
                 source_globs: &discovered.source_globs,
@@ -141,6 +149,7 @@ pub(super) async fn prepare(
                 compilation: initial.into_compilation(),
                 source_roots: discovered.source_roots,
                 selected_sources,
+                source_identities,
             })
         };
         queries.check()?;
@@ -157,6 +166,7 @@ pub(super) fn fallback(configuration: Arc<Configuration>) -> Result<PreparedWork
         compilation,
         source_roots: vec![],
         selected_sources: FxHashSet::default(),
+        source_identities: FxHashMap::default(),
     }))
 }
 
@@ -250,11 +260,55 @@ pub(super) fn prepare_reconfiguration(
 ) -> Result<PreparedSourceReconfiguration, LspError> {
     let selected_sources = discovered.source_globs.iter().map(source_uri);
     let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
-    let mut excluded_sources = previous.excluded_sources;
-    let mut events = vec![];
-    for source in previous.selected_sources.difference(&selected_sources) {
+    let mut source_identities = previous.source_identities;
+    let tracked = previous.tracked.iter().map(|unit| Arc::<str>::from(unit.source()));
+    let tracked = tracked.collect::<FxHashSet<_>>();
+    for source in selected_sources.iter().chain(&previous.selected_sources).chain(&tracked) {
         cancellation.check()?;
-        excluded_sources.insert(Arc::clone(source));
+        if let Some(identity) = filesystem_identity(source) {
+            source_identities.insert(Arc::clone(source), identity);
+        }
+    }
+    let selected_identities =
+        selected_sources.iter().filter_map(|source| source_identities.get(source)).cloned();
+    let selected_identities = selected_identities.collect::<FxHashSet<_>>();
+    let removed_sources = previous
+        .selected_sources
+        .difference(&selected_sources)
+        .filter(|source| {
+            source_identities
+                .get(*source)
+                .is_none_or(|identity| !selected_identities.contains(identity))
+        })
+        .cloned();
+    let mut removed_sources = removed_sources.collect::<FxHashSet<_>>();
+    let removed_identities =
+        removed_sources.iter().filter_map(|source| source_identities.get(source)).cloned();
+    let removed_identities = removed_identities.collect::<FxHashSet<_>>();
+    for source in &tracked {
+        if source_identities
+            .get(source)
+            .is_some_and(|identity| removed_identities.contains(identity))
+        {
+            removed_sources.insert(Arc::clone(source));
+        }
+    }
+    let mut excluded_sources = previous.excluded_sources;
+    excluded_sources.extend(removed_sources.iter().cloned());
+    excluded_sources.retain(|source| {
+        !selected_sources.contains(source)
+            && source_identities
+                .get(source)
+                .is_none_or(|identity| !selected_identities.contains(identity))
+    });
+    source_identities.retain(|source, _| {
+        selected_sources.contains(source)
+            || excluded_sources.contains(source)
+            || tracked.contains(source)
+    });
+    let mut events = vec![];
+    for source in &removed_sources {
+        cancellation.check()?;
         let unit = source_unit_from_source_uri(&Url::parse(source)?)?;
         events.push(LifecycleEvent::Source {
             unit: SourceUnitKey::clone(&unit),
@@ -298,6 +352,7 @@ pub(super) fn prepare_reconfiguration(
         source_roots: discovered.source_roots,
         selected_sources,
         excluded_sources,
+        source_identities,
         events,
     })
 }

@@ -19,7 +19,9 @@ use lsp_types::{
 use serde_json::json;
 use tempfile::tempdir;
 
-use super::preparation::{DiscoveredWorkspace, package_source_roots, prepare_reconfiguration};
+#[cfg(unix)]
+use super::preparation::package_source_roots;
+use super::preparation::{DiscoveredWorkspace, prepare_reconfiguration};
 use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
@@ -46,6 +48,7 @@ fn test_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> St
         compilation,
         source_roots: vec![],
         selected_sources: Default::default(),
+        source_identities: Default::default(),
     };
     let pending = state.workspace.install(prepared).unwrap();
     assert!(pending.is_empty());
@@ -86,7 +89,7 @@ fn requests_are_cancelled_while_the_workspace_is_loading() {
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
         let error = state
-            .spawn(|_| ())
+            .spawn(building::QueryCancellation::default(), |_| ())
             .expect_err("invariant violated: waiting workspace produced a snapshot");
 
         assert_eq!(error.code(), async_lsp::ErrorCode::REQUEST_CANCELLED);
@@ -128,6 +131,7 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
             compilation,
             source_roots: vec![],
             selected_sources: Default::default(),
+            source_identities: Default::default(),
         };
         let pending = state.workspace.install(prepared).unwrap();
         assert!(
@@ -144,11 +148,49 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
             compilation,
             source_roots: vec![],
             selected_sources: Default::default(),
+            source_identities: Default::default(),
         };
         assert!(matches!(
             state.workspace.install(prepared),
             Err(super::LspError::WorkspaceAlreadyReady)
         ));
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn stale_preparation_results_cannot_restart_or_install_after_shutdown() {
+    use super::preparation::{ConfigurationOrigin, Preparation, PreparationFinished};
+
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let config = test_config();
+        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        state.preparation = Some(Preparation {
+            generation: 2,
+            configuration: Arc::clone(&config),
+            origin: ConfigurationOrigin::Startup,
+            dirty: true,
+            fallback: false,
+            queries: building::QueryCancellation::default(),
+            process: tokio_util::sync::CancellationToken::new(),
+        });
+        for stopped in [false, true] {
+            if stopped {
+                state.stop();
+            }
+            let generation = if stopped { 2 } else { 1 };
+            let results = [
+                super::preparation::fallback(Arc::clone(&config)),
+                Err(super::LspError::MissingRoot),
+            ];
+            for result in results {
+                super::finish_preparation(&mut state, PreparationFinished { generation, result })
+                    .unwrap();
+                assert!(!state.workspace.is_ready());
+                assert_eq!(state.preparation_generation, 0);
+                assert_eq!(state.preparation.is_some(), !stopped);
+            }
+        }
         Router::<State, ResponseError>::new(state)
     });
 }

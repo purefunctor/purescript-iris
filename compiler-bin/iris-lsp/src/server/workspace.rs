@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
-use async_lsp::{ClientSocket, LanguageClient};
+use async_lsp::ClientSocket;
 use building::QueryCancellation;
 use building::lifecycle::{AnalysisInvalidation, DocumentKey, LifecycleEvent, SourceUnitKey};
 use configuration::Configuration;
@@ -14,11 +14,11 @@ use lsp_types::{
     DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, PublishDiagnosticsParams, Url,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::analysis::{Analysis, AnalysisSnapshot};
 use super::error::LspError;
-use super::event::{CollectDiagnostics, DiagnosticTicket, DiagnosticValidity};
+use super::event::{DiagnosticTicket, DiagnosticValidity};
 use super::preparation::ReconfigurationInput;
 use super::{
     SourceMetadata, did_change, did_change_watched_files, did_close, did_open, did_save,
@@ -58,6 +58,7 @@ pub(super) struct ReadyWorkspace {
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
+    source_identities: FxHashMap<Arc<str>, PathBuf>,
     pub(super) diagnostics: DiagnosticValidity,
     _prim: MaterializedPrim,
 }
@@ -67,6 +68,7 @@ pub(super) struct PreparedInitialWorkspace {
     pub(super) compilation: CompilationState<i32, SourceMetadata>,
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
+    pub(super) source_identities: FxHashMap<Arc<str>, PathBuf>,
 }
 
 pub(super) struct PreparedSourceReconfiguration {
@@ -74,6 +76,7 @@ pub(super) struct PreparedSourceReconfiguration {
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
+    pub(super) source_identities: FxHashMap<Arc<str>, PathBuf>,
     pub(super) events: Vec<LifecycleEvent<i32, SourceMetadata>>,
 }
 
@@ -85,8 +88,8 @@ pub(super) enum DiagnosticTrigger {
 
 #[must_use]
 pub(super) struct WorkspaceEffects {
-    clear_diagnostics: Vec<PublishDiagnosticsParams>,
-    collect_diagnostics: Vec<DiagnosticTicket>,
+    pub(super) clear_diagnostics: Vec<PublishDiagnosticsParams>,
+    pub(super) collect_diagnostics: Vec<DiagnosticTicket>,
 }
 
 impl WorkspaceEffects {
@@ -105,17 +108,6 @@ impl WorkspaceEffects {
             .map(|file_id| workspace.diagnostics.schedule(file_id, files.source_version(file_id)));
         let collect_diagnostics = collect_diagnostics.into_iter().collect_vec();
         Ok(WorkspaceEffects { clear_diagnostics: vec![], collect_diagnostics })
-    }
-
-    pub(super) fn deliver(self, client: &ClientSocket) -> Result<(), LspError> {
-        let mut client = ClientSocket::clone(client);
-        for parameters in self.clear_diagnostics {
-            client.publish_diagnostics(parameters)?;
-        }
-        for ticket in self.collect_diagnostics {
-            client.emit(CollectDiagnostics { ticket })?;
-        }
-        Ok(())
     }
 }
 
@@ -146,11 +138,12 @@ impl WorkspaceRuntime {
         &self,
         position_encoding: PositionEncoding,
         analyzer_capabilities: AnalyzerCapabilities,
+        cancellation: QueryCancellation,
     ) -> Result<AnalysisSnapshot, LspError> {
         let workspace = self.ready()?;
         workspace
             .analysis
-            .snapshot(position_encoding, analyzer_capabilities, QueryCancellation::default())
+            .snapshot(position_encoding, analyzer_capabilities, cancellation)
             .map_err(LspError::from)
     }
 
@@ -169,6 +162,7 @@ impl WorkspaceRuntime {
             source_roots: prepared.source_roots,
             selected_sources: prepared.selected_sources,
             excluded_sources: FxHashSet::default(),
+            source_identities: prepared.source_identities,
             diagnostics: DiagnosticValidity::default(),
             _prim: prim,
         };
@@ -219,6 +213,8 @@ impl WorkspaceRuntime {
         Some(ReconfigurationInput {
             selected_sources: FxHashSet::clone(&workspace.selected_sources),
             excluded_sources: FxHashSet::clone(&workspace.excluded_sources),
+            source_identities: FxHashMap::clone(&workspace.source_identities),
+            tracked: workspace.analysis.files.read().unit_keys().cloned().collect_vec(),
         })
     }
 
@@ -255,6 +251,25 @@ impl WorkspaceRuntime {
 }
 
 impl ReadyWorkspace {
+    pub(super) fn remember_source_identity(&mut self, unit: &SourceUnitKey) {
+        if let Some(identity) = filesystem_identity(unit.source()) {
+            self.source_identities.insert(Arc::from(unit.source()), identity);
+        }
+    }
+
+    pub(super) fn source_excluded(&self, unit: &SourceUnitKey) -> bool {
+        if self.excluded_sources.contains(unit.source()) {
+            return true;
+        }
+        let identity = filesystem_identity(unit.source());
+        let identity = identity.as_ref().or_else(|| self.source_identities.get(unit.source()));
+        identity.is_some_and(|identity| {
+            self.excluded_sources
+                .iter()
+                .any(|source| self.source_identities.get(source) == Some(identity))
+        })
+    }
+
     fn dispatch(
         &mut self,
         notification: WorkspaceNotification,
@@ -343,6 +358,7 @@ impl ReadyWorkspace {
             source_roots,
             selected_sources,
             excluded_sources,
+            source_identities,
             mut events,
         } = prepared;
         {
@@ -364,6 +380,12 @@ impl ReadyWorkspace {
         self.source_roots = source_roots;
         self.selected_sources = selected_sources;
         self.excluded_sources = excluded_sources;
+        self.source_identities = source_identities;
         effects
     }
+}
+
+pub(super) fn filesystem_identity(source: &str) -> Option<PathBuf> {
+    let path = Url::parse(source).ok()?.to_file_path().ok()?;
+    dunce::canonicalize(path).ok()
 }
