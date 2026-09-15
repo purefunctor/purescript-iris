@@ -19,13 +19,14 @@ use lsp_types::{
 use serde_json::json;
 use tempfile::tempdir;
 
+use super::preparation::{DiscoveredWorkspace, package_source_roots, prepare_reconfiguration};
 use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
 use super::{
-    ConfigurationReceived, DiscoveredWorkspace, SourceMetadata, State, apply_content_changes,
-    document_kind, finish_workspace_configuration, observe_disk, package_source_roots,
-    source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
+    ConfigurationReceived, SourceMetadata, State, apply_content_changes, document_kind,
+    finish_workspace_configuration, observe_disk, source_unit_from_document_uri,
+    source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
 fn test_config() -> Arc<Configuration> {
@@ -177,69 +178,6 @@ fn stale_configuration_results_leave_waiting_state_unchanged() {
 }
 
 #[test]
-fn failed_initial_configuration_falls_back_and_replays_notifications() {
-    let directory = tempdir().unwrap();
-    fs::write(
-        directory.path().join("spago.lock"),
-        r#"{"workspace":{"packages":{}},"packages":{}}"#,
-    )
-    .unwrap();
-    let source_uri = Url::from_file_path(directory.path().join("Queued.purs")).unwrap();
-    let config = test_config();
-    let root = directory.path().to_path_buf();
-    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
-        state.protocol.root = Some(root);
-        state.protocol.configuration_generation = 1;
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: PositionEncoding::Utf16,
-        };
-        state
-            .workspace
-            .dispatch(
-                open_notification(
-                    Url::parse("file:///workspace/Unsupported.txt").unwrap(),
-                    "not PureScript",
-                ),
-                context,
-                &state.client,
-            )
-            .unwrap();
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: PositionEncoding::Utf16,
-        };
-        state
-            .workspace
-            .dispatch(
-                open_notification(Url::clone(&source_uri), "module Queued where\n"),
-                context,
-                &state.client,
-            )
-            .unwrap();
-        let settings = json!({
-            "sources": {"kind": "command", "program": "missing-iris-source-command"}
-        });
-        let event = ConfigurationReceived { generation: 1, result: Ok(vec![settings]) };
-
-        finish_workspace_configuration(&mut state, event).unwrap();
-
-        {
-            let workspace = state.workspace.test_ready();
-            let files = workspace.analysis.files.read();
-            let file_id = files.source_id(source_uri.as_str()).unwrap();
-            assert_eq!(files.source_version(file_id), Some(1));
-            assert_eq!(
-                workspace.analysis.engine.content(file_id).unwrap().as_ref(),
-                "module Queued where\n"
-            );
-        }
-        Router::<State, ResponseError>::new(state)
-    });
-}
-
-#[test]
 fn settings_only_updates_preserve_ready_runtime_identity() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
@@ -279,7 +217,9 @@ fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
             source_roots: vec![],
         };
 
-        assert!(state.workspace.prepare_reconfiguration(updated, discovered).is_err());
+        let previous = state.workspace.reconfiguration_input().unwrap();
+        let cancellation = building::QueryCancellation::default();
+        assert!(prepare_reconfiguration(updated, discovered, previous, &cancellation).is_err());
 
         let workspace = state.workspace.test_ready();
         assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);

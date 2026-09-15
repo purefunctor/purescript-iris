@@ -1,16 +1,11 @@
-use std::sync::Arc;
-
 use analyzer::diagnostics::CollectedDiagnostics;
-use async_lsp::{ClientSocket, LanguageClient};
 use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange};
 use files::FileId;
-use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
 use tokio::sync::mpsc;
 
-use super::diagnostics::{DiagnosticEvent, DiagnosticWorker};
-use super::error::LspError;
-use super::{SourceMetadata, State};
+use super::SourceMetadata;
+use super::diagnostics::DiagnosticEvent;
 
 #[derive(Default)]
 pub(super) struct DiagnosticValidity {
@@ -88,52 +83,9 @@ pub struct CollectDiagnostics {
     pub(super) ticket: DiagnosticTicket,
 }
 
-pub fn collect_diagnostics(
-    state: &mut State,
-    CollectDiagnostics { ticket }: CollectDiagnostics,
-) -> Result<(), LspError> {
-    if state.stopped {
-        return Ok(());
-    }
-    let workspace = state.workspace.ready_mut()?;
-    if !workspace.diagnostics.is_current(ticket) {
-        return Ok(());
-    }
-    let worker = state.diagnostics.get_or_insert_with(|| {
-        DiagnosticWorker::start(
-            Arc::clone(&workspace.analysis),
-            state.protocol.position_encoding,
-            state.protocol.analyzer_capabilities,
-            ClientSocket::clone(&state.client),
-        )
-    });
-    workspace.diagnostics.worker = Some(mpsc::UnboundedSender::clone(&worker.sender));
-    let _ = worker.sender.send(DiagnosticEvent::Schedule { ticket });
-    Ok(())
-}
-
 pub struct DiagnosticsFinished {
     pub(super) ticket: DiagnosticTicket,
     pub(super) collected: Option<CollectedDiagnostics>,
-}
-
-pub fn finish_diagnostics(
-    state: &mut State,
-    DiagnosticsFinished { ticket, collected }: DiagnosticsFinished,
-) -> Result<(), LspError> {
-    if state.stopped {
-        return Ok(());
-    }
-    if state.workspace.finish_diagnostics(ticket)?
-        && let Some(collected) = collected
-    {
-        state.client.publish_diagnostics(PublishDiagnosticsParams {
-            uri: collected.uri,
-            diagnostics: collected.diagnostics,
-            version: ticket.version,
-        })?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]

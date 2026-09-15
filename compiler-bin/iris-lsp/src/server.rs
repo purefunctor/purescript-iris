@@ -6,17 +6,18 @@ pub mod extension;
 mod analysis;
 mod diagnostics;
 mod document;
+mod preparation;
+mod process;
 mod workspace;
 
 #[cfg(test)]
 mod tests;
 
 use std::borrow::BorrowMut;
-use std::collections::BTreeMap;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{env, fs, io, process};
+use std::{env, fs, io};
 
 use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
@@ -26,23 +27,21 @@ use async_lsp::panic::CatchUnwindLayer;
 use async_lsp::router::Router;
 use async_lsp::server::LifecycleLayer;
 use async_lsp::{ClientSocket, LanguageClient, ResponseError};
+use building::QueryCancellation;
 use building::lifecycle::{
     DiskObservation, DocumentKey, DocumentKind, ForeignEvent, LifecycleEvent, ReloadFailure,
     SourceEvent, SourceUnitKey,
 };
-use configuration::{Configuration, ConfigurationSettings, SourceDiscovery};
+use configuration::{Configuration, ConfigurationSettings};
 use files::ForeignSourceKind;
-use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
-use iris_build::events::SilentBuildEvents;
-use iris_build::plan::PackageInput;
-use itertools::Itertools;
 use lsp_types::notification::Notification;
 use lsp_types::request::Request;
 use lsp_types::*;
-use path_absolutize::Absolutize;
 use rustc_hash::FxHashSet;
-use smol_str::SmolStr;
+use tokio::sync::Semaphore;
 use tokio::task;
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::TaskTracker;
 use tower::ServiceBuilder;
 
 use crate::server::analysis::AnalysisSnapshot as StateSnapshot;
@@ -52,11 +51,14 @@ use crate::server::capabilities::{
 };
 use crate::server::document::DocumentPath;
 use crate::server::error::{AnalyzerResultExt, LspError};
-use crate::server::workspace::{
-    ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
-    SourceRoot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification, WorkspaceRuntime,
+use crate::server::preparation::{
+    ConfigurationOrigin, Preparation, PreparationFinished, PreparedWorkspace,
 };
-use crate::{ServerConfig, ServerError, walk};
+use crate::server::workspace::{
+    DiagnosticTrigger, ReadyWorkspace, WorkspaceContext, WorkspaceEffects, WorkspaceNotification,
+    WorkspaceRuntime,
+};
+use crate::{ServerConfig, ServerError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum SourceMetadata {
@@ -99,6 +101,11 @@ pub struct State {
     workspace: WorkspaceRuntime,
     diagnostics: Option<diagnostics::DiagnosticWorker>,
     stopped: bool,
+    preparation: Option<Preparation>,
+    preparation_generation: u64,
+    preparation_permit: Arc<Semaphore>,
+    tasks: TaskTracker,
+    cancellation: CancellationToken,
 }
 
 impl State {
@@ -124,6 +131,11 @@ impl State {
             workspace: WorkspaceRuntime::new(),
             diagnostics: None,
             stopped: false,
+            preparation: None,
+            preparation_generation: 0,
+            preparation_permit: Arc::new(Semaphore::new(1)),
+            tasks: TaskTracker::new(),
+            cancellation: CancellationToken::new(),
         }
     }
 
@@ -134,10 +146,38 @@ impl State {
     where
         T: Send + 'static,
     {
+        if self.stopped {
+            return Err(building::QueryError::Cancelled.into());
+        }
         let snapshot = self
             .workspace
             .snapshot(self.protocol.position_encoding, self.protocol.analyzer_capabilities)?;
-        Ok(task::spawn_blocking(move || action(snapshot)))
+        Ok(self.tasks.spawn_blocking(move || action(snapshot)))
+    }
+
+    fn stop(&mut self) {
+        if self.stopped {
+            return;
+        }
+        self.stopped = true;
+        self.preparation.take();
+        self.cancellation.cancel();
+        self.diagnostics.take();
+        if let Ok(workspace) = self.workspace.ready() {
+            let analysis = Arc::clone(&workspace.analysis);
+            if tokio::runtime::Handle::try_current().is_ok() {
+                self.tasks.spawn_blocking(move || analysis.shutdown());
+            } else {
+                analysis.shutdown();
+            }
+        }
+        self.tasks.close();
+    }
+}
+
+impl Drop for State {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -242,12 +282,10 @@ fn watched_files_dynamic_registration(capabilities: &ClientCapabilities) -> bool
 }
 
 fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
-    state.stopped = true;
-    let diagnostics = state.diagnostics.take();
+    state.stop();
+    let tasks = TaskTracker::clone(&state.tasks);
     async move {
-        if let Some(diagnostics) = diagnostics {
-            diagnostics.shutdown().await;
-        }
+        tasks.wait().await;
         Ok(())
     }
 }
@@ -277,9 +315,13 @@ fn register_configuration_changes(state: &State) {
     };
     let parameters = RegistrationParams { registrations: vec![registration] };
     let mut client = ClientSocket::clone(&state.client);
-    task::spawn(async move {
-        if let Err(error) = client.register_capability(parameters).await {
-            tracing::warn!("Failed to register workspace configuration changes: {error}");
+    let cancellation = CancellationToken::clone(&state.cancellation);
+    state.tasks.spawn(async move {
+        tokio::select! {
+            _ = cancellation.cancelled() => {},
+            result = client.register_capability(parameters) => if let Err(error) = result {
+                tracing::warn!("Failed to register workspace configuration changes: {error}");
+            },
         }
     });
 }
@@ -290,6 +332,10 @@ struct ConfigurationReceived {
 }
 
 fn request_workspace_configuration(state: &mut State) {
+    if state.stopped {
+        return;
+    }
+    state.preparation.take();
     state.protocol.configuration_generation =
         state.protocol.configuration_generation.wrapping_add(1);
     let generation = state.protocol.configuration_generation;
@@ -300,12 +346,12 @@ fn request_workspace_configuration(state: &mut State) {
         }],
     };
     let mut client = ClientSocket::clone(&state.client);
-    task::spawn(async move {
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            client.configuration(parameters),
-        )
-        .await
+    let cancellation = CancellationToken::clone(&state.cancellation);
+    state.tasks.spawn(async move {
+        let result = tokio::select! {
+            _ = cancellation.cancelled() => return,
+            result = tokio::time::timeout(std::time::Duration::from_secs(10), client.configuration(parameters)) => result,
+        }
         .map_err(|_| "workspace/configuration request timed out".to_string())
         .and_then(|result| result.map_err(|error| error.to_string()));
         if let Err(error) = client.emit(ConfigurationReceived { generation, result }) {
@@ -318,7 +364,7 @@ fn finish_workspace_configuration(
     state: &mut State,
     ConfigurationReceived { generation, result }: ConfigurationReceived,
 ) -> Result<(), LspError> {
-    if generation != state.protocol.configuration_generation {
+    if state.stopped || generation != state.protocol.configuration_generation {
         return Ok(());
     }
 
@@ -341,24 +387,7 @@ fn finish_workspace_configuration(
 
     match configuration {
         Ok(configuration) => {
-            if let Err(error) = apply_configuration_inner(state, Arc::new(configuration)) {
-                match error {
-                    ConfigurationApplyError::Preparation(error) => {
-                        let error = format!("Failed to apply Iris settings: {error}");
-                        report_configuration_error(state, &error);
-                        if !state.workspace.is_ready() {
-                            apply_configuration(
-                                state,
-                                Arc::clone(&state.protocol.startup_configuration),
-                            )?;
-                        }
-                    }
-                    ConfigurationApplyError::Delivery(error) => {
-                        report_configuration_delivery_error(state, &error);
-                    }
-                }
-            }
-            Ok(())
+            start_preparation(state, Arc::new(configuration), ConfigurationOrigin::Client, false)
         }
         Err(error) => {
             report_configuration_error(state, &error);
@@ -414,9 +443,13 @@ fn register_file_watcher(state: &State) {
 
     let parameters = file_watcher_registration();
     let mut client = ClientSocket::clone(&state.client);
-    task::spawn(async move {
-        if let Err(error) = client.register_capability(parameters).await {
-            tracing::warn!("Failed to register source file watcher: {error}");
+    let cancellation = CancellationToken::clone(&state.cancellation);
+    state.tasks.spawn(async move {
+        tokio::select! {
+            _ = cancellation.cancelled() => {},
+            result = client.register_capability(parameters) => if let Err(error) = result {
+                tracing::warn!("Failed to register source file watcher: {error}");
+            },
         }
     });
 }
@@ -448,215 +481,169 @@ fn file_watcher_registration() -> RegistrationParams {
     RegistrationParams { registrations: vec![registration] }
 }
 
-fn exit(_state: &mut State, (): ()) -> Result<(), LspError> {
+fn exit(state: &mut State, (): ()) -> Result<(), LspError> {
+    state.stop();
     Ok(())
-}
-
-struct DiscoveredWorkspace {
-    source_globs: Vec<PathBuf>,
-    packages: Vec<PackageInput>,
-    metadata: BTreeMap<PathBuf, SourceMetadata>,
-    source_roots: Vec<SourceRoot>,
-}
-
-fn discover_manual(
-    root: &std::path::Path,
-    program: &str,
-    arguments: &[String],
-) -> Result<DiscoveredWorkspace, LspError> {
-    tracing::info!("Using '{}'", program);
-
-    let mut command = process::Command::new(program);
-    command.args(arguments);
-
-    let output = command.output()?;
-    if !output.status.success() {
-        return Err(LspError::SourceCommandFailed(output.status));
-    }
-    let output = str::from_utf8(&output.stdout)?;
-
-    let walk::Walk { files, .. } = walk::walk(root, output.lines())?;
-
-    let metadata = files.iter().map(|file| {
-        let editable = file.starts_with(root);
-        (PathBuf::clone(file), SourceMetadata::Unmanaged { editable })
-    });
-    let metadata = metadata.collect();
-
-    let package = PackageInput {
-        name: SmolStr::new("unmanaged"),
-        source_identities: Vec::clone(&files),
-        dependencies: vec![],
-    };
-
-    let source_roots = vec![SourceRoot {
-        path: root.to_path_buf(),
-        metadata: SourceMetadata::Unmanaged { editable: true },
-    }];
-
-    Ok(DiscoveredWorkspace { source_globs: files, packages: vec![package], metadata, source_roots })
-}
-
-fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
-    tracing::info!("Using 'spago.lock'");
-
-    let packages = spago::source_files_by_package(root).map_err(LspError::SpagoLock)?;
-
-    let package_inputs = packages.iter().map(|(name, package)| PackageInput {
-        name: SmolStr::clone(name),
-        source_identities: Vec::clone(&package.sources),
-        dependencies: package.dependencies.iter().cloned().collect_vec(),
-    });
-    let package_inputs = package_inputs.collect_vec();
-
-    let metadata = packages.values().flat_map(|package| {
-        let editable = matches!(
-            package.reference,
-            spago::PackageReference::Workspace | spago::PackageReference::Local
-        );
-        package
-            .sources
-            .iter()
-            .map(move |file| (PathBuf::clone(file), SourceMetadata::Package { editable }))
-    });
-    let metadata = metadata.collect::<BTreeMap<_, _>>();
-
-    let source_roots = packages.values().map(|package| package_source_roots(root, package));
-    let source_root_groups =
-        source_roots.process_results(|source_roots| source_roots.collect_vec())?;
-    let mut source_roots = source_root_groups.into_iter().flatten().collect_vec();
-    source_roots
-        .sort_by_key(|source_root| std::cmp::Reverse(source_root.path.components().count()));
-
-    let source_globs = metadata.keys().cloned().collect_vec();
-    Ok(DiscoveredWorkspace { source_globs, packages: package_inputs, metadata, source_roots })
-}
-
-fn package_source_roots(
-    workspace_root: &std::path::Path,
-    package: &spago::PackageSources,
-) -> io::Result<Vec<SourceRoot>> {
-    let editable = matches!(
-        package.reference,
-        spago::PackageReference::Workspace | spago::PackageReference::Local
-    );
-    let metadata = SourceMetadata::Package { editable };
-
-    let mut roots = vec![];
-    for root in &package.roots {
-        let root = workspace_root.join(root).absolutize()?.to_path_buf();
-        roots.push(SourceRoot {
-            path: PathBuf::clone(&root),
-            metadata: SourceMetadata::clone(&metadata),
-        });
-
-        if let Ok(canonical) = dunce::canonicalize(&root)
-            && canonical != root
-        {
-            roots.push(SourceRoot { path: canonical, metadata: SourceMetadata::clone(&metadata) });
-        }
-    }
-
-    Ok(roots)
 }
 
 fn apply_configuration(
     state: &mut State,
     configuration: Arc<Configuration>,
 ) -> Result<(), LspError> {
-    apply_configuration_inner(state, configuration).map_err(|error| match error {
-        ConfigurationApplyError::Preparation(error) | ConfigurationApplyError::Delivery(error) => {
-            error
-        }
-    })
+    start_preparation(state, configuration, ConfigurationOrigin::Startup, false)
 }
 
-fn apply_configuration_inner(
+fn start_preparation(
     state: &mut State,
     configuration: Arc<Configuration>,
-) -> Result<(), ConfigurationApplyError> {
-    let root = state
-        .protocol
-        .root
-        .as_deref()
-        .ok_or(LspError::MissingRoot)
-        .map_err(ConfigurationApplyError::Preparation)?;
+    origin: ConfigurationOrigin,
+    fallback: bool,
+) -> Result<(), LspError> {
+    if state.stopped {
+        return Ok(());
+    }
+    state.preparation.take();
     if state.workspace.update_configuration_if_sources_equal(Arc::clone(&configuration)) {
         return Ok(());
     }
+    let root = state.protocol.root.as_ref().ok_or(LspError::MissingRoot)?;
+    let root = PathBuf::clone(root);
+    let previous = state.workspace.reconfiguration_input();
+    state.preparation_generation =
+        state.preparation_generation.checked_add(1).expect("preparation generation overflowed");
+    let generation = state.preparation_generation;
+    let queries = QueryCancellation::default();
+    let cancellation = state.cancellation.child_token();
+    state.preparation = Some(Preparation {
+        generation,
+        configuration: Arc::clone(&configuration),
+        origin,
+        dirty: false,
+        fallback,
+        queries: QueryCancellation::clone(&queries),
+        process: CancellationToken::clone(&cancellation),
+    });
+    let permit = Arc::clone(&state.preparation_permit);
+    let client = ClientSocket::clone(&state.client);
+    state.tasks.spawn(async move {
+        let result = if fallback {
+            task::spawn_blocking(move || preparation::fallback(configuration))
+                .await
+                .map_err(LspError::from)
+                .flatten()
+        } else {
+            preparation::prepare(root, configuration, previous, queries, cancellation, permit).await
+        };
+        let _ = client.emit(PreparationFinished { generation, result });
+    });
+    Ok(())
+}
 
-    let discovered = match &configuration.sources {
-        SourceDiscovery::Spago {} => discover_spago(root),
-        SourceDiscovery::Command { program, arguments } => {
-            discover_manual(root, program, arguments)
-        }
-    }
-    .map_err(ConfigurationApplyError::Preparation)?;
-
-    if state.workspace.is_ready() {
-        let prepared = state
-            .workspace
-            .prepare_reconfiguration(configuration, discovered)
-            .map_err(ConfigurationApplyError::Preparation)?;
-        let effects = state
-            .workspace
-            .commit_reconfiguration(prepared)
-            .map_err(ConfigurationApplyError::Preparation)?;
-        effects.deliver(&state.client).map_err(ConfigurationApplyError::Delivery)?;
+fn finish_preparation(state: &mut State, completion: PreparationFinished) -> Result<(), LspError> {
+    if state.stopped
+        || state
+            .preparation
+            .as_ref()
+            .is_none_or(|active| active.generation != completion.generation)
+    {
         return Ok(());
     }
-
-    let selected_sources = discovered.source_globs.iter().map(source_uri);
-    let selected_sources = selected_sources
-        .collect::<Result<FxHashSet<_>, _>>()
-        .map_err(ConfigurationApplyError::Preparation)?;
-
-    let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
-        root,
-        source_globs: &discovered.source_globs,
-        excluded: &[],
-        packages: discovered.packages,
-        prim_metadata: SourceMetadata::Builtin,
-        source_metadata: |path: &std::path::Path| {
-            discovered
-                .metadata
-                .get(path)
-                .cloned()
-                .expect("invariant violated: discovered source has no LSP metadata")
-        },
-        execution: PackageExecution::Parallel,
-        cancellation: None,
-        events: &SilentBuildEvents,
-    })
-    .map_err(LspError::from)
-    .map_err(ConfigurationApplyError::Preparation)?;
-
-    let prepared = PreparedInitialWorkspace {
-        configuration,
-        compilation: initial.into_compilation(),
-        source_roots: discovered.source_roots,
-        selected_sources,
+    let active = state.preparation.take().unwrap();
+    if active.dirty {
+        return start_preparation(
+            state,
+            Arc::clone(&active.configuration),
+            active.origin,
+            active.fallback,
+        );
+    }
+    let prepared = match completion.result {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            report_configuration_error(state, &format!("Failed to apply Iris settings: {error}"));
+            if !state.workspace.is_ready() && !active.fallback {
+                let fallback = matches!(active.origin, ConfigurationOrigin::Startup)
+                    || active.configuration.sources == state.protocol.startup_configuration.sources;
+                start_preparation(
+                    state,
+                    Arc::clone(&state.protocol.startup_configuration),
+                    ConfigurationOrigin::Startup,
+                    fallback,
+                )?;
+            }
+            return Ok(());
+        }
     };
-    let pending =
-        state.workspace.install(prepared).map_err(ConfigurationApplyError::Preparation)?;
-
-    for notification in pending {
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: state.protocol.position_encoding,
-        };
-        let result = state.workspace.dispatch(notification, context, &state.client);
-        if let Err(error) = result {
-            error.emit_trace();
+    match prepared {
+        PreparedWorkspace::Initial(prepared) => {
+            let pending = state.workspace.install(prepared)?;
+            for notification in pending {
+                let context = WorkspaceContext {
+                    root: state.protocol.root.as_deref(),
+                    position_encoding: state.protocol.position_encoding,
+                };
+                if let Err(error) = state.workspace.dispatch(notification, context, &state.client) {
+                    error.emit_trace();
+                }
+            }
+        }
+        PreparedWorkspace::Reconfigured(prepared) => {
+            let effects = state.workspace.commit_reconfiguration(prepared)?;
+            if let Err(error) = effects.deliver(&state.client) {
+                report_configuration_delivery_error(state, &error);
+            }
         }
     }
-    tracing::info!("Loaded {} files.", discovered.source_globs.len());
     Ok(())
 }
 
 fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
     let uri = DocumentPath::new(path)?.uri()?;
     Ok(Arc::from(uri.as_str()))
+}
+
+fn collect_diagnostics(
+    state: &mut State,
+    event::CollectDiagnostics { ticket }: event::CollectDiagnostics,
+) -> Result<(), LspError> {
+    if state.stopped {
+        return Ok(());
+    }
+    let workspace = state.workspace.ready_mut()?;
+    if !workspace.diagnostics.is_current(ticket) {
+        return Ok(());
+    }
+    let worker = state.diagnostics.get_or_insert_with(|| {
+        diagnostics::DiagnosticWorker::start(
+            Arc::clone(&workspace.analysis),
+            state.protocol.position_encoding,
+            state.protocol.analyzer_capabilities,
+            ClientSocket::clone(&state.client),
+            &state.tasks,
+        )
+    });
+    workspace.diagnostics.worker = Some(tokio::sync::mpsc::UnboundedSender::clone(&worker.sender));
+    let _ = worker.sender.send(diagnostics::DiagnosticEvent::Schedule { ticket });
+    Ok(())
+}
+
+fn finish_diagnostics(
+    state: &mut State,
+    event::DiagnosticsFinished { ticket, collected }: event::DiagnosticsFinished,
+) -> Result<(), LspError> {
+    if state.stopped {
+        return Ok(());
+    }
+    if state.workspace.finish_diagnostics(ticket)?
+        && let Some(collected) = collected
+    {
+        state.client.publish_diagnostics(PublishDiagnosticsParams {
+            uri: collected.uri,
+            diagnostics: collected.diagnostics,
+            version: ticket.version,
+        })?;
+    }
+    Ok(())
 }
 
 fn definition(
@@ -1263,11 +1250,22 @@ trait RequestExtension: BorrowMut<Router<State>> {
     ) -> &mut Self {
         let this: &mut Router<State> = self.borrow_mut();
         this.notification::<N>(move |state, parameters| {
+            if state.stopped {
+                return ControlFlow::Continue(());
+            }
+            let notification = notification(parameters);
+            if state.workspace.is_ready()
+                && !matches!(notification, WorkspaceNotification::DidChange(_))
+                && let Some(preparation) = &mut state.preparation
+            {
+                preparation.dirty = true;
+                preparation.cancel();
+            }
             let context = WorkspaceContext {
                 root: state.protocol.root.as_deref(),
                 position_encoding: state.protocol.position_encoding,
             };
-            let result = state.workspace.dispatch(notification(parameters), context, &state.client);
+            let result = state.workspace.dispatch(notification, context, &state.client);
             let _ = result.inspect_err(|error| error.emit_trace());
             ControlFlow::Continue(())
         });
@@ -1299,14 +1297,18 @@ fn response_error(error: LspError) -> ResponseError {
 pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError> {
     let ServerConfig { configuration, name, version } = config;
     let config = Arc::new(configuration);
+    let tasks = TaskTracker::new();
+    let owned_tasks = TaskTracker::clone(&tasks);
     let (server, _) = async_lsp::MainLoop::new_server(move |client| {
         let client_socket = ClientSocket::clone(&client);
-        let mut router: Router<State, ResponseError> = Router::new(State::new(
+        let mut state = State::new(
             Arc::clone(&config),
             client_socket,
             String::clone(&name),
             String::clone(&version),
-        ));
+        );
+        state.tasks = owned_tasks;
+        let mut router: Router<State, ResponseError> = Router::new(state);
 
         router
             .request::<extension::CustomInitialize, _>(initialize)
@@ -1341,8 +1343,9 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .workspace_notification::<notification::DidChangeWatchedFiles>(
                 WorkspaceNotification::DidChangeWatchedFiles,
             )
-            .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
-            .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)
+            .event_ext::<event::CollectDiagnostics>(collect_diagnostics)
+            .event_ext::<event::DiagnosticsFinished>(finish_diagnostics)
+            .event_ext::<PreparationFinished>(finish_preparation)
             .event_ext::<ConfigurationReceived>(finish_workspace_configuration);
 
         ServiceBuilder::new()
@@ -1365,5 +1368,8 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
         tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(tokio::io::stdout()),
     );
 
-    server.run_buffered(stdin, stdout).await.map_err(ServerError::new)
+    let result = server.run_buffered(stdin, stdout).await.map_err(ServerError::new);
+    tasks.close();
+    tasks.wait().await;
+    result
 }

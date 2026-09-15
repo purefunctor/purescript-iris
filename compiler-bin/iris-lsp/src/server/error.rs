@@ -44,8 +44,8 @@ pub enum LspError {
     JoinError(#[from] task::JoinError),
     #[error("Utf8Error: {0}")]
     Utf8Error(#[from] str::Utf8Error),
-    #[error("Source discovery command failed with {0}")]
-    SourceCommandFailed(process::ExitStatus),
+    #[error("Source discovery command failed with {status}: {stderr}")]
+    SourceCommandFailed { status: process::ExitStatus, stderr: String },
     #[error("GlobSetError: {0}")]
     GlobSetError(#[from] globset::Error),
     #[error("WalkError: {0}")]

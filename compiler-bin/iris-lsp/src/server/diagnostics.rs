@@ -8,7 +8,8 @@ use building::QueryCancellation;
 use files::FileId;
 use rustc_hash::FxHashMap;
 use tokio::sync::mpsc;
-use tokio::task::{JoinHandle, JoinSet};
+use tokio::task::JoinSet;
+use tokio_util::task::TaskTracker;
 
 use super::analysis::Analysis;
 use super::event::{DiagnosticTicket, DiagnosticsFinished};
@@ -93,7 +94,6 @@ impl Scheduler {
 
 pub(super) struct DiagnosticWorker {
     pub(super) sender: mpsc::UnboundedSender<DiagnosticEvent>,
-    task: Option<JoinHandle<()>>,
 }
 
 impl DiagnosticWorker {
@@ -102,9 +102,10 @@ impl DiagnosticWorker {
         encoding: PositionEncoding,
         capabilities: AnalyzerCapabilities,
         client: ClientSocket,
+        tasks: &TaskTracker,
     ) -> DiagnosticWorker {
         let (sender, mut receiver) = mpsc::unbounded_channel();
-        let task = tokio::spawn(async move {
+        tasks.spawn(async move {
             let mut scheduler = Scheduler::default();
             let mut workers = JoinSet::new();
             let mut tickets = FxHashMap::default();
@@ -168,14 +169,7 @@ impl DiagnosticWorker {
                 }
             }
         });
-        DiagnosticWorker { sender, task: Some(task) }
-    }
-
-    pub(super) async fn shutdown(mut self) {
-        let _ = self.sender.send(DiagnosticEvent::Shutdown);
-        if let Some(task) = self.task.take() {
-            let _ = task.await;
-        }
+        DiagnosticWorker { sender }
     }
 }
 
