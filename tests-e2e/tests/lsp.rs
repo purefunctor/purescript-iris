@@ -501,7 +501,11 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
     ];
     for arguments in cases {
         let mut server = LanguageServer::start(&workspace, "", arguments, workspace.path());
-        let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
+        let ready = Url::from_file_path(workspace.path().join("Ready.purs")).unwrap();
+        open_buffer(&mut server, &ready, "module Ready where\n");
+        await_diagnostics(&mut server, &ready, 1);
+        let symbols =
+            server.request_once("workspace/symbol", json!({"query": "fromSpago"})).unwrap();
         assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
         assert_eq!(symbols[0]["name"], "fromSpago");
         assert_diagnostic_triggers(&mut server, workspace.path(), true, true, false);
