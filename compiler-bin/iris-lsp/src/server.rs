@@ -612,6 +612,7 @@ fn apply_configuration_inner(
                 .expect("invariant violated: discovered source has no LSP metadata")
         },
         execution: PackageExecution::Parallel,
+        cancellation: None,
         events: &SilentBuildEvents,
     })
     .map_err(LspError::from)

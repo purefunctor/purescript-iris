@@ -3,6 +3,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use building::{QueryCancellation, QueryError};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use path_absolutize::Absolutize;
 use thiserror::Error;
@@ -17,6 +18,8 @@ pub struct Walk {
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
+    Query(#[from] QueryError),
+    #[error(transparent)]
     GlobSetError(#[from] globset::Error),
     #[error(transparent)]
     WalkDirError(#[from] walkdir::Error),
@@ -27,12 +30,23 @@ pub fn walk_filtered(
     includes: impl IntoIterator<Item = impl AsRef<Path>>,
     excludes: impl IntoIterator<Item = impl AsRef<Path>>,
 ) -> Result<Walk, Error> {
+    walk_filtered_cancellable(root, includes, excludes, &QueryCancellation::default())
+}
+
+pub fn walk_filtered_cancellable(
+    root: &Path,
+    includes: impl IntoIterator<Item = impl AsRef<Path>>,
+    excludes: impl IntoIterator<Item = impl AsRef<Path>>,
+    cancellation: &QueryCancellation,
+) -> Result<Walk, Error> {
+    cancellation.check()?;
     let mut files = vec![];
 
     let mut roots = BTreeSet::default();
     let mut globs = GlobSetBuilder::new();
 
     for path in includes {
+        cancellation.check()?;
         let path = dunce::simplified(root).join(path);
         if let Ok(path) = path.absolutize()
             && let Some(path) = path.to_str()
@@ -51,6 +65,7 @@ pub fn walk_filtered(
     let mut files_from_glob = BTreeSet::default();
 
     for root in &roots {
+        cancellation.check()?;
         if !root.exists() {
             continue;
         }
@@ -58,6 +73,7 @@ pub fn walk_filtered(
         let entries =
             WalkDir::new(root).into_iter().filter_entry(|entry| !excludes.is_match(entry.path()));
         for entry in entries {
+            cancellation.check()?;
             let path = entry?.into_path();
             if globs.is_match(&path) {
                 files_from_glob.insert(path);
@@ -67,6 +83,7 @@ pub fn walk_filtered(
 
     files.extend(files_from_glob);
 
+    cancellation.check()?;
     Ok(Walk { roots, globs, files })
 }
 

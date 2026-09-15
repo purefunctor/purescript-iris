@@ -191,6 +191,7 @@ fn initialize_project_inner(
         prim_metadata: (),
         source_metadata: |_: &Path| (),
         execution: compile::PackageExecution::Parallel,
+        cancellation: None,
         events: &SilentBuildEvents,
     })?;
     Ok(InitializedProject { project, build })

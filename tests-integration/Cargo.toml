@@ -16,6 +16,7 @@ functional = { version = "0.1.0", path = "../compiler-backend/functional" }
 glob = "0.3.4"
 indexing = { version = "0.1.0", path = "../compiler-frontend/indexing" }
 interner = { version = "0.1.0", path = "../compiler-core/interner" }
+iris-build = { version = "0.1.0", path = "../compiler-bin/iris-build" }
 itertools = "0.15.0"
 insta = "1.48.0"
 javascript = { version = "0.1.0", path = "../compiler-backend/javascript" }

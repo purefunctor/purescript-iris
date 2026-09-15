@@ -4227,6 +4227,7 @@ dependencies = [
  "indexing",
  "insta",
  "interner",
+ "iris-build",
  "itertools 0.15.0",
  "javascript",
  "line-index",
