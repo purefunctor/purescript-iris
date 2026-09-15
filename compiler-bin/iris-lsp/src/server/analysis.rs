@@ -9,13 +9,13 @@ use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange, 
 use building::{QueryCancellation, QueryEngine, QueryError};
 use files::FileId;
 use lsp_types::Url;
-use parking_lot::{Mutex, RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard};
 
 use super::SourceMetadata;
 use super::document::DocumentPath;
 
 pub(super) struct Analysis {
-    admission: Mutex<bool>,
+    admission: RwLock<bool>,
     pub(super) engine: QueryEngine,
     pub(super) files: Arc<RwLock<FileLifecycle<i32, SourceMetadata>>>,
     pub(super) workspace_symbols_cache: Arc<RwLock<WorkspaceSymbolsCache>>,
@@ -27,7 +27,7 @@ pub(super) struct Analysis {
 impl Analysis {
     pub(super) fn new(engine: QueryEngine, files: FileLifecycle<i32, SourceMetadata>) -> Analysis {
         Analysis {
-            admission: Mutex::new(true),
+            admission: RwLock::new(true),
             engine,
             files: Arc::new(RwLock::new(files)),
             workspace_symbols_cache: Arc::new(RwLock::new(WorkspaceSymbolsCache::default())),
@@ -43,7 +43,9 @@ impl Analysis {
         analyzer_capabilities: AnalyzerCapabilities,
         cancellation: QueryCancellation,
     ) -> Result<AnalysisSnapshot, QueryError> {
-        let admission = self.admission.lock();
+        // A queued worker must not occupy a blocking-pool thread waiting for a
+        // writer that is retiring snapshots held by other queued workers.
+        let admission = self.admission.try_read().ok_or(QueryError::Cancelled)?;
         if !*admission {
             return Err(QueryError::Cancelled);
         }
@@ -62,7 +64,7 @@ impl Analysis {
         &self,
         events: impl IntoIterator<Item = LifecycleEvent<i32, SourceMetadata>>,
     ) -> LifecycleChange {
-        let admission = self.admission.lock();
+        let admission = self.admission.write();
         if !*admission {
             return LifecycleChange::default();
         }
@@ -83,13 +85,13 @@ impl Analysis {
     }
 
     pub(super) fn invalidate_suggestions(&self) {
-        let _admission = self.admission.lock();
+        let _admission = self.admission.write();
         self.retire();
         mem::take(&mut *self.suggestions_cache.write());
     }
 
     pub(super) fn shutdown(&self) {
-        let mut admission = self.admission.lock();
+        let mut admission = self.admission.write();
         *admission = false;
         self.retire();
     }
@@ -209,7 +211,7 @@ mod tests {
                 }])
             });
             retirement.recv_timeout(Duration::from_secs(10)).unwrap();
-            assert!(analysis.admission.try_lock().is_none());
+            assert!(analysis.admission.try_write().is_none());
             let files = before.files.try_read().expect("writer locked files before retirement");
             assert!(files.foreign_id("Main.js").is_none());
             drop(files);
@@ -219,6 +221,55 @@ mod tests {
         let after = snapshot(&analysis);
         let file_id = after.files.read().foreign_id("Main.js").unwrap();
         assert_eq!(after.engine.foreign_content(file_id).as_deref(), Some("buffer"));
+    }
+
+    #[test]
+    fn queued_diagnostics_cannot_block_retirement_of_queued_requests() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .max_blocking_threads(1)
+            .enable_time()
+            .build()
+            .unwrap();
+        let mut analysis = Analysis::new(QueryEngine::default(), FileLifecycle::default());
+        let (retiring, retirement) = mpsc::channel();
+        analysis.retiring = Some(retiring);
+        let analysis = Arc::new(analysis);
+        let first = snapshot(&analysis);
+        let (entered, entry) = mpsc::channel();
+        let (release, released) = mpsc::channel();
+        let first = runtime.spawn_blocking(move || {
+            entered.send(()).unwrap();
+            released.recv().unwrap();
+            drop(first);
+        });
+        entry.recv_timeout(Duration::from_secs(10)).unwrap();
+
+        let diagnostic_analysis = Arc::clone(&analysis);
+        let diagnostic = runtime.spawn_blocking(move || {
+            diagnostic_analysis.snapshot(
+                PositionEncoding::Utf16,
+                AnalyzerCapabilities::default(),
+                QueryCancellation::default(),
+            )
+        });
+        // Keep a cleanup handle so even a failed assertion can release the writer.
+        let request_snapshot = Arc::new(parking_lot::Mutex::new(Some(snapshot(&analysis))));
+        let queued_snapshot = Arc::clone(&request_snapshot);
+        let request = runtime.spawn_blocking(move || drop(queued_snapshot.lock().take()));
+        let writer_analysis = Arc::clone(&analysis);
+        let writer = std::thread::spawn(move || writer_analysis.invalidate_suggestions());
+        retirement.recv_timeout(Duration::from_secs(10)).unwrap();
+        release.send(()).unwrap();
+
+        let diagnostic = runtime
+            .block_on(async { tokio::time::timeout(Duration::from_secs(10), diagnostic).await });
+        drop(request_snapshot.lock().take());
+        writer.join().unwrap();
+        runtime.block_on(async {
+            first.await.unwrap();
+            request.await.unwrap();
+        });
+        assert!(matches!(diagnostic, Ok(Ok(Err(QueryError::Cancelled)))));
     }
 
     #[test]

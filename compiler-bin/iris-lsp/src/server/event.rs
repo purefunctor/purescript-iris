@@ -1,3 +1,4 @@
+use analyzer::AnalyzerError;
 use analyzer::diagnostics::CollectedDiagnostics;
 use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange};
 use files::FileId;
@@ -85,7 +86,7 @@ pub struct CollectDiagnostics {
 
 pub struct DiagnosticsFinished {
     pub(super) ticket: DiagnosticTicket,
-    pub(super) collected: Option<CollectedDiagnostics>,
+    pub(super) collected: Result<CollectedDiagnostics, AnalyzerError>,
 }
 
 #[cfg(test)]

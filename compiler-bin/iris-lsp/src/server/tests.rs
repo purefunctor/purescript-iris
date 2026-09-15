@@ -99,6 +99,67 @@ fn requests_are_cancelled_while_the_workspace_is_loading() {
 }
 
 #[test]
+fn interrupted_diagnostics_retry_only_the_current_trigger() {
+    use analyzer::AnalyzerError;
+    use building::QueryError;
+
+    use super::diagnostics::{DiagnosticEvent, DiagnosticWorker};
+    use super::event::DiagnosticsFinished;
+
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = test_state(test_config(), client);
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+        state.diagnostics = Some(DiagnosticWorker { sender });
+        let workspace = state.workspace.test_ready_mut();
+        let file_id = workspace.analysis.files.read().source_ids().next().unwrap();
+        let ticket = workspace.diagnostics.schedule(file_id, None);
+
+        workspace.invalidate_suggestions_cache();
+        super::finish_diagnostics(
+            &mut state,
+            DiagnosticsFinished {
+                ticket,
+                collected: Err(AnalyzerError::QueryError(QueryError::Cancelled)),
+            },
+        )
+        .unwrap();
+        let DiagnosticEvent::Schedule { ticket: retried } = receiver.try_recv().unwrap() else {
+            panic!("interrupted collection did not retry its trigger");
+        };
+        assert_ne!(retried.sequence, ticket.sequence);
+        assert_eq!(retried.generation, ticket.generation);
+        assert_eq!(retried.version, ticket.version);
+        assert!(state.workspace.test_ready().diagnostics.is_current(retried));
+
+        super::finish_diagnostics(
+            &mut state,
+            DiagnosticsFinished { ticket, collected: Err(AnalyzerError::NonFatal) },
+        )
+        .unwrap();
+        assert!(state.workspace.test_ready().diagnostics.is_current(retried));
+        super::finish_diagnostics(
+            &mut state,
+            DiagnosticsFinished { ticket: retried, collected: Err(AnalyzerError::NonFatal) },
+        )
+        .unwrap();
+        assert!(!state.workspace.test_ready().diagnostics.is_current(ticket));
+        assert!(receiver.try_recv().is_err());
+        let replacement = state.workspace.test_ready_mut().diagnostics.schedule(file_id, None);
+        super::finish_diagnostics(
+            &mut state,
+            DiagnosticsFinished {
+                ticket,
+                collected: Err(AnalyzerError::QueryError(QueryError::Cancelled)),
+            },
+        )
+        .unwrap();
+        assert!(receiver.try_recv().is_err());
+        assert!(state.workspace.test_ready().diagnostics.is_current(replacement));
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
 fn installation_is_waiting_only_and_preserves_notification_order() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {

@@ -650,8 +650,21 @@ fn finish_diagnostics(
     if state.stopped {
         return Ok(());
     }
+    if matches!(
+        collected,
+        Err(analyzer::AnalyzerError::QueryError(building::QueryError::Cancelled))
+    ) {
+        let workspace = state.workspace.ready_mut()?;
+        if !workspace.diagnostics.is_current(ticket) {
+            return Ok(());
+        }
+        // Retain the trigger, but give the attempt a new sequence so a duplicate
+        // completion cannot consume the replacement. Writes have retired here.
+        let ticket = workspace.diagnostics.schedule(ticket.file_id, ticket.version);
+        return collect_diagnostics(state, event::CollectDiagnostics { ticket });
+    }
     if state.workspace.finish_diagnostics(ticket)?
-        && let Some(collected) = collected
+        && let Ok(collected) = collected
     {
         state.client.publish_diagnostics(PublishDiagnosticsParams {
             uri: collected.uri,

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use analyzer::AnalyzerCapabilities;
 use analyzer::diagnostics::CollectedDiagnostics;
 use analyzer::position::PositionEncoding;
+use analyzer::{AnalyzerCapabilities, AnalyzerError};
 use async_lsp::ClientSocket;
 use building::QueryCancellation;
 use files::FileId;
@@ -17,7 +17,7 @@ use super::event::{DiagnosticTicket, DiagnosticsFinished};
 pub(super) enum DiagnosticEvent {
     Schedule { ticket: DiagnosticTicket },
     Invalidate { file_id: FileId, generation: u64 },
-    Completed { ticket: DiagnosticTicket, collected: Option<CollectedDiagnostics> },
+    Completed { ticket: DiagnosticTicket, collected: Result<CollectedDiagnostics, AnalyzerError> },
     Shutdown,
 }
 
@@ -117,7 +117,7 @@ impl DiagnosticWorker {
                             Ok((identifier, collected)) => (identifier, collected),
                             Err(error) => {
                                 tracing::error!("Diagnostics worker failed: {error}");
-                                (error.id(), None)
+                                (error.id(), Err(AnalyzerError::NonFatal))
                             }
                         };
                         let ticket = tickets.remove(&identifier).expect("diagnostic worker has no ticket");
@@ -154,16 +154,13 @@ impl DiagnosticWorker {
                                 encoding,
                                 capabilities,
                                 QueryCancellation::clone(&cancellation),
-                            )
-                            .ok()?;
-                        let collected = snapshot
-                            .with_analyzer_context(|context| {
-                                analyzer::diagnostics::implementation(context, ticket.file_id)
-                            })
-                            .ok()?;
+                            )?;
+                        let collected = snapshot.with_analyzer_context(|context| {
+                            analyzer::diagnostics::implementation(context, ticket.file_id)
+                        });
                         drop(snapshot);
-                        cancellation.check().ok()?;
-                        Some(collected)
+                        cancellation.check()?;
+                        collected
                     });
                     tickets.insert(worker.id(), ticket);
                 }
