@@ -43,6 +43,11 @@ pub(crate) struct Promise<T> {
     fulfilled: bool,
 }
 
+pub(crate) enum WaitResult<T> {
+    Fulfilled(T),
+    Abandoned,
+}
+
 impl<T> Future<T> {
     /// Create a new [`Future`] + [`Promise`] pair.
     pub(crate) fn new() -> (Future<T>, Promise<T>) {
@@ -60,7 +65,7 @@ impl<T> Future<T> {
     /// as [`State::Empty`], which is an invariant violation. [`Promise::fulfill`]
     /// and the [`Drop`] implementation guarantees that the [`Future`] always
     /// sees either [`State::Full`] or [`State::Dead`].
-    pub(crate) fn wait(self) -> Option<T> {
+    pub(crate) fn wait(self) -> WaitResult<T> {
         let mut guard = self.slot.state.lock();
         if guard.is_empty() {
             self.slot.condvar.wait(&mut guard);
@@ -69,8 +74,8 @@ impl<T> Future<T> {
             State::Empty => {
                 unreachable!("invariant violated: Promise fulfilled with State::Empty")
             }
-            State::Full(value) => Some(value),
-            State::Dead => None,
+            State::Full(value) => WaitResult::Fulfilled(value),
+            State::Dead => WaitResult::Abandoned,
         }
     }
 }
@@ -98,26 +103,26 @@ impl<T> Drop for Promise<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Future;
+    use super::{Future, WaitResult};
 
     #[test]
     fn test_future_promise() {
         let (future, promise) = Future::new();
         promise.fulfill(123);
-        assert_eq!(future.wait(), Some(123));
+        assert!(matches!(future.wait(), WaitResult::Fulfilled(123)));
     }
 
     #[test]
     fn test_future_promise_is_dead() {
         let (future, _) = Future::<()>::new();
-        assert_eq!(future.wait(), None);
+        assert!(matches!(future.wait(), WaitResult::Abandoned));
     }
 
     #[test]
     fn test_future_promise_dies() {
         let (future, _) = Future::<()>::new();
         std::thread::spawn(move || {
-            assert_eq!(future.wait(), None);
+            assert!(matches!(future.wait(), WaitResult::Abandoned));
         });
     }
 
@@ -125,6 +130,6 @@ mod tests {
     fn test_future_promise_fulfills() {
         let (future, promise) = Future::<()>::new();
         std::thread::spawn(|| promise.fulfill(()));
-        std::thread::spawn(move || assert_eq!(future.wait(), Some(())));
+        std::thread::spawn(move || assert!(matches!(future.wait(), WaitResult::Fulfilled(()))));
     }
 }

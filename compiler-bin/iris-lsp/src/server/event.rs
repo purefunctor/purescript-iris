@@ -1,5 +1,3 @@
-use std::collections::hash_map::Entry;
-
 use analyzer::diagnostics::CollectedDiagnostics;
 use async_lsp::{ClientSocket, LanguageClient};
 use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange};
@@ -7,54 +5,45 @@ use files::FileId;
 use itertools::Itertools;
 use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
-use tokio::task;
 
+use crate::server::SourceMetadata;
 use crate::server::error::LspError;
-use crate::server::workspace::StateSnapshot;
-use crate::server::{SourceMetadata, State};
 
+/// Protocol-owned diagnostic validity. Execution and cancellation belong to
+/// `DiagnosticActor`; this object stays beside the mutable workspace so the
+/// final version check and publication are serialized with protocol events.
 #[derive(Default)]
-pub struct DiagnosticScheduler {
+pub(super) struct DiagnosticProtocol {
     generations: FxHashMap<FileId, u64>,
-    jobs: FxHashMap<FileId, DiagnosticJob>,
-}
-
-struct DiagnosticJob {
-    running: DiagnosticTicket,
-    queued: Option<DiagnosticTicket>,
+    next_job_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct DiagnosticTicket {
     pub(super) file_id: FileId,
-    generation: u64,
+    pub(super) generation: u64,
     pub(super) version: Option<i32>,
+    pub(super) job_id: u64,
 }
 
-impl DiagnosticScheduler {
-    pub fn invalidate(
+impl DiagnosticProtocol {
+    pub(super) fn invalidate(
         &mut self,
         change: &LifecycleChange,
         files: &FileLifecycle<i32, SourceMetadata>,
-    ) {
-        match change.analysis() {
-            AnalysisInvalidation::None => {}
-            AnalysisInvalidation::Sources(sources) => {
-                for file_id in sources {
-                    self.invalidate_source(*file_id);
-                }
-            }
-            AnalysisInvalidation::Workspace => {
-                let source_ids = files.source_ids();
-                let source_ids = source_ids.collect_vec();
-                for file_id in source_ids {
-                    self.invalidate_source(file_id);
-                }
-            }
+    ) -> Vec<FileId> {
+        let mut invalidated = match change.analysis() {
+            AnalysisInvalidation::None => vec![],
+            AnalysisInvalidation::Sources(sources) => sources.iter().copied().collect_vec(),
+            AnalysisInvalidation::Workspace => files.source_ids().collect_vec(),
+        };
+        invalidated.extend(change.removed_sources().iter().map(|removed| removed.file_id));
+        invalidated.sort_unstable();
+        invalidated.dedup();
+        for file_id in &invalidated {
+            self.invalidate_source(*file_id);
         }
-        for removed in change.removed_sources() {
-            self.invalidate_source(removed.file_id);
-        }
+        invalidated
     }
 
     fn invalidate_source(&mut self, file_id: FileId) {
@@ -62,140 +51,57 @@ impl DiagnosticScheduler {
         *generation = generation
             .checked_add(1)
             .expect("invariant violated: diagnostic generation overflowed");
-        if let Some(job) = self.jobs.get_mut(&file_id) {
-            job.queued = None;
-        }
     }
 
-    pub(super) fn schedule(
-        &mut self,
-        file_id: FileId,
-        version: Option<i32>,
-    ) -> Option<DiagnosticTicket> {
+    pub(super) fn ticket(&mut self, file_id: FileId, version: Option<i32>) -> DiagnosticTicket {
         let generation = self.generations.get(&file_id).copied().unwrap_or_default();
-        let ticket = DiagnosticTicket { file_id, generation, version };
-        match self.jobs.entry(file_id) {
-            Entry::Vacant(entry) => {
-                entry.insert(DiagnosticJob { running: ticket, queued: None });
-                Some(ticket)
-            }
-            Entry::Occupied(mut entry) => {
-                let job = entry.get_mut();
-                if job.running != ticket && job.queued != Some(ticket) {
-                    job.queued = Some(ticket);
-                }
-                None
-            }
-        }
+        let job_id = self.next_job_id;
+        self.next_job_id = self
+            .next_job_id
+            .checked_add(1)
+            .expect("invariant violated: diagnostic job identity overflowed");
+        DiagnosticTicket { file_id, generation, version, job_id }
     }
 
-    pub(super) fn is_running(&self, ticket: DiagnosticTicket) -> bool {
-        self.jobs.get(&ticket.file_id).is_some_and(|job| job.running == ticket)
-    }
-
-    pub(super) fn is_current(&self, ticket: DiagnosticTicket) -> bool {
+    pub(super) fn is_current(
+        &self,
+        ticket: DiagnosticTicket,
+        files: &FileLifecycle<i32, SourceMetadata>,
+    ) -> bool {
         self.generations.get(&ticket.file_id).copied().unwrap_or_default() == ticket.generation
+            && files.contains_source(ticket.file_id)
+            && files.source_version(ticket.file_id) == ticket.version
     }
 
-    pub(super) fn complete(&mut self, ticket: DiagnosticTicket) -> Option<DiagnosticTicket> {
-        let job = self.jobs.get_mut(&ticket.file_id)?;
-        if job.running != ticket {
-            return None;
+    pub(super) fn publish(
+        &self,
+        client: &ClientSocket,
+        files: &FileLifecycle<i32, SourceMetadata>,
+        ticket: DiagnosticTicket,
+        collected: Option<CollectedDiagnostics>,
+    ) -> Result<(), LspError> {
+        if !self.is_current(ticket, files) {
+            return Ok(());
         }
-        let next = job.queued.take();
-        if let Some(next) = next {
-            job.running = next;
-        } else {
-            self.jobs.remove(&ticket.file_id);
-        }
-        next
+        let Some(collected) = collected else {
+            return Ok(());
+        };
+        let mut client = ClientSocket::clone(client);
+        client
+            .publish_diagnostics(PublishDiagnosticsParams {
+                uri: collected.uri,
+                diagnostics: collected.diagnostics,
+                version: ticket.version,
+            })
+            .map_err(LspError::from)
     }
 }
 
 pub struct CollectDiagnostics(pub(super) FileId);
 
-pub fn collect_diagnostics(
-    state: &mut State,
-    CollectDiagnostics(file_id): CollectDiagnostics,
-) -> Result<(), LspError> {
-    let ticket = state.workspace.schedule_diagnostics(file_id)?;
-    if let Some(ticket) = ticket {
-        start_diagnostics(state, ticket);
-    }
-    Ok(())
-}
-
-fn start_diagnostics(state: &State, ticket: DiagnosticTicket) {
-    let worker = state.spawn(move |snapshot| {
-        let _span = tracing::info_span!("collect_diagnostics").entered();
-        collect_diagnostics_core(snapshot, ticket)
-    });
-    let worker =
-        worker.expect("invariant violated: diagnostics started before the workspace was ready");
-
-    let client = ClientSocket::clone(&state.client);
-    task::spawn(async move {
-        let collected = await_diagnostics(worker).await;
-        let event = DiagnosticsFinished { ticket, collected };
-        if let Err(error) = client.emit(event) {
-            LspError::from(error).emit_trace();
-        }
-    });
-}
-
-fn collect_diagnostics_core(
-    snapshot: StateSnapshot,
-    ticket: DiagnosticTicket,
-) -> Option<CollectedDiagnostics> {
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::diagnostics::implementation(context, ticket.file_id)
-    });
-    match result {
-        Ok(collected) => Some(collected),
-        Err(error) => {
-            LspError::from(error).emit_trace();
-            None
-        }
-    }
-}
-
-async fn await_diagnostics(
-    worker: task::JoinHandle<Option<CollectedDiagnostics>>,
-) -> Option<CollectedDiagnostics> {
-    match worker.await {
-        Ok(collected) => collected,
-        Err(error) => {
-            LspError::JoinError(error).emit_trace();
-            None
-        }
-    }
-}
-
 pub struct DiagnosticsFinished {
-    ticket: DiagnosticTicket,
-    collected: Option<CollectedDiagnostics>,
-}
-
-pub fn finish_diagnostics(
-    state: &mut State,
-    DiagnosticsFinished { ticket, collected }: DiagnosticsFinished,
-) -> Result<(), LspError> {
-    let (current, next) = state.workspace.finish_diagnostics(ticket)?;
-
-    let publish_result = if current && let Some(collected) = collected {
-        let mut client = ClientSocket::clone(&state.client);
-        client.publish_diagnostics(PublishDiagnosticsParams {
-            uri: collected.uri,
-            diagnostics: collected.diagnostics,
-            version: ticket.version,
-        })
-    } else {
-        Ok(())
-    };
-    if let Some(next) = next {
-        start_diagnostics(state, next);
-    }
-    publish_result.map_err(LspError::from)
+    pub(super) ticket: DiagnosticTicket,
+    pub(super) collected: Option<CollectedDiagnostics>,
 }
 
 #[cfg(test)]
@@ -208,7 +114,7 @@ mod tests {
     };
     use files::Files;
 
-    use super::{DiagnosticScheduler, SourceMetadata, await_diagnostics};
+    use super::{DiagnosticProtocol, SourceMetadata};
 
     fn file_id() -> files::FileId {
         let mut files = Files::default();
@@ -216,36 +122,25 @@ mod tests {
     }
 
     #[test]
-    fn coalesces_requests_to_the_latest_generation() {
+    fn invalidation_advances_the_lifecycle_generation() {
         let file_id = file_id();
-        let mut scheduler = DiagnosticScheduler::default();
-        let first = scheduler.schedule(file_id, Some(1)).unwrap();
-
-        scheduler.invalidate_source(file_id);
-        assert_eq!(scheduler.schedule(file_id, Some(2)), None);
-        let queued = scheduler.jobs[&file_id].queued.unwrap();
-        assert_eq!(queued.version, Some(2));
-
-        assert_eq!(scheduler.complete(first), Some(queued));
-        assert!(scheduler.is_running(queued));
+        let mut protocol = DiagnosticProtocol::default();
+        let ticket = protocol.ticket(file_id, Some(1));
+        protocol.invalidate_source(file_id);
+        assert_ne!(protocol.ticket(file_id, Some(1)).generation, ticket.generation);
     }
 
     #[test]
-    fn invalidation_discards_a_queued_stale_request() {
+    fn repeated_logical_tickets_have_distinct_job_identities() {
         let file_id = file_id();
-        let mut scheduler = DiagnosticScheduler::default();
-        let first = scheduler.schedule(file_id, Some(1)).unwrap();
-        scheduler.invalidate_source(file_id);
-        scheduler.schedule(file_id, Some(2));
-
-        scheduler.invalidate_source(file_id);
-        assert_eq!(scheduler.jobs[&file_id].queued, None);
-        assert_eq!(scheduler.complete(first), None);
-        assert!(!scheduler.is_current(first));
+        let mut protocol = DiagnosticProtocol::default();
+        let first = protocol.ticket(file_id, Some(1));
+        let second = protocol.ticket(file_id, Some(1));
+        assert_ne!(first.job_id, second.job_id);
     }
 
     #[test]
-    fn workspace_change_invalidates_unrelated_running_diagnostics() {
+    fn workspace_change_invalidates_unrelated_diagnostics() {
         let engine = QueryEngine::default();
         let mut lifecycle = FileLifecycle::default();
         let first_unit = SourceUnitKey::new("file:///src/Main.purs", "file:///src/Main.js");
@@ -258,9 +153,11 @@ mod tests {
         };
         lifecycle.apply(&engine, event);
         let first_id = lifecycle.source_id("file:///src/Main.purs").unwrap();
-
-        let mut scheduler = DiagnosticScheduler::default();
-        let ticket = scheduler.schedule(first_id, None).unwrap();
+        let mut protocol = DiagnosticProtocol::default();
+        let ticket = protocol.ticket(first_id, None);
+        assert!(protocol.is_current(ticket, &lifecycle));
+        let wrong_version = super::DiagnosticTicket { version: Some(7), ..ticket };
+        assert!(!protocol.is_current(wrong_version, &lifecycle));
         let second_unit = SourceUnitKey::new("file:///src/Library.purs", "file:///src/Library.js");
         let event = LifecycleEvent::Source {
             unit: second_unit,
@@ -270,19 +167,7 @@ mod tests {
             },
         };
         let change = lifecycle.apply(&engine, event);
-        scheduler.invalidate(&change, &lifecycle);
-
-        assert!(!scheduler.is_current(ticket));
-    }
-
-    #[tokio::test]
-    async fn failed_diagnostics_worker_returns_no_result() {
-        let worker = tokio::spawn(async {
-            panic!("diagnostics worker failed");
-            #[allow(unreachable_code)]
-            None
-        });
-
-        assert!(await_diagnostics(worker).await.is_none());
+        protocol.invalidate(&change, &lifecycle);
+        assert!(!protocol.is_current(ticket, &lifecycle));
     }
 }

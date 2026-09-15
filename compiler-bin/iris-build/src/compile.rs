@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
 
-use building::{DiskObservation, QueryError, SourceUnitKey};
+use building::{Cancellation, DiskObservation, QueryError, SourceUnitKey};
 use diagnostics::Severity;
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::{CompilationState, MaterializedPrim};
+use super::compilation::{CompilationState, DocumentPath, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
@@ -71,6 +71,7 @@ pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
     pub source_metadata: SourceMetadata,
     pub execution: PackageExecution,
     pub events: &'a dyn BuildEventSink,
+    pub cancellation: Option<Cancellation>,
 }
 
 pub struct InitialBuild<Version, Metadata> {
@@ -141,22 +142,31 @@ where
         source_metadata,
         execution,
         events,
+        cancellation,
     } = config;
     let started = Instant::now();
+    check_cancellation(cancellation.as_ref())?;
     let selected_paths = walk::walk_filtered(root, source_globs, excluded)?.files;
+    check_cancellation(cancellation.as_ref())?;
     let selected_sources = selected_paths.into_iter().map(|path| {
+        check_cancellation(cancellation.as_ref())?;
         let identity = dunce::canonicalize(&path)?;
-        Ok::<_, io::Error>(SelectedSource { path, identity })
+        Ok::<_, CompileError>(SelectedSource { path, identity })
     });
     let selected_sources = selected_sources.process_results(|sources| sources.collect_vec())?;
     let package_inputs = packages.into_iter().map(|package| {
-        let source_identities = package.source_identities.into_iter().map(dunce::canonicalize);
+        check_cancellation(cancellation.as_ref())?;
+        let source_identities = package.source_identities.into_iter().map(|path| {
+            check_cancellation(cancellation.as_ref())?;
+            Ok::<_, CompileError>(dunce::canonicalize(path)?)
+        });
         let source_identities =
             source_identities.process_results(|sources| sources.collect_vec())?;
-        Ok::<_, io::Error>(PackageInput { source_identities, ..package })
+        Ok::<_, CompileError>(PackageInput { source_identities, ..package })
     });
     let package_inputs = package_inputs.process_results(|packages| packages.collect_vec())?;
     let plan = BuildPlan::new(selected_sources, package_inputs)?;
+    check_cancellation(cancellation.as_ref())?;
     events.send(BuildEvent::PlanReady { package_count: plan.package_count() });
 
     let prim = MaterializedPrim::new()?;
@@ -166,15 +176,24 @@ where
     let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
     let mut sources = HashMap::new();
     for path in &source_paths {
+        check_cancellation(cancellation.as_ref())?;
         let metadata = source_metadata(path);
+        check_cancellation(cancellation.as_ref())?;
         sources.insert(PathBuf::clone(path), load_source(&mut compilation, path, metadata)?);
     }
 
-    let engine = compilation.query_engine();
+    check_cancellation(cancellation.as_ref())?;
+    let engine = cancellation
+        .clone()
+        .map(|cancellation| compilation.query_engine().scoped_snapshot(cancellation));
+    let unscoped_engine = compilation.query_engine();
+    let engine = engine.as_ref().unwrap_or(unscoped_engine);
     let execute = |package: &super::plan::PlannedPackage| {
+        check_cancellation(cancellation.as_ref())?;
         let package_sources = package.source_paths.iter().map(|path| sources[path]);
         let package_sources = package_sources.collect_vec();
-        query_package(&engine, &package_sources)
+        query_package(&engine, &package_sources)?;
+        check_cancellation(cancellation.as_ref())
     };
     let execution = match execution {
         PackageExecution::Serial => executor::execute_serial(&plan, events, &execute),
@@ -182,16 +201,24 @@ where
     };
 
     let duration = started.elapsed();
+    check_cancellation(cancellation.as_ref())?;
     events.send(BuildEvent::Finalizing { duration });
     let sources = sources.into_values().collect_vec();
     let no_inputs = sources.is_empty();
     let (diagnostics, has_errors, failure) = match execution {
-        Ok(()) => match collect_diagnostics(&compilation, &sources) {
+        Ok(()) => match collect_diagnostics(&compilation, &sources, cancellation.clone()) {
             Ok((diagnostics, has_errors)) => (diagnostics, has_errors, None),
+            Err(CompileError::Query(QueryError::Cancelled)) => {
+                return Err(CompileError::Query(QueryError::Cancelled));
+            }
             Err(error) => (vec![], true, Some(error)),
         },
+        Err(CompileError::Query(QueryError::Cancelled)) => {
+            return Err(CompileError::Query(QueryError::Cancelled));
+        }
         Err(error) => (vec![], true, Some(error)),
     };
+    check_cancellation(cancellation.as_ref())?;
     let report =
         InitialBuildReport { sources, diagnostics, has_errors, no_inputs, failure, duration };
     Ok(InitialBuild { compilation, source_paths, report })
@@ -211,6 +238,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
         source_metadata: |_: &Path| (),
         execution: PackageExecution::Parallel,
         events,
+        cancellation: None,
     })?;
     let InitialBuildParts { compilation, source_paths: _, mut report } = initial.into_parts();
     if report.no_inputs {
@@ -246,7 +274,7 @@ pub(crate) fn rebuild(
     let sources = compilation.source_ids().collect_vec();
     let engine = compilation.query_engine();
     query_package(&engine, &sources)?;
-    let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
+    let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources, None)?;
     if diagnostics {
         report_diagnostics(compilation, diagnostic_collections, root, color);
     }
@@ -299,12 +327,7 @@ where
     Version: Clone + Ord,
     Metadata: Clone,
 {
-    let source_url =
-        Url::from_file_path(path).map_err(|_| CompileError::InvalidPath(path.to_path_buf()))?;
-    let foreign_path = path.with_extension("js");
-    let foreign_url = Url::from_file_path(&foreign_path)
-        .map_err(|_| CompileError::InvalidPath(PathBuf::clone(&foreign_path)))?;
-    let unit = SourceUnitKey::new(source_url.as_str(), foreign_url.as_str());
+    let unit = DocumentPath::new(path)?.source_unit()?;
     let content = fs::read_to_string(path)?;
     let change = compilation.observe_source(
         SourceUnitKey::clone(&unit),
@@ -344,18 +367,29 @@ fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(
 fn collect_diagnostics<Version, Metadata>(
     compilation: &CompilationState<Version, Metadata>,
     sources: &[FileId],
+    cancellation: Option<Cancellation>,
 ) -> Result<(Vec<diagnostics::DiagnosticCollection>, bool), CompileError>
 where
     Version: Clone + Ord,
     Metadata: Clone,
 {
-    let engine = compilation.snapshot();
+    let engine = match cancellation {
+        Some(cancellation) => compilation.query_engine().scoped_snapshot(cancellation),
+        None => compilation.snapshot(),
+    };
     let diagnostics = diagnostics::collect_diagnostics(&engine, sources)?;
     let has_errors = diagnostics
         .iter()
         .flat_map(diagnostics::DiagnosticCollection::diagnostics)
         .any(|diagnostic| diagnostic.severity == Severity::Error);
     Ok((diagnostics, has_errors))
+}
+
+fn check_cancellation(cancellation: Option<&Cancellation>) -> Result<(), CompileError> {
+    if let Some(cancellation) = cancellation {
+        cancellation.check()?;
+    }
+    Ok(())
 }
 
 fn report_diagnostics(
@@ -482,5 +516,189 @@ fn write_if_changed(path: &Path, content: &[u8]) -> io::Result<()> {
         Ok(_) => fs::write(path, content),
         Err(error) if error.kind() == io::ErrorKind::NotFound => fs::write(path, content),
         Err(error) => Err(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::Path;
+    use std::sync::Mutex;
+
+    use super::{CompileError, InitialBuildConfig, PackageExecution, build_initial};
+    use crate::events::{BuildEvent, BuildEventSink, SilentBuildEvents};
+    use crate::plan::PackageInput;
+    use building::{Cancellation, QueryError};
+    use smol_str::SmolStr;
+
+    struct TestBuildEvents<Send> {
+        send: Send,
+    }
+
+    impl<Send> BuildEventSink for TestBuildEvents<Send>
+    where
+        Send: Fn(BuildEvent) + Sync,
+    {
+        fn send(&self, event: BuildEvent) {
+            (self.send)(event);
+        }
+    }
+
+    fn write_source(root: &Path, name: &str) -> std::path::PathBuf {
+        let path = root.join(format!("{name}.purs"));
+        fs::write(&path, format!("module {name} where\n\nvalue = 1\n")).unwrap();
+        path
+    }
+
+    fn package(name: &str, source: &Path, dependencies: &[&str]) -> PackageInput {
+        PackageInput {
+            name: SmolStr::new(name),
+            source_identities: vec![dunce::canonicalize(source).unwrap()],
+            dependencies: dependencies.iter().map(|name| SmolStr::new(name)).collect(),
+        }
+    }
+
+    fn assert_cancelled<Version, Metadata>(
+        result: Result<super::InitialBuild<Version, Metadata>, CompileError>,
+    ) {
+        assert!(matches!(result, Err(CompileError::Query(QueryError::Cancelled))));
+    }
+
+    #[test]
+    fn test_cancelled_initial_build_returns_error() {
+        let root = tempfile::tempdir().unwrap();
+        let cancellation = Cancellation::new();
+        cancellation.cancel();
+        let result = build_initial::<(), (), _>(InitialBuildConfig {
+            root: root.path(),
+            source_globs: &[],
+            excluded: &[],
+            packages: vec![],
+            prim_metadata: (),
+            source_metadata: (|_: &Path| ()) as fn(&Path),
+            execution: PackageExecution::Serial,
+            events: &SilentBuildEvents,
+            cancellation: Some(cancellation),
+        });
+        assert_cancelled(result);
+    }
+
+    #[test]
+    fn cancellation_after_discovery_stops_before_file_loading() {
+        let root = tempfile::tempdir().unwrap();
+        let source = write_source(root.path(), "Main");
+        let cancellation = Cancellation::new();
+        let event_cancellation = Cancellation::clone(&cancellation);
+        let events = TestBuildEvents {
+            send: move |event| {
+                if matches!(event, BuildEvent::PlanReady { .. }) {
+                    event_cancellation.cancel();
+                }
+            },
+        };
+        let metadata_paths = Mutex::new(vec![]);
+        let result = build_initial::<(), (), _>(InitialBuildConfig {
+            root: root.path(),
+            source_globs: std::slice::from_ref(&source),
+            excluded: &[],
+            packages: vec![package("main", &source, &[])],
+            prim_metadata: (),
+            source_metadata: |path: &Path| metadata_paths.lock().unwrap().push(path.to_owned()),
+            execution: PackageExecution::Serial,
+            events: &events,
+            cancellation: Some(cancellation),
+        });
+
+        assert_cancelled(result);
+        assert!(metadata_paths.into_inner().unwrap().is_empty());
+    }
+
+    #[test]
+    fn cancellation_during_file_loading_stops_before_observation() {
+        let root = tempfile::tempdir().unwrap();
+        let source = write_source(root.path(), "Main");
+        let cancellation = Cancellation::new();
+        let metadata_cancellation = Cancellation::clone(&cancellation);
+        let result = build_initial::<(), (), _>(InitialBuildConfig {
+            root: root.path(),
+            source_globs: std::slice::from_ref(&source),
+            excluded: &[],
+            packages: vec![package("main", &source, &[])],
+            prim_metadata: (),
+            source_metadata: move |_: &Path| metadata_cancellation.cancel(),
+            execution: PackageExecution::Serial,
+            events: &SilentBuildEvents,
+            cancellation: Some(cancellation),
+        });
+
+        assert_cancelled(result);
+    }
+
+    #[test]
+    fn cancellation_propagates_from_completed_parallel_package_to_dependent_work() {
+        let root = tempfile::tempdir().unwrap();
+        let dependency = write_source(root.path(), "Dependency");
+        let dependent = write_source(root.path(), "Dependent");
+        let cancellation = Cancellation::new();
+        let event_cancellation = Cancellation::clone(&cancellation);
+        let completed = Mutex::new(vec![]);
+        let events = TestBuildEvents {
+            send: |event| {
+                if let BuildEvent::PackageCompleted { package_name, .. } = event {
+                    completed.lock().unwrap().push(SmolStr::clone(&package_name));
+                    if package_name == "dependency" {
+                        event_cancellation.cancel();
+                    }
+                }
+            },
+        };
+        let result = build_initial::<(), (), _>(InitialBuildConfig {
+            root: root.path(),
+            source_globs: &[
+                std::path::PathBuf::clone(&dependency),
+                std::path::PathBuf::clone(&dependent),
+            ],
+            excluded: &[],
+            packages: vec![
+                package("dependency", &dependency, &[]),
+                package("dependent", &dependent, &["dependency"]),
+            ],
+            prim_metadata: (),
+            source_metadata: (|_: &Path| ()) as fn(&Path),
+            execution: PackageExecution::Parallel,
+            events: &events,
+            cancellation: Some(cancellation),
+        });
+
+        assert_cancelled(result);
+        assert_eq!(completed.into_inner().unwrap(), ["dependency"]);
+    }
+
+    #[test]
+    fn cancellation_during_finalization_does_not_return_a_successful_report() {
+        let root = tempfile::tempdir().unwrap();
+        let source = write_source(root.path(), "Main");
+        let cancellation = Cancellation::new();
+        let event_cancellation = Cancellation::clone(&cancellation);
+        let events = TestBuildEvents {
+            send: move |event| {
+                if matches!(event, BuildEvent::Finalizing { .. }) {
+                    event_cancellation.cancel();
+                }
+            },
+        };
+        let result = build_initial::<(), (), _>(InitialBuildConfig {
+            root: root.path(),
+            source_globs: std::slice::from_ref(&source),
+            excluded: &[],
+            packages: vec![package("main", &source, &[])],
+            prim_metadata: (),
+            source_metadata: (|_: &Path| ()) as fn(&Path),
+            execution: PackageExecution::Serial,
+            events: &events,
+            cancellation: Some(cancellation),
+        });
+
+        assert_cancelled(result);
     }
 }
