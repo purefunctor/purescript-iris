@@ -32,13 +32,15 @@ impl DocumentPath {
             let mut components = path.components();
             let mut normalized = PathBuf::new();
             for component in &mut components {
-                match component {
-                    Component::Prefix(prefix) => match prefix.kind() {
-                        Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => {
-                            normalized.push(format!("{}:", char::from(drive.to_ascii_uppercase())));
-                        }
-                        _ => normalized.push(component.as_os_str()),
-                    },
+                let Component::Prefix(prefix) = component else {
+                    normalized.push(component.as_os_str());
+                    continue;
+                };
+
+                match prefix.kind() {
+                    Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => {
+                        normalized.push(format!("{}:", char::from(drive.to_ascii_uppercase())));
+                    }
                     _ => normalized.push(component.as_os_str()),
                 }
             }
