@@ -1031,11 +1031,14 @@ fn removed_physical_sources_exclude_editor_aliases_without_rewriting_uris() {
         workspace.write("New.purs", "module New where\nnewSelection = 2\n");
         std::os::unix::fs::symlink(workspace.path().join("real"), workspace.path().join("link"))
             .unwrap();
-        let root = workspace.path().join("root");
+        let aliases = TestWorkspace::empty();
+        let root = aliases.path().join("root");
+        let editor_root = aliases.path().join("editor");
         std::os::unix::fs::symlink(workspace.path(), &root).unwrap();
+        std::os::unix::fs::symlink(workspace.path(), &editor_root).unwrap();
         let real = std::fs::canonicalize(workspace.path().join("real/Main.purs")).unwrap();
         let real_uri = Url::from_file_path(&real).unwrap();
-        let alias_uri = Url::from_file_path(workspace.path().join("link/Main.purs")).unwrap();
+        let alias_uri = Url::from_file_path(editor_root.join("link/Main.purs")).unwrap();
         assert_ne!(real_uri, alias_uri);
         let initial = SourceGate::new(&workspace);
         let mut server = LanguageServer::start_with_capabilities(

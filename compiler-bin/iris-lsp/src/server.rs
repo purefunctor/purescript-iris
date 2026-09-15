@@ -1221,11 +1221,15 @@ fn source_metadata(
     };
     previous.unwrap_or_else(|| {
         let path = uri.to_file_path().ok();
+        let identity = workspace::filesystem_identity(unit.source());
         let package_metadata = path.as_ref().and_then(|path| {
             workspace
                 .source_roots
                 .iter()
-                .find(|source_root| path.starts_with(&source_root.path))
+                .find(|source_root| {
+                    path.starts_with(&source_root.path)
+                        || identity.as_ref().is_some_and(|path| path.starts_with(&source_root.path))
+                })
                 .map(|source_root| SourceMetadata::clone(&source_root.metadata))
         });
         package_metadata.unwrap_or_else(|| match (root, path) {
