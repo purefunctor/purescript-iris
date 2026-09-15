@@ -12,7 +12,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::{CompilationState, MaterializedPrim};
+use super::compilation::{CompilationState, DocumentPath, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
@@ -299,12 +299,7 @@ where
     Version: Clone + Ord,
     Metadata: Clone,
 {
-    let source_url =
-        Url::from_file_path(path).map_err(|_| CompileError::InvalidPath(path.to_path_buf()))?;
-    let foreign_path = path.with_extension("js");
-    let foreign_url = Url::from_file_path(&foreign_path)
-        .map_err(|_| CompileError::InvalidPath(PathBuf::clone(&foreign_path)))?;
-    let unit = SourceUnitKey::new(source_url.as_str(), foreign_url.as_str());
+    let unit = DocumentPath::new(path)?.source_unit()?;
     let content = fs::read_to_string(path)?;
     let change = compilation.observe_source(
         SourceUnitKey::clone(&unit),

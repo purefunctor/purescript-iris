@@ -1,5 +1,9 @@
 //! Compiler query state used by build execution and long-lived consumers.
 
+mod path;
+
+pub use path::DocumentPath;
+
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::{fs, io};
@@ -11,7 +15,6 @@ use building::{
 use files::{FileId, ForeignSourceKind};
 use prim_constants::MODULE_MAP;
 use tempfile::TempDir;
-use url::Url;
 
 pub struct MaterializedPrim {
     directory: TempDir,
@@ -50,13 +53,11 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
 
         for (name, content) in MODULE_MAP {
             let path = prim.directory.path().join(format!("{name}.purs"));
-            let source = Url::from_file_path(&path)
-                .expect("invariant violated: failed to create Prim module file URL");
-            let foreign_path = path.with_extension("js");
-            let foreign = Url::from_file_path(&foreign_path)
-                .expect("invariant violated: failed to create Prim foreign file URL");
+            let unit = DocumentPath::new(&path)
+                .and_then(|path| path.source_unit())
+                .expect("invariant violated: failed to create Prim document identity");
             let event = LifecycleEvent::Source {
-                unit: SourceUnitKey::new(source.as_str(), foreign.as_str()),
+                unit,
                 event: SourceEvent::DiskObserved {
                     disk: DiskObservation::Found(Arc::from(*content)),
                     metadata: Metadata::clone(&prim_metadata),
@@ -155,6 +156,8 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
 
 #[cfg(test)]
 mod tests {
+    use url::Url;
+
     use super::*;
 
     #[test]
