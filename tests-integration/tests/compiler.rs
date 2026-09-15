@@ -7,7 +7,7 @@ fn initial_build_cancellation(path: &std::path::Path) -> datatest_stable::Result
     use iris_build::compile::{CompileError, InitialBuildConfig, PackageExecution, build_initial};
     use iris_build::events::{BuildEvent, BuildEventSink};
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone, Copy, Debug)]
     enum CancelAt {
         BeforeBuild,
         Loading,
@@ -33,7 +33,7 @@ fn initial_build_cancellation(path: &std::path::Path) -> datatest_stable::Result
         }
     }
 
-    let path = std::fs::canonicalize(path)?;
+    let path = std::path::absolute(path)?;
     for point in [
         CancelAt::BeforeBuild,
         CancelAt::Loading,
@@ -72,7 +72,12 @@ fn initial_build_cancellation(path: &std::path::Path) -> datatest_stable::Result
             let snapshot = build.compilation().snapshot();
             assert!(snapshot.javascript(build.sources()[0])?.is_ok());
         } else {
-            assert!(matches!(result, Err(CompileError::Query(QueryError::Cancelled))));
+            assert!(cancellation.check().is_err(), "cancellation hook {point:?} was not reached");
+            assert!(
+                matches!(result, Err(CompileError::Query(QueryError::Cancelled))),
+                "unexpected result at {point:?}: {:?}",
+                result.err(),
+            );
         }
     }
     Ok(())
