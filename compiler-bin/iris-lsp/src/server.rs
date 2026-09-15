@@ -5,6 +5,7 @@ pub mod extension;
 mod analysis;
 mod diagnostics;
 mod preparation;
+mod process;
 mod workspace;
 
 #[cfg(test)]

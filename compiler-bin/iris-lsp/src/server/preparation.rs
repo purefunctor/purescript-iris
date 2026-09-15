@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use std::sync::Arc;
 use std::{fs, io, str};
 
@@ -21,6 +20,7 @@ use tokio_util::task::TaskTracker;
 
 use super::analysis::SourceMetadata;
 use super::error::LspError;
+use super::process::ChildProcess;
 use super::workspace::{
     PreparedInitialWorkspace, PreparedSource, PreparedSourceReconfiguration, SourceRoot,
 };
@@ -299,17 +299,10 @@ async fn run_source_command(
     arguments: &[String],
     cancellation: &CancellationToken,
 ) -> Result<Vec<u8>, LspError> {
-    let mut command = tokio::process::Command::new(program);
-    command
-        .args(arguments)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    let mut child = command.spawn()?;
+    let mut child = ChildProcess::spawn(program, arguments)?;
 
-    let mut stdout = child.stdout.take().expect("invariant violated: source command has no stdout");
-    let mut stderr = child.stderr.take().expect("invariant violated: source command has no stderr");
+    let mut stdout = child.take_stdout().expect("invariant violated: source command has no stdout");
+    let mut stderr = child.take_stderr().expect("invariant violated: source command has no stderr");
     let stdout = async move {
         let mut output = vec![];
         stdout.read_to_end(&mut output).await.map(|_| output)
@@ -354,9 +347,8 @@ async fn run_source_command(
     Ok(output)
 }
 
-async fn terminate_source_command(child: &mut tokio::process::Child) {
-    let _ = child.start_kill();
-    let _ = child.wait().await;
+async fn terminate_source_command(child: &mut ChildProcess) {
+    let _ = child.kill().await;
 }
 
 fn prepare_initial(

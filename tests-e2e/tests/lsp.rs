@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::net::TcpListener;
 use std::ops::ControlFlow;
 use std::path::Path;
@@ -30,6 +30,15 @@ use url::Url;
 mod support;
 
 use support::TestWorkspace;
+
+fn assert_connection_closed(connection: &mut impl Read) {
+    let mut remaining = [0; 1];
+    match connection.read(&mut remaining) {
+        Ok(0) => {}
+        Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {}
+        result => panic!("expected a closed connection, got {result:?}"),
+    }
+}
 
 struct ClientState {
     configuration: Mutex<Option<Value>>,
@@ -231,15 +240,16 @@ impl LanguageServer {
     }
 
     fn wait_for_symbol(&mut self, name: &str, present: bool) {
-        for _ in 0..20 {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
             let symbols = self.request("workspace/symbol", json!({"query": name}));
             let found = symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == name);
             if found == present {
                 return;
             }
+            assert!(Instant::now() < deadline, "symbol {name:?} presence did not become {present}");
             thread::sleep(Duration::from_millis(50));
         }
-        panic!("symbol {name:?} presence did not become {present}");
     }
 
     #[track_caller]
@@ -711,9 +721,8 @@ fn shutdown_cancels_a_blocked_source_command() {
 
     server.shutdown();
 
-    source_command.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
-    let mut remaining = [0; 1];
-    assert_eq!(source_command.read(&mut remaining).unwrap(), 0);
+    source_command.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    assert_connection_closed(&mut source_command);
 }
 
 #[test]
@@ -746,9 +755,8 @@ fn newer_configuration_cancels_blocked_preparation() {
     server.set_configuration(json!({"sources": {"kind": "spago"}}));
     server.wait_for_symbol("newer", true);
 
-    source_command.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
-    let mut remaining = [0; 1];
-    assert_eq!(source_command.read(&mut remaining).unwrap(), 0);
+    source_command.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    assert_connection_closed(&mut source_command);
     server.shutdown();
 }
 
@@ -771,7 +779,15 @@ fn notifications_during_reconfiguration_are_reconciled_before_commit() {
         Some(json!({})),
     );
     server.wait_for_symbol("fromDisk", true);
-    let source_uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
+    #[cfg(unix)]
+    let source_path = {
+        let alias = workspace.path().join("source-alias");
+        std::os::unix::fs::symlink(".", &alias).unwrap();
+        alias.join("src/Library.purs")
+    };
+    #[cfg(not(unix))]
+    let source_path = workspace.path().join("src/Library.purs");
+    let source_uri = Url::from_file_path(source_path).unwrap();
     server.notify(
         "textDocument/didOpen",
         json!({

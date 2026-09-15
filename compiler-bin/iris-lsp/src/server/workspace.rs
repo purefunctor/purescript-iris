@@ -385,19 +385,18 @@ impl ReadyWorkspace {
         let selected_sources = sources.keys().cloned();
         let selected_sources = selected_sources.collect::<FxHashSet<_>>();
         let previous_sources = FxHashSet::clone(&self.selected_sources);
-        let removed_sources = previous_sources.difference(&selected_sources).cloned();
-        let removed_sources = removed_sources.collect_vec();
+        let removed_sources = self.removed_source_locators(&previous_sources, &selected_sources);
 
         let mut events = vec![];
-        for source in removed_sources {
-            append_removed_source_events(&mut events, &source);
+        for source in &removed_sources {
+            append_removed_source_events(&mut events, source);
         }
         for source in sources.into_values() {
             self.append_prepared_source_events(&mut events, source);
         }
 
         let mut excluded_sources = FxHashSet::clone(&self.excluded_sources);
-        excluded_sources.extend(previous_sources.difference(&selected_sources).cloned());
+        excluded_sources.extend(removed_sources);
         for selected in &selected_sources {
             excluded_sources.remove(selected);
         }
@@ -410,6 +409,31 @@ impl ReadyWorkspace {
         self.excluded_sources = excluded_sources;
 
         effects
+    }
+
+    fn removed_source_locators(
+        &self,
+        previous_sources: &FxHashSet<Arc<str>>,
+        selected_sources: &FxHashSet<Arc<str>>,
+    ) -> FxHashSet<Arc<str>> {
+        let selected_paths =
+            selected_sources.iter().filter_map(|source| canonical_source_path(source));
+        let selected_paths = selected_paths.collect::<FxHashSet<_>>();
+        let removed_paths = previous_sources
+            .difference(selected_sources)
+            .filter_map(|source| canonical_source_path(source))
+            .filter(|path| !selected_paths.contains(path));
+        let removed_paths = removed_paths.collect::<FxHashSet<_>>();
+
+        let tracked_sources = self.analysis.with_files(|files| {
+            files.source_ids().filter_map(|file_id| files.source_path(file_id)).collect_vec()
+        });
+        let removed_aliases = tracked_sources.into_iter().filter(|source| {
+            !selected_sources.contains(source)
+                && canonical_source_path(source).is_some_and(|path| removed_paths.contains(&path))
+        });
+
+        previous_sources.difference(selected_sources).cloned().chain(removed_aliases).collect()
     }
 
     fn append_prepared_source_events(
@@ -462,4 +486,10 @@ fn append_removed_source_events(
         let event = LifecycleEvent::Foreign { unit: SourceUnitKey::clone(&unit), kind, event };
         events.push(event);
     }
+}
+
+fn canonical_source_path(source: &str) -> Option<PathBuf> {
+    let uri = Url::parse(source).ok()?;
+    let path = uri.to_file_path().ok()?;
+    dunce::canonicalize(path).ok()
 }
