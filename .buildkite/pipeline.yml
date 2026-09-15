@@ -36,7 +36,8 @@ steps:
       queue: macos-26-medium
     commands: *build-commands
     cache:
-      name: macos26-arm64-build-v1
+      name: macos26-arm64-build-v2
+      size: 40g
       paths:
         - "~/.local/share/mise"
         - "~/.cache/mise"
