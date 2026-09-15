@@ -37,12 +37,12 @@ impl DocumentPath {
                     continue;
                 };
 
-                match prefix.kind() {
-                    Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => {
-                        normalized.push(format!("{}:", char::from(drive.to_ascii_uppercase())));
-                    }
-                    _ => normalized.push(component.as_os_str()),
-                }
+                let (Prefix::Disk(drive) | Prefix::VerbatimDisk(drive)) = prefix.kind() else {
+                    normalized.push(component.as_os_str());
+                    continue;
+                };
+
+                normalized.push(format!("{}:", char::from(drive.to_ascii_uppercase())));
             }
             normalized
         };
