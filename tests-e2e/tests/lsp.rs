@@ -1,3 +1,5 @@
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::ops::ControlFlow;
 use std::path::Path;
 use std::process::Stdio;
@@ -189,6 +191,10 @@ impl LanguageServer {
             "textDocument/didClose" => {
                 self.server.did_close(serde_json::from_value(parameters).unwrap()).unwrap()
             }
+            "workspace/didChangeWatchedFiles" => self
+                .server
+                .did_change_watched_files(serde_json::from_value(parameters).unwrap())
+                .unwrap(),
             _ => panic!("unsupported test notification {method}"),
         }
     }
@@ -370,6 +376,78 @@ fn assert_diagnostic_triggers(
     assert_diagnostic_triggers_for(server, root, "Main.purs", on_open, on_save, on_change);
 }
 
+struct SourceGate {
+    listener: TcpListener,
+}
+
+impl SourceGate {
+    fn new(workspace: &TestWorkspace) -> SourceGate {
+        workspace.write("gated sources.mjs", r#"
+import { spawn } from 'node:child_process';
+import { connect } from 'node:net';
+import { fileURLToPath } from 'node:url';
+if (process.argv[2] === 'parent') {
+  spawn(process.execPath, [fileURLToPath(import.meta.url), 'descendant', ...process.argv.slice(3)], { stdio: 'inherit' });
+} else {
+  const connection = connect(Number(process.argv[3]), '127.0.0.1', () => connection.write('R'));
+  connection.once('data', () => {
+    process.stdout.write(process.argv[4] + '\n');
+    connection.destroy();
+  });
+}
+"#);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        SourceGate { listener }
+    }
+
+    fn configuration(&self, source: &str) -> Value {
+        json!({"sources": {"kind": "command", "program": "node", "arguments": [
+            "gated sources.mjs", "parent", self.listener.local_addr().unwrap().port().to_string(), source
+        ]}, "diagnostics": {"onChange": true}})
+    }
+
+    fn entered(&self, server: &LanguageServer) -> TcpStream {
+        let listener = self.listener.try_clone().unwrap();
+        let connection = server.runtime.block_on(async {
+            let listener = tokio::net::TcpListener::from_std(listener).unwrap();
+            timeout(Duration::from_secs(10), listener.accept()).await.unwrap().unwrap().0
+        });
+        let mut connection = connection.into_std().unwrap();
+        connection.set_nonblocking(false).unwrap();
+        connection.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        connection.set_write_timeout(Some(Duration::from_secs(10))).unwrap();
+        let mut ready = [0];
+        connection.read_exact(&mut ready).unwrap();
+        assert_eq!(ready, [b'R']);
+        connection
+    }
+}
+
+fn assert_descendant_closed(mut connection: TcpStream) {
+    let mut bytes = [0];
+    match connection.read(&mut bytes) {
+        Ok(0) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
+        result => panic!("descendant retained its connection or sent partial data: {result:?}"),
+    }
+}
+
+fn open_buffer(server: &mut LanguageServer, uri: &Url, text: &str) {
+    server.notify(
+        "textDocument/didOpen",
+        json!({"textDocument": {
+            "uri": uri, "languageId": "purescript", "version": 1, "text": text
+        }}),
+    );
+}
+
+fn await_diagnostics(server: &mut LanguageServer, uri: &Url, version: i32) -> Value {
+    server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+        message["params"]["uri"] == uri.as_str() && message["params"]["version"] == version
+    })
+}
+
 fn assert_diagnostic_triggers_for(
     server: &mut LanguageServer,
     root: &Path,
@@ -423,7 +501,11 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
     ];
     for arguments in cases {
         let mut server = LanguageServer::start(&workspace, "", arguments, workspace.path());
-        let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
+        let ready = Url::from_file_path(workspace.path().join("Ready.purs")).unwrap();
+        open_buffer(&mut server, &ready, "module Ready where\n");
+        await_diagnostics(&mut server, &ready, 1);
+        let symbols =
+            server.request_once("workspace/symbol", json!({"query": "fromSpago"})).unwrap();
         assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
         assert_eq!(symbols[0]["name"], "fromSpago");
         assert_diagnostic_triggers(&mut server, workspace.path(), true, true, false);
@@ -436,7 +518,7 @@ fn json_inputs_configure_source_commands_and_diagnostic_triggers() {
     let workspace = TestWorkspace::empty();
     workspace.write("project/selected/Library.purs", "module Library where\nfromCommand = 42\n");
     workspace.write(
-        "launcher/source command.mjs",
+        "project/source command.mjs",
         r#"
 import { writeFileSync } from "node:fs";
 writeFileSync("arguments.json", JSON.stringify(process.argv.slice(2)));
@@ -468,7 +550,7 @@ console.log("selected/*.purs");
         let expected_uri = Url::from_file_path(root.join("selected/Library.purs")).unwrap();
         assert_eq!(symbols[0]["location"]["uri"], expected_uri.as_str());
         let arguments: Value =
-            serde_json::from_str(&workspace.read("launcher/arguments.json")).unwrap();
+            serde_json::from_str(&workspace.read("project/arguments.json")).unwrap();
         assert_eq!(arguments, json!(["", "path with spaces", "--flag", "λ", "$(not-a-shell)"]));
         assert_diagnostic_triggers(&mut server, &root, false, false, true);
         server.shutdown();
@@ -494,8 +576,8 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     let workspace = TestWorkspace::empty();
     workspace.write("project/startup/Library.purs", "module Library where\nfromStartup = 1\n");
     workspace.write("project/runtime/Library.purs", "module Library where\nfromRuntime = 2\n");
-    workspace.write("launcher/startup.mjs", "console.log('../project/startup/*.purs');\n");
-    workspace.write("launcher/runtime.mjs", "console.log('../project/runtime/*.purs');\n");
+    workspace.write("project/startup.mjs", "console.log('startup/*.purs');\n");
+    workspace.write("project/runtime.mjs", "console.log('runtime/*.purs');\n");
     let startup = r#"{"sources":{"kind":"command","program":"node","arguments":["startup.mjs"]}}"#;
     let runtime = json!({
         "sources": {"kind": "command", "program": "node", "arguments": ["runtime.mjs"]},
@@ -619,11 +701,443 @@ fn clients_without_workspace_configuration_keep_startup_settings() {
         "workspace/didChangeConfiguration",
         json!({"settings": {"sources": {"kind": "command", "program": "missing"}}}),
     );
+    let uri = Url::from_file_path(workspace.path().join("Ready.purs")).unwrap();
+    open_buffer(&mut server, &uri, "module Ready where\n");
+    await_diagnostics(&mut server, &uri, 1);
     let symbols = server
         .request_once("workspace/symbol", json!({"query": "startupOnly"}))
-        .expect("invariant violated: workspace was not ready after the initialized notification");
+        .expect("workspace was not ready after diagnostics publication");
     assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
     assert_eq!(symbols[0]["name"], "startupOnly");
     assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
     server.shutdown();
+}
+
+#[test]
+fn document_spelling_variants_share_lifecycle_and_protocol_output() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("spago.lock", r#"{"workspace":{"packages":{}},"packages":{}}"#);
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", r#"{"diagnostics":{"onChange":true}}"#],
+        workspace.path(),
+    );
+    let uri = Url::from_file_path(workspace.path().join("Main.purs")).unwrap();
+    let encoded = uri.as_str().replace("Main.purs", "%4dain%2epurs");
+    let decorated = format!("{encoded}?view=1#selection");
+    server.notify(
+        "textDocument/didOpen",
+        json!({"textDocument": {
+            "uri": decorated, "languageId": "purescript", "version": 1,
+            "text": "module Main where\nidentityBefore = 1\n"
+        }}),
+    );
+    let published = server.wait_for_notification("textDocument/publishDiagnostics");
+    assert_eq!(published["params"]["uri"], uri.as_str());
+    assert_eq!(published["params"]["version"], 1);
+
+    server.notify(
+        "textDocument/didChange",
+        json!({"textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [{"text": "module Main where\nidentityAfter = 2\n"}]}),
+    );
+    let published = server.wait_for_notification("textDocument/publishDiagnostics");
+    assert_eq!(published["params"]["uri"], uri.as_str());
+    assert_eq!(published["params"]["version"], 2);
+    let symbols = server.request_once("workspace/symbol", json!({"query": "identity"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["name"], "identityAfter");
+    assert_eq!(symbols[0]["location"]["uri"], uri.as_str());
+
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": encoded}}));
+    let published = server.wait_for_notification("textDocument/publishDiagnostics");
+    assert_eq!(published["params"]["uri"], uri.as_str());
+    assert_eq!(published["params"]["diagnostics"], json!([]));
+    assert_eq!(published["params"]["version"], Value::Null);
+    let symbols = server.request_once("workspace/symbol", json!({"query": "identity"})).unwrap();
+    assert_eq!(symbols, json!([]));
+    server.shutdown();
+}
+
+#[test]
+fn blocked_preparation_keeps_protocol_responsive_and_replays_ordered_buffers() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("Disk.purs", "module Disk where\ndiskValue = 1\n");
+    let gate = SourceGate::new(&workspace);
+    let configuration = gate.configuration("Disk.purs").to_string();
+    let mut server = LanguageServer::start(
+        &workspace,
+        "launcher",
+        &["lsp", "--config", &configuration],
+        workspace.path(),
+    );
+    let mut connection = gate.entered(&server);
+    let uri = Url::from_file_path(workspace.path().join("Main.purs")).unwrap();
+    open_buffer(&mut server, &uri, "module Main where\nbufferFirst = 1\n");
+    server.notify(
+        "textDocument/didChange",
+        json!({"textDocument": {"uri": uri, "version": 2},
+        "contentChanges": [{"text": "module Main where\nbufferSecond = 2\n"}]}),
+    );
+    server.notify(
+        "textDocument/didChange",
+        json!({"textDocument": {"uri": uri, "version": 3},
+        "contentChanges": [{"text": "module Main where\nbufferFinal = 3\n"}]}),
+    );
+    let error = server.request_once("workspace/symbol", json!({"query": "Buffer"})).unwrap_err();
+    let Error::Response(error) = error else { panic!("unexpected loading error: {error}") };
+    assert_eq!(error.code, ErrorCode::REQUEST_CANCELLED);
+    assert_eq!(error.message, "Workspace is loading");
+    connection.write_all(b"G").unwrap();
+    await_diagnostics(&mut server, &uri, 3);
+    let symbols = server.request_once("workspace/symbol", json!({"query": "Buffer"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["name"], "bufferFinal");
+    let disk = server.request_once("workspace/symbol", json!({"query": "diskValue"})).unwrap();
+    assert_eq!(disk.as_array().unwrap().len(), 1);
+    assert_descendant_closed(connection);
+    server.shutdown();
+}
+
+#[test]
+fn supersession_and_shutdown_retire_blocked_source_command_descendants() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("New.purs", "module New where\nnewSelection = 1\n");
+    let first = SourceGate::new(&workspace);
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"workspace": {"configuration": true}}),
+        Some(first.configuration("Missing.purs")),
+    );
+    let abandoned = first.entered(&server);
+    let replacement = SourceGate::new(&workspace);
+    server.set_configuration(replacement.configuration("New.purs"));
+    let mut current = replacement.entered(&server);
+    assert_descendant_closed(abandoned);
+    let uri = Url::from_file_path(workspace.path().join("Ready.purs")).unwrap();
+    open_buffer(&mut server, &uri, "module Ready where\n");
+    current.write_all(b"G").unwrap();
+    await_diagnostics(&mut server, &uri, 1);
+    let symbols =
+        server.request_once("workspace/symbol", json!({"query": "newSelection"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1);
+    assert_descendant_closed(current);
+
+    let shutdown = SourceGate::new(&workspace);
+    server.set_configuration(shutdown.configuration("Missing.purs"));
+    let connection = shutdown.entered(&server);
+    let symbols =
+        server.request_once("workspace/symbol", json!({"query": "newSelection"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1);
+    server.shutdown();
+    assert_descendant_closed(connection);
+}
+
+#[test]
+fn startup_command_failure_installs_prim_and_preserves_pending_buffers() {
+    let workspace = TestWorkspace::empty();
+    let configuration = json!({"sources": {"kind": "command", "program": "node", "arguments": [
+        "-e", "require('node:fs').appendFileSync('attempts', 'x'); process.stderr.write('source failure detail'); process.exitCode = 23"
+    ]}})
+    .to_string();
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", &configuration],
+        workspace.path(),
+    );
+    let uri = Url::from_file_path(workspace.path().join("Main.purs")).unwrap();
+    open_buffer(
+        &mut server,
+        &uri,
+        "module Main where\nfallbackBuffer :: Int\nfallbackBuffer = 1\n",
+    );
+    let message = server.wait_for_notification("window/showMessage");
+    let message =
+        message["params"]["message"].as_str().unwrap().replace("exit code:", "exit status:");
+    insta::assert_snapshot!("startup-source-command-failure", message);
+    let diagnostics = await_diagnostics(&mut server, &uri, 1);
+    assert_eq!(diagnostics["params"]["diagnostics"], json!([]));
+    let symbols =
+        server.request_once("workspace/symbol", json!({"query": "fallbackBuffer"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1);
+    assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
+    assert_eq!(workspace.read("attempts"), "x");
+    server.shutdown();
+}
+
+#[test]
+fn initial_shutdown_and_transport_eof_retire_blocked_preparation() {
+    for shutdown in [true, false] {
+        let workspace = TestWorkspace::empty();
+        let gate = SourceGate::new(&workspace);
+        let configuration = gate.configuration("Missing.purs").to_string();
+        let mut server = LanguageServer::start(
+            &workspace,
+            "",
+            &["lsp", "--config", &configuration],
+            workspace.path(),
+        );
+        let connection = gate.entered(&server);
+
+        if shutdown {
+            server.shutdown();
+        } else {
+            let mainloop = server.mainloop.take().unwrap();
+            mainloop.abort();
+            server.runtime.block_on(async {
+                assert!(mainloop.await.unwrap_err().is_cancelled());
+                timeout(Duration::from_secs(10), server.child.wait())
+                    .await
+                    .expect("transport EOF did not retire the server")
+                    .unwrap();
+            });
+        }
+        assert_descendant_closed(connection);
+    }
+}
+
+#[test]
+fn foreign_edits_refresh_diagnostics_without_changing_the_source_version() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("Main.purs", "module Main where\nforeign import value :: Int\n");
+    let gate = SourceGate::new(&workspace);
+    let configuration = gate.configuration("Main.purs").to_string();
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", &configuration],
+        workspace.path(),
+    );
+    let mut connection = gate.entered(&server);
+    let source = Url::from_file_path(workspace.path().join("Main.purs")).unwrap();
+    let foreign = Url::from_file_path(workspace.path().join("Main.js")).unwrap();
+    open_buffer(&mut server, &source, &workspace.read("Main.purs"));
+    connection.write_all(b"G").unwrap();
+    let missing = await_diagnostics(&mut server, &source, 1);
+    assert!(!missing["params"]["diagnostics"].as_array().unwrap().is_empty());
+
+    open_buffer(&mut server, &foreign, "export const value = 1;\n");
+    let resolved = await_diagnostics(&mut server, &source, 1);
+    assert_eq!(resolved["params"]["diagnostics"], json!([]));
+    server.notify(
+        "textDocument/didChange",
+        json!({"textDocument": {"uri": foreign, "version": 2},
+            "contentChanges": [{"text": ""}]}),
+    );
+    let missing_again = await_diagnostics(&mut server, &source, 1);
+    assert!(!missing_again["params"]["diagnostics"].as_array().unwrap().is_empty());
+    server.shutdown();
+}
+
+#[test]
+fn runtime_notifications_restart_preparation_without_overwriting_editor_contents() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("Main.purs", "module Main where\ndiskValue = 1\n");
+    workspace.write("New.purs", "module New where\nnewSelection = 1\n");
+    let initial = SourceGate::new(&workspace);
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"workspace": {"configuration": true}}),
+        Some(initial.configuration("Main.purs")),
+    );
+    let mut connection = initial.entered(&server);
+    let uri = Url::from_file_path(workspace.path().join("Main.purs")).unwrap();
+    open_buffer(&mut server, &uri, "module Main where\neditorValue = 2\n");
+    connection.write_all(b"G").unwrap();
+    await_diagnostics(&mut server, &uri, 1);
+
+    let reconfiguration = SourceGate::new(&workspace);
+    server.set_configuration(reconfiguration.configuration("New.purs"));
+    let abandoned = reconfiguration.entered(&server);
+    let trigger = Url::from_file_path(workspace.path().join("Trigger.purs")).unwrap();
+    open_buffer(&mut server, &trigger, "module Trigger where\n");
+    let mut restarted = reconfiguration.entered(&server);
+    assert_descendant_closed(abandoned);
+    server.notify(
+        "textDocument/didChange",
+        json!({"textDocument": {"uri": uri, "version": 2},
+        "contentChanges": [{"text": "module Main where\nlatestEditorValue = 3\n"}]}),
+    );
+    await_diagnostics(&mut server, &uri, 2);
+    restarted.write_all(b"G").unwrap();
+    let selected = Url::from_file_path(workspace.path().join("New.purs")).unwrap();
+    server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+        message["params"]["uri"] == selected.as_str()
+    });
+    let symbols =
+        server.request_once("workspace/symbol", json!({"query": "latestEditorValue"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1);
+    assert_eq!(symbols[0]["location"]["uri"], uri.as_str());
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": uri}}));
+    server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+        message["params"]["uri"] == uri.as_str() && message["params"]["version"].is_null()
+    });
+    for name in ["latestEditorValue", "diskValue"] {
+        let symbols = server.request_once("workspace/symbol", json!({"query": name})).unwrap();
+        assert_eq!(symbols, json!([]));
+    }
+    server.shutdown();
+}
+
+#[test]
+fn source_commands_use_root_cwd_literal_arguments_and_concurrent_pipe_draining() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("Disk.purs", "module Disk where\nselectedValue = 1\n");
+    workspace.write("pipe source.mjs", r#"
+import { writeFileSync } from 'node:fs';
+writeFileSync('observed.json', JSON.stringify({ cwd: process.cwd(), arguments: process.argv.slice(2) }));
+await Promise.all([
+  new Promise(resolve => process.stdout.write('Disk.purs\n'.repeat(8192), resolve)),
+  new Promise(resolve => process.stderr.write('diagnostic detail\n'.repeat(16384), resolve)),
+]);
+"#);
+    let literal = "a b; $HOME $(echo unexpected) * [x]";
+    let configuration = json!({"sources": {"kind": "command", "program": "node", "arguments": [
+        "pipe source.mjs", literal
+    ]}})
+    .to_string();
+    let mut server = LanguageServer::start(
+        &workspace,
+        "launcher",
+        &["lsp", "--config", &configuration],
+        workspace.path(),
+    );
+    let uri = Url::from_file_path(workspace.path().join("Ready.purs")).unwrap();
+    open_buffer(&mut server, &uri, "module Ready where\n");
+    await_diagnostics(&mut server, &uri, 1);
+    let observed: Value = serde_json::from_str(&workspace.read("observed.json")).unwrap();
+    assert_eq!(observed["arguments"], json!([literal]));
+    assert_eq!(
+        std::fs::canonicalize(observed["cwd"].as_str().unwrap()).unwrap(),
+        std::fs::canonicalize(workspace.path()).unwrap()
+    );
+    let symbols =
+        server.request_once("workspace/symbol", json!({"query": "selectedValue"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1);
+    server.shutdown();
+}
+
+#[cfg(unix)]
+#[test]
+fn removed_physical_sources_exclude_editor_aliases_without_rewriting_uris() {
+    for (open_alias, delete_before_reconfiguration) in [(true, false), (true, true), (false, true)]
+    {
+        let workspace = TestWorkspace::empty();
+        workspace.write("real/Main.purs", "module Main where\naliasDisk = 1\n");
+        workspace.write("New.purs", "module New where\nnewSelection = 2\n");
+        std::os::unix::fs::symlink(workspace.path().join("real"), workspace.path().join("link"))
+            .unwrap();
+        let aliases = TestWorkspace::empty();
+        let root = aliases.path().join("root");
+        let editor_root = aliases.path().join("editor");
+        std::os::unix::fs::symlink(workspace.path(), &root).unwrap();
+        std::os::unix::fs::symlink(workspace.path(), &editor_root).unwrap();
+        let real = std::fs::canonicalize(workspace.path().join("real/Main.purs")).unwrap();
+        let real_uri = Url::from_file_path(&real).unwrap();
+        let alias_uri = Url::from_file_path(editor_root.join("link/Main.purs")).unwrap();
+        assert_ne!(real_uri, alias_uri);
+        let initial = SourceGate::new(&workspace);
+        let mut server = LanguageServer::start_with_capabilities(
+            &workspace,
+            "",
+            &["lsp"],
+            &root,
+            json!({"workspace": {"configuration": true}}),
+            Some(initial.configuration(real.to_str().unwrap())),
+        );
+        let mut connection = initial.entered(&server);
+        let ready = Url::from_file_path(workspace.path().join("Ready.purs")).unwrap();
+        open_buffer(&mut server, &ready, "module Ready where\n");
+        connection.write_all(b"G").unwrap();
+        await_diagnostics(&mut server, &ready, 1);
+        if open_alias {
+            open_buffer(&mut server, &alias_uri, "module Main where\naliasBuffer = 3\n");
+            await_diagnostics(&mut server, &alias_uri, 1);
+        } else {
+            server.notify(
+                "workspace/didChangeWatchedFiles",
+                json!({"changes": [{"uri": alias_uri, "type": 2}]}),
+            );
+            server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+                message["params"]["uri"] == alias_uri.as_str()
+            });
+            server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+                message["params"]["uri"] == real_uri.as_str()
+            });
+        }
+        let symbols = server.request_once("workspace/symbol", json!({"query": "alias"})).unwrap();
+        assert!(
+            symbols
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|symbol| { symbol["location"]["uri"] == alias_uri.as_str() })
+        );
+        if delete_before_reconfiguration {
+            std::fs::remove_file(&real).unwrap();
+        }
+
+        let replacement = SourceGate::new(&workspace);
+        server.set_configuration(replacement.configuration("New.purs"));
+        let mut connection = replacement.entered(&server);
+        connection.write_all(b"G").unwrap();
+        let cleared =
+            server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+                message["params"]["uri"] == real_uri.as_str()
+                    && message["params"]["version"].is_null()
+            });
+        assert_eq!(cleared["params"]["diagnostics"], json!([]));
+        let symbols =
+            server.request_once("workspace/symbol", json!({"query": "aliasBuffer"})).unwrap();
+        if open_alias {
+            assert_eq!(symbols.as_array().unwrap().len(), 1);
+            assert_eq!(symbols[0]["location"]["uri"], alias_uri.as_str());
+            server.notify("textDocument/didClose", json!({"textDocument": {"uri": alias_uri}}));
+        } else {
+            assert_eq!(symbols, json!([]));
+        }
+        let cleared =
+            server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+                message["params"]["uri"] == alias_uri.as_str()
+                    && message["params"]["version"].is_null()
+            });
+        assert_eq!(cleared["params"]["diagnostics"], json!([]));
+        workspace.write("real/Main.purs", "module Main where\naliasDisk = 1\n");
+        server.notify(
+            "workspace/didChangeWatchedFiles",
+            json!({"changes": [{"uri": alias_uri, "type": 2}]}),
+        );
+        let symbols = server.request_once("workspace/symbol", json!({"query": "alias"})).unwrap();
+        assert_eq!(symbols, json!([]));
+
+        let reselected = SourceGate::new(&workspace);
+        server.set_configuration(reselected.configuration(real.to_str().unwrap()));
+        let mut connection = reselected.entered(&server);
+        connection.write_all(b"G").unwrap();
+        server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+            message["params"]["uri"] == real_uri.as_str()
+        });
+        server.notify(
+            "workspace/didChangeWatchedFiles",
+            json!({"changes": [{"uri": alias_uri, "type": 2}]}),
+        );
+        let symbols =
+            server.request_once("workspace/symbol", json!({"query": "aliasDisk"})).unwrap();
+        assert!(
+            symbols
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|symbol| symbol["location"]["uri"] == alias_uri.as_str())
+        );
+        server.shutdown();
+    }
 }

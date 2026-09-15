@@ -1,0 +1,5 @@
+---
+source: tests-e2e/tests/lsp.rs
+expression: message
+---
+Failed to apply Iris settings: Source discovery command failed with exit status: 23: source failure detail. Iris will use its startup settings.

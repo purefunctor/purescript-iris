@@ -247,4 +247,35 @@ mod tests {
         assert_eq!(result, Err("root failed"));
         assert!(!dependent_executed.load(Ordering::Acquire));
     }
+
+    #[test]
+    fn cancellation_reaches_parallel_package_snapshots() {
+        let plan = plan();
+        let events = RecordedBuildEvents::default();
+        let cancellation = building::QueryCancellation::default();
+        let engine = building::QueryEngine::default();
+        let scoped = engine.scoped_snapshot(building::QueryCancellation::clone(&cancellation));
+        let admitted = std::sync::Barrier::new(2);
+        let observed = AtomicUsize::new(0);
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(2).build().unwrap();
+
+        let result = pool.install(|| {
+            execute_parallel(&plan, &events, &|package| {
+                assert_ne!(package.name, "dependent");
+                let snapshot = scoped.snapshot();
+                admitted.wait();
+                cancellation.cancel();
+                let result = snapshot.check_cancelled();
+                assert_eq!(result, Err(building::QueryError::Cancelled));
+                observed.fetch_add(1, Ordering::Relaxed);
+                result
+            })
+        });
+
+        assert_eq!(result, Err(building::QueryError::Cancelled));
+        assert_eq!(observed.load(Ordering::Relaxed), 2);
+        assert!(events.into_events().is_empty());
+        drop(scoped);
+        engine.request_cancel();
+    }
 }

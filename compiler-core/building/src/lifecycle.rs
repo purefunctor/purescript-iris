@@ -197,6 +197,10 @@ where
         self.source_files.iter_id()
     }
 
+    pub fn unit_keys(&self) -> impl Iterator<Item = &SourceUnitKey> {
+        self.units.keys()
+    }
+
     pub fn source_metadata(&self, file_id: FileId) -> Option<&Metadata> {
         let unit = self.source_units.get(&file_id)?;
         let source_unit = self.units.get(unit)?;
