@@ -1498,17 +1498,30 @@ mod tests {
         assert_eq!(engine.check_cancelled(), Ok(()));
     }
 
-    fn shared_query_cancellation(upgradable: bool, cancel_producer: bool) {
+    enum SharedQueryLookup {
+        Read,
+        UpgradableRead,
+    }
+
+    enum CancelledParticipant {
+        Producer,
+        Waiter,
+    }
+
+    fn shared_query_cancellation(
+        lookup: SharedQueryLookup,
+        cancelled_participant: CancelledParticipant,
+    ) {
         let engine = QueryEngine::default();
         let mut files = ForeignFiles::default();
         let file_id = files.insert(ForeignSourceKind::JavaScript, "Main.js", "");
         let cancellation = super::QueryCancellation::default();
-        let producer = if cancel_producer {
+        let producer = if matches!(cancelled_participant, CancelledParticipant::Producer) {
             engine.scoped_snapshot(super::QueryCancellation::clone(&cancellation))
         } else {
             engine.snapshot()
         };
-        let mut waiter = if cancel_producer {
+        let mut waiter = if matches!(cancelled_participant, CancelledParticipant::Producer) {
             engine.snapshot()
         } else {
             engine.scoped_snapshot(super::QueryCancellation::clone(&cancellation))
@@ -1517,11 +1530,11 @@ mod tests {
         let waiter_id = waiter.control.id;
 
         let before_upgrade = Arc::new(Barrier::new(2));
-        if upgradable {
+        if matches!(lookup, SharedQueryLookup::UpgradableRead) {
             *waiter.hooks.before_upgrade.lock() = Some(Arc::clone(&before_upgrade));
         }
         let after_wait = Arc::new(Barrier::new(2));
-        if !cancel_producer {
+        if matches!(cancelled_participant, CancelledParticipant::Waiter) {
             waiter.hooks.after_wait = Some(Arc::clone(&after_wait));
         }
         let (enrolled, enrollment) = std::sync::mpsc::channel();
@@ -1546,7 +1559,7 @@ mod tests {
                 assert!(waiter.control.local.inner.get_or_default().borrow().frames.is_empty());
                 result
             });
-            if upgradable {
+            if matches!(lookup, SharedQueryLookup::UpgradableRead) {
                 begin_waiter.wait();
                 before_upgrade.wait();
             }
@@ -1566,18 +1579,18 @@ mod tests {
                 result
             });
             production.wait();
-            if upgradable {
+            if matches!(lookup, SharedQueryLookup::UpgradableRead) {
                 before_upgrade.wait();
             } else {
                 begin_waiter.wait();
             }
             enrollment.recv_timeout(std::time::Duration::from_secs(10)).unwrap();
 
-            if cancel_producer {
+            if matches!(cancelled_participant, CancelledParticipant::Producer) {
                 cancellation.cancel();
             }
             production.wait();
-            if !cancel_producer {
+            if matches!(cancelled_participant, CancelledParticipant::Waiter) {
                 after_wait.wait();
                 cancellation.cancel();
                 after_wait.wait();
@@ -1585,7 +1598,7 @@ mod tests {
 
             let produced = producing.join().unwrap();
             let waited = waiting.join().unwrap();
-            if cancel_producer {
+            if matches!(cancelled_participant, CancelledParticipant::Producer) {
                 assert_eq!(produced, Err(QueryError::Cancelled));
                 assert_eq!(waited, Ok(None));
                 assert_eq!(recomputations.load(Ordering::Relaxed), 1);
@@ -1608,22 +1621,25 @@ mod tests {
 
     #[test]
     fn abandoned_producer_is_retried_by_enrolled_reader() {
-        shared_query_cancellation(false, true);
+        shared_query_cancellation(SharedQueryLookup::Read, CancelledParticipant::Producer);
     }
 
     #[test]
     fn abandoned_producer_is_retried_by_enrolled_upgradable_reader() {
-        shared_query_cancellation(true, true);
+        shared_query_cancellation(
+            SharedQueryLookup::UpgradableRead,
+            CancelledParticipant::Producer,
+        );
     }
 
     #[test]
     fn cancelled_reader_rejects_shared_fulfillment() {
-        shared_query_cancellation(false, false);
+        shared_query_cancellation(SharedQueryLookup::Read, CancelledParticipant::Waiter);
     }
 
     #[test]
     fn cancelled_upgradable_reader_rejects_shared_fulfillment() {
-        shared_query_cancellation(true, false);
+        shared_query_cancellation(SharedQueryLookup::UpgradableRead, CancelledParticipant::Waiter);
     }
 
     #[test]
