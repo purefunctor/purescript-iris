@@ -1,5 +1,6 @@
 mod analysis;
 pub mod capabilities;
+mod diagnostics;
 pub mod error;
 pub mod event;
 pub mod extension;
@@ -637,6 +638,35 @@ fn apply_configuration_inner(
     }
     tracing::info!("Loaded {} files.", discovered.source_globs.len());
     Ok(())
+}
+
+fn collect_diagnostics(
+    state: &mut State,
+    event::CollectDiagnostics(file_id): event::CollectDiagnostics,
+) -> Result<(), LspError> {
+    let Some(ticket) = state.workspace.schedule_diagnostics(file_id)? else {
+        return Ok(());
+    };
+    let workspace = state.workspace.ready_mut()?;
+    let actor = workspace.diagnostic_actor.get_or_insert_with(|| {
+        diagnostics::DiagnosticActor::spawn(ClientSocket::clone(&state.client))
+    });
+    actor.send(diagnostics::DiagnosticWorkerEvent::Schedule {
+        ticket,
+        analysis: Arc::clone(&workspace.analysis),
+        position_encoding: state.protocol.position_encoding,
+        analyzer_capabilities: state.protocol.analyzer_capabilities,
+    });
+    Ok(())
+}
+
+fn finish_diagnostics(
+    state: &mut State,
+    finished: event::DiagnosticsFinished,
+) -> Result<(), LspError> {
+    let workspace = state.workspace.ready()?;
+    let files = workspace.analysis.files.read();
+    workspace.diagnostics.publish(&state.client, &files, finished.ticket, finished.collected)
 }
 
 fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
@@ -1338,8 +1368,8 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .workspace_notification::<notification::DidChangeWatchedFiles>(
                 WorkspaceNotification::DidChangeWatchedFiles,
             )
-            .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
-            .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)
+            .event_ext::<event::CollectDiagnostics>(collect_diagnostics)
+            .event_ext::<event::DiagnosticsFinished>(finish_diagnostics)
             .event_ext::<ConfigurationReceived>(finish_workspace_configuration);
 
         ServiceBuilder::new()

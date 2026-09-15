@@ -22,8 +22,9 @@ use rustc_hash::FxHashSet;
 
 use super::analysis::Analysis;
 pub(super) use super::analysis::AnalysisSnapshot as StateSnapshot;
+use super::diagnostics::{DiagnosticActor, DiagnosticWorkerEvent};
 use super::error::LspError;
-use super::event::{CollectDiagnostics, DiagnosticScheduler, DiagnosticTicket};
+use super::event::{CollectDiagnostics, DiagnosticProtocol, DiagnosticTicket};
 use super::{
     DiscoveredWorkspace, SourceMetadata, did_change, did_change_watched_files, did_close, did_open,
     did_save, observe_sibling_foreign, source_unit_from_document_uri, source_unit_from_source_uri,
@@ -63,7 +64,8 @@ pub(super) struct ReadyWorkspace {
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
-    pub(super) diagnostics: DiagnosticScheduler,
+    pub(super) diagnostics: DiagnosticProtocol,
+    pub(super) diagnostic_actor: Option<DiagnosticActor>,
     _prim: MaterializedPrim,
 }
 
@@ -144,14 +146,14 @@ impl WorkspaceRuntime {
         matches!(self.state, WorkspaceState::Ready { .. })
     }
 
-    fn ready(&self) -> Result<&ReadyWorkspace, LspError> {
+    pub(super) fn ready(&self) -> Result<&ReadyWorkspace, LspError> {
         match &self.state {
             WorkspaceState::WaitingForConfiguration { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Ready { workspace } => Ok(workspace),
         }
     }
 
-    fn ready_mut(&mut self) -> Result<&mut ReadyWorkspace, LspError> {
+    pub(super) fn ready_mut(&mut self) -> Result<&mut ReadyWorkspace, LspError> {
         match &mut self.state {
             WorkspaceState::WaitingForConfiguration { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Ready { workspace } => Ok(workspace),
@@ -186,7 +188,8 @@ impl WorkspaceRuntime {
             source_roots: prepared.source_roots,
             selected_sources: prepared.selected_sources,
             excluded_sources: FxHashSet::default(),
-            diagnostics: DiagnosticScheduler::default(),
+            diagnostics: DiagnosticProtocol::default(),
+            diagnostic_actor: None,
             _prim: prim,
         };
         self.state = WorkspaceState::Ready { workspace };
@@ -313,22 +316,7 @@ impl WorkspaceRuntime {
             }
             files.source_version(file_id)
         };
-        Ok(workspace.diagnostics.schedule(file_id, version))
-    }
-
-    pub(super) fn finish_diagnostics(
-        &mut self,
-        ticket: DiagnosticTicket,
-    ) -> Result<(bool, Option<DiagnosticTicket>), LspError> {
-        let workspace = self.ready_mut()?;
-        let running = workspace.diagnostics.is_running(ticket);
-        let current = running && workspace.diagnostics.is_current(ticket) && {
-            let files = workspace.analysis.files.read();
-            files.contains_source(ticket.file_id)
-                && files.source_version(ticket.file_id) == ticket.version
-        };
-        let next = workspace.diagnostics.complete(ticket);
-        Ok((current, next))
+        Ok(Some(workspace.diagnostics.ticket(file_id, version)))
     }
 
     #[cfg(test)]
@@ -387,7 +375,12 @@ impl ReadyWorkspace {
 
         {
             let files = self.analysis.files.read();
-            self.diagnostics.invalidate(&change, &files);
+            let invalidated = self.diagnostics.invalidate(&change, &files);
+            if let Some(actor) = &self.diagnostic_actor {
+                for file_id in invalidated {
+                    actor.send(DiagnosticWorkerEvent::Invalidate { file_id });
+                }
+            }
         }
         for warning in change.warnings() {
             tracing::warn!("{warning}");
