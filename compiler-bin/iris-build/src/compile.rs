@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
 
-use building::{DiskObservation, QueryError, SourceUnitKey};
+use building::{Cancellation, DiskObservation, QueryError, SourceUnitKey};
 use diagnostics::Severity;
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
@@ -71,6 +71,7 @@ pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
     pub source_metadata: SourceMetadata,
     pub execution: PackageExecution,
     pub events: &'a dyn BuildEventSink,
+    pub cancellation: Cancellation,
 }
 
 pub struct InitialBuild<Version, Metadata> {
@@ -141,9 +142,12 @@ where
         source_metadata,
         execution,
         events,
+        cancellation,
     } = config;
+    cancellation.check()?;
     let started = Instant::now();
     let selected_paths = walk::walk_filtered(root, source_globs, excluded)?.files;
+    cancellation.check()?;
     let selected_sources = selected_paths.into_iter().map(|path| {
         let identity = dunce::canonicalize(&path)?;
         Ok::<_, io::Error>(SelectedSource { path, identity })
@@ -166,15 +170,17 @@ where
     let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
     let mut sources = HashMap::new();
     for path in &source_paths {
+        cancellation.check()?;
         let metadata = source_metadata(path);
         sources.insert(PathBuf::clone(path), load_source(&mut compilation, path, metadata)?);
     }
 
     let engine = compilation.query_engine();
     let execute = |package: &super::plan::PlannedPackage| {
+        cancellation.check()?;
         let package_sources = package.source_paths.iter().map(|path| sources[path]);
         let package_sources = package_sources.collect_vec();
-        query_package(&engine, &package_sources)
+        query_package(&engine, &package_sources, &cancellation)
     };
     let execution = match execution {
         PackageExecution::Serial => executor::execute_serial(&plan, events, &execute),
@@ -186,12 +192,13 @@ where
     let sources = sources.into_values().collect_vec();
     let no_inputs = sources.is_empty();
     let (diagnostics, has_errors, failure) = match execution {
-        Ok(()) => match collect_diagnostics(&compilation, &sources) {
+        Ok(()) => match collect_diagnostics(&compilation, &sources, &cancellation) {
             Ok((diagnostics, has_errors)) => (diagnostics, has_errors, None),
             Err(error) => (vec![], true, Some(error)),
         },
         Err(error) => (vec![], true, Some(error)),
     };
+    cancellation.check()?;
     let report =
         InitialBuildReport { sources, diagnostics, has_errors, no_inputs, failure, duration };
     Ok(InitialBuild { compilation, source_paths, report })
@@ -211,6 +218,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
         source_metadata: |_: &Path| (),
         execution: PackageExecution::Parallel,
         events,
+        cancellation: Cancellation::default(),
     })?;
     let InitialBuildParts { compilation, source_paths: _, mut report } = initial.into_parts();
     if report.no_inputs {
@@ -245,8 +253,10 @@ pub(crate) fn rebuild(
 ) -> Result<RebuildResult, CompileError> {
     let sources = compilation.source_ids().collect_vec();
     let engine = compilation.query_engine();
-    query_package(&engine, &sources)?;
-    let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
+    let cancellation = Cancellation::default();
+    query_package(&engine, &sources, &cancellation)?;
+    let (diagnostic_collections, has_errors) =
+        collect_diagnostics(compilation, &sources, &cancellation)?;
     if diagnostics {
         report_diagnostics(compilation, diagnostic_collections, root, color);
     }
@@ -327,9 +337,14 @@ where
     Ok(file_id)
 }
 
-fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(), CompileError> {
+fn query_package(
+    engine: &building::QueryEngine,
+    sources: &[FileId],
+    cancellation: &Cancellation,
+) -> Result<(), CompileError> {
     sources.par_iter().try_for_each(|&file_id| {
-        let engine = engine.snapshot();
+        cancellation.check()?;
+        let engine = engine.snapshot_with_cancellation(Cancellation::clone(cancellation));
         engine.stabilized(file_id)?;
         engine.indexed(file_id)?;
         engine.resolved(file_id)?;
@@ -337,6 +352,7 @@ fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(
         engine.checked(file_id)?;
         engine.foreign_validation(file_id)?;
         let _ = engine.javascript(file_id)?;
+        cancellation.check()?;
         Ok::<_, CompileError>(())
     })
 }
@@ -344,12 +360,14 @@ fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(
 fn collect_diagnostics<Version, Metadata>(
     compilation: &CompilationState<Version, Metadata>,
     sources: &[FileId],
+    cancellation: &Cancellation,
 ) -> Result<(Vec<diagnostics::DiagnosticCollection>, bool), CompileError>
 where
     Version: Clone + Ord,
     Metadata: Clone,
 {
-    let engine = compilation.snapshot();
+    let engine =
+        compilation.query_engine().snapshot_with_cancellation(Cancellation::clone(cancellation));
     let diagnostics = diagnostics::collect_diagnostics(&engine, sources)?;
     let has_errors = diagnostics
         .iter()

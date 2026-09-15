@@ -618,6 +618,7 @@ fn apply_configuration_inner(
         },
         execution: PackageExecution::Parallel,
         events: &SilentBuildEvents,
+        cancellation: building::Cancellation::default(),
     })
     .map_err(LspError::from)
     .map_err(ConfigurationApplyError::Preparation)?;

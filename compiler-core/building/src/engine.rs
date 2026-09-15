@@ -200,6 +200,21 @@ fn state_references_removed_file<T>(
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct SnapshotId(u32);
 
+#[derive(Clone, Default)]
+pub struct Cancellation {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl Cancellation {
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    pub fn check(&self) -> QueryResult<()> {
+        if self.cancelled.load(Ordering::Relaxed) { Err(QueryError::Cancelled) } else { Ok(()) }
+    }
+}
+
 #[derive(Default)]
 struct GlobalState {
     /// An atomic token that determines if query execution had been cancelled.
@@ -339,6 +354,7 @@ struct QueryControl {
     id: SnapshotId,
     local: Arc<LocalState>,
     global: Arc<GlobalState>,
+    cancellation: Option<Cancellation>,
 }
 
 impl QueryControl {
@@ -347,7 +363,8 @@ impl QueryControl {
         let local = Arc::new(LocalState::default());
         let global = Arc::clone(&self.global);
         let id = global.next_snapshot();
-        QueryControl { _guard, id, local, global }
+        let cancellation = Option::clone(&self.cancellation);
+        QueryControl { _guard, id, local, global, cancellation }
     }
 }
 
@@ -357,7 +374,7 @@ impl Default for QueryControl {
         let local = Arc::new(LocalState::default());
         let global = Arc::new(GlobalState::default());
         let id = global.next_snapshot();
-        QueryControl { _guard, id, local, global }
+        QueryControl { _guard, id, local, global, cancellation: None }
     }
 }
 
@@ -381,11 +398,27 @@ impl QueryEngine {
     ///
     /// [cancellation request]: QueryEngine::request_cancel
     pub fn snapshot(&self) -> QueryEngine {
-        let input = self.input.clone();
-        let derived = self.derived.clone();
-        let interned = self.interned.clone();
+        let input = Arc::clone(&self.input);
+        let derived = Arc::clone(&self.derived);
+        let interned = Arc::clone(&self.interned);
         let control = self.control.snapshot();
         QueryEngine { input, derived, interned, control }
+    }
+
+    pub fn snapshot_with_cancellation(&self, cancellation: Cancellation) -> QueryEngine {
+        let mut snapshot = self.snapshot();
+        snapshot.control.cancellation = Some(cancellation);
+        snapshot
+    }
+
+    fn check_cancelled(&self) -> QueryResult<()> {
+        if self.control.global.cancelled.load(Ordering::Relaxed) {
+            return Err(QueryError::Cancelled);
+        }
+        if let Some(cancellation) = &self.control.cancellation {
+            cancellation.check()?;
+        }
+        Ok(())
     }
 
     /// Creates a cancellation request for queries.
@@ -495,11 +528,10 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        if self.control.global.cancelled.load(Ordering::Relaxed) {
-            return Err(QueryError::Cancelled);
-        }
+        self.check_cancelled()?;
 
         let computed = compute(self)?;
+        self.check_cancelled()?;
 
         // If the computed result is equal to the cached one, the changed
         // timestamp does not need to be updated. Likewise, we also insert
@@ -613,9 +645,7 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        if self.control.global.cancelled.load(Ordering::Relaxed) {
-            return Err(QueryError::Cancelled);
-        }
+        self.check_cancelled()?;
 
         let revision = self.control.global.revision.load(Ordering::Relaxed);
         let shard = shards(&self.derived).shard(&key);
@@ -1396,7 +1426,7 @@ mod tests {
     use crate::prim;
 
     use super::promise::Future;
-    use super::{DerivedState, QueryEngine, QueryKey, SnapshotId, Waiter};
+    use super::{Cancellation, DerivedState, QueryEngine, QueryKey, SnapshotId, Waiter};
 
     #[derive(Debug)]
     struct Trace<'a> {
@@ -1437,6 +1467,24 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn scoped_cancellation_is_inherited_without_cancelling_the_engine() {
+        let file_id = FileId::new(0);
+        let engine = QueryEngine::default();
+        engine.set_content(file_id, "module Main where\n");
+        let cancellation = Cancellation::default();
+        let snapshot = engine.snapshot_with_cancellation(Cancellation::clone(&cancellation));
+        let descendant = snapshot.snapshot();
+
+        cancellation.cancel();
+
+        assert_eq!(snapshot.parsed(file_id), Err(QueryError::Cancelled));
+        assert_eq!(descendant.parsed(file_id), Err(QueryError::Cancelled));
+        drop(snapshot);
+        drop(descendant);
+        assert!(engine.parsed(file_id).is_ok());
     }
 
     #[test]
