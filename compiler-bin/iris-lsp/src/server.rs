@@ -4,6 +4,7 @@ pub mod event;
 pub mod extension;
 
 mod analysis;
+mod diagnostics;
 mod document;
 mod workspace;
 
@@ -96,6 +97,8 @@ pub struct State {
     identity: ServerIdentity,
     protocol: ProtocolSession,
     workspace: WorkspaceRuntime,
+    diagnostics: Option<diagnostics::DiagnosticWorker>,
+    stopped: bool,
 }
 
 impl State {
@@ -119,6 +122,8 @@ impl State {
                 watched_files_dynamic_registration: false,
             },
             workspace: WorkspaceRuntime::new(),
+            diagnostics: None,
+            stopped: false,
         }
     }
 
@@ -236,8 +241,15 @@ fn watched_files_dynamic_registration(capabilities: &ClientCapabilities) -> bool
         .unwrap_or(false)
 }
 
-fn shutdown(_state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
-    async { Ok(()) }
+fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+    state.stopped = true;
+    let diagnostics = state.diagnostics.take();
+    async move {
+        if let Some(diagnostics) = diagnostics {
+            diagnostics.shutdown().await;
+        }
+        Ok(())
+    }
 }
 
 fn initialized(state: &mut State, _: InitializedParams) -> Result<(), LspError> {

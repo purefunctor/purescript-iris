@@ -11,7 +11,7 @@ use building::lifecycle::{
     AnalysisInvalidation, DiskObservation, ForeignEvent, LifecycleEvent, SourceEvent, SourceUnitKey,
 };
 use configuration::Configuration;
-use files::{FileId, ForeignSourceKind};
+use files::ForeignSourceKind;
 use iris_build::compilation::{CompilationParts, CompilationState, MaterializedPrim};
 use itertools::Itertools;
 use lsp_types::{
@@ -22,7 +22,7 @@ use rustc_hash::FxHashSet;
 
 use super::analysis::{Analysis, AnalysisSnapshot};
 use super::error::LspError;
-use super::event::{CollectDiagnostics, DiagnosticScheduler, DiagnosticTicket};
+use super::event::{CollectDiagnostics, DiagnosticTicket, DiagnosticValidity};
 use super::{
     DiscoveredWorkspace, SourceMetadata, did_change, did_change_watched_files, did_close, did_open,
     did_save, observe_sibling_foreign, source_unit_from_document_uri, source_unit_from_source_uri,
@@ -62,7 +62,7 @@ pub(super) struct ReadyWorkspace {
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
-    pub(super) diagnostics: DiagnosticScheduler,
+    pub(super) diagnostics: DiagnosticValidity,
     _prim: MaterializedPrim,
 }
 
@@ -104,7 +104,7 @@ pub(super) enum DiagnosticTrigger {
 #[must_use]
 pub(super) struct WorkspaceEffects {
     clear_diagnostics: Vec<PublishDiagnosticsParams>,
-    collect_diagnostics: Vec<FileId>,
+    collect_diagnostics: Vec<DiagnosticTicket>,
 }
 
 impl WorkspaceEffects {
@@ -113,12 +113,15 @@ impl WorkspaceEffects {
     }
 
     pub(super) fn associated(
-        workspace: &ReadyWorkspace,
+        workspace: &mut ReadyWorkspace,
         uri: Url,
     ) -> Result<WorkspaceEffects, LspError> {
         let (_, unit) = source_unit_from_document_uri(&uri)?;
         let files = workspace.analysis.files.read();
-        let collect_diagnostics = files.source_id(unit.source()).into_iter().collect_vec();
+        let collect_diagnostics = files
+            .source_id(unit.source())
+            .map(|file_id| workspace.diagnostics.schedule(file_id, files.source_version(file_id)));
+        let collect_diagnostics = collect_diagnostics.into_iter().collect_vec();
         Ok(WorkspaceEffects { clear_diagnostics: vec![], collect_diagnostics })
     }
 
@@ -127,8 +130,8 @@ impl WorkspaceEffects {
         for parameters in self.clear_diagnostics {
             client.publish_diagnostics(parameters)?;
         }
-        for file_id in self.collect_diagnostics {
-            client.emit(CollectDiagnostics(file_id))?;
+        for ticket in self.collect_diagnostics {
+            client.emit(CollectDiagnostics { ticket })?;
         }
         Ok(())
     }
@@ -150,7 +153,7 @@ impl WorkspaceRuntime {
         }
     }
 
-    fn ready_mut(&mut self) -> Result<&mut ReadyWorkspace, LspError> {
+    pub(super) fn ready_mut(&mut self) -> Result<&mut ReadyWorkspace, LspError> {
         match &mut self.state {
             WorkspaceState::WaitingForConfiguration { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Ready { workspace } => Ok(workspace),
@@ -184,7 +187,7 @@ impl WorkspaceRuntime {
             source_roots: prepared.source_roots,
             selected_sources: prepared.selected_sources,
             excluded_sources: FxHashSet::default(),
-            diagnostics: DiagnosticScheduler::default(),
+            diagnostics: DiagnosticValidity::default(),
             _prim: prim,
         };
         self.state = WorkspaceState::Ready { workspace };
@@ -299,34 +302,17 @@ impl WorkspaceRuntime {
         })
     }
 
-    pub(super) fn schedule_diagnostics(
-        &mut self,
-        file_id: FileId,
-    ) -> Result<Option<DiagnosticTicket>, LspError> {
-        let workspace = self.ready_mut()?;
-        let version = {
-            let files = workspace.analysis.files.read();
-            if !files.contains_source(file_id) {
-                return Ok(None);
-            }
-            files.source_version(file_id)
-        };
-        Ok(workspace.diagnostics.schedule(file_id, version))
-    }
-
     pub(super) fn finish_diagnostics(
         &mut self,
         ticket: DiagnosticTicket,
-    ) -> Result<(bool, Option<DiagnosticTicket>), LspError> {
+    ) -> Result<bool, LspError> {
         let workspace = self.ready_mut()?;
-        let running = workspace.diagnostics.is_running(ticket);
-        let current = running && workspace.diagnostics.is_current(ticket) && {
+        let current = workspace.diagnostics.complete(ticket) && {
             let files = workspace.analysis.files.read();
             files.contains_source(ticket.file_id)
                 && files.source_version(ticket.file_id) == ticket.version
         };
-        let next = workspace.diagnostics.complete(ticket);
-        Ok((current, next))
+        Ok(current)
     }
 
     #[cfg(test)]
@@ -418,6 +404,13 @@ impl ReadyWorkspace {
                 }
             },
         };
+        let files = self.analysis.files.read();
+        let collect_diagnostics = collect_diagnostics.into_iter().filter_map(|file_id| {
+            files
+                .contains_source(file_id)
+                .then(|| self.diagnostics.schedule(file_id, files.source_version(file_id)))
+        });
+        let collect_diagnostics = collect_diagnostics.collect_vec();
         WorkspaceEffects { clear_diagnostics, collect_diagnostics }
     }
 
