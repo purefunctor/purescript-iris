@@ -825,7 +825,7 @@ fn initial_preparation_queues_documents_while_requests_are_cancelled() {
     workspace.write("src/Library.purs", "module Library where\nfromDisk = 1\n");
     let (connections, program, port) = gated_source_command(&workspace, 1);
     let root = workspace.path();
-    let source = root.join("src/Library.purs");
+    let source = root.join("src/Library.purs").canonicalize().unwrap();
     let configuration = json!({
         "sources": {
             "kind": "command",
@@ -898,7 +898,7 @@ fn dirty_runtime_preparation_restarts_except_for_document_changes() {
     workspace.write("src/Library.purs", "module Library where\nfromDisk = 1\n");
     let (connections, program, port) = gated_source_command(&workspace, 3);
     let root = workspace.path();
-    let source = root.join("src/Library.purs");
+    let source = root.join("src/Library.purs").canonicalize().unwrap();
     let configuration = json!({
         "sources": {
             "kind": "command",
@@ -1059,9 +1059,12 @@ fn gated_source_command(
     workspace.write(
         "gated-source.mjs",
         r#"
+import { realpathSync } from "node:fs";
 import { connect } from "node:net";
 const [root, literal, port] = process.argv.slice(2);
-if (process.cwd() !== root) throw new Error(`wrong root: ${process.cwd()}`);
+if (realpathSync(process.cwd()) !== realpathSync(root)) {
+  throw new Error(`wrong root: ${process.cwd()}`);
+}
 const connection = connect(Number(port), "127.0.0.1");
 await new Promise((resolve, reject) => {
   connection.once("data", resolve);
