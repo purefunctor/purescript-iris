@@ -204,9 +204,20 @@ impl WorkspaceRuntime {
     }
 
     pub(super) fn reconfiguration_baseline(&self) -> Option<ReconfigurationBaseline> {
-        self.ready().ok().map(|workspace| ReconfigurationBaseline {
-            selected_sources: FxHashSet::clone(&workspace.selected_sources),
-            excluded_sources: FxHashSet::clone(&workspace.excluded_sources),
+        self.ready().ok().map(|workspace| {
+            let files = workspace.analysis.files.read();
+            let tracked_sources = files
+                .source_ids()
+                .filter(|file_id| {
+                    !matches!(files.source_metadata(*file_id), Some(SourceMetadata::Builtin))
+                })
+                .filter_map(|file_id| files.source_path(file_id))
+                .collect();
+            ReconfigurationBaseline {
+                selected_sources: FxHashSet::clone(&workspace.selected_sources),
+                excluded_sources: FxHashSet::clone(&workspace.excluded_sources),
+                tracked_sources,
+            }
         })
     }
 

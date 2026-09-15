@@ -601,6 +601,159 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
 
 #[cfg(unix)]
 #[test]
+fn source_reconfiguration_reconciles_open_symlink_aliases() {
+    use std::os::unix::fs::symlink;
+
+    let workspace = TestWorkspace::empty();
+    workspace.write("project/src/Library.purs", "module Library where\nfromDisk = 1\n");
+    workspace.write(
+        "launcher/discover.mjs",
+        "import { realpathSync } from 'node:fs';\nconsole.log(realpathSync(new URL('../project/src', import.meta.url)) + '/*.purs');\n",
+    );
+    workspace.write("launcher/empty.mjs", "");
+    symlink(workspace.path().join("project"), workspace.path().join("alias")).unwrap();
+    let root = workspace.path().join("project");
+    let discover = workspace.path().join("launcher/discover.mjs");
+    let empty = workspace.path().join("launcher/empty.mjs");
+    let startup = json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [PathBuf::clone(&discover)]}
+    });
+    let startup = startup.to_string();
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "launcher",
+        &["lsp", "--config", &startup],
+        &root,
+        json!({"workspace": {"configuration": true}}),
+        Some(json!({
+            "sources": {"kind": "command", "program": "node", "arguments": [discover]}
+        })),
+    );
+    server.wait_for_symbol("fromDisk", true);
+    let alias_uri = Url::from_file_path(workspace.path().join("alias/src/Library.purs")).unwrap();
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": alias_uri,
+                "languageId": "purescript",
+                "version": 1,
+                "text": "module AliasBuffer where\nfromAliasBuffer = 2\n"
+            }
+        }),
+    );
+    let symbols = server.request("workspace/symbol", json!({"query": "fromAliasBuffer"}));
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["location"]["uri"], alias_uri.as_str());
+
+    server.set_configuration_acknowledged(json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [empty]}
+    }));
+    let symbols = server.request("workspace/symbol", json!({"query": "fromAliasBuffer"}));
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["location"]["uri"], alias_uri.as_str());
+
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": alias_uri}}));
+    let symbols = server.request("workspace/symbol", json!({"query": "fromAliasBuffer"}));
+    assert!(symbols.as_array().unwrap().is_empty(), "{symbols}");
+    let symbols = server.request("workspace/symbol", json!({"query": "AliasBuffer"}));
+    assert!(symbols.as_array().unwrap().is_empty(), "{symbols}");
+    server.wait_for_symbol("fromDisk", false);
+    let clear =
+        server.wait_for_notification_matching("textDocument/publishDiagnostics", |message| {
+            message["params"]["uri"] == alias_uri.as_str() && message["params"]["version"].is_null()
+        });
+    assert_eq!(clear["params"]["diagnostics"], json!([]));
+
+    std::fs::remove_file(workspace.path().join("alias")).unwrap();
+    server.set_configuration_acknowledged(json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [PathBuf::clone(&empty)]}
+    }));
+    symlink(workspace.path().join("project"), workspace.path().join("alias")).unwrap();
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": alias_uri,
+                "languageId": "purescript",
+                "version": 2,
+                "text": "module AliasBuffer where\ncanonicalizationFailed = 3\n"
+            }
+        }),
+    );
+    server.wait_for_symbol("canonicalizationFailed", true);
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": alias_uri}}));
+    server.wait_for_symbol("canonicalizationFailed", false);
+    server.wait_for_symbol("fromDisk", false);
+
+    server.set_configuration_acknowledged(json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [PathBuf::clone(&discover)]}
+    }));
+    server.wait_for_symbol("fromDisk", true);
+    server.set_configuration_acknowledged(json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [PathBuf::clone(&empty)]}
+    }));
+    server.wait_for_symbol("fromDisk", false);
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": alias_uri,
+                "languageId": "purescript",
+                "version": 3,
+                "text": "module AliasBuffer where\nsecondAliasBuffer = 3\n"
+            }
+        }),
+    );
+    server.wait_for_symbol("secondAliasBuffer", true);
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": alias_uri}}));
+    server.wait_for_symbol("secondAliasBuffer", false);
+    server.wait_for_symbol("fromDisk", false);
+    server.shutdown();
+}
+
+#[cfg(unix)]
+#[test]
+fn source_reconfiguration_refreshes_closed_aliases_from_their_own_paths() {
+    use std::os::unix::fs::symlink;
+
+    let workspace = TestWorkspace::empty();
+    workspace.write("project/src/Library.purs", "module Library where\noldValue = 1\n");
+    workspace.write(
+        "launcher/physical.mjs",
+        "import { realpathSync } from 'node:fs';\nconsole.log(realpathSync(new URL('../project/src', import.meta.url)) + '/*.purs');\n",
+    );
+    workspace.write(
+        "launcher/alias.mjs",
+        "import { fileURLToPath } from 'node:url';\nconsole.log(fileURLToPath(new URL('../alias/src', import.meta.url)) + '/*.purs');\n",
+    );
+    symlink(workspace.path().join("project"), workspace.path().join("alias")).unwrap();
+    let root = workspace.path().join("project");
+    let physical = workspace.path().join("launcher/physical.mjs");
+    let alias = workspace.path().join("launcher/alias.mjs");
+    let configuration = json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [PathBuf::clone(&physical)]}
+    });
+    let startup = configuration.to_string();
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "launcher",
+        &["lsp", "--config", &startup],
+        &root,
+        json!({"workspace": {"configuration": true}}),
+        Some(configuration),
+    );
+    server.wait_for_symbol("oldValue", true);
+    workspace.write("project/src/Library.purs", "module Library where\nnewValue = 2\n");
+
+    server.set_configuration_acknowledged(json!({
+        "sources": {"kind": "command", "program": "node", "arguments": [alias]}
+    }));
+    server.wait_for_symbol("newValue", true);
+    server.wait_for_symbol("oldValue", false);
+    server.shutdown();
+}
+
 #[test]
 fn invalid_runtime_configuration_preserves_the_previous_workspace() {
     let workspace = TestWorkspace::empty();
@@ -857,6 +1010,48 @@ process.exit(1);
     server.shutdown();
 }
 
+#[test]
+fn shutdown_cancels_blocked_initial_source_command() {
+    blocked_initial_source_command_retires(true);
+}
+
+#[test]
+fn transport_eof_cancels_blocked_initial_source_command() {
+    blocked_initial_source_command_retires(false);
+}
+
+fn blocked_initial_source_command_retires(orderly: bool) {
+    let workspace = TestWorkspace::empty();
+    workspace.write("src/Library.purs", "module Library where\nfromDisk = 1\n");
+    let (connections, program, port) = gated_source_command(&workspace, 1);
+    let root = workspace.path();
+    let source = root.join("src/Library.purs");
+    let configuration = json!({
+        "sources": {
+            "kind": "command",
+            "program": "node",
+            "arguments": [program, root, source, port]
+        }
+    })
+    .to_string();
+    let mut server = LanguageServer::start_loading_with_capabilities(
+        &workspace,
+        "",
+        &["lsp", "--config", &configuration],
+        root,
+        json!({}),
+        None,
+    );
+    let command = connections.recv_timeout(Duration::from_secs(10)).unwrap();
+
+    if orderly {
+        server.shutdown();
+    } else {
+        server.disconnect();
+    }
+    assert_stream_closed(command);
+}
+
 fn gated_source_command(
     workspace: &TestWorkspace,
     attempts: usize,
@@ -909,6 +1104,29 @@ fn superseded_source_command_retires_descendants() {
     server.set_configuration_acknowledged(json!({}));
     server.wait_for_symbol("stillLoaded", true);
     assert_connection_closed(descendant);
+    server.shutdown();
+    drop(workspace);
+}
+
+#[test]
+fn shutdown_retires_source_command_descendants() {
+    let (workspace, mut server, descendant, configuration) = descendant_source_command(false);
+    server.set_configuration(configuration);
+    let descendant = descendant.recv_timeout(Duration::from_secs(10)).unwrap();
+
+    server.shutdown();
+    assert_connection_closed(descendant);
+    drop(workspace);
+}
+
+#[test]
+fn exited_source_command_retires_descendants_holding_pipes() {
+    let (workspace, mut server, descendant, configuration) = descendant_source_command(true);
+    server.set_configuration(configuration);
+    let descendant = descendant.recv_timeout(Duration::from_secs(10)).unwrap();
+    server.wait_for_ready();
+    assert_connection_closed(descendant);
+    server.wait_for_symbol("stillLoaded", true);
     server.shutdown();
     drop(workspace);
 }

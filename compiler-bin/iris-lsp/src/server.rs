@@ -14,7 +14,7 @@ mod tests;
 
 use std::borrow::BorrowMut;
 use std::ops::ControlFlow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{env, fs, io};
 
@@ -624,7 +624,7 @@ fn finish_diagnostics(
     workspace.diagnostics.publish(&state.client, &files, finished.ticket, finished.collected)
 }
 
-fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
+fn source_uri(path: &Path) -> Result<Arc<str>, LspError> {
     let uri = DocumentPath::new(path)?.uri()?;
     Ok(Arc::from(uri.as_str()))
 }

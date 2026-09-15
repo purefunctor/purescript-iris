@@ -20,6 +20,7 @@ use tokio::sync::Semaphore;
 use tokio::task;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
+use url::Url;
 
 use super::error::LspError;
 use super::workspace::{PreparedInitialWorkspace, PreparedSourceReconfiguration, SourceRoot};
@@ -37,6 +38,7 @@ pub(super) struct DiscoveredWorkspace {
 pub(super) struct ReconfigurationBaseline {
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
+    pub(super) tracked_sources: Vec<Arc<str>>,
 }
 
 pub(super) enum PreparedWorkspace {
@@ -225,8 +227,8 @@ fn prepare_initial(
     discovered: DiscoveredWorkspace,
     cancellation: Cancellation,
 ) -> Result<PreparedInitialWorkspace, LspError> {
-    let selected_sources =
-        discovered.source_globs.iter().map(source_uri).collect::<Result<FxHashSet<_>, _>>()?;
+    let selected_sources = discovered.source_globs.iter().map(|path| source_uri(path));
+    let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
     let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
         root,
         source_globs: &discovered.source_globs,
@@ -273,11 +275,37 @@ pub(super) fn prepare_reconfiguration(
         let metadata = discovered.metadata.get(path).cloned().expect("source metadata missing");
         files.insert(PathBuf::clone(path), (content, metadata));
     }
-    let selected_sources = files.keys().map(source_uri).collect::<Result<FxHashSet<_>, _>>()?;
-    let previous_sources = FxHashSet::clone(&baseline.selected_sources);
+    let selected_sources = files.keys().map(|path| source_uri(path));
+    let mut selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
+    let selected_physical =
+        files.keys().filter_map(|path| std::fs::canonicalize(path).ok()).collect::<FxHashSet<_>>();
+    let canonical_source = |locator: &Arc<str>| {
+        Url::parse(locator)
+            .ok()
+            .and_then(|uri| uri.to_file_path().ok())
+            .and_then(|path| std::fs::canonicalize(path).ok())
+    };
+    let previous_physical =
+        baseline.selected_sources.iter().filter_map(canonical_source).collect::<FxHashSet<_>>();
+    let mut known_sources = FxHashSet::clone(&baseline.selected_sources);
+    known_sources.extend(baseline.excluded_sources.iter().map(Arc::clone));
+    for source in &baseline.tracked_sources {
+        if canonical_source(source).is_some_and(|path| previous_physical.contains(&path)) {
+            known_sources.insert(Arc::clone(source));
+        }
+    }
+    let selected = |locator: &Arc<str>| {
+        selected_sources.contains(locator)
+            || canonical_source(locator).is_some_and(|path| selected_physical.contains(&path))
+    };
+    let selected_aliases =
+        known_sources.iter().filter(|source| selected(source)).map(Arc::clone).collect_vec();
     let mut events = vec![];
-    for source in previous_sources.difference(&selected_sources) {
+    for source in &baseline.tracked_sources {
         cancellation.check()?;
+        if selected(source) || !known_sources.contains(source) {
+            continue;
+        }
         let unit = source_unit_from_source_uri(&url::Url::parse(source)?)?;
         events.push(LifecycleEvent::Source {
             unit: SourceUnitKey::clone(&unit),
@@ -314,11 +342,52 @@ pub(super) fn prepare_reconfiguration(
             });
         }
     }
-    let mut excluded_sources = baseline.excluded_sources;
-    excluded_sources.extend(previous_sources.difference(&selected_sources).cloned());
-    for selected in &selected_sources {
-        excluded_sources.remove(selected);
+    for source in &baseline.tracked_sources {
+        cancellation.check()?;
+        if !known_sources.contains(source) || !selected(source) || selected_sources.contains(source)
+        {
+            continue;
+        }
+        let uri = Url::parse(source)?;
+        let path = uri.to_file_path().map_err(|_| LspError::InvalidFileUri(Url::clone(&uri)))?;
+        let metadata = canonical_source(source)
+            .and_then(|alias| {
+                files.iter().find_map(|(file, (_, metadata))| {
+                    std::fs::canonicalize(file)
+                        .ok()
+                        .filter(|selected| *selected == alias)
+                        .map(|_| SourceMetadata::clone(metadata))
+                })
+            })
+            .unwrap_or(SourceMetadata::Unmanaged { editable: false });
+        let unit = source_unit_from_source_uri(&uri)?;
+        events.push(LifecycleEvent::Source {
+            unit: SourceUnitKey::clone(&unit),
+            event: SourceEvent::DiskObserved { disk: observe_disk(&uri), metadata },
+        });
+        for kind in ForeignSourceKind::ALL {
+            let foreign_path = match kind {
+                ForeignSourceKind::JavaScript => path.with_extension("js"),
+                ForeignSourceKind::Jsx => path.with_extension("jsx"),
+            };
+            let foreign_uri = Url::from_file_path(&foreign_path)
+                .map_err(|_| LspError::PathParseFail(foreign_path))?;
+            events.push(LifecycleEvent::Foreign {
+                unit: SourceUnitKey::clone(&unit),
+                kind,
+                event: ForeignEvent::DiskObserved { disk: observe_disk(&foreign_uri) },
+            });
+        }
     }
+    let mut excluded_sources = FxHashSet::default();
+    for source in known_sources {
+        if !selected(&source) {
+            excluded_sources.insert(source);
+        }
+    }
+    // Retain exact alias membership so later failed canonicalization cannot
+    // turn a previously selected or excluded representation into an unknown one.
+    selected_sources.extend(selected_aliases);
     Ok(PreparedSourceReconfiguration {
         configuration,
         source_roots: discovered.source_roots,
