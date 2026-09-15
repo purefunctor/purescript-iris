@@ -183,8 +183,21 @@ fn discover_manual(
     cancellation: &QueryCancellation,
 ) -> Result<DiscoveredWorkspace, LspError> {
     let walk::Walk { files } = walk::walk_cancellable(root, output.lines(), cancellation)?;
+    let mut source_roots = vec![SourceRoot {
+        path: root.to_path_buf(),
+        metadata: SourceMetadata::Unmanaged { editable: true },
+    }];
+    if let Ok(canonical) = dunce::canonicalize(root)
+        && canonical != root
+    {
+        source_roots.push(SourceRoot {
+            path: canonical,
+            metadata: SourceMetadata::Unmanaged { editable: true },
+        });
+    }
+
     let metadata = files.iter().map(|file| {
-        let editable = file.starts_with(root);
+        let editable = source_roots.iter().any(|root| file.starts_with(&root.path));
         (PathBuf::clone(file), SourceMetadata::Unmanaged { editable })
     });
     let metadata = metadata.collect();
@@ -193,10 +206,6 @@ fn discover_manual(
         source_identities: Vec::clone(&files),
         dependencies: vec![],
     };
-    let source_roots = vec![SourceRoot {
-        path: root.to_path_buf(),
-        metadata: SourceMetadata::Unmanaged { editable: true },
-    }];
     Ok(DiscoveredWorkspace { source_globs: files, packages: vec![package], metadata, source_roots })
 }
 

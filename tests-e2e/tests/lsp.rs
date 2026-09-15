@@ -1031,6 +1031,8 @@ fn removed_physical_sources_exclude_editor_aliases_without_rewriting_uris() {
         workspace.write("New.purs", "module New where\nnewSelection = 2\n");
         std::os::unix::fs::symlink(workspace.path().join("real"), workspace.path().join("link"))
             .unwrap();
+        let root = workspace.path().join("root");
+        std::os::unix::fs::symlink(workspace.path(), &root).unwrap();
         let real = std::fs::canonicalize(workspace.path().join("real/Main.purs")).unwrap();
         let real_uri = Url::from_file_path(&real).unwrap();
         let alias_uri = Url::from_file_path(workspace.path().join("link/Main.purs")).unwrap();
@@ -1040,7 +1042,7 @@ fn removed_physical_sources_exclude_editor_aliases_without_rewriting_uris() {
             &workspace,
             "",
             &["lsp"],
-            workspace.path(),
+            &root,
             json!({"workspace": {"configuration": true}}),
             Some(initial.configuration(real.to_str().unwrap())),
         );
