@@ -3,15 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, mem};
 
-use analyzer::completion::SuggestionsCache;
+use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
-use analyzer::symbols::WorkspaceSymbolsCache;
-use analyzer::{AnalyzerCapabilities, AnalyzerContext, AnalyzerHost};
 use async_lsp::{ClientSocket, LanguageClient};
-use building::QueryEngine;
+use building::Cancellation;
 use building::lifecycle::{
-    AnalysisInvalidation, DiskObservation, FileLifecycle, ForeignEvent, LifecycleChange,
-    LifecycleEvent, SourceEvent, SourceUnitKey,
+    AnalysisInvalidation, DiskObservation, ForeignEvent, LifecycleEvent, SourceEvent, SourceUnitKey,
 };
 use configuration::Configuration;
 use files::{FileId, ForeignSourceKind};
@@ -21,9 +18,10 @@ use lsp_types::{
     DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, PublishDiagnosticsParams, Url,
 };
-use parking_lot::{RwLock, RwLockReadGuard};
 use rustc_hash::FxHashSet;
 
+use super::analysis::Analysis;
+pub(super) use super::analysis::AnalysisSnapshot as StateSnapshot;
 use super::error::LspError;
 use super::event::{CollectDiagnostics, DiagnosticScheduler, DiagnosticTicket};
 use super::{
@@ -61,13 +59,10 @@ enum WorkspaceState {
 
 pub(super) struct ReadyWorkspace {
     pub(super) configuration: Arc<Configuration>,
-    pub(super) engine: QueryEngine,
-    pub(super) files: Arc<RwLock<FileLifecycle<i32, SourceMetadata>>>,
+    pub(super) analysis: Arc<Analysis>,
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
-    pub(super) workspace_symbols_cache: Arc<RwLock<WorkspaceSymbolsCache>>,
-    pub(super) suggestions_cache: Arc<RwLock<SuggestionsCache>>,
     pub(super) diagnostics: DiagnosticScheduler,
     _prim: MaterializedPrim,
 }
@@ -123,7 +118,7 @@ impl WorkspaceEffects {
         uri: Url,
     ) -> Result<WorkspaceEffects, LspError> {
         let (_, unit) = source_unit_from_document_uri(&uri)?;
-        let files = workspace.files.read();
+        let files = workspace.analysis.files.read();
         let collect_diagnostics = files.source_id(unit.source()).into_iter().collect_vec();
         Ok(WorkspaceEffects { clear_diagnostics: vec![], collect_diagnostics })
     }
@@ -169,14 +164,11 @@ impl WorkspaceRuntime {
         analyzer_capabilities: AnalyzerCapabilities,
     ) -> Result<StateSnapshot, LspError> {
         let workspace = self.ready()?;
-        Ok(StateSnapshot {
-            engine: workspace.engine.snapshot(),
-            files: Arc::clone(&workspace.files),
-            workspace_symbols_cache: Arc::clone(&workspace.workspace_symbols_cache),
-            suggestions_cache: Arc::clone(&workspace.suggestions_cache),
+        Ok(workspace.analysis.snapshot(
             position_encoding,
             analyzer_capabilities,
-        })
+            Cancellation::new(),
+        ))
     }
 
     pub(super) fn install(
@@ -190,13 +182,10 @@ impl WorkspaceRuntime {
         let CompilationParts { engine, files, prim } = prepared.compilation.into_parts();
         let workspace = ReadyWorkspace {
             configuration: prepared.configuration,
-            engine,
-            files: Arc::new(RwLock::new(files)),
+            analysis: Arc::new(Analysis::new(engine, files)),
             source_roots: prepared.source_roots,
             selected_sources: prepared.selected_sources,
             excluded_sources: FxHashSet::default(),
-            workspace_symbols_cache: Arc::new(RwLock::new(WorkspaceSymbolsCache::default())),
-            suggestions_cache: Arc::new(RwLock::new(SuggestionsCache::default())),
             diagnostics: DiagnosticScheduler::default(),
             _prim: prim,
         };
@@ -318,7 +307,7 @@ impl WorkspaceRuntime {
     ) -> Result<Option<DiagnosticTicket>, LspError> {
         let workspace = self.ready_mut()?;
         let version = {
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             if !files.contains_source(file_id) {
                 return Ok(None);
             }
@@ -334,7 +323,7 @@ impl WorkspaceRuntime {
         let workspace = self.ready_mut()?;
         let running = workspace.diagnostics.is_running(ticket);
         let current = running && workspace.diagnostics.is_current(ticket) && {
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             files.contains_source(ticket.file_id)
                 && files.source_version(ticket.file_id) == ticket.version
         };
@@ -386,8 +375,7 @@ impl ReadyWorkspace {
     }
 
     pub(super) fn invalidate_suggestions_cache(&self) {
-        let mut cache = self.suggestions_cache.write();
-        mem::take(&mut *cache);
+        self.analysis.invalidate_suggestions();
     }
 
     pub(super) fn apply_lifecycle_events(
@@ -395,25 +383,11 @@ impl ReadyWorkspace {
         events: impl IntoIterator<Item = LifecycleEvent<i32, SourceMetadata>>,
         trigger: DiagnosticTrigger,
     ) -> WorkspaceEffects {
-        self.engine.request_cancel();
-        let mut change = LifecycleChange::default();
-        {
-            let mut files = self.files.write();
-            for event in events {
-                change.combine(files.apply(&self.engine, event));
-            }
-        }
+        let change = self.analysis.apply(events);
 
         {
-            let files = self.files.read();
+            let files = self.analysis.files.read();
             self.diagnostics.invalidate(&change, &files);
-        }
-        if !matches!(change.analysis(), AnalysisInvalidation::None) {
-            {
-                let mut symbols = self.workspace_symbols_cache.write();
-                mem::take(&mut *symbols);
-            }
-            self.invalidate_suggestions_cache();
         }
         for warning in change.warnings() {
             tracing::warn!("{warning}");
@@ -432,13 +406,13 @@ impl ReadyWorkspace {
             DiagnosticTrigger::AssociatedSource(uri) => {
                 let (_, unit) = source_unit_from_document_uri(&uri)
                     .expect("invariant violated: diagnostic trigger has an invalid document URI");
-                self.files.read().source_id(unit.source()).into_iter().collect_vec()
+                self.analysis.files.read().source_id(unit.source()).into_iter().collect_vec()
             }
             DiagnosticTrigger::AnalysisChange => match change.analysis() {
                 AnalysisInvalidation::None => vec![],
                 AnalysisInvalidation::Sources(sources) => sources.iter().copied().collect_vec(),
                 AnalysisInvalidation::Workspace => {
-                    let files = self.files.read();
+                    let files = self.analysis.files.read();
                     let editable_sources = files.source_ids().filter(|file_id| {
                         files.source_metadata(*file_id).is_some_and(SourceMetadata::editable)
                     });
@@ -466,59 +440,5 @@ impl ReadyWorkspace {
         self.selected_sources = selected_sources;
         self.excluded_sources = excluded_sources;
         effects
-    }
-}
-
-pub(super) struct StateSnapshot {
-    pub(super) engine: QueryEngine,
-    files: Arc<RwLock<FileLifecycle<i32, SourceMetadata>>>,
-    pub(super) workspace_symbols_cache: Arc<RwLock<WorkspaceSymbolsCache>>,
-    pub(super) suggestions_cache: Arc<RwLock<SuggestionsCache>>,
-    position_encoding: PositionEncoding,
-    analyzer_capabilities: AnalyzerCapabilities,
-}
-
-impl StateSnapshot {
-    pub(super) fn with_analyzer_context<T>(
-        &self,
-        action: impl FnOnce(&AnalyzerContext<LspAnalyzerHost<'_>>) -> T,
-    ) -> T {
-        let files = self.files.read();
-        let host = LspAnalyzerHost { queries: &self.engine, files };
-        let context =
-            AnalyzerContext::new(&host, self.position_encoding, self.analyzer_capabilities);
-        action(&context)
-    }
-}
-
-pub(super) struct LspAnalyzerHost<'a> {
-    queries: &'a QueryEngine,
-    files: RwLockReadGuard<'a, FileLifecycle<i32, SourceMetadata>>,
-}
-
-impl AnalyzerHost for LspAnalyzerHost<'_> {
-    type Queries = QueryEngine;
-
-    fn queries(&self) -> &QueryEngine {
-        self.queries
-    }
-
-    fn file_id(&self, uri: &str) -> Option<FileId> {
-        self.files.source_id(uri)
-    }
-
-    fn file_uri(&self, file_id: FileId) -> Result<Option<Url>, url::ParseError> {
-        let Some(uri) = self.files.source_path(file_id) else {
-            return Ok(None);
-        };
-        Url::parse(&uri).map(Some)
-    }
-
-    fn active_files(&self) -> impl Iterator<Item = FileId> {
-        self.files.source_ids()
-    }
-
-    fn is_editable(&self, file_id: FileId) -> bool {
-        self.files.source_metadata(file_id).is_some_and(SourceMetadata::editable)
     }
 }

@@ -1,3 +1,4 @@
+mod analysis;
 pub mod capabilities;
 pub mod error;
 pub mod event;
@@ -817,19 +818,20 @@ fn document_content(
     document: DocumentKind,
     uri: &Url,
 ) -> Result<Arc<str>, LspError> {
-    let files = workspace.files.read();
+    let files = workspace.analysis.files.read();
     match document {
         DocumentKind::Source => {
             let file_id = files
                 .source_id(uri.as_str())
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
-            workspace.engine.content(file_id).map_err(LspError::from)
+            workspace.analysis.engine.content(file_id).map_err(LspError::from)
         }
         DocumentKind::Foreign(_) => {
             let file_id = files
                 .foreign_id(uri.as_str())
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
             workspace
+                .analysis
                 .engine
                 .foreign_content(file_id)
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))
@@ -982,7 +984,7 @@ fn did_close(
         }
         DocumentKind::Source => {
             let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-            let was_open = workspace.files.read().is_open(&document);
+            let was_open = workspace.analysis.files.read().is_open(&document);
             events.push(LifecycleEvent::Source {
                 unit: SourceUnitKey::clone(&unit),
                 event: SourceEvent::Closed { disk },
@@ -1042,7 +1044,7 @@ fn did_change_watched_files(
     let mut observed_foreign = FxHashSet::default();
     for unit in source_units {
         let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.source())?;
@@ -1068,7 +1070,7 @@ fn did_change_watched_files(
             continue;
         }
         let document = DocumentKey::Foreign(SourceUnitKey::clone(&unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let source_uri = Url::parse(unit.source())?;
@@ -1076,7 +1078,7 @@ fn did_change_watched_files(
             continue;
         }
         let tracked = {
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             files.source_id(unit.source()).is_some()
                 || files.foreign_id(unit.foreign_for(kind)).is_some()
         };
@@ -1158,7 +1160,7 @@ fn observe_sibling_foreign(
     let mut events = vec![];
     for kind in ForeignSourceKind::ALL {
         let document = DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.foreign_for(kind))?;
@@ -1190,7 +1192,7 @@ fn source_metadata(
     uri: &Url,
 ) -> SourceMetadata {
     let previous = {
-        let files = workspace.files.read();
+        let files = workspace.analysis.files.read();
         let file_id = files.source_id(unit.source());
         file_id.and_then(|file_id| files.source_metadata(file_id)).cloned()
     };
