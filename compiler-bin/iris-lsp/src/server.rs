@@ -1,7 +1,9 @@
 pub mod capabilities;
 pub mod error;
-pub mod event;
 pub mod extension;
+
+mod analysis;
+mod diagnostics;
 mod workspace;
 
 #[cfg(test)]
@@ -41,6 +43,7 @@ use smol_str::SmolStr;
 use tokio::task;
 use tower::ServiceBuilder;
 
+use crate::server::analysis::{AnalysisSnapshot, SourceMetadata};
 use crate::server::capabilities::{
     ConfigurationCapabilities, negotiate_analyzer_capabilities,
     negotiate_configuration_capabilities, negotiate_position_encoding,
@@ -48,28 +51,9 @@ use crate::server::capabilities::{
 use crate::server::error::{AnalyzerResultExt, LspError};
 use crate::server::workspace::{
     ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
-    SourceRoot, StateSnapshot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification,
-    WorkspaceRuntime,
+    SourceRoot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification, WorkspaceRuntime,
 };
 use crate::{ServerConfig, ServerError, walk};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum SourceMetadata {
-    Builtin,
-    Package { editable: bool },
-    Unmanaged { editable: bool },
-}
-
-impl SourceMetadata {
-    fn editable(&self) -> bool {
-        match self {
-            SourceMetadata::Builtin => false,
-            SourceMetadata::Package { editable } | SourceMetadata::Unmanaged { editable } => {
-                *editable
-            }
-        }
-    }
-}
 
 struct ServerIdentity {
     name: String,
@@ -85,6 +69,7 @@ struct ProtocolSession {
     position_encoding: PositionEncoding,
     analyzer_capabilities: AnalyzerCapabilities,
     watched_files_dynamic_registration: bool,
+    shutting_down: bool,
 }
 
 pub struct State {
@@ -92,6 +77,7 @@ pub struct State {
     identity: ServerIdentity,
     protocol: ProtocolSession,
     workspace: WorkspaceRuntime,
+    diagnostics: diagnostics::Diagnostics,
 }
 
 impl State {
@@ -101,6 +87,7 @@ impl State {
         name: String,
         version: String,
     ) -> State {
+        let diagnostics = diagnostics::Diagnostics::start(ClientSocket::clone(&client));
         State {
             client,
             identity: ServerIdentity { name, version },
@@ -113,14 +100,16 @@ impl State {
                 position_encoding: PositionEncoding::Utf16,
                 analyzer_capabilities: AnalyzerCapabilities::default(),
                 watched_files_dynamic_registration: false,
+                shutting_down: false,
             },
             workspace: WorkspaceRuntime::new(),
+            diagnostics,
         }
     }
 
     fn spawn<T>(
         &self,
-        action: impl FnOnce(StateSnapshot) -> T + Send + 'static,
+        action: impl FnOnce(AnalysisSnapshot) -> T + Send + 'static,
     ) -> Result<task::JoinHandle<T>, LspError>
     where
         T: Send + 'static,
@@ -129,6 +118,21 @@ impl State {
             .workspace
             .snapshot(self.protocol.position_encoding, self.protocol.analyzer_capabilities)?;
         Ok(task::spawn_blocking(move || action(snapshot)))
+    }
+
+    fn shutdown(&mut self) {
+        if self.protocol.shutting_down {
+            return;
+        }
+        self.protocol.shutting_down = true;
+        self.diagnostics.shutdown();
+        self.workspace.cancel();
+    }
+}
+
+impl Drop for State {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }
 
@@ -232,7 +236,8 @@ fn watched_files_dynamic_registration(capabilities: &ClientCapabilities) -> bool
         .unwrap_or(false)
 }
 
-fn shutdown(_state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+    state.shutdown();
     async { Ok(()) }
 }
 
@@ -432,7 +437,8 @@ fn file_watcher_registration() -> RegistrationParams {
     RegistrationParams { registrations: vec![registration] }
 }
 
-fn exit(_state: &mut State, (): ()) -> Result<(), LspError> {
+fn exit(state: &mut State, (): ()) -> Result<(), LspError> {
+    state.shutdown();
     Ok(())
 }
 
@@ -586,7 +592,9 @@ fn apply_configuration_inner(
             .workspace
             .commit_reconfiguration(prepared)
             .map_err(ConfigurationApplyError::Preparation)?;
-        effects.deliver(&state.client).map_err(ConfigurationApplyError::Delivery)?;
+        effects
+            .deliver(&state.diagnostics, &state.client)
+            .map_err(ConfigurationApplyError::Delivery)?;
         return Ok(());
     }
 
@@ -628,7 +636,8 @@ fn apply_configuration_inner(
             root: state.protocol.root.as_deref(),
             position_encoding: state.protocol.position_encoding,
         };
-        let result = state.workspace.dispatch(notification, context, &state.client);
+        let result =
+            state.workspace.dispatch(notification, context, &state.diagnostics, &state.client);
         if let Err(error) = result {
             error.emit_trace();
         }
@@ -644,33 +653,30 @@ fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
 }
 
 fn definition(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: GotoDefinitionParams,
 ) -> Result<Option<GotoDefinitionResponse>, LspError> {
     let _span = tracing::info_span!("definition").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::definition::implementation(context, uri, position)
-    });
+    let result = snapshot.definition(uri, position);
 
     result.on_non_fatal(None)
 }
 
-fn hover(snapshot: StateSnapshot, parameters: HoverParams) -> Result<Option<Hover>, LspError> {
+fn hover(snapshot: AnalysisSnapshot, parameters: HoverParams) -> Result<Option<Hover>, LspError> {
     let _span = tracing::info_span!("hover").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
 
-    let result = snapshot
-        .with_analyzer_context(|context| analyzer::hover::implementation(context, uri, position));
+    let result = snapshot.hover(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn code_action(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: CodeActionParams,
 ) -> Result<Option<CodeActionResponse>, LspError> {
     let _span = tracing::info_span!("code_action").entered();
@@ -678,56 +684,47 @@ fn code_action(
     let range = parameters.range;
     let action_context = parameters.context;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::code_action::implementation(context, uri, range, action_context)
-    });
+    let result = snapshot.code_action(uri, range, action_context);
 
     result.on_non_fatal(None)
 }
 
 fn completion(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: CompletionParams,
 ) -> Result<Option<CompletionResponse>, LspError> {
     let _span = tracing::info_span!("completion").entered();
     let uri = parameters.text_document_position.text_document.uri;
     let position = parameters.text_document_position.position;
 
-    let mut cache = snapshot.suggestions_cache.write();
-
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::completion::implementation(context, &mut cache, uri, position)
-    });
+    let result = snapshot.completion(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn resolve_completion_item(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     item: CompletionItem,
 ) -> Result<CompletionItem, LspError> {
     let _span = tracing::info_span!("resolve_completion_item").entered();
-    analyzer::completion::resolve::implementation(&snapshot.engine, item)
-        .or_else(|(error, item)| Err(error).on_non_fatal(item))
+    snapshot.resolve_completion(item).or_else(|(error, item)| Err(error).on_non_fatal(item))
 }
 
 fn references(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: ReferenceParams,
 ) -> Result<Option<Vec<Location>>, LspError> {
     let _span = tracing::info_span!("references").entered();
     let uri = parameters.text_document_position.text_document.uri;
     let position = parameters.text_document_position.position;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::references::implementation(context, uri, position)
-    });
+    let result = snapshot.references(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn rename(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: RenameParams,
 ) -> Result<Option<WorkspaceEdit>, LspError> {
     let _span = tracing::info_span!("rename").entered();
@@ -735,78 +732,66 @@ fn rename(
     let position = parameters.text_document_position.position;
     let new_name = parameters.new_name;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::rename::implementation(context, uri, position, new_name)
-    });
+    let result = snapshot.rename(uri, position, new_name);
 
     result.on_non_fatal(None)
 }
 
 fn prepare_rename(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: TextDocumentPositionParams,
 ) -> Result<Option<PrepareRenameResponse>, LspError> {
     let _span = tracing::info_span!("prepare_rename").entered();
     let uri = parameters.text_document.uri;
     let position = parameters.position;
 
-    let result =
-        snapshot.with_analyzer_context(|context| analyzer::rename::prepare(context, uri, position));
+    let result = snapshot.prepare_rename(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn document_highlight(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: DocumentHighlightParams,
 ) -> Result<Option<Vec<DocumentHighlight>>, LspError> {
     let _span = tracing::info_span!("document_highlight").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::document_highlight::implementation(context, uri, position)
-    });
+    let result = snapshot.document_highlight(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn workspace_symbols(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: WorkspaceSymbolParams,
 ) -> Result<Option<WorkspaceSymbolResponse>, LspError> {
     let _span = tracing::info_span!("workspace_symbols").entered();
 
-    let mut cache = snapshot.workspace_symbols_cache.write();
-
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::symbols::workspace(context, &mut cache, &parameters.query)
-    });
+    let result = snapshot.workspace_symbols(&parameters.query);
 
     result.on_non_fatal(None)
 }
 
 fn document_symbols(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: DocumentSymbolParams,
 ) -> Result<Option<DocumentSymbolResponse>, LspError> {
     let _span = tracing::info_span!("document_symbols").entered();
     let uri = parameters.text_document.uri;
-    let result =
-        snapshot.with_analyzer_context(|context| analyzer::symbols::document(context, uri));
+    let result = snapshot.document_symbols(uri);
 
     result.on_non_fatal(None)
 }
 
 fn semantic_tokens(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: SemanticTokensParams,
 ) -> Result<Option<SemanticTokensResult>, LspError> {
     let _span = tracing::info_span!("semantic_tokens").entered();
     let uri = parameters.text_document.uri;
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::semantic_tokens::implementation(context, uri)
-            .map(|tokens| tokens.map(SemanticTokensResult::Tokens))
-    });
+    let result =
+        snapshot.semantic_tokens(uri).map(|tokens| tokens.map(SemanticTokensResult::Tokens));
 
     result.on_non_fatal(None)
 }
@@ -816,20 +801,21 @@ fn document_content(
     document: DocumentKind,
     uri: &Url,
 ) -> Result<Arc<str>, LspError> {
-    let files = workspace.files.read();
     match document {
         DocumentKind::Source => {
-            let file_id = files
-                .source_id(uri.as_str())
+            let file_id = workspace
+                .analysis
+                .with_files(|files| files.source_id(uri.as_str()))
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
-            workspace.engine.content(file_id).map_err(LspError::from)
+            workspace.analysis.content(file_id).map_err(LspError::from)
         }
         DocumentKind::Foreign(_) => {
-            let file_id = files
-                .foreign_id(uri.as_str())
+            let file_id = workspace
+                .analysis
+                .with_files(|files| files.foreign_id(uri.as_str()))
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
             workspace
-                .engine
+                .analysis
                 .foreign_content(file_id)
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))
         }
@@ -877,6 +863,7 @@ fn apply_content_changes(
 fn did_change(
     workspace: &mut ReadyWorkspace,
     context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidChangeTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -914,12 +901,13 @@ fn did_change(
     } else {
         DiagnosticTrigger::None
     };
-    workspace.apply_lifecycle_events([event], trigger).deliver(client)
+    workspace.apply_lifecycle_events([event], trigger).deliver(diagnostics, client)
 }
 
 fn did_open(
     workspace: &mut ReadyWorkspace,
     context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidOpenTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -956,12 +944,13 @@ fn did_open(
     } else {
         DiagnosticTrigger::None
     };
-    workspace.apply_lifecycle_events(events, trigger).deliver(client)
+    workspace.apply_lifecycle_events(events, trigger).deliver(diagnostics, client)
 }
 
 fn did_close(
     workspace: &mut ReadyWorkspace,
     _context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidCloseTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -981,7 +970,7 @@ fn did_close(
         }
         DocumentKind::Source => {
             let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-            let was_open = workspace.files.read().is_open(&document);
+            let was_open = workspace.analysis.with_files(|files| files.is_open(&document));
             events.push(LifecycleEvent::Source {
                 unit: SourceUnitKey::clone(&unit),
                 event: SourceEvent::Closed { disk },
@@ -991,11 +980,14 @@ fn did_close(
             }
         }
     }
-    workspace.apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange).deliver(client)
+    workspace
+        .apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange)
+        .deliver(diagnostics, client)
 }
 
 fn did_save(
     workspace: &mut ReadyWorkspace,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidSaveTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -1006,12 +998,13 @@ fn did_save(
     } else {
         WorkspaceEffects::none()
     };
-    effects.deliver(client)
+    effects.deliver(diagnostics, client)
 }
 
 fn did_change_watched_files(
     workspace: &mut ReadyWorkspace,
     context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidChangeWatchedFilesParams,
 ) -> Result<(), LspError> {
@@ -1041,7 +1034,7 @@ fn did_change_watched_files(
     let mut observed_foreign = FxHashSet::default();
     for unit in source_units {
         let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.with_files(|files| files.is_open(&document)) {
             continue;
         }
         let uri = Url::parse(unit.source())?;
@@ -1067,18 +1060,17 @@ fn did_change_watched_files(
             continue;
         }
         let document = DocumentKey::Foreign(SourceUnitKey::clone(&unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.with_files(|files| files.is_open(&document)) {
             continue;
         }
         let source_uri = Url::parse(unit.source())?;
         if !source_editable(workspace, context.root, &unit, &source_uri) {
             continue;
         }
-        let tracked = {
-            let files = workspace.files.read();
+        let tracked = workspace.analysis.with_files(|files| {
             files.source_id(unit.source()).is_some()
                 || files.foreign_id(unit.foreign_for(kind)).is_some()
-        };
+        });
         if !tracked {
             continue;
         }
@@ -1091,7 +1083,9 @@ fn did_change_watched_files(
         events.push(event);
     }
 
-    workspace.apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange).deliver(client)
+    workspace
+        .apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange)
+        .deliver(diagnostics, client)
 }
 
 fn document_kind(uri: &Url) -> Option<DocumentKind> {
@@ -1157,7 +1151,7 @@ fn observe_sibling_foreign(
     let mut events = vec![];
     for kind in ForeignSourceKind::ALL {
         let document = DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.with_files(|files| files.is_open(&document)) {
             continue;
         }
         let uri = Url::parse(unit.foreign_for(kind))?;
@@ -1188,11 +1182,10 @@ fn source_metadata(
     unit: &SourceUnitKey,
     uri: &Url,
 ) -> SourceMetadata {
-    let previous = {
-        let files = workspace.files.read();
+    let previous = workspace.analysis.with_files(|files| {
         let file_id = files.source_id(unit.source());
         file_id.and_then(|file_id| files.source_metadata(file_id)).cloned()
-    };
+    });
     previous.unwrap_or_else(|| {
         let path = uri.to_file_path().ok();
         let package_metadata = path.as_ref().and_then(|path| {
@@ -1224,7 +1217,10 @@ fn source_editable(
 trait RequestExtension: BorrowMut<Router<State>> {
     fn request_snapshot<R: Request>(
         &mut self,
-        action: impl Fn(StateSnapshot, R::Params) -> Result<R::Result, LspError> + Send + Copy + 'static,
+        action: impl Fn(AnalysisSnapshot, R::Params) -> Result<R::Result, LspError>
+        + Send
+        + Copy
+        + 'static,
     ) -> &mut Self {
         self.borrow_mut().request::<R, _>(move |state, parameters| {
             let task = state.spawn(move |snapshot| action(snapshot, parameters));
@@ -1261,7 +1257,12 @@ trait RequestExtension: BorrowMut<Router<State>> {
                 root: state.protocol.root.as_deref(),
                 position_encoding: state.protocol.position_encoding,
             };
-            let result = state.workspace.dispatch(notification(parameters), context, &state.client);
+            let result = state.workspace.dispatch(
+                notification(parameters),
+                context,
+                &state.diagnostics,
+                &state.client,
+            );
             let _ = result.inspect_err(|error| error.emit_trace());
             ControlFlow::Continue(())
         });
@@ -1335,8 +1336,9 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .workspace_notification::<notification::DidChangeWatchedFiles>(
                 WorkspaceNotification::DidChangeWatchedFiles,
             )
-            .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
-            .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)
+            .event_ext::<diagnostics::CollectDiagnostics>(diagnostics::collect_diagnostics)
+            .event_ext::<diagnostics::StartDiagnostics>(diagnostics::start_diagnostics)
+            .event_ext::<diagnostics::DiagnosticsFinished>(diagnostics::finish_diagnostics)
             .event_ext::<ConfigurationReceived>(finish_workspace_configuration);
 
         ServiceBuilder::new()
