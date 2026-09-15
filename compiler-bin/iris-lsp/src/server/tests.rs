@@ -5,6 +5,7 @@ use std::sync::Arc;
 use analyzer::position::PositionEncoding;
 use async_lsp::ResponseError;
 use async_lsp::router::Router;
+use building::Cancellation;
 use building::lifecycle::{
     ContentAuthority, DiskObservation, DocumentKind, ForeignEvent, LifecycleEvent, SourceEvent,
     SourceUnitKey,
@@ -19,13 +20,16 @@ use lsp_types::{
 use serde_json::json;
 use tempfile::tempdir;
 
+#[cfg(unix)]
+use super::preparation::package_source_roots;
+use super::preparation::{DiscoveredWorkspace, prepare_reconfiguration};
 use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
 use super::{
-    ConfigurationReceived, DiscoveredWorkspace, SourceMetadata, State, apply_content_changes,
-    document_kind, finish_workspace_configuration, observe_disk, package_source_roots,
-    source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
+    ConfigurationReceived, SourceMetadata, State, apply_content_changes, document_kind,
+    finish_workspace_configuration, observe_disk, source_unit_from_document_uri,
+    source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
 fn test_config() -> Arc<Configuration> {
@@ -85,7 +89,7 @@ fn requests_are_cancelled_while_the_workspace_is_loading() {
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
         let error = state
-            .spawn(|_| ())
+            .spawn(building::Cancellation::new(), |_| ())
             .expect_err("invariant violated: waiting workspace produced a snapshot");
 
         assert_eq!(error.code(), async_lsp::ErrorCode::REQUEST_CANCELLED);
@@ -177,7 +181,7 @@ fn stale_configuration_results_leave_waiting_state_unchanged() {
 }
 
 #[test]
-fn failed_initial_configuration_falls_back_and_replays_notifications() {
+fn minimal_initial_fallback_replays_notifications() {
     let directory = tempdir().unwrap();
     fs::write(
         directory.path().join("spago.lock"),
@@ -218,12 +222,15 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
                 &state.client,
             )
             .unwrap();
-        let settings = json!({
-            "sources": {"kind": "command", "program": "missing-iris-source-command"}
-        });
-        let event = ConfigurationReceived { generation: 1, result: Ok(vec![settings]) };
-
-        finish_workspace_configuration(&mut state, event).unwrap();
+        let prepared = super::preparation::minimal_workspace(Arc::clone(&config)).unwrap();
+        let pending = state.workspace.install(prepared).unwrap();
+        for notification in pending {
+            let context = WorkspaceContext {
+                root: state.protocol.root.as_deref(),
+                position_encoding: state.protocol.position_encoding,
+            };
+            let _ = state.workspace.dispatch(notification, context, &state.client);
+        }
 
         {
             let workspace = state.workspace.test_ready();
@@ -245,9 +252,7 @@ fn settings_only_updates_preserve_ready_runtime_identity() {
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let mut state = test_state(Arc::clone(&config), client);
         let workspace = state.workspace.test_ready();
-        let files = Arc::as_ptr(&workspace.analysis.files);
-        let symbols = Arc::as_ptr(&workspace.analysis.workspace_symbols_cache);
-        let suggestions = Arc::as_ptr(&workspace.analysis.suggestions_cache);
+        let analysis = Arc::as_ptr(&workspace.analysis);
         let mut updated = Configuration::clone(&config);
         updated.diagnostics.on_open = true;
 
@@ -255,9 +260,7 @@ fn settings_only_updates_preserve_ready_runtime_identity() {
 
         let workspace = state.workspace.test_ready();
         assert!(workspace.configuration.diagnostics.on_open);
-        assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);
-        assert_eq!(Arc::as_ptr(&workspace.analysis.workspace_symbols_cache), symbols);
-        assert_eq!(Arc::as_ptr(&workspace.analysis.suggestions_cache), suggestions);
+        assert_eq!(Arc::as_ptr(&workspace.analysis), analysis);
         Router::<State, ResponseError>::new(state)
     });
 }
@@ -270,7 +273,7 @@ fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let state = test_state(Arc::clone(&config), client);
         let workspace = state.workspace.test_ready();
-        let files = Arc::as_ptr(&workspace.analysis.files);
+        let analysis = Arc::as_ptr(&workspace.analysis);
         let configuration = Arc::as_ptr(&workspace.configuration);
         let updated = Arc::new(Configuration {
             sources: SourceDiscovery::Command { program: "unused".to_string(), arguments: vec![] },
@@ -283,10 +286,13 @@ fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
             source_roots: vec![],
         };
 
-        assert!(state.workspace.prepare_reconfiguration(updated, discovered).is_err());
+        let baseline = state.workspace.reconfiguration_baseline().unwrap();
+        assert!(
+            prepare_reconfiguration(updated, discovered, baseline, Cancellation::new()).is_err()
+        );
 
         let workspace = state.workspace.test_ready();
-        assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);
+        assert_eq!(Arc::as_ptr(&workspace.analysis), analysis);
         assert_eq!(Arc::as_ptr(&workspace.configuration), configuration);
         assert!(workspace.selected_sources.is_empty());
         assert!(workspace.excluded_sources.is_empty());
@@ -359,7 +365,7 @@ fn source_and_foreign_uris_produce_the_same_unit_key() {
 }
 
 #[test]
-fn localhost_source_and_foreign_uris_keep_the_same_authority() {
+fn uri_annotations_do_not_define_document_identity() {
     let source_uri =
         Url::parse("file://localhost/workspace/Source%20Files/Main.purs?view=1#selection").unwrap();
     let foreign_uri =
@@ -369,8 +375,8 @@ fn localhost_source_and_foreign_uris_keep_the_same_authority() {
     let from_foreign = source_unit_from_foreign_uri(&foreign_uri).unwrap();
 
     assert_eq!(from_source, from_foreign);
-    assert_eq!(from_source.source(), source_uri.as_str());
-    assert_eq!(from_source.foreign(), foreign_uri.as_str());
+    assert_eq!(from_source.source(), "file:///workspace/Source%20Files/Main.purs");
+    assert_eq!(from_source.foreign(), "file:///workspace/Source%20Files/Main.js");
 }
 
 #[test]
