@@ -9,8 +9,8 @@ use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
 use tokio::task;
 
+use crate::server::analysis::AnalysisSnapshot;
 use crate::server::error::LspError;
-use crate::server::workspace::StateSnapshot;
 use crate::server::{SourceMetadata, State};
 
 #[derive(Default)]
@@ -144,7 +144,7 @@ fn start_diagnostics(state: &State, ticket: DiagnosticTicket) {
 }
 
 fn collect_diagnostics_core(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     ticket: DiagnosticTicket,
 ) -> Option<CollectedDiagnostics> {
     let result = snapshot.with_analyzer_context(|context| {
