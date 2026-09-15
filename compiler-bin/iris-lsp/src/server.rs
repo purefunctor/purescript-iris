@@ -1,7 +1,11 @@
 pub mod capabilities;
 pub mod error;
-pub mod event;
 pub mod extension;
+
+mod analysis;
+mod diagnostics;
+mod preparation;
+mod process;
 mod workspace;
 
 #[cfg(test)]
@@ -12,7 +16,7 @@ use std::collections::BTreeMap;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{env, fs, io, process};
+use std::{env, fs, io};
 
 use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
@@ -26,10 +30,8 @@ use building::lifecycle::{
     DiskObservation, DocumentKey, DocumentKind, ForeignEvent, LifecycleEvent, ReloadFailure,
     SourceEvent, SourceUnitKey,
 };
-use configuration::{Configuration, ConfigurationSettings, SourceDiscovery};
+use configuration::{Configuration, ConfigurationSettings};
 use files::ForeignSourceKind;
-use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
-use iris_build::events::SilentBuildEvents;
 use iris_build::plan::PackageInput;
 use itertools::Itertools;
 use lsp_types::notification::Notification;
@@ -39,37 +41,24 @@ use path_absolutize::Absolutize;
 use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
 use tokio::task;
+use tokio_util::task::TaskTracker;
 use tower::ServiceBuilder;
 
+use crate::server::analysis::{AnalysisSnapshot, SourceMetadata};
 use crate::server::capabilities::{
     ConfigurationCapabilities, negotiate_analyzer_capabilities,
     negotiate_configuration_capabilities, negotiate_position_encoding,
 };
 use crate::server::error::{AnalyzerResultExt, LspError};
+use crate::server::preparation::{
+    Preparation, PreparationGeneration, PreparationInput, PreparationKind, PreparationOrigin,
+    PreparedWorkspace, WorkspacePrepared,
+};
 use crate::server::workspace::{
-    ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
-    SourceRoot, StateSnapshot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification,
-    WorkspaceRuntime,
+    DiagnosticTrigger, PreparedInitialWorkspace, PreparedSourceReconfiguration, ReadyWorkspace,
+    SourceRoot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification, WorkspaceRuntime,
 };
 use crate::{ServerConfig, ServerError, walk};
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum SourceMetadata {
-    Builtin,
-    Package { editable: bool },
-    Unmanaged { editable: bool },
-}
-
-impl SourceMetadata {
-    fn editable(&self) -> bool {
-        match self {
-            SourceMetadata::Builtin => false,
-            SourceMetadata::Package { editable } | SourceMetadata::Unmanaged { editable } => {
-                *editable
-            }
-        }
-    }
-}
 
 struct ServerIdentity {
     name: String,
@@ -81,10 +70,10 @@ struct ProtocolSession {
     root: Option<PathBuf>,
     configuration_scope: Option<Url>,
     configuration_capabilities: ConfigurationCapabilities,
-    configuration_generation: u64,
     position_encoding: PositionEncoding,
     analyzer_capabilities: AnalyzerCapabilities,
     watched_files_dynamic_registration: bool,
+    shutting_down: bool,
 }
 
 pub struct State {
@@ -92,6 +81,8 @@ pub struct State {
     identity: ServerIdentity,
     protocol: ProtocolSession,
     workspace: WorkspaceRuntime,
+    diagnostics: diagnostics::Diagnostics,
+    preparation: Preparation,
 }
 
 impl State {
@@ -100,7 +91,9 @@ impl State {
         client: ClientSocket,
         name: String,
         version: String,
+        preparation_tasks: TaskTracker,
     ) -> State {
+        let diagnostics = diagnostics::Diagnostics::start(ClientSocket::clone(&client));
         State {
             client,
             identity: ServerIdentity { name, version },
@@ -109,18 +102,20 @@ impl State {
                 root: None,
                 configuration_scope: None,
                 configuration_capabilities: ConfigurationCapabilities::default(),
-                configuration_generation: 0,
                 position_encoding: PositionEncoding::Utf16,
                 analyzer_capabilities: AnalyzerCapabilities::default(),
                 watched_files_dynamic_registration: false,
+                shutting_down: false,
             },
             workspace: WorkspaceRuntime::new(),
+            diagnostics,
+            preparation: Preparation::new(preparation_tasks),
         }
     }
 
     fn spawn<T>(
         &self,
-        action: impl FnOnce(StateSnapshot) -> T + Send + 'static,
+        action: impl FnOnce(AnalysisSnapshot) -> T + Send + 'static,
     ) -> Result<task::JoinHandle<T>, LspError>
     where
         T: Send + 'static,
@@ -129,6 +124,22 @@ impl State {
             .workspace
             .snapshot(self.protocol.position_encoding, self.protocol.analyzer_capabilities)?;
         Ok(task::spawn_blocking(move || action(snapshot)))
+    }
+
+    fn shutdown(&mut self) {
+        if self.protocol.shutting_down {
+            return;
+        }
+        self.protocol.shutting_down = true;
+        self.preparation.cancel();
+        self.diagnostics.shutdown();
+        self.workspace.cancel();
+    }
+}
+
+impl Drop for State {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }
 
@@ -232,7 +243,8 @@ fn watched_files_dynamic_registration(capabilities: &ClientCapabilities) -> bool
         .unwrap_or(false)
 }
 
-fn shutdown(_state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+    state.shutdown();
     async { Ok(()) }
 }
 
@@ -245,7 +257,13 @@ fn initialized(state: &mut State, _: InitializedParams) -> Result<(), LspError> 
         request_workspace_configuration(state);
         Ok(())
     } else {
-        apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))
+        let generation = state.preparation.admit();
+        begin_workspace_preparation(
+            state,
+            generation,
+            Arc::clone(&state.protocol.startup_configuration),
+            PreparationOrigin::Startup,
+        )
     }
 }
 
@@ -269,14 +287,12 @@ fn register_configuration_changes(state: &State) {
 }
 
 struct ConfigurationReceived {
-    generation: u64,
+    generation: PreparationGeneration,
     result: Result<Vec<serde_json::Value>, String>,
 }
 
 fn request_workspace_configuration(state: &mut State) {
-    state.protocol.configuration_generation =
-        state.protocol.configuration_generation.wrapping_add(1);
-    let generation = state.protocol.configuration_generation;
+    let generation = state.preparation.admit();
     let parameters = ConfigurationParams {
         items: vec![ConfigurationItem {
             scope_uri: state.protocol.configuration_scope.clone(),
@@ -292,7 +308,9 @@ fn request_workspace_configuration(state: &mut State) {
         .await
         .map_err(|_| "workspace/configuration request timed out".to_string())
         .and_then(|result| result.map_err(|error| error.to_string()));
-        if let Err(error) = client.emit(ConfigurationReceived { generation, result }) {
+
+        let received = ConfigurationReceived { generation, result };
+        if let Err(error) = client.emit(received) {
             tracing::error!("Failed to deliver workspace configuration: {error}");
         }
     });
@@ -302,57 +320,164 @@ fn finish_workspace_configuration(
     state: &mut State,
     ConfigurationReceived { generation, result }: ConfigurationReceived,
 ) -> Result<(), LspError> {
-    if generation != state.protocol.configuration_generation {
+    if !state.preparation.current(generation) {
         return Ok(());
     }
 
-    let configuration = result
-        .map_err(|error| format!("Failed to retrieve Iris settings: {error}"))
-        .and_then(|mut values| {
-            if values.len() != 1 {
-                return Err(format!(
-                    "Invalid workspace/configuration response: expected one item, received {}",
-                    values.len()
-                ));
-            }
-            let value = values.pop().expect("invariant violated: expected one configuration item");
-            serde_json::from_value::<Option<ConfigurationSettings>>(value)
-                .map(|settings| {
-                    settings.unwrap_or_default().apply_to(&state.protocol.startup_configuration)
-                })
-                .map_err(|error| format!("Invalid Iris settings: {error}"))
-        });
+    let configuration =
+        parse_workspace_configuration(&state.protocol.startup_configuration, result);
 
     match configuration {
-        Ok(configuration) => {
-            if let Err(error) = apply_configuration_inner(state, Arc::new(configuration)) {
-                match error {
-                    ConfigurationApplyError::Preparation(error) => {
-                        let error = format!("Failed to apply Iris settings: {error}");
-                        report_configuration_error(state, &error);
-                        if !state.workspace.is_ready() {
-                            apply_configuration(
-                                state,
-                                Arc::clone(&state.protocol.startup_configuration),
-                            )?;
-                        }
-                    }
-                    ConfigurationApplyError::Delivery(error) => {
-                        report_configuration_delivery_error(state, &error);
-                    }
-                }
-            }
-            Ok(())
-        }
+        Ok(configuration) => begin_workspace_preparation(
+            state,
+            generation,
+            Arc::new(configuration),
+            PreparationOrigin::Client,
+        ),
         Err(error) => {
             report_configuration_error(state, &error);
+
             if state.workspace.is_ready() {
-                Ok(())
-            } else {
-                apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))
+                return Ok(());
             }
+
+            begin_workspace_preparation(
+                state,
+                generation,
+                Arc::clone(&state.protocol.startup_configuration),
+                PreparationOrigin::Startup,
+            )
         }
     }
+}
+
+fn parse_workspace_configuration(
+    startup: &Configuration,
+    result: Result<Vec<serde_json::Value>, String>,
+) -> Result<Configuration, String> {
+    let mut values =
+        result.map_err(|error| format!("Failed to retrieve Iris settings: {error}"))?;
+    if values.len() != 1 {
+        return Err(format!(
+            "Invalid workspace/configuration response: expected one item, received {}",
+            values.len()
+        ));
+    }
+
+    let value = values.pop().expect("invariant violated: expected one configuration item");
+    let settings = serde_json::from_value::<Option<ConfigurationSettings>>(value)
+        .map_err(|error| format!("Invalid Iris settings: {error}"))?;
+
+    Ok(settings.unwrap_or_default().apply_to(startup))
+}
+
+fn begin_workspace_preparation(
+    state: &mut State,
+    generation: PreparationGeneration,
+    configuration: Arc<Configuration>,
+    origin: PreparationOrigin,
+) -> Result<(), LspError> {
+    if !state.preparation.current(generation) || state.protocol.shutting_down {
+        return Ok(());
+    }
+
+    if state.workspace.update_configuration_if_sources_equal(Arc::clone(&configuration)) {
+        return Ok(());
+    }
+
+    let root = state.protocol.root.as_ref().map(PathBuf::clone);
+    let root = root.ok_or(LspError::MissingRoot)?;
+    let kind = if state.workspace.is_ready() {
+        state.workspace.begin_reconfiguration();
+        PreparationKind::Reconfiguration
+    } else {
+        PreparationKind::Initial
+    };
+
+    let input = PreparationInput { root, configuration, kind, origin };
+    let client = ClientSocket::clone(&state.client);
+    state.preparation.start(generation, input, client);
+
+    Ok(())
+}
+
+fn finish_workspace_preparation(
+    state: &mut State,
+    WorkspacePrepared { generation, origin, result }: WorkspacePrepared,
+) -> Result<(), LspError> {
+    if !state.preparation.current(generation) || state.protocol.shutting_down {
+        return Ok(());
+    }
+
+    let prepared = match result {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            let message = format!("Failed to apply Iris settings: {error}");
+            report_configuration_error(state, &message);
+
+            if !state.workspace.is_ready() && origin == PreparationOrigin::Client {
+                return begin_workspace_preparation(
+                    state,
+                    generation,
+                    Arc::clone(&state.protocol.startup_configuration),
+                    PreparationOrigin::Startup,
+                );
+            }
+            return Ok(());
+        }
+    };
+
+    match prepared {
+        PreparedWorkspace::Initial(prepared) => {
+            finish_initial_workspace_preparation(state, prepared)
+        }
+        PreparedWorkspace::Reconfiguration(prepared) => {
+            finish_workspace_reconfiguration(state, generation, origin, prepared)
+        }
+    }
+}
+
+fn finish_initial_workspace_preparation(
+    state: &mut State,
+    prepared: PreparedInitialWorkspace,
+) -> Result<(), LspError> {
+    let pending = state.workspace.install(prepared)?;
+    for notification in pending {
+        let context = WorkspaceContext {
+            root: state.protocol.root.as_deref(),
+            position_encoding: state.protocol.position_encoding,
+        };
+        let result =
+            state.workspace.dispatch(notification, context, &state.diagnostics, &state.client);
+        if let Err(error) = result {
+            error.emit_trace();
+        }
+    }
+
+    Ok(())
+}
+
+fn finish_workspace_reconfiguration(
+    state: &mut State,
+    generation: PreparationGeneration,
+    origin: PreparationOrigin,
+    prepared: PreparedSourceReconfiguration,
+) -> Result<(), LspError> {
+    if state.workspace.take_reconfiguration_dirty() {
+        return begin_workspace_preparation(
+            state,
+            generation,
+            Arc::clone(&prepared.configuration),
+            origin,
+        );
+    }
+
+    let effects = state.workspace.commit_reconfiguration(prepared)?;
+    if let Err(error) = effects.deliver(&state.diagnostics, &state.client) {
+        report_configuration_delivery_error(state, &error);
+    }
+
+    Ok(())
 }
 
 fn did_change_configuration(
@@ -372,9 +497,9 @@ fn report_configuration_error(state: &mut State, error: &str) {
     } else {
         format!("{error}. Iris will use its startup settings.")
     };
-    if let Err(error) =
-        state.client.show_message(ShowMessageParams { typ: MessageType::ERROR, message })
-    {
+
+    let parameters = ShowMessageParams { typ: MessageType::ERROR, message };
+    if let Err(error) = state.client.show_message(parameters) {
         tracing::warn!("Failed to report configuration error: {error}");
     }
 }
@@ -384,9 +509,9 @@ fn report_configuration_delivery_error(state: &mut State, error: &LspError) {
     let message = format!(
         "Iris applied the new settings, but could not deliver all resulting client updates: {error}"
     );
-    if let Err(error) =
-        state.client.show_message(ShowMessageParams { typ: MessageType::ERROR, message })
-    {
+
+    let parameters = ShowMessageParams { typ: MessageType::ERROR, message };
+    if let Err(error) = state.client.show_message(parameters) {
         tracing::warn!("Failed to report configuration delivery error: {error}");
     }
 }
@@ -432,7 +557,8 @@ fn file_watcher_registration() -> RegistrationParams {
     RegistrationParams { registrations: vec![registration] }
 }
 
-fn exit(_state: &mut State, (): ()) -> Result<(), LspError> {
+fn exit(state: &mut State, (): ()) -> Result<(), LspError> {
+    state.shutdown();
     Ok(())
 }
 
@@ -441,44 +567,6 @@ struct DiscoveredWorkspace {
     packages: Vec<PackageInput>,
     metadata: BTreeMap<PathBuf, SourceMetadata>,
     source_roots: Vec<SourceRoot>,
-}
-
-fn discover_manual(
-    root: &std::path::Path,
-    program: &str,
-    arguments: &[String],
-) -> Result<DiscoveredWorkspace, LspError> {
-    tracing::info!("Using '{}'", program);
-
-    let mut command = process::Command::new(program);
-    command.args(arguments);
-
-    let output = command.output()?;
-    if !output.status.success() {
-        return Err(LspError::SourceCommandFailed(output.status));
-    }
-    let output = str::from_utf8(&output.stdout)?;
-
-    let walk::Walk { files, .. } = walk::walk(root, output.lines())?;
-
-    let metadata = files.iter().map(|file| {
-        let editable = file.starts_with(root);
-        (PathBuf::clone(file), SourceMetadata::Unmanaged { editable })
-    });
-    let metadata = metadata.collect();
-
-    let package = PackageInput {
-        name: SmolStr::new("unmanaged"),
-        source_identities: Vec::clone(&files),
-        dependencies: vec![],
-    };
-
-    let source_roots = vec![SourceRoot {
-        path: root.to_path_buf(),
-        metadata: SourceMetadata::Unmanaged { editable: true },
-    }];
-
-    Ok(DiscoveredWorkspace { source_globs: files, packages: vec![package], metadata, source_roots })
 }
 
 fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
@@ -544,99 +632,6 @@ fn package_source_roots(
     Ok(roots)
 }
 
-fn apply_configuration(
-    state: &mut State,
-    configuration: Arc<Configuration>,
-) -> Result<(), LspError> {
-    apply_configuration_inner(state, configuration).map_err(|error| match error {
-        ConfigurationApplyError::Preparation(error) | ConfigurationApplyError::Delivery(error) => {
-            error
-        }
-    })
-}
-
-fn apply_configuration_inner(
-    state: &mut State,
-    configuration: Arc<Configuration>,
-) -> Result<(), ConfigurationApplyError> {
-    let root = state
-        .protocol
-        .root
-        .as_deref()
-        .ok_or(LspError::MissingRoot)
-        .map_err(ConfigurationApplyError::Preparation)?;
-    if state.workspace.update_configuration_if_sources_equal(Arc::clone(&configuration)) {
-        return Ok(());
-    }
-
-    let discovered = match &configuration.sources {
-        SourceDiscovery::Spago {} => discover_spago(root),
-        SourceDiscovery::Command { program, arguments } => {
-            discover_manual(root, program, arguments)
-        }
-    }
-    .map_err(ConfigurationApplyError::Preparation)?;
-
-    if state.workspace.is_ready() {
-        let prepared = state
-            .workspace
-            .prepare_reconfiguration(configuration, discovered)
-            .map_err(ConfigurationApplyError::Preparation)?;
-        let effects = state
-            .workspace
-            .commit_reconfiguration(prepared)
-            .map_err(ConfigurationApplyError::Preparation)?;
-        effects.deliver(&state.client).map_err(ConfigurationApplyError::Delivery)?;
-        return Ok(());
-    }
-
-    let selected_sources = discovered.source_globs.iter().map(source_uri);
-    let selected_sources = selected_sources
-        .collect::<Result<FxHashSet<_>, _>>()
-        .map_err(ConfigurationApplyError::Preparation)?;
-
-    let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
-        root,
-        source_globs: &discovered.source_globs,
-        excluded: &[],
-        packages: discovered.packages,
-        prim_metadata: SourceMetadata::Builtin,
-        source_metadata: |path: &std::path::Path| {
-            discovered
-                .metadata
-                .get(path)
-                .cloned()
-                .expect("invariant violated: discovered source has no LSP metadata")
-        },
-        execution: PackageExecution::Parallel,
-        events: &SilentBuildEvents,
-    })
-    .map_err(LspError::from)
-    .map_err(ConfigurationApplyError::Preparation)?;
-
-    let prepared = PreparedInitialWorkspace {
-        configuration,
-        compilation: initial.into_compilation(),
-        source_roots: discovered.source_roots,
-        selected_sources,
-    };
-    let pending =
-        state.workspace.install(prepared).map_err(ConfigurationApplyError::Preparation)?;
-
-    for notification in pending {
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: state.protocol.position_encoding,
-        };
-        let result = state.workspace.dispatch(notification, context, &state.client);
-        if let Err(error) = result {
-            error.emit_trace();
-        }
-    }
-    tracing::info!("Loaded {} files.", discovered.source_globs.len());
-    Ok(())
-}
-
 fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
     let uri =
         Url::from_file_path(path).map_err(|_| LspError::PathParseFail(PathBuf::clone(path)))?;
@@ -644,33 +639,30 @@ fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
 }
 
 fn definition(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: GotoDefinitionParams,
 ) -> Result<Option<GotoDefinitionResponse>, LspError> {
     let _span = tracing::info_span!("definition").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::definition::implementation(context, uri, position)
-    });
+    let result = snapshot.definition(uri, position);
 
     result.on_non_fatal(None)
 }
 
-fn hover(snapshot: StateSnapshot, parameters: HoverParams) -> Result<Option<Hover>, LspError> {
+fn hover(snapshot: AnalysisSnapshot, parameters: HoverParams) -> Result<Option<Hover>, LspError> {
     let _span = tracing::info_span!("hover").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
 
-    let result = snapshot
-        .with_analyzer_context(|context| analyzer::hover::implementation(context, uri, position));
+    let result = snapshot.hover(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn code_action(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: CodeActionParams,
 ) -> Result<Option<CodeActionResponse>, LspError> {
     let _span = tracing::info_span!("code_action").entered();
@@ -678,56 +670,47 @@ fn code_action(
     let range = parameters.range;
     let action_context = parameters.context;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::code_action::implementation(context, uri, range, action_context)
-    });
+    let result = snapshot.code_action(uri, range, action_context);
 
     result.on_non_fatal(None)
 }
 
 fn completion(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: CompletionParams,
 ) -> Result<Option<CompletionResponse>, LspError> {
     let _span = tracing::info_span!("completion").entered();
     let uri = parameters.text_document_position.text_document.uri;
     let position = parameters.text_document_position.position;
 
-    let mut cache = snapshot.suggestions_cache.write();
-
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::completion::implementation(context, &mut cache, uri, position)
-    });
+    let result = snapshot.completion(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn resolve_completion_item(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     item: CompletionItem,
 ) -> Result<CompletionItem, LspError> {
     let _span = tracing::info_span!("resolve_completion_item").entered();
-    analyzer::completion::resolve::implementation(&snapshot.engine, item)
-        .or_else(|(error, item)| Err(error).on_non_fatal(item))
+    snapshot.resolve_completion(item).or_else(|(error, item)| Err(error).on_non_fatal(item))
 }
 
 fn references(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: ReferenceParams,
 ) -> Result<Option<Vec<Location>>, LspError> {
     let _span = tracing::info_span!("references").entered();
     let uri = parameters.text_document_position.text_document.uri;
     let position = parameters.text_document_position.position;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::references::implementation(context, uri, position)
-    });
+    let result = snapshot.references(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn rename(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: RenameParams,
 ) -> Result<Option<WorkspaceEdit>, LspError> {
     let _span = tracing::info_span!("rename").entered();
@@ -735,78 +718,66 @@ fn rename(
     let position = parameters.text_document_position.position;
     let new_name = parameters.new_name;
 
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::rename::implementation(context, uri, position, new_name)
-    });
+    let result = snapshot.rename(uri, position, new_name);
 
     result.on_non_fatal(None)
 }
 
 fn prepare_rename(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: TextDocumentPositionParams,
 ) -> Result<Option<PrepareRenameResponse>, LspError> {
     let _span = tracing::info_span!("prepare_rename").entered();
     let uri = parameters.text_document.uri;
     let position = parameters.position;
 
-    let result =
-        snapshot.with_analyzer_context(|context| analyzer::rename::prepare(context, uri, position));
+    let result = snapshot.prepare_rename(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn document_highlight(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: DocumentHighlightParams,
 ) -> Result<Option<Vec<DocumentHighlight>>, LspError> {
     let _span = tracing::info_span!("document_highlight").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::document_highlight::implementation(context, uri, position)
-    });
+    let result = snapshot.document_highlight(uri, position);
 
     result.on_non_fatal(None)
 }
 
 fn workspace_symbols(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: WorkspaceSymbolParams,
 ) -> Result<Option<WorkspaceSymbolResponse>, LspError> {
     let _span = tracing::info_span!("workspace_symbols").entered();
 
-    let mut cache = snapshot.workspace_symbols_cache.write();
-
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::symbols::workspace(context, &mut cache, &parameters.query)
-    });
+    let result = snapshot.workspace_symbols(&parameters.query);
 
     result.on_non_fatal(None)
 }
 
 fn document_symbols(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: DocumentSymbolParams,
 ) -> Result<Option<DocumentSymbolResponse>, LspError> {
     let _span = tracing::info_span!("document_symbols").entered();
     let uri = parameters.text_document.uri;
-    let result =
-        snapshot.with_analyzer_context(|context| analyzer::symbols::document(context, uri));
+    let result = snapshot.document_symbols(uri);
 
     result.on_non_fatal(None)
 }
 
 fn semantic_tokens(
-    snapshot: StateSnapshot,
+    snapshot: AnalysisSnapshot,
     parameters: SemanticTokensParams,
 ) -> Result<Option<SemanticTokensResult>, LspError> {
     let _span = tracing::info_span!("semantic_tokens").entered();
     let uri = parameters.text_document.uri;
-    let result = snapshot.with_analyzer_context(|context| {
-        analyzer::semantic_tokens::implementation(context, uri)
-            .map(|tokens| tokens.map(SemanticTokensResult::Tokens))
-    });
+    let result =
+        snapshot.semantic_tokens(uri).map(|tokens| tokens.map(SemanticTokensResult::Tokens));
 
     result.on_non_fatal(None)
 }
@@ -816,20 +787,21 @@ fn document_content(
     document: DocumentKind,
     uri: &Url,
 ) -> Result<Arc<str>, LspError> {
-    let files = workspace.files.read();
     match document {
         DocumentKind::Source => {
-            let file_id = files
-                .source_id(uri.as_str())
+            let file_id = workspace
+                .analysis
+                .with_files(|files| files.source_id(uri.as_str()))
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
-            workspace.engine.content(file_id).map_err(LspError::from)
+            workspace.analysis.content(file_id).map_err(LspError::from)
         }
         DocumentKind::Foreign(_) => {
-            let file_id = files
-                .foreign_id(uri.as_str())
+            let file_id = workspace
+                .analysis
+                .with_files(|files| files.foreign_id(uri.as_str()))
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
             workspace
-                .engine
+                .analysis
                 .foreign_content(file_id)
                 .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))
         }
@@ -877,6 +849,7 @@ fn apply_content_changes(
 fn did_change(
     workspace: &mut ReadyWorkspace,
     context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidChangeTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -914,12 +887,13 @@ fn did_change(
     } else {
         DiagnosticTrigger::None
     };
-    workspace.apply_lifecycle_events([event], trigger).deliver(client)
+    workspace.apply_lifecycle_events([event], trigger).deliver(diagnostics, client)
 }
 
 fn did_open(
     workspace: &mut ReadyWorkspace,
     context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidOpenTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -956,12 +930,13 @@ fn did_open(
     } else {
         DiagnosticTrigger::None
     };
-    workspace.apply_lifecycle_events(events, trigger).deliver(client)
+    workspace.apply_lifecycle_events(events, trigger).deliver(diagnostics, client)
 }
 
 fn did_close(
     workspace: &mut ReadyWorkspace,
     _context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidCloseTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -981,7 +956,7 @@ fn did_close(
         }
         DocumentKind::Source => {
             let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-            let was_open = workspace.files.read().is_open(&document);
+            let was_open = workspace.analysis.with_files(|files| files.is_open(&document));
             events.push(LifecycleEvent::Source {
                 unit: SourceUnitKey::clone(&unit),
                 event: SourceEvent::Closed { disk },
@@ -991,11 +966,14 @@ fn did_close(
             }
         }
     }
-    workspace.apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange).deliver(client)
+    workspace
+        .apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange)
+        .deliver(diagnostics, client)
 }
 
 fn did_save(
     workspace: &mut ReadyWorkspace,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidSaveTextDocumentParams,
 ) -> Result<(), LspError> {
@@ -1006,12 +984,13 @@ fn did_save(
     } else {
         WorkspaceEffects::none()
     };
-    effects.deliver(client)
+    effects.deliver(diagnostics, client)
 }
 
 fn did_change_watched_files(
     workspace: &mut ReadyWorkspace,
     context: WorkspaceContext<'_>,
+    diagnostics: &diagnostics::Diagnostics,
     client: &ClientSocket,
     parameters: DidChangeWatchedFilesParams,
 ) -> Result<(), LspError> {
@@ -1041,7 +1020,7 @@ fn did_change_watched_files(
     let mut observed_foreign = FxHashSet::default();
     for unit in source_units {
         let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.with_files(|files| files.is_open(&document)) {
             continue;
         }
         let uri = Url::parse(unit.source())?;
@@ -1067,18 +1046,17 @@ fn did_change_watched_files(
             continue;
         }
         let document = DocumentKey::Foreign(SourceUnitKey::clone(&unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.with_files(|files| files.is_open(&document)) {
             continue;
         }
         let source_uri = Url::parse(unit.source())?;
         if !source_editable(workspace, context.root, &unit, &source_uri) {
             continue;
         }
-        let tracked = {
-            let files = workspace.files.read();
+        let tracked = workspace.analysis.with_files(|files| {
             files.source_id(unit.source()).is_some()
                 || files.foreign_id(unit.foreign_for(kind)).is_some()
-        };
+        });
         if !tracked {
             continue;
         }
@@ -1091,7 +1069,9 @@ fn did_change_watched_files(
         events.push(event);
     }
 
-    workspace.apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange).deliver(client)
+    workspace
+        .apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange)
+        .deliver(diagnostics, client)
 }
 
 fn document_kind(uri: &Url) -> Option<DocumentKind> {
@@ -1157,7 +1137,7 @@ fn observe_sibling_foreign(
     let mut events = vec![];
     for kind in ForeignSourceKind::ALL {
         let document = DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.with_files(|files| files.is_open(&document)) {
             continue;
         }
         let uri = Url::parse(unit.foreign_for(kind))?;
@@ -1188,11 +1168,10 @@ fn source_metadata(
     unit: &SourceUnitKey,
     uri: &Url,
 ) -> SourceMetadata {
-    let previous = {
-        let files = workspace.files.read();
+    let previous = workspace.analysis.with_files(|files| {
         let file_id = files.source_id(unit.source());
         file_id.and_then(|file_id| files.source_metadata(file_id)).cloned()
-    };
+    });
     previous.unwrap_or_else(|| {
         let path = uri.to_file_path().ok();
         let package_metadata = path.as_ref().and_then(|path| {
@@ -1224,7 +1203,10 @@ fn source_editable(
 trait RequestExtension: BorrowMut<Router<State>> {
     fn request_snapshot<R: Request>(
         &mut self,
-        action: impl Fn(StateSnapshot, R::Params) -> Result<R::Result, LspError> + Send + Copy + 'static,
+        action: impl Fn(AnalysisSnapshot, R::Params) -> Result<R::Result, LspError>
+        + Send
+        + Copy
+        + 'static,
     ) -> &mut Self {
         self.borrow_mut().request::<R, _>(move |state, parameters| {
             let task = state.spawn(move |snapshot| action(snapshot, parameters));
@@ -1261,7 +1243,12 @@ trait RequestExtension: BorrowMut<Router<State>> {
                 root: state.protocol.root.as_deref(),
                 position_encoding: state.protocol.position_encoding,
             };
-            let result = state.workspace.dispatch(notification(parameters), context, &state.client);
+            let result = state.workspace.dispatch(
+                notification(parameters),
+                context,
+                &state.diagnostics,
+                &state.client,
+            );
             let _ = result.inspect_err(|error| error.emit_trace());
             ControlFlow::Continue(())
         });
@@ -1293,6 +1280,8 @@ fn response_error(error: LspError) -> ResponseError {
 pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError> {
     let ServerConfig { configuration, name, version } = config;
     let config = Arc::new(configuration);
+    let preparation_tasks = TaskTracker::new();
+    let server_preparation_tasks = TaskTracker::clone(&preparation_tasks);
     let (server, _) = async_lsp::MainLoop::new_server(move |client| {
         let client_socket = ClientSocket::clone(&client);
         let mut router: Router<State, ResponseError> = Router::new(State::new(
@@ -1300,6 +1289,7 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             client_socket,
             String::clone(&name),
             String::clone(&version),
+            TaskTracker::clone(&server_preparation_tasks),
         ));
 
         router
@@ -1335,9 +1325,11 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .workspace_notification::<notification::DidChangeWatchedFiles>(
                 WorkspaceNotification::DidChangeWatchedFiles,
             )
-            .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
-            .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)
-            .event_ext::<ConfigurationReceived>(finish_workspace_configuration);
+            .event_ext::<diagnostics::CollectDiagnostics>(diagnostics::collect_diagnostics)
+            .event_ext::<diagnostics::StartDiagnostics>(diagnostics::start_diagnostics)
+            .event_ext::<diagnostics::DiagnosticsFinished>(diagnostics::finish_diagnostics)
+            .event_ext::<ConfigurationReceived>(finish_workspace_configuration)
+            .event_ext::<WorkspacePrepared>(finish_workspace_preparation);
 
         ServiceBuilder::new()
             .layer(LifecycleLayer::default())
@@ -1359,5 +1351,8 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
         tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(tokio::io::stdout()),
     );
 
-    server.run_buffered(stdin, stdout).await.map_err(ServerError::new)
+    let result = server.run_buffered(stdin, stdout).await;
+    preparation_tasks.close();
+    preparation_tasks.wait().await;
+    result.map_err(ServerError::new)
 }

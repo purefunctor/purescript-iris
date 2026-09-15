@@ -1,3 +1,5 @@
+use std::io::{self, Read, Write};
+use std::net::TcpListener;
 use std::ops::ControlFlow;
 use std::path::Path;
 use std::process::Stdio;
@@ -28,6 +30,15 @@ use url::Url;
 mod support;
 
 use support::TestWorkspace;
+
+fn assert_connection_closed(connection: &mut impl Read) {
+    let mut remaining = [0; 1];
+    match connection.read(&mut remaining) {
+        Ok(0) => {}
+        Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {}
+        result => panic!("expected a closed connection, got {result:?}"),
+    }
+}
 
 struct ClientState {
     configuration: Mutex<Option<Value>>,
@@ -195,16 +206,17 @@ impl LanguageServer {
 
     #[track_caller]
     fn request(&mut self, method: &str, parameters: Value) -> Value {
-        for _ in 0..20 {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
             match self.request_once(method, parameters.clone()) {
                 Ok(result) => return result,
                 Err(Error::Response(response)) if response.code == ErrorCode::REQUEST_CANCELLED => {
                 }
                 Err(error) => panic!("{method} request failed: {error}"),
             }
+            assert!(Instant::now() < deadline, "request {method} was repeatedly cancelled");
             thread::sleep(Duration::from_millis(10));
         }
-        panic!("request {method} was repeatedly cancelled");
     }
 
     #[track_caller]
@@ -228,15 +240,16 @@ impl LanguageServer {
     }
 
     fn wait_for_symbol(&mut self, name: &str, present: bool) {
-        for _ in 0..20 {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
             let symbols = self.request("workspace/symbol", json!({"query": name}));
             let found = symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == name);
             if found == present {
                 return;
             }
+            assert!(Instant::now() < deadline, "symbol {name:?} presence did not become {present}");
             thread::sleep(Duration::from_millis(50));
         }
-        panic!("symbol {name:?} presence did not become {present}");
     }
 
     #[track_caller]
@@ -619,11 +632,198 @@ fn clients_without_workspace_configuration_keep_startup_settings() {
         "workspace/didChangeConfiguration",
         json!({"settings": {"sources": {"kind": "command", "program": "missing"}}}),
     );
-    let symbols = server
-        .request_once("workspace/symbol", json!({"query": "startupOnly"}))
-        .expect("invariant violated: workspace was not ready after the initialized notification");
+    let symbols = server.request("workspace/symbol", json!({"query": "startupOnly"}));
     assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
     assert_eq!(symbols[0]["name"], "startupOnly");
     assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
+    server.shutdown();
+}
+
+fn blocking_configuration(workspace: &TestWorkspace, sources: &str) -> (TcpListener, Value) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    workspace.write(
+        "blocking-source-command.mjs",
+        r#"
+import net from "node:net";
+const socket = net.connect(Number(process.argv[2]), "127.0.0.1", () => socket.write("started"));
+socket.once("data", () => {
+  console.log(process.argv[3]);
+  socket.end();
+});
+"#,
+    );
+    let configuration = json!({
+        "sources": {
+            "kind": "command",
+            "program": "node",
+            "arguments": ["blocking-source-command.mjs", port.to_string(), sources]
+        }
+    });
+    (listener, configuration)
+}
+
+#[test]
+fn blocked_workspace_preparation_does_not_block_protocol_requests() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("src/Library.purs", "module Library where\nprepared = 42\n");
+    let (listener, configuration) = blocking_configuration(&workspace, "src/*.purs");
+    let configuration = configuration.to_string();
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", &configuration],
+        workspace.path(),
+    );
+    let (connected, connection) = mpsc::channel();
+    thread::spawn(move || {
+        let (mut source_command, _) = listener.accept().unwrap();
+        let mut started = [0; 7];
+        source_command.read_exact(&mut started).unwrap();
+        assert_eq!(&started, b"started");
+        connected.send(source_command).unwrap();
+    });
+    let mut source_command =
+        connection.recv_timeout(Duration::from_secs(10)).expect("source command did not connect");
+
+    let response = server.request_once("workspace/symbol", json!({"query": "prepared"}));
+    assert!(matches!(
+        response,
+        Err(Error::Response(response)) if response.code == ErrorCode::REQUEST_CANCELLED
+    ));
+
+    source_command.write_all(b"continue").unwrap();
+    drop(source_command);
+    server.wait_for_symbol("prepared", true);
+    server.shutdown();
+}
+
+#[test]
+fn shutdown_cancels_a_blocked_source_command() {
+    let workspace = TestWorkspace::empty();
+    let (listener, configuration) = blocking_configuration(&workspace, "src/*.purs");
+    let configuration = configuration.to_string();
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", &configuration],
+        workspace.path(),
+    );
+    let (connected, connection) = mpsc::channel();
+    thread::spawn(move || {
+        let (mut source_command, _) = listener.accept().unwrap();
+        let mut started = [0; 7];
+        source_command.read_exact(&mut started).unwrap();
+        connected.send(source_command).unwrap();
+    });
+    let mut source_command =
+        connection.recv_timeout(Duration::from_secs(10)).expect("source command did not connect");
+
+    server.shutdown();
+
+    source_command.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    assert_connection_closed(&mut source_command);
+}
+
+#[test]
+fn newer_configuration_cancels_blocked_preparation() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+    );
+    workspace.write("src/Library.purs", "module Library where\nnewer = 42\n");
+    let (listener, blocked) = blocking_configuration(&workspace, "src/*.purs");
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"workspace": {"configuration": true}}),
+        Some(blocked),
+    );
+    let (connected, connection) = mpsc::channel();
+    thread::spawn(move || {
+        let (mut source_command, _) = listener.accept().unwrap();
+        let mut started = [0; 7];
+        source_command.read_exact(&mut started).unwrap();
+        connected.send(source_command).unwrap();
+    });
+    let mut source_command =
+        connection.recv_timeout(Duration::from_secs(10)).expect("source command did not connect");
+
+    server.set_configuration(json!({"sources": {"kind": "spago"}}));
+    server.wait_for_symbol("newer", true);
+
+    source_command.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    assert_connection_closed(&mut source_command);
+    server.shutdown();
+}
+
+#[test]
+fn notifications_during_reconfiguration_are_reconciled_before_commit() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+    );
+    workspace.write("src/Library.purs", "module Library where\nfromDisk = 42\n");
+    workspace.write("replacement/Library.purs", "module Replacement where\nreplacement = 42\n");
+    let (listener, blocked) = blocking_configuration(&workspace, "replacement/*.purs");
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"workspace": {"configuration": true}}),
+        Some(json!({})),
+    );
+    server.wait_for_symbol("fromDisk", true);
+    #[cfg(unix)]
+    let source_path = {
+        let alias = workspace.path().join("source-alias");
+        std::os::unix::fs::symlink(".", &alias).unwrap();
+        alias.join("src/Library.purs")
+    };
+    #[cfg(not(unix))]
+    let source_path = workspace.path().join("src/Library.purs");
+    let source_uri = Url::from_file_path(source_path).unwrap();
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": source_uri,
+                "languageId": "purescript",
+                "version": 1,
+                "text": "module Library where\nfromEditor = 42\n"
+            }
+        }),
+    );
+    server.wait_for_symbol("fromEditor", true);
+    let (connected, connection) = mpsc::channel();
+    thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut source_command, _) = listener.accept().unwrap();
+            let mut started = [0; 7];
+            source_command.read_exact(&mut started).unwrap();
+            connected.send(source_command).unwrap();
+        }
+    });
+
+    server.set_configuration(blocked);
+    let mut first =
+        connection.recv_timeout(Duration::from_secs(10)).expect("source command did not connect");
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": source_uri}}));
+    server.wait_for_symbol("fromEditor", false);
+    first.write_all(b"continue").unwrap();
+    drop(first);
+
+    let mut second = connection
+        .recv_timeout(Duration::from_secs(10))
+        .expect("source command was not restarted after the workspace changed");
+    second.write_all(b"continue").unwrap();
+    drop(second);
+    server.wait_for_symbol("replacement", true);
+    server.wait_for_symbol("fromDisk", false);
     server.shutdown();
 }
