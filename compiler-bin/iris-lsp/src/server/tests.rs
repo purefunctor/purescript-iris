@@ -359,18 +359,19 @@ fn source_and_foreign_uris_produce_the_same_unit_key() {
 }
 
 #[test]
-fn localhost_source_and_foreign_uris_keep_the_same_authority() {
-    let source_uri =
-        Url::parse("file://localhost/workspace/Source%20Files/Main.purs?view=1#selection").unwrap();
-    let foreign_uri =
-        Url::parse("file://localhost/workspace/Source%20Files/Main.js?view=1#selection").unwrap();
+fn source_and_foreign_identity_ignore_protocol_decorations() {
+    let directory = tempdir().unwrap();
+    let expected_source = Url::from_file_path(directory.path().join("Main.purs")).unwrap();
+    let expected_foreign = Url::from_file_path(directory.path().join("Main.js")).unwrap();
+    let source_uri = Url::parse(&format!("{expected_source}?view=1#selection")).unwrap();
+    let foreign_uri = Url::parse(&format!("{expected_foreign}?view=2#other")).unwrap();
 
     let from_source = source_unit_from_source_uri(&source_uri).unwrap();
     let from_foreign = source_unit_from_foreign_uri(&foreign_uri).unwrap();
 
     assert_eq!(from_source, from_foreign);
-    assert_eq!(from_source.source(), source_uri.as_str());
-    assert_eq!(from_source.foreign(), foreign_uri.as_str());
+    assert_eq!(from_source.source(), expected_source.as_str());
+    assert_eq!(from_source.foreign(), expected_foreign.as_str());
 }
 
 #[test]
@@ -381,10 +382,11 @@ fn non_file_document_uris_are_rejected() {
 
 #[test]
 fn document_kind_is_bounded_to_source_and_foreign_extensions() {
-    let source_uri = Url::parse("file:///workspace/Main.purs").unwrap();
-    let foreign_uri = Url::parse("file:///workspace/Main.js").unwrap();
-    let jsx_uri = Url::parse("file:///workspace/Main.jsx").unwrap();
-    let unsupported_uri = Url::parse("file:///workspace/Main.json").unwrap();
+    let directory = tempdir().unwrap();
+    let source_uri = Url::from_file_path(directory.path().join("Main.purs")).unwrap();
+    let foreign_uri = Url::from_file_path(directory.path().join("Main.js")).unwrap();
+    let jsx_uri = Url::from_file_path(directory.path().join("Main.jsx")).unwrap();
+    let unsupported_uri = Url::from_file_path(directory.path().join("Main.json")).unwrap();
 
     assert_eq!(document_kind(&source_uri), Some(DocumentKind::Source));
     assert_eq!(

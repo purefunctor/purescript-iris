@@ -24,6 +24,7 @@ use lsp_types::{
 use parking_lot::{RwLock, RwLockReadGuard};
 use rustc_hash::FxHashSet;
 
+use super::document::DocumentPath;
 use super::error::LspError;
 use super::event::{CollectDiagnostics, DiagnosticScheduler, DiagnosticTicket};
 use super::{
@@ -504,7 +505,9 @@ impl AnalyzerHost for LspAnalyzerHost<'_> {
     }
 
     fn file_id(&self, uri: &str) -> Option<FileId> {
-        self.files.source_id(uri)
+        let uri = Url::parse(uri).ok()?;
+        let uri = DocumentPath::from_uri(&uri).ok()?.uri().ok()?;
+        self.files.source_id(uri.as_str())
     }
 
     fn file_uri(&self, file_id: FileId) -> Result<Option<Url>, url::ParseError> {

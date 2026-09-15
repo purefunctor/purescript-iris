@@ -627,3 +627,50 @@ fn clients_without_workspace_configuration_keep_startup_settings() {
     assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
     server.shutdown();
 }
+
+#[test]
+fn document_spelling_variants_share_lifecycle_and_protocol_output() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("spago.lock", r#"{"workspace":{"packages":{}},"packages":{}}"#);
+    let mut server = LanguageServer::start(
+        &workspace,
+        "",
+        &["lsp", "--config", r#"{"diagnostics":{"onChange":true}}"#],
+        workspace.path(),
+    );
+    let uri = Url::from_file_path(workspace.path().join("Main.purs")).unwrap();
+    let encoded = uri.as_str().replace("Main.purs", "%4dain%2epurs");
+    let decorated = format!("{encoded}?view=1#selection");
+    server.notify(
+        "textDocument/didOpen",
+        json!({"textDocument": {
+            "uri": decorated, "languageId": "purescript", "version": 1,
+            "text": "module Main where\nidentityBefore = 1\n"
+        }}),
+    );
+    let published = server.wait_for_notification("textDocument/publishDiagnostics");
+    assert_eq!(published["params"]["uri"], uri.as_str());
+    assert_eq!(published["params"]["version"], 1);
+
+    server.notify(
+        "textDocument/didChange",
+        json!({"textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [{"text": "module Main where\nidentityAfter = 2\n"}]}),
+    );
+    let published = server.wait_for_notification("textDocument/publishDiagnostics");
+    assert_eq!(published["params"]["uri"], uri.as_str());
+    assert_eq!(published["params"]["version"], 2);
+    let symbols = server.request_once("workspace/symbol", json!({"query": "identity"})).unwrap();
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["name"], "identityAfter");
+    assert_eq!(symbols[0]["location"]["uri"], uri.as_str());
+
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": encoded}}));
+    let published = server.wait_for_notification("textDocument/publishDiagnostics");
+    assert_eq!(published["params"]["uri"], uri.as_str());
+    assert_eq!(published["params"]["diagnostics"], json!([]));
+    assert_eq!(published["params"]["version"], Value::Null);
+    let symbols = server.request_once("workspace/symbol", json!({"query": "identity"})).unwrap();
+    assert_eq!(symbols, json!([]));
+    server.shutdown();
+}

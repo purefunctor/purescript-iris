@@ -2,6 +2,8 @@ pub mod capabilities;
 pub mod error;
 pub mod event;
 pub mod extension;
+
+mod document;
 mod workspace;
 
 #[cfg(test)]
@@ -45,6 +47,7 @@ use crate::server::capabilities::{
     ConfigurationCapabilities, negotiate_analyzer_capabilities,
     negotiate_configuration_capabilities, negotiate_position_encoding,
 };
+use crate::server::document::DocumentPath;
 use crate::server::error::{AnalyzerResultExt, LspError};
 use crate::server::workspace::{
     ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
@@ -638,8 +641,7 @@ fn apply_configuration_inner(
 }
 
 fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
-    let uri =
-        Url::from_file_path(path).map_err(|_| LspError::PathParseFail(PathBuf::clone(path)))?;
+    let uri = DocumentPath::new(path)?.uri()?;
     Ok(Arc::from(uri.as_str()))
 }
 
@@ -816,22 +818,23 @@ fn document_content(
     document: DocumentKind,
     uri: &Url,
 ) -> Result<Arc<str>, LspError> {
+    let uri = DocumentPath::from_uri(uri)?.uri()?;
     let files = workspace.files.read();
     match document {
         DocumentKind::Source => {
             let file_id = files
                 .source_id(uri.as_str())
-                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
+                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(&uri)))?;
             workspace.engine.content(file_id).map_err(LspError::from)
         }
         DocumentKind::Foreign(_) => {
             let file_id = files
                 .foreign_id(uri.as_str())
-                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
+                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(&uri)))?;
             workspace
                 .engine
                 .foreign_content(file_id)
-                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))
+                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(&uri)))
         }
     }
 }
@@ -1095,6 +1098,7 @@ fn did_change_watched_files(
 }
 
 fn document_kind(uri: &Url) -> Option<DocumentKind> {
+    let uri = DocumentPath::from_uri(uri).ok()?.uri().ok()?;
     if uri.path().ends_with(".js") {
         Some(DocumentKind::Foreign(ForeignSourceKind::JavaScript))
     } else if uri.path().ends_with(".jsx") {
@@ -1117,27 +1121,14 @@ fn source_unit_from_document_uri(uri: &Url) -> Result<(DocumentKind, SourceUnitK
 }
 
 fn file_uri_with_extension(uri: &Url, extension: &str) -> Result<Url, LspError> {
-    if uri.scheme() != "file" || uri.to_file_path().is_err() {
-        return Err(LspError::InvalidFileUri(Url::clone(uri)));
-    }
-    let uri_path = uri.path();
-    let file_name_start = uri_path.rfind('/').map_or(0, |index| index + 1);
-    let extension_start = uri_path[file_name_start..]
-        .rfind('.')
-        .filter(|index| *index > 0)
-        .map_or(uri_path.len(), |index| file_name_start + index);
-    let mut sibling_path = String::from(&uri_path[..extension_start]);
-    sibling_path.push('.');
-    sibling_path.push_str(extension);
-
-    let mut sibling_uri = Url::clone(uri);
-    sibling_uri.set_path(&sibling_path);
-    Ok(sibling_uri)
+    DocumentPath::from_uri(uri)?.with_extension(extension).uri()
 }
 
 fn source_unit_from_source_uri(source_uri: &Url) -> Result<SourceUnitKey, LspError> {
-    let javascript_uri = file_uri_with_extension(source_uri, "js")?;
-    let jsx_uri = file_uri_with_extension(source_uri, "jsx")?;
+    let source = DocumentPath::from_uri(source_uri)?;
+    let source_uri = source.uri()?;
+    let javascript_uri = source.with_extension("js").uri()?;
+    let jsx_uri = source.with_extension("jsx").uri()?;
     Ok(SourceUnitKey::with_foreign_sources(
         source_uri.as_str(),
         javascript_uri.as_str(),
