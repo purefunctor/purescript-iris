@@ -1,5 +1,7 @@
 use std::fs;
+use std::future::Future;
 use std::ops::Deref;
+use std::task::Poll;
 use std::time::Duration;
 
 use configuration::{Configuration, SourceDiscovery};
@@ -50,6 +52,21 @@ async fn bounded<T>(future: impl std::future::Future<Output = T>) -> T {
         .expect("workspace sequence timed out")
 }
 
+// Call while an Idle gate holds the controller, so an empty queue means it has been drained.
+async fn queued_events(harness: &mut Harness) -> Vec<iris_workspace::Delivery<Event>> {
+    let mut events = vec![];
+    loop {
+        let mut receive = std::pin::pin!(harness.events.recv());
+        let event = std::future::poll_fn(|context| match receive.as_mut().poll(context) {
+            Poll::Ready(event) => Poll::Ready(event),
+            Poll::Pending => Poll::Ready(None),
+        })
+        .await;
+        let Some(event) = event else { return events };
+        events.push(event);
+    }
+}
+
 impl Harness {
     fn new(options: Options) -> Harness {
         let directory = tempfile::tempdir().unwrap();
@@ -94,7 +111,9 @@ impl Harness {
     async fn ready(&mut self, sequence: InputSequence) -> AnalysisStamp {
         loop {
             match self.status() {
-                Status::Ready { stamp, .. } if stamp.revision >= sequence => return stamp,
+                Status::Ready { stamp, sequence: applied, .. } if applied >= sequence => {
+                    return stamp;
+                }
                 Status::Failed { message, .. } => panic!("workspace failed: {message}"),
                 _ => {
                     self.next().await;
@@ -137,8 +156,7 @@ impl Harness {
     }
 
     async fn hover(&self) -> String {
-        let hover =
-            bounded(self.hover_request()).await.unwrap().release().unwrap().unwrap().unwrap();
+        let hover = bounded(self.hover_request()).await.unwrap().unwrap();
 
         match hover.contents {
             HoverContents::Markup(markup) => markup.value,
@@ -154,7 +172,7 @@ impl Harness {
         }))
         .unwrap();
 
-        match bounded(request).await.unwrap().release().unwrap().unwrap().unwrap() {
+        match bounded(request).await.unwrap().unwrap() {
             DocumentSymbolResponse::Flat(symbols) => {
                 symbols.into_iter().map(|symbol| symbol.name).collect()
             }
@@ -173,7 +191,7 @@ impl Harness {
         }))
         .unwrap();
 
-        match bounded(request).await.unwrap().release().unwrap().unwrap().unwrap() {
+        match bounded(request).await.unwrap().unwrap() {
             CompletionResponse::Array(items) => items,
             CompletionResponse::List(list) => list.items,
         }
@@ -184,7 +202,7 @@ impl Harness {
         self.send(Command::LanguageServer(LanguageServer::ResolveCompletion { item, reply }))
             .unwrap();
 
-        bounded(request).await.unwrap().release().unwrap().unwrap()
+        bounded(request).await.unwrap()
     }
 }
 
@@ -257,7 +275,7 @@ async fn supersession_and_failed_rebuild_preserve_buffers_without_rollback() {
 }
 
 #[tokio::test]
-async fn held_replies_and_completion_tokens_are_invalidated_by_edits_and_rebuilds() {
+async fn settled_replies_survive_edits_but_completion_tokens_expire() {
     let mut harness = Harness::new(Options::default());
     let sequence = harness.configure();
     harness.ready(sequence).await;
@@ -271,7 +289,7 @@ async fn held_replies_and_completion_tokens_are_invalidated_by_edits_and_rebuild
     assert!(item.data.as_ref().unwrap().is_string());
 
     let sequence = harness.open(CHANGED, 1);
-    assert!(matches!(held.release(), Err(RequestFailure::Stale | RequestFailure::Cancelled)));
+    assert!(held.is_some());
     harness.ready(sequence).await;
 
     let resolved = harness.resolve(CompletionItem::clone(&item)).await;
@@ -327,7 +345,7 @@ async fn overload_and_request_cancellation_do_not_block_inputs() {
 }
 
 #[tokio::test]
-async fn computed_rename_rejections_are_fenced_until_publication() {
+async fn computed_rename_rejections_survive_edits_after_settlement() {
     let mut harness = Harness::new(Options::default());
     let sequence = harness.configure();
     harness.ready(sequence).await;
@@ -348,25 +366,214 @@ async fn computed_rename_rejections_are_fenced_until_publication() {
             new_name: "use".into(),
             reply,
         };
+        let mut settlement = harness.hooks.pause_next(Point::AfterReplySettlement);
         harness.send(Command::LanguageServer(command)).unwrap();
-        let held = bounded(request).await.unwrap();
+        bounded(settlement.entered()).await;
 
         if let Some(command) = replacement {
-            let sequence = harness.send(command).unwrap();
-            assert!(matches!(
-                held.release(),
-                Err(RequestFailure::Stale | RequestFailure::Cancelled)
-            ));
+            harness.send(command).unwrap();
+        }
+        request.cancellation().cancel();
+        assert!(matches!(
+            bounded(request).await,
+            Err(RequestFailure::LanguageServer(
+                iris_workspace::LanguageServerFailure::RenameRejected(_)
+            ))
+        ));
+        drop(settlement);
+        let sequence = harness.configure();
+        harness.ready(sequence).await;
+    }
+}
+
+#[tokio::test]
+async fn edits_and_explicit_cancellation_win_before_reply_settlement() {
+    for new_name in ["count", "use"] {
+        for edit in [false, true] {
+            let mut harness = Harness::new(Options::default());
+            let sequence = harness.configure();
             harness.ready(sequence).await;
-        } else {
-            assert!(matches!(
-                held.release().unwrap(),
-                Err(RequestFailure::LanguageServer(
-                    iris_workspace::LanguageServerFailure::RenameRejected(_)
-                ))
-            ));
+
+            let mut settlement = harness.hooks.pause_next(Point::BeforeReplySettlement);
+            let (reply, request) = Reply::channel();
+            let command = LanguageServer::Rename {
+                uri: Url::clone(&harness.uri),
+                position: Position::new(5, 7),
+                new_name: new_name.into(),
+                reply,
+            };
+            harness.send(Command::LanguageServer(command)).unwrap();
+            bounded(settlement.entered()).await;
+
+            if edit {
+                harness.open(CHANGED, 1);
+            } else {
+                request.cancellation().cancel();
+            }
+            assert!(matches!(bounded(request).await, Err(RequestFailure::Cancelled)));
+            drop(settlement);
         }
     }
+}
+
+#[tokio::test]
+async fn unread_success_survives_reload_but_keeps_the_worker_occupied() {
+    let mut harness = Harness::new(Options { request_capacity: 1, ..Options::default() });
+    let sequence = harness.configure();
+    harness.ready(sequence).await;
+
+    let mut settlement = harness.hooks.pause_next(Point::AfterReplySettlement);
+    let request = harness.hover_request();
+    bounded(settlement.entered()).await;
+    request.cancellation().cancel();
+
+    let (reply, rejected) = Reply::channel();
+    let command = LanguageServer::DocumentSymbols { uri: Url::clone(&harness.uri), reply };
+    assert!(matches!(harness.send(Command::LanguageServer(command)), Err(RequestFailure::Busy)));
+    assert!(matches!(bounded(rejected).await, Err(RequestFailure::Busy)));
+
+    let sequence = harness.send(Command::Reload).unwrap();
+    let hover = bounded(request).await.unwrap().unwrap();
+    assert!(format!("{:?}", hover.contents).contains("Int"));
+    assert!(matches!(harness.status(), Status::Rebuilding { .. }));
+
+    drop(settlement);
+    harness.ready(sequence).await;
+    assert!(harness.hover().await.contains("Int"));
+}
+
+#[tokio::test]
+async fn cross_file_edits_cancel_active_reads_and_discard_queued_reads() {
+    let mut harness = Harness::new(Options::default());
+    let sequence = harness.configure();
+    harness.ready(sequence).await;
+
+    let mut snapshot = harness.hooks.pause_next(Point::SnapshotActive);
+    let (reply, request) = Reply::channel();
+    let command = LanguageServer::References {
+        uri: Url::clone(&harness.uri),
+        position: Position::new(5, 7),
+        reply,
+    };
+    harness.send(Command::LanguageServer(command)).unwrap();
+    bounded(snapshot.entered()).await;
+    let queued = harness.hover_request();
+
+    let uri = harness.uri.join("Other.purs").unwrap();
+    let document = Document::Open {
+        uri,
+        text: "module Other where\nimport Main\nother = value\n".into(),
+        version: 1,
+    };
+    let sequence = harness.send(Command::Document(document)).unwrap();
+    assert!(matches!(bounded(request).await, Err(RequestFailure::Cancelled)));
+    assert!(matches!(bounded(queued).await, Err(RequestFailure::Stale)));
+
+    drop(snapshot);
+    harness.ready(sequence).await;
+    assert!(harness.hover().await.contains("Int"));
+}
+
+#[tokio::test]
+async fn configuration_policy_preserves_running_reads_and_completion_identity() {
+    let mut harness = Harness::new(Options::default());
+    let sequence = harness.configure();
+    configuration_outcome(&mut harness, sequence).await;
+    let stamp = harness.ready(sequence).await;
+    let item = harness.completion().await.into_iter().find(|item| item.label == "value").unwrap();
+
+    let mut snapshot = harness.hooks.pause_next(Point::SnapshotActive);
+    let request = harness.hover_request();
+    bounded(snapshot.entered()).await;
+
+    let sequence = harness.configure();
+    assert_eq!(
+        configuration_outcome(&mut harness, sequence).await,
+        iris_workspace::ConfigurationOutcome::Unchanged
+    );
+
+    let mut policy = harness.configuration();
+    policy.settings.diagnostics.on_change = true;
+    let sequence = harness.send(Command::Configure(policy)).unwrap();
+    assert_eq!(
+        configuration_outcome(&mut harness, sequence).await,
+        iris_workspace::ConfigurationOutcome::PolicyUpdated
+    );
+    assert!(!request.cancellation().is_cancelled());
+
+    drop(snapshot);
+    assert!(bounded(request).await.unwrap().is_some());
+    assert_eq!(harness.ready(sequence).await, stamp);
+    let resolved = harness.resolve(item).await;
+    assert!(resolved.detail.unwrap().contains("Int"));
+}
+
+#[tokio::test]
+async fn cancelled_diagnostics_do_not_retry_without_a_trigger() {
+    for point in [Point::BeforeDiagnostics, Point::AfterDiagnostics] {
+        let mut harness = Harness::new(Options::default());
+        let mut diagnostics = harness.hooks.pause_next(point);
+        harness.open(ORIGINAL, 1);
+        harness.configure();
+        bounded(diagnostics.entered()).await;
+
+        let mut idle = harness.hooks.pause_next(Point::Idle);
+        let sequence = harness.change(CHANGED, 2);
+        drop(diagnostics);
+        bounded(idle.entered()).await;
+        assert!(
+            matches!(harness.status(), Status::Ready { sequence: applied, .. } if applied == sequence)
+        );
+
+        let events = queued_events(&mut harness).await;
+        for event in events {
+            assert!(!matches!(event.release(), Ok(Event::Diagnostics { .. })));
+        }
+        drop(idle);
+
+        harness.send(Command::Document(Document::Save(Url::clone(&harness.uri)))).unwrap();
+        let uri = Url::clone(&harness.uri);
+        assert!(diagnostics_for(&mut harness, &uri).await.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn held_diagnostics_survive_policy_updates_and_removal_clears_survive_other_edits() {
+    let mut harness = Harness::new(Options::default());
+    fs::remove_file(harness.directory.path().join("Main.purs")).unwrap();
+    let mut idle = harness.hooks.pause_next(Point::Idle);
+    harness.open("module Main where\nvalue :: Int\nvalue = \"wrong\"\n", 1);
+    harness.configure();
+    bounded(idle.entered()).await;
+    let held = queued_events(&mut harness).await;
+
+    let mut policy = harness.configuration();
+    policy.settings.diagnostics.on_change = true;
+    harness.send(Command::Configure(policy)).unwrap();
+    let published = held.into_iter().any(|event| {
+        matches!(event.release(), Ok(Event::Diagnostics { diagnostics, .. }) if !diagnostics.is_empty())
+    });
+    assert!(published);
+
+    let mut closed = harness.hooks.pause_next(Point::Idle);
+    harness.send(Command::Document(Document::Close(Url::clone(&harness.uri)))).unwrap();
+    drop(idle);
+    bounded(closed.entered()).await;
+    let held = queued_events(&mut harness).await;
+
+    let uri = harness.uri.join("Other.purs").unwrap();
+    harness
+        .send(Command::Document(Document::Open {
+            uri,
+            text: "module Other where\nother = 1\n".into(),
+            version: 1,
+        }))
+        .unwrap();
+    let cleared = held.into_iter().any(|event| {
+        matches!(event.release(), Ok(Event::Diagnostics { uri, diagnostics, .. }) if uri == harness.uri && diagnostics.is_empty())
+    });
+    assert!(cleared);
+    drop(closed);
 }
 
 #[tokio::test]
@@ -398,7 +605,7 @@ async fn sequential_unicode_edits_are_atomic_and_versions_reset_only_on_reopen()
     };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let hover = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
+    let hover = bounded(request).await.unwrap().unwrap();
     assert!(format!("{:?}", hover.contents).contains("Int"));
 
     let command = Document::Change {
@@ -583,12 +790,12 @@ async fn closing_a_buffer_only_source_clears_its_diagnostics() {
     assert!(!diagnostics_for(&mut harness, &uri).await.is_empty());
 
     let sequence = harness.send(Command::Document(Document::Close(Url::clone(&uri)))).unwrap();
-    harness.ready(sequence).await;
     assert!(diagnostics_for(&mut harness, &uri).await.is_empty());
+    harness.ready(sequence).await;
 
     let (reply, request) = Reply::channel();
     harness.send(Command::LanguageServer(LanguageServer::DocumentSymbols { uri, reply })).unwrap();
-    assert!(bounded(request).await.unwrap().release().unwrap().unwrap().is_none());
+    assert!(bounded(request).await.unwrap().is_none());
 }
 
 #[tokio::test]
@@ -609,7 +816,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
     };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let locations = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
+    let locations = bounded(request).await.unwrap().unwrap();
     let reference = locations
         .iter()
         .any(|location| location.uri == harness.uri && location.range.start.line == 5);
@@ -624,7 +831,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
     };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let edit = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
+    let edit = bounded(request).await.unwrap().unwrap();
     let changes = match edit.document_changes.unwrap() {
         lsp_types::DocumentChanges::Edits(edits) => edits,
         lsp_types::DocumentChanges::Operations(operations) => {
@@ -652,7 +859,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
     let command = LanguageServer::SemanticTokens { uri: Url::clone(&harness.uri), reply };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let tokens = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
+    let tokens = bounded(request).await.unwrap().unwrap();
     assert!(!tokens.data.is_empty());
     let legend = iris_workspace::semantic_tokens_legend();
     let keyword = &tokens.data[0];
@@ -672,7 +879,7 @@ async fn analysis_commands_return_locations_edits_and_stable_prim_uris() {
         };
         harness.send(Command::LanguageServer(command)).unwrap();
 
-        match bounded(request).await.unwrap().release().unwrap().unwrap().unwrap() {
+        match bounded(request).await.unwrap().unwrap() {
             lsp_types::GotoDefinitionResponse::Scalar(location) => location.uri,
             lsp_types::GotoDefinitionResponse::Array(locations) => Url::clone(&locations[0].uri),
             lsp_types::GotoDefinitionResponse::Link(locations) => {
@@ -716,7 +923,7 @@ async fn discovery_preserves_root_and_literal_arguments_and_rejects_invalid_outp
     let command = LanguageServer::WorkspaceSymbols { query: "ignored".into(), reply };
     harness.send(Command::LanguageServer(command)).unwrap();
 
-    let result = bounded(request).await.unwrap().release().unwrap().unwrap();
+    let result = bounded(request).await.unwrap();
     assert!(match result {
         None => true,
         Some(lsp_types::WorkspaceSymbolResponse::Flat(symbols)) => symbols.is_empty(),
@@ -866,7 +1073,7 @@ async fn closing_an_excluded_source_does_not_restore_it_from_disk() {
     let (reply, request) = Reply::channel();
     let command = LanguageServer::DocumentSymbols { uri: Url::clone(&harness.uri), reply };
     harness.send(Command::LanguageServer(command)).unwrap();
-    assert!(bounded(request).await.unwrap().release().unwrap().unwrap().is_none());
+    assert!(bounded(request).await.unwrap().is_none());
     assert!(harness.uri.to_file_path().unwrap().is_file());
 }
 
@@ -1259,7 +1466,7 @@ async fn encoded_file_uris_keep_importers_and_rename_on_the_open_buffer() {
             reply,
         };
         harness.send(Command::LanguageServer(command)).unwrap();
-        let edit = bounded(request).await.unwrap().release().unwrap().unwrap().unwrap();
+        let edit = bounded(request).await.unwrap().unwrap();
         let edits = edit.changes.unwrap();
         assert_eq!(edits.len(), 2);
         assert!(edits.contains_key(&uri));

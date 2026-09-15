@@ -99,14 +99,14 @@ async fn lifecycle(
     workspace.send(Command::LanguageServer(command)).expect("admit hover on the ready workspace");
     let held = request.await.expect("compute hover before the document changes");
 
-    // A computed result is not yet safe to publish. Admitting another input revokes this held
-    // delivery immediately, even if the worker has not applied that input yet.
+    // This reply has settled. Later edits cancel unfinished reads, but do not recall replies
+    // already placed in their channels. The editor may receive this response after its edit.
     let change =
         TextDocumentContentChangeEvent { range: None, range_length: None, text: EDITED.into() };
     let document = Document::Change { uri: Url::clone(uri), version: 2, changes: vec![change] };
     let sequence = workspace.send(Command::Document(document)).expect("admit the version 2 edit");
-    assert!(matches!(held.release(), Err(RequestFailure::Stale | RequestFailure::Cancelled)));
-    println!("  Held hover rejected after didChange.");
+    assert!(held.is_some());
+    println!("  Completed hover retained after didChange.");
     ready(workspace, events, sequence).await;
 
     let before = workspace.status();
@@ -114,17 +114,14 @@ async fn lifecycle(
     ready(workspace, events, sequence).await;
     assert_ne!(before, workspace.status());
 
-    // Each variant fixes its reply type. Release at the publication boundary with no intervening
-    // await or output queue; a multi-threaded adapter must serialize publication with inputs.
+    // Each variant fixes its reply type. Interactive replies need no publication-time check.
     let (reply, request) = Reply::channel();
     let command =
         LanguageServer::Hover { uri: Url::clone(uri), position: Position::new(1, 1), reply };
     workspace.send(Command::LanguageServer(command)).expect("admit hover after rebuilding");
-    let delivery = request.await.expect("compute hover from the preserved buffer");
-    let hover = delivery
-        .release()
-        .expect("hover must still match current inputs")
-        .expect("hover analysis must succeed")
+    let hover = request
+        .await
+        .expect("compute hover from the preserved buffer")
         .expect("the value declaration must have hover information");
     print_message("Hover after rebuild", serde_json::json!({"result": hover}));
 
@@ -226,11 +223,7 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
     let command =
         LanguageServer::Completion { uri: Url::clone(uri), position: Position::new(5, 9), reply };
     workspace.send(Command::LanguageServer(command)).expect("admit the completion request");
-    let delivery = request.await.expect("compute completion suggestions");
-    let response = delivery
-        .release()
-        .expect("completion must still match current inputs")
-        .expect("completion analysis must succeed");
+    let response = request.await.expect("compute completion suggestions");
     print_message(
         "Completion",
         serde_json::json!({"jsonrpc": "2.0", "id": 101, "result": response}),
@@ -253,11 +246,7 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
     let (reply, request) = Reply::channel();
     let command = LanguageServer::ResolveCompletion { item: CompletionItem::clone(&item), reply };
     workspace.send(Command::LanguageServer(command)).expect("admit completionItem/resolve");
-    let delivery = request.await.expect("resolve the completion's type information");
-    let resolved = delivery
-        .release()
-        .expect("resolved completion must still be current")
-        .expect("completion resolution must succeed");
+    let resolved = request.await.expect("resolve the completion's type information");
     print_message(
         "Resolved completion",
         serde_json::json!({"jsonrpc": "2.0", "id": 102, "result": resolved}),
@@ -275,11 +264,9 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
         reply,
     };
     workspace.send(Command::LanguageServer(command)).expect("admit the conflicting rename");
-    let delivery = request.await.expect("compute annotated rename edits");
-    let edit = delivery
-        .release()
-        .expect("rename edits must still be current")
-        .expect("annotated rename analysis must succeed")
+    let edit = request
+        .await
+        .expect("compute annotated rename edits")
         .expect("the selected value must be renameable");
     print_message(
         "Rename requiring confirmation",
@@ -309,12 +296,8 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
         reply,
     };
     workspace.send(Command::LanguageServer(command)).expect("admit the non-conflicting rename");
-    let delivery = request.await.expect("compute the count rename");
-    let edit = delivery
-        .release()
-        .expect("count edits must still be current")
-        .expect("non-conflicting rename analysis must succeed")
-        .expect("value must have rename edits");
+    let edit =
+        request.await.expect("compute the count rename").expect("value must have rename edits");
     print_message(
         "Rename to count",
         serde_json::json!({"jsonrpc": "2.0", "id": 104, "result": edit}),
@@ -351,11 +334,7 @@ async fn completion_and_rename(workspace: &Workspace, events: &mut EventReceiver
     workspace
         .send(Command::LanguageServer(command))
         .expect("admit resolution of an outdated completion");
-    let delivery = request.await.expect("handle the outdated completion token");
-    let outdated = delivery
-        .release()
-        .expect("token rejection must use current analysis")
-        .expect("outdated completion handling must succeed");
+    let outdated = request.await.expect("handle the outdated completion token");
     assert!(outdated.data.is_none());
     assert!(outdated.detail.is_none());
     println!("  Outdated completion token discarded after didChange.");
@@ -376,7 +355,7 @@ async fn shutdown(workspace: &Workspace, events: &mut EventReceiver) {
 async fn ready(workspace: &Workspace, events: &mut EventReceiver, sequence: InputSequence) {
     loop {
         match workspace.status() {
-            Status::Ready { stamp, .. } if stamp.revision >= sequence => return,
+            Status::Ready { sequence: applied, .. } if applied >= sequence => return,
             Status::Failed { message, .. } => panic!("preparation failed: {message}"),
             _ => {}
         }
@@ -398,8 +377,9 @@ async fn publish_next(
     loop {
         let delivery = events.recv().await.expect("receive a workspace event before shutdown");
 
-        // A language server performs this check in its output loop. Never release in a background
-        // task and queue the unguarded value: a later edit could invalidate it before transmission.
+        // Check in the service loop immediately before handing diagnostics to the transport.
+        // Forward the guarded delivery to that loop, awaiting acknowledgement before receiving
+        // another event. Later transport queueing does not require another freshness check.
         let Ok(event) = delivery.release() else {
             continue;
         };

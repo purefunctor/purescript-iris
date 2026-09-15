@@ -18,9 +18,17 @@ use crate::{
 const MESSAGE_BATCH_SIZE: usize = 64;
 
 pub(crate) enum Message {
-    Command { sequence: InputSequence, generation: Generation, command: Command },
+    Command {
+        sequence: InputSequence,
+        revision: InputSequence,
+        generation: Generation,
+        command: Command,
+    },
     Completed(Completed),
-    Progress { generation: Generation, event: BuildEvent },
+    Progress {
+        generation: Generation,
+        event: BuildEvent,
+    },
 }
 
 // Desired lifecycle is independent of outstanding work: a superseded query may still be running.
@@ -61,6 +69,7 @@ pub(crate) struct Controller {
     pending_configuration: Option<InputSequence>,
     generation: Generation,
     sequence: InputSequence,
+    revision: InputSequence,
     incarnation: Incarnation,
     lifecycle: Lifecycle,
     dirty: BTreeSet<Url>,
@@ -97,6 +106,7 @@ impl Controller {
             pending_configuration: None,
             generation: Generation::default(),
             sequence: InputSequence::default(),
+            revision: InputSequence::default(),
             incarnation: Incarnation::default(),
             lifecycle: Lifecycle::AwaitingConfiguration,
             dirty: BTreeSet::new(),
@@ -191,76 +201,98 @@ impl Controller {
         }
     }
 
+    fn clear_source_diagnostics(&self, uri: Url) {
+        let mut admission = self.shared.lock();
+        let revision = admission.publications.entry(Url::clone(&uri)).or_default();
+        *revision += 1;
+        let fence =
+            Fence::Publication { uri: Url::clone(&uri), revision: *revision, analysis: None };
+        drop(admission);
+        self.emit(Event::Diagnostics { uri, version: None, diagnostics: vec![] }, fence);
+    }
+
     fn handle(&mut self, message: Message) -> bool {
         match message {
-            Message::Command { sequence, generation, command } => match command {
-                Command::LanguageServer(mut request) => match self.lifecycle {
-                    Lifecycle::Active { .. } => self.requests.push_back(request),
-                    Lifecycle::Stopping => request.reject(RequestFailure::Cancelled),
-                    _ => request.reject(RequestFailure::Unavailable),
-                },
-                Command::Document(document) => {
-                    self.sequence = sequence;
-                    let triggers = self
-                        .configuration
-                        .as_ref()
-                        .map(|configuration| &configuration.settings.diagnostics);
-                    let collect = match (&document, triggers) {
-                        (Document::Open { .. }, Some(triggers)) => triggers.on_open,
-                        (Document::Change { .. }, Some(triggers)) => triggers.on_change,
-                        (Document::Save(_), Some(triggers)) => triggers.on_save,
-                        (Document::Close(_), _) => true,
-                        _ => false,
-                    };
-                    match self.documents.apply(document, self.options.position_encoding) {
-                        Ok(uri) => {
-                            self.dirty.insert(uri);
-                            self.request_diagnostics |= collect;
-                        }
-                        Err(failure) => self
-                            .emit(Event::InputRejected { sequence, failure }, Fence::Unconditional),
-                    }
+            Message::Command { sequence, revision, generation, command } => {
+                if revision != self.revision {
+                    self.revision = revision;
+                    self.diagnostics.clear();
+                    self.request_diagnostics = false;
+                    self.reject_requests(RequestFailure::Stale);
                 }
-                Command::Configure(configuration) => {
-                    let unchanged = self.configuration.as_ref().is_some_and(|previous| {
-                        previous.settings == configuration.settings
-                            && previous.root == configuration.root
-                    });
-                    self.configuration = Some(configuration);
-                    if generation != self.generation {
-                        self.rebuild(sequence, generation);
-                        self.pending_configuration = Some(sequence);
-                    } else {
+                match command {
+                    Command::LanguageServer(mut request) => match self.lifecycle {
+                        Lifecycle::Active { .. } => self.requests.push_back(request),
+                        Lifecycle::Stopping => request.reject(RequestFailure::Cancelled),
+                        _ => request.reject(RequestFailure::Unavailable),
+                    },
+                    Command::Document(document) => {
                         self.sequence = sequence;
-                        let outcome = match self.shared.lock().status {
-                            Status::Failed { ref message, .. } => {
-                                ConfigurationOutcome::Failed { message: Arc::clone(message) }
-                            }
-                            _ if unchanged => ConfigurationOutcome::Unchanged,
-                            _ => ConfigurationOutcome::PolicyUpdated,
+                        let triggers = self
+                            .configuration
+                            .as_ref()
+                            .map(|configuration| &configuration.settings.diagnostics);
+                        let collect = match (&document, triggers) {
+                            (Document::Open { .. }, Some(triggers)) => triggers.on_open,
+                            (Document::Change { .. }, Some(triggers)) => triggers.on_change,
+                            (Document::Save(_), Some(triggers)) => triggers.on_save,
+                            (Document::Close(_), _) => true,
+                            _ => false,
                         };
-                        self.emit(
-                            Event::ConfigurationFinished { sequence, outcome },
-                            Fence::Unconditional,
-                        );
+                        match self.documents.apply(document, self.options.position_encoding) {
+                            Ok(uri) => {
+                                self.dirty.insert(uri);
+                                self.request_diagnostics |= collect;
+                            }
+                            Err(failure) => self.emit(
+                                Event::InputRejected { sequence, failure },
+                                Fence::Unconditional,
+                            ),
+                        }
+                    }
+                    Command::Configure(configuration) => {
+                        let unchanged = self.configuration.as_ref().is_some_and(|previous| {
+                            previous.settings == configuration.settings
+                                && previous.root == configuration.root
+                        });
+                        self.configuration = Some(configuration);
+                        if generation != self.generation {
+                            self.rebuild(sequence, generation);
+                            self.pending_configuration = Some(sequence);
+                        } else {
+                            self.sequence = sequence;
+                            let outcome = match self.shared.lock().status {
+                                Status::Failed { ref message, .. } => {
+                                    ConfigurationOutcome::Failed { message: Arc::clone(message) }
+                                }
+                                _ if unchanged => ConfigurationOutcome::Unchanged,
+                                _ => ConfigurationOutcome::PolicyUpdated,
+                            };
+                            self.emit(
+                                Event::ConfigurationFinished { sequence, outcome },
+                                Fence::Unconditional,
+                            );
+                        }
+                    }
+                    Command::FilesChanged(uris) if generation == self.generation => {
+                        self.sequence = sequence;
+                        self.dirty.extend(uris);
+                        self.request_diagnostics = true;
+                    }
+                    Command::Reload | Command::FilesChanged(_) => {
+                        self.rebuild(sequence, generation)
+                    }
+                    Command::Shutdown => {
+                        self.sequence = sequence;
+                        self.reject_requests(RequestFailure::Cancelled);
+                        self.finish_attempt(Outcome::Cancelled);
+                        self.finish_configuration(ConfigurationOutcome::Cancelled);
+                        self.lifecycle = Lifecycle::Stopping;
+                        self.clear_diagnostics();
+                        self.status(Status::Stopping);
                     }
                 }
-                Command::FilesChanged(uris) if generation == self.generation => {
-                    self.sequence = sequence;
-                    self.dirty.extend(uris);
-                    self.request_diagnostics = true;
-                }
-                Command::Reload | Command::FilesChanged(_) => self.rebuild(sequence, generation),
-                Command::Shutdown => {
-                    self.sequence = sequence;
-                    self.reject_requests(RequestFailure::Cancelled);
-                    self.finish_attempt(Outcome::Cancelled);
-                    self.finish_configuration(ConfigurationOutcome::Cancelled);
-                    self.lifecycle = Lifecycle::Stopping;
-                    self.clear_diagnostics();
-                    self.status(Status::Stopping);
-                }
-            },
+            }
             Message::Progress { generation, event } => {
                 if generation == self.generation {
                     let phase = match event {
@@ -294,10 +326,12 @@ impl Controller {
                             let removed =
                                 self.sources.difference(&sources).cloned().collect::<Vec<_>>();
                             for uri in removed {
-                                self.diagnostics.insert(uri);
+                                self.clear_source_diagnostics(uri);
                             }
                             self.sources = sources;
-                            if self.request_diagnostics || rebuilding {
+                            if stamp.revision == self.revision
+                                && (self.request_diagnostics || rebuilding)
+                            {
                                 self.diagnostics.extend(self.sources.iter().cloned());
                                 self.request_diagnostics = false;
                             }
@@ -318,7 +352,7 @@ impl Controller {
                             }
                         }
                         let mut admission = self.shared.lock();
-                        let current = admission.sequence == stamp.revision
+                        let current = admission.revision == stamp.revision
                             && matches!(admission.status, Status::Ready { stamp: current, .. } if current == stamp);
                         if current {
                             if let Ok(diagnostics) = result {
@@ -336,8 +370,6 @@ impl Controller {
                                     Fence::Publication { uri, revision, analysis: Some(stamp) },
                                 );
                             }
-                        } else if self.lifecycle.accepts_completion() {
-                            self.diagnostics.insert(uri);
                         }
                     }
                     Completed::Failed { generation, failure } => {
@@ -401,7 +433,7 @@ impl Controller {
                 return;
             };
             self.incarnation.advance();
-            let stamp = AnalysisStamp { incarnation: self.incarnation, revision: self.sequence };
+            let stamp = AnalysisStamp { incarnation: self.incarnation, revision: self.revision };
             let cancellation = Cancellation::default();
             admission.worker =
                 WorkerState::Preparing { cancellation: Cancellation::clone(&cancellation) };
@@ -425,8 +457,8 @@ impl Controller {
         let (Lifecycle::CatchingUp { stamp } | Lifecycle::Active { stamp }) = self.lifecycle else {
             return;
         };
-        if stamp.revision != self.sequence {
-            let stamp = AnalysisStamp { revision: self.sequence, ..stamp };
+        if stamp.revision != self.revision {
+            let stamp = AnalysisStamp { revision: self.revision, ..stamp };
             let work = Work::Reconcile {
                 documents: self.documents.open.clone(),
                 dirty: std::mem::take(&mut self.dirty),
@@ -443,7 +475,7 @@ impl Controller {
             }
             return;
         }
-        let status = Status::Ready { generation: self.generation, stamp };
+        let status = Status::Ready { generation: self.generation, sequence: self.sequence, stamp };
         if admission.status != status {
             admission.status = Status::clone(&status);
             admission.status_revision += 1;
@@ -464,7 +496,7 @@ impl Controller {
                 continue;
             }
             let mut admission = self.shared.lock();
-            if admission.sequence != stamp.revision || admission.generation != self.generation {
+            if admission.revision != stamp.revision || admission.generation != self.generation {
                 drop(admission);
                 request.reject(RequestFailure::Stale);
                 continue;
@@ -477,7 +509,7 @@ impl Controller {
         }
         if let Some(uri) = self.diagnostics.pop_first() {
             let mut admission = self.shared.lock();
-            if admission.sequence != stamp.revision || admission.generation != self.generation {
+            if admission.revision != stamp.revision || admission.generation != self.generation {
                 self.diagnostics.insert(uri);
                 return;
             }
@@ -485,6 +517,8 @@ impl Controller {
             admission.worker =
                 WorkerState::Querying { cancellation: Cancellation::clone(&cancellation) };
             let _ = self.worker.send(Work::Diagnostics { uri, stamp, cancellation });
+            return;
         }
+        self.hooks.reach(crate::testing::Point::Idle);
     }
 }

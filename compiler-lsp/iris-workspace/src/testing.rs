@@ -5,7 +5,12 @@ pub enum Point {
     BeforePreparation,
     BeforeAcknowledgement,
     BeforeAnalysis,
+    SnapshotActive,
+    BeforeReplySettlement,
+    AfterReplySettlement,
     BeforeDiagnostics,
+    AfterDiagnostics,
+    Idle,
     BeforeFailure,
 }
 

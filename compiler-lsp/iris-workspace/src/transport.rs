@@ -22,14 +22,33 @@ use crate::{
 pub struct Cancellation {
     pub(crate) query: QueryCancellation,
     pub(crate) build: CancellationToken,
-    wake: Arc<Mutex<Option<Waker>>>,
+    terminal: Arc<Mutex<Terminal>>,
+}
+
+enum Terminal {
+    Pending { waker: Option<Waker> },
+    Cancelled,
+    Settled,
+}
+
+impl Default for Terminal {
+    fn default() -> Terminal {
+        Terminal::Pending { waker: None }
+    }
 }
 
 impl Cancellation {
+    /// Cancel an unfinished request without waiting for its worker to retire. A settled reply
+    /// is unchanged. Query interruption is cooperative; cancellation does not release snapshots.
     pub fn cancel(&self) {
+        let mut terminal = self.terminal.lock();
+        let Terminal::Pending { waker } = &mut *terminal else { return };
+        let waker = waker.take();
+        *terminal = Terminal::Cancelled;
         self.query.cancel();
         self.build.cancel();
-        if let Some(waker) = self.wake.lock().take() {
+        drop(terminal);
+        if let Some(waker) = waker {
             waker.wake();
         }
     }
@@ -50,6 +69,7 @@ pub(crate) enum WorkerState {
 
 pub(crate) struct Admission {
     pub(crate) sequence: InputSequence,
+    pub(crate) revision: InputSequence,
     pub(crate) generation: Generation,
     pub(crate) status: Status,
     pub(crate) requests: usize,
@@ -63,6 +83,7 @@ impl Default for Admission {
     fn default() -> Admission {
         Admission {
             sequence: InputSequence::default(),
+            revision: InputSequence::default(),
             generation: Generation::default(),
             status: Status::AwaitingConfiguration,
             requests: 0,
@@ -90,7 +111,7 @@ impl Fence {
         match self {
             Fence::Analysis(stamp) => {
                 matches!(admission.status, Status::Ready { stamp: current, .. } if current.incarnation == stamp.incarnation)
-                    && admission.sequence == stamp.revision
+                    && admission.revision == stamp.revision
             }
             Fence::Publication { uri, revision, analysis } => {
                 admission.publications.get(uri) == Some(revision)
@@ -110,7 +131,6 @@ pub struct Delivery<T> {
     pub(crate) value: T,
     shared: Shared,
     fence: Fence,
-    cancellation: Option<Cancellation>,
 }
 
 impl<T> std::fmt::Debug for Delivery<T> {
@@ -121,21 +141,14 @@ impl<T> std::fmt::Debug for Delivery<T> {
 
 impl<T> Delivery<T> {
     pub(crate) fn new(value: T, shared: Shared, fence: Fence) -> Delivery<T> {
-        Delivery { value, shared, fence, cancellation: None }
+        Delivery { value, shared, fence }
     }
 
-    /// Validate at ordered commitment to a reserved final-writer slot, not socket flush.
-    /// The adapter must serialize release and commitment with input admission. Do not release
-    /// before router serialization, a forwarding queue, or another await.
-    ///
-    /// Stock async-lsp 0.2.4 does not expose deferred output with writer reservation. An adapter
-    /// needs that support before integrating this boundary; `ClientSocket::emit` is too early.
-    /// The runnable example demonstrates workspace behavior, not transport integration.
+    /// Validate a publication in the service loop immediately before transport handoff.
+    /// Keep the delivery guarded while forwarding it to that loop. Once released, later inputs
+    /// do not recall the output; transport queueing and socket flush need no further check.
     pub fn release(self) -> Result<T, RequestFailure> {
         let admission = self.shared.lock();
-        if self.cancellation.as_ref().is_some_and(Cancellation::is_cancelled) {
-            return Err(RequestFailure::Cancelled);
-        }
         if !self.fence.valid(&admission) {
             return Err(RequestFailure::Stale);
         }
@@ -155,16 +168,15 @@ impl Drop for ReplyAdmission {
 }
 
 pub struct Reply<T> {
-    sender: Option<oneshot::Sender<Result<Delivery<Result<T, RequestFailure>>, RequestFailure>>>,
+    sender: Option<oneshot::Sender<Result<T, RequestFailure>>>,
     pub(crate) cancellation: Cancellation,
+    pub(crate) hooks: crate::testing::Hooks,
     admission: Option<ReplyAdmission>,
 }
 
-/// Admission and cancellation failures are outer errors. Computed successes and failures both
-/// remain guarded until the caller releases the delivery at the publication boundary.
+/// A reply settles once. Edits and cancellation do not revoke a settled result, even if unread.
 pub struct Request<T> {
-    receiver:
-        Option<oneshot::Receiver<Result<Delivery<Result<T, RequestFailure>>, RequestFailure>>>,
+    receiver: Option<oneshot::Receiver<Result<T, RequestFailure>>>,
     cancellation: Cancellation,
     completed: bool,
 }
@@ -178,6 +190,7 @@ impl<T> Reply<T> {
                 sender: Some(sender),
                 cancellation: Cancellation::clone(&cancellation),
                 admission: None,
+                hooks: crate::testing::Hooks::default(),
             },
             Request { receiver: Some(receiver), cancellation, completed: false },
         )
@@ -192,24 +205,30 @@ impl<T> Reply<T> {
     }
 
     pub(crate) fn reject(&mut self, failure: RequestFailure) {
-        if let Some(sender) = self.sender.take() {
-            let _ = sender.send(Err(failure));
-        }
+        self.settle(Err(failure));
         self.admission = None;
     }
 
     pub(crate) fn finish(mut self, result: Result<T, RequestFailure>) {
-        let result = if self.cancellation.is_cancelled() {
-            Err(RequestFailure::Cancelled)
-        } else {
-            let admission = self.admission.as_ref().expect("analysis reply must be admitted");
-            let mut delivery = Delivery::new(
-                result,
-                Arc::clone(&admission.shared),
-                Fence::Analysis(admission.stamp),
-            );
-            delivery.cancellation = Some(Cancellation::clone(&self.cancellation));
-            Ok(delivery)
+        self.hooks.reach(crate::testing::Point::BeforeReplySettlement);
+        let shared =
+            Arc::clone(&self.admission.as_ref().expect("analysis reply must be admitted").shared);
+        // Input admission takes this same lock, so an edit and reply settlement have one order.
+        let admission = shared.lock();
+        self.settle(result);
+        drop(admission);
+        self.hooks.reach(crate::testing::Point::AfterReplySettlement);
+    }
+
+    fn settle(&mut self, result: Result<T, RequestFailure>) {
+        let mut terminal = self.cancellation.terminal.lock();
+        let result = match *terminal {
+            Terminal::Cancelled => Err(RequestFailure::Cancelled),
+            Terminal::Pending { .. } => {
+                *terminal = Terminal::Settled;
+                result
+            }
+            Terminal::Settled => return,
         };
         if let Some(sender) = self.sender.take() {
             let _ = sender.send(result);
@@ -224,11 +243,21 @@ impl<T> Request<T> {
 }
 
 impl<T> Future for Request<T> {
-    type Output = Result<Delivery<Result<T, RequestFailure>>, RequestFailure>;
+    type Output = Result<T, RequestFailure>;
 
     fn poll(mut self: Pin<&mut Request<T>>, context: &mut Context<'_>) -> Poll<Self::Output> {
-        *self.cancellation.wake.lock() = Some(Waker::clone(context.waker()));
-        if self.cancellation.is_cancelled() {
+        let cancelled = {
+            let mut terminal = self.cancellation.terminal.lock();
+            match &mut *terminal {
+                Terminal::Pending { waker } => {
+                    *waker = Some(Waker::clone(context.waker()));
+                    false
+                }
+                Terminal::Cancelled => true,
+                Terminal::Settled => false,
+            }
+        };
+        if cancelled {
             self.completed = true;
             return Poll::Ready(Err(RequestFailure::Cancelled));
         }
@@ -306,6 +335,12 @@ impl Workspace {
         Status::clone(&self.shared.lock().status)
     }
 
+    /// Admit input without waiting for analysis. Potential writes cancel executing reads and
+    /// discard queued reads; requests are never replayed automatically. Document saves and
+    /// inputs later rejected by document validation conservatively count as potential writes.
+    ///
+    /// Handle `Busy` as a request failure rather than pausing the protocol input loop: edits
+    /// must remain admissible while the request capacity is exhausted.
     pub fn send(&self, mut command: Command) -> Result<InputSequence, RequestFailure> {
         if let Command::FilesChanged(uris) = &command {
             for uri in uris {
@@ -335,7 +370,7 @@ impl Workspace {
                 request.reject(RequestFailure::Busy);
                 return Err(RequestFailure::Busy);
             }
-            stamp.revision = admission.sequence;
+            stamp.revision = admission.revision;
             admission.requests += 1;
             request.admit(Arc::clone(&self.shared), stamp);
         } else {
@@ -354,8 +389,12 @@ impl Workspace {
                 }
                 _ => command.rebuilds(),
             };
-            if let WorkerState::Querying { cancellation } = &admission.worker {
-                cancellation.cancel();
+            let invalidates = !matches!(&command, Command::Configure(_)) || rebuilds;
+            if invalidates {
+                admission.revision = admission.sequence;
+                if let WorkerState::Querying { cancellation } = &admission.worker {
+                    cancellation.cancel();
+                }
             }
             match &command {
                 _ if rebuilds => {
@@ -380,8 +419,9 @@ impl Workspace {
             }
         }
         let sequence = admission.sequence;
+        let revision = admission.revision;
         let generation = admission.generation;
-        let message = Message::Command { sequence, generation, command };
+        let message = Message::Command { sequence, revision, generation, command };
         // Keep admission locked through enqueue, so readiness cannot overtake this input.
         let result = self.sender.send(message);
         drop(admission);

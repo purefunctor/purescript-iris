@@ -2,7 +2,7 @@
 //!
 //! Inputs are admitted synchronously through [`Workspace::send`]. Compiler work runs on a
 //! separate worker; neither input admission nor cancellation waits for compiler snapshots.
-//! Call [`Delivery::release`] immediately before delivering a result, without another await.
+//! Interactive replies settle once; background publications are checked at service-loop handoff.
 //! Configuration replacement discards compilation state but preserves open documents.
 
 mod controller;
@@ -75,6 +75,7 @@ impl InputSequence {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AnalysisStamp {
     pub incarnation: Incarnation,
+    /// Sequence of the last potential analysis write, excluding configuration policy updates.
     pub revision: InputSequence,
 }
 
@@ -130,6 +131,8 @@ pub enum Status {
     },
     Ready {
         generation: Generation,
+        /// Last reconciled input, including inputs that do not invalidate analysis.
+        sequence: InputSequence,
         stamp: AnalysisStamp,
     },
     Failed {

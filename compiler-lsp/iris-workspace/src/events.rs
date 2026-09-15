@@ -8,7 +8,7 @@ use crate::{Delivery, Event};
 
 /// One consumer of workspace publications. Status, progress and per-URI diagnostics coalesce;
 /// terminal outcomes and rejected inputs remain ordered and must be drained by the consumer.
-/// An adapter may hold one delivery until its final writer acknowledges commitment or discard,
+/// An adapter may hold one delivery until its service loop acknowledges handoff or discard,
 /// then receive the next. Do not eagerly release into an unbounded forwarding queue. Connection
 /// teardown must drop or acknowledge the held item so the pump can stop.
 pub struct EventReceiver {

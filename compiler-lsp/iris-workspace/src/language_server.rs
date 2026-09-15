@@ -26,6 +26,10 @@ macro_rules! language_requests {
         }
 
         impl LanguageServer {
+            pub(crate) fn set_hooks(&mut self, hooks: crate::testing::Hooks) {
+                match self { $(LanguageServer::$name { reply, .. } => reply.hooks = hooks),* }
+            }
+
             pub(crate) fn admit(&mut self, shared: Shared, stamp: AnalysisStamp) {
                 match self { $(LanguageServer::$name { reply, .. } => reply.admit(shared, stamp)),* }
             }
@@ -168,14 +172,17 @@ impl Analysis {
 
     pub(crate) fn execute(
         &mut self,
-        command: LanguageServer,
+        mut command: LanguageServer,
         engine: &QueryEngine,
         files: &FileLifecycle<i32, bool>,
         options: Options,
+        hooks: &crate::testing::Hooks,
     ) {
+        command.set_hooks(crate::testing::Hooks::clone(hooks));
         let cancellation = command.cancellation();
         let snapshot =
             engine.snapshot_with_cancellation(QueryCancellation::clone(&cancellation.query));
+        hooks.reach(crate::testing::Point::SnapshotActive);
         let host = Host { engine: &snapshot, files };
         let context = AnalyzerContext::new(&host, options.position_encoding, options.capabilities);
         match command {

@@ -18,11 +18,17 @@ loaded. If preparation fails, analysis remains unavailable rather than falling b
 previous compiler state. Type errors in the source do not prevent the service from answering
 analysis requests once those inputs are loaded.
 
-An analysis result can become outdated while waiting to be sent to the editor. The caller must
-check it when sending, including when the result reports an error. Diagnostics need the same
-check. The service provides `Delivery::release` for this purpose; checking before putting a result
-in another queue is too early. Its API documentation describes how the caller must coordinate
-sending results with receiving new input.
+Edits cancel unfinished analysis requests and discard queued requests for the old inputs. The
+caller decides whether to request analysis again. Once a response has been placed in its channel,
+later edits do not revoke it, even if the caller has not received it yet. This applies to both
+successful responses and errors. Identical configuration and diagnostic-policy changes leave
+analysis requests running.
+
+Diagnostics are checked separately when the language server handles them, immediately before
+passing them to the transport. `Delivery::release` discards diagnostics made obsolete by newer
+inputs. No further check is required while the transport queues or sends the notification.
+Cancelling diagnostics does not itself schedule another run; document events and rebuilds
+determine when to collect them.
 
 The service keeps the latest queued status, progress, and diagnostics rather than accumulating
 every update. Callers should finish handling each event before requesting the next, and allow
@@ -33,8 +39,8 @@ event handling to stop when the connection closes.
 The [language-server example](examples/language_server.rs) uses one temporary project and workspace,
 with separate functions demonstrating:
 
-- Lifecycle: configuration, open buffers, hover, rejection of outdated
-  results, rebuilds, cancellation, and shutdown.
+- Lifecycle: configuration, open buffers, hover, completed responses surviving edits,
+  rebuilds, cancellation, and shutdown.
 - Diagnostics: an unsaved error, an incremental edit, saving and file
   watcher notifications, and clearing diagnostics when a buffer-only document closes.
 - Completion and rename: editor-owned request IDs, completion

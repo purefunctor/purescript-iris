@@ -327,6 +327,7 @@ pub(crate) fn run(
                                         &compilation.engine,
                                         &compilation.files,
                                         options,
+                                        &hooks,
                                     );
                                 }
                             }
@@ -357,6 +358,7 @@ pub(crate) fn run(
                         } else {
                             Ok(vec![])
                         };
+                        hooks.reach(crate::testing::Point::AfterDiagnostics);
                         Ok(Completed::Diagnostics { uri, stamp, version, result })
                     }
                     Work::Stop => {
