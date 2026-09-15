@@ -1149,7 +1149,11 @@ fn descendant_source_command(
 import { spawn } from "node:child_process";
 const descendant = spawn(process.execPath, ["-e", `
   const connection = require("node:net").connect(Number(process.argv[1]), "127.0.0.1");
-  connection.on("connect", () => { connection.write("ready"); process.send("ready"); });
+  connection.on("connect", () => connection.write("ready"));
+  connection.once("data", (message) => {
+    if (message.toString() !== "ack") throw new Error("unexpected acknowledgement");
+    process.send("ready");
+  });
 `, process.argv[2]], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
 descendant.once("message", () => {
   if (process.argv[3] === "true") {
@@ -1164,7 +1168,12 @@ await new Promise(() => {});
     let port = listener.local_addr().unwrap().port().to_string();
     let (connected, descendant) = mpsc::channel();
     thread::spawn(move || {
-        let (connection, _) = listener.accept().unwrap();
+        let (mut connection, _) = listener.accept().unwrap();
+        connection.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        let mut ready = [0; 5];
+        connection.read_exact(&mut ready).unwrap();
+        assert_eq!(&ready, b"ready");
+        connection.write_all(b"ack").unwrap();
         connected.send(connection).unwrap();
     });
     let program = workspace.path().join("descendant.mjs");
@@ -1185,9 +1194,6 @@ await new Promise(() => {});
 
 fn assert_connection_closed(mut connection: TcpStream) {
     connection.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
-    let mut ready = [0; 5];
-    connection.read_exact(&mut ready).unwrap();
-    assert_eq!(&ready, b"ready");
     let mut trailing = [0; 1];
     match connection.read(&mut trailing) {
         Ok(0) => {}
