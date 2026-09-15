@@ -319,6 +319,7 @@ dependencies = [
  "prim-constants",
  "resolving",
  "rustc-hash",
+ "scopeguard",
  "smol_str",
  "stabilizing",
  "sugar",
