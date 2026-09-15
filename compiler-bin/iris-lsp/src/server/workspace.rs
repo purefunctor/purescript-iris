@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{fs, mem};
 
 use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
 use async_lsp::{ClientSocket, LanguageClient};
 use building::lifecycle::{
-    AnalysisInvalidation, DiskObservation, ForeignEvent, LifecycleEvent, SourceEvent, SourceUnitKey,
+    AnalysisInvalidation, DiskObservation, DocumentKey, ForeignEvent, LifecycleEvent, SourceEvent,
+    SourceUnitKey,
 };
 use configuration::Configuration;
 use files::{FileId, ForeignSourceKind};
@@ -23,9 +24,8 @@ use super::analysis::{Analysis, AnalysisSnapshot, SourceMetadata};
 use super::diagnostics::{CollectDiagnostics, DiagnosticTicket, Diagnostics};
 use super::error::LspError;
 use super::{
-    DiscoveredWorkspace, did_change, did_change_watched_files, did_close, did_open, did_save,
-    observe_sibling_foreign, source_unit_from_document_uri, source_unit_from_source_uri,
-    source_uri,
+    did_change, did_change_watched_files, did_close, did_open, did_save,
+    source_unit_from_document_uri, source_unit_from_source_uri,
 };
 
 pub(super) struct SourceRoot {
@@ -61,6 +61,7 @@ pub(super) struct ReadyWorkspace {
     pub(super) source_roots: Vec<SourceRoot>,
     pub(super) selected_sources: FxHashSet<Arc<str>>,
     pub(super) excluded_sources: FxHashSet<Arc<str>>,
+    reconfiguration_dirty: bool,
     _prim: MaterializedPrim,
 }
 
@@ -74,23 +75,14 @@ pub(super) struct PreparedInitialWorkspace {
 pub(super) struct PreparedSourceReconfiguration {
     pub(super) configuration: Arc<Configuration>,
     pub(super) source_roots: Vec<SourceRoot>,
-    pub(super) selected_sources: FxHashSet<Arc<str>>,
-    pub(super) excluded_sources: FxHashSet<Arc<str>>,
-    pub(super) events: Vec<LifecycleEvent<i32, SourceMetadata>>,
+    pub(super) sources: BTreeMap<Arc<str>, PreparedSource>,
 }
 
-pub(super) enum ConfigurationApplyError {
-    Preparation(LspError),
-    Delivery(LspError),
-}
-
-impl std::fmt::Display for ConfigurationApplyError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConfigurationApplyError::Preparation(error)
-            | ConfigurationApplyError::Delivery(error) => error.fmt(formatter),
-        }
-    }
+pub(super) struct PreparedSource {
+    pub(super) unit: SourceUnitKey,
+    pub(super) content: Arc<str>,
+    pub(super) metadata: SourceMetadata,
+    pub(super) foreign: Vec<(ForeignSourceKind, DiskObservation)>,
 }
 
 pub(super) enum DiagnosticTrigger {
@@ -196,6 +188,7 @@ impl WorkspaceRuntime {
             source_roots: prepared.source_roots,
             selected_sources: prepared.selected_sources,
             excluded_sources: FxHashSet::default(),
+            reconfiguration_dirty: false,
             _prim: prim,
         };
         self.state = WorkspaceState::Ready { workspace };
@@ -215,8 +208,24 @@ impl WorkspaceRuntime {
                 Ok(())
             }
             WorkspaceState::Ready { workspace } => {
+                if !matches!(notification, WorkspaceNotification::DidChange(_)) {
+                    workspace.reconfiguration_dirty = true;
+                }
                 workspace.dispatch(notification, context, diagnostics, client)
             }
+        }
+    }
+
+    pub(super) fn begin_reconfiguration(&mut self) {
+        if let WorkspaceState::Ready { workspace } = &mut self.state {
+            workspace.reconfiguration_dirty = false;
+        }
+    }
+
+    pub(super) fn take_reconfiguration_dirty(&mut self) -> bool {
+        match &mut self.state {
+            WorkspaceState::WaitingForConfiguration { .. } => false,
+            WorkspaceState::Ready { workspace } => mem::take(&mut workspace.reconfiguration_dirty),
         }
     }
 
@@ -239,76 +248,6 @@ impl WorkspaceRuntime {
         }
         workspace.configuration = configuration;
         true
-    }
-
-    pub(super) fn prepare_reconfiguration(
-        &self,
-        configuration: Arc<Configuration>,
-        discovered: DiscoveredWorkspace,
-    ) -> Result<PreparedSourceReconfiguration, LspError> {
-        let workspace = self.ready()?;
-        let mut files = BTreeMap::new();
-        for path in &discovered.source_globs {
-            let content = Arc::from(fs::read_to_string(path)?);
-            let metadata = discovered
-                .metadata
-                .get(path)
-                .cloned()
-                .expect("invariant violated: discovered source has no LSP metadata");
-            files.insert(PathBuf::clone(path), (content, metadata));
-        }
-        tracing::info!("Loading {} files.", files.len());
-
-        let selected_sources = files.keys().map(source_uri);
-        let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
-        let previous_sources = FxHashSet::clone(&workspace.selected_sources);
-        let removed_sources = previous_sources.difference(&selected_sources).cloned().collect_vec();
-        let mut events = vec![];
-        for source in removed_sources {
-            let uri = Url::parse(&source)?;
-            let unit = source_unit_from_source_uri(&uri)?;
-            events.push(LifecycleEvent::Source {
-                unit: SourceUnitKey::clone(&unit),
-                event: SourceEvent::DiskObserved {
-                    disk: DiskObservation::NotFound,
-                    metadata: SourceMetadata::Unmanaged { editable: false },
-                },
-            });
-            for kind in ForeignSourceKind::ALL {
-                events.push(LifecycleEvent::Foreign {
-                    unit: SourceUnitKey::clone(&unit),
-                    kind,
-                    event: ForeignEvent::DiskObserved { disk: DiskObservation::NotFound },
-                });
-            }
-        }
-        for (file, (content, metadata)) in &files {
-            let uri = Url::from_file_path(file)
-                .map_err(|_| LspError::PathParseFail(PathBuf::clone(file)))?;
-            let unit = source_unit_from_source_uri(&uri)?;
-            events.push(LifecycleEvent::Source {
-                unit: SourceUnitKey::clone(&unit),
-                event: SourceEvent::DiskObserved {
-                    disk: DiskObservation::Found(Arc::clone(content)),
-                    metadata: SourceMetadata::clone(metadata),
-                },
-            });
-            events.extend(observe_sibling_foreign(workspace, &unit)?);
-        }
-
-        let mut excluded_sources = FxHashSet::clone(&workspace.excluded_sources);
-        excluded_sources.extend(previous_sources.difference(&selected_sources).cloned());
-        for selected in &selected_sources {
-            excluded_sources.remove(selected);
-        }
-        tracing::info!("Loaded {} files.", files.len());
-        Ok(PreparedSourceReconfiguration {
-            configuration,
-            source_roots: discovered.source_roots,
-            selected_sources,
-            excluded_sources,
-            events,
-        })
     }
 
     pub(super) fn diagnostic_version(
@@ -441,18 +380,86 @@ impl ReadyWorkspace {
         &mut self,
         prepared: PreparedSourceReconfiguration,
     ) -> WorkspaceEffects {
-        let PreparedSourceReconfiguration {
-            configuration,
-            source_roots,
-            selected_sources,
-            excluded_sources,
-            events,
-        } = prepared;
+        let PreparedSourceReconfiguration { configuration, source_roots, sources } = prepared;
+
+        let selected_sources = sources.keys().cloned();
+        let selected_sources = selected_sources.collect::<FxHashSet<_>>();
+        let previous_sources = FxHashSet::clone(&self.selected_sources);
+        let removed_sources = previous_sources.difference(&selected_sources).cloned();
+        let removed_sources = removed_sources.collect_vec();
+
+        let mut events = vec![];
+        for source in removed_sources {
+            append_removed_source_events(&mut events, &source);
+        }
+        for source in sources.into_values() {
+            self.append_prepared_source_events(&mut events, source);
+        }
+
+        let mut excluded_sources = FxHashSet::clone(&self.excluded_sources);
+        excluded_sources.extend(previous_sources.difference(&selected_sources).cloned());
+        for selected in &selected_sources {
+            excluded_sources.remove(selected);
+        }
+
         let effects = self.apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange);
+
         self.configuration = configuration;
         self.source_roots = source_roots;
         self.selected_sources = selected_sources;
         self.excluded_sources = excluded_sources;
+
         effects
+    }
+
+    fn append_prepared_source_events(
+        &self,
+        events: &mut Vec<LifecycleEvent<i32, SourceMetadata>>,
+        source: PreparedSource,
+    ) {
+        let PreparedSource { unit, content, metadata, foreign } = source;
+        let source_document = DocumentKey::Source(SourceUnitKey::clone(&unit));
+        let source_open = self.analysis.with_files(|files| files.is_open(&source_document));
+        if !source_open {
+            let event =
+                SourceEvent::DiskObserved { disk: DiskObservation::Found(content), metadata };
+            let event = LifecycleEvent::Source { unit: SourceUnitKey::clone(&unit), event };
+            events.push(event);
+        }
+
+        for (kind, disk) in foreign {
+            let document = DocumentKey::Foreign(SourceUnitKey::clone(&unit), kind);
+            let foreign_open = self.analysis.with_files(|files| files.is_open(&document));
+            if foreign_open {
+                continue;
+            }
+
+            let event = ForeignEvent::DiskObserved { disk };
+            let event = LifecycleEvent::Foreign { unit: SourceUnitKey::clone(&unit), kind, event };
+            events.push(event);
+        }
+    }
+}
+
+fn append_removed_source_events(
+    events: &mut Vec<LifecycleEvent<i32, SourceMetadata>>,
+    source: &str,
+) {
+    let uri = Url::parse(source);
+    let uri = uri.expect("invariant violated: selected source has an invalid locator");
+    let unit = source_unit_from_source_uri(&uri);
+    let unit = unit.expect("invariant violated: selected source has an invalid URI");
+
+    let event = SourceEvent::DiskObserved {
+        disk: DiskObservation::NotFound,
+        metadata: SourceMetadata::Unmanaged { editable: false },
+    };
+    let event = LifecycleEvent::Source { unit: SourceUnitKey::clone(&unit), event };
+    events.push(event);
+
+    for kind in ForeignSourceKind::ALL {
+        let event = ForeignEvent::DiskObserved { disk: DiskObservation::NotFound };
+        let event = LifecycleEvent::Foreign { unit: SourceUnitKey::clone(&unit), kind, event };
+        events.push(event);
     }
 }

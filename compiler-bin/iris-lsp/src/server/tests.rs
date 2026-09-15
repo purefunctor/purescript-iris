@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fs;
 use std::sync::Arc;
 
@@ -9,7 +8,7 @@ use building::lifecycle::{
     ContentAuthority, DiskObservation, DocumentKind, ForeignEvent, LifecycleEvent, SourceEvent,
     SourceUnitKey,
 };
-use configuration::{Configuration, Diagnostics, SourceDiscovery};
+use configuration::{Configuration, Diagnostics};
 use files::ForeignSourceKind;
 use iris_build::compilation::{CompilationState, MaterializedPrim};
 use lsp_types::{
@@ -18,14 +17,15 @@ use lsp_types::{
 };
 use serde_json::json;
 use tempfile::tempdir;
+use tokio_util::task::TaskTracker;
 
 use super::diagnostics::{self, StartDiagnostics};
 use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
 use super::{
-    ConfigurationReceived, DiscoveredWorkspace, SourceMetadata, State, apply_content_changes,
-    document_kind, finish_workspace_configuration, observe_disk, package_source_roots,
+    ConfigurationReceived, SourceMetadata, State, apply_content_changes, document_kind,
+    finish_workspace_configuration, observe_disk, package_source_roots,
     source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
@@ -36,9 +36,12 @@ fn test_config() -> Arc<Configuration> {
     })
 }
 
+fn waiting_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> State {
+    State::new(config, client, "iris-lsp".to_string(), "test".to_string(), TaskTracker::new())
+}
+
 fn test_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> State {
-    let mut state =
-        State::new(Arc::clone(&config), client, "iris-lsp".to_string(), "test".to_string());
+    let mut state = waiting_state(Arc::clone(&config), client);
     let prim = MaterializedPrim::new().unwrap();
     let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
     let prepared = PreparedInitialWorkspace {
@@ -148,7 +151,7 @@ fn open_notification(uri: Url, text: &str) -> WorkspaceNotification {
 fn requests_are_cancelled_while_the_workspace_is_loading() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let state = waiting_state(Arc::clone(&config), client);
         let error = state
             .spawn(|_| ())
             .expect_err("invariant violated: waiting workspace produced a snapshot");
@@ -163,7 +166,7 @@ fn requests_are_cancelled_while_the_workspace_is_loading() {
 fn installation_is_waiting_only_and_preserves_notification_order() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let mut state = waiting_state(Arc::clone(&config), client);
         let first_uri = Url::parse("file:///workspace/First.purs").unwrap();
         let second_uri = Url::parse("file:///workspace/Second.purs").unwrap();
         let context = WorkspaceContext { root: None, position_encoding: PositionEncoding::Utf16 };
@@ -223,14 +226,15 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
 fn stale_configuration_results_leave_waiting_state_unchanged() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
-        state.protocol.configuration_generation = 2;
+        let mut state = waiting_state(Arc::clone(&config), client);
+        let stale = state.preparation.admit();
+        let _current = state.preparation.admit();
         let event =
-            ConfigurationReceived { generation: 1, result: Err("stale failure".to_string()) };
+            ConfigurationReceived { generation: stale, result: Err("stale failure".to_string()) };
 
         finish_workspace_configuration(&mut state, event).unwrap();
         let event = ConfigurationReceived {
-            generation: 1,
+            generation: stale,
             result: Ok(vec![json!({
                 "sources": {"kind": "command", "program": "missing-iris-source-command"}
             })]),
@@ -239,73 +243,6 @@ fn stale_configuration_results_leave_waiting_state_unchanged() {
 
         assert!(!state.workspace.is_ready());
         assert_eq!(state.workspace.test_pending_len(), 0);
-        Router::<State, ResponseError>::new(state)
-    });
-}
-
-#[test]
-fn failed_initial_configuration_falls_back_and_replays_notifications() {
-    let directory = tempdir().unwrap();
-    fs::write(
-        directory.path().join("spago.lock"),
-        r#"{"workspace":{"packages":{}},"packages":{}}"#,
-    )
-    .unwrap();
-    let source_uri = Url::from_file_path(directory.path().join("Queued.purs")).unwrap();
-    let config = test_config();
-    let root = directory.path().to_path_buf();
-    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
-        state.protocol.root = Some(root);
-        state.protocol.configuration_generation = 1;
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: PositionEncoding::Utf16,
-        };
-        state
-            .workspace
-            .dispatch(
-                open_notification(
-                    Url::parse("file:///workspace/Unsupported.txt").unwrap(),
-                    "not PureScript",
-                ),
-                context,
-                &state.diagnostics,
-                &state.client,
-            )
-            .unwrap();
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: PositionEncoding::Utf16,
-        };
-        state
-            .workspace
-            .dispatch(
-                open_notification(Url::clone(&source_uri), "module Queued where\n"),
-                context,
-                &state.diagnostics,
-                &state.client,
-            )
-            .unwrap();
-        let settings = json!({
-            "sources": {"kind": "command", "program": "missing-iris-source-command"}
-        });
-        let event = ConfigurationReceived { generation: 1, result: Ok(vec![settings]) };
-
-        finish_workspace_configuration(&mut state, event).unwrap();
-
-        {
-            let workspace = state.workspace.test_ready();
-            let file_id = workspace.analysis.with_files(|files| {
-                let file_id = files.source_id(source_uri.as_str()).unwrap();
-                assert_eq!(files.source_version(file_id), Some(1));
-                file_id
-            });
-            assert_eq!(
-                workspace.analysis.content(file_id).unwrap().as_ref(),
-                "module Queued where\n"
-            );
-        }
         Router::<State, ResponseError>::new(state)
     });
 }
@@ -325,38 +262,6 @@ fn settings_only_updates_preserve_ready_runtime_identity() {
         let workspace = state.workspace.test_ready();
         assert!(workspace.configuration.diagnostics.on_open);
         assert_eq!(std::ptr::from_ref(&workspace.analysis), analysis);
-        Router::<State, ResponseError>::new(state)
-    });
-}
-
-#[test]
-fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
-    let directory = tempdir().unwrap();
-    let missing = directory.path().join("Missing.purs");
-    let config = test_config();
-    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let state = test_state(Arc::clone(&config), client);
-        let workspace = state.workspace.test_ready();
-        let analysis = std::ptr::from_ref(&workspace.analysis);
-        let configuration = Arc::as_ptr(&workspace.configuration);
-        let updated = Arc::new(Configuration {
-            sources: SourceDiscovery::Command { program: "unused".to_string(), arguments: vec![] },
-            ..Configuration::clone(&config)
-        });
-        let discovered = DiscoveredWorkspace {
-            source_globs: vec![missing],
-            packages: vec![],
-            metadata: BTreeMap::new(),
-            source_roots: vec![],
-        };
-
-        assert!(state.workspace.prepare_reconfiguration(updated, discovered).is_err());
-
-        let workspace = state.workspace.test_ready();
-        assert_eq!(std::ptr::from_ref(&workspace.analysis), analysis);
-        assert_eq!(Arc::as_ptr(&workspace.configuration), configuration);
-        assert!(workspace.selected_sources.is_empty());
-        assert!(workspace.excluded_sources.is_empty());
         Router::<State, ResponseError>::new(state)
     });
 }
