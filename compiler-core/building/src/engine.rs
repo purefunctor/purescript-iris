@@ -339,6 +339,7 @@ struct QueryControl {
     id: SnapshotId,
     local: Arc<LocalState>,
     global: Arc<GlobalState>,
+    cancellation: Option<QueryCancellation>,
 }
 
 impl QueryControl {
@@ -347,7 +348,8 @@ impl QueryControl {
         let local = Arc::new(LocalState::default());
         let global = Arc::clone(&self.global);
         let id = global.next_snapshot();
-        QueryControl { _guard, id, local, global }
+        let cancellation = Option::clone(&self.cancellation);
+        QueryControl { _guard, id, local, global, cancellation }
     }
 }
 
@@ -357,7 +359,22 @@ impl Default for QueryControl {
         let local = Arc::new(LocalState::default());
         let global = Arc::new(GlobalState::default());
         let id = global.next_snapshot();
-        QueryControl { _guard, id, local, global }
+        QueryControl { _guard, id, local, global, cancellation: None }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct QueryCancellation {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl QueryCancellation {
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    pub fn check(&self) -> QueryResult<()> {
+        if self.cancelled.load(Ordering::Relaxed) { Err(QueryError::Cancelled) } else { Ok(()) }
     }
 }
 
@@ -367,6 +384,17 @@ pub struct QueryEngine {
     derived: Arc<DerivedStorage>,
     interned: Arc<InternedStorage>,
     control: QueryControl,
+    #[cfg(test)]
+    hooks: QueryTestHooks,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct QueryTestHooks {
+    before_upgrade: Mutex<Option<Arc<std::sync::Barrier>>>,
+    waiter_enrolled: Option<std::sync::mpsc::Sender<()>>,
+    after_wait: Option<Arc<std::sync::Barrier>>,
+    after_query: Option<Arc<std::sync::Barrier>>,
 }
 
 impl QueryEngine {
@@ -381,11 +409,35 @@ impl QueryEngine {
     ///
     /// [cancellation request]: QueryEngine::request_cancel
     pub fn snapshot(&self) -> QueryEngine {
-        let input = self.input.clone();
-        let derived = self.derived.clone();
-        let interned = self.interned.clone();
+        let input = Arc::clone(&self.input);
+        let derived = Arc::clone(&self.derived);
+        let interned = Arc::clone(&self.interned);
         let control = self.control.snapshot();
-        QueryEngine { input, derived, interned, control }
+        QueryEngine {
+            input,
+            derived,
+            interned,
+            control,
+            #[cfg(test)]
+            hooks: QueryTestHooks::default(),
+        }
+    }
+
+    pub fn scoped_snapshot(&self, cancellation: QueryCancellation) -> QueryEngine {
+        assert!(self.control.cancellation.is_none(), "a scoped snapshot already has a scope");
+        let mut snapshot = self.snapshot();
+        snapshot.control.cancellation = Some(cancellation);
+        snapshot
+    }
+
+    pub fn check_cancelled(&self) -> QueryResult<()> {
+        if self.control.global.cancelled.load(Ordering::Relaxed) {
+            return Err(QueryError::Cancelled);
+        }
+        if let Some(cancellation) = &self.control.cancellation {
+            cancellation.check()?;
+        }
+        Ok(())
     }
 
     /// Creates a cancellation request for queries.
@@ -415,25 +467,38 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        self.control.local.with_query(query, |local| {
-            // If query execution fails at any given point, clean up the state.
-            self.query_core(key, &shards, &compute, local).inspect_err(|_| {
-                if LocalState::is_in_progress(local) {
-                    let shard = shards(&self.derived).shard(&key);
-                    let mut guard = shard.write();
-                    if let Entry::Occupied(o) = guard.entry(key) {
-                        if let DerivedState::InProgress { id, waiters } = o.remove() {
-                            let waiters = waiters.into_inner();
-                            self.remove_waiter_edges(id, &waiters);
-                            drop(guard);
-                            drop(waiters);
-                        } else {
-                            unreachable!("invariant violated: expected InProgress");
+        let result = self.control.local.with_query(query, |local| {
+            loop {
+                // If query execution fails at any given point, clean up the state.
+                let result = self.query_core(key, &shards, &compute, local).inspect_err(|_| {
+                    if LocalState::is_in_progress(local) {
+                        let shard = shards(&self.derived).shard(&key);
+                        let mut guard = shard.write();
+                        if let Entry::Occupied(o) = guard.entry(key) {
+                            if let DerivedState::InProgress { id, waiters } = o.remove() {
+                                let waiters = waiters.into_inner();
+                                self.remove_waiter_edges(id, &waiters);
+                                drop(guard);
+                                drop(waiters);
+                            } else {
+                                unreachable!("invariant violated: expected InProgress");
+                            }
                         }
                     }
+                })?;
+                if let Some(computed) = result {
+                    break Ok(computed);
                 }
-            })
-        })
+            }
+        });
+        let computed = result?;
+        #[cfg(test)]
+        if let Some(barrier) = &self.hooks.after_query {
+            barrier.wait();
+            barrier.wait();
+        }
+        self.check_cancelled()?;
+        Ok(computed)
     }
 
     /// Fulfills the promises of an [`DerivedState::InProgress`] query and
@@ -495,11 +560,9 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        if self.control.global.cancelled.load(Ordering::Relaxed) {
-            return Err(QueryError::Cancelled);
-        }
-
+        self.check_cancelled()?;
         let computed = compute(self)?;
+        self.check_cancelled()?;
 
         // If the computed result is equal to the cached one, the changed
         // timestamp does not need to be updated. Likewise, we also insert
@@ -597,7 +660,22 @@ impl QueryEngine {
         let (future, promise) = Future::new();
         let waiter = Waiter { id: self.control.id, promise };
         waiters.lock().push(waiter);
+        #[cfg(test)]
+        if let Some(enrolled) = &self.hooks.waiter_enrolled {
+            enrolled.send(()).unwrap();
+        }
         Ok(future)
+    }
+
+    fn wait_for_query<V>(&self, future: Future<V>) -> QueryResult<Option<V>> {
+        let computed = future.wait();
+        #[cfg(test)]
+        if let Some(barrier) = &self.hooks.after_wait {
+            barrier.wait();
+            barrier.wait();
+        }
+        self.check_cancelled()?;
+        Ok(computed)
     }
 
     fn query_core<K, V, ShardsFn, ComputeFn>(
@@ -606,16 +684,14 @@ impl QueryEngine {
         shards: &ShardsFn,
         compute: &ComputeFn,
         local: &RefCell<LocalStateInner>,
-    ) -> QueryResult<V>
+    ) -> QueryResult<Option<V>>
     where
         K: Hash + Eq + Copy,
         ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        if self.control.global.cancelled.load(Ordering::Relaxed) {
-            return Err(QueryError::Cancelled);
-        }
+        self.check_cancelled()?;
 
         let revision = self.control.global.revision.load(Ordering::Relaxed);
         let shard = shards(&self.derived).shard(&key);
@@ -633,7 +709,7 @@ impl QueryEngine {
             let guard = shard.read();
             match guard.get(&key).unwrap_or(&DerivedState::NotComputed) {
                 DerivedState::Computed { computed, trace, .. } if trace.built == revision => {
-                    return Ok(V::clone(computed));
+                    return Ok(Some(V::clone(computed)));
                 }
                 DerivedState::InProgress { id, waiters } => {
                     let future = self.create_future(*id, waiters, local)?;
@@ -641,10 +717,16 @@ impl QueryEngine {
                     // Remember that Future::wait blocks the current thread!
                     drop(guard);
 
-                    return future.wait().ok_or(QueryError::Cancelled);
+                    return self.wait_for_query(future);
                 }
                 _ => (),
             }
+        }
+
+        #[cfg(test)]
+        if let Some(barrier) = self.hooks.before_upgrade.lock().take() {
+            barrier.wait();
+            barrier.wait();
         }
 
         // Otherwise, we will have to perform computation or cache verification.
@@ -664,7 +746,7 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
-                    self.compute_core(key, shards, compute, revision, None, local)
+                    self.compute_core(key, shards, compute, revision, None, local).map(Some)
                 }
                 DerivedState::InProgress { id, waiters } => {
                     let future = self.create_future(*id, waiters, local)?;
@@ -672,7 +754,7 @@ impl QueryEngine {
                     // Remember that Future::wait blocks the current thread!
                     drop(guard);
 
-                    future.wait().ok_or(QueryError::Cancelled)
+                    self.wait_for_query(future)
                 }
                 DerivedState::Computed { computed, trace, dependencies } => {
                     let computed = V::clone(computed);
@@ -683,7 +765,7 @@ impl QueryEngine {
                     // we can skip dependency verification entirely. This is also
                     // checked at the start of the query_core with a read lock.
                     if trace.built == revision {
-                        return Ok(computed);
+                        return Ok(Some(computed));
                     }
 
                     // Same as NotComputed, see comment above.
@@ -708,7 +790,7 @@ impl QueryEngine {
                             trace,
                             dependencies,
                         );
-                        return Ok(computed);
+                        return Ok(Some(computed));
                     }
 
                     LocalState::clear_dependencies(local);
@@ -720,6 +802,7 @@ impl QueryEngine {
                         Some((computed, trace)),
                         local,
                     )
+                    .map(Some)
                 }
             }
         }
@@ -786,6 +869,7 @@ impl QueryEngine {
     }
 
     pub fn content(&self, id: FileId) -> QueryResult<Arc<str>> {
+        self.check_cancelled()?;
         self.get_input(QueryKey::Content(id), id, |input| &input.content)
             .ok_or(QueryError::MissingContent { file_id: id })
     }
@@ -1397,6 +1481,175 @@ mod tests {
 
     use super::promise::Future;
     use super::{DerivedState, QueryEngine, QueryKey, SnapshotId, Waiter};
+
+    #[test]
+    fn scoped_cancellation_is_inherited_without_cancelling_unrelated_reads() {
+        let engine = QueryEngine::default();
+        let cancellation = super::QueryCancellation::default();
+        let scoped = engine.scoped_snapshot(super::QueryCancellation::clone(&cancellation));
+        let descendant = scoped.snapshot();
+        let unrelated = engine.snapshot();
+
+        cancellation.cancel();
+        assert_eq!(scoped.check_cancelled(), Err(QueryError::Cancelled));
+        assert_eq!(descendant.check_cancelled(), Err(QueryError::Cancelled));
+        assert_eq!(scoped.snapshot().check_cancelled(), Err(QueryError::Cancelled));
+        assert_eq!(unrelated.check_cancelled(), Ok(()));
+        assert_eq!(engine.check_cancelled(), Ok(()));
+    }
+
+    fn shared_query_cancellation(upgradable: bool, cancel_producer: bool) {
+        let engine = QueryEngine::default();
+        let mut files = ForeignFiles::default();
+        let file_id = files.insert(ForeignSourceKind::JavaScript, "Main.js", "");
+        let cancellation = super::QueryCancellation::default();
+        let producer = if cancel_producer {
+            engine.scoped_snapshot(super::QueryCancellation::clone(&cancellation))
+        } else {
+            engine.snapshot()
+        };
+        let mut waiter = if cancel_producer {
+            engine.snapshot()
+        } else {
+            engine.scoped_snapshot(super::QueryCancellation::clone(&cancellation))
+        };
+        let producer_id = producer.control.id;
+        let waiter_id = waiter.control.id;
+
+        let before_upgrade = Arc::new(Barrier::new(2));
+        if upgradable {
+            *waiter.hooks.before_upgrade.lock() = Some(Arc::clone(&before_upgrade));
+        }
+        let after_wait = Arc::new(Barrier::new(2));
+        if !cancel_producer {
+            waiter.hooks.after_wait = Some(Arc::clone(&after_wait));
+        }
+        let (enrolled, enrollment) = std::sync::mpsc::channel();
+        waiter.hooks.waiter_enrolled = Some(enrolled);
+
+        let begin_waiter = Barrier::new(2);
+        let production = Barrier::new(2);
+        let recomputations = AtomicUsize::new(0);
+        std::thread::scope(|scope| {
+            let waiting = scope.spawn(|| {
+                begin_waiter.wait();
+                let result = waiter.query(
+                    QueryKey::ForeignModule(file_id),
+                    file_id,
+                    |derived| &derived.foreign_module,
+                    |engine| {
+                        recomputations.fetch_add(1, Ordering::Relaxed);
+                        engine.foreign_content(file_id);
+                        Ok(None)
+                    },
+                );
+                assert!(waiter.control.local.inner.get_or_default().borrow().frames.is_empty());
+                result
+            });
+            if upgradable {
+                begin_waiter.wait();
+                before_upgrade.wait();
+            }
+            let producing = scope.spawn(|| {
+                let result = producer.query(
+                    QueryKey::ForeignModule(file_id),
+                    file_id,
+                    |derived| &derived.foreign_module,
+                    |engine| {
+                        engine.foreign_content(file_id);
+                        production.wait();
+                        production.wait();
+                        Ok(None)
+                    },
+                );
+                assert!(producer.control.local.inner.get_or_default().borrow().frames.is_empty());
+                result
+            });
+            production.wait();
+            if upgradable {
+                before_upgrade.wait();
+            } else {
+                begin_waiter.wait();
+            }
+            enrollment.recv_timeout(std::time::Duration::from_secs(10)).unwrap();
+
+            if cancel_producer {
+                cancellation.cancel();
+            }
+            production.wait();
+            if !cancel_producer {
+                after_wait.wait();
+                cancellation.cancel();
+                after_wait.wait();
+            }
+
+            let produced = producing.join().unwrap();
+            let waited = waiting.join().unwrap();
+            if cancel_producer {
+                assert_eq!(produced, Err(QueryError::Cancelled));
+                assert_eq!(waited, Ok(None));
+                assert_eq!(recomputations.load(Ordering::Relaxed), 1);
+            } else {
+                assert_eq!(produced, Ok(None));
+                assert_eq!(waited, Err(QueryError::Cancelled));
+                assert_eq!(recomputations.load(Ordering::Relaxed), 0);
+            }
+        });
+
+        let shard = engine.derived.foreign_module.shard(&file_id).read();
+        let Some(DerivedState::Computed { dependencies, .. }) = shard.get(&file_id) else {
+            panic!("shared query did not leave a computed value");
+        };
+        assert_eq!(dependencies.as_ref(), &[QueryKey::ForeignContent(file_id)]);
+        let mut graph = engine.control.global.graph.lock();
+        assert!(graph.add_edge(producer_id, waiter_id));
+        graph.remove_edge(producer_id, waiter_id);
+    }
+
+    #[test]
+    fn abandoned_producer_is_retried_by_enrolled_reader() {
+        shared_query_cancellation(false, true);
+    }
+
+    #[test]
+    fn abandoned_producer_is_retried_by_enrolled_upgradable_reader() {
+        shared_query_cancellation(true, true);
+    }
+
+    #[test]
+    fn cancelled_reader_rejects_shared_fulfillment() {
+        shared_query_cancellation(false, false);
+    }
+
+    #[test]
+    fn cancelled_upgradable_reader_rejects_shared_fulfillment() {
+        shared_query_cancellation(true, false);
+    }
+
+    #[test]
+    fn cancellation_after_storage_preserves_the_completed_query() {
+        let engine = QueryEngine::default();
+        let mut files = ForeignFiles::default();
+        let file_id = files.insert(ForeignSourceKind::JavaScript, "Main.js", "");
+        let cancellation = super::QueryCancellation::default();
+        let mut producer = engine.scoped_snapshot(super::QueryCancellation::clone(&cancellation));
+        let stored = Arc::new(Barrier::new(2));
+        producer.hooks.after_query = Some(Arc::clone(&stored));
+
+        std::thread::scope(|scope| {
+            let producing = scope.spawn(|| producer.foreign_module(file_id));
+            stored.wait();
+            cancellation.cancel();
+            stored.wait();
+            assert_eq!(producing.join().unwrap(), Err(QueryError::Cancelled));
+        });
+
+        assert_eq!(engine.snapshot().foreign_module(file_id), Ok(None));
+        assert!(matches!(
+            engine.derived.foreign_module.shard(&file_id).read().get(&file_id),
+            Some(DerivedState::Computed { .. })
+        ));
+    }
 
     #[derive(Debug)]
     struct Trace<'a> {
