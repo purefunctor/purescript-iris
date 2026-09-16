@@ -227,11 +227,11 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
 
         {
             let workspace = state.workspace.test_ready();
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             let file_id = files.source_id(source_uri.as_str()).unwrap();
             assert_eq!(files.source_version(file_id), Some(1));
             assert_eq!(
-                workspace.engine.content(file_id).unwrap().as_ref(),
+                workspace.analysis.engine.content(file_id).unwrap().as_ref(),
                 "module Queued where\n"
             );
         }
@@ -245,9 +245,9 @@ fn settings_only_updates_preserve_ready_runtime_identity() {
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let mut state = test_state(Arc::clone(&config), client);
         let workspace = state.workspace.test_ready();
-        let files = Arc::as_ptr(&workspace.files);
-        let symbols = Arc::as_ptr(&workspace.workspace_symbols_cache);
-        let suggestions = Arc::as_ptr(&workspace.suggestions_cache);
+        let files = Arc::as_ptr(&workspace.analysis.files);
+        let symbols = Arc::as_ptr(&workspace.analysis.workspace_symbols_cache);
+        let suggestions = Arc::as_ptr(&workspace.analysis.suggestions_cache);
         let mut updated = Configuration::clone(&config);
         updated.diagnostics.on_open = true;
 
@@ -255,9 +255,9 @@ fn settings_only_updates_preserve_ready_runtime_identity() {
 
         let workspace = state.workspace.test_ready();
         assert!(workspace.configuration.diagnostics.on_open);
-        assert_eq!(Arc::as_ptr(&workspace.files), files);
-        assert_eq!(Arc::as_ptr(&workspace.workspace_symbols_cache), symbols);
-        assert_eq!(Arc::as_ptr(&workspace.suggestions_cache), suggestions);
+        assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);
+        assert_eq!(Arc::as_ptr(&workspace.analysis.workspace_symbols_cache), symbols);
+        assert_eq!(Arc::as_ptr(&workspace.analysis.suggestions_cache), suggestions);
         Router::<State, ResponseError>::new(state)
     });
 }
@@ -270,7 +270,7 @@ fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let state = test_state(Arc::clone(&config), client);
         let workspace = state.workspace.test_ready();
-        let files = Arc::as_ptr(&workspace.files);
+        let files = Arc::as_ptr(&workspace.analysis.files);
         let configuration = Arc::as_ptr(&workspace.configuration);
         let updated = Arc::new(Configuration {
             sources: SourceDiscovery::Command { program: "unused".to_string(), arguments: vec![] },
@@ -286,7 +286,7 @@ fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
         assert!(state.workspace.prepare_reconfiguration(updated, discovered).is_err());
 
         let workspace = state.workspace.test_ready();
-        assert_eq!(Arc::as_ptr(&workspace.files), files);
+        assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);
         assert_eq!(Arc::as_ptr(&workspace.configuration), configuration);
         assert!(workspace.selected_sources.is_empty());
         assert!(workspace.excluded_sources.is_empty());
@@ -328,7 +328,7 @@ fn assert_source_close_result(
 
         {
             let workspace = state.workspace.test_ready();
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             assert_eq!(files.source_authority(&unit), source_authority);
             assert_eq!(files.foreign_id(foreign_uri.as_str()), None);
         }
@@ -455,8 +455,8 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
         fs::remove_file(foreign_path).unwrap();
 
         let workspace = state.workspace.test_ready();
-        let source_id = workspace.files.read().source_id(source_uri.as_str()).unwrap();
-        let foreign_id = workspace.files.read().foreign_id(foreign_uri.as_str()).unwrap();
+        let source_id = workspace.analysis.files.read().source_id(source_uri.as_str()).unwrap();
+        let foreign_id = workspace.analysis.files.read().foreign_id(foreign_uri.as_str()).unwrap();
         let parameters = DidCloseTextDocumentParams {
             text_document: TextDocumentIdentifier { uri: Url::clone(&source_uri) },
         };
@@ -464,12 +464,12 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
 
         {
             let workspace = state.workspace.test_ready();
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             assert_eq!(files.source_id(source_uri.as_str()), Some(source_id));
             assert_eq!(files.foreign_id(foreign_uri.as_str()), Some(foreign_id));
-            assert_eq!(workspace.engine.foreign_file(source_id), Some(foreign_id));
+            assert_eq!(workspace.analysis.engine.foreign_file(source_id), Some(foreign_id));
             assert_eq!(
-                workspace.engine.foreign_content(foreign_id).unwrap().as_ref(),
+                workspace.analysis.engine.foreign_content(foreign_id).unwrap().as_ref(),
                 "export const life = 42;\n",
             );
         }

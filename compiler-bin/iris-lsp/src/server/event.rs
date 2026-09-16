@@ -9,8 +9,8 @@ use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
 use tokio::task;
 
+use crate::server::analysis::StateSnapshot;
 use crate::server::error::LspError;
-use crate::server::workspace::StateSnapshot;
 use crate::server::{SourceMetadata, State};
 
 #[derive(Default)]
