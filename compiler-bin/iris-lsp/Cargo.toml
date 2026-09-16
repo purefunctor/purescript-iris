@@ -14,7 +14,6 @@ building = { version = "0.1.0", path = "../../compiler-core/building" }
 configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
 dunce = "1.0.5"
 files = { version = "0.1.0", path = "../../compiler-core/files" }
-globset = "0.4.20"
 iris-build = { version = "0.1.0", path = "../iris-build" }
 itertools = "0.15.0"
 lsp-types.workspace = true
@@ -30,7 +29,6 @@ tokio = { version = "1.53.1", features = ["io-std", "macros", "rt", "sync", "tim
 tower = "0.5.3"
 tracing = "0.1.44"
 url = "2.5.8"
-walkdir = "2.5.0"
 
 [dev-dependencies]
 tempfile = "3.27.0"

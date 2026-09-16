@@ -4,7 +4,6 @@ use std::fmt;
 use configuration::Configuration;
 
 mod server;
-mod walk;
 
 pub struct ServerConfig {
     pub configuration: Configuration,

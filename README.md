@@ -28,7 +28,7 @@ iris lsp --stdio --config '{"diagnostics":{"onChange":true}}'
 iris lsp --stdio --config-file ./iris.json
 ```
 
-`--config` and `--config-file` are mutually exclusive and replace `--source-command` and
+`--config` and `--config-file` are mutually exclusive and replace
 `--diagnostics-on-open`, `--diagnostics-on-save`, and `--diagnostics-on-change`. File paths are
 relative to the process working directory, not the editor's workspace or the configuration file's
 directory. Startup configuration files are read once and are not watched.
@@ -40,15 +40,13 @@ workspace folder after initialization and requests it again after each
 invalidation signal. Runtime settings take precedence over startup settings. Each response is a
 complete runtime layer, so omitted or `null` fields inherit from the startup configuration rather
 than from the preceding response. Invalid updates are shown in the editor and leave the last valid
-configuration active. Source-setting updates rediscover and reconcile the loaded workspace without
-discarding open buffers. Clients without workspace-configuration support continue using only the
-startup configuration.
+configuration active. Clients without workspace-configuration support continue using only the
+startup configuration. Iris discovers sources through `spago.lock`.
 
 The defaults are:
 
 ```json
 {
-  "sources": { "kind": "spago" },
   "diagnostics": {
     "onOpen": true,
     "onSave": true,
@@ -63,24 +61,6 @@ with exit status 2 before the LSP starts. Use the
 [configuration JSON Schema](compiler-lsp/configuration/configuration.schema.json) for editor
 validation; associate it through editor settings rather than adding a `$schema` property.
 
-To replace `spago.lock` source discovery with a command:
-
-```json
-{
-  "sources": {
-    "kind": "command",
-    "program": "spago",
-    "arguments": ["sources"]
-  }
-}
-```
-
-`program` is an executable name or path containing a non-whitespace character; it is passed unchanged.
-`arguments` is an optional array of individual strings (default `[]`). No shell parsing or expansion
-occurs. The command runs in the server's process working directory and must print one source path or
-glob per line; relative output paths are resolved from the first LSP workspace folder, falling back
-to the process working directory.
-Only use trusted configurations: source commands execute with the server's permissions.
 Diagnostic settings control the corresponding document-event triggers, not all diagnostic publishing.
 
 ## Editor features

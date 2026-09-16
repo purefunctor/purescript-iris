@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use super::{Configuration, ConfigurationSettings, Diagnostics, SourceDiscovery};
+use super::{Configuration, ConfigurationSettings, Diagnostics};
 
 fn settings(value: Value) -> ConfigurationSettings {
     #[cfg(feature = "schema")]
@@ -15,7 +15,6 @@ fn settings(value: Value) -> ConfigurationSettings {
 #[test]
 fn defaults_match_existing_diagnostic_triggers() {
     let configuration = Configuration::default();
-    assert_eq!(configuration.sources, SourceDiscovery::Spago {});
     assert_eq!(
         configuration.diagnostics,
         Diagnostics { on_open: true, on_save: true, on_change: false }
@@ -23,7 +22,6 @@ fn defaults_match_existing_diagnostic_triggers() {
     assert_eq!(
         serde_json::to_value(&configuration).unwrap(),
         json!({
-            "sources": {"kind": "spago"},
             "diagnostics": {"onOpen": true, "onSave": true, "onChange": false}
         })
     );
@@ -32,7 +30,6 @@ fn defaults_match_existing_diagnostic_triggers() {
 #[test]
 fn layers_override_only_supplied_fields() {
     let startup = settings(json!({
-        "sources": {"kind": "command", "program": "custom", "arguments": ["sources"]},
         "diagnostics": {"onOpen": false, "onChange": true}
     }));
     let baseline = startup.apply_to(&Configuration::default());
@@ -41,13 +38,6 @@ fn layers_override_only_supplied_fields() {
     let runtime = settings(json!({"diagnostics": {"onOpen": true, "onChange": false}}));
     let effective = runtime.apply_to(&baseline);
 
-    assert_eq!(
-        effective.sources,
-        SourceDiscovery::Command {
-            program: "custom".to_string(),
-            arguments: vec!["sources".to_string()],
-        }
-    );
     assert_eq!(
         effective.diagnostics,
         Diagnostics { on_open: true, on_save: false, on_change: false }
@@ -67,36 +57,17 @@ fn layers_override_only_supplied_fields() {
 #[test]
 fn missing_and_null_inherit_instead_of_resetting_to_defaults() {
     let baseline = Configuration {
-        sources: SourceDiscovery::Command { program: "custom".to_string(), arguments: vec![] },
         diagnostics: Diagnostics { on_open: false, on_save: false, on_change: true },
     };
     for value in [
         json!(null),
         json!({}),
-        json!({"sources": null, "diagnostics": null}),
+        json!({"diagnostics": null}),
         json!({"diagnostics": {}}),
         json!({"diagnostics": {"onOpen": null, "onSave": null, "onChange": null}}),
     ] {
         assert_eq!(settings(value.clone()).apply_to(&baseline), baseline, "{value}");
     }
-}
-
-#[test]
-fn source_selection_is_replaced_as_a_whole() {
-    let baseline = Configuration {
-        sources: SourceDiscovery::Command {
-            program: "old".to_string(),
-            arguments: vec!["old-argument".to_string()],
-        },
-        ..Configuration::default()
-    };
-    let command = settings(json!({"sources": {"kind": "command", "program": "new"}}));
-    assert_eq!(
-        command.apply_to(&baseline).sources,
-        SourceDiscovery::Command { program: "new".to_string(), arguments: vec![] }
-    );
-    let spago = settings(json!({"sources": {"kind": "spago"}}));
-    assert_eq!(spago.apply_to(&baseline).sources, SourceDiscovery::Spago {});
 }
 
 #[test]
@@ -110,19 +81,10 @@ fn malformed_settings_are_rejected() {
         json!("settings"),
         json!({"$schema": "https://example.com/schema.json"}),
         json!({"unknown": true}),
+        json!({"sources": {"kind": "spago"}}),
+        json!({"sources": {"kind": "command", "program": "custom"}}),
         json!({"diagnostics": {"onOpened": true}}),
         json!({"diagnostics": {"onOpen": "false"}}),
-        json!({"sources": {}}),
-        json!({"sources": {"kind": "unknown"}}),
-        json!({"sources": {"kind": 0}}),
-        json!({"sources": {"kind": {"spago": null}}}),
-        json!({"sources": {"kind": "spago", "program": "unexpected"}}),
-        json!({"sources": {"kind": "spago", "arguments": []}}),
-        json!({"sources": {"kind": "command"}}),
-        json!({"sources": {"kind": "command", "program": null}}),
-        json!({"sources": {"kind": "command", "program": "custom", "arguments": null}}),
-        json!({"sources": {"kind": "command", "program": "custom", "arguments": [1]}}),
-        json!({"sources": {"kind": "command", "program": "custom", "shell": true}}),
     ] {
         assert!(serde_json::from_value::<ConfigurationSettings>(value.clone()).is_err(), "{value}");
         #[cfg(feature = "schema")]
@@ -131,39 +93,8 @@ fn malformed_settings_are_rejected() {
 }
 
 #[test]
-fn source_programs_require_non_whitespace_without_trimming() {
-    #[cfg(feature = "schema")]
-    let validator =
-        jsonschema::validator_for(&serde_json::to_value(super::schema()).unwrap()).unwrap();
-
-    for program in ["   ", "", "\t\n\u{000b}\u{000c}\r", "\u{0085}", "\u{00a0}", "\u{3000}"] {
-        let value = json!({"sources": {"kind": "command", "program": program}});
-        let error = serde_json::from_value::<ConfigurationSettings>(value.clone()).unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "source command program must not be empty or whitespace-only"
-        );
-        #[cfg(feature = "schema")]
-        assert!(!validator.is_valid(&value), "schema accepted {value}");
-    }
-
-    for program in ["spago", " \t/path with spaces/executable\u{3000}", "\u{feff}"] {
-        let value = json!({"sources": {"kind": "command", "program": program}});
-        assert_eq!(
-            settings(value).sources,
-            Some(SourceDiscovery::Command { program: program.to_string(), arguments: vec![] })
-        );
-    }
-}
-
-#[test]
-fn serialization_preserves_overrides_and_command_arguments() {
+fn serialization_preserves_overrides() {
     let value = json!({
-        "sources": {
-            "kind": "command",
-            "program": "/path with spaces/executable",
-            "arguments": ["", "path with spaces", "--flag", "λ"]
-        },
         "diagnostics": {"onOpen": false, "onChange": true}
     });
     let configuration = settings(value.clone());

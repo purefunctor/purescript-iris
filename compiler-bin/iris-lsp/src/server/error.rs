@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-use std::{io, process, str};
+use std::io;
 
 use analyzer::AnalyzerError;
 use async_lsp::ErrorCode;
@@ -10,8 +9,6 @@ use spago::LockfileGlobSetError;
 use thiserror::Error;
 use tokio::task;
 
-use crate::walk;
-
 #[derive(Error, Debug)]
 pub enum LspError {
     #[error("AnalyzerError: {0}")]
@@ -20,8 +17,6 @@ pub enum LspError {
     QueryError(#[from] QueryError),
     #[error("CompileError: {0}")]
     CompileError(#[from] CompileError),
-    #[error("Failed to parse file {0}")]
-    PathParseFail(PathBuf),
     #[error("Expected a file URI, received {0}")]
     InvalidFileUri(Url),
     #[error("Expected a PureScript or JavaScript document URI, received {0}")]
@@ -42,14 +37,6 @@ pub enum LspError {
     IoError(#[from] io::Error),
     #[error("JoinError: {0}")]
     JoinError(#[from] task::JoinError),
-    #[error("Utf8Error: {0}")]
-    Utf8Error(#[from] str::Utf8Error),
-    #[error("Source discovery command failed with {0}")]
-    SourceCommandFailed(process::ExitStatus),
-    #[error("GlobSetError: {0}")]
-    GlobSetError(#[from] globset::Error),
-    #[error("WalkError: {0}")]
-    WalkError(#[from] walk::Error),
     #[error("async_lsp::Error: {0}")]
     AsyncLspError(#[from] async_lsp::Error),
 }

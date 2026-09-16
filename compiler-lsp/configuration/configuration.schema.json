@@ -24,17 +24,6 @@
               "type": "null"
             }
           ]
-        },
-        "sources": {
-          "description": "Replace the complete source selection. Inherits when missing or null; defaults to Spago\nwhen no layer supplies a selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SourceDiscovery"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       },
       "additionalProperties": false
@@ -66,54 +55,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "SourceDiscovery": {
-      "description": "How to discover project sources. Commands name an executable and arguments, not shell text.",
-      "oneOf": [
-        {
-          "description": "Discover sources through spago.lock. Explicitly selects Spago over a lower command layer.",
-          "type": "object",
-          "properties": {
-            "kind": {
-              "type": "string",
-              "const": "spago"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "kind"
-          ]
-        },
-        {
-          "description": "Select a source discovery command. Only supply commands from trusted configuration.",
-          "type": "object",
-          "properties": {
-            "arguments": {
-              "description": "Individual command arguments. Omission means no arguments, not inherited arguments.",
-              "type": "array",
-              "default": [],
-              "items": {
-                "type": "string"
-              }
-            },
-            "kind": {
-              "type": "string",
-              "const": "command"
-            },
-            "program": {
-              "description": "Executable name or path containing a non-whitespace character, passed unchanged without shell parsing.",
-              "type": "string",
-              "minLength": 1,
-              "pattern": "[^\\u0009-\\u000D\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000]"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "kind",
-            "program"
-          ]
-        }
-      ]
     }
   }
 }
