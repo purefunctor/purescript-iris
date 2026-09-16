@@ -1,32 +1,26 @@
-use std::collections::BTreeMap;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{fs, mem};
 
 use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
 use async_lsp::{ClientSocket, LanguageClient};
-use building::lifecycle::{
-    AnalysisInvalidation, DiskObservation, ForeignEvent, LifecycleChange, LifecycleEvent,
-    SourceEvent, SourceUnitKey,
-};
+use building::lifecycle::{AnalysisInvalidation, LifecycleChange, LifecycleEvent};
 use configuration::Configuration;
-use files::{FileId, ForeignSourceKind};
+use files::FileId;
 use iris_build::compilation::{CompilationParts, CompilationState, MaterializedPrim};
 use itertools::Itertools;
 use lsp_types::{
     DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, PublishDiagnosticsParams, Url,
 };
-use rustc_hash::FxHashSet;
 
 use super::analysis::{Analysis, StateSnapshot};
 use super::error::LspError;
 use super::event::{CollectDiagnostics, DiagnosticScheduler, DiagnosticTicket};
 use super::{
-    DiscoveredWorkspace, SourceMetadata, did_change, did_change_watched_files, did_close, did_open,
-    did_save, observe_sibling_foreign, source_unit_from_document_uri, source_unit_from_source_uri,
-    source_uri,
+    SourceMetadata, did_change, did_change_watched_files, did_close, did_open, did_save,
+    source_unit_from_document_uri,
 };
 
 pub(super) struct SourceRoot {
@@ -60,8 +54,6 @@ pub(super) struct ReadyWorkspace {
     pub(super) configuration: Arc<Configuration>,
     pub(super) analysis: Analysis,
     pub(super) source_roots: Vec<SourceRoot>,
-    pub(super) selected_sources: FxHashSet<Arc<str>>,
-    pub(super) excluded_sources: FxHashSet<Arc<str>>,
     pub(super) diagnostics: DiagnosticScheduler,
     _prim: MaterializedPrim,
 }
@@ -70,27 +62,16 @@ pub(super) struct PreparedInitialWorkspace {
     pub(super) configuration: Arc<Configuration>,
     pub(super) compilation: CompilationState<i32, SourceMetadata>,
     pub(super) source_roots: Vec<SourceRoot>,
-    pub(super) selected_sources: FxHashSet<Arc<str>>,
-}
-
-pub(super) struct PreparedSourceReconfiguration {
-    pub(super) configuration: Arc<Configuration>,
-    pub(super) source_roots: Vec<SourceRoot>,
-    pub(super) selected_sources: FxHashSet<Arc<str>>,
-    pub(super) excluded_sources: FxHashSet<Arc<str>>,
-    pub(super) events: Vec<LifecycleEvent<i32, SourceMetadata>>,
 }
 
 pub(super) enum ConfigurationApplyError {
     Preparation(LspError),
-    Delivery(LspError),
 }
 
 impl std::fmt::Display for ConfigurationApplyError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConfigurationApplyError::Preparation(error)
-            | ConfigurationApplyError::Delivery(error) => error.fmt(formatter),
+            ConfigurationApplyError::Preparation(error) => error.fmt(formatter),
         }
     }
 }
@@ -179,8 +160,6 @@ impl WorkspaceRuntime {
             configuration: prepared.configuration,
             analysis: Analysis::new(engine, files),
             source_roots: prepared.source_roots,
-            selected_sources: prepared.selected_sources,
-            excluded_sources: FxHashSet::default(),
             diagnostics: DiagnosticScheduler::default(),
             _prim: prim,
         };
@@ -205,95 +184,12 @@ impl WorkspaceRuntime {
         }
     }
 
-    pub(super) fn commit_reconfiguration(
-        &mut self,
-        prepared: PreparedSourceReconfiguration,
-    ) -> Result<WorkspaceEffects, LspError> {
-        self.ready_mut().map(|workspace| workspace.commit_reconfiguration(prepared))
-    }
-
-    pub(super) fn update_configuration_if_sources_equal(
-        &mut self,
-        configuration: Arc<Configuration>,
-    ) -> bool {
+    pub(super) fn update_configuration(&mut self, configuration: Arc<Configuration>) -> bool {
         let Ok(workspace) = self.ready_mut() else {
             return false;
         };
-        if configuration.sources != workspace.configuration.sources {
-            return false;
-        }
         workspace.configuration = configuration;
         true
-    }
-
-    pub(super) fn prepare_reconfiguration(
-        &self,
-        configuration: Arc<Configuration>,
-        discovered: DiscoveredWorkspace,
-    ) -> Result<PreparedSourceReconfiguration, LspError> {
-        let workspace = self.ready()?;
-        let mut files = BTreeMap::new();
-        for path in &discovered.source_globs {
-            let content = Arc::from(fs::read_to_string(path)?);
-            let metadata = discovered
-                .metadata
-                .get(path)
-                .cloned()
-                .expect("invariant violated: discovered source has no LSP metadata");
-            files.insert(PathBuf::clone(path), (content, metadata));
-        }
-        tracing::info!("Loading {} files.", files.len());
-
-        let selected_sources = files.keys().map(source_uri);
-        let selected_sources = selected_sources.collect::<Result<FxHashSet<_>, _>>()?;
-        let previous_sources = FxHashSet::clone(&workspace.selected_sources);
-        let removed_sources = previous_sources.difference(&selected_sources).cloned().collect_vec();
-        let mut events = vec![];
-        for source in removed_sources {
-            let uri = Url::parse(&source)?;
-            let unit = source_unit_from_source_uri(&uri)?;
-            events.push(LifecycleEvent::Source {
-                unit: SourceUnitKey::clone(&unit),
-                event: SourceEvent::DiskObserved {
-                    disk: DiskObservation::NotFound,
-                    metadata: SourceMetadata::Unmanaged { editable: false },
-                },
-            });
-            for kind in ForeignSourceKind::ALL {
-                events.push(LifecycleEvent::Foreign {
-                    unit: SourceUnitKey::clone(&unit),
-                    kind,
-                    event: ForeignEvent::DiskObserved { disk: DiskObservation::NotFound },
-                });
-            }
-        }
-        for (file, (content, metadata)) in &files {
-            let uri = Url::from_file_path(file)
-                .map_err(|_| LspError::PathParseFail(PathBuf::clone(file)))?;
-            let unit = source_unit_from_source_uri(&uri)?;
-            events.push(LifecycleEvent::Source {
-                unit: SourceUnitKey::clone(&unit),
-                event: SourceEvent::DiskObserved {
-                    disk: DiskObservation::Found(Arc::clone(content)),
-                    metadata: SourceMetadata::clone(metadata),
-                },
-            });
-            events.extend(observe_sibling_foreign(workspace, &unit)?);
-        }
-
-        let mut excluded_sources = FxHashSet::clone(&workspace.excluded_sources);
-        excluded_sources.extend(previous_sources.difference(&selected_sources).cloned());
-        for selected in &selected_sources {
-            excluded_sources.remove(selected);
-        }
-        tracing::info!("Loaded {} files.", files.len());
-        Ok(PreparedSourceReconfiguration {
-            configuration,
-            source_roots: discovered.source_roots,
-            selected_sources,
-            excluded_sources,
-            events,
-        })
     }
 
     pub(super) fn schedule_diagnostics(
@@ -407,24 +303,5 @@ impl ReadyWorkspace {
             },
         };
         WorkspaceEffects { clear_diagnostics, collect_diagnostics }
-    }
-
-    fn commit_reconfiguration(
-        &mut self,
-        prepared: PreparedSourceReconfiguration,
-    ) -> WorkspaceEffects {
-        let PreparedSourceReconfiguration {
-            configuration,
-            source_roots,
-            selected_sources,
-            excluded_sources,
-            events,
-        } = prepared;
-        let effects = self.apply_lifecycle_events(events, DiagnosticTrigger::AnalysisChange);
-        self.configuration = configuration;
-        self.source_roots = source_roots;
-        self.selected_sources = selected_sources;
-        self.excluded_sources = excluded_sources;
-        effects
     }
 }

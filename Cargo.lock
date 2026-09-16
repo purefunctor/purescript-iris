@@ -1804,7 +1804,6 @@ dependencies = [
  "configuration",
  "dunce",
  "files",
- "globset",
  "iris-build",
  "itertools 0.15.0",
  "lsp-types",
@@ -1822,7 +1821,6 @@ dependencies = [
  "tower",
  "tracing",
  "url",
- "walkdir",
 ]
 
 [[package]]
@@ -4198,6 +4196,7 @@ name = "tests-e2e"
 version = "0.1.0"
 dependencies = [
  "async-lsp",
+ "dunce",
  "insta",
  "iris-cli",
  "itertools 0.15.0",

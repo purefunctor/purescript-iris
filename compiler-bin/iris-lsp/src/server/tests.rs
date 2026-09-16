@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fs;
 use std::sync::Arc;
 
@@ -9,7 +8,7 @@ use building::lifecycle::{
     ContentAuthority, DiskObservation, DocumentKind, ForeignEvent, LifecycleEvent, SourceEvent,
     SourceUnitKey,
 };
-use configuration::{Configuration, Diagnostics, SourceDiscovery};
+use configuration::{Configuration, Diagnostics};
 use files::ForeignSourceKind;
 use iris_build::compilation::{CompilationState, MaterializedPrim};
 use lsp_types::{
@@ -23,8 +22,8 @@ use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
 use super::{
-    ConfigurationReceived, DiscoveredWorkspace, SourceMetadata, State, apply_content_changes,
-    document_kind, finish_workspace_configuration, observe_disk, package_source_roots,
+    ConfigurationReceived, SourceMetadata, State, apply_content_changes, document_kind,
+    finish_workspace_configuration, observe_disk, package_source_roots,
     source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
@@ -44,7 +43,6 @@ fn test_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> St
         configuration: Arc::clone(&config),
         compilation,
         source_roots: vec![],
-        selected_sources: Default::default(),
     };
     let pending = state.workspace.install(prepared).unwrap();
     assert!(pending.is_empty());
@@ -126,7 +124,6 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
             configuration: Arc::clone(&config),
             compilation,
             source_roots: vec![],
-            selected_sources: Default::default(),
         };
         let pending = state.workspace.install(prepared).unwrap();
         assert!(
@@ -142,7 +139,6 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
             configuration: Arc::clone(&config),
             compilation,
             source_roots: vec![],
-            selected_sources: Default::default(),
         };
         assert!(matches!(
             state.workspace.install(prepared),
@@ -165,7 +161,7 @@ fn stale_configuration_results_leave_waiting_state_unchanged() {
         let event = ConfigurationReceived {
             generation: 1,
             result: Ok(vec![json!({
-                "sources": {"kind": "command", "program": "missing-iris-source-command"}
+                "diagnostics": {"onOpen": true}
             })]),
         };
         finish_workspace_configuration(&mut state, event).unwrap();
@@ -219,7 +215,7 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
             )
             .unwrap();
         let settings = json!({
-            "sources": {"kind": "command", "program": "missing-iris-source-command"}
+            "diagnostics": {"onOpen": "invalid"}
         });
         let event = ConfigurationReceived { generation: 1, result: Ok(vec![settings]) };
 
@@ -251,45 +247,13 @@ fn settings_only_updates_preserve_ready_runtime_identity() {
         let mut updated = Configuration::clone(&config);
         updated.diagnostics.on_open = true;
 
-        assert!(state.workspace.update_configuration_if_sources_equal(Arc::new(updated)));
+        assert!(state.workspace.update_configuration(Arc::new(updated)));
 
         let workspace = state.workspace.test_ready();
         assert!(workspace.configuration.diagnostics.on_open);
         assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);
         assert_eq!(Arc::as_ptr(&workspace.analysis.workspace_symbols_cache), symbols);
         assert_eq!(Arc::as_ptr(&workspace.analysis.suggestions_cache), suggestions);
-        Router::<State, ResponseError>::new(state)
-    });
-}
-
-#[test]
-fn reconfiguration_preparation_failure_keeps_the_ready_workspace_unchanged() {
-    let directory = tempdir().unwrap();
-    let missing = directory.path().join("Missing.purs");
-    let config = test_config();
-    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let state = test_state(Arc::clone(&config), client);
-        let workspace = state.workspace.test_ready();
-        let files = Arc::as_ptr(&workspace.analysis.files);
-        let configuration = Arc::as_ptr(&workspace.configuration);
-        let updated = Arc::new(Configuration {
-            sources: SourceDiscovery::Command { program: "unused".to_string(), arguments: vec![] },
-            ..Configuration::clone(&config)
-        });
-        let discovered = DiscoveredWorkspace {
-            source_globs: vec![missing],
-            packages: vec![],
-            metadata: BTreeMap::new(),
-            source_roots: vec![],
-        };
-
-        assert!(state.workspace.prepare_reconfiguration(updated, discovered).is_err());
-
-        let workspace = state.workspace.test_ready();
-        assert_eq!(Arc::as_ptr(&workspace.analysis.files), files);
-        assert_eq!(Arc::as_ptr(&workspace.configuration), configuration);
-        assert!(workspace.selected_sources.is_empty());
-        assert!(workspace.excluded_sources.is_empty());
         Router::<State, ResponseError>::new(state)
     });
 }

@@ -415,11 +415,7 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
         &["lsp", "--stdio"],
         &["lsp", "--config", "null"],
         &["lsp", "--config-file", "config/empty.json"],
-        &[
-            "lsp",
-            "--config",
-            r#"{"sources":{"kind":"spago"},"diagnostics":{"onOpen":null,"onSave":null,"onChange":null}}"#,
-        ],
+        &["lsp", "--config", r#"{"diagnostics":{"onOpen":null,"onSave":null,"onChange":null}}"#],
     ];
     for arguments in cases {
         let mut server = LanguageServer::start(&workspace, "", arguments, workspace.path());
@@ -432,27 +428,19 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
 }
 
 #[test]
-fn json_inputs_configure_source_commands_and_diagnostic_triggers() {
+fn json_inputs_configure_diagnostic_triggers() {
     let workspace = TestWorkspace::empty();
-    workspace.write("project/selected/Library.purs", "module Library where\nfromCommand = 42\n");
     workspace.write(
-        "launcher/source command.mjs",
-        r#"
-import { writeFileSync } from "node:fs";
-writeFileSync("arguments.json", JSON.stringify(process.argv.slice(2)));
-console.log("selected/*.purs");
-"#,
+        "project/spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
     );
+    workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 42\n");
     let configuration = json!({
-        "sources": {
-            "kind": "command",
-            "program": "node",
-            "arguments": ["source command.mjs", "", "path with spaces", "--flag", "λ", "$(not-a-shell)"]
-        },
         "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
-    }).to_string();
+    })
+    .to_string();
     let absolute_path = workspace.path().join("settings/server config.json");
-    let root = workspace.path().join("project");
+    let root = dunce::canonicalize(workspace.path().join("project")).unwrap();
     let cases: &[&[&str]] = &[
         &["lsp", "--config", &configuration],
         &["lsp", "--config-file", "../settings/server config.json"],
@@ -462,14 +450,11 @@ console.log("selected/*.purs");
         workspace.write("settings/server config.json", &configuration);
         let mut server = LanguageServer::start(&workspace, "launcher", arguments, &root);
         workspace.write("settings/server config.json", "invalid after startup");
-        let symbols = server.request("workspace/symbol", json!({"query": "fromCommand"}));
+        let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
         assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
-        assert_eq!(symbols[0]["name"], "fromCommand");
-        let expected_uri = Url::from_file_path(root.join("selected/Library.purs")).unwrap();
+        assert_eq!(symbols[0]["name"], "fromSpago");
+        let expected_uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
         assert_eq!(symbols[0]["location"]["uri"], expected_uri.as_str());
-        let arguments: Value =
-            serde_json::from_str(&workspace.read("launcher/arguments.json")).unwrap();
-        assert_eq!(arguments, json!(["", "path with spaces", "--flag", "λ", "$(not-a-shell)"]));
         assert_diagnostic_triggers(&mut server, &root, false, false, true);
         server.shutdown();
     }
@@ -492,16 +477,16 @@ fn partial_diagnostic_configuration_preserves_omitted_triggers() {
 #[test]
 fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     let workspace = TestWorkspace::empty();
-    workspace.write("project/startup/Library.purs", "module Library where\nfromStartup = 1\n");
-    workspace.write("project/runtime/Library.purs", "module Library where\nfromRuntime = 2\n");
-    workspace.write("launcher/startup.mjs", "console.log('../project/startup/*.purs');\n");
-    workspace.write("launcher/runtime.mjs", "console.log('../project/runtime/*.purs');\n");
-    let startup = r#"{"sources":{"kind":"command","program":"node","arguments":["startup.mjs"]}}"#;
+    workspace.write(
+        "project/spago.lock",
+        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+    );
+    workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 1\n");
+    let startup = r#"{"diagnostics":{"onOpen":false,"onSave":false,"onChange":true}}"#;
     let runtime = json!({
-        "sources": {"kind": "command", "program": "node", "arguments": ["runtime.mjs"]},
         "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
     });
-    let root = workspace.path().join("project");
+    let root = dunce::canonicalize(workspace.path().join("project")).unwrap();
     let mut server = LanguageServer::start_with_capabilities(
         &workspace,
         "launcher",
@@ -511,30 +496,30 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
         Some(runtime),
     );
 
-    server.wait_for_symbol("fromRuntime", true);
-    server.wait_for_symbol("fromStartup", false);
+    server.wait_for_symbol("fromSpago", true);
     assert_diagnostic_triggers(&mut server, &root, false, false, true);
-    let runtime_uri = Url::from_file_path(root.join("runtime/Library.purs")).unwrap();
+    let library_uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
     server.notify(
         "textDocument/didOpen",
         json!({
             "textDocument": {
-                "uri": runtime_uri,
+                "uri": library_uri,
                 "languageId": "purescript",
                 "version": 1,
-                "text": "module Library where\nunsavedRuntime = 3\n"
+                "text": "module Library where\nunsavedSpago = 3\n"
             }
         }),
     );
-    server.wait_for_symbol("unsavedRuntime", true);
+    server.wait_for_symbol("unsavedSpago", true);
+    server.wait_for_symbol("fromSpago", false);
 
     server.set_configuration(json!({"diagnostics": {"onOpen": true}}));
-    server.wait_for_symbol("fromStartup", true);
-    server.wait_for_symbol("fromRuntime", false);
-    server.wait_for_symbol("unsavedRuntime", true);
-    server.notify("textDocument/didClose", json!({"textDocument": {"uri": runtime_uri}}));
-    server.wait_for_symbol("unsavedRuntime", false);
-    assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, true, false);
+    server.wait_for_symbol("fromSpago", false);
+    server.wait_for_symbol("unsavedSpago", true);
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": library_uri}}));
+    server.wait_for_symbol("unsavedSpago", false);
+    server.wait_for_symbol("fromSpago", true);
+    assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, false, true);
     assert!(server.client.configuration_requests.load(Ordering::Relaxed) >= 2);
     server.shutdown();
 }
@@ -547,15 +532,6 @@ fn invalid_runtime_configuration_preserves_the_previous_workspace() {
         r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
     );
     workspace.write("src/Library.purs", "module Library where\nstillLoaded = 42\n");
-    workspace.write(
-        "slow failure.mjs",
-        r#"
-setTimeout(() => {
-  process.stderr.write("slow failure\n");
-  process.exit(1);
-}, 1000);
-"#,
-    );
     let mut server = LanguageServer::start_with_capabilities(
         &workspace,
         "",
@@ -590,8 +566,12 @@ setTimeout(() => {
         }
     }));
     let message = server.wait_for_notification("window/showMessage");
+    assert!(message["params"]["message"].as_str().unwrap().contains("Invalid Iris settings"));
     assert!(
-        message["params"]["message"].as_str().unwrap().contains("Failed to apply Iris settings")
+        message["params"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("previous Iris settings remain active")
     );
     server.wait_for_symbol("stillLoaded", true);
     assert!(
@@ -617,7 +597,7 @@ fn clients_without_workspace_configuration_keep_startup_settings() {
     let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
     server.notify(
         "workspace/didChangeConfiguration",
-        json!({"settings": {"sources": {"kind": "command", "program": "missing"}}}),
+        json!({"settings": {"diagnostics": {"onOpen": false}}}),
     );
     let symbols = server
         .request_once("workspace/symbol", json!({"query": "startupOnly"}))

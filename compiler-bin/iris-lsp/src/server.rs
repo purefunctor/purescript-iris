@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{env, fs, io, process};
+use std::{env, fs, io};
 
 use analyzer::AnalyzerCapabilities;
 use analyzer::position::PositionEncoding;
@@ -27,7 +27,7 @@ use building::lifecycle::{
     DiskObservation, DocumentKey, DocumentKind, ForeignEvent, LifecycleEvent, ReloadFailure,
     SourceEvent, SourceUnitKey,
 };
-use configuration::{Configuration, ConfigurationSettings, SourceDiscovery};
+use configuration::{Configuration, ConfigurationSettings};
 use files::ForeignSourceKind;
 use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
 use iris_build::events::SilentBuildEvents;
@@ -52,7 +52,7 @@ use crate::server::workspace::{
     ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
     SourceRoot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification, WorkspaceRuntime,
 };
-use crate::{ServerConfig, ServerError, walk};
+use crate::{ServerConfig, ServerError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum SourceMetadata {
@@ -327,20 +327,11 @@ fn finish_workspace_configuration(
     match configuration {
         Ok(configuration) => {
             if let Err(error) = apply_configuration_inner(state, Arc::new(configuration)) {
-                match error {
-                    ConfigurationApplyError::Preparation(error) => {
-                        let error = format!("Failed to apply Iris settings: {error}");
-                        report_configuration_error(state, &error);
-                        if !state.workspace.is_ready() {
-                            apply_configuration(
-                                state,
-                                Arc::clone(&state.protocol.startup_configuration),
-                            )?;
-                        }
-                    }
-                    ConfigurationApplyError::Delivery(error) => {
-                        report_configuration_delivery_error(state, &error);
-                    }
+                let ConfigurationApplyError::Preparation(error) = error;
+                let error = format!("Failed to apply Iris settings: {error}");
+                report_configuration_error(state, &error);
+                if !state.workspace.is_ready() {
+                    apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))?;
                 }
             }
             Ok(())
@@ -377,18 +368,6 @@ fn report_configuration_error(state: &mut State, error: &str) {
         state.client.show_message(ShowMessageParams { typ: MessageType::ERROR, message })
     {
         tracing::warn!("Failed to report configuration error: {error}");
-    }
-}
-
-fn report_configuration_delivery_error(state: &mut State, error: &LspError) {
-    tracing::error!("Failed to deliver Iris settings effects: {error}");
-    let message = format!(
-        "Iris applied the new settings, but could not deliver all resulting client updates: {error}"
-    );
-    if let Err(error) =
-        state.client.show_message(ShowMessageParams { typ: MessageType::ERROR, message })
-    {
-        tracing::warn!("Failed to report configuration delivery error: {error}");
     }
 }
 
@@ -442,44 +421,6 @@ struct DiscoveredWorkspace {
     packages: Vec<PackageInput>,
     metadata: BTreeMap<PathBuf, SourceMetadata>,
     source_roots: Vec<SourceRoot>,
-}
-
-fn discover_manual(
-    root: &std::path::Path,
-    program: &str,
-    arguments: &[String],
-) -> Result<DiscoveredWorkspace, LspError> {
-    tracing::info!("Using '{}'", program);
-
-    let mut command = process::Command::new(program);
-    command.args(arguments);
-
-    let output = command.output()?;
-    if !output.status.success() {
-        return Err(LspError::SourceCommandFailed(output.status));
-    }
-    let output = str::from_utf8(&output.stdout)?;
-
-    let walk::Walk { files, .. } = walk::walk(root, output.lines())?;
-
-    let metadata = files.iter().map(|file| {
-        let editable = file.starts_with(root);
-        (PathBuf::clone(file), SourceMetadata::Unmanaged { editable })
-    });
-    let metadata = metadata.collect();
-
-    let package = PackageInput {
-        name: SmolStr::new("unmanaged"),
-        source_identities: Vec::clone(&files),
-        dependencies: vec![],
-    };
-
-    let source_roots = vec![SourceRoot {
-        path: root.to_path_buf(),
-        metadata: SourceMetadata::Unmanaged { editable: true },
-    }];
-
-    Ok(DiscoveredWorkspace { source_globs: files, packages: vec![package], metadata, source_roots })
 }
 
 fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
@@ -549,10 +490,9 @@ fn apply_configuration(
     state: &mut State,
     configuration: Arc<Configuration>,
 ) -> Result<(), LspError> {
-    apply_configuration_inner(state, configuration).map_err(|error| match error {
-        ConfigurationApplyError::Preparation(error) | ConfigurationApplyError::Delivery(error) => {
-            error
-        }
+    apply_configuration_inner(state, configuration).map_err(|error| {
+        let ConfigurationApplyError::Preparation(error) = error;
+        error
     })
 }
 
@@ -560,41 +500,18 @@ fn apply_configuration_inner(
     state: &mut State,
     configuration: Arc<Configuration>,
 ) -> Result<(), ConfigurationApplyError> {
+    if state.workspace.update_configuration(Arc::clone(&configuration)) {
+        return Ok(());
+    }
+
     let root = state
         .protocol
         .root
         .as_deref()
         .ok_or(LspError::MissingRoot)
         .map_err(ConfigurationApplyError::Preparation)?;
-    if state.workspace.update_configuration_if_sources_equal(Arc::clone(&configuration)) {
-        return Ok(());
-    }
 
-    let discovered = match &configuration.sources {
-        SourceDiscovery::Spago {} => discover_spago(root),
-        SourceDiscovery::Command { program, arguments } => {
-            discover_manual(root, program, arguments)
-        }
-    }
-    .map_err(ConfigurationApplyError::Preparation)?;
-
-    if state.workspace.is_ready() {
-        let prepared = state
-            .workspace
-            .prepare_reconfiguration(configuration, discovered)
-            .map_err(ConfigurationApplyError::Preparation)?;
-        let effects = state
-            .workspace
-            .commit_reconfiguration(prepared)
-            .map_err(ConfigurationApplyError::Preparation)?;
-        effects.deliver(&state.client).map_err(ConfigurationApplyError::Delivery)?;
-        return Ok(());
-    }
-
-    let selected_sources = discovered.source_globs.iter().map(source_uri);
-    let selected_sources = selected_sources
-        .collect::<Result<FxHashSet<_>, _>>()
-        .map_err(ConfigurationApplyError::Preparation)?;
+    let discovered = discover_spago(root).map_err(ConfigurationApplyError::Preparation)?;
 
     let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
         root,
@@ -619,7 +536,6 @@ fn apply_configuration_inner(
         configuration,
         compilation: initial.into_compilation(),
         source_roots: discovered.source_roots,
-        selected_sources,
     };
     let pending =
         state.workspace.install(prepared).map_err(ConfigurationApplyError::Preparation)?;
@@ -636,12 +552,6 @@ fn apply_configuration_inner(
     }
     tracing::info!("Loaded {} files.", discovered.source_globs.len());
     Ok(())
-}
-
-fn source_uri(path: &PathBuf) -> Result<Arc<str>, LspError> {
-    let uri =
-        Url::from_file_path(path).map_err(|_| LspError::PathParseFail(PathBuf::clone(path)))?;
-    Ok(Arc::from(uri.as_str()))
 }
 
 fn definition(
@@ -943,9 +853,7 @@ fn did_close(
 ) -> Result<(), LspError> {
     let uri = parameters.text_document.uri;
     let (document, unit) = source_unit_from_document_uri(&uri)?;
-    let source_uri = Arc::<str>::from(unit.source());
-    let excluded = workspace.excluded_sources.contains(&source_uri);
-    let disk = if excluded { DiskObservation::NotFound } else { observe_disk(&uri) };
+    let disk = observe_disk(&uri);
     let mut events = vec![];
     match document {
         DocumentKind::Foreign(kind) => {
@@ -997,16 +905,10 @@ fn did_change_watched_files(
         match document_kind(&change.uri) {
             Some(DocumentKind::Foreign(kind)) => {
                 let unit = source_unit_from_foreign_uri(&change.uri)?;
-                if workspace.excluded_sources.contains(unit.source()) {
-                    continue;
-                }
                 foreign_units.insert((unit, kind));
             }
             Some(DocumentKind::Source) => {
                 let unit = source_unit_from_source_uri(&change.uri)?;
-                if workspace.excluded_sources.contains(unit.source()) {
-                    continue;
-                }
                 source_units.insert(unit);
             }
             None => {}
