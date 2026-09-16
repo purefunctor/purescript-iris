@@ -440,7 +440,7 @@ fn json_inputs_configure_diagnostic_triggers() {
     })
     .to_string();
     let absolute_path = workspace.path().join("settings/server config.json");
-    let root = workspace.path().join("project");
+    let root = dunce::canonicalize(workspace.path().join("project")).unwrap();
     let cases: &[&[&str]] = &[
         &["lsp", "--config", &configuration],
         &["lsp", "--config-file", "../settings/server config.json"],
@@ -486,7 +486,7 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     let runtime = json!({
         "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
     });
-    let root = workspace.path().join("project");
+    let root = dunce::canonicalize(workspace.path().join("project")).unwrap();
     let mut server = LanguageServer::start_with_capabilities(
         &workspace,
         "launcher",

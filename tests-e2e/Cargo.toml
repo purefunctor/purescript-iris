@@ -10,6 +10,7 @@ iris-cli = { path = "../compiler-bin/iris-cli" }
 
 [dev-dependencies]
 async-lsp = { version = "0.2.4", features = ["tokio"] }
+dunce = "1.0.5"
 insta = { version = "1.48.0", features = ["filters"] }
 itertools = "0.15.0"
 lsp-types.workspace = true
