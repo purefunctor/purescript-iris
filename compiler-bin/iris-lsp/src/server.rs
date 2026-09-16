@@ -1,3 +1,4 @@
+mod analysis;
 pub mod capabilities;
 pub mod error;
 pub mod event;
@@ -41,6 +42,7 @@ use smol_str::SmolStr;
 use tokio::task;
 use tower::ServiceBuilder;
 
+use crate::server::analysis::StateSnapshot;
 use crate::server::capabilities::{
     ConfigurationCapabilities, negotiate_analyzer_capabilities,
     negotiate_configuration_capabilities, negotiate_position_encoding,
@@ -48,8 +50,7 @@ use crate::server::capabilities::{
 use crate::server::error::{AnalyzerResultExt, LspError};
 use crate::server::workspace::{
     ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
-    SourceRoot, StateSnapshot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification,
-    WorkspaceRuntime,
+    SourceRoot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification, WorkspaceRuntime,
 };
 use crate::{ServerConfig, ServerError, walk};
 
@@ -811,31 +812,6 @@ fn semantic_tokens(
     result.on_non_fatal(None)
 }
 
-fn document_content(
-    workspace: &ReadyWorkspace,
-    document: DocumentKind,
-    uri: &Url,
-) -> Result<Arc<str>, LspError> {
-    let files = workspace.files.read();
-    match document {
-        DocumentKind::Source => {
-            let file_id = files
-                .source_id(uri.as_str())
-                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
-            workspace.engine.content(file_id).map_err(LspError::from)
-        }
-        DocumentKind::Foreign(_) => {
-            let file_id = files
-                .foreign_id(uri.as_str())
-                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))?;
-            workspace
-                .engine
-                .foreign_content(file_id)
-                .ok_or_else(|| LspError::InvalidContentChange(Url::clone(uri)))
-        }
-    }
-}
-
 fn apply_content_changes(
     uri: &Url,
     content: &str,
@@ -885,7 +861,7 @@ fn did_change(
         return Ok(());
     }
     let (document, unit) = source_unit_from_document_uri(uri)?;
-    let content = document_content(workspace, document, uri)?;
+    let content = workspace.analysis.document_content(document, uri)?;
     let content = apply_content_changes(
         uri,
         &content,
@@ -981,7 +957,7 @@ fn did_close(
         }
         DocumentKind::Source => {
             let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-            let was_open = workspace.files.read().is_open(&document);
+            let was_open = workspace.analysis.files.read().is_open(&document);
             events.push(LifecycleEvent::Source {
                 unit: SourceUnitKey::clone(&unit),
                 event: SourceEvent::Closed { disk },
@@ -999,7 +975,7 @@ fn did_save(
     client: &ClientSocket,
     parameters: DidSaveTextDocumentParams,
 ) -> Result<(), LspError> {
-    workspace.invalidate_suggestions_cache();
+    workspace.analysis.invalidate_suggestions_cache();
 
     let effects = if workspace.configuration.diagnostics.on_save {
         WorkspaceEffects::associated(workspace, parameters.text_document.uri)?
@@ -1041,7 +1017,7 @@ fn did_change_watched_files(
     let mut observed_foreign = FxHashSet::default();
     for unit in source_units {
         let document = DocumentKey::Source(SourceUnitKey::clone(&unit));
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.source())?;
@@ -1067,7 +1043,7 @@ fn did_change_watched_files(
             continue;
         }
         let document = DocumentKey::Foreign(SourceUnitKey::clone(&unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let source_uri = Url::parse(unit.source())?;
@@ -1075,7 +1051,7 @@ fn did_change_watched_files(
             continue;
         }
         let tracked = {
-            let files = workspace.files.read();
+            let files = workspace.analysis.files.read();
             files.source_id(unit.source()).is_some()
                 || files.foreign_id(unit.foreign_for(kind)).is_some()
         };
@@ -1157,7 +1133,7 @@ fn observe_sibling_foreign(
     let mut events = vec![];
     for kind in ForeignSourceKind::ALL {
         let document = DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);
-        if workspace.files.read().is_open(&document) {
+        if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
         let uri = Url::parse(unit.foreign_for(kind))?;
@@ -1189,7 +1165,7 @@ fn source_metadata(
     uri: &Url,
 ) -> SourceMetadata {
     let previous = {
-        let files = workspace.files.read();
+        let files = workspace.analysis.files.read();
         let file_id = files.source_id(unit.source());
         file_id.and_then(|file_id| files.source_metadata(file_id)).cloned()
     };
