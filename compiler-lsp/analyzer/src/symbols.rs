@@ -148,8 +148,23 @@ pub fn workspace(
     Ok(Some(WorkspaceSymbolResponse::Flat(flat)))
 }
 
+fn name_starts_with_folded(name: &str, folded_query: &str) -> bool {
+    // `folded_query` is already lowercased by the caller. PureScript names are
+    // ASCII, so compare bytes directly without allocating a lowered copy.
+    if folded_query.len() > name.len() {
+        return false;
+    }
+    if let Some(prefix) = name.get(..folded_query.len())
+        && prefix.is_ascii()
+        && folded_query.is_ascii()
+    {
+        return prefix.bytes().map(|byte| byte.to_ascii_lowercase()).eq(folded_query.bytes());
+    }
+    name.to_lowercase().starts_with(folded_query)
+}
+
 fn filter_symbols(cached: &[SymbolInformation], query: &str) -> Vec<SymbolInformation> {
-    cached.iter().filter(|symbol| symbol.name.to_lowercase().starts_with(query)).cloned().collect()
+    cached.iter().filter(|symbol| name_starts_with_folded(&symbol.name, query)).cloned().collect()
 }
 
 fn build_symbol_list(
@@ -166,7 +181,7 @@ fn build_symbol_list(
         let uri = common::file_uri(context, file_id)?;
 
         for (name, _, term_id) in resolved.locals.iter_terms() {
-            if !name.to_lowercase().starts_with(query) {
+            if !name_starts_with_folded(name, query) {
                 continue;
             }
             let kind = term_symbol_kind(&indexed.items[term_id].kind);
@@ -187,7 +202,7 @@ fn build_symbol_list(
         }
 
         for (name, _, type_id) in resolved.locals.iter_types() {
-            if !name.to_lowercase().starts_with(query) {
+            if !name_starts_with_folded(name, query) {
                 continue;
             }
             let kind = type_symbol_kind(&indexed.items[type_id].kind);
@@ -208,7 +223,7 @@ fn build_symbol_list(
         }
 
         for (name, _, type_id) in resolved.locals.iter_classes() {
-            if !name.to_lowercase().starts_with(query) {
+            if !name_starts_with_folded(name, query) {
                 continue;
             }
             let uri = Url::clone(&uri);
