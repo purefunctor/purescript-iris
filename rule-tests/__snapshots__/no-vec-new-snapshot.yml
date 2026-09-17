@@ -32,6 +32,14 @@ snapshots:
       style: secondary
       start: 83
       end: 86
+    - source: '{ Vec::new() }'
+      style: secondary
+      start: 81
+      end: 95
+    - source: new
+      style: secondary
+      start: 88
+      end: 91
   ? |
     fn invalid_vec_new_in_macro(count: usize) -> Vec<Vec<u8>> {
         vec![Vec::new(); count]
@@ -49,6 +57,14 @@ snapshots:
       style: secondary
       start: 69
       end: 72
+    - source: '[Vec::new(); count]'
+      style: secondary
+      start: 68
+      end: 87
+    - source: new
+      style: secondary
+      start: 74
+      end: 77
   ? |
     fn invalid_vec_new_mixed_with_string() {
         let _ = assert!(Vec::new().is_empty(), "expected Vec::new() to be empty");
@@ -66,6 +82,14 @@ snapshots:
       style: secondary
       start: 61
       end: 64
+    - source: (Vec::new().is_empty(), "expected Vec::new() to be empty")
+      style: secondary
+      start: 60
+      end: 118
+    - source: new
+      style: secondary
+      start: 66
+      end: 69
   ? |
     fn invalid_vec_new_qualified() -> Vec<u8> {
         std::vec::Vec::new()

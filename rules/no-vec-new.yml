@@ -8,16 +8,24 @@ rule:
     - pattern: 'Vec::<$$$>::new()'
     - pattern: 'std::vec::Vec::new()'
     - pattern: 'std::vec::Vec::<$$$>::new()'
-    # Nested inside another macro's opaque token tree: `Vec` survives as a
-    # parsed identifier child, while string mentions leave none behind.
-    # `with_capacity` shares the identifier but stays allowed. Scoped to
-    # `token_tree` so the outer macro's own name cannot match.
+    # Nested inside another macro's opaque token tree: `Vec::new`
+    # survives as parsed `Vec` + `new` identifier children, while string
+    # mentions and comments leave none behind. Requiring both names
+    # keeps `Vec<_>` type mentions and `Vec::with_capacity` allowed.
+    # Scoped to `token_tree` so the outer macro's own name cannot match.
     - kind: macro_invocation
       all:
         - has:
             stopBy: end
             kind: identifier
             regex: '^Vec$'
+            inside:
+              kind: token_tree
+              stopBy: end
+        - has:
+            stopBy: end
+            kind: identifier
+            regex: '^new$'
             inside:
               kind: token_tree
               stopBy: end
@@ -34,6 +42,13 @@ rule:
             stopBy: end
             kind: identifier
             regex: '^Vec$'
+            inside:
+              kind: token_tree
+              stopBy: end
+        - has:
+            stopBy: end
+            kind: identifier
+            regex: '^new$'
             inside:
               kind: token_tree
               stopBy: end

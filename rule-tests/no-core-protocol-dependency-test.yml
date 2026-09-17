@@ -27,3 +27,7 @@ invalid:
     macro_rules! invalid_protocol_path_in_definition {
         () => { lsp_types::Kind };
     }
+  - |
+    fn invalid_three_segment_protocol_path(first: lsp_types::A::B) -> lsp_types::A::B {
+        first
+    }

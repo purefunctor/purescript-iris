@@ -45,6 +45,15 @@ snapshots:
       start: 45
       end: 64
   ? |
+    fn invalid_three_segment_protocol_path(first: lsp_types::A::B) -> lsp_types::A::B {
+        first
+    }
+  : labels:
+    - source: lsp_types::A::B
+      style: primary
+      start: 46
+      end: 61
+  ? |
     macro_rules! invalid_protocol_path_in_definition {
         () => { lsp_types::Kind };
     }

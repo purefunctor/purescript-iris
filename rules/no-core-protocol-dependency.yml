@@ -14,10 +14,16 @@ rule:
             inside:
               kind: use_declaration
               stopBy: end
-        # Report the outermost path only, at any nesting depth.
+        # Report the outermost path only, at any nesting depth. Type
+        # positions nest a `scoped_identifier` inside the outer
+        # `scoped_type_identifier`, so exclude both ancestor kinds.
         - not:
             inside:
               kind: scoped_identifier
+              stopBy: end
+        - not:
+            inside:
+              kind: scoped_type_identifier
               stopBy: end
     # Type positions use a distinct node kind from expression paths.
     # The nesting exclusion spans any depth, so `lsp_types::A::B`
@@ -28,6 +34,10 @@ rule:
         - not:
             inside:
               kind: use_declaration
+              stopBy: end
+        - not:
+            inside:
+              kind: scoped_identifier
               stopBy: end
         - not:
             inside:
