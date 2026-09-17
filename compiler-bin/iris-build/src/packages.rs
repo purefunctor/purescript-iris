@@ -220,10 +220,11 @@ fn resolve_package(
 ) -> Result<ResolvedPackage, PackagesError> {
     if let Some(package) = workspace.packages.get(name.as_str()) {
         let mut source_directories = vec![package.root.join(iris_spago::SRC_DIRECTORY)];
+        let mut dependencies = package.manifest.core_dependency_names().cloned().collect_vec();
         if package.has_tests {
             source_directories.push(package.root.join(iris_spago::TEST_DIRECTORY));
+            dependencies.extend(package.manifest.test_dependency_names().cloned());
         }
-        let dependencies = package.manifest.all_dependency_names().cloned().collect_vec();
         return Ok(ResolvedPackage {
             relative: relative_location(&workspace.root, &package.root),
             source_directories,
@@ -285,7 +286,7 @@ fn resolve_extra_package(
                     path: manifest_path,
                 });
             };
-            let dependencies = package_manifest.all_dependency_names().cloned().collect_vec();
+            let dependencies = package_manifest.core_dependency_names().cloned().collect_vec();
             let source_directories = vec![location.join(iris_spago::SRC_DIRECTORY)];
             Ok(ResolvedPackage {
                 relative: PathBuf::clone(&package.path),

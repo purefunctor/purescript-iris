@@ -99,6 +99,33 @@ workspace: {}
 }
 
 #[test]
+fn ignores_workspace_test_dependencies_without_a_test_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        r#"package:
+  name: application
+  dependencies: []
+  test:
+    main: Test.Main
+    dependencies: [spec]
+workspace: {}
+"#,
+    );
+    write_file(
+        &root.join("src/Main.purs"),
+        r#"module Main where
+"#,
+    );
+
+    let discovered = discover_packages(&workspace(root, None)).unwrap();
+
+    assert!(package(&discovered, "application").dependencies.is_empty());
+    assert!(discovered.packages.iter().all(|package| package.name != "spec"));
+}
+
+#[test]
 fn discovers_inline_git_and_local_dependencies() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
@@ -152,6 +179,48 @@ workspace:
     );
     assert_eq!(package(&discovered, "fakelib").dependencies[0], "prelude");
     assert!(package(&discovered, "locallib").editable);
+}
+
+#[test]
+fn local_extra_packages_use_only_library_dependencies() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        r#"package:
+  name: application
+  dependencies: [locallib]
+workspace:
+  extraPackages:
+    locallib:
+      path: vendor/locallib
+"#,
+    );
+    write_file(
+        &root.join("src/Main.purs"),
+        r#"module Main where
+"#,
+    );
+    write_file(
+        &root.join("vendor/locallib/spago.yaml"),
+        r#"package:
+  name: locallib
+  dependencies: []
+  test:
+    main: Test.Main
+    dependencies: [spec]
+"#,
+    );
+    write_file(
+        &root.join("vendor/locallib/src/Locallib.purs"),
+        r#"module Locallib where
+"#,
+    );
+
+    let discovered = discover_packages(&workspace(root, None)).unwrap();
+
+    assert!(package(&discovered, "locallib").dependencies.is_empty());
+    assert!(discovered.packages.iter().all(|package| package.name != "spec"));
 }
 
 #[test]
