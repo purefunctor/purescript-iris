@@ -91,3 +91,55 @@ fn rejects_constrained_test_without_main() {
     .unwrap_err();
     insta::assert_snapshot!(error.to_string());
 }
+
+#[test]
+fn parses_multiple_constraints_from_each_dependency_map() {
+    let manifest = iris_spago::parse_manifest(
+        r#"package:
+  name: application
+  dependencies:
+    - effect: ">=4.0.0 <5.0.0"
+      prelude: ">=6.0.0 <7.0.0"
+  test:
+    main: Test.Main
+    dependencies:
+      - console: ">=6.0.0 <7.0.0"
+        spec: ">=8.0.0 <9.0.0"
+workspace:
+  extraPackages:
+    library:
+      git: https://example.com/library.git
+      ref: main
+      dependencies:
+        - arrays: ">=7.0.0 <8.0.0"
+          maybe: ">=6.0.0 <7.0.0"
+"#,
+    )
+    .unwrap();
+    let package = manifest.package.unwrap();
+    let test = package.test.unwrap();
+    let workspace = manifest.workspace.unwrap();
+    let iris_spago::ExtraPackage::Git(library) = &workspace.extra_packages["library"] else {
+        panic!("expected a Git package");
+    };
+
+    assert_eq!(
+        dependency_pairs(&package.dependencies),
+        [("effect", Some(">=4.0.0 <5.0.0")), ("prelude", Some(">=6.0.0 <7.0.0")),]
+    );
+    assert_eq!(
+        dependency_pairs(&test.dependencies),
+        [("console", Some(">=6.0.0 <7.0.0")), ("spec", Some(">=8.0.0 <9.0.0")),]
+    );
+    assert_eq!(
+        dependency_pairs(library.dependencies.as_deref().unwrap()),
+        [("arrays", Some(">=7.0.0 <8.0.0")), ("maybe", Some(">=6.0.0 <7.0.0")),]
+    );
+}
+
+fn dependency_pairs(dependencies: &[iris_spago::Dependency]) -> Vec<(&str, Option<&str>)> {
+    dependencies
+        .iter()
+        .map(|dependency| (dependency.name.as_str(), dependency.constraint.as_deref()))
+        .collect()
+}

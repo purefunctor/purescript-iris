@@ -7,9 +7,8 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::{fmt, fs, io};
+use std::{fs, io};
 
-use serde::de::{IgnoredAny, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use smol_str::SmolStr;
 use thiserror::Error;
@@ -57,7 +56,7 @@ pub struct Package {
     pub name: SmolStr,
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_dependencies")]
     pub dependencies: Vec<Dependency>,
     #[serde(default)]
     pub run: Option<ExecutionConfig>,
@@ -77,7 +76,7 @@ pub struct ExecutionConfig {
 #[serde(rename_all = "camelCase")]
 pub struct TestConfig {
     pub main: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_dependencies")]
     pub dependencies: Vec<Dependency>,
     #[serde(default)]
     pub exec_args: Vec<String>,
@@ -96,49 +95,48 @@ pub struct Dependency {
     pub constraint: Option<SmolStr>,
 }
 
-impl<'de> Deserialize<'de> for Dependency {
-    fn deserialize<DeserializerT>(
-        deserializer: DeserializerT,
-    ) -> Result<Dependency, DeserializerT::Error>
-    where
-        DeserializerT: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(DependencyVisitor)
-    }
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum DependencyEntry {
+    Name(SmolStr),
+    Constraints(BTreeMap<SmolStr, SmolStr>),
 }
 
-struct DependencyVisitor;
+fn deserialize_dependencies<'de, DeserializerT>(
+    deserializer: DeserializerT,
+) -> Result<Vec<Dependency>, DeserializerT::Error>
+where
+    DeserializerT: Deserializer<'de>,
+{
+    Vec::<DependencyEntry>::deserialize(deserializer).map(flatten_dependencies)
+}
 
-impl<'de> Visitor<'de> for DependencyVisitor {
-    type Value = Dependency;
+fn deserialize_optional_dependencies<'de, DeserializerT>(
+    deserializer: DeserializerT,
+) -> Result<Option<Vec<Dependency>>, DeserializerT::Error>
+where
+    DeserializerT: Deserializer<'de>,
+{
+    Option::<Vec<DependencyEntry>>::deserialize(deserializer)
+        .map(|entries| entries.map(flatten_dependencies))
+}
 
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a package name or a package name with a version constraint")
-    }
-
-    fn visit_str<Error>(self, value: &str) -> Result<Dependency, Error>
-    where
-        Error: serde::de::Error,
-    {
-        Ok(Dependency { name: SmolStr::new(value), constraint: None })
-    }
-
-    fn visit_map<Access>(self, mut map: Access) -> Result<Dependency, Access::Error>
-    where
-        Access: MapAccess<'de>,
-    {
-        let Some((name, constraint)) = map.next_entry::<SmolStr, SmolStr>()? else {
-            return Err(serde::de::Error::custom(
-                "expected a package name with a version constraint",
-            ));
-        };
-        if map.next_entry::<IgnoredAny, IgnoredAny>()?.is_some() {
-            return Err(serde::de::Error::custom(
-                "expected a single package name with a version constraint",
-            ));
+fn flatten_dependencies(entries: Vec<DependencyEntry>) -> Vec<Dependency> {
+    let mut dependencies = vec![];
+    for entry in entries {
+        match entry {
+            DependencyEntry::Name(name) => dependencies.push(Dependency { name, constraint: None }),
+            DependencyEntry::Constraints(constraints) => {
+                dependencies.extend(
+                    constraints.into_iter().map(|(name, constraint)| Dependency {
+                        name,
+                        constraint: Some(constraint),
+                    }),
+                );
+            }
         }
-        Ok(Dependency { name, constraint: Some(constraint) })
     }
+    dependencies
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -182,7 +180,7 @@ pub struct GitPackage {
     pub reference: SmolStr,
     #[serde(default)]
     pub subdir: Option<PathBuf>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_optional_dependencies")]
     pub dependencies: Option<Vec<Dependency>>,
 }
 
@@ -195,6 +193,6 @@ pub struct LocalPackage {
 pub struct LegacyPackage {
     pub repo: SmolStr,
     pub version: SmolStr,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_dependencies")]
     pub dependencies: Vec<Dependency>,
 }
