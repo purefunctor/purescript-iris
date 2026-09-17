@@ -3900,24 +3900,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spago"
-version = "0.1.0"
-dependencies = [
- "dunce",
- "globset",
- "insta",
- "itertools 0.15.0",
- "rustc-hash",
- "serde",
- "serde_json",
- "smol_str",
- "tempfile",
- "thiserror",
- "url",
- "walkdir",
-]
-
-[[package]]
 name = "stabilizing"
 version = "0.1.0"
 dependencies = [
