@@ -1,6 +1,24 @@
 id: no-core-protocol-dependency
 snapshots:
   ? |
+    fn invalid_qualified_protocol_call(client: &async_lsp::ClientSocket) {
+        let _ = async_lsp::ClientSocket::clone(client);
+    }
+  : labels:
+    - source: async_lsp::ClientSocket
+      style: primary
+      start: 44
+      end: 67
+  ? |
+    fn invalid_qualified_protocol_path(position: lsp_types::Position) -> lsp_types::Position {
+        position
+    }
+  : labels:
+    - source: lsp_types::Position
+      style: primary
+      start: 45
+      end: 64
+  ? |
     use async_lsp::ClientSocket;
   : labels:
     - source: use async_lsp::ClientSocket;

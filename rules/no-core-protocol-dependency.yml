@@ -4,7 +4,21 @@ severity: error
 message: "compiler-core must stay independent of user-facing protocol concerns (compiler-core/AGENTS.md)."
 note: "Pipeline orchestration in `building` may depend outward on stage crates, but protocol types such as `lsp_types` must not leak into core."
 rule:
-  kind: use_declaration
-  regex: 'lsp_types|async_lsp'
+  any:
+    - kind: use_declaration
+      regex: '\b(lsp_types|async_lsp)\b'
+    - kind: scoped_identifier
+      regex: '\b(lsp_types|async_lsp)::'
+      not:
+        inside:
+          kind: use_declaration
+          stopBy: end
+    # Type positions use a distinct node kind from expression paths.
+    - kind: scoped_type_identifier
+      regex: '\b(lsp_types|async_lsp)::'
+      not:
+        inside:
+          kind: use_declaration
+          stopBy: end
 files:
   - 'compiler-core/**'

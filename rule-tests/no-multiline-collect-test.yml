@@ -38,3 +38,9 @@ invalid:
             })
             .collect::<Vec<_>>();
     }
+  - |
+    fn invalid_multiline_turbofish(source: Vec<i32>) {
+        let collection = source.iter().map(|item| item + 1).collect::<
+            Vec<_>
+        >();
+    }

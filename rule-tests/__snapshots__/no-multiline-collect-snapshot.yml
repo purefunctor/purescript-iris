@@ -57,3 +57,24 @@ snapshots:
       style: secondary
       start: 110
       end: 194
+  ? |
+    fn invalid_multiline_turbofish(source: Vec<i32>) {
+        let collection = source.iter().map(|item| item + 1).collect::<
+            Vec<_>
+        >();
+    }
+  : labels:
+    - source: |-
+        source.iter().map(|item| item + 1).collect::<
+                Vec<_>
+            >()
+      style: primary
+      start: 72
+      end: 140
+    - source: |-
+        <
+                Vec<_>
+            >
+      style: secondary
+      start: 116
+      end: 138
