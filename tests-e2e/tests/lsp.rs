@@ -403,10 +403,8 @@ fn assert_diagnostic_triggers_for(
 #[test]
 fn empty_configuration_preserves_spago_and_default_diagnostics() {
     let workspace = TestWorkspace::empty();
-    workspace.write(
-        "spago.lock",
-        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
-    );
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nfromSpago = 42\n");
     workspace.write("config/empty.json", "{}");
 
@@ -428,11 +426,59 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
 }
 
 #[test]
+fn discovers_workspace_sources_when_opened_from_a_nested_package() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("spago.yaml", "workspace: {}\n");
+    workspace.write(
+        "packages/application/spago.yaml",
+        r#"package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "packages/application/src/Library.purs",
+        "module Library where\nfromWorkspaceRoot = 42\n",
+    );
+    let package_root = workspace.path().join("packages/application");
+    let mut server =
+        LanguageServer::start(&workspace, "packages/application", &["lsp"], &package_root);
+
+    let symbols = server.request("workspace/symbol", json!({"query": "fromWorkspaceRoot"}));
+
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["name"], "fromWorkspaceRoot");
+    server.shutdown();
+}
+
+#[cfg(unix)]
+#[test]
+fn discovers_workspace_sources_through_a_symlinked_root() {
+    use std::os::unix::fs::symlink;
+
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "project/spago.yaml",
+        "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
+    );
+    workspace.write("project/src/Library.purs", "module Library where\nfromSymlinkRoot = 42\n");
+    symlink(workspace.path().join("project"), workspace.path().join("linked-project")).unwrap();
+    let linked_root = workspace.path().join("linked-project");
+    let mut server = LanguageServer::start(&workspace, "linked-project", &["lsp"], &linked_root);
+
+    let symbols = server.request("workspace/symbol", json!({"query": "fromSymlinkRoot"}));
+
+    assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
+    assert_eq!(symbols[0]["name"], "fromSymlinkRoot");
+    server.shutdown();
+}
+
+#[test]
 fn json_inputs_configure_diagnostic_triggers() {
     let workspace = TestWorkspace::empty();
     workspace.write(
-        "project/spago.lock",
-        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+        "project/spago.yaml",
+        "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
     );
     workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 42\n");
     let configuration = json!({
@@ -463,7 +509,8 @@ fn json_inputs_configure_diagnostic_triggers() {
 #[test]
 fn partial_diagnostic_configuration_preserves_omitted_triggers() {
     let workspace = TestWorkspace::empty();
-    workspace.write("spago.lock", r#"{"workspace":{"packages":{}},"packages":{}}"#);
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     let mut server = LanguageServer::start(
         &workspace,
         "",
@@ -478,8 +525,8 @@ fn partial_diagnostic_configuration_preserves_omitted_triggers() {
 fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     let workspace = TestWorkspace::empty();
     workspace.write(
-        "project/spago.lock",
-        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
+        "project/spago.yaml",
+        "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
     );
     workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 1\n");
     let startup = r#"{"diagnostics":{"onOpen":false,"onSave":false,"onChange":true}}"#;
@@ -527,10 +574,8 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
 #[test]
 fn invalid_runtime_configuration_preserves_the_previous_workspace() {
     let workspace = TestWorkspace::empty();
-    workspace.write(
-        "spago.lock",
-        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
-    );
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nstillLoaded = 42\n");
     let mut server = LanguageServer::start_with_capabilities(
         &workspace,
@@ -589,10 +634,8 @@ fn invalid_runtime_configuration_preserves_the_previous_workspace() {
 #[test]
 fn clients_without_workspace_configuration_keep_startup_settings() {
     let workspace = TestWorkspace::empty();
-    workspace.write(
-        "spago.lock",
-        r#"{"workspace":{"packages":{"application":{"path":"."}}},"packages":{}}"#,
-    );
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nstartupOnly = 42\n");
     let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
     server.notify(

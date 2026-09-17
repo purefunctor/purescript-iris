@@ -1814,7 +1814,6 @@ dependencies = [
  "serde",
  "serde_json",
  "smol_str",
- "spago",
  "tempfile",
  "thiserror",
  "tokio",

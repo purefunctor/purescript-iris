@@ -4,8 +4,8 @@ use analyzer::AnalyzerError;
 use async_lsp::ErrorCode;
 use building::QueryError;
 use iris_build::compile::CompileError;
+use iris_build::{PackagesError, WorkspaceError};
 use lsp_types::Url;
-use spago::LockfileGlobSetError;
 use thiserror::Error;
 use tokio::task;
 
@@ -31,8 +31,10 @@ pub enum LspError {
     WorkspaceNotReady,
     #[error("The Iris workspace is already ready")]
     WorkspaceAlreadyReady,
-    #[error("SpagoError: {0}")]
-    SpagoLock(#[from] LockfileGlobSetError),
+    #[error("WorkspaceError: {0}")]
+    WorkspaceError(#[from] WorkspaceError),
+    #[error("PackagesError: {0}")]
+    PackagesError(#[from] PackagesError),
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
     #[error("JoinError: {0}")]
