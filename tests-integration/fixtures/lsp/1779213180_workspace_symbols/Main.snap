@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 101
+assertion_line: 422
 expression: report
 ---
 WorkspaceSymbols query ""
@@ -27,6 +27,17 @@ mainValue Function file:///tests-integration/fixtures/lsp/1779213180_workspace_s
 WorkspaceSymbols query "mainv"
 
 mainValue Function file:///tests-integration/fixtures/lsp/1779213180_workspace_symbols/Main.purs @ 2:0..3:14
+
+
+WorkspaceSymbols query "i\u{307}stanbul"
+
+İstanbul Enum file:///tests-integration/fixtures/lsp/1779213180_workspace_symbols/Main.purs @ 11:0..11:35
+İstanbulConstructor Constructor file:///tests-integration/fixtures/lsp/1779213180_workspace_symbols/Main.purs @ 11:16..11:35
+
+
+WorkspaceSymbols query "i\u{307}stanbulc"
+
+İstanbulConstructor Constructor file:///tests-integration/fixtures/lsp/1779213180_workspace_symbols/Main.purs @ 11:16..11:35
 
 
 WorkspaceSymbols query "library"

@@ -149,16 +149,23 @@ pub fn workspace(
 }
 
 fn name_starts_with_folded(name: &str, folded_query: &str) -> bool {
-    // `folded_query` is already lowercased by the caller. PureScript names are
-    // ASCII, so compare bytes directly without allocating a lowered copy.
-    if folded_query.len() > name.len() {
-        return false;
-    }
-    if let Some(prefix) = name.get(..folded_query.len())
-        && prefix.is_ascii()
-        && folded_query.is_ascii()
-    {
-        return prefix.bytes().map(|byte| byte.to_ascii_lowercase()).eq(folded_query.bytes());
+    // `folded_query` is already lowercased by the caller. When the query is
+    // ASCII, lowercasing preserves byte length, so compare bytes directly
+    // without allocating a lowered copy. Otherwise the allocating comparison
+    // below remains authoritative: Unicode lowercasing can expand (e.g. `İ`
+    // folds to `i` plus U+0307), so a byte-length rejection is only valid
+    // when both sides are ASCII.
+    if folded_query.is_ascii() {
+        if let Some(prefix) = name.get(..folded_query.len()) {
+            if prefix.is_ascii() {
+                return prefix
+                    .bytes()
+                    .map(|byte| byte.to_ascii_lowercase())
+                    .eq(folded_query.bytes());
+            }
+        } else if name.is_ascii() {
+            return false;
+        }
     }
     name.to_lowercase().starts_with(folded_query)
 }
