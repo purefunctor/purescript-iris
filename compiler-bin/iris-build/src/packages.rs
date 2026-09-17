@@ -70,10 +70,6 @@ pub enum PackagesError {
     UnsafeGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
     #[error("git package '{name}' subdirectory {subdirectory} resolves outside its checkout")]
     EscapedGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
-    #[error(
-        "legacy extra package '{name}' is not supported; declare it as a registry, git, or local package"
-    )]
-    LegacyPackage { name: SmolStr },
     #[error("source file {path} is claimed by packages '{first}' and '{second}'")]
     ConflictingSource { path: PathBuf, first: SmolStr, second: SmolStr },
     #[error("source file {path} belongs to no known package")]
@@ -163,16 +159,21 @@ fn discover_packages_with(
     let mut discovered = BTreeMap::new();
     let mut queue = VecDeque::new();
     if let Some(selected) = workspace.selected.as_deref() {
-        queue.push_back(SmolStr::new(selected));
+        queue.push_back((SmolStr::new(selected), true));
     } else {
-        queue.extend(workspace.packages.keys().map(SmolStr::new));
+        queue.extend(workspace.packages.keys().map(|name| (SmolStr::new(name), true)));
     }
-    while let Some(name) = queue.pop_front() {
+    while let Some((name, include_test_dependencies)) = queue.pop_front() {
         if discovered.contains_key(&name) {
             continue;
         }
-        let resolved = match resolve_package(workspace, &extra_packages, resolution.as_ref(), &name)
-        {
+        let resolved = match resolve_package(
+            workspace,
+            &extra_packages,
+            resolution.as_ref(),
+            &name,
+            include_test_dependencies,
+        ) {
             Ok(resolved) => resolved,
             Err(
                 PackagesError::MissingRegistryResolution { .. }
@@ -180,7 +181,7 @@ fn discover_packages_with(
             ) if matches!(availability, PackageAvailability::AllowMissing) => continue,
             Err(error) => return Err(error),
         };
-        queue.extend(resolved.dependencies.iter().cloned());
+        queue.extend(resolved.dependencies.iter().cloned().map(|name| (name, false)));
         discovered.insert(SmolStr::clone(&name), resolved);
     }
 
@@ -250,12 +251,15 @@ fn resolve_package(
     extra_packages: &BTreeMap<SmolStr, iris_spago::ExtraPackage>,
     resolution: Option<&Resolution>,
     name: &SmolStr,
+    include_test_dependencies: bool,
 ) -> Result<ResolvedPackage, PackagesError> {
     if let Some(package) = workspace.packages.get(name.as_str()) {
         let mut source_directories = vec![package.root.join(iris_spago::SRC_DIRECTORY)];
         let mut dependencies = package.manifest.core_dependency_names().cloned().collect_vec();
         if package.has_tests {
             source_directories.push(package.root.join(iris_spago::TEST_DIRECTORY));
+        }
+        if package.has_tests && include_test_dependencies {
             dependencies.extend(package.manifest.test_dependency_names().cloned());
         }
         return Ok(ResolvedPackage {
@@ -329,8 +333,22 @@ fn resolve_extra_package(
                 name: SmolStr::clone(name),
             })
         }
-        iris_spago::ExtraPackage::Legacy(_) => {
-            Err(PackagesError::LegacyPackage { name: SmolStr::clone(name) })
+        iris_spago::ExtraPackage::Legacy(package) => {
+            let reference = resolved_git_reference(resolution, name).unwrap_or(&package.version);
+            let location = git_checkout_location(workspace, name, reference)?;
+            let source_directories = vec![location.join(iris_spago::SRC_DIRECTORY)];
+            let dependencies = package
+                .dependencies
+                .iter()
+                .map(|dependency| SmolStr::clone(&dependency.name))
+                .collect_vec();
+            Ok(ResolvedPackage {
+                relative: relative_location(&workspace.root, &location),
+                source_directories,
+                dependencies,
+                editable: false,
+                name: SmolStr::clone(name),
+            })
         }
     }
 }
@@ -472,7 +490,9 @@ fn escape_path_component(value: &str) -> String {
         ) {
             escaped.push('_');
             let [lowercase, _] = unicode_case_mapping::to_lowercase(character);
-            let lowercase = char::from_u32(lowercase).unwrap_or(character);
+            let lowercase = char::from_u32(lowercase)
+                .filter(|lowercase| *lowercase != '\0')
+                .unwrap_or(character);
             escaped.push(lowercase);
         } else {
             match character {

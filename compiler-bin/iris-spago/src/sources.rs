@@ -75,19 +75,16 @@ impl ExtraPackage {
     /// Source directories contributed by an extra package.
     ///
     /// Every dependency only exposes library sources: plain `src`, or
-    /// `<subdir>/src` for Git checkouts with a subdirectory. Legacy packages
-    /// have no known checkout layout and contribute nothing; traversal rejects
-    /// them before reading this.
+    /// `<subdir>/src` for Git checkouts with a subdirectory.
     pub fn dependency_source_directories(&self) -> Vec<PathBuf> {
         match self {
             ExtraPackage::Git(package) => {
                 let src = PathBuf::from(SRC_DIRECTORY);
                 vec![package.subdir.as_deref().map_or(src.clone(), |subdir| subdir.join(src))]
             }
-            ExtraPackage::Registry(_) | ExtraPackage::Local(_) => {
+            ExtraPackage::Registry(_) | ExtraPackage::Local(_) | ExtraPackage::Legacy(_) => {
                 vec![PathBuf::from(SRC_DIRECTORY)]
             }
-            ExtraPackage::Legacy(_) => vec![],
         }
     }
 }

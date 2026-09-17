@@ -126,6 +126,50 @@ workspace: {}
 }
 
 #[test]
+fn ignores_test_dependencies_of_transitive_workspace_packages() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        r#"package:
+  name: application
+  dependencies: [library]
+workspace: {}
+"#,
+    );
+    write_file(
+        &root.join("src/Main.purs"),
+        r#"module Main where
+"#,
+    );
+    write_file(
+        &root.join("library/spago.yaml"),
+        r#"package:
+  name: library
+  dependencies: []
+  test:
+    main: Test.Main
+    dependencies: [spec]
+"#,
+    );
+    write_file(
+        &root.join("library/src/Library.purs"),
+        r#"module Library where
+"#,
+    );
+    write_file(
+        &root.join("library/test/Test.Main.purs"),
+        r#"module Test.Main where
+"#,
+    );
+
+    let discovered = discover_packages(&workspace(root, Some("application"))).unwrap();
+
+    assert!(package(&discovered, "library").dependencies.is_empty());
+    assert!(discovered.packages.iter().all(|package| package.name != "spec"));
+}
+
+#[test]
 fn discovers_inline_git_and_local_dependencies() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
@@ -332,7 +376,7 @@ fn escapes_git_refs_with_spago_unicode_semantics() {
         &root.join("spago.yaml"),
         r#"package:
   name: application
-  dependencies: [decimal-ref, derived-case-ref, future-case-ref, uppercase-ref]
+  dependencies: [decimal-ref, derived-case-ref, fallback-case-ref, future-case-ref, uppercase-ref]
 workspace:
   extraPackages:
     decimal-ref:
@@ -342,6 +386,10 @@ workspace:
     derived-case-ref:
       git: https://example.com/derived-case.git
       ref: ʰⅠ
+      dependencies: []
+    fallback-case-ref:
+      git: https://example.com/fallback-case.git
+      ref: ϒ
       dependencies: []
     future-case-ref:
       git: https://example.com/future-case.git
@@ -369,6 +417,11 @@ workspace:
 "#,
     );
     write_file(
+        &root.join(".spago/p/fallback-case-ref/_ϒ/src/FallbackCase.purs"),
+        r#"module FallbackCase where
+"#,
+    );
+    write_file(
         &root.join(".spago/p/future-case-ref/%10570/src/FutureCase.purs"),
         r#"module FutureCase where
 "#,
@@ -388,6 +441,10 @@ workspace:
     assert_eq!(
         relative_files(root, package(&discovered, "derived-case-ref")),
         [".spago/p/derived-case-ref/%2b0%2160/src/DerivedCase.purs"]
+    );
+    assert_eq!(
+        relative_files(root, package(&discovered, "fallback-case-ref")),
+        [".spago/p/fallback-case-ref/_ϒ/src/FallbackCase.purs"]
     );
     assert_eq!(
         relative_files(root, package(&discovered, "future-case-ref")),
@@ -475,7 +532,52 @@ workspace:
 }
 
 #[test]
-fn reports_unfetched_legacy_and_conflicting_packages() {
+fn discovers_legacy_git_packages() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        r#"package:
+  name: application
+  dependencies: [legacy]
+workspace:
+  extraPackages:
+    legacy:
+      repo: https://example.com/legacy.git
+      version: V1.0.0
+      dependencies: [prelude]
+"#,
+    );
+    write_file(
+        &root.join("src/Main.purs"),
+        r#"module Main where
+"#,
+    );
+    write_file(
+        &root.join(".spago/p/legacy/deadbee/src/Legacy.purs"),
+        r#"module Legacy where
+"#,
+    );
+    write_registry(root, "prelude", "6.0.0", r#"{}"#, "Prelude.purs");
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{
+  "legacy":{"type":"git","rev":"deadbee"},
+  "prelude":{"type":"registry","version":"6.0.0"}
+}}"#,
+    );
+
+    let discovered = discover_packages(&workspace(root, None)).unwrap();
+
+    assert_eq!(package(&discovered, "legacy").dependencies, ["prelude"]);
+    assert_eq!(
+        relative_files(root, package(&discovered, "legacy")),
+        [".spago/p/legacy/deadbee/src/Legacy.purs"]
+    );
+}
+
+#[test]
+fn reports_unfetched_and_conflicting_packages() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
     write_file(
@@ -498,23 +600,6 @@ workspace: {}
     assert!(matches!(
         discover_packages(&workspace(root, None)).unwrap_err(),
         PackagesError::UnfetchedPackage { .. }
-    ));
-
-    write_file(
-        &root.join("spago.yaml"),
-        r#"package:
-  name: application
-  dependencies: [legacy]
-workspace:
-  extraPackages:
-    legacy:
-      repo: https://example.com/legacy.git
-      version: v1.0.0
-"#,
-    );
-    assert!(matches!(
-        discover_packages(&workspace(root, None)).unwrap_err(),
-        PackagesError::LegacyPackage { .. }
     ));
 
     write_file(
