@@ -68,14 +68,21 @@ fn zonk_types<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut changed = false;
-    let mut zonked = Vec::with_capacity(types.len());
-    for &id in types {
+    let mut zonked: Option<Vec<TypeId>> = None;
+    for (index, &id) in types.iter().enumerate() {
         let zonked_id = zonk(state, context, id)?;
-        changed |= zonked_id != id;
-        zonked.push(zonked_id);
+        if zonked_id != id {
+            let output = zonked.get_or_insert_with(|| {
+                let mut output = Vec::with_capacity(types.len());
+                output.extend_from_slice(&types[..index]);
+                output
+            });
+            output.push(zonked_id);
+        } else if let Some(output) = &mut zonked {
+            output.push(id);
+        }
     }
-    Ok(changed.then(|| zonked.into()))
+    Ok(zonked.map(Into::into))
 }
 
 fn zonk_declaration_abstractions<Q>(
