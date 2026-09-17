@@ -29,11 +29,11 @@ pub(super) struct SourceRoot {
 }
 
 pub(super) enum WorkspaceNotification {
-    DidOpen(DidOpenTextDocumentParams),
-    DidSave(DidSaveTextDocumentParams),
-    DidClose(DidCloseTextDocumentParams),
-    DidChange(DidChangeTextDocumentParams),
-    DidChangeWatchedFiles(DidChangeWatchedFilesParams),
+    Open(DidOpenTextDocumentParams),
+    Save(DidSaveTextDocumentParams),
+    Close(DidCloseTextDocumentParams),
+    Change(DidChangeTextDocumentParams),
+    ChangeWatchedFiles(DidChangeWatchedFilesParams),
 }
 
 pub(super) struct WorkspaceContext<'a> {
@@ -249,17 +249,15 @@ impl ReadyWorkspace {
         client: &ClientSocket,
     ) -> Result<(), LspError> {
         match notification {
-            WorkspaceNotification::DidOpen(parameters) => {
-                did_open(self, context, client, parameters)
-            }
-            WorkspaceNotification::DidSave(parameters) => did_save(self, client, parameters),
-            WorkspaceNotification::DidClose(parameters) => {
+            WorkspaceNotification::Open(parameters) => did_open(self, context, client, parameters),
+            WorkspaceNotification::Save(parameters) => did_save(self, client, parameters),
+            WorkspaceNotification::Close(parameters) => {
                 did_close(self, context, client, parameters)
             }
-            WorkspaceNotification::DidChange(parameters) => {
+            WorkspaceNotification::Change(parameters) => {
                 did_change(self, context, client, parameters)
             }
-            WorkspaceNotification::DidChangeWatchedFiles(parameters) => {
+            WorkspaceNotification::ChangeWatchedFiles(parameters) => {
                 did_change_watched_files(self, context, client, parameters)
             }
         }

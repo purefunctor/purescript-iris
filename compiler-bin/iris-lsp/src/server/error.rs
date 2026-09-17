@@ -38,7 +38,7 @@ pub enum LspError {
     #[error("JoinError: {0}")]
     JoinError(#[from] task::JoinError),
     #[error("async_lsp::Error: {0}")]
-    AsyncLspError(#[from] async_lsp::Error),
+    AsyncLsp(#[from] async_lsp::Error),
 }
 
 impl LspError {
