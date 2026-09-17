@@ -1,0 +1,23 @@
+id: no-core-protocol-dependency
+snapshots:
+  ? |
+    use async_lsp::ClientSocket;
+  : labels:
+    - source: use async_lsp::ClientSocket;
+      style: primary
+      start: 0
+      end: 28
+  ? |
+    use lsp_types::*;
+  : labels:
+    - source: use lsp_types::*;
+      style: primary
+      start: 0
+      end: 17
+  ? |
+    use lsp_types::CompletionItem;
+  : labels:
+    - source: use lsp_types::CompletionItem;
+      style: primary
+      start: 0
+      end: 30

@@ -1,0 +1,34 @@
+id: no-placeholder-macros
+valid:
+  - |
+    fn valid_unreachable(id: u32) -> u32 {
+        if id < 1024 {
+            id
+        } else {
+            unreachable!("invariant violated: {id} is not a valid index")
+        }
+    }
+  - |
+    fn valid_panic(command: Option<String>) -> String {
+        match command {
+            Some(command) => command,
+            None => panic!("invariant violated: expected build command"),
+        }
+    }
+invalid:
+  - |
+    fn invalid_todo() -> u32 {
+        todo!()
+    }
+  - |
+    fn invalid_todo_message() -> u32 {
+        todo!("handle overflow")
+    }
+  - |
+    fn invalid_unimplemented() -> String {
+        unimplemented!("InsertAndReplace")
+    }
+  - |
+    fn invalid_dbg(value: u32) -> u32 {
+        dbg!(value)
+    }

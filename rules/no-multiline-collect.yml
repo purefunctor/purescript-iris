@@ -1,0 +1,18 @@
+id: no-multiline-collect
+language: rust
+severity: error
+message: "Bind the intermediate value before `.collect()` when a call in the chain spans multiple lines (AGENTS.md)."
+note: "Keep `.collect()` fluent only when each call fits on one line. Otherwise bind the chain first, then collect from the binding."
+rule:
+  all:
+    - any:
+        - pattern: $CHAIN.collect()
+        - pattern: $CHAIN.collect::<$$$>()
+    # The preceding call in the chain contains an indentation, i.e. one of
+    # its argument lists spans multiple lines. Newlines *between* chain
+    # links do not match: only newlines inside `arguments` nodes count, so
+    # per-call-broken chains where each call fits on one line still pass.
+    - has:
+        stopBy: end
+        kind: arguments
+        regex: '\n'

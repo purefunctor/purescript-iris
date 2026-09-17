@@ -1,0 +1,59 @@
+id: no-multiline-collect
+snapshots:
+  ? |
+    fn invalid_multiline_closure(source: Vec<i32>) {
+        let collection = source
+            .iter()
+            .map(|item| {
+                item + 1
+            })
+            .collect::<Vec<_>>();
+    }
+  : labels:
+    - source: |-
+        source
+                .iter()
+                .map(|item| {
+                    item + 1
+                })
+                .collect::<Vec<_>>()
+      style: primary
+      start: 70
+      end: 175
+    - source: |-
+        (|item| {
+                    item + 1
+                })
+      style: secondary
+      start: 105
+      end: 146
+  ? |
+    fn invalid_multiline_match(source: Vec<i32>) {
+        let collection = source
+            .iter()
+            .filter_map(|item| match item {
+                0 => None,
+                n => Some(n + 1),
+            })
+            .collect::<Vec<_>>();
+    }
+  : labels:
+    - source: |-
+        source
+                .iter()
+                .filter_map(|item| match item {
+                    0 => None,
+                    n => Some(n + 1),
+                })
+                .collect::<Vec<_>>()
+      style: primary
+      start: 68
+      end: 223
+    - source: |-
+        (|item| match item {
+                    0 => None,
+                    n => Some(n + 1),
+                })
+      style: secondary
+      start: 110
+      end: 194

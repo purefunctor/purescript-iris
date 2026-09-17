@@ -1,0 +1,13 @@
+id: no-core-protocol-dependency
+valid:
+  - |
+    use std::collections::HashMap;
+  - |
+    use checking::CheckedModule;
+invalid:
+  - |
+    use lsp_types::CompletionItem;
+  - |
+    use lsp_types::*;
+  - |
+    use async_lsp::ClientSocket;

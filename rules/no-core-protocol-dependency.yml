@@ -1,0 +1,10 @@
+id: no-core-protocol-dependency
+language: rust
+severity: error
+message: "compiler-core must stay independent of user-facing protocol concerns (compiler-core/AGENTS.md)."
+note: "Pipeline orchestration in `building` may depend outward on stage crates, but protocol types such as `lsp_types` must not leak into core."
+rule:
+  kind: use_declaration
+  regex: 'lsp_types|async_lsp'
+files:
+  - 'compiler-core/**'

@@ -1,0 +1,9 @@
+id: no-placeholder-macros
+language: rust
+severity: error
+message: "Remove `todo!`, `unimplemented!`, and `dbg!` before merging; the codebase carries none (AGENTS.md: avoid temporary fixes)."
+rule:
+  any:
+    - pattern: 'todo!($$$)'
+    - pattern: 'unimplemented!($$$)'
+    - pattern: 'dbg!($$$)'

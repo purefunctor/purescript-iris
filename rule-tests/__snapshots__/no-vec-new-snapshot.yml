@@ -1,0 +1,20 @@
+id: no-vec-new
+snapshots:
+  ? |
+    fn invalid_vec_new() -> Vec<u8> {
+        Vec::new()
+    }
+  : labels:
+    - source: Vec::new()
+      style: primary
+      start: 38
+      end: 48
+  ? |
+    fn invalid_vec_new_turbofish() -> Vec<u8> {
+        Vec::<u8>::new()
+    }
+  : labels:
+    - source: Vec::<u8>::new()
+      style: primary
+      start: 48
+      end: 64

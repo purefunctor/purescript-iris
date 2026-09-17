@@ -1,0 +1,38 @@
+id: no-placeholder-macros
+snapshots:
+  ? |
+    fn invalid_dbg(value: u32) -> u32 {
+        dbg!(value)
+    }
+  : labels:
+    - source: dbg!(value)
+      style: primary
+      start: 40
+      end: 51
+  ? |
+    fn invalid_todo() -> u32 {
+        todo!()
+    }
+  : labels:
+    - source: todo!()
+      style: primary
+      start: 31
+      end: 38
+  ? |
+    fn invalid_todo_message() -> u32 {
+        todo!("handle overflow")
+    }
+  : labels:
+    - source: todo!("handle overflow")
+      style: primary
+      start: 39
+      end: 63
+  ? |
+    fn invalid_unimplemented() -> String {
+        unimplemented!("InsertAndReplace")
+    }
+  : labels:
+    - source: unimplemented!("InsertAndReplace")
+      style: primary
+      start: 43
+      end: 77

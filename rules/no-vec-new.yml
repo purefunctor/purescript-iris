@@ -1,0 +1,8 @@
+id: no-vec-new
+language: rust
+severity: error
+message: "Use `vec![]` instead of `Vec::new()`; use `Vec::with_capacity(n)` when capacity is known."
+rule:
+  any:
+    - pattern: 'Vec::new()'
+    - pattern: 'Vec::<$$$>::new()'
