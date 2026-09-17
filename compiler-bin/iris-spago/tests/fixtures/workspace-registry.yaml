@@ -1,0 +1,6 @@
+workspace:
+  packageSet:
+    registry: 64.10.0
+package:
+  name: application
+  dependencies: []

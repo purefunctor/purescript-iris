@@ -1828,10 +1828,10 @@ name = "iris-package"
 version = "0.1.0"
 dependencies = [
  "ignore",
+ "iris-spago",
  "itertools 0.15.0",
  "serde",
  "serde_yml",
- "spago",
  "thiserror",
 ]
 
@@ -1845,6 +1845,19 @@ dependencies = [
  "ratatui",
  "smol_str",
  "terminal-colorsaurus",
+]
+
+[[package]]
+name = "iris-spago"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "smol_str",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

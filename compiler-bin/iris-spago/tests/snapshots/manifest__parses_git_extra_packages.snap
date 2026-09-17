@@ -1,0 +1,62 @@
+---
+source: compiler-bin/iris-spago/tests/manifest.rs
+expression: "parse_fixture(\"workspace-extra-git.yaml\")"
+---
+Manifest {
+    package: Some(
+        Package {
+            name: "application",
+            description: None,
+            dependencies: [
+                Dependency {
+                    name: "graphql-client",
+                    constraint: None,
+                },
+                Dependency {
+                    name: "deku-core",
+                    constraint: None,
+                },
+            ],
+            run: None,
+            test: None,
+        },
+    ),
+    workspace: Some(
+        Workspace {
+            package_set: None,
+            extra_packages: {
+                "deku-core": Git(
+                    GitPackage {
+                        git: "https://github.com/mikesol/purescript-deku.git",
+                        reference: "65d6e9d",
+                        subdir: Some(
+                            "deku-core",
+                        ),
+                        dependencies: None,
+                    },
+                ),
+                "graphql-client": Git(
+                    GitPackage {
+                        git: "https://github.com/OxfordAbstracts/purescript-graphql-client.git",
+                        reference: "fe24db5f0a79137edb1019b5757ce70d44efae10",
+                        subdir: None,
+                        dependencies: Some(
+                            [
+                                Dependency {
+                                    name: "aff",
+                                    constraint: None,
+                                },
+                                Dependency {
+                                    name: "prelude",
+                                    constraint: Some(
+                                        ">=6.0.0 <7.0.0",
+                                    ),
+                                },
+                            ],
+                        ),
+                    },
+                ),
+            },
+        },
+    ),
+}

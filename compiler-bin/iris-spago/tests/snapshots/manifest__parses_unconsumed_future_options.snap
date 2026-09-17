@@ -1,0 +1,27 @@
+---
+source: compiler-bin/iris-spago/tests/manifest.rs
+expression: "parse_fixture(\"workspace-future-options.yaml\")"
+---
+Manifest {
+    package: Some(
+        Package {
+            name: "application",
+            description: Some(
+                "Carries options Iris never consumes.",
+            ),
+            dependencies: [],
+            run: None,
+            test: None,
+        },
+    ),
+    workspace: Some(
+        Workspace {
+            package_set: Some(
+                Registry {
+                    registry: "75.3.0",
+                },
+            ),
+            extra_packages: {},
+        },
+    ),
+}

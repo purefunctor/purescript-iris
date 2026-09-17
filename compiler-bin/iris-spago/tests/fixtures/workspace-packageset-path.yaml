@@ -1,0 +1,6 @@
+workspace:
+  packageSet:
+    path: ../packages.json
+package:
+  name: application
+  dependencies: []

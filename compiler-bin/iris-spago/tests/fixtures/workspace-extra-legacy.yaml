@@ -1,0 +1,12 @@
+workspace:
+  extraPackages:
+    legacy-package:
+      repo: https://github.com/example/project.git
+      version: v1.2.3
+      dependencies:
+        - prelude
+        - effect
+package:
+  name: application
+  dependencies:
+    - legacy-package

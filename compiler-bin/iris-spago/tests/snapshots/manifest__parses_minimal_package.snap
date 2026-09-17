@@ -1,0 +1,16 @@
+---
+source: compiler-bin/iris-spago/tests/manifest.rs
+expression: "parse_fixture(\"minimal-package.yaml\")"
+---
+Manifest {
+    package: Some(
+        Package {
+            name: "minimal",
+            description: None,
+            dependencies: [],
+            run: None,
+            test: None,
+        },
+    ),
+    workspace: None,
+}
