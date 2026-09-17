@@ -324,6 +324,81 @@ workspace:
     );
 }
 
+#[test]
+fn escapes_git_refs_with_spago_unicode_semantics() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        r#"package:
+  name: application
+  dependencies: [decimal-ref, derived-case-ref, future-case-ref, uppercase-ref]
+workspace:
+  extraPackages:
+    decimal-ref:
+      git: https://example.com/decimal.git
+      ref: release²
+      dependencies: []
+    derived-case-ref:
+      git: https://example.com/derived-case.git
+      ref: ʰⅠ
+      dependencies: []
+    future-case-ref:
+      git: https://example.com/future-case.git
+      ref: 𐕰
+      dependencies: []
+    uppercase-ref:
+      git: https://example.com/uppercase.git
+      ref: İ
+      dependencies: []
+"#,
+    );
+    write_file(
+        &root.join("src/Main.purs"),
+        r#"module Main where
+"#,
+    );
+    write_file(
+        &root.join(".spago/p/decimal-ref/release%b2/src/Decimal.purs"),
+        r#"module Decimal where
+"#,
+    );
+    write_file(
+        &root.join(".spago/p/derived-case-ref/%2b0%2160/src/DerivedCase.purs"),
+        r#"module DerivedCase where
+"#,
+    );
+    write_file(
+        &root.join(".spago/p/future-case-ref/%10570/src/FutureCase.purs"),
+        r#"module FutureCase where
+"#,
+    );
+    write_file(
+        &root.join(".spago/p/uppercase-ref/_i/src/Uppercase.purs"),
+        r#"module Uppercase where
+"#,
+    );
+
+    let discovered = discover_packages(&workspace(root, None)).unwrap();
+
+    assert_eq!(
+        relative_files(root, package(&discovered, "decimal-ref")),
+        [".spago/p/decimal-ref/release%b2/src/Decimal.purs"]
+    );
+    assert_eq!(
+        relative_files(root, package(&discovered, "derived-case-ref")),
+        [".spago/p/derived-case-ref/%2b0%2160/src/DerivedCase.purs"]
+    );
+    assert_eq!(
+        relative_files(root, package(&discovered, "future-case-ref")),
+        [".spago/p/future-case-ref/%10570/src/FutureCase.purs"]
+    );
+    assert_eq!(
+        relative_files(root, package(&discovered, "uppercase-ref")),
+        [".spago/p/uppercase-ref/_i/src/Uppercase.purs"]
+    );
+}
+
 fn git_subdirectory_error(subdir: &str) -> PackagesError {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();

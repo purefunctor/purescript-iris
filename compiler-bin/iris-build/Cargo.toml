@@ -29,5 +29,8 @@ serde_yml = "0.0.12"
 smol_str = "0.3.6"
 tempfile = "3.27.0"
 thiserror = "2.0.20"
+# Match the Unicode 13 tables used by Spago 1.0.4.
+unicode-case-mapping = "=0.2.0"
+unicode-general-category = "=0.4.0"
 url = "2.5.8"
 walkdir = "2.5.0"

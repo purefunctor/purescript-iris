@@ -17,6 +17,7 @@ use itertools::Itertools;
 use serde::Deserialize;
 use smol_str::SmolStr;
 use thiserror::Error;
+use unicode_general_category::{GeneralCategory, get_general_category};
 
 use super::workspace::Workspace;
 
@@ -425,16 +426,22 @@ fn is_safe_subdirectory(subdirectory: &Path) -> bool {
 fn escape_path_component(value: &str) -> String {
     let mut escaped = String::new();
     for character in value.chars() {
-        if character.is_lowercase()
-            || character.is_numeric()
+        let category = get_general_category(character);
+        if matches!(category, GeneralCategory::LowercaseLetter)
+            || character.is_ascii_digit()
             || matches!(character, '.' | ',' | '-' | '+')
         {
             escaped.push(character);
         } else if character == '_' {
             escaped.push_str("_-");
-        } else if character.is_uppercase() {
+        } else if matches!(
+            category,
+            GeneralCategory::TitlecaseLetter | GeneralCategory::UppercaseLetter
+        ) {
             escaped.push('_');
-            escaped.extend(character.to_lowercase());
+            let [lowercase, _] = unicode_case_mapping::to_lowercase(character);
+            let lowercase = char::from_u32(lowercase).unwrap_or(character);
+            escaped.push(lowercase);
         } else {
             match character {
                 '/' => escaped.push_str("%s"),
