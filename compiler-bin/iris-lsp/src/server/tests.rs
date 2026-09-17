@@ -60,14 +60,11 @@ fn close_document(state: &mut State, parameters: DidCloseTextDocumentParams) {
         root: state.protocol.root.as_deref(),
         position_encoding: state.protocol.position_encoding,
     };
-    state
-        .workspace
-        .dispatch(WorkspaceNotification::DidClose(parameters), context, &client)
-        .unwrap();
+    state.workspace.dispatch(WorkspaceNotification::Close(parameters), context, &client).unwrap();
 }
 
 fn open_notification(uri: Url, text: &str) -> WorkspaceNotification {
-    WorkspaceNotification::DidOpen(DidOpenTextDocumentParams {
+    WorkspaceNotification::Open(DidOpenTextDocumentParams {
         text_document: TextDocumentItem {
             uri,
             language_id: "purescript".to_string(),
@@ -127,10 +124,10 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
         };
         let pending = state.workspace.install(prepared).unwrap();
         assert!(
-            matches!(&pending[0], WorkspaceNotification::DidOpen(parameters) if parameters.text_document.uri == first_uri)
+            matches!(&pending[0], WorkspaceNotification::Open(parameters) if parameters.text_document.uri == first_uri)
         );
         assert!(
-            matches!(&pending[1], WorkspaceNotification::DidOpen(parameters) if parameters.text_document.uri == second_uri)
+            matches!(&pending[1], WorkspaceNotification::Open(parameters) if parameters.text_document.uri == second_uri)
         );
 
         let prim = MaterializedPrim::new().unwrap();

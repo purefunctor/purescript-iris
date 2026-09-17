@@ -211,10 +211,7 @@ fn receive_batch(receiver: &Receiver<notify::Result<Event>>) -> Result<EventBatc
     })??;
     let deadline = Instant::now() + DEBOUNCE_DURATION;
     let mut events = vec![first];
-    loop {
-        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
-            break;
-        };
+    while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
         match receiver.recv_timeout(remaining) {
             Ok(event) => events.push(event?),
             Err(RecvTimeoutError::Timeout) => break,

@@ -1108,10 +1108,7 @@ trait RequestExtension: BorrowMut<Router<State>> {
             let task = state.spawn(move |snapshot| action(snapshot, parameters));
             async move {
                 let task = task.map_err(response_error)?;
-                task.await
-                    .map_err(LspError::JoinError)
-                    .flatten()
-                    .map_err(|error| response_error(error))
+                task.await.map_err(LspError::JoinError).flatten().map_err(response_error)
             }
         });
         self
@@ -1198,20 +1195,20 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .notification_ext::<notification::Initialized>(initialized)
             .notification_ext::<notification::Exit>(exit)
             .workspace_notification::<notification::DidOpenTextDocument>(
-                WorkspaceNotification::DidOpen,
+                WorkspaceNotification::Open,
             )
             .workspace_notification::<notification::DidSaveTextDocument>(
-                WorkspaceNotification::DidSave,
+                WorkspaceNotification::Save,
             )
             .workspace_notification::<notification::DidCloseTextDocument>(
-                WorkspaceNotification::DidClose,
+                WorkspaceNotification::Close,
             )
             .notification_ext::<notification::DidChangeConfiguration>(did_change_configuration)
             .workspace_notification::<notification::DidChangeTextDocument>(
-                WorkspaceNotification::DidChange,
+                WorkspaceNotification::Change,
             )
             .workspace_notification::<notification::DidChangeWatchedFiles>(
-                WorkspaceNotification::DidChangeWatchedFiles,
+                WorkspaceNotification::ChangeWatchedFiles,
             )
             .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
             .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)

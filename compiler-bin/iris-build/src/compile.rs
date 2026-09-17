@@ -174,7 +174,7 @@ where
     let execute = |package: &super::plan::PlannedPackage| {
         let package_sources = package.source_paths.iter().map(|path| sources[path]);
         let package_sources = package_sources.collect_vec();
-        query_package(&engine, &package_sources)
+        query_package(engine, &package_sources)
     };
     let execution = match execution {
         PackageExecution::Serial => executor::execute_serial(&plan, events, &execute),
@@ -245,7 +245,7 @@ pub(crate) fn rebuild(
 ) -> Result<RebuildResult, CompileError> {
     let sources = compilation.source_ids().collect_vec();
     let engine = compilation.query_engine();
-    query_package(&engine, &sources)?;
+    query_package(engine, &sources)?;
     let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
     if diagnostics {
         report_diagnostics(compilation, diagnostic_collections, root, color);
