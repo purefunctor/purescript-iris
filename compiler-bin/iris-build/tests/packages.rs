@@ -98,6 +98,35 @@ workspace: {}
     assert_eq!(package(&discovered, "foo").dependencies[0], "bar");
 }
 
+#[cfg(unix)]
+#[test]
+fn assigns_symlinked_sources_by_their_discovery_location() {
+    use std::os::unix::fs::symlink;
+
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let common = tempfile::tempdir().unwrap();
+    write_file(
+        &root.join("spago.yaml"),
+        r#"package:
+  name: application
+  dependencies: []
+workspace: {}
+"#,
+    );
+    write_file(
+        &common.path().join("Common.purs"),
+        r#"module Common where
+"#,
+    );
+    fs::create_dir(root.join("src")).unwrap();
+    symlink(common.path().join("Common.purs"), root.join("src/Common.purs")).unwrap();
+
+    let discovered = discover_packages(&workspace(root, None)).unwrap();
+
+    assert_eq!(relative_files(root, package(&discovered, "application")), ["src/Common.purs"]);
+}
+
 #[test]
 fn ignores_workspace_test_dependencies_without_a_test_directory() {
     let directory = tempfile::tempdir().unwrap();

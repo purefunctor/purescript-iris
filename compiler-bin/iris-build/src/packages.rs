@@ -72,8 +72,6 @@ pub enum PackagesError {
     EscapedGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
     #[error("source file {path} is claimed by packages '{first}' and '{second}'")]
     ConflictingSource { path: PathBuf, first: SmolStr, second: SmolStr },
-    #[error("source file {path} belongs to no known package")]
-    UnassignedSource { path: PathBuf },
     #[error("failed to canonicalize package path {path}: {source}")]
     CanonicalizePath {
         path: PathBuf,
@@ -186,43 +184,30 @@ fn discover_packages_with(
     }
 
     let mut source_globs = vec![];
+    let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
+    let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
     for resolved in discovered.values() {
+        let mut package_globs = vec![];
         for directory in &resolved.source_directories {
             let relative = directory.strip_prefix(&workspace.root).unwrap_or(directory);
-            source_globs.push(relative.join(iris_spago::PURS_GLOB));
+            package_globs.push(relative.join(iris_spago::PURS_GLOB));
         }
-    }
-
-    let walked = super::walk::walk_filtered(&workspace.root, &source_globs, Vec::<PathBuf>::new())?;
-    let mut owners = vec![];
-    for resolved in discovered.values() {
-        for directory in &resolved.source_directories {
-            if !directory.is_dir() {
-                continue;
+        source_globs.extend(package_globs.iter().cloned());
+        let walked =
+            super::walk::walk_filtered(&workspace.root, package_globs, Vec::<PathBuf>::new())?;
+        for file in walked.files {
+            if let Some(owner) =
+                owners.insert(PathBuf::clone(&file), SmolStr::clone(&resolved.name))
+                && owner != resolved.name
+            {
+                return Err(PackagesError::ConflictingSource {
+                    path: file,
+                    first: owner,
+                    second: SmolStr::clone(&resolved.name),
+                });
             }
-            let canonical = canonicalize_path(directory)?;
-            owners.push((canonical, SmolStr::clone(&resolved.name)));
+            files.entry(SmolStr::clone(&resolved.name)).or_default().push(file);
         }
-    }
-
-    let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
-    for file in walked.files {
-        let canonical = canonicalize_path(&file)?;
-        let mut owners = owners
-            .iter()
-            .filter(|(directory, _)| canonical.starts_with(directory))
-            .map(|(_, name)| name);
-        let Some(owner) = owners.next() else {
-            return Err(PackagesError::UnassignedSource { path: file });
-        };
-        if let Some(rival) = owners.next() {
-            return Err(PackagesError::ConflictingSource {
-                path: file,
-                first: SmolStr::clone(owner),
-                second: SmolStr::clone(rival),
-            });
-        }
-        files.entry(SmolStr::clone(owner)).or_default().push(file);
     }
 
     let packages = discovered
