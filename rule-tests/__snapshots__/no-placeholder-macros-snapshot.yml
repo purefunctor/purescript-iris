@@ -10,6 +10,15 @@ snapshots:
       start: 40
       end: 51
   ? |
+    fn invalid_qualified_dbg(value: u32) -> u32 {
+        std::dbg!(value)
+    }
+  : labels:
+    - source: std::dbg!(value)
+      style: primary
+      start: 50
+      end: 66
+  ? |
     fn invalid_todo() -> u32 {
         todo!()
     }
@@ -18,6 +27,15 @@ snapshots:
       style: primary
       start: 31
       end: 38
+  ? |
+    fn invalid_todo_brackets() -> u32 {
+        todo!["handle overflow"]
+    }
+  : labels:
+    - source: todo!["handle overflow"]
+      style: primary
+      start: 40
+      end: 64
   ? |
     fn invalid_todo_message() -> u32 {
         todo!("handle overflow")
@@ -36,3 +54,12 @@ snapshots:
       style: primary
       start: 43
       end: 77
+  ? |
+    fn invalid_unimplemented_braces() -> String {
+        unimplemented! {"InsertAndReplace"}
+    }
+  : labels:
+    - source: unimplemented! {"InsertAndReplace"}
+      style: primary
+      start: 50
+      end: 85

@@ -10,6 +10,24 @@ snapshots:
       start: 38
       end: 48
   ? |
+    fn invalid_vec_new_in_macro(count: usize) -> Vec<Vec<u8>> {
+        vec![Vec::new(); count]
+    }
+  : labels:
+    - source: vec![Vec::new(); count]
+      style: primary
+      start: 64
+      end: 87
+  ? |
+    fn invalid_vec_new_qualified() -> Vec<u8> {
+        std::vec::Vec::new()
+    }
+  : labels:
+    - source: std::vec::Vec::new()
+      style: primary
+      start: 48
+      end: 68
+  ? |
     fn invalid_vec_new_turbofish() -> Vec<u8> {
         Vec::<u8>::new()
     }

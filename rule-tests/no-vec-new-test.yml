@@ -21,3 +21,11 @@ invalid:
     fn invalid_vec_new_turbofish() -> Vec<u8> {
         Vec::<u8>::new()
     }
+  - |
+    fn invalid_vec_new_qualified() -> Vec<u8> {
+        std::vec::Vec::new()
+    }
+  - |
+    fn invalid_vec_new_in_macro(count: usize) -> Vec<Vec<u8>> {
+        vec![Vec::new(); count]
+    }

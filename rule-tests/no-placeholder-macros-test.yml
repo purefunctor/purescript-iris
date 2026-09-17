@@ -32,3 +32,15 @@ invalid:
     fn invalid_dbg(value: u32) -> u32 {
         dbg!(value)
     }
+  - |
+    fn invalid_todo_brackets() -> u32 {
+        todo!["handle overflow"]
+    }
+  - |
+    fn invalid_unimplemented_braces() -> String {
+        unimplemented! {"InsertAndReplace"}
+    }
+  - |
+    fn invalid_qualified_dbg(value: u32) -> u32 {
+        std::dbg!(value)
+    }

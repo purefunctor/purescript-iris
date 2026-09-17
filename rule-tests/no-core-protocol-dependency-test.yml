@@ -16,6 +16,6 @@ invalid:
         position
     }
   - |
-    fn invalid_qualified_protocol_call(client: &async_lsp::ClientSocket) {
+    fn invalid_qualified_protocol_call(client: &()) {
         let _ = async_lsp::ClientSocket::clone(client);
     }

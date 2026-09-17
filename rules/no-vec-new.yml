@@ -6,3 +6,9 @@ rule:
   any:
     - pattern: 'Vec::new()'
     - pattern: 'Vec::<$$$>::new()'
+    - pattern: 'std::vec::Vec::new()'
+    - pattern: 'std::vec::Vec::<$$$>::new()'
+    # Inside macro bodies the token tree is opaque to patterns, so flag
+    # macro invocations whose text constructs an empty Vec instead.
+    - kind: macro_invocation
+      regex: 'Vec::(new|<)'
