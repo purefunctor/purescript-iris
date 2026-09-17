@@ -55,6 +55,36 @@ where
     fold_type(state, context, id, &mut Zonk)
 }
 
+/// Zonks a slice of [`TypeId`], returning [`None`] when every element is
+/// unchanged so callers can preserve the existing [`Arc`] allocation.
+///
+/// Preserving [`Arc`] identity keeps downstream structural-equality checks
+/// cheap, since [`Arc::eq`] short-circuits on pointer equality.
+fn zonk_types<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    types: &[TypeId],
+) -> QueryResult<Option<Arc<[TypeId]>>>
+where
+    Q: ExternalQueries,
+{
+    let mut zonked: Option<Vec<TypeId>> = None;
+    for (index, &id) in types.iter().enumerate() {
+        let zonked_id = zonk(state, context, id)?;
+        if zonked_id != id {
+            let output = zonked.get_or_insert_with(|| {
+                let mut output = Vec::with_capacity(types.len());
+                output.extend_from_slice(&types[..index]);
+                output
+            });
+            output.push(zonked_id);
+        } else if let Some(output) = &mut zonked {
+            output.push(id);
+        }
+    }
+    Ok(zonked.map(Into::into))
+}
+
 fn zonk_declaration_abstractions<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -158,9 +188,9 @@ where
             }
             TermDeclarationKind::Foreign => {}
             TermDeclarationKind::Constructor(constructor) => {
-                let arguments =
-                    constructor.arguments.iter().map(|&argument| zonk(state, context, argument));
-                constructor.arguments = arguments.collect::<QueryResult<Arc<[_]>>>()?;
+                if let Some(arguments) = zonk_types(state, context, &constructor.arguments)? {
+                    constructor.arguments = arguments;
+                }
             }
             TermDeclarationKind::Instance(instance) => {
                 for parameter in Arc::make_mut(&mut instance.rigid_parameters) {
@@ -329,19 +359,13 @@ where
             ErrorKind::NonLocalNewtype { type_id }
         }
         ErrorKind::NoInstanceFound { given, constraint } => {
-            let given = given
-                .iter()
-                .map(|&given| zonk(state, context, given))
-                .collect::<QueryResult<Arc<[_]>>>()?;
             let constraint = zonk(state, context, constraint)?;
+            let given = zonk_types(state, context, &given)?.unwrap_or(given);
             ErrorKind::NoInstanceFound { given, constraint }
         }
         ErrorKind::OverlappingInstances { constraint, instances } => {
             let constraint = zonk(state, context, constraint)?;
-            let instances = instances
-                .iter()
-                .map(|&instance| zonk(state, context, instance))
-                .collect::<QueryResult<Arc<[_]>>>()?;
+            let instances = zonk_types(state, context, &instances)?.unwrap_or(instances);
             ErrorKind::OverlappingInstances { constraint, instances }
         }
         ErrorKind::NoVisibleTypeVariable { function_type } => {

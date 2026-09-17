@@ -181,10 +181,10 @@ where
         };
 
         let row = context.lookup_row_type(row_id);
-        row_fields.extend(row.fields.iter().cloned());
 
         let Some(original_tail) = row.tail else {
             if flattened_once {
+                row_fields.extend(row.fields.iter().cloned());
                 break None;
             } else {
                 return Ok(id);
@@ -195,14 +195,16 @@ where
 
         if original_tail == normalised_tail {
             if flattened_once {
+                row_fields.extend(row.fields.iter().cloned());
                 break Some(original_tail);
             } else {
                 return Ok(id);
             }
         }
 
-         current_id = normalised_tail;
-         flattened_once = true;
+        row_fields.extend(row.fields.iter().cloned());
+        current_id = normalised_tail;
+        flattened_once = true;
     };
 
     Ok(context.intern_row(row_fields, row_tail))
@@ -238,15 +240,19 @@ fn expand_synonym<Q>(
 where
     Q: ExternalQueries,
 {
+    // Collect the application spine in a single pass, preserving normalisation
+    // along the spine. Most application heads are not synonyms, in which case
+    // the collected spine is discarded without further work.
+    let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
     let mut current = id;
-    let mut argument_count = 0;
-
-    // Most application heads are not synonyms. Inspect the head before
-    // allocating storage for arguments, preserving normalisation along the spine.
     safe_loop! {
         match *context.lookup_type(current) {
-            Type::Application(function, _) | Type::KindApplication(function, _) => {
-                argument_count += 1;
+            Type::Application(function, argument) => {
+                arguments.push(ApplicationArgument::Type(argument));
+                current = normalise(state, context, function);
+            }
+            Type::KindApplication(function, argument) => {
+                arguments.push(ApplicationArgument::Kind(argument));
                 current = normalise(state, context, function);
             }
             _ => break,
@@ -262,22 +268,6 @@ where
     let Some(checked_synonym) = checked_synonym else {
         return Ok(id);
     };
-
-    let mut arguments = Vec::with_capacity(argument_count);
-    current = id;
-    safe_loop! {
-        match *context.lookup_type(current) {
-            Type::Application(function, argument) => {
-                arguments.push(ApplicationArgument::Type(argument));
-                current = normalise(state, context, function);
-            }
-            Type::KindApplication(function, argument) => {
-                arguments.push(ApplicationArgument::Kind(argument));
-                current = normalise(state, context, function);
-            }
-            _ => break,
-        }
-    }
 
     let mut bindings = NameToType::default();
     let mut kind = checked_synonym.kind;

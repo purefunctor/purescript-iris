@@ -148,8 +148,30 @@ pub fn workspace(
     Ok(Some(WorkspaceSymbolResponse::Flat(flat)))
 }
 
+fn name_starts_with_folded(name: &str, folded_query: &str) -> bool {
+    // `folded_query` is already lowercased by the caller. When the query is
+    // ASCII, lowercasing preserves byte length, so compare bytes directly
+    // without allocating a lowered copy. Otherwise the allocating comparison
+    // below remains authoritative: Unicode lowercasing can expand (e.g. `İ`
+    // folds to `i` plus U+0307), so a byte-length rejection is only valid
+    // when both sides are ASCII.
+    if folded_query.is_ascii() {
+        if let Some(prefix) = name.get(..folded_query.len()) {
+            if prefix.is_ascii() {
+                return prefix
+                    .bytes()
+                    .map(|byte| byte.to_ascii_lowercase())
+                    .eq(folded_query.bytes());
+            }
+        } else if name.is_ascii() {
+            return false;
+        }
+    }
+    name.to_lowercase().starts_with(folded_query)
+}
+
 fn filter_symbols(cached: &[SymbolInformation], query: &str) -> Vec<SymbolInformation> {
-    cached.iter().filter(|symbol| symbol.name.to_lowercase().starts_with(query)).cloned().collect()
+    cached.iter().filter(|symbol| name_starts_with_folded(&symbol.name, query)).cloned().collect()
 }
 
 fn build_symbol_list(
@@ -166,7 +188,7 @@ fn build_symbol_list(
         let uri = common::file_uri(context, file_id)?;
 
         for (name, _, term_id) in resolved.locals.iter_terms() {
-            if !name.to_lowercase().starts_with(query) {
+            if !name_starts_with_folded(name, query) {
                 continue;
             }
             let kind = term_symbol_kind(&indexed.items[term_id].kind);
@@ -187,7 +209,7 @@ fn build_symbol_list(
         }
 
         for (name, _, type_id) in resolved.locals.iter_types() {
-            if !name.to_lowercase().starts_with(query) {
+            if !name_starts_with_folded(name, query) {
                 continue;
             }
             let kind = type_symbol_kind(&indexed.items[type_id].kind);
@@ -208,7 +230,7 @@ fn build_symbol_list(
         }
 
         for (name, _, type_id) in resolved.locals.iter_classes() {
-            if !name.to_lowercase().starts_with(query) {
+            if !name_starts_with_folded(name, query) {
                 continue;
             }
             let uri = Url::clone(&uri);
