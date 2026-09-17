@@ -12,6 +12,7 @@ cargo-insta = "1.48.0"
 "cargo:cargo-nextest" = { version = "0.9.143", depends = ["cargo-binstall", "rust"] }
 "cargo:cargo-edit" = { version = "0.13.13", depends = ["cargo-binstall", "rust"] }
 "cargo:cargo-bundle-licenses" = { version = "4.2.0", depends = ["cargo-binstall", "rust"] }
+"cargo:ast-grep" = { version = "0.45.3", depends = ["cargo-binstall", "rust"] }
 # Keep Cargo's global bin directory after the versioned tools on PATH.
 rust = [
   { version = "1.98.1", profile = "minimal", components = ["clippy", "rustfmt"], targets = ["wasm32-unknown-unknown"] },

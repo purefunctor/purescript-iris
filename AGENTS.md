@@ -160,6 +160,8 @@ required checks pass, broaden or repeat them only for new changes, failures, or 
   intended behavior, including deliberately recorded buggy behavior in a regression-test commit.
 - Snapshots record observed behavior; passing or accepting them does not establish semantic
   correctness. Check the result against the intended behavior.
+- Run `ast-grep scan` on changed Rust files and fix new findings; it exits non-zero on
+  error-severity rules. After changing `rules/`, run `ast-grep test`.
 - Use `just format` for Rust formatting; it requires nightly and sets the required import
   granularity.
 

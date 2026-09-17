@@ -98,7 +98,7 @@ fn display_completion_text_edit(edit: &Option<CompletionTextEdit>) -> String {
                 )
             }
             CompletionTextEdit::InsertAndReplace(_) => {
-                unimplemented!("InsertAndReplace");
+                unreachable!("unexpected InsertAndReplace text edit");
             }
         }
     } else {
