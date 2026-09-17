@@ -8,7 +8,15 @@ rule:
     - pattern: 'Vec::<$$$>::new()'
     - pattern: 'std::vec::Vec::new()'
     - pattern: 'std::vec::Vec::<$$$>::new()'
-    # Inside macro bodies the token tree is opaque to patterns, so flag
-    # macro invocations whose text constructs an empty Vec instead.
+    # Inside macro bodies the token tree is opaque to patterns, so match
+    # macro text instead. The leading boundary excludes `SmallVec::new`;
+    # the trailing `(` excludes `Vec::with_capacity`. String literals are
+    # excluded because the ban is about constructor calls, not mentions.
     - kind: macro_invocation
-      regex: 'Vec::(new|<)'
+      all:
+        - regex: '(^|[^_a-zA-Z0-9])Vec::(new\s*\(|<[^;{}]*>::new\s*\()'
+        - not:
+            has:
+              stopBy: end
+              kind: string_literal
+              regex: 'Vec::'

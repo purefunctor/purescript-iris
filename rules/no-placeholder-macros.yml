@@ -3,7 +3,14 @@ language: rust
 severity: error
 message: "Remove `todo!`, `unimplemented!`, and `dbg!` before merging; the codebase carries none (AGENTS.md: avoid temporary fixes)."
 rule:
-  kind: macro_invocation
-  # Match every delimiter (`()`, `[]`, `{}`) and qualified paths
-  # (`std::`, `core::`) via the node text; patterns only see `()`.
-  regex: '(^|[^_a-zA-Z0-9])(todo|unimplemented|dbg)!'
+  all:
+    - kind: macro_invocation
+      # Match every delimiter (`()`, `[]`, `{}`) and qualified paths
+      # (`std::`, `core::`) via the node text; patterns only see `()`.
+      # String literals are excluded: mentioning a macro is not invoking it.
+      regex: '(^|[^_a-zA-Z0-9])(todo|unimplemented|dbg)!'
+    - not:
+        has:
+          stopBy: end
+          kind: string_literal
+          regex: '(todo|unimplemented|dbg)!'

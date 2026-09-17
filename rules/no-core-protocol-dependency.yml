@@ -9,16 +9,45 @@ rule:
       regex: '\b(lsp_types|async_lsp)\b'
     - kind: scoped_identifier
       regex: '\b(lsp_types|async_lsp)::'
-      not:
-        inside:
-          kind: use_declaration
-          stopBy: end
+      all:
+        - not:
+            inside:
+              kind: use_declaration
+              stopBy: end
+        # Report the outermost path only, not each nested segment.
+        - not:
+            inside:
+              kind: scoped_identifier
+              stopBy: neighbor
     # Type positions use a distinct node kind from expression paths.
     - kind: scoped_type_identifier
       regex: '\b(lsp_types|async_lsp)::'
-      not:
-        inside:
-          kind: use_declaration
-          stopBy: end
+      all:
+        - not:
+            inside:
+              kind: use_declaration
+              stopBy: end
+        - not:
+            inside:
+              kind: scoped_type_identifier
+              stopBy: neighbor
+    # Macro bodies are opaque token trees, so match macro text instead.
+    # String literals are excluded: mentioning a path is not depending on it.
+    - kind: macro_invocation
+      all:
+        - regex: '\b(lsp_types|async_lsp)::'
+        - not:
+            has:
+              stopBy: end
+              kind: string_literal
+              regex: '(lsp_types|async_lsp)::'
+    - kind: macro_definition
+      all:
+        - regex: '\b(lsp_types|async_lsp)::'
+        - not:
+            has:
+              stopBy: end
+              kind: string_literal
+              regex: '(lsp_types|async_lsp)::'
 files:
   - 'compiler-core/**'

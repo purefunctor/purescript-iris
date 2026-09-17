@@ -1,6 +1,15 @@
 id: no-core-protocol-dependency
 snapshots:
   ? |
+    fn invalid_protocol_path_in_macro() {
+        let _ = vec![lsp_types::Kind::A];
+    }
+  : labels:
+    - source: vec![lsp_types::Kind::A]
+      style: primary
+      start: 50
+      end: 74
+  ? |
     fn invalid_qualified_protocol_call(client: &()) {
         let _ = async_lsp::ClientSocket::clone(client);
     }
@@ -27,6 +36,18 @@ snapshots:
       style: primary
       start: 45
       end: 64
+  ? |
+    macro_rules! invalid_protocol_path_in_definition {
+        () => { lsp_types::Kind };
+    }
+  : labels:
+    - source: |-
+        macro_rules! invalid_protocol_path_in_definition {
+            () => { lsp_types::Kind };
+        }
+      style: primary
+      start: 0
+      end: 83
   ? |
     use async_lsp::ClientSocket;
   : labels:

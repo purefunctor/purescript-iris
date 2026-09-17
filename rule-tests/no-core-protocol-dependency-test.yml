@@ -19,3 +19,11 @@ invalid:
     fn invalid_qualified_protocol_call(client: &()) {
         let _ = async_lsp::ClientSocket::clone(client);
     }
+  - |
+    fn invalid_protocol_path_in_macro() {
+        let _ = vec![lsp_types::Kind::A];
+    }
+  - |
+    macro_rules! invalid_protocol_path_in_definition {
+        () => { lsp_types::Kind };
+    }

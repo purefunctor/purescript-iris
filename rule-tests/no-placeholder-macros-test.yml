@@ -15,6 +15,10 @@ valid:
             None => panic!("invariant violated: expected build command"),
         }
     }
+  - |
+    fn valid_mention_in_string() {
+        println!("use todo!() instead");
+    }
 invalid:
   - |
     fn invalid_todo() -> u32 {
