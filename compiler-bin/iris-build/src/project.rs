@@ -49,9 +49,9 @@ enum ProjectFailure {
     #[error(transparent)]
     Compile(#[from] CompileError),
     #[error(transparent)]
-    Spago(#[from] spago::SpagoError),
+    Spago(#[from] iris_spago::SpagoError),
     #[error(transparent)]
-    SpagoLock(#[from] spago::LockfileGlobSetError),
+    Packages(#[from] super::packages::PackagesError),
     #[error(transparent)]
     Workspace(#[from] WorkspaceError),
     #[error("failed to determine the current directory: {0}")]
@@ -109,6 +109,7 @@ pub struct PreparedProject {
     pub(crate) root: PathBuf,
     pub(crate) output: PathBuf,
     pub(crate) source_globs: Vec<PathBuf>,
+    pub(crate) packages: Vec<PackageInput>,
 }
 
 pub struct InitializedProject {
@@ -163,12 +164,11 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
     let progress = ProgressRuntime::start(!config.quiet, config.color);
     let events = ProgressEventSink::new(progress.reporter());
     events.send(BuildEvent::Preparing);
-    let packages = package_inputs(&project.root)?;
     compile::build(compile::BuildConfig {
         root: project.root,
         output: project.output,
         source_globs: project.source_globs,
-        packages,
+        packages: project.packages,
         color: config.color,
         diagnostics: config.diagnostics,
         resilient: config.resilient,
@@ -180,30 +180,19 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
 fn initialize_project_inner(
     project: PreparedProject,
 ) -> Result<InitializedProject, ProjectFailure> {
-    let PreparedProject { root, output, source_globs } = &project;
-    let packages = package_inputs(root)?;
+    let PreparedProject { root, output, source_globs, packages } = &project;
     let excluded = [PathBuf::clone(output)];
     let build = compile::build_initial(compile::InitialBuildConfig {
         root,
         source_globs,
         excluded: &excluded,
-        packages,
+        packages: Vec::clone(packages),
         prim_metadata: (),
         source_metadata: |_: &Path| (),
         execution: compile::PackageExecution::Parallel,
         events: &SilentBuildEvents,
     })?;
     Ok(InitializedProject { project, build })
-}
-
-fn package_inputs(root: &Path) -> Result<Vec<PackageInput>, ProjectFailure> {
-    let package_sources = spago::source_files_by_package(root)?;
-    let packages = package_sources.into_iter().map(|(name, package)| PackageInput {
-        name,
-        source_identities: package.sources,
-        dependencies: package.dependencies.into_iter().collect_vec(),
-    });
-    Ok(packages.collect_vec())
 }
 
 fn run_project(config: RunConfig) -> Result<(), ProjectFailure> {
@@ -247,16 +236,19 @@ fn test_project(config: TestConfig) -> Result<(), ProjectFailure> {
     compile_project(project, &execution_build_config(config.project, config.color))?;
 
     let packages = workspace.packages.values().filter(|package| {
-        workspace.selected.as_ref().is_some_and(|selected| selected == &package.manifest.name)
+        workspace
+            .selected
+            .as_ref()
+            .is_some_and(|selected| selected.as_str() == package.manifest.name.as_str())
             || (workspace.selected.is_none() && package.has_tests)
     });
     for package in packages {
-        let execution = Option::clone(&package.manifest.test).unwrap_or_default();
+        let execution = Option::clone(&package.manifest.test);
         let main = Option::clone(&config.main)
-            .or(execution.main)
+            .or_else(|| execution.as_ref().map(|execution| execution.main.clone()))
             .unwrap_or_else(|| "Test.Main".to_owned());
         let arguments = if config.arguments.is_empty() {
-            execution.exec_args
+            execution.map(|execution| execution.exec_args).unwrap_or_default()
         } else {
             Vec::clone(&config.arguments)
         };
@@ -289,10 +281,22 @@ fn prepare_workspace(
     quiet: bool,
     output: PathBuf,
 ) -> Result<PreparedProject, ProjectFailure> {
-    let spago = spago::SpagoCommand::new(current_directory)?;
+    let spago = iris_spago::SpagoCommand::new(current_directory)?;
     spago.fetch(workspace.selected.as_deref(), !quiet)?;
-    let source_globs = spago.source_globs(workspace.selected.as_deref(), !quiet)?;
-    Ok(PreparedProject { root: PathBuf::clone(&workspace.root), output, source_globs })
+    let discovered = super::packages::discover_packages(workspace)?;
+    let packages = discovered.packages.into_iter().map(|package| PackageInput {
+        name: package.name,
+        source_identities: package.files,
+        dependencies: package.dependencies,
+    });
+
+    let packages = packages.collect_vec();
+    Ok(PreparedProject {
+        root: PathBuf::clone(&workspace.root),
+        output,
+        source_globs: discovered.source_globs,
+        packages,
+    })
 }
 
 fn project_output(root: &Path, configured: Option<&Path>) -> Result<PathBuf, ProjectFailure> {

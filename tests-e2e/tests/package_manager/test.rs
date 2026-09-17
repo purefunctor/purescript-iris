@@ -32,10 +32,7 @@ foreign import main :: Effect Unit
     let output = workspace.command(&["test", "--quiet"]);
     assert_success(&output);
     assert_eq!(String::from_utf8_lossy(&output.stdout), "tests ran: from-manifest\n");
-    workspace.assert_spago_calls(
-        "",
-        &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
-    );
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]

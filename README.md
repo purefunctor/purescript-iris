@@ -41,7 +41,8 @@ invalidation signal. Runtime settings take precedence over startup settings. Eac
 complete runtime layer, so omitted or `null` fields inherit from the startup configuration rather
 than from the preceding response. Invalid updates are shown in the editor and leave the last valid
 configuration active. Clients without workspace-configuration support continue using only the
-startup configuration. Iris discovers sources through `spago.lock`.
+startup configuration. Iris discovers sources from `spago.yaml` and package manifests, using the
+resolution written by `spago fetch` to select fetched `.spago` checkouts exactly.
 
 The defaults are:
 
