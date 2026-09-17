@@ -451,6 +451,36 @@ fn discovers_workspace_sources_when_opened_from_a_nested_package() {
     server.shutdown();
 }
 
+#[test]
+fn loads_workspace_sources_before_dependencies_are_fetched() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"package:
+  name: application
+  dependencies: [prelude]
+workspace: {}
+"#,
+    );
+    workspace
+        .write("spago.lock", r#"{"packages":{"prelude":{"type":"registry","version":"6.0.0"}}}"#);
+    workspace.write(
+        "src/Library.purs",
+        r#"module Library where
+fromFreshClone = 42
+"#,
+    );
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+
+    let symbols = server.request("workspace/symbol", json!({"query": "fromFreshClone"}));
+
+    let [symbol] = symbols.as_array().unwrap().as_slice() else {
+        panic!("expected one symbol, got {symbols}");
+    };
+    assert_eq!(symbol["name"], "fromFreshClone");
+    server.shutdown();
+}
+
 #[cfg(unix)]
 #[test]
 fn discovers_workspace_sources_through_a_symlinked_root() {

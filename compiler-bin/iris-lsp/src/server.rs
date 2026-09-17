@@ -426,7 +426,7 @@ struct DiscoveredWorkspace {
 
 fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
     let workspace = iris_build::Workspace::discover(root, None)?;
-    let discovered = iris_build::discover_packages(&workspace)?;
+    let discovered = iris_build::discover_available_packages(&workspace)?;
 
     let packages = discovered.packages.iter().map(|package| PackageInput {
         name: SmolStr::clone(&package.name),
