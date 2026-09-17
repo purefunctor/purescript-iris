@@ -15,27 +15,40 @@ mise install --yes
 eval "$(mise env --shell bash)"
 mise ls --current
 
-# Amp and supervised services start in fresh non-interactive login shells.
+# Amp and supervised services start in fresh non-interactive login shells,
+# while the Terminal starts interactive shells that read .bashrc.
 repository_root="$PWD"
 profile_marker="# Iris mise environment: $repository_root"
-if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
-  if [[ ! -e "$HOME/.bash_profile" ]]; then
-    # Creating .bash_profile must not hide the previously selected login file.
-    if [[ -r "$HOME/.bash_login" ]]; then
-      printf '%s\n' '[[ ! -r "$HOME/.bash_login" ]] || . "$HOME/.bash_login"' >> "$HOME/.bash_profile"
-    else
-      printf '%s\n' '[[ ! -r "$HOME/.profile" ]] || . "$HOME/.profile"' >> "$HOME/.bash_profile"
-    fi
+if [[ ! -e "$HOME/.bash_profile" ]]; then
+  # Creating .bash_profile must not hide the previously selected login file.
+  if [[ -r "$HOME/.bash_login" ]]; then
+    printf '%s\n' '[[ ! -r "$HOME/.bash_login" ]] || . "$HOME/.bash_login"' >> "$HOME/.bash_profile"
+  else
+    printf '%s\n' '[[ ! -r "$HOME/.profile" ]] || . "$HOME/.profile"' >> "$HOME/.bash_profile"
   fi
-  cat >> "$HOME/.bash_profile" <<EOF
+fi
+
+for shell_profile in "$HOME/.bash_profile" "$HOME/.bashrc"; do
+  if grep -Fqx "$profile_marker" "$shell_profile" 2>/dev/null; then
+    if ! grep -Fq 'IRIS_MISE_' "$shell_profile"; then
+      continue
+    fi
+
+    # Replace the original login-only hook when updating an existing orb.
+    temporary_profile="$(mktemp)"
+    awk -v marker="$profile_marker" '
+      $0 == marker { replacing = 1; next }
+      replacing && $0 == "fi" { replacing = 0; next }
+      !replacing { print }
+    ' "$shell_profile" > "$temporary_profile"
+    cat "$temporary_profile" > "$shell_profile"
+    rm "$temporary_profile"
+  fi
+  cat >> "$shell_profile" <<EOF
 
 $profile_marker
-if [[ "\${IRIS_MISE_ACTIVATING:-}" != 1 && "\$PWD/" == "$repository_root/"* ]]; then
-  export IRIS_MISE_ACTIVATING=1
-  eval "\$("$HOME/.local/bin/mise" env --shell bash)"
-  unset IRIS_MISE_ACTIVATING
-fi
+eval "\$("$HOME/.local/bin/mise" --cd "$repository_root" env --shell bash)"
 EOF
-fi
+done
 
 printf '\nSetup complete in %ss.\n' "$SECONDS"
