@@ -23,6 +23,12 @@ impl Default for StabilizedModule {
 }
 
 impl StabilizedModule {
+    pub(crate) fn with_capacity(capacity: usize) -> StabilizedModule {
+        let arena = Vec::with_capacity(capacity);
+        let table = HashTable::with_capacity(capacity);
+        StabilizedModule { arena, table }
+    }
+
     pub fn allocate(&mut self, node: &SyntaxNode) {
         let ptr = SyntaxNodePtr::new(node);
         self.allocate_ptr(ptr);
