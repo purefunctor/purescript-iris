@@ -48,3 +48,14 @@ invalid:
     fn invalid_qualified_dbg(value: u32) -> u32 {
         std::dbg!(value)
     }
+  - |
+    fn invalid_nested_in_macro() {
+        let _ = wrapper!(todo!(), "todo!() mention");
+    }
+  - |
+    fn invalid_nested_in_definition() {
+        macro_rules! defer_todo {
+            () => { todo!("later") };
+        }
+        let _ = defer_todo;
+    }

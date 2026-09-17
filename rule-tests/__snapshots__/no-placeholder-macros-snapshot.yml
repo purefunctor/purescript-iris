@@ -10,6 +10,46 @@ snapshots:
       start: 40
       end: 51
   ? |
+    fn invalid_nested_in_definition() {
+        macro_rules! defer_todo {
+            () => { todo!("later") };
+        }
+        let _ = defer_todo;
+    }
+  : labels:
+    - source: |-
+        macro_rules! defer_todo {
+                () => { todo!("later") };
+            }
+      style: primary
+      start: 40
+      end: 105
+    - source: '{ todo!("later") }'
+      style: secondary
+      start: 80
+      end: 98
+    - source: todo
+      style: secondary
+      start: 82
+      end: 86
+  ? |
+    fn invalid_nested_in_macro() {
+        let _ = wrapper!(todo!(), "todo!() mention");
+    }
+  : labels:
+    - source: wrapper!(todo!(), "todo!() mention")
+      style: primary
+      start: 43
+      end: 79
+    - source: (todo!(), "todo!() mention")
+      style: secondary
+      start: 51
+      end: 79
+    - source: todo
+      style: secondary
+      start: 52
+      end: 56
+  ? |
     fn invalid_qualified_dbg(value: u32) -> u32 {
         std::dbg!(value)
     }

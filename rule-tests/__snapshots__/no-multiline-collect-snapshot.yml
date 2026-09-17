@@ -1,6 +1,27 @@
 id: no-multiline-collect
 snapshots:
   ? |
+    fn invalid_multiline_chain_in_macro(source: &[i32]) {
+        assert_eq!(source.iter().map(|item| {
+            item + 1
+        }).collect::<Vec<_>>(), vec![]);
+    }
+  : labels:
+    - source: |-
+        assert_eq!(source.iter().map(|item| {
+                item + 1
+            }).collect::<Vec<_>>(), vec![])
+      style: primary
+      start: 58
+      end: 148
+    - source: |-
+        (source.iter().map(|item| {
+                item + 1
+            }).collect::<Vec<_>>(), vec![])
+      style: secondary
+      start: 68
+      end: 148
+  ? |
     fn invalid_multiline_closure(source: Vec<i32>) {
         let collection = source
             .iter()

@@ -44,3 +44,9 @@ invalid:
             Vec<_>
         >();
     }
+  - |
+    fn invalid_multiline_chain_in_macro(source: &[i32]) {
+        assert_eq!(source.iter().map(|item| {
+            item + 1
+        }).collect::<Vec<_>>(), vec![]);
+    }

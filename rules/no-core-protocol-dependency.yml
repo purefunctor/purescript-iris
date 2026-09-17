@@ -14,12 +14,14 @@ rule:
             inside:
               kind: use_declaration
               stopBy: end
-        # Report the outermost path only, not each nested segment.
+        # Report the outermost path only, at any nesting depth.
         - not:
             inside:
               kind: scoped_identifier
-              stopBy: neighbor
+              stopBy: end
     # Type positions use a distinct node kind from expression paths.
+    # The nesting exclusion spans any depth, so `lsp_types::A::B`
+    # reports once for the outermost path.
     - kind: scoped_type_identifier
       regex: '\b(lsp_types|async_lsp)::'
       all:
@@ -30,24 +32,26 @@ rule:
         - not:
             inside:
               kind: scoped_type_identifier
-              stopBy: neighbor
-    # Macro bodies are opaque token trees, so match macro text instead.
-    # String literals are excluded: mentioning a path is not depending on it.
+              stopBy: end
+    # Macro bodies are opaque token trees, so use the identifier
+    # discipline: the path root survives as a parsed identifier child,
+    # while string mentions leave none behind. Scoped to `token_tree`
+    # so the outer macro's own name cannot match.
     - kind: macro_invocation
-      all:
-        - regex: '\b(lsp_types|async_lsp)::'
-        - not:
-            has:
-              stopBy: end
-              kind: string_literal
-              regex: '(lsp_types|async_lsp)::'
+      has:
+        stopBy: end
+        kind: identifier
+        regex: '^(lsp_types|async_lsp)$'
+        inside:
+          kind: token_tree
+          stopBy: end
     - kind: macro_definition
-      all:
-        - regex: '\b(lsp_types|async_lsp)::'
-        - not:
-            has:
-              stopBy: end
-              kind: string_literal
-              regex: '(lsp_types|async_lsp)::'
+      has:
+        stopBy: end
+        kind: identifier
+        regex: '^(lsp_types|async_lsp)$'
+        inside:
+          kind: token_tree
+          stopBy: end
 files:
   - 'compiler-core/**'

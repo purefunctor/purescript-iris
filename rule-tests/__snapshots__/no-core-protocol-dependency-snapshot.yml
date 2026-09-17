@@ -9,6 +9,14 @@ snapshots:
       style: primary
       start: 50
       end: 74
+    - source: '[lsp_types::Kind::A]'
+      style: secondary
+      start: 54
+      end: 74
+    - source: lsp_types
+      style: secondary
+      start: 55
+      end: 64
   ? |
     fn invalid_qualified_protocol_call(client: &()) {
         let _ = async_lsp::ClientSocket::clone(client);
@@ -48,6 +56,14 @@ snapshots:
       style: primary
       start: 0
       end: 83
+    - source: '{ lsp_types::Kind }'
+      style: secondary
+      start: 61
+      end: 80
+    - source: lsp_types
+      style: secondary
+      start: 63
+      end: 72
   ? |
     use async_lsp::ClientSocket;
   : labels:

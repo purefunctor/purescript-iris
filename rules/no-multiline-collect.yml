@@ -4,22 +4,32 @@ severity: error
 message: "Bind the intermediate value before `.collect()` when a call in the chain spans multiple lines (AGENTS.md)."
 note: "Keep `.collect()` fluent only when each call fits on one line. Otherwise bind the chain first, then collect from the binding."
 rule:
-  all:
-    - any:
-        - pattern: $CHAIN.collect()
-        - pattern: $CHAIN.collect::<$$$>()
-    # The preceding call in the chain contains an indentation, i.e. one of
-    # its argument lists spans multiple lines. Newlines *between* chain
-    # links do not match: only newlines inside `arguments` nodes count, so
-    # per-call-broken chains where each call fits on one line still pass.
-    # Multiline turbofish on `.collect` itself also counts: its newline
-    # lives in a `type_arguments` node rather than `arguments`.
-    - any:
+  any:
+    - all:
+        - any:
+            - pattern: $CHAIN.collect()
+            - pattern: $CHAIN.collect::<$$$>()
+        # The preceding call in the chain contains an indentation, i.e. one of
+        # its argument lists spans multiple lines. Newlines *between* chain
+        # links do not match: only newlines inside `arguments` nodes count, so
+        # per-call-broken chains where each call fits on one line still pass.
+        # Multiline turbofish on `.collect` itself also counts: its newline
+        # lives in a `type_arguments` node rather than `arguments`.
+        - any:
+            - has:
+                stopBy: end
+                kind: arguments
+                regex: '\n'
+            - has:
+                stopBy: end
+                kind: type_arguments
+                regex: '\n'
+    # Chains inside macro token trees are opaque to patterns: a closure
+    # with a multiline body feeding `.collect` flags the same way.
+    - kind: macro_invocation
+      all:
+        - regex: '\.collect\s*(::\s*<[^;{}]*>)?\s*\('
         - has:
             stopBy: end
-            kind: arguments
-            regex: '\n'
-        - has:
-            stopBy: end
-            kind: type_arguments
-            regex: '\n'
+            kind: token_tree
+            regex: '\|\s*[^|]*\|\s*\{[^}]*\n'

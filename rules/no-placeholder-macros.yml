@@ -3,14 +3,41 @@ language: rust
 severity: error
 message: "Remove `todo!`, `unimplemented!`, and `dbg!` before merging; the codebase carries none (AGENTS.md: avoid temporary fixes)."
 rule:
-  all:
+  any:
+    # Direct invocations in every delimiter (`()`, `[]`, `{}`), bare and
+    # qualified (`std::`, `core::`). Structural patterns ignore string
+    # contents, so mentions in message arguments never match.
+    - pattern: 'todo!($$$)'
+    - pattern: 'todo![$$$]'
+    - pattern: 'todo!{$$$}'
+    - pattern: 'unimplemented!($$$)'
+    - pattern: 'unimplemented![$$$]'
+    - pattern: 'unimplemented!{$$$}'
+    - pattern: 'dbg!($$$)'
+    - pattern: 'dbg![$$$]'
+    - pattern: 'dbg!{$$$}'
+    - pattern: '$PATH::todo!($$$)'
+    - pattern: '$PATH::unimplemented!($$$)'
+    - pattern: '$PATH::dbg!($$$)'
+    # Nested inside another macro's opaque token tree: the banned name
+    # survives as a parsed identifier child, while pure string mentions
+    # leave no identifier behind. Scoped to `token_tree` so the outer
+    # macro's own name cannot match.
     - kind: macro_invocation
-      # Match every delimiter (`()`, `[]`, `{}`) and qualified paths
-      # (`std::`, `core::`) via the node text; patterns only see `()`.
-      # String literals are excluded: mentioning a macro is not invoking it.
-      regex: '(^|[^_a-zA-Z0-9])(todo|unimplemented|dbg)!'
-    - not:
-        has:
+      has:
+        stopBy: end
+        kind: identifier
+        regex: '^(todo|unimplemented|dbg)$'
+        inside:
+          kind: token_tree
           stopBy: end
-          kind: string_literal
-          regex: '(todo|unimplemented|dbg)!'
+    # `macro_rules!` bodies are opaque token trees with no invocation to
+    # match; the identifier discipline applies unchanged.
+    - kind: macro_definition
+      has:
+        stopBy: end
+        kind: identifier
+        regex: '^(todo|unimplemented|dbg)$'
+        inside:
+          kind: token_tree
+          stopBy: end

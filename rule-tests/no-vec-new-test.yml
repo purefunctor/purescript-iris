@@ -43,3 +43,14 @@ invalid:
     fn invalid_vec_new_in_macro(count: usize) -> Vec<Vec<u8>> {
         vec![Vec::new(); count]
     }
+  - |
+    fn invalid_vec_new_mixed_with_string() {
+        let _ = assert!(Vec::new().is_empty(), "expected Vec::new() to be empty");
+    }
+  - |
+    fn invalid_vec_new_in_definition() {
+        macro_rules! make_empty {
+            () => { Vec::new() };
+        }
+        let _ = make_empty;
+    }
