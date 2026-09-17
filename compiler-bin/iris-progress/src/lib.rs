@@ -527,7 +527,7 @@ fn render_bar(
     frame: usize,
     finished: bool,
 ) -> Vec<Span<'static>> {
-    let filled_eighths = if total == 0 { width * 8 } else { width * 8 * completed / total };
+    let filled_eighths = (width * 8 * completed).checked_div(total).unwrap_or(width * 8);
     if appearance == ProgressAppearance::Plain {
         let filled = filled_eighths / 8;
         let mut bar = String::with_capacity(width);
