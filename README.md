@@ -48,7 +48,9 @@ the workspace root, then discovers sources from `spago.yaml` and package manifes
 resolution written by that fetch to select fetched `.spago` checkouts exactly. Preparation runs off
 the protocol loop, so the server keeps accepting document notifications and replays them in order
 once the workspace is ready. Requests made before preparation completes are cancelled with
-`Workspace is loading`.
+`Workspace is loading`. If preparation fails, Iris reports the failure in the editor and does not
+serve analysis from the partially installed project; correct the project (for example, by running
+`spago fetch`) and restart Iris. Iris does not retry preparation automatically.
 
 The defaults are:
 

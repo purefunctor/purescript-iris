@@ -266,6 +266,47 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
 }
 
 #[test]
+fn failed_preparation_reports_and_rejects_analysis() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
+        let generation = state.preparation.test_arm();
+        let context = WorkspaceContext { root: None, position_encoding: PositionEncoding::Utf16 };
+        state
+            .workspace
+            .dispatch(
+                open_notification(
+                    Url::parse("file:///workspace/Main.purs").unwrap(),
+                    "module Main where\n",
+                ),
+                context,
+                &state.client,
+            )
+            .unwrap();
+
+        finish_workspace_preparation(
+            &mut state,
+            PreparationFinished { generation, result: Err(super::LspError::WorkspaceFailed) },
+        )
+        .unwrap();
+
+        assert!(!state.workspace.is_ready());
+        let error = state
+            .spawn(|_| ())
+            .expect_err("invariant violated: failed workspace produced a snapshot");
+        assert_eq!(error.code(), async_lsp::ErrorCode::REQUEST_FAILED);
+        assert_eq!(error.message(), "Workspace preparation failed");
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
 fn stale_preparation_completions_are_ignored() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {

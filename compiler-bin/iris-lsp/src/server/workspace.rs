@@ -48,6 +48,7 @@ pub(super) struct WorkspaceRuntime {
 enum WorkspaceState {
     Loading { pending: Vec<WorkspaceNotification>, configuration: Arc<Configuration> },
     Ready { workspace: ReadyWorkspace },
+    Failed,
 }
 
 pub(super) struct ReadyWorkspace {
@@ -127,6 +128,7 @@ impl WorkspaceRuntime {
         match &self.state {
             WorkspaceState::Ready { workspace } => Ok(workspace),
             WorkspaceState::Loading { .. } => Err(LspError::WorkspaceNotReady),
+            WorkspaceState::Failed => Err(LspError::WorkspaceFailed),
         }
     }
 
@@ -134,6 +136,7 @@ impl WorkspaceRuntime {
         match &mut self.state {
             WorkspaceState::Ready { workspace } => Ok(workspace),
             WorkspaceState::Loading { .. } => Err(LspError::WorkspaceNotReady),
+            WorkspaceState::Failed => Err(LspError::WorkspaceFailed),
         }
     }
 
@@ -181,6 +184,7 @@ impl WorkspaceRuntime {
             WorkspaceState::Ready { workspace } => {
                 workspace.dispatch(notification, context, client)
             }
+            WorkspaceState::Failed => Ok(()),
         }
     }
 
@@ -199,6 +203,13 @@ impl WorkspaceRuntime {
     pub(super) fn stage_configuration(&mut self, configuration: Arc<Configuration>) {
         if let WorkspaceState::Loading { configuration: staged, .. } = &mut self.state {
             *staged = configuration;
+        }
+    }
+
+    /// Marks preparation as terminally failed for this session.
+    pub(super) fn fail(&mut self) {
+        if matches!(self.state, WorkspaceState::Loading { .. }) {
+            self.state = WorkspaceState::Failed;
         }
     }
 
@@ -246,7 +257,7 @@ impl WorkspaceRuntime {
     pub(super) fn test_pending_len(&self) -> usize {
         match &self.state {
             WorkspaceState::Loading { pending, .. } => pending.len(),
-            WorkspaceState::Ready { .. } => 0,
+            WorkspaceState::Ready { .. } | WorkspaceState::Failed => 0,
         }
     }
 }

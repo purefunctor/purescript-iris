@@ -601,9 +601,29 @@ fn finish_workspace_preparation(
             Ok(())
         }
         Err(error) => {
-            tracing::error!("Failed to prepare the Iris workspace: {error}");
+            report_preparation_error(state, &error);
+            state.workspace.fail();
             Ok(())
         }
+    }
+}
+
+fn report_preparation_error(state: &mut State, error: &LspError) {
+    tracing::error!("Failed to prepare the Iris workspace: {error}");
+    let root = state
+        .protocol
+        .root
+        .as_deref()
+        .map(|root| root.display().to_string())
+        .unwrap_or_else(|| "the workspace root".to_string());
+    let message = format!(
+        "Iris could not prepare the Spago workspace at {root}: {error}. \
+         Correct the project (for example, by running `spago fetch`) and restart Iris."
+    );
+    if let Err(error) =
+        state.client.show_message(ShowMessageParams { typ: MessageType::ERROR, message })
+    {
+        tracing::warn!("Failed to report preparation error: {error}");
     }
 }
 
