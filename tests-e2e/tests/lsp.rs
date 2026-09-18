@@ -198,13 +198,14 @@ impl LanguageServer {
         for _ in 0..600 {
             match self.request_once(method, parameters.clone()) {
                 Ok(result) => return result,
-                Err(Error::Response(response)) if response.code == ErrorCode::REQUEST_CANCELLED => {
-                }
+                Err(Error::Response(response))
+                    if response.code == ErrorCode::CONTENT_MODIFIED
+                        || response.code == ErrorCode::REQUEST_CANCELLED => {}
                 Err(error) => panic!("{method} request failed: {error}"),
             }
             thread::sleep(Duration::from_millis(50));
         }
-        panic!("request {method} was repeatedly cancelled");
+        panic!("request {method} was repeatedly reported as stale");
     }
 
     #[track_caller]
@@ -523,7 +524,7 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
     let Error::Response(response) = error else {
         panic!("expected a response error while loading, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::REQUEST_CANCELLED);
+    assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
 
     let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
     server.notify(

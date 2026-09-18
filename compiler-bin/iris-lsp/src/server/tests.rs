@@ -78,7 +78,7 @@ fn open_notification(uri: Url, text: &str) -> WorkspaceNotification {
 }
 
 #[test]
-fn requests_are_cancelled_while_the_workspace_is_loading() {
+fn requests_report_content_modified_while_the_workspace_is_loading() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let state = State::new(
@@ -92,7 +92,7 @@ fn requests_are_cancelled_while_the_workspace_is_loading() {
             .spawn(|_| ())
             .expect_err("invariant violated: waiting workspace produced a snapshot");
 
-        assert_eq!(error.code(), async_lsp::ErrorCode::REQUEST_CANCELLED);
+        assert_eq!(error.code(), async_lsp::ErrorCode::CONTENT_MODIFIED);
         assert_eq!(error.message(), "Workspace is loading");
         Router::<State, ResponseError>::new(state)
     });

@@ -60,7 +60,7 @@ impl LspError {
 
     pub fn code(&self) -> ErrorCode {
         if matches!(self, LspError::WorkspaceNotReady) {
-            return ErrorCode::REQUEST_CANCELLED;
+            return ErrorCode::CONTENT_MODIFIED;
         }
         if let Some(QueryError::Cancelled) = self.as_query_error() {
             return ErrorCode::REQUEST_CANCELLED;
@@ -88,7 +88,9 @@ impl LspError {
     }
 
     pub fn emit_trace(&self) {
-        if let Some(QueryError::Cancelled) = self.as_query_error() {
+        if matches!(self, LspError::WorkspaceNotReady) {
+            tracing::debug!("{self}")
+        } else if let Some(QueryError::Cancelled) = self.as_query_error() {
             tracing::warn!("{self}")
         } else if matches!(self, LspError::AnalyzerError(AnalyzerError::RenameRejected(_))) {
             tracing::warn!("{self}")
