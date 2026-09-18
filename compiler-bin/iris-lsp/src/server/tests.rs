@@ -18,13 +18,15 @@ use lsp_types::{
 use serde_json::json;
 use tempfile::tempdir;
 
+use super::preparation::{Preparation, PreparationFinished};
 use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
 use super::{
     ConfigurationReceived, SourceMetadata, State, apply_content_changes, document_kind,
-    finish_workspace_configuration, observe_disk, package_source_roots,
-    source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
+    finish_workspace_configuration, finish_workspace_preparation, observe_disk,
+    package_source_roots, source_unit_from_document_uri, source_unit_from_foreign_uri,
+    source_unit_from_source_uri,
 };
 
 fn test_config() -> Arc<Configuration> {
@@ -35,15 +37,16 @@ fn test_config() -> Arc<Configuration> {
 }
 
 fn test_state(config: Arc<Configuration>, client: async_lsp::ClientSocket) -> State {
-    let mut state =
-        State::new(Arc::clone(&config), client, "iris-lsp".to_string(), "test".to_string());
+    let mut state = State::new(
+        Arc::clone(&config),
+        client,
+        "iris-lsp".to_string(),
+        "test".to_string(),
+        Arc::new(Preparation::new()),
+    );
     let prim = MaterializedPrim::new().unwrap();
     let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
-    let prepared = PreparedInitialWorkspace {
-        configuration: Arc::clone(&config),
-        compilation,
-        source_roots: vec![],
-    };
+    let prepared = PreparedInitialWorkspace { compilation, source_roots: vec![] };
     let pending = state.workspace.install(prepared).unwrap();
     assert!(pending.is_empty());
     state
@@ -78,7 +81,13 @@ fn open_notification(uri: Url, text: &str) -> WorkspaceNotification {
 fn requests_are_cancelled_while_the_workspace_is_loading() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
         let error = state
             .spawn(|_| ())
             .expect_err("invariant violated: waiting workspace produced a snapshot");
@@ -93,7 +102,13 @@ fn requests_are_cancelled_while_the_workspace_is_loading() {
 fn installation_is_waiting_only_and_preserves_notification_order() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
         let first_uri = Url::parse("file:///workspace/First.purs").unwrap();
         let second_uri = Url::parse("file:///workspace/Second.purs").unwrap();
         let context = WorkspaceContext { root: None, position_encoding: PositionEncoding::Utf16 };
@@ -117,11 +132,7 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
 
         let prim = MaterializedPrim::new().unwrap();
         let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
-        let prepared = PreparedInitialWorkspace {
-            configuration: Arc::clone(&config),
-            compilation,
-            source_roots: vec![],
-        };
+        let prepared = PreparedInitialWorkspace { compilation, source_roots: vec![] };
         let pending = state.workspace.install(prepared).unwrap();
         assert!(
             matches!(&pending[0], WorkspaceNotification::Open(parameters) if parameters.text_document.uri == first_uri)
@@ -132,11 +143,7 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
 
         let prim = MaterializedPrim::new().unwrap();
         let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
-        let prepared = PreparedInitialWorkspace {
-            configuration: Arc::clone(&config),
-            compilation,
-            source_roots: vec![],
-        };
+        let prepared = PreparedInitialWorkspace { compilation, source_roots: vec![] };
         assert!(matches!(
             state.workspace.install(prepared),
             Err(super::LspError::WorkspaceAlreadyReady)
@@ -149,7 +156,13 @@ fn installation_is_waiting_only_and_preserves_notification_order() {
 fn stale_configuration_results_leave_waiting_state_unchanged() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
         state.protocol.configuration_generation = 2;
         let event =
             ConfigurationReceived { generation: 1, result: Err("stale failure".to_string()) };
@@ -181,9 +194,18 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
     let config = test_config();
     let root = directory.path().to_path_buf();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
-        let mut state = State::new(Arc::clone(&config), client, "iris-lsp".into(), "test".into());
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
         state.protocol.root = Some(root);
         state.protocol.configuration_generation = 1;
+        // Preparation is armed rather than started so the fallback stages the
+        // startup settings without spawning a real Spago process.
+        let generation = state.preparation.test_arm();
         let context = WorkspaceContext {
             root: state.protocol.root.as_deref(),
             position_encoding: PositionEncoding::Utf16,
@@ -217,6 +239,17 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
         let event = ConfigurationReceived { generation: 1, result: Ok(vec![settings]) };
 
         finish_workspace_configuration(&mut state, event).unwrap();
+        assert!(!state.workspace.is_ready());
+        assert_eq!(state.workspace.test_pending_len(), 2);
+
+        let prim = MaterializedPrim::new().unwrap();
+        let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
+        let prepared = PreparedInitialWorkspace { compilation, source_roots: vec![] };
+        finish_workspace_preparation(
+            &mut state,
+            PreparationFinished { generation, result: Ok(prepared) },
+        )
+        .unwrap();
 
         {
             let workspace = state.workspace.test_ready();
@@ -228,6 +261,33 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
                 "module Queued where\n"
             );
         }
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn stale_preparation_completions_are_ignored() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
+        state.preparation.test_arm();
+        let prim = MaterializedPrim::new().unwrap();
+        let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
+        let prepared = PreparedInitialWorkspace { compilation, source_roots: vec![] };
+
+        finish_workspace_preparation(
+            &mut state,
+            PreparationFinished { generation: 99, result: Ok(prepared) },
+        )
+        .unwrap();
+
+        assert!(!state.workspace.is_ready());
         Router::<State, ResponseError>::new(state)
     });
 }

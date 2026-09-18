@@ -1808,6 +1808,7 @@ dependencies = [
  "dunce",
  "files",
  "iris-build",
+ "iris-spago",
  "itertools 0.15.0",
  "lsp-types",
  "parking_lot",

@@ -46,7 +46,7 @@ pub(super) struct WorkspaceRuntime {
 }
 
 enum WorkspaceState {
-    WaitingForConfiguration { pending: Vec<WorkspaceNotification> },
+    Loading { pending: Vec<WorkspaceNotification>, configuration: Arc<Configuration> },
     Ready { workspace: ReadyWorkspace },
 }
 
@@ -59,19 +59,18 @@ pub(super) struct ReadyWorkspace {
 }
 
 pub(super) struct PreparedInitialWorkspace {
-    pub(super) configuration: Arc<Configuration>,
     pub(super) compilation: CompilationState<i32, SourceMetadata>,
     pub(super) source_roots: Vec<SourceRoot>,
 }
 
 pub(super) enum ConfigurationApplyError {
-    Preparation(LspError),
+    Apply(LspError),
 }
 
 impl std::fmt::Display for ConfigurationApplyError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConfigurationApplyError::Preparation(error) => error.fmt(formatter),
+            ConfigurationApplyError::Apply(error) => error.fmt(formatter),
         }
     }
 }
@@ -116,8 +115,8 @@ impl WorkspaceEffects {
 }
 
 impl WorkspaceRuntime {
-    pub(super) fn new() -> WorkspaceRuntime {
-        WorkspaceRuntime { state: WorkspaceState::WaitingForConfiguration { pending: vec![] } }
+    pub(super) fn new(configuration: Arc<Configuration>) -> WorkspaceRuntime {
+        WorkspaceRuntime { state: WorkspaceState::Loading { pending: vec![], configuration } }
     }
 
     pub(super) fn is_ready(&self) -> bool {
@@ -126,15 +125,15 @@ impl WorkspaceRuntime {
 
     fn ready(&self) -> Result<&ReadyWorkspace, LspError> {
         match &self.state {
-            WorkspaceState::WaitingForConfiguration { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Ready { workspace } => Ok(workspace),
+            WorkspaceState::Loading { .. } => Err(LspError::WorkspaceNotReady),
         }
     }
 
     fn ready_mut(&mut self) -> Result<&mut ReadyWorkspace, LspError> {
         match &mut self.state {
-            WorkspaceState::WaitingForConfiguration { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Ready { workspace } => Ok(workspace),
+            WorkspaceState::Loading { .. } => Err(LspError::WorkspaceNotReady),
         }
     }
 
@@ -151,13 +150,14 @@ impl WorkspaceRuntime {
         &mut self,
         prepared: PreparedInitialWorkspace,
     ) -> Result<Vec<WorkspaceNotification>, LspError> {
-        let WorkspaceState::WaitingForConfiguration { pending } = &mut self.state else {
+        let WorkspaceState::Loading { pending, configuration } = &mut self.state else {
             return Err(LspError::WorkspaceAlreadyReady);
         };
         let pending = mem::take(pending);
+        let configuration = Arc::clone(configuration);
         let CompilationParts { engine, files, prim } = prepared.compilation.into_parts();
         let workspace = ReadyWorkspace {
-            configuration: prepared.configuration,
+            configuration,
             analysis: Analysis::new(engine, files),
             source_roots: prepared.source_roots,
             diagnostics: DiagnosticScheduler::default(),
@@ -174,7 +174,7 @@ impl WorkspaceRuntime {
         client: &ClientSocket,
     ) -> Result<(), LspError> {
         match &mut self.state {
-            WorkspaceState::WaitingForConfiguration { pending } => {
+            WorkspaceState::Loading { pending, .. } => {
                 pending.push(notification);
                 Ok(())
             }
@@ -190,6 +190,16 @@ impl WorkspaceRuntime {
         };
         workspace.configuration = configuration;
         true
+    }
+
+    /// Stores the configuration to install when preparation finishes.
+    ///
+    /// A configuration received while preparation is in flight only replaces
+    /// the staged value; it never starts a second preparation.
+    pub(super) fn stage_configuration(&mut self, configuration: Arc<Configuration>) {
+        if let WorkspaceState::Loading { configuration: staged, .. } = &mut self.state {
+            *staged = configuration;
+        }
     }
 
     pub(super) fn schedule_diagnostics(
@@ -235,7 +245,7 @@ impl WorkspaceRuntime {
     #[cfg(test)]
     pub(super) fn test_pending_len(&self) -> usize {
         match &self.state {
-            WorkspaceState::WaitingForConfiguration { pending } => pending.len(),
+            WorkspaceState::Loading { pending, .. } => pending.len(),
             WorkspaceState::Ready { .. } => 0,
         }
     }

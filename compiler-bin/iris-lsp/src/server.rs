@@ -3,6 +3,7 @@ pub mod capabilities;
 pub mod error;
 pub mod event;
 pub mod extension;
+mod preparation;
 mod workspace;
 
 #[cfg(test)]
@@ -48,6 +49,7 @@ use crate::server::capabilities::{
     negotiate_configuration_capabilities, negotiate_position_encoding,
 };
 use crate::server::error::{AnalyzerResultExt, LspError};
+use crate::server::preparation::{Preparation, PreparationFinished};
 use crate::server::workspace::{
     ConfigurationApplyError, DiagnosticTrigger, PreparedInitialWorkspace, ReadyWorkspace,
     SourceRoot, WorkspaceContext, WorkspaceEffects, WorkspaceNotification, WorkspaceRuntime,
@@ -93,6 +95,7 @@ pub struct State {
     identity: ServerIdentity,
     protocol: ProtocolSession,
     workspace: WorkspaceRuntime,
+    preparation: Arc<Preparation>,
 }
 
 impl State {
@@ -101,12 +104,13 @@ impl State {
         client: ClientSocket,
         name: String,
         version: String,
+        preparation: Arc<Preparation>,
     ) -> State {
         State {
             client,
             identity: ServerIdentity { name, version },
             protocol: ProtocolSession {
-                startup_configuration: config,
+                startup_configuration: Arc::clone(&config),
                 root: None,
                 configuration_scope: None,
                 configuration_capabilities: ConfigurationCapabilities::default(),
@@ -115,7 +119,8 @@ impl State {
                 analyzer_capabilities: AnalyzerCapabilities::default(),
                 watched_files_dynamic_registration: false,
             },
-            workspace: WorkspaceRuntime::new(),
+            workspace: WorkspaceRuntime::new(config),
+            preparation,
         }
     }
 
@@ -327,7 +332,7 @@ fn finish_workspace_configuration(
     match configuration {
         Ok(configuration) => {
             if let Err(error) = apply_configuration_inner(state, Arc::new(configuration)) {
-                let ConfigurationApplyError::Preparation(error) = error;
+                let ConfigurationApplyError::Apply(error) = error;
                 let error = format!("Failed to apply Iris settings: {error}");
                 report_configuration_error(state, &error);
                 if !state.workspace.is_ready() {
@@ -424,9 +429,11 @@ struct DiscoveredWorkspace {
     source_roots: Vec<SourceRoot>,
 }
 
-fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
-    let workspace = iris_build::Workspace::discover(root, None)?;
-    let discovered = iris_build::discover_available_packages(&workspace)?;
+fn discover_workspace(
+    workspace: &iris_build::Workspace,
+    client_root: &std::path::Path,
+) -> Result<DiscoveredWorkspace, LspError> {
+    let discovered = iris_build::discover_packages(workspace)?;
 
     let packages = discovered.packages.iter().map(|package| PackageInput {
         name: SmolStr::clone(&package.name),
@@ -449,7 +456,7 @@ fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspErro
     let source_roots = discovered
         .packages
         .iter()
-        .map(|package| package_source_roots(&workspace.root, root, package));
+        .map(|package| package_source_roots(&workspace.root, client_root, package));
     let source_root_groups =
         source_roots.process_results(|source_roots| source_roots.collect_vec())?;
     let mut source_roots = source_root_groups.into_iter().flatten().collect_vec();
@@ -457,12 +464,44 @@ fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspErro
         .sort_by_key(|source_root| std::cmp::Reverse(source_root.path.components().count()));
 
     Ok(DiscoveredWorkspace {
-        root: workspace.root,
+        root: PathBuf::clone(&workspace.root),
         source_globs: discovered.source_globs,
         packages,
         metadata,
         source_roots,
     })
+}
+
+/// Builds the initial compilation for a discovered workspace.
+///
+/// This is the blocking half of startup preparation: it maps discovered
+/// packages to the existing `iris-build` inputs and runs the same initial
+/// build the server has always used. It must run on a blocking thread.
+fn build_prepared_workspace(
+    workspace: iris_build::Workspace,
+    client_root: PathBuf,
+) -> Result<PreparedInitialWorkspace, LspError> {
+    let discovered = discover_workspace(&workspace, &client_root)?;
+    let DiscoveredWorkspace { root, source_globs, packages, metadata, source_roots } = discovered;
+
+    let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
+        root: &root,
+        source_globs: &source_globs,
+        excluded: &[],
+        packages,
+        prim_metadata: SourceMetadata::Builtin,
+        source_metadata: |path: &std::path::Path| {
+            metadata
+                .get(path)
+                .cloned()
+                .expect("invariant violated: discovered source has no LSP metadata")
+        },
+        execution: PackageExecution::Parallel,
+        events: &SilentBuildEvents,
+    })?;
+
+    tracing::info!("Loaded {} files.", metadata.len());
+    Ok(PreparedInitialWorkspace { compilation: initial.into_compilation(), source_roots })
 }
 
 fn package_source_roots(
@@ -510,7 +549,7 @@ fn apply_configuration(
     configuration: Arc<Configuration>,
 ) -> Result<(), LspError> {
     apply_configuration_inner(state, configuration).map_err(|error| {
-        let ConfigurationApplyError::Preparation(error) = error;
+        let ConfigurationApplyError::Apply(error) = error;
         error
     })
 }
@@ -528,49 +567,44 @@ fn apply_configuration_inner(
         .root
         .as_deref()
         .ok_or(LspError::MissingRoot)
-        .map_err(ConfigurationApplyError::Preparation)?;
+        .map_err(ConfigurationApplyError::Apply)?;
 
-    let discovered = discover_spago(root).map_err(ConfigurationApplyError::Preparation)?;
+    state.workspace.stage_configuration(configuration);
+    let started =
+        state.preparation.start(root.to_path_buf(), ClientSocket::clone(&state.client)).is_some();
+    if started {
+        tracing::info!("Preparing the Spago workspace at {}.", root.display());
+    }
+    Ok(())
+}
 
-    let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
-        root: &discovered.root,
-        source_globs: &discovered.source_globs,
-        excluded: &[],
-        packages: discovered.packages,
-        prim_metadata: SourceMetadata::Builtin,
-        source_metadata: |path: &std::path::Path| {
-            discovered
-                .metadata
-                .get(path)
-                .cloned()
-                .expect("invariant violated: discovered source has no LSP metadata")
-        },
-        execution: PackageExecution::Parallel,
-        events: &SilentBuildEvents,
-    })
-    .map_err(LspError::from)
-    .map_err(ConfigurationApplyError::Preparation)?;
+fn finish_workspace_preparation(
+    state: &mut State,
+    PreparationFinished { generation, result }: PreparationFinished,
+) -> Result<(), LspError> {
+    if !state.preparation.is_current(generation) {
+        return Ok(());
+    }
 
-    let prepared = PreparedInitialWorkspace {
-        configuration,
-        compilation: initial.into_compilation(),
-        source_roots: discovered.source_roots,
-    };
-    let pending =
-        state.workspace.install(prepared).map_err(ConfigurationApplyError::Preparation)?;
-
-    for notification in pending {
-        let context = WorkspaceContext {
-            root: state.protocol.root.as_deref(),
-            position_encoding: state.protocol.position_encoding,
-        };
-        let result = state.workspace.dispatch(notification, context, &state.client);
-        if let Err(error) = result {
-            error.emit_trace();
+    match result {
+        Ok(prepared) => {
+            let pending = state.workspace.install(prepared)?;
+            for notification in pending {
+                let context = WorkspaceContext {
+                    root: state.protocol.root.as_deref(),
+                    position_encoding: state.protocol.position_encoding,
+                };
+                if let Err(error) = state.workspace.dispatch(notification, context, &state.client) {
+                    error.emit_trace();
+                }
+            }
+            Ok(())
+        }
+        Err(error) => {
+            tracing::error!("Failed to prepare the Iris workspace: {error}");
+            Ok(())
         }
     }
-    tracing::info!("Loaded {} files.", discovered.metadata.len());
-    Ok(())
 }
 
 fn definition(
@@ -1187,6 +1221,8 @@ fn response_error(error: LspError) -> ResponseError {
 pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError> {
     let ServerConfig { configuration, name, version } = config;
     let config = Arc::new(configuration);
+    let preparation = Arc::new(Preparation::new());
+    let preparation_for_state = Arc::clone(&preparation);
     let (server, _) = async_lsp::MainLoop::new_server(move |client| {
         let client_socket = ClientSocket::clone(&client);
         let mut router: Router<State, ResponseError> = Router::new(State::new(
@@ -1194,6 +1230,7 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             client_socket,
             String::clone(&name),
             String::clone(&version),
+            Arc::clone(&preparation_for_state),
         ));
 
         router
@@ -1231,7 +1268,8 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             )
             .event_ext::<event::CollectDiagnostics>(event::collect_diagnostics)
             .event_ext::<event::DiagnosticsFinished>(event::finish_diagnostics)
-            .event_ext::<ConfigurationReceived>(finish_workspace_configuration);
+            .event_ext::<ConfigurationReceived>(finish_workspace_configuration)
+            .event_ext::<PreparationFinished>(finish_workspace_preparation);
 
         ServiceBuilder::new()
             .layer(LifecycleLayer::default())
@@ -1253,5 +1291,6 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
         tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(tokio::io::stdout()),
     );
 
-    server.run_buffered(stdin, stdout).await.map_err(ServerError::new)
+    let result = server.run_buffered(stdin, stdout).await;
+    result.map_err(ServerError::new)
 }

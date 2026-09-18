@@ -5,6 +5,7 @@ use async_lsp::ErrorCode;
 use building::QueryError;
 use iris_build::compile::CompileError;
 use iris_build::{PackagesError, WorkspaceError};
+use iris_spago::SpagoError;
 use lsp_types::Url;
 use thiserror::Error;
 use tokio::task;
@@ -35,6 +36,8 @@ pub enum LspError {
     WorkspaceError(#[from] WorkspaceError),
     #[error("PackagesError: {0}")]
     PackagesError(#[from] PackagesError),
+    #[error("SpagoError: {0}")]
+    SpagoError(#[from] SpagoError),
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
     #[error("JoinError: {0}")]

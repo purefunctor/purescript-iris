@@ -106,12 +106,6 @@ pub struct DiscoveredPackages {
     pub packages: Vec<DiscoveredPackage>,
 }
 
-#[derive(Clone, Copy)]
-enum PackageAvailability {
-    RequireFetched,
-    AllowMissing,
-}
-
 #[derive(Debug, Deserialize)]
 struct Resolution {
     packages: BTreeMap<SmolStr, ResolvedDependency>,
@@ -130,25 +124,11 @@ enum ResolvedDependency {
 /// Without a selection, the closure covers every workspace package. Every
 /// returned file is assigned to exactly one package; overlapping or
 /// unassignable sources are reported instead of silently misattributed.
-pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, PackagesError> {
-    discover_packages_with(workspace, PackageAvailability::RequireFetched)
-}
-
-/// Discovers packages whose sources are currently available on disk.
 ///
-/// Missing fetched dependencies are omitted so editor features remain available
-/// before the user runs `spago fetch`. Invalid manifests and unsafe paths remain
-/// errors.
-pub fn discover_available_packages(
-    workspace: &Workspace,
-) -> Result<DiscoveredPackages, PackagesError> {
-    discover_packages_with(workspace, PackageAvailability::AllowMissing)
-}
-
-fn discover_packages_with(
-    workspace: &Workspace,
-    availability: PackageAvailability,
-) -> Result<DiscoveredPackages, PackagesError> {
+/// Discovery requires the dependencies recorded by `spago fetch` to be
+/// present; missing resolution or fetched sources are reported as errors so
+/// that consumers never analyze a partially installed project.
+pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, PackagesError> {
     let root_manifest = iris_spago::read_manifest(&workspace.root.join(iris_spago::MANIFEST_FILE))?;
     let extra_packages =
         root_manifest.workspace.map(|workspace| workspace.extra_packages).unwrap_or_default();
@@ -165,20 +145,13 @@ fn discover_packages_with(
         if discovered.contains_key(&name) {
             continue;
         }
-        let resolved = match resolve_package(
+        let resolved = resolve_package(
             workspace,
             &extra_packages,
             resolution.as_ref(),
             &name,
             include_test_dependencies,
-        ) {
-            Ok(resolved) => resolved,
-            Err(
-                PackagesError::MissingRegistryResolution { .. }
-                | PackagesError::UnfetchedPackage { .. },
-            ) if matches!(availability, PackageAvailability::AllowMissing) => continue,
-            Err(error) => return Err(error),
-        };
+        )?;
         queue.extend(resolved.dependencies.iter().cloned().map(|name| (name, false)));
         discovered.insert(SmolStr::clone(&name), resolved);
     }
