@@ -3,8 +3,10 @@
 //! Preparation is one operation per server session: discover the Spago
 //! workspace, run `spago fetch` in its root, then run the existing `iris-build`
 //! discovery and initial compilation. It runs off the protocol loop so that
-//! document notifications keep arriving and queue while it is in flight.
+//! document notifications keep arriving and queue while it is in flight, and
+//! it owns the fetch subprocess so that shutdown can terminate and drain it.
 
+use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;
 
@@ -12,7 +14,9 @@ use async_lsp::ClientSocket;
 use iris_build::Workspace;
 use iris_spago::{SpagoCommand, SpagoError};
 use parking_lot::Mutex;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
+use tokio::sync::watch;
 use tokio::task;
 
 use super::error::LspError;
@@ -24,7 +28,7 @@ pub(super) struct PreparationFinished {
     pub(super) result: Result<PreparedInitialWorkspace, LspError>,
 }
 
-/// Owns the single startup preparation task.
+/// Owns the single startup preparation task and its fetch subprocess.
 pub(super) struct Preparation {
     inner: Mutex<PreparationInner>,
 }
@@ -32,11 +36,20 @@ pub(super) struct Preparation {
 struct PreparationInner {
     generation: u64,
     started: bool,
+    cancel: watch::Sender<bool>,
+    task: Option<task::JoinHandle<()>>,
 }
 
 impl Preparation {
     pub(super) fn new() -> Preparation {
-        Preparation { inner: Mutex::new(PreparationInner { generation: 0, started: false }) }
+        Preparation {
+            inner: Mutex::new(PreparationInner {
+                generation: 0,
+                started: false,
+                cancel: watch::channel(false).0,
+                task: None,
+            }),
+        }
     }
 
     /// Starts the one startup preparation, or does nothing if it already ran.
@@ -50,7 +63,8 @@ impl Preparation {
         inner.started = true;
         inner.generation = inner.generation.wrapping_add(1);
         let generation = inner.generation;
-        task::spawn(run(root, generation, client));
+        let cancel = inner.cancel.subscribe();
+        inner.task = Some(task::spawn(run(root, generation, cancel, client)));
         Some(generation)
     }
 
@@ -70,22 +84,46 @@ impl Preparation {
         inner.generation = inner.generation.wrapping_add(1);
         inner.generation
     }
+
+    /// Cancels preparation, terminates the fetch subprocess, and joins every
+    /// owned task, including the blocking initial compilation.
+    pub(super) async fn shutdown(&self) {
+        let task = {
+            let mut inner = self.inner.lock();
+            let _ = inner.cancel.send(true);
+            inner.task.take()
+        };
+        if let Some(task) = task {
+            let _ = task.await;
+        }
+    }
 }
 
-async fn run(root: PathBuf, generation: u64, client: ClientSocket) {
-    let result = prepare(root).await;
+async fn run(
+    root: PathBuf,
+    generation: u64,
+    mut cancel: watch::Receiver<bool>,
+    client: ClientSocket,
+) {
+    let result = prepare(root, &mut cancel).await;
+    if *cancel.borrow() {
+        return;
+    }
     if let Err(error) = client.emit(PreparationFinished { generation, result }) {
         LspError::from(error).emit_trace();
     }
 }
 
-async fn prepare(root: PathBuf) -> Result<PreparedInitialWorkspace, LspError> {
+async fn prepare(
+    root: PathBuf,
+    cancel: &mut watch::Receiver<bool>,
+) -> Result<PreparedInitialWorkspace, LspError> {
     let client_root = PathBuf::clone(&root);
     let workspace = task::spawn_blocking(move || Workspace::discover(&root, None))
         .await
         .map_err(LspError::JoinError)??;
     let spago = SpagoCommand::new(&workspace.root)?;
-    fetch(&spago, workspace.selected.as_deref()).await?;
+    fetch(&spago, workspace.selected.as_deref(), cancel).await?;
     let prepared =
         task::spawn_blocking(move || super::build_prepared_workspace(workspace, client_root))
             .await
@@ -95,15 +133,57 @@ async fn prepare(root: PathBuf) -> Result<PreparedInitialWorkspace, LspError> {
 
 /// Runs `spago fetch` in the discovered workspace root.
 ///
-/// Both output streams are captured so that Spago output can never reach the
-/// LSP protocol stream.
-async fn fetch(spago: &SpagoCommand, selected: Option<&str>) -> Result<(), LspError> {
+/// Both output streams are drained concurrently so a chatty Spago cannot fill
+/// a pipe, and so its output can never reach the LSP protocol stream. On
+/// cancellation the process is killed, reaped, and drained before returning.
+async fn fetch(
+    spago: &SpagoCommand,
+    selected: Option<&str>,
+    cancel: &mut watch::Receiver<bool>,
+) -> Result<(), LspError> {
     let mut command = Command::from(spago.fetch_command(selected));
-    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    let child = command.spawn().map_err(SpagoError::Execute)?;
-    let output = child.wait_with_output().await.map_err(SpagoError::Execute)?;
-    if output.status.success() {
+    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+    let mut child = command.spawn().map_err(SpagoError::Execute)?;
+
+    let stdout = task::spawn(drain(child.stdout.take()));
+    let stderr = task::spawn(drain(child.stderr.take()));
+
+    let status = loop {
+        tokio::select! {
+            status = child.wait() => break Some(status),
+            changed = cancel.changed() => {
+                if changed.is_err() || *cancel.borrow() {
+                    break None;
+                }
+            }
+        }
+    };
+
+    let Some(status) = status else {
+        let _ = child.kill().await;
+        let _ = child.wait().await;
+        let _ = stdout.await;
+        let _ = stderr.await;
+        return Err(LspError::WorkspaceFailed);
+    };
+
+    let status = status.map_err(SpagoError::Execute)?;
+    let _ = stdout.await.map_err(LspError::JoinError)?;
+    let stderr = stderr.await.map_err(LspError::JoinError)?.map_err(LspError::IoError)?;
+    if status.success() {
         return Ok(());
     }
-    Err(SpagoError::failed("fetch", output.status, &output.stderr).into())
+    Err(SpagoError::failed("fetch", status, &stderr).into())
+}
+
+async fn drain<R>(pipe: Option<R>) -> io::Result<Vec<u8>>
+where
+    R: AsyncRead + Unpin,
+{
+    let Some(mut pipe) = pipe else {
+        return Ok(vec![]);
+    };
+    let mut output = vec![];
+    pipe.read_to_end(&mut output).await?;
+    Ok(output)
 }

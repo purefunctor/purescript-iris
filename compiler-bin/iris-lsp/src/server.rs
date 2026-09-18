@@ -1312,5 +1312,6 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
     );
 
     let result = server.run_buffered(stdin, stdout).await;
+    preparation.shutdown().await;
     result.map_err(ServerError::new)
 }
