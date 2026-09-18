@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
@@ -8,15 +9,23 @@ use itertools::Itertools;
 
 pub struct TestWorkspace {
     temporary: tempfile::TempDir,
+    environment: RefCell<Vec<(String, String)>>,
 }
 
 impl TestWorkspace {
     pub fn empty() -> TestWorkspace {
-        TestWorkspace { temporary: tempfile::tempdir().unwrap() }
+        TestWorkspace { temporary: tempfile::tempdir().unwrap(), environment: RefCell::new(vec![]) }
     }
 
     pub fn path(&self) -> &Path {
         self.temporary.path()
+    }
+
+    /// Adds an environment variable for processes started through this
+    /// workspace. The language server passes its environment to Spago, so this
+    /// also controls the deterministic Spago gate.
+    pub fn set_env(&self, key: &str, value: impl Into<String>) {
+        self.environment.borrow_mut().push((key.to_owned(), value.into()));
     }
 
     pub fn write(&self, path: &str, content: &str) {
@@ -80,6 +89,9 @@ impl TestWorkspace {
             .env("IRIS_E2E_SPAGO_LOG", self.path().join("spago-calls"))
             .env("COLUMNS", "120")
             .env("NO_COLOR", "1");
+        for (key, value) in self.environment.borrow().iter() {
+            command.env(key, value);
+        }
         command
     }
 
