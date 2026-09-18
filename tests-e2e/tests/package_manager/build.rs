@@ -32,10 +32,7 @@ fn builds_the_selected_workspace_package() {
     assert_success(&output);
     assert!(workspace.path().join("output/Main/index.js").is_file());
     assert!(!workspace.path().join("output/Library/index.js").exists());
-    workspace.assert_spago_calls(
-        "packages/application/src",
-        &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
-    );
+    workspace.assert_spago_calls("packages/application/src", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]
@@ -58,7 +55,43 @@ fn builds_the_whole_workspace_from_a_root_package_subdirectory() {
     assert_success(&output);
     assert!(workspace.path().join("output/Application/index.js").is_file());
     assert!(workspace.path().join("output/Library/index.js").is_file());
-    workspace.assert_spago_calls("src", &[&["fetch"], &["sources", "--json"]]);
+    workspace.assert_spago_calls("src", &[&["fetch"]]);
+}
+
+#[test]
+fn builds_with_the_registry_version_selected_by_spago() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace:
+  packageSet:
+    registry: 64.10.0
+package:
+  name: application
+  dependencies: [prelude]
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Prelude
+
+value = unit
+"#,
+    );
+    workspace.write(
+        ".spago/p/prelude-999.0.0/purs.json",
+        r#"{"name":"prelude","version":"999.0.0","dependencies":{}}"#,
+    );
+    workspace.write(".spago/p/prelude-999.0.0/src/Stale.purs", "module Stale where\n");
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    assert_success(&output);
+    assert!(workspace.path().join("spago.lock").is_file());
+    assert!(workspace.path().join("output/Main/index.js").is_file());
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]

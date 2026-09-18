@@ -1,0 +1,11 @@
+workspace:
+  packageSet:
+    registry: 64.10.0
+  extraPackages:
+    console: 6.1.0
+    prelude: 6.0.0
+package:
+  name: application
+  dependencies:
+    - console
+    - prelude

@@ -173,8 +173,8 @@ fn stale_configuration_results_leave_waiting_state_unchanged() {
 fn failed_initial_configuration_falls_back_and_replays_notifications() {
     let directory = tempdir().unwrap();
     fs::write(
-        directory.path().join("spago.lock"),
-        r#"{"workspace":{"packages":{}},"packages":{}}"#,
+        directory.path().join("spago.yaml"),
+        "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
     )
     .unwrap();
     let source_uri = Url::from_file_path(directory.path().join("Queued.purs")).unwrap();
@@ -458,22 +458,23 @@ fn disk_observation_distinguishes_content_and_absence() {
 #[cfg(unix)]
 #[test]
 fn package_roots_include_canonical_symlink_aliases() {
-    use std::collections::BTreeSet;
     use std::os::unix::fs::symlink;
+    use std::path::PathBuf;
 
     let directory = tempdir().unwrap();
     let package_directory = directory.path().join("package");
     let linked_directory = directory.path().join("linked-package");
     fs::create_dir(&package_directory).unwrap();
     symlink(&package_directory, &linked_directory).unwrap();
-    let package = spago::PackageSources {
-        reference: spago::PackageReference::Local,
-        roots: vec![linked_directory],
-        sources: vec![],
-        dependencies: BTreeSet::new(),
+    let package = iris_build::DiscoveredPackage {
+        name: "linked-package".into(),
+        files: vec![],
+        dependencies: vec![],
+        editable: true,
+        roots: vec![PathBuf::from("linked-package")],
     };
 
-    let roots = package_source_roots(directory.path(), &package).unwrap();
+    let roots = package_source_roots(directory.path(), directory.path(), &package).unwrap();
     let canonical = dunce::canonicalize(package_directory).unwrap();
     assert!(roots.iter().any(|root| root.path == canonical));
 }

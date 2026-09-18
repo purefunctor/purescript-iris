@@ -417,6 +417,7 @@ fn exit(_state: &mut State, (): ()) -> Result<(), LspError> {
 }
 
 struct DiscoveredWorkspace {
+    root: PathBuf,
     source_globs: Vec<PathBuf>,
     packages: Vec<PackageInput>,
     metadata: BTreeMap<PathBuf, SourceMetadata>,
@@ -424,49 +425,53 @@ struct DiscoveredWorkspace {
 }
 
 fn discover_spago(root: &std::path::Path) -> Result<DiscoveredWorkspace, LspError> {
-    tracing::info!("Using 'spago.lock'");
+    let workspace = iris_build::Workspace::discover(root, None)?;
+    let discovered = iris_build::discover_available_packages(&workspace)?;
 
-    let packages = spago::source_files_by_package(root).map_err(LspError::SpagoLock)?;
-
-    let package_inputs = packages.iter().map(|(name, package)| PackageInput {
-        name: SmolStr::clone(name),
-        source_identities: Vec::clone(&package.sources),
-        dependencies: package.dependencies.iter().cloned().collect_vec(),
+    let packages = discovered.packages.iter().map(|package| PackageInput {
+        name: SmolStr::clone(&package.name),
+        source_identities: Vec::clone(&package.files),
+        dependencies: Vec::clone(&package.dependencies),
     });
-    let package_inputs = package_inputs.collect_vec();
 
-    let metadata = packages.values().flat_map(|package| {
-        let editable = matches!(
-            package.reference,
-            spago::PackageReference::Workspace | spago::PackageReference::Local
-        );
+    let packages = packages.collect_vec();
+
+    let metadata = discovered.packages.iter().flat_map(|package| {
+        let metadata = SourceMetadata::Package { editable: package.editable };
         package
-            .sources
+            .files
             .iter()
-            .map(move |file| (PathBuf::clone(file), SourceMetadata::Package { editable }))
+            .map(move |file| (PathBuf::clone(file), SourceMetadata::clone(&metadata)))
     });
+
     let metadata = metadata.collect::<BTreeMap<_, _>>();
 
-    let source_roots = packages.values().map(|package| package_source_roots(root, package));
+    let source_roots = discovered
+        .packages
+        .iter()
+        .map(|package| package_source_roots(&workspace.root, root, package));
     let source_root_groups =
         source_roots.process_results(|source_roots| source_roots.collect_vec())?;
     let mut source_roots = source_root_groups.into_iter().flatten().collect_vec();
     source_roots
         .sort_by_key(|source_root| std::cmp::Reverse(source_root.path.components().count()));
 
-    let source_globs = metadata.keys().cloned().collect_vec();
-    Ok(DiscoveredWorkspace { source_globs, packages: package_inputs, metadata, source_roots })
+    Ok(DiscoveredWorkspace {
+        root: workspace.root,
+        source_globs: discovered.source_globs,
+        packages,
+        metadata,
+        source_roots,
+    })
 }
 
 fn package_source_roots(
     workspace_root: &std::path::Path,
-    package: &spago::PackageSources,
+    client_root: &std::path::Path,
+    package: &iris_build::DiscoveredPackage,
 ) -> io::Result<Vec<SourceRoot>> {
-    let editable = matches!(
-        package.reference,
-        spago::PackageReference::Workspace | spago::PackageReference::Local
-    );
-    let metadata = SourceMetadata::Package { editable };
+    let metadata = SourceMetadata::Package { editable: package.editable };
+    let canonical_client_root = dunce::canonicalize(client_root).ok();
 
     let mut roots = vec![];
     for root in &package.roots {
@@ -476,10 +481,24 @@ fn package_source_roots(
             metadata: SourceMetadata::clone(&metadata),
         });
 
-        if let Ok(canonical) = dunce::canonicalize(&root)
-            && canonical != root
+        let canonical = dunce::canonicalize(&root).ok();
+        if let Some(canonical) = &canonical
+            && *canonical != root
         {
-            roots.push(SourceRoot { path: canonical, metadata: SourceMetadata::clone(&metadata) });
+            roots.push(SourceRoot {
+                path: PathBuf::clone(canonical),
+                metadata: SourceMetadata::clone(&metadata),
+            });
+        }
+
+        if let Some(client_root_canonical) = &canonical_client_root
+            && let Some(canonical) = &canonical
+            && let Ok(relative) = canonical.strip_prefix(client_root_canonical)
+        {
+            let alias = client_root.join(relative).absolutize()?.to_path_buf();
+            if roots.iter().all(|root| root.path != alias) {
+                roots.push(SourceRoot { path: alias, metadata: SourceMetadata::clone(&metadata) });
+            }
         }
     }
 
@@ -514,7 +533,7 @@ fn apply_configuration_inner(
     let discovered = discover_spago(root).map_err(ConfigurationApplyError::Preparation)?;
 
     let initial = build_initial::<i32, SourceMetadata, _>(InitialBuildConfig {
-        root,
+        root: &discovered.root,
         source_globs: &discovered.source_globs,
         excluded: &[],
         packages: discovered.packages,
@@ -550,7 +569,7 @@ fn apply_configuration_inner(
             error.emit_trace();
         }
     }
-    tracing::info!("Loaded {} files.", discovered.source_globs.len());
+    tracing::info!("Loaded {} files.", discovered.metadata.len());
     Ok(())
 }
 

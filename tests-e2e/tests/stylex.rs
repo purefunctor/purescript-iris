@@ -67,8 +67,5 @@ awaitProps = StyleX.props await
     let verification =
         Command::new("node").arg(script).arg(workspace.path().join("output")).output().unwrap();
     assert_success(&verification);
-    workspace.assert_spago_calls(
-        "",
-        &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
-    );
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }

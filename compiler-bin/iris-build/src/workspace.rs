@@ -1,15 +1,14 @@
 //! Spago workspace discovery for project builds.
 
 use std::collections::BTreeMap;
+use std::io;
 use std::path::{Path, PathBuf};
-use std::{fs, io};
 
 use ignore::WalkBuilder;
 use itertools::Itertools;
-use serde::Deserialize;
 use thiserror::Error;
 
-const MANIFEST: &str = "spago.yaml";
+use iris_spago::MANIFEST_FILE;
 
 #[derive(Debug, Error)]
 pub enum WorkspaceError {
@@ -45,32 +44,10 @@ pub enum WorkspaceError {
     Walk(#[from] ignore::Error),
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Manifest {
-    pub workspace: Option<serde_yml::Value>,
-    pub package: Option<PackageManifest>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PackageManifest {
-    pub name: String,
-    pub run: Option<ExecutionConfig>,
-    pub test: Option<ExecutionConfig>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExecutionConfig {
-    pub main: Option<String>,
-    #[serde(default)]
-    pub exec_args: Vec<String>,
-}
-
 #[derive(Debug, Clone)]
 pub struct WorkspacePackage {
     pub root: PathBuf,
-    pub manifest: PackageManifest,
+    pub manifest: iris_spago::Package,
     pub has_tests: bool,
 }
 
@@ -126,7 +103,7 @@ impl Workspace {
 fn find_root(current_directory: &Path) -> Result<(PathBuf, Option<String>), WorkspaceError> {
     let mut inferred_package = None;
     for directory in current_directory.ancestors() {
-        let path = directory.join(MANIFEST);
+        let path = directory.join(MANIFEST_FILE);
         if !path.is_file() {
             continue;
         }
@@ -137,7 +114,7 @@ fn find_root(current_directory: &Path) -> Result<(PathBuf, Option<String>), Work
         if inferred_package.is_none()
             && let Some(package) = manifest.package
         {
-            inferred_package = Some(package.name);
+            inferred_package = Some(package.name.into());
         }
     }
     Err(WorkspaceError::MissingWorkspace(current_directory.to_path_buf()))
@@ -161,7 +138,7 @@ fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, 
         if !entry.file_type().is_some_and(|file_type| file_type.is_file()) {
             return None;
         }
-        if entry.file_name() != MANIFEST {
+        if entry.file_name() != MANIFEST_FILE {
             return None;
         }
         Some(Ok(entry.into_path()))
@@ -188,7 +165,7 @@ fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, 
         let Some(package) = manifest.package else {
             continue;
         };
-        let name = String::clone(&package.name);
+        let name = package.name.to_string();
         let workspace_package = WorkspacePackage {
             root: package_root.to_path_buf(),
             has_tests: package_root.join("test").is_dir(),
@@ -215,9 +192,13 @@ fn excluded_directory(path: &Path, root: &Path) -> bool {
     )
 }
 
-fn read_manifest(path: &Path) -> Result<Manifest, WorkspaceError> {
-    let source = fs::read_to_string(path)
-        .map_err(|source| WorkspaceError::ReadManifest { path: path.to_path_buf(), source })?;
-    serde_yml::from_str(&source)
-        .map_err(|source| WorkspaceError::ParseManifest { path: path.to_path_buf(), source })
+fn read_manifest(path: &Path) -> Result<iris_spago::Manifest, WorkspaceError> {
+    iris_spago::read_manifest(path).map_err(|error| match error {
+        iris_spago::ManifestError::Read { path, source } => {
+            WorkspaceError::ReadManifest { path, source }
+        }
+        iris_spago::ManifestError::Parse { path, source } => {
+            WorkspaceError::ParseManifest { path, source }
+        }
+    })
 }

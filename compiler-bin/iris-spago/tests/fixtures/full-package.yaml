@@ -1,0 +1,19 @@
+package:
+  name: application
+  description: An application with every package section.
+  dependencies:
+    - prelude
+    - effect: ">=4.0.0 <5.0.0"
+    - arrays: "*"
+  run:
+    main: Main
+    execArgs: [first, second]
+  test:
+    main: Test.Main
+    execArgs: [from-manifest]
+    dependencies:
+      - spec
+      - assert: ">=6.0.0 <7.0.0"
+  publish:
+    version: 1.2.3
+    license: MIT

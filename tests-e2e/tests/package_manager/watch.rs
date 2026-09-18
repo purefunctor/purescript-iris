@@ -38,10 +38,7 @@ value = 42
     insta::assert_snapshot!("watch_single_package", normalized_watch_log(&watch.stdout()));
     });
 
-    workspace.assert_spago_calls(
-        "",
-        &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
-    );
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]
@@ -79,7 +76,7 @@ package:
     insta::assert_snapshot!("watch_workspace", normalized_watch_log(&watch.stdout()));
     });
 
-    workspace.assert_spago_calls("src", &[&["fetch"], &["sources", "--json"]]);
+    workspace.assert_spago_calls("src", &[&["fetch"]]);
 }
 
 #[test]

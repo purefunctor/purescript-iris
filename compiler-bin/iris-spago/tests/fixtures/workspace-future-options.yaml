@@ -1,0 +1,16 @@
+workspace:
+  packageSet:
+    registry: 75.3.0
+  extraPackages: {}
+  backend:
+    cmd: purs-backend-es
+    args: [build]
+  buildOpts:
+    output: output
+    censorLibraryWarnings: all
+    statVerbosity: compact-stats
+  someFutureOption: true
+package:
+  name: application
+  description: Carries options Iris never consumes.
+  dependencies: []

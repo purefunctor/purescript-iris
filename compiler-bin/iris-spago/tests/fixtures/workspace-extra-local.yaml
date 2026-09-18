@@ -1,0 +1,8 @@
+workspace:
+  extraPackages:
+    fixture-local:
+      path: ../fixture-local
+package:
+  name: application
+  dependencies:
+    - fixture-local

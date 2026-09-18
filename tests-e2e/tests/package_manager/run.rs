@@ -32,10 +32,7 @@ foreign import main :: Effect Unit
     assert_success(&output);
     assert_eq!(String::from_utf8_lossy(&output.stdout), "first,second\n");
     assert!(workspace.path().join("generated/Configured/index.js").is_file());
-    workspace.assert_spago_calls(
-        "",
-        &[&["fetch", "-p", "application"], &["sources", "--json", "-p", "application"]],
-    );
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]

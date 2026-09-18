@@ -1,0 +1,7 @@
+workspace:
+  packageSet:
+    url: https://example.com/packages.json
+    hash: abc123
+package:
+  name: application
+  dependencies: []

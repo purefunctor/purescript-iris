@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
+use iris_spago::{SpagoCommand, SpagoError};
 use itertools::Itertools;
-use spago::{SpagoCommand, SpagoError};
 use thiserror::Error;
 
 use crate::workspace::{Workspace, WorkspaceError};
