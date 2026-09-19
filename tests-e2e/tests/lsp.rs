@@ -514,8 +514,9 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
         .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
     let (started, release) = gate_preparation(&workspace);
+    let root = dunce::canonicalize(workspace.path()).unwrap();
 
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], &root);
     wait_for_path(&started, "Spago fetch to start");
 
     let error = server
@@ -526,7 +527,7 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
     };
     assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
 
-    let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
+    let uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
     server.notify(
         "textDocument/didOpen",
         json!({
@@ -565,13 +566,13 @@ fn shutdown_retires_the_spago_process_while_preparing() {
 
     let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
     wait_for_path(&started, "Spago fetch to start");
-    let pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
+    let _pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
 
     server.shutdown();
 
     assert!(!release.exists());
     #[cfg(unix)]
-    assert!(!process_is_running(pid), "Spago process {pid} survived shutdown");
+    assert!(!process_is_running(_pid), "Spago process {_pid} survived shutdown");
 }
 
 #[test]
