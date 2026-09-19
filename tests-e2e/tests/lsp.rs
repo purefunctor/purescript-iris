@@ -11,11 +11,13 @@ use async_lsp::router::Router;
 use async_lsp::{
     Error, ErrorCode, LanguageServer as LanguageServerClient, ResponseError, ServerSocket,
 };
-use lsp_types::notification::{PublishDiagnostics, ShowMessage};
-use lsp_types::request::{RegisterCapability, WorkspaceConfiguration, WorkspaceSymbolRequest};
+use lsp_types::notification::{Progress, PublishDiagnostics, ShowMessage};
+use lsp_types::request::{
+    RegisterCapability, WorkDoneProgressCreate, WorkspaceConfiguration, WorkspaceSymbolRequest,
+};
 use lsp_types::{
-    ClientCapabilities, InitializeParams, InitializedParams, Registration, WorkspaceFolder,
-    WorkspaceSymbolParams,
+    ClientCapabilities, InitializeParams, InitializedParams, ProgressToken, Registration,
+    WorkspaceFolder, WorkspaceSymbolParams,
 };
 use serde_json::{Value, json};
 use tokio::runtime::{Builder, Runtime};
@@ -33,6 +35,7 @@ struct ClientState {
     configuration: Mutex<Option<Value>>,
     configuration_requests: AtomicUsize,
     registrations: Mutex<Vec<Registration>>,
+    progress_tokens: Mutex<Vec<ProgressToken>>,
     unexpected_requests: Mutex<Vec<String>>,
     notifications: mpsc::Sender<Value>,
 }
@@ -79,6 +82,7 @@ impl LanguageServer {
             configuration: Mutex::new(configuration),
             configuration_requests: AtomicUsize::new(0),
             registrations: Mutex::new(vec![]),
+            progress_tokens: Mutex::new(vec![]),
             unexpected_requests: Mutex::new(vec![]),
             notifications,
         });
@@ -98,6 +102,10 @@ impl LanguageServer {
                     state.registrations.lock().unwrap().extend(parameters.registrations);
                     async { Ok(()) }
                 })
+                .request::<WorkDoneProgressCreate, _>(|state, parameters| {
+                    state.progress_tokens.lock().unwrap().push(parameters.token);
+                    async { Ok(()) }
+                })
                 .notification::<PublishDiagnostics>(|state, parameters| {
                     state
                         .notifications
@@ -112,6 +120,13 @@ impl LanguageServer {
                     state
                         .notifications
                         .send(json!({"method": "window/showMessage", "params": parameters}))
+                        .unwrap();
+                    ControlFlow::Continue(())
+                })
+                .notification::<Progress>(|state, parameters| {
+                    state
+                        .notifications
+                        .send(json!({"method": "$/progress", "params": parameters}))
                         .unwrap();
                     ControlFlow::Continue(())
                 })
@@ -278,6 +293,10 @@ impl LanguageServer {
         }
     }
 
+    fn collect_notifications(&mut self) {
+        self.notifications.extend(self.messages.try_iter());
+    }
+
     fn assert_diagnostics(&mut self, uri: &Url, version: i32, enabled: bool) {
         // A response proves the preceding document notification reached the server before
         // the bounded wait for asynchronous diagnostics, including when none are expected.
@@ -317,13 +336,16 @@ impl LanguageServer {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn request_shutdown(&mut self) {
         self.runtime.block_on(async {
             timeout(Duration::from_secs(10), self.server.shutdown(()))
                 .await
                 .expect("invariant violated: timed out waiting for shutdown response")
                 .unwrap();
         });
+    }
+
+    fn finish_shutdown(&mut self) {
         self.server.exit(()).unwrap();
         let mainloop = self.mainloop.take().unwrap();
         let mainloop = self
@@ -346,6 +368,11 @@ impl LanguageServer {
             "unexpected server requests: {unexpected_requests:?}"
         );
         assert!(status.success(), "language server exited with {status}");
+    }
+
+    fn shutdown(&mut self) {
+        self.request_shutdown();
+        self.finish_shutdown();
     }
 }
 
@@ -481,6 +508,66 @@ fromFreshClone = 42
     server.shutdown();
 }
 
+#[test]
+fn reports_workspace_preparation_progress() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    workspace.write("src/Library.purs", "module Library where\nvalue = 42\n");
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"window": {"workDoneProgress": true}}),
+        None,
+    );
+
+    let end = server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "end"
+    });
+    assert_eq!(end["params"]["value"]["message"], "Workspace preparation finished");
+    let token = end["params"]["token"].clone();
+    let progress = server
+        .notifications
+        .iter()
+        .filter(|notification| notification["method"] == "$/progress")
+        .collect::<Vec<_>>();
+    assert!(progress.iter().all(|notification| notification["params"]["token"] == token));
+    assert!(progress.iter().any(|notification| {
+        notification["params"]["value"]["kind"] == "begin"
+            && notification["params"]["value"]["title"] == "Preparing Iris workspace"
+            && notification["params"]["value"]["percentage"] == 0
+    }));
+    assert!(progress.iter().any(|notification| {
+        notification["params"]["value"]["message"] == "Completed application (1/1 packages)"
+            && notification["params"]["value"]["percentage"] == 100
+    }));
+    assert!(progress.iter().any(|notification| {
+        notification["params"]["value"]["message"] == "Finalizing initial compilation"
+    }));
+    let progress_tokens = server.client.progress_tokens.lock().unwrap();
+    assert_eq!(progress_tokens.as_slice(), &[serde_json::from_value(token).unwrap()]);
+    drop(progress_tokens);
+    server.shutdown();
+}
+
+#[test]
+fn omits_preparation_progress_when_the_client_does_not_support_it() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    workspace.write("src/Library.purs", "module Library where\nvalue = 42\n");
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+
+    server.request("workspace/symbol", json!({"query": "value"}));
+    server.collect_notifications();
+
+    assert!(server.client.progress_tokens.lock().unwrap().is_empty());
+    assert!(server.notifications.iter().all(|notification| notification["method"] != "$/progress"));
+    server.shutdown();
+}
+
 fn wait_for_path(path: &Path, description: &str) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !path.exists() {
@@ -602,17 +689,33 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
     workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_PID", descendant_pid_file.to_str().unwrap());
     workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_RELEASE", descendant_release.to_str().unwrap());
 
-    let server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"window": {"workDoneProgress": true}}),
+        None,
+    );
+    server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "begin"
+    });
     wait_for_path(&started, "Spago fetch to start");
     wait_for_path(&descendant_pid_file, "Spago descendant to start");
     let _pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
     let _descendant_pid: i32 =
         fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
 
+    server.request_shutdown();
+    let end = server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "end"
+    });
+    assert_eq!(end["params"]["value"]["message"], "Workspace preparation cancelled");
+
     let (shutdown_complete, shutdown_result) = mpsc::channel();
     let shutdown = thread::spawn(move || {
         let mut server = server;
-        server.shutdown();
+        server.finish_shutdown();
         shutdown_complete.send(()).unwrap();
     });
     if shutdown_result.recv_timeout(Duration::from_secs(5)).is_err() {
@@ -642,7 +745,14 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
     workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
     workspace.set_env("IRIS_E2E_SPAGO_FAIL", "simulated spago failure\n");
 
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"window": {"workDoneProgress": true}}),
+        None,
+    );
 
     let message = server.wait_for_notification("window/showMessage");
     assert_eq!(message["params"]["type"], 1);
@@ -650,6 +760,10 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
     assert!(text.contains("could not prepare"), "{text}");
     assert!(text.contains("simulated spago failure"), "{text}");
     assert!(text.contains("restart Iris"), "{text}");
+    let end = server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "end"
+    });
+    assert_eq!(end["params"]["value"]["message"], "Workspace preparation failed");
 
     let error = server
         .request_once("workspace/symbol", json!({"query": "fromDisk"}))

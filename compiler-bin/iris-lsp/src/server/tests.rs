@@ -99,6 +99,16 @@ fn requests_report_content_modified_while_the_workspace_is_loading() {
 }
 
 #[test]
+fn cancelled_preparation_rejects_its_completion() {
+    let preparation = Preparation::new();
+    let generation = preparation.test_arm();
+
+    preparation.cancel();
+
+    assert!(!preparation.is_current(generation));
+}
+
+#[test]
 fn installation_is_waiting_only_and_preserves_notification_order() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
