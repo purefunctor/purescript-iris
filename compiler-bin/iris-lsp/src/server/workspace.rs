@@ -120,6 +120,7 @@ impl WorkspaceRuntime {
         WorkspaceRuntime { state: WorkspaceState::Loading { pending: vec![], configuration } }
     }
 
+    #[cfg(test)]
     pub(super) fn is_ready(&self) -> bool {
         matches!(self.state, WorkspaceState::Ready { .. })
     }

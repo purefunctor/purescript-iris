@@ -85,6 +85,7 @@ struct ProtocolSession {
     configuration_scope: Option<Url>,
     configuration_capabilities: ConfigurationCapabilities,
     configuration_generation: u64,
+    configuration_initialized: bool,
     position_encoding: PositionEncoding,
     analyzer_capabilities: AnalyzerCapabilities,
     watched_files_dynamic_registration: bool,
@@ -115,6 +116,7 @@ impl State {
                 configuration_scope: None,
                 configuration_capabilities: ConfigurationCapabilities::default(),
                 configuration_generation: 0,
+                configuration_initialized: false,
                 position_encoding: PositionEncoding::Utf16,
                 analyzer_capabilities: AnalyzerCapabilities::default(),
                 watched_files_dynamic_registration: false,
@@ -335,18 +337,23 @@ fn finish_workspace_configuration(
                 let ConfigurationApplyError::Apply(error) = error;
                 let error = format!("Failed to apply Iris settings: {error}");
                 report_configuration_error(state, &error);
-                if !state.workspace.is_ready() {
+                if !state.protocol.configuration_initialized {
                     apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))?;
+                    state.protocol.configuration_initialized = true;
                 }
+            } else {
+                state.protocol.configuration_initialized = true;
             }
             Ok(())
         }
         Err(error) => {
             report_configuration_error(state, &error);
-            if state.workspace.is_ready() {
+            if state.protocol.configuration_initialized {
                 Ok(())
             } else {
-                apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))
+                apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))?;
+                state.protocol.configuration_initialized = true;
+                Ok(())
             }
         }
     }
@@ -364,7 +371,7 @@ fn did_change_configuration(
 
 fn report_configuration_error(state: &mut State, error: &str) {
     tracing::error!("{error}");
-    let message = if state.workspace.is_ready() {
+    let message = if state.protocol.configuration_initialized {
         format!("{error}. The previous Iris settings remain active.")
     } else {
         format!("{error}. Iris will use its startup settings.")

@@ -555,6 +555,40 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
 }
 
 #[test]
+fn invalid_configuration_while_preparing_preserves_the_last_valid_settings() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    let (started, release) = gate_preparation(&workspace);
+    let root = dunce::canonicalize(workspace.path()).unwrap();
+    let runtime = json!({
+        "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
+    });
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        &root,
+        json!({"workspace": {"configuration": true}}),
+        Some(runtime),
+    );
+    wait_for_path(&started, "Spago fetch to start");
+
+    server.set_configuration(json!({"diagnostics": {"onChange": "invalid"}}));
+    let message = server.wait_for_notification("window/showMessage");
+    assert!(
+        message["params"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("previous Iris settings remain active")
+    );
+
+    fs::write(&release, "release\n").unwrap();
+    assert_diagnostic_triggers(&mut server, &root, false, false, true);
+    server.shutdown();
+}
+
+#[test]
 fn shutdown_retires_the_spago_process_while_preparing() {
     let workspace = TestWorkspace::empty();
     workspace
