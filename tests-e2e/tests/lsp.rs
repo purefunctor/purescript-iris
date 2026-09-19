@@ -533,32 +533,25 @@ fn reports_workspace_preparation_progress() {
         None,
     );
 
-    let begin = server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "begin"
-    });
-    let token = begin["params"]["token"].clone();
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams {
-            token: serde_json::from_value(token.clone()).unwrap(),
-        })
-        .unwrap();
     let end = server.wait_for_notification_matching_with_timeout(
         "$/progress",
         Duration::from_secs(60),
         |notification| notification["params"]["value"]["kind"] == "end",
     );
     assert_eq!(end["params"]["value"]["message"], "Workspace preparation finished");
-    assert_eq!(end["params"]["token"], token);
+    let token = end["params"]["token"].clone();
     let progress = server
         .notifications
         .iter()
         .filter(|notification| notification["method"] == "$/progress")
         .collect::<Vec<_>>();
     assert!(progress.iter().all(|notification| notification["params"]["token"] == token));
-    assert_eq!(begin["params"]["value"]["title"], "Preparing Iris workspace");
-    assert_eq!(begin["params"]["value"]["cancellable"], false);
-    assert_eq!(begin["params"]["value"]["percentage"], 0);
+    assert!(progress.iter().any(|notification| {
+        notification["params"]["value"]["kind"] == "begin"
+            && notification["params"]["value"]["title"] == "Preparing Iris workspace"
+            && notification["params"]["value"]["cancellable"] == false
+            && notification["params"]["value"]["percentage"] == 0
+    }));
     assert!(progress.iter().any(|notification| {
         notification["params"]["value"]["message"] == "Completed application (1/1 packages)"
             && notification["params"]["value"]["percentage"] == 100
@@ -567,10 +560,100 @@ fn reports_workspace_preparation_progress() {
         notification["params"]["value"]["message"] == "Finalizing initial compilation"
     }));
     let progress_tokens = server.client.progress_tokens.lock().unwrap();
-    assert_eq!(progress_tokens.as_slice(), &[serde_json::from_value(token).unwrap()]);
+    assert_eq!(progress_tokens.as_slice(), &[serde_json::from_value(token.clone()).unwrap()]);
     drop(progress_tokens);
+    server
+        .server
+        .work_done_progress_cancel(WorkDoneProgressCancelParams {
+            token: serde_json::from_value(token).unwrap(),
+        })
+        .unwrap();
     let symbols = server.request("workspace/symbol", json!({"query": "value"}));
     assert_eq!(symbols.as_array().unwrap().len(), 1);
+    server.shutdown();
+}
+
+#[test]
+fn cancels_workspace_preparation_for_the_active_progress_token() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
+    let (started, release) = gate_preparation(&workspace);
+    let pid_file = workspace.path().join("spago-pid");
+    let descendant_pid_file = workspace.path().join("spago-descendant-pid");
+    let descendant_release = workspace.path().join("spago-descendant-release");
+    workspace.set_env("IRIS_E2E_SPAGO_PID", pid_file.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_PID", descendant_pid_file.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_RELEASE", descendant_release.to_str().unwrap());
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        workspace.path(),
+        json!({"window": {"workDoneProgress": true}}),
+        None,
+    );
+
+    let begin = server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "begin"
+    });
+    let token: ProgressToken = serde_json::from_value(begin["params"]["token"].clone()).unwrap();
+    wait_for_path(&started, "Spago fetch to start");
+    wait_for_path(&pid_file, "Spago pid to be recorded");
+    wait_for_path(&descendant_pid_file, "Spago descendant to start");
+    let pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
+    let descendant_pid: i32 =
+        fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
+
+    for token in [ProgressToken::Number(99), ProgressToken::String("unknown".to_string())] {
+        server.server.work_done_progress_cancel(WorkDoneProgressCancelParams { token }).unwrap();
+    }
+    let error = server
+        .request_once("workspace/symbol", json!({"query": "fromDisk"}))
+        .expect_err("invariant violated: loading workspace answered a request");
+    let Error::Response(response) = error else {
+        panic!("expected a response error while loading, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
+    #[cfg(unix)]
+    {
+        assert!(process_is_running(pid));
+        assert!(process_is_running(descendant_pid));
+    }
+
+    server
+        .server
+        .work_done_progress_cancel(WorkDoneProgressCancelParams { token: token.clone() })
+        .unwrap();
+    server.server.work_done_progress_cancel(WorkDoneProgressCancelParams { token }).unwrap();
+    let end = server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "end"
+    });
+    assert_eq!(end["params"]["value"]["message"], "Workspace preparation cancelled");
+
+    let error = server
+        .request_once("workspace/symbol", json!({"query": "fromDisk"}))
+        .expect_err("invariant violated: cancelled workspace answered a request");
+    let Error::Response(response) = error else {
+        panic!("expected a response error after cancellation, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
+    assert_eq!(
+        response.message,
+        "Workspace preparation cancelled; restart Iris to prepare the workspace"
+    );
+    #[cfg(unix)]
+    {
+        wait_for_process_exit(pid, "Spago process");
+        wait_for_process_exit(descendant_pid, "Spago descendant");
+    }
+    server.collect_notifications();
+    assert!(!server.notifications.iter().any(|notification| {
+        notification["method"] == "$/progress" && notification["params"]["value"]["kind"] == "end"
+    }));
+    assert!(!release.exists());
+    assert!(!descendant_release.exists());
     server.shutdown();
 }
 
@@ -606,6 +689,15 @@ fn process_is_running(pid: i32) -> bool {
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
+}
+
+#[cfg(unix)]
+fn wait_for_process_exit(pid: i32, description: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while process_is_running(pid) {
+        assert!(Instant::now() < deadline, "timed out waiting for {description} to exit");
+        thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn gate_preparation(workspace: &TestWorkspace) -> (std::path::PathBuf, std::path::PathBuf) {

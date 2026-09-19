@@ -252,9 +252,12 @@ fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), Respon
 }
 
 fn work_done_progress_cancel(
-    _state: &mut State,
-    _parameters: WorkDoneProgressCancelParams,
+    state: &mut State,
+    parameters: WorkDoneProgressCancelParams,
 ) -> Result<(), LspError> {
+    if state.preparation.cancel_progress(&parameters.token) {
+        state.workspace.cancel();
+    }
     Ok(())
 }
 
@@ -610,7 +613,12 @@ fn finish_workspace_preparation(
     state: &mut State,
     PreparationFinished { generation, result }: PreparationFinished,
 ) -> Result<(), LspError> {
-    if !state.preparation.is_current(generation) {
+    let message = if result.is_ok() {
+        "Workspace preparation finished"
+    } else {
+        "Workspace preparation failed"
+    };
+    if !state.preparation.complete(generation, message) {
         return Ok(());
     }
 

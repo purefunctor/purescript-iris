@@ -49,6 +49,7 @@ enum WorkspaceState {
     Loading { pending: Vec<WorkspaceNotification>, configuration: Arc<Configuration> },
     Ready { workspace: ReadyWorkspace },
     Failed,
+    Cancelled,
 }
 
 pub(super) struct ReadyWorkspace {
@@ -130,6 +131,7 @@ impl WorkspaceRuntime {
             WorkspaceState::Ready { workspace } => Ok(workspace),
             WorkspaceState::Loading { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Failed => Err(LspError::WorkspaceFailed),
+            WorkspaceState::Cancelled => Err(LspError::WorkspaceCancelled),
         }
     }
 
@@ -138,6 +140,7 @@ impl WorkspaceRuntime {
             WorkspaceState::Ready { workspace } => Ok(workspace),
             WorkspaceState::Loading { .. } => Err(LspError::WorkspaceNotReady),
             WorkspaceState::Failed => Err(LspError::WorkspaceFailed),
+            WorkspaceState::Cancelled => Err(LspError::WorkspaceCancelled),
         }
     }
 
@@ -185,7 +188,7 @@ impl WorkspaceRuntime {
             WorkspaceState::Ready { workspace } => {
                 workspace.dispatch(notification, context, client)
             }
-            WorkspaceState::Failed => Ok(()),
+            WorkspaceState::Failed | WorkspaceState::Cancelled => Ok(()),
         }
     }
 
@@ -211,6 +214,12 @@ impl WorkspaceRuntime {
     pub(super) fn fail(&mut self) {
         if matches!(self.state, WorkspaceState::Loading { .. }) {
             self.state = WorkspaceState::Failed;
+        }
+    }
+
+    pub(super) fn cancel(&mut self) {
+        if matches!(self.state, WorkspaceState::Loading { .. }) {
+            self.state = WorkspaceState::Cancelled;
         }
     }
 
@@ -258,7 +267,7 @@ impl WorkspaceRuntime {
     pub(super) fn test_pending_len(&self) -> usize {
         match &self.state {
             WorkspaceState::Loading { pending, .. } => pending.len(),
-            WorkspaceState::Ready { .. } | WorkspaceState::Failed => 0,
+            WorkspaceState::Ready { .. } | WorkspaceState::Failed | WorkspaceState::Cancelled => 0,
         }
     }
 }

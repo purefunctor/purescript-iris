@@ -43,11 +43,18 @@ pub(super) struct Preparation {
 
 struct PreparationInner {
     generation: u64,
-    started: bool,
-    cancelled: bool,
+    state: PreparationState,
     cancel: watch::Sender<bool>,
     progress: Option<Arc<StartupProgress>>,
     task: Option<task::JoinHandle<()>>,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum PreparationState {
+    NotStarted,
+    Running,
+    Finished,
+    Cancelled,
 }
 
 impl Preparation {
@@ -55,8 +62,7 @@ impl Preparation {
         Preparation {
             inner: Mutex::new(PreparationInner {
                 generation: 0,
-                started: false,
-                cancelled: false,
+                state: PreparationState::NotStarted,
                 cancel: watch::channel(false).0,
                 progress: None,
                 task: None,
@@ -74,10 +80,10 @@ impl Preparation {
         work_done_progress: bool,
     ) -> Option<u64> {
         let mut inner = self.inner.lock();
-        if inner.started || inner.cancelled {
+        if inner.state != PreparationState::NotStarted {
             return None;
         }
-        inner.started = true;
+        inner.state = PreparationState::Running;
         inner.generation = inner.generation.wrapping_add(1);
         let generation = inner.generation;
         let cancel = inner.cancel.subscribe();
@@ -92,9 +98,19 @@ impl Preparation {
         Some(generation)
     }
 
-    pub(super) fn is_current(&self, generation: u64) -> bool {
-        let inner = self.inner.lock();
-        inner.started && !inner.cancelled && inner.generation == generation
+    pub(super) fn complete(&self, generation: u64, message: &str) -> bool {
+        let progress = {
+            let mut inner = self.inner.lock();
+            if inner.state != PreparationState::Running || inner.generation != generation {
+                return false;
+            }
+            inner.state = PreparationState::Finished;
+            Option::clone(&inner.progress)
+        };
+        if let Some(progress) = progress {
+            progress.end(message);
+        }
+        true
     }
 
     /// Marks preparation as started without spawning a task.
@@ -104,16 +120,30 @@ impl Preparation {
     #[cfg(test)]
     pub(super) fn test_arm(&self) -> u64 {
         let mut inner = self.inner.lock();
-        inner.started = true;
+        inner.state = PreparationState::Running;
         inner.generation = inner.generation.wrapping_add(1);
         inner.generation
+    }
+
+    pub(super) fn cancel_progress(&self, token: &ProgressToken) -> bool {
+        let mut inner = self.inner.lock();
+        if inner.state != PreparationState::Running {
+            return false;
+        }
+        let Some(progress) = &inner.progress else { return false };
+        if !progress.cancel(token) {
+            return false;
+        }
+        inner.state = PreparationState::Cancelled;
+        let _ = inner.cancel.send(true);
+        true
     }
 
     /// Stops preparation from producing more protocol-visible effects.
     pub(super) fn cancel(&self) {
         let progress = {
             let mut inner = self.inner.lock();
-            inner.cancelled = true;
+            inner.state = PreparationState::Cancelled;
             let _ = inner.cancel.send(true);
             Option::clone(&inner.progress)
         };
@@ -153,14 +183,6 @@ async fn run(
     if *cancel.borrow() {
         return;
     }
-    if let Some(progress) = &progress {
-        let message = if result.is_ok() {
-            "Workspace preparation finished"
-        } else {
-            "Workspace preparation failed"
-        };
-        progress.end(message);
-    }
     if let Err(error) = client.emit(PreparationFinished { generation, result }) {
         LspError::from(error).emit_trace();
     }
@@ -189,15 +211,21 @@ async fn prepare(
     if let Some(progress) = &progress {
         progress.report_message("Discovering packages and preparing compilation", 0);
     }
-    let prepared = task::spawn_blocking(move || match progress {
-        Some(progress) => {
-            super::build_prepared_workspace(workspace, client_root, progress.as_ref())
+    let blocking_cancel = cancel.clone();
+    let prepared = task::spawn_blocking(move || {
+        if *blocking_cancel.borrow() {
+            return Err(LspError::WorkspaceCancelled);
         }
-        None => super::build_prepared_workspace(
-            workspace,
-            client_root,
-            &iris_build::events::SilentBuildEvents,
-        ),
+        match progress {
+            Some(progress) => {
+                super::build_prepared_workspace(workspace, client_root, progress.as_ref())
+            }
+            None => super::build_prepared_workspace(
+                workspace,
+                client_root,
+                &iris_build::events::SilentBuildEvents,
+            ),
+        }
     })
     .await
     .map_err(LspError::JoinError)??;
@@ -287,6 +315,27 @@ impl StartupProgress {
         if self.notify(WorkDoneProgress::Report(report)).is_err() {
             *state = StartupProgressState::Closed;
         }
+    }
+
+    fn cancel(&self, token: &ProgressToken) -> bool {
+        if self.token != *token {
+            return false;
+        }
+        let mut state = self.state.lock();
+        match &*state {
+            StartupProgressState::Pending => {
+                *state = StartupProgressState::Closed;
+            }
+            StartupProgressState::Active(_) => {
+                *state = StartupProgressState::Closed;
+                let end = WorkDoneProgressEnd {
+                    message: Some("Workspace preparation cancelled".to_string()),
+                };
+                let _ = self.notify(WorkDoneProgress::End(end));
+            }
+            StartupProgressState::Closed => return false,
+        }
+        true
     }
 
     fn end(&self, message: &str) {

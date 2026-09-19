@@ -99,13 +99,53 @@ fn requests_report_content_modified_while_the_workspace_is_loading() {
 }
 
 #[test]
+fn cancelled_workspace_discards_notifications_and_rejects_analysis() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::new(Preparation::new()),
+        );
+        let context = WorkspaceContext { root: None, position_encoding: PositionEncoding::Utf16 };
+        state
+            .workspace
+            .dispatch(
+                open_notification(
+                    Url::parse("file:///workspace/Main.purs").unwrap(),
+                    "module Main where\n",
+                ),
+                context,
+                &state.client,
+            )
+            .unwrap();
+        assert_eq!(state.workspace.test_pending_len(), 1);
+
+        state.workspace.cancel();
+
+        assert_eq!(state.workspace.test_pending_len(), 0);
+        let error = state
+            .spawn(|_| ())
+            .expect_err("invariant violated: cancelled workspace produced a snapshot");
+        assert_eq!(error.code(), async_lsp::ErrorCode::REQUEST_FAILED);
+        assert_eq!(
+            error.message(),
+            "Workspace preparation cancelled; restart Iris to prepare the workspace"
+        );
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
 fn cancelled_preparation_rejects_its_completion() {
     let preparation = Preparation::new();
     let generation = preparation.test_arm();
 
     preparation.cancel();
 
-    assert!(!preparation.is_current(generation));
+    assert!(!preparation.complete(generation, "Workspace preparation finished"));
 }
 
 #[test]

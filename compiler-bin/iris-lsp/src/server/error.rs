@@ -34,6 +34,8 @@ pub enum LspError {
     WorkspaceAlreadyReady,
     #[error("The Iris workspace could not be prepared")]
     WorkspaceFailed,
+    #[error("Iris workspace preparation was cancelled")]
+    WorkspaceCancelled,
     #[error("WorkspaceError: {0}")]
     WorkspaceError(#[from] WorkspaceError),
     #[error("PackagesError: {0}")]
@@ -77,6 +79,9 @@ impl LspError {
         }
         if matches!(self, LspError::WorkspaceFailed) {
             return "Workspace preparation failed";
+        }
+        if matches!(self, LspError::WorkspaceCancelled) {
+            return "Workspace preparation cancelled; restart Iris to prepare the workspace";
         }
         if let Some(QueryError::Cancelled) = self.as_query_error() {
             return "Request cancelled";
