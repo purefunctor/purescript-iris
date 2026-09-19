@@ -589,24 +589,49 @@ fn invalid_configuration_while_preparing_preserves_the_last_valid_settings() {
 }
 
 #[test]
-fn shutdown_retires_the_spago_process_while_preparing() {
+fn shutdown_retires_the_spago_process_tree_while_preparing() {
     let workspace = TestWorkspace::empty();
     workspace
         .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
     let (started, release) = gate_preparation(&workspace);
     let pid_file = workspace.path().join("spago-pid");
+    let descendant_pid_file = workspace.path().join("spago-descendant-pid");
+    let descendant_release = workspace.path().join("spago-descendant-release");
     workspace.set_env("IRIS_E2E_SPAGO_PID", pid_file.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_PID", descendant_pid_file.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_RELEASE", descendant_release.to_str().unwrap());
 
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    let server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
     wait_for_path(&started, "Spago fetch to start");
+    wait_for_path(&descendant_pid_file, "Spago descendant to start");
     let _pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
+    let _descendant_pid: i32 =
+        fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
 
-    server.shutdown();
+    let (shutdown_complete, shutdown_result) = mpsc::channel();
+    let shutdown = thread::spawn(move || {
+        let mut server = server;
+        server.shutdown();
+        shutdown_complete.send(()).unwrap();
+    });
+    if shutdown_result.recv_timeout(Duration::from_secs(5)).is_err() {
+        fs::write(&descendant_release, "release\n").unwrap();
+        shutdown.join().unwrap();
+        panic!("language server shutdown waited for a surviving Spago descendant");
+    }
+    shutdown.join().unwrap();
 
     assert!(!release.exists());
+    assert!(!descendant_release.exists());
     #[cfg(unix)]
-    assert!(!process_is_running(_pid), "Spago process {_pid} survived shutdown");
+    {
+        assert!(!process_is_running(_pid), "Spago process {_pid} survived shutdown");
+        assert!(
+            !process_is_running(_descendant_pid),
+            "Spago descendant process {_descendant_pid} survived shutdown"
+        );
+    }
 }
 
 #[test]

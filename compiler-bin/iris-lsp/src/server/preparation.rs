@@ -8,18 +8,17 @@
 
 use std::io;
 use std::path::PathBuf;
-use std::process::Stdio;
 
 use async_lsp::ClientSocket;
 use iris_build::Workspace;
 use iris_spago::{SpagoCommand, SpagoError};
 use parking_lot::Mutex;
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::task;
 
 use super::error::LspError;
+use super::process::ProcessTree;
 use super::workspace::PreparedInitialWorkspace;
 
 /// Delivered through the server event loop when preparation finishes.
@@ -135,22 +134,21 @@ async fn prepare(
 ///
 /// Both output streams are drained concurrently so a chatty Spago cannot fill
 /// a pipe, and so its output can never reach the LSP protocol stream. On
-/// cancellation the process is killed, reaped, and drained before returning.
+/// cancellation the process tree is killed, reaped, and drained before returning.
 async fn fetch(
     spago: &SpagoCommand,
     selected: Option<&str>,
     cancel: &mut watch::Receiver<bool>,
 ) -> Result<(), LspError> {
-    let mut command = Command::from(spago.fetch_command(selected));
-    command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
-    let mut child = command.spawn().map_err(SpagoError::Execute)?;
+    let mut process =
+        ProcessTree::spawn(spago.fetch_command(selected)).map_err(SpagoError::Execute)?;
 
-    let stdout = task::spawn(drain(child.stdout.take()));
-    let stderr = task::spawn(drain(child.stderr.take()));
+    let stdout = task::spawn(drain(process.take_standard_output()));
+    let stderr = task::spawn(drain(process.take_standard_error()));
 
     let status = loop {
         tokio::select! {
-            status = child.wait() => break Some(status),
+            status = process.wait() => break Some(status),
             changed = cancel.changed() => {
                 if changed.is_err() || *cancel.borrow() {
                     break None;
@@ -160,8 +158,7 @@ async fn fetch(
     };
 
     let Some(status) = status else {
-        let _ = child.kill().await;
-        let _ = child.wait().await;
+        let _ = process.terminate().await;
         let _ = stdout.await;
         let _ = stderr.await;
         return Err(LspError::WorkspaceFailed);

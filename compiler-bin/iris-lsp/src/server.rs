@@ -1,10 +1,12 @@
 mod analysis;
+mod preparation;
+mod process;
+mod workspace;
+
 pub mod capabilities;
 pub mod error;
 pub mod event;
 pub mod extension;
-mod preparation;
-mod workspace;
 
 #[cfg(test)]
 mod tests;
