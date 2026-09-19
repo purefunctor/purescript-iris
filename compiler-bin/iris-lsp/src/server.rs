@@ -251,6 +251,13 @@ fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), Respon
     async { Ok(()) }
 }
 
+fn work_done_progress_cancel(
+    _state: &mut State,
+    _parameters: WorkDoneProgressCancelParams,
+) -> Result<(), LspError> {
+    Ok(())
+}
+
 fn initialized(state: &mut State, _: InitializedParams) -> Result<(), LspError> {
     let _span = tracing::info_span!("initialization").entered();
     register_file_watcher(state);
@@ -1291,6 +1298,7 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .request_snapshot::<request::SemanticTokensFullRequest>(semantic_tokens)
             .notification_ext::<notification::Initialized>(initialized)
             .notification_ext::<notification::Exit>(exit)
+            .notification_ext::<notification::WorkDoneProgressCancel>(work_done_progress_cancel)
             .workspace_notification::<notification::DidOpenTextDocument>(
                 WorkspaceNotification::Open,
             )

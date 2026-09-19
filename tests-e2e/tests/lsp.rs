@@ -17,7 +17,7 @@ use lsp_types::request::{
 };
 use lsp_types::{
     ClientCapabilities, InitializeParams, InitializedParams, ProgressToken, Registration,
-    WorkspaceFolder, WorkspaceSymbolParams,
+    WorkDoneProgressCancelParams, WorkspaceFolder, WorkspaceSymbolParams,
 };
 use serde_json::{Value, json};
 use tokio::runtime::{Builder, Runtime};
@@ -533,24 +533,32 @@ fn reports_workspace_preparation_progress() {
         None,
     );
 
+    let begin = server.wait_for_notification_matching("$/progress", |notification| {
+        notification["params"]["value"]["kind"] == "begin"
+    });
+    let token = begin["params"]["token"].clone();
+    server
+        .server
+        .work_done_progress_cancel(WorkDoneProgressCancelParams {
+            token: serde_json::from_value(token.clone()).unwrap(),
+        })
+        .unwrap();
     let end = server.wait_for_notification_matching_with_timeout(
         "$/progress",
         Duration::from_secs(60),
         |notification| notification["params"]["value"]["kind"] == "end",
     );
     assert_eq!(end["params"]["value"]["message"], "Workspace preparation finished");
-    let token = end["params"]["token"].clone();
+    assert_eq!(end["params"]["token"], token);
     let progress = server
         .notifications
         .iter()
         .filter(|notification| notification["method"] == "$/progress")
         .collect::<Vec<_>>();
     assert!(progress.iter().all(|notification| notification["params"]["token"] == token));
-    assert!(progress.iter().any(|notification| {
-        notification["params"]["value"]["kind"] == "begin"
-            && notification["params"]["value"]["title"] == "Preparing Iris workspace"
-            && notification["params"]["value"]["percentage"] == 0
-    }));
+    assert_eq!(begin["params"]["value"]["title"], "Preparing Iris workspace");
+    assert_eq!(begin["params"]["value"]["cancellable"], false);
+    assert_eq!(begin["params"]["value"]["percentage"], 0);
     assert!(progress.iter().any(|notification| {
         notification["params"]["value"]["message"] == "Completed application (1/1 packages)"
             && notification["params"]["value"]["percentage"] == 100
@@ -561,6 +569,8 @@ fn reports_workspace_preparation_progress() {
     let progress_tokens = server.client.progress_tokens.lock().unwrap();
     assert_eq!(progress_tokens.as_slice(), &[serde_json::from_value(token).unwrap()]);
     drop(progress_tokens);
+    let symbols = server.request("workspace/symbol", json!({"query": "value"}));
+    assert_eq!(symbols.as_array().unwrap().len(), 1);
     server.shutdown();
 }
 
