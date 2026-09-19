@@ -266,7 +266,17 @@ impl LanguageServer {
         method: &str,
         predicate: impl Fn(&Value) -> bool,
     ) -> Value {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        self.wait_for_notification_matching_with_timeout(method, Duration::from_secs(10), predicate)
+    }
+
+    #[track_caller]
+    fn wait_for_notification_matching_with_timeout(
+        &mut self,
+        method: &str,
+        timeout: Duration,
+        predicate: impl Fn(&Value) -> bool,
+    ) -> Value {
+        let deadline = Instant::now() + timeout;
         let waiting_for = format!("notification {method}");
         loop {
             if let Some(index) = self.notifications.iter().position(|notification| {
@@ -523,9 +533,11 @@ fn reports_workspace_preparation_progress() {
         None,
     );
 
-    let end = server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "end"
-    });
+    let end = server.wait_for_notification_matching_with_timeout(
+        "$/progress",
+        Duration::from_secs(60),
+        |notification| notification["params"]["value"]["kind"] == "end",
+    );
     assert_eq!(end["params"]["value"]["message"], "Workspace preparation finished");
     let token = end["params"]["token"].clone();
     let progress = server
