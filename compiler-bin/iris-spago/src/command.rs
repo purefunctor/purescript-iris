@@ -12,8 +12,22 @@ pub enum SpagoError {
     Shim(io::Error),
     #[error("failed to execute Spago: {0}")]
     Execute(io::Error),
-    #[error("Spago {command} failed with status {status}")]
-    Failed { command: String, status: String },
+    #[error("Spago {command} failed with status {status}{stderr}")]
+    Failed { command: String, status: String, stderr: String },
+}
+
+impl SpagoError {
+    /// Builds a failure from an exit status and the stderr it produced.
+    ///
+    /// Supervised callers that capture output themselves use this so that a
+    /// failed fetch reports the same capped stderr tail as the blocking path.
+    pub fn failed(command: &str, status: impl ToString, stderr: &[u8]) -> SpagoError {
+        SpagoError::Failed {
+            command: command.to_owned(),
+            status: status.to_string(),
+            stderr: failure_tail(stderr),
+        }
+    }
 }
 
 pub struct SpagoCommand {
@@ -38,13 +52,23 @@ impl SpagoCommand {
     }
 
     pub fn fetch(&self, selected: Option<&str>, show_output: bool) -> Result<(), SpagoError> {
-        let mut arguments = vec!["fetch".to_owned()];
-        add_selection(&mut arguments, selected);
-        let output = self.execute(&arguments)?;
+        let output = self.execute_fetch(selected)?;
         if show_output {
             forward_output(&output)?;
         }
         ensure_success("fetch", &output)
+    }
+
+    /// Builds the configured `spago fetch` invocation for supervised execution.
+    ///
+    /// Callers that own the process lifetime can spawn this command and drain
+    /// its output themselves. The returned command carries the same executable
+    /// resolution, working directory, arguments, and compiler shim as
+    /// [`SpagoCommand::fetch`].
+    pub fn fetch_command(&self, selected: Option<&str>) -> Command {
+        let mut arguments = vec!["fetch".to_owned()];
+        add_selection(&mut arguments, selected);
+        self.command(&arguments)
     }
 
     pub fn add(
@@ -63,13 +87,18 @@ impl SpagoCommand {
         ensure_success("fetch", &output)
     }
 
+    fn execute_fetch(&self, selected: Option<&str>) -> Result<Output, SpagoError> {
+        self.fetch_command(selected).output().map_err(SpagoError::Execute)
+    }
+
     fn execute(&self, arguments: &[String]) -> Result<Output, SpagoError> {
-        Command::new(&self.executable)
-            .args(arguments)
-            .current_dir(&self.current_directory)
-            .env("PATH", &self.path)
-            .output()
-            .map_err(SpagoError::Execute)
+        self.command(arguments).output().map_err(SpagoError::Execute)
+    }
+
+    fn command(&self, arguments: &[String]) -> Command {
+        let mut command = Command::new(&self.executable);
+        command.args(arguments).current_dir(&self.current_directory).env("PATH", &self.path);
+        command
     }
 }
 
@@ -84,7 +113,27 @@ fn ensure_success(command: &str, output: &Output) -> Result<(), SpagoError> {
     if output.status.success() {
         return Ok(());
     }
-    Err(SpagoError::Failed { command: command.to_owned(), status: output.status.to_string() })
+    Err(SpagoError::failed(command, output.status, &output.stderr))
+}
+
+/// Formats the trailing stderr of a failed command for inclusion in an error.
+///
+/// The tail is capped so that a chatty tool cannot produce an unbounded
+/// diagnostic. Non-UTF-8 output is replaced rather than rejected.
+fn failure_tail(stderr: &[u8]) -> String {
+    const MAXIMUM: usize = 2048;
+    let stderr = String::from_utf8_lossy(stderr);
+    let stderr = stderr.trim();
+    if stderr.is_empty() {
+        return String::new();
+    }
+    let start = stderr.len().saturating_sub(MAXIMUM);
+    let start = stderr
+        .char_indices()
+        .map(|(index, _)| index)
+        .find(|index| *index >= start)
+        .unwrap_or(stderr.len());
+    format!("\n{}", &stderr[start..])
 }
 
 fn forward_output(output: &Output) -> Result<(), SpagoError> {

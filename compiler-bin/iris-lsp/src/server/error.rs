@@ -5,6 +5,7 @@ use async_lsp::ErrorCode;
 use building::QueryError;
 use iris_build::compile::CompileError;
 use iris_build::{PackagesError, WorkspaceError};
+use iris_spago::SpagoError;
 use lsp_types::Url;
 use thiserror::Error;
 use tokio::task;
@@ -31,10 +32,14 @@ pub enum LspError {
     WorkspaceNotReady,
     #[error("The Iris workspace is already ready")]
     WorkspaceAlreadyReady,
+    #[error("The Iris workspace could not be prepared")]
+    WorkspaceFailed,
     #[error("WorkspaceError: {0}")]
     WorkspaceError(#[from] WorkspaceError),
     #[error("PackagesError: {0}")]
     PackagesError(#[from] PackagesError),
+    #[error("SpagoError: {0}")]
+    SpagoError(#[from] SpagoError),
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
     #[error("JoinError: {0}")]
@@ -55,7 +60,7 @@ impl LspError {
 
     pub fn code(&self) -> ErrorCode {
         if matches!(self, LspError::WorkspaceNotReady) {
-            return ErrorCode::REQUEST_CANCELLED;
+            return ErrorCode::CONTENT_MODIFIED;
         }
         if let Some(QueryError::Cancelled) = self.as_query_error() {
             return ErrorCode::REQUEST_CANCELLED;
@@ -70,6 +75,9 @@ impl LspError {
         if matches!(self, LspError::WorkspaceNotReady) {
             return "Workspace is loading";
         }
+        if matches!(self, LspError::WorkspaceFailed) {
+            return "Workspace preparation failed";
+        }
         if let Some(QueryError::Cancelled) = self.as_query_error() {
             return "Request cancelled";
         }
@@ -80,7 +88,9 @@ impl LspError {
     }
 
     pub fn emit_trace(&self) {
-        if let Some(QueryError::Cancelled) = self.as_query_error() {
+        if matches!(self, LspError::WorkspaceNotReady) {
+            tracing::debug!("{self}")
+        } else if let Some(QueryError::Cancelled) = self.as_query_error() {
             tracing::warn!("{self}")
         } else if matches!(self, LspError::AnalyzerError(AnalyzerError::RenameRejected(_))) {
             tracing::warn!("{self}")

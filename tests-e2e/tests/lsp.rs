@@ -4,8 +4,8 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::{Duration, Instant};
+use std::{fs, thread};
 
 use async_lsp::router::Router;
 use async_lsp::{
@@ -195,16 +195,17 @@ impl LanguageServer {
 
     #[track_caller]
     fn request(&mut self, method: &str, parameters: Value) -> Value {
-        for _ in 0..20 {
+        for _ in 0..600 {
             match self.request_once(method, parameters.clone()) {
                 Ok(result) => return result,
-                Err(Error::Response(response)) if response.code == ErrorCode::REQUEST_CANCELLED => {
-                }
+                Err(Error::Response(response))
+                    if response.code == ErrorCode::CONTENT_MODIFIED
+                        || response.code == ErrorCode::REQUEST_CANCELLED => {}
                 Err(error) => panic!("{method} request failed: {error}"),
             }
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(50));
         }
-        panic!("request {method} was repeatedly cancelled");
+        panic!("request {method} was repeatedly reported as stale");
     }
 
     #[track_caller]
@@ -452,18 +453,16 @@ fn discovers_workspace_sources_when_opened_from_a_nested_package() {
 }
 
 #[test]
-fn loads_workspace_sources_before_dependencies_are_fetched() {
+fn prepares_the_spago_workspace_before_serving_analysis() {
     let workspace = TestWorkspace::empty();
     workspace.write(
         "spago.yaml",
         r#"package:
   name: application
-  dependencies: [prelude]
+  dependencies: []
 workspace: {}
 "#,
     );
-    workspace
-        .write("spago.lock", r#"{"packages":{"prelude":{"type":"registry","version":"6.0.0"}}}"#);
     workspace.write(
         "src/Library.purs",
         r#"module Library where
@@ -478,6 +477,188 @@ fromFreshClone = 42
         panic!("expected one symbol, got {symbols}");
     };
     assert_eq!(symbol["name"], "fromFreshClone");
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    server.shutdown();
+}
+
+fn wait_for_path(path: &Path, description: &str) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !path.exists() {
+        assert!(Instant::now() < deadline, "timed out waiting for {description}");
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(unix)]
+fn process_is_running(pid: i32) -> bool {
+    std::process::Command::new("kill")
+        .arg("-0")
+        .arg(pid.to_string())
+        .stderr(Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
+fn gate_preparation(workspace: &TestWorkspace) -> (std::path::PathBuf, std::path::PathBuf) {
+    let started = workspace.path().join("spago-started");
+    let release = workspace.path().join("spago-release");
+    workspace.set_env("IRIS_E2E_SPAGO_STARTED", started.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_RELEASE", release.to_str().unwrap());
+    (started, release)
+}
+
+#[test]
+fn preparation_is_responsive_and_replays_ordered_buffers() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
+    let (started, release) = gate_preparation(&workspace);
+    let root = dunce::canonicalize(workspace.path()).unwrap();
+
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], &root);
+    wait_for_path(&started, "Spago fetch to start");
+
+    let error = server
+        .request_once("workspace/symbol", json!({"query": "anything"}))
+        .expect_err("invariant violated: loading workspace answered a request");
+    let Error::Response(response) = error else {
+        panic!("expected a response error while loading, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
+
+    let uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": uri,
+                "languageId": "purescript",
+                "version": 1,
+                "text": "module Library where\nfromBuffer = 1\n"
+            }
+        }),
+    );
+    server.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [{"text": "module Library where\nfromBuffer = 2\n"}]
+        }),
+    );
+    server.notify("textDocument/didSave", json!({"textDocument": {"uri": uri}}));
+
+    fs::write(&release, "release\n").unwrap();
+    server.wait_for_symbol("fromBuffer", true);
+    server.wait_for_symbol("fromDisk", false);
+    server.shutdown();
+}
+
+#[test]
+fn invalid_configuration_while_preparing_preserves_the_last_valid_settings() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    let (started, release) = gate_preparation(&workspace);
+    let root = dunce::canonicalize(workspace.path()).unwrap();
+    let runtime = json!({
+        "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
+    });
+    let mut server = LanguageServer::start_with_capabilities(
+        &workspace,
+        "",
+        &["lsp"],
+        &root,
+        json!({"workspace": {"configuration": true}}),
+        Some(runtime),
+    );
+    wait_for_path(&started, "Spago fetch to start");
+
+    server.set_configuration(json!({"diagnostics": {"onChange": "invalid"}}));
+    let message = server.wait_for_notification("window/showMessage");
+    assert!(
+        message["params"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("previous Iris settings remain active")
+    );
+
+    fs::write(&release, "release\n").unwrap();
+    assert_diagnostic_triggers(&mut server, &root, false, false, true);
+    server.shutdown();
+}
+
+#[test]
+fn shutdown_retires_the_spago_process_tree_while_preparing() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
+    let (started, release) = gate_preparation(&workspace);
+    let pid_file = workspace.path().join("spago-pid");
+    let descendant_pid_file = workspace.path().join("spago-descendant-pid");
+    let descendant_release = workspace.path().join("spago-descendant-release");
+    workspace.set_env("IRIS_E2E_SPAGO_PID", pid_file.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_PID", descendant_pid_file.to_str().unwrap());
+    workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT_RELEASE", descendant_release.to_str().unwrap());
+
+    let server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    wait_for_path(&started, "Spago fetch to start");
+    wait_for_path(&descendant_pid_file, "Spago descendant to start");
+    let _pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
+    let _descendant_pid: i32 =
+        fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
+
+    let (shutdown_complete, shutdown_result) = mpsc::channel();
+    let shutdown = thread::spawn(move || {
+        let mut server = server;
+        server.shutdown();
+        shutdown_complete.send(()).unwrap();
+    });
+    if shutdown_result.recv_timeout(Duration::from_secs(5)).is_err() {
+        fs::write(&descendant_release, "release\n").unwrap();
+        shutdown.join().unwrap();
+        panic!("language server shutdown waited for a surviving Spago descendant");
+    }
+    shutdown.join().unwrap();
+
+    assert!(!release.exists());
+    assert!(!descendant_release.exists());
+    #[cfg(unix)]
+    {
+        assert!(!process_is_running(_pid), "Spago process {_pid} survived shutdown");
+        assert!(
+            !process_is_running(_descendant_pid),
+            "Spago descendant process {_descendant_pid} survived shutdown"
+        );
+    }
+}
+
+#[test]
+fn preparation_failure_is_reported_and_rejects_analysis() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
+    workspace.set_env("IRIS_E2E_SPAGO_FAIL", "simulated spago failure\n");
+
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+
+    let message = server.wait_for_notification("window/showMessage");
+    assert_eq!(message["params"]["type"], 1);
+    let text = message["params"]["message"].as_str().unwrap();
+    assert!(text.contains("could not prepare"), "{text}");
+    assert!(text.contains("simulated spago failure"), "{text}");
+    assert!(text.contains("restart Iris"), "{text}");
+
+    let error = server
+        .request_once("workspace/symbol", json!({"query": "fromDisk"}))
+        .expect_err("invariant violated: failed workspace answered a request");
+    let Error::Response(response) = error else {
+        panic!("expected a response error after failure, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
+    assert_eq!(response.message, "Workspace preparation failed");
     server.shutdown();
 }
 
@@ -672,9 +853,7 @@ fn clients_without_workspace_configuration_keep_startup_settings() {
         "workspace/didChangeConfiguration",
         json!({"settings": {"diagnostics": {"onOpen": false}}}),
     );
-    let symbols = server
-        .request_once("workspace/symbol", json!({"query": "startupOnly"}))
-        .expect("invariant violated: workspace was not ready after the initialized notification");
+    let symbols = server.request("workspace/symbol", json!({"query": "startupOnly"}));
     assert_eq!(symbols.as_array().unwrap().len(), 1, "{symbols}");
     assert_eq!(symbols[0]["name"], "startupOnly");
     assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
