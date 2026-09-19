@@ -6,7 +6,6 @@ mod workspace;
 pub mod capabilities;
 pub mod error;
 pub mod event;
-pub mod extension;
 
 #[cfg(test)]
 mod tests;
@@ -33,7 +32,7 @@ use building::lifecycle::{
 use configuration::{Configuration, ConfigurationSettings};
 use files::ForeignSourceKind;
 use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
-use iris_build::events::SilentBuildEvents;
+use iris_build::events::BuildEventSink;
 use iris_build::plan::PackageInput;
 use itertools::Itertools;
 use lsp_types::notification::Notification;
@@ -91,6 +90,7 @@ struct ProtocolSession {
     position_encoding: PositionEncoding,
     analyzer_capabilities: AnalyzerCapabilities,
     watched_files_dynamic_registration: bool,
+    work_done_progress: bool,
 }
 
 pub struct State {
@@ -122,6 +122,7 @@ impl State {
                 position_encoding: PositionEncoding::Utf16,
                 analyzer_capabilities: AnalyzerCapabilities::default(),
                 watched_files_dynamic_registration: false,
+                work_done_progress: false,
             },
             workspace: WorkspaceRuntime::new(config),
             preparation,
@@ -144,19 +145,22 @@ impl State {
 
 fn initialize(
     state: &mut State,
-    parameters: extension::CustomInitializeParams,
+    parameters: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> + use<> {
-    let position_encoding = negotiate_position_encoding(&parameters.initialize_params);
+    let position_encoding = negotiate_position_encoding(&parameters);
     state.protocol.position_encoding = position_encoding;
-    state.protocol.analyzer_capabilities =
-        negotiate_analyzer_capabilities(&parameters.initialize_params);
-    state.protocol.configuration_capabilities =
-        negotiate_configuration_capabilities(&parameters.initialize_params);
+    state.protocol.analyzer_capabilities = negotiate_analyzer_capabilities(&parameters);
+    state.protocol.configuration_capabilities = negotiate_configuration_capabilities(&parameters);
     state.protocol.watched_files_dynamic_registration =
-        watched_files_dynamic_registration(&parameters.initialize_params.capabilities);
+        watched_files_dynamic_registration(&parameters.capabilities);
+    state.protocol.work_done_progress = parameters
+        .capabilities
+        .window
+        .as_ref()
+        .and_then(|window| window.work_done_progress)
+        .unwrap_or(false);
 
     state.protocol.configuration_scope = parameters
-        .initialize_params
         .workspace_folders
         .and_then(|folders| folders.first().map(|folder| Url::clone(&folder.uri)));
     state.protocol.root = state
@@ -242,8 +246,19 @@ fn watched_files_dynamic_registration(capabilities: &ClientCapabilities) -> bool
         .unwrap_or(false)
 }
 
-fn shutdown(_state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+fn shutdown(state: &mut State, (): ()) -> impl Future<Output = Result<(), ResponseError>> + use<> {
+    state.preparation.cancel();
     async { Ok(()) }
+}
+
+fn work_done_progress_cancel(
+    state: &mut State,
+    parameters: WorkDoneProgressCancelParams,
+) -> Result<(), LspError> {
+    if state.preparation.cancel_progress(&parameters.token) {
+        state.workspace.cancel();
+    }
+    Ok(())
 }
 
 fn initialized(state: &mut State, _: InitializedParams) -> Result<(), LspError> {
@@ -489,6 +504,7 @@ fn discover_workspace(
 fn build_prepared_workspace(
     workspace: iris_build::Workspace,
     client_root: PathBuf,
+    events: &dyn BuildEventSink,
 ) -> Result<PreparedInitialWorkspace, LspError> {
     let discovered = discover_workspace(&workspace, &client_root)?;
     let DiscoveredWorkspace { root, source_globs, packages, metadata, source_roots } = discovered;
@@ -506,7 +522,7 @@ fn build_prepared_workspace(
                 .expect("invariant violated: discovered source has no LSP metadata")
         },
         execution: PackageExecution::Parallel,
-        events: &SilentBuildEvents,
+        events,
     })?;
 
     tracing::info!("Loaded {} files.", metadata.len());
@@ -579,8 +595,14 @@ fn apply_configuration_inner(
         .map_err(ConfigurationApplyError::Apply)?;
 
     state.workspace.stage_configuration(configuration);
-    let started =
-        state.preparation.start(root.to_path_buf(), ClientSocket::clone(&state.client)).is_some();
+    let started = state
+        .preparation
+        .start(
+            root.to_path_buf(),
+            ClientSocket::clone(&state.client),
+            state.protocol.work_done_progress,
+        )
+        .is_some();
     if started {
         tracing::info!("Preparing the Spago workspace at {}.", root.display());
     }
@@ -591,7 +613,12 @@ fn finish_workspace_preparation(
     state: &mut State,
     PreparationFinished { generation, result }: PreparationFinished,
 ) -> Result<(), LspError> {
-    if !state.preparation.is_current(generation) {
+    let message = if result.is_ok() {
+        "Workspace preparation finished"
+    } else {
+        "Workspace preparation failed"
+    };
+    if !state.preparation.complete(generation, message) {
         return Ok(());
     }
 
@@ -1263,7 +1290,7 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
         ));
 
         router
-            .request::<extension::CustomInitialize, _>(initialize)
+            .request::<request::Initialize, _>(initialize)
             .request::<request::Shutdown, _>(shutdown)
             .request_snapshot::<request::GotoDefinition>(definition)
             .request_snapshot::<request::HoverRequest>(hover)
@@ -1279,6 +1306,7 @@ pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError>
             .request_snapshot::<request::SemanticTokensFullRequest>(semantic_tokens)
             .notification_ext::<notification::Initialized>(initialized)
             .notification_ext::<notification::Exit>(exit)
+            .notification_ext::<notification::WorkDoneProgressCancel>(work_done_progress_cancel)
             .workspace_notification::<notification::DidOpenTextDocument>(
                 WorkspaceNotification::Open,
             )
