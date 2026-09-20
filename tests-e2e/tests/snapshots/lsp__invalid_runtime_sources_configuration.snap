@@ -1,0 +1,7 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+{
+  "message": "Invalid Iris settings: unknown field `sources`, expected `diagnostics`. The previous Iris settings remain active.",
+  "type": 1
+}

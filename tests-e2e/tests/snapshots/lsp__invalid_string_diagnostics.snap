@@ -1,0 +1,21 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+[
+  {
+    "code": "CannotUnify",
+    "message": "Cannot unify 'String' with 'Int'",
+    "range": {
+      "end": {
+        "character": 17,
+        "line": 2
+      },
+      "start": {
+        "character": 8,
+        "line": 2
+      }
+    },
+    "severity": 1,
+    "source": "analyzer/checking"
+  }
+]

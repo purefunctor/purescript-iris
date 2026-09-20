@@ -14,7 +14,10 @@ needed to exercise the CLI or environment contract; do not recreate the compiler
   successful process exit alone does not prove the requested operation happened.
 - Use Insta snapshots for diagnostic output rather than collections of substring assertions or a new
   snapshot mechanism. Normalize incidental paths and platform differences without hiding meaningful
-  diagnostic changes. Keep behavioral assertions alongside snapshots where needed.
+  diagnostic changes. Path normalization must account for raw and canonical workspace spellings,
+  native and URI separators, and platform-specific process status text. Match complete path prefixes
+  so similarly named paths remain visible. Keep behavioral assertions alongside snapshots where
+  needed.
 - Reuse temporary workspaces and the existing process/tool setup. Keep tests independent of a
   developer's checkout and global configuration, and clean up child processes started by a test.
 - Preserve cross-platform behavior; account for path and executable differences in the shared

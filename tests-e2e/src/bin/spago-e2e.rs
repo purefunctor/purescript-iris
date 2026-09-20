@@ -16,8 +16,10 @@ const DESCENDANT_ARGUMENT: &str = "--iris-e2e-descendant";
 /// - `IRIS_E2E_SPAGO_PID`: writes this process's id for retirement checks.
 /// - `IRIS_E2E_SPAGO_DESCENDANT_PID`: spawns a pipe-inheriting descendant and writes its id.
 /// - `IRIS_E2E_SPAGO_DESCENDANT_RELEASE`: keeps that descendant alive until this file exists.
+/// - `IRIS_E2E_SPAGO_EXIT_AFTER_DESCENDANT`: exits once that descendant is running.
 /// - `IRIS_E2E_SPAGO_STARTED`: writes a marker once the invocation begins.
 /// - `IRIS_E2E_SPAGO_RELEASE`: blocks until this file exists.
+/// - `IRIS_E2E_SPAGO_GATE_DIRECTORY`: creates numbered started, pid, and release files.
 /// - `IRIS_E2E_SPAGO_FAIL`: writes the value to stderr and exits non-zero.
 fn main() {
     let arguments = env::args_os().skip(1).collect::<Vec<_>>();
@@ -43,6 +45,15 @@ fn main() {
     if env::var_os("IRIS_E2E_SPAGO_DESCENDANT_PID").is_some() {
         Command::new(env::current_exe().unwrap()).arg(DESCENDANT_ARGUMENT).spawn().unwrap();
     }
+    if env::var_os("IRIS_E2E_SPAGO_EXIT_AFTER_DESCENDANT").is_some() {
+        let descendant = env::var_os("IRIS_E2E_SPAGO_DESCENDANT_PID")
+            .expect("exiting Spago shim requires a descendant pid path");
+        let descendant = PathBuf::from(descendant);
+        while !descendant.exists() {
+            thread::sleep(Duration::from_millis(5));
+        }
+        process::exit(0);
+    }
     if let Some(path) = env::var_os("IRIS_E2E_SPAGO_STARTED") {
         std::fs::write(path, "started\n").unwrap();
     }
@@ -52,6 +63,9 @@ fn main() {
             thread::sleep(Duration::from_millis(5));
         }
     }
+    if let Some(directory) = env::var_os("IRIS_E2E_SPAGO_GATE_DIRECTORY") {
+        wait_for_attempt_release(PathBuf::from(directory));
+    }
     if let Some(message) = env::var_os("IRIS_E2E_SPAGO_FAIL") {
         eprint!("{}", message.to_string_lossy());
         process::exit(1);
@@ -60,6 +74,26 @@ fn main() {
     let executable = env::var_os("IRIS_E2E_SPAGO").expect("missing real Spago executable");
     let status = Command::new(executable).args(arguments).status().unwrap();
     process::exit(status.code().unwrap_or(1));
+}
+
+fn wait_for_attempt_release(directory: PathBuf) {
+    std::fs::create_dir_all(&directory).unwrap();
+    let mut attempt = 1;
+    loop {
+        let path = directory.join(format!("{attempt}.started"));
+        match OpenOptions::new().write(true).create_new(true).open(path) {
+            Ok(mut file) => {
+                writeln!(file, "{}", process::id()).unwrap();
+                break;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => attempt += 1,
+            Err(error) => panic!("failed to create Spago attempt marker: {error}"),
+        }
+    }
+    let release = directory.join(format!("{attempt}.release"));
+    while !release.exists() {
+        thread::sleep(Duration::from_millis(5));
+    }
 }
 
 fn run_descendant() {
