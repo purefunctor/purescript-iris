@@ -157,7 +157,8 @@ impl State {
             Ok(snapshot) => Ok(SnapshotReadiness::Ready(snapshot)),
             Err(LspError::WorkspaceNotReady) => self
                 .preparation
-                .demand_retry()
+                .initial_ticket()
+                .or_else(|| self.preparation.demand_retry())
                 .map(SnapshotReadiness::Waiting)
                 .ok_or(LspError::WorkspaceNotReady),
             Err(error) => Err(error),
