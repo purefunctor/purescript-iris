@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 361
+expression: report
+---
+module Main
+
+Expressions:
+
+
+Types:
+
+effects@8:66
+  -> forall@8:29

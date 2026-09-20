@@ -38,3 +38,12 @@ data Symbol
 
 data Row :: Type -> Type
 data Row a
+
+data Effects :: Type
+data Effects
+
+data EffectNil :: Effects
+data EffectNil
+
+data EffectCons :: Type -> Effects -> Effects
+data EffectCons effect effects

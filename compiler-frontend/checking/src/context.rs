@@ -145,6 +145,7 @@ pub struct CheckedCore {
     pub prim_boolean: PrimBooleanCore,
     pub prim_ordering: PrimOrderingCore,
     pub prim_symbol: PrimSymbolCore,
+    pub prim_effect: PrimEffectCore,
     pub prim_row: PrimRowCore,
     pub prim_row_list: PrimRowListCore,
     pub prim_coerce: PrimCoerceCore,
@@ -164,6 +165,7 @@ impl CheckedCore {
         let prim_boolean = PrimBooleanCore::collect(queries)?;
         let prim_ordering = PrimOrderingCore::collect(queries)?;
         let prim_symbol = PrimSymbolCore::collect(queries)?;
+        let prim_effect = PrimEffectCore::collect(queries)?;
         let prim_row = PrimRowCore::collect(queries)?;
         let prim_row_list = PrimRowListCore::collect(queries)?;
         let prim_coerce = PrimCoerceCore::collect(queries)?;
@@ -183,6 +185,7 @@ impl CheckedCore {
             prim_boolean,
             prim_ordering,
             prim_symbol,
+            prim_effect,
             prim_row,
             prim_row_list,
             prim_coerce,
@@ -209,7 +212,35 @@ where
 
     /// Interns a [`Type::Application`] node.
     pub fn intern_application(&self, function: TypeId, argument: TypeId) -> TypeId {
+        if let Type::Application(constructor, member) = *self.lookup_type(function)
+            && constructor == self.prim.effect_cons
+        {
+            return self.intern_effect_set_application(member, argument);
+        }
         self.queries.intern_type(Type::Application(function, argument))
+    }
+
+    fn intern_effect_set_application(&self, member: TypeId, mut tail: TypeId) -> TypeId {
+        let mut members = vec![member];
+
+        while let Type::Application(function, next_tail) = *self.lookup_type(tail) {
+            let Type::Application(constructor, next_member) = *self.lookup_type(function) else {
+                break;
+            };
+            if constructor != self.prim.effect_cons {
+                break;
+            }
+            members.push(next_member);
+            tail = next_tail;
+        }
+
+        members.sort_unstable();
+        members.dedup();
+        members.into_iter().rev().fold(tail, |effects, effect| {
+            let constructor =
+                self.queries.intern_type(Type::Application(self.prim.effect_cons, effect));
+            self.queries.intern_type(Type::Application(constructor, effects))
+        })
     }
 
     /// Interns a [`Type::KindApplication`] node.
@@ -420,6 +451,9 @@ pub struct PrimCore {
     pub symbol: TypeId,
     pub row: TypeId,
     pub row_type: TypeId,
+    pub effects: TypeId,
+    pub effect_nil: TypeId,
+    pub effect_cons: TypeId,
 }
 
 impl PrimCore {
@@ -455,6 +489,35 @@ impl PrimCore {
             symbol: lookup.type_constructor("Symbol"),
             row,
             row_type,
+            effects: lookup.type_constructor("Effects"),
+            effect_nil: lookup.type_constructor("EffectNil"),
+            effect_cons: lookup.type_constructor("EffectCons"),
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct PrimEffectCore {
+    pub file_id: FileId,
+    pub union: TypeItemId,
+    pub remove: TypeItemId,
+    pub subset: TypeItemId,
+}
+
+impl PrimEffectCore {
+    fn collect(queries: &impl ExternalQueries) -> QueryResult<PrimEffectCore> {
+        let file_id = queries
+            .module_file("Prim.Effect")
+            .unwrap_or_else(|| unreachable!("invariant violated: Prim.Effect not found"));
+
+        let resolved = queries.resolved(file_id)?;
+        let lookup = PrimLookup::new(&resolved, queries, "Prim.Effect");
+
+        Ok(PrimEffectCore {
+            file_id,
+            union: lookup.class_item("Union"),
+            remove: lookup.class_item("Remove"),
+            subset: lookup.class_item("Subset"),
         })
     }
 }

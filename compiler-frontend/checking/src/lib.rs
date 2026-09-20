@@ -261,6 +261,11 @@ fn check_prim(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<Ch
         queries.intern_type(Type::Constructor(file_id, item_id))
     };
 
+    let effects_core = {
+        let (file_id, item_id) = lookup_type("Effects");
+        queries.intern_type(Type::Constructor(file_id, item_id))
+    };
+
     let constraint_core = {
         let (file_id, item_id) = lookup_type("Constraint");
         queries.intern_type(Type::Constructor(file_id, item_id))
@@ -271,6 +276,10 @@ fn check_prim(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<Ch
 
     let row_type = queries.intern_type(Type::Application(row_core, type_core));
     let record_kind = queries.intern_type(Type::Function(row_type, type_core));
+    let effect_cons_kind = queries.intern_type(Type::Function(
+        type_core,
+        queries.intern_type(Type::Function(effects_core, effects_core)),
+    ));
 
     let mut insert_type = |name: &str, id: TypeId| {
         let (_, item_id) = lookup_type(name);
@@ -289,6 +298,9 @@ fn check_prim(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<Ch
     insert_type("Constraint", type_core);
     insert_type("Symbol", type_core);
     insert_type("Row", type_to_type);
+    insert_type("Effects", type_core);
+    insert_type("EffectNil", effects_core);
+    insert_type("EffectCons", effect_cons_kind);
 
     let (_, partial_id) = lookup_class("Partial");
     checked.type_item_kinds.insert(partial_id, constraint_core);
@@ -310,6 +322,9 @@ fn check_prim(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<Ch
     insert_roles("Constraint", &[]);
     insert_roles("Symbol", &[]);
     insert_roles("Row", &[Role::Representational]);
+    insert_roles("Effects", &[]);
+    insert_roles("EffectNil", &[]);
+    insert_roles("EffectCons", &[Role::Nominal, Role::Nominal]);
 
     Ok(checked)
 }

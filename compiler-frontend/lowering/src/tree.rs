@@ -214,6 +214,7 @@ pub enum TypeKind {
     String { kind: StringKind, value: Option<StringLiteral> },
     Variable { name: Option<SmolStr>, resolution: Option<TypeVariableResolution> },
     Wildcard,
+    EffectSet { members: Arc<[TypeId]>, tail: Option<TypeId> },
     Record { items: Arc<[TypeRowItem]>, tail: Option<TypeId> },
     Row { items: Arc<[TypeRowItem]>, tail: Option<TypeId> },
     Parenthesized { parenthesized: Option<TypeId> },

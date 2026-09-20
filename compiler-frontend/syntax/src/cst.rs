@@ -123,12 +123,20 @@ create_cst_enum!(
         | TypeString
         | TypeVariable
         | TypeWildcard
+        | TypeEffectSet
         | TypeRecord
         | TypeRow
         | TypeParenthesized
 );
 
-create_cst_struct!(TypeVariableBinding, TypeOperatorPair, TypeRowItem, TypeRowTail);
+create_cst_struct!(
+    TypeVariableBinding,
+    TypeOperatorPair,
+    TypeEffectSetMember,
+    TypeEffectSetTail,
+    TypeRowItem,
+    TypeRowTail
+);
 
 create_cst_enum!(
     Binder
@@ -1100,6 +1108,26 @@ has_child!(
 has_token!(
     TypeVariable
     | name_token() -> LOWER
+);
+
+has_children!(
+    TypeEffectSet
+    | members() -> TypeEffectSetMember
+);
+
+has_child!(
+    TypeEffectSet
+    | tail() -> TypeEffectSetTail
+);
+
+has_child!(
+    TypeEffectSetMember
+    | type_() -> Type
+);
+
+has_child!(
+    TypeEffectSetTail
+    | type_() -> Type
 );
 
 has_children!(

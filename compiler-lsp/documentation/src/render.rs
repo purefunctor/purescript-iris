@@ -668,6 +668,14 @@ fn collect_instance_type_parents(
                 collect_instance_type_parents(encoder, parents, *tail);
             }
         }
+        lowering::TypeKind::EffectSet { members, tail } => {
+            for member in members.iter() {
+                collect_instance_type_parents(encoder, parents, *member);
+            }
+            if let Some(tail) = tail {
+                collect_instance_type_parents(encoder, parents, *tail);
+            }
+        }
         lowering::TypeKind::Parenthesized { parenthesized } => {
             if let Some(parenthesized) = parenthesized {
                 collect_instance_type_parents(encoder, parents, *parenthesized);

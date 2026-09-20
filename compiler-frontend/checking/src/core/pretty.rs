@@ -452,6 +452,40 @@ where
         false
     }
 
+    fn is_prim_constructor(&self, constructor: TypeId, expected: &str) -> bool {
+        if let Type::Constructor(file_id, type_id) = *self.lookup_type(constructor)
+            && file_id == self.queries.prim_id()
+            && let Some(name) = self.lookup_type_name(file_id, type_id)
+        {
+            return name == expected;
+        }
+        false
+    }
+
+    fn effect_set(&self, effect_set: TypeId) -> Option<(Vec<TypeId>, Option<TypeId>)> {
+        let mut current = effect_set;
+        let mut members = vec![];
+
+        loop {
+            if self.is_prim_constructor(current, "EffectNil") {
+                return Some((members, None));
+            }
+
+            let Type::Application(function, tail) = *self.lookup_type(current) else {
+                return (!members.is_empty()).then_some((members, Some(current)));
+            };
+            let Type::Application(constructor, member) = *self.lookup_type(function) else {
+                return (!members.is_empty()).then_some((members, Some(current)));
+            };
+            if !self.is_prim_constructor(constructor, "EffectCons") {
+                return (!members.is_empty()).then_some((members, Some(current)));
+            }
+
+            members.push(member);
+            current = tail;
+        }
+    }
+
     fn parens_if(&self, condition: bool, doc: Doc<'arena>) -> Doc<'arena> {
         if condition { self.arena.text("(").append(doc).append(self.arena.text(")")) } else { doc }
     }
@@ -463,6 +497,10 @@ where
     }
 
     fn traverse(&mut self, precedence: Precedence, id: TypeId) -> Doc<'arena> {
+        if let Some((members, tail)) = self.effect_set(id) {
+            return self.format_effect_set(&members, tail);
+        }
+
         let queries = self.queries;
         match queries.lookup_type(id) {
             &Type::Application(function, argument) => {
@@ -810,6 +848,24 @@ where
         } else {
             fields
         }
+    }
+
+    fn format_effect_set(&mut self, members: &[TypeId], tail: Option<TypeId>) -> Doc<'arena> {
+        let has_members = !members.is_empty();
+        let members =
+            members.iter().map(|&member| self.traverse(Precedence::Top, member)).collect_vec();
+        let mut body = self.arena.intersperse(members, self.arena.text(", "));
+
+        if let Some(tail) = tail {
+            if has_members {
+                body = body.append(self.arena.text(" | "));
+            } else {
+                body = body.append(self.arena.text("| "));
+            }
+            body = body.append(self.traverse(Precedence::Top, tail));
+        }
+
+        self.arena.text("[").append(body).append(self.arena.text("]"))
     }
 }
 

@@ -1,0 +1,237 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+expression: "(node.debug(&content), errors)"
+---
+(
+    Module@0..304
+      ModuleHeader@0..26
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..20
+          UPPER@7..20 "TypeEffectSet"
+        Annotation@20..21
+          TEXT@20..21 " "
+        WHERE@21..26 "where"
+      LAYOUT_START@26..26 ""
+      ModuleStatements@26..303
+        ValueSignature@26..39
+          Annotation@26..28
+            TEXT@26..28 "\n\n"
+          LOWER@28..33 "empty"
+          Annotation@33..34
+            TEXT@33..34 " "
+          DOUBLE_COLON@34..36 "::"
+          TypeEffectSet@36..39
+            Annotation@36..37
+              TEXT@36..37 " "
+            LEFT_SQUARE@37..38 "["
+            RIGHT_SQUARE@38..39 "]"
+        LAYOUT_SEPARATOR@39..39 ""
+        ValueSignature@39..61
+          Annotation@39..41
+            TEXT@39..41 "\n\n"
+          LOWER@41..47 "single"
+          Annotation@47..48
+            TEXT@47..48 " "
+          DOUBLE_COLON@48..50 "::"
+          TypeEffectSet@50..61
+            Annotation@50..51
+              TEXT@50..51 " "
+            LEFT_SQUARE@51..52 "["
+            TypeEffectSetMember@52..60
+              TypeConstructor@52..60
+                QualifiedName@52..60
+                  UPPER@52..60 "Database"
+            RIGHT_SQUARE@60..61 "]"
+        LAYOUT_SEPARATOR@61..61 ""
+        ValueSignature@61..93
+          Annotation@61..63
+            TEXT@61..63 "\n\n"
+          LOWER@63..71 "multiple"
+          Annotation@71..72
+            TEXT@71..72 " "
+          DOUBLE_COLON@72..74 "::"
+          TypeEffectSet@74..93
+            Annotation@74..75
+              TEXT@74..75 " "
+            LEFT_SQUARE@75..76 "["
+            TypeEffectSetMember@76..84
+              TypeConstructor@76..84
+                QualifiedName@76..84
+                  UPPER@76..84 "Database"
+            COMMA@84..85 ","
+            TypeEffectSetMember@85..92
+              TypeConstructor@85..92
+                Annotation@85..86
+                  TEXT@85..86 " "
+                QualifiedName@86..92
+                  UPPER@86..92 "Logger"
+            RIGHT_SQUARE@92..93 "]"
+        LAYOUT_SEPARATOR@93..93 ""
+        ValueSignature@93..131
+          Annotation@93..95
+            TEXT@93..95 "\n\n"
+          LOWER@95..99 "open"
+          Annotation@99..100
+            TEXT@99..100 " "
+          DOUBLE_COLON@100..102 "::"
+          TypeEffectSet@102..131
+            Annotation@102..103
+              TEXT@102..103 " "
+            LEFT_SQUARE@103..104 "["
+            TypeEffectSetMember@104..112
+              TypeConstructor@104..112
+                QualifiedName@104..112
+                  UPPER@104..112 "Database"
+            COMMA@112..113 ","
+            TypeEffectSetMember@113..120
+              TypeConstructor@113..120
+                Annotation@113..114
+                  TEXT@113..114 " "
+                QualifiedName@114..120
+                  UPPER@114..120 "Logger"
+            TypeEffectSetTail@120..130
+              Annotation@120..121
+                TEXT@120..121 " "
+              PIPE@121..122 "|"
+              TypeVariable@122..130
+                Annotation@122..123
+                  TEXT@122..123 " "
+                LOWER@123..130 "effects"
+            RIGHT_SQUARE@130..131 "]"
+        LAYOUT_SEPARATOR@131..131 ""
+        ValueSignature@131..166
+          Annotation@131..133
+            TEXT@131..133 "\n\n"
+          LOWER@133..144 "polymorphic"
+          Annotation@144..145
+            TEXT@144..145 " "
+          DOUBLE_COLON@145..147 "::"
+          TypeEffectSet@147..166
+            Annotation@147..148
+              TEXT@147..148 " "
+            LEFT_SQUARE@148..149 "["
+            TypeEffectSetMember@149..165
+              TypeForall@149..165
+                FORALL@149..155 "forall"
+                TypeVariableBinding@155..157
+                  Annotation@155..156
+                    TEXT@155..156 " "
+                  LOWER@156..157 "a"
+                PERIOD@157..158 "."
+                TypeArrow@158..165
+                  TypeVariable@158..160
+                    Annotation@158..159
+                      TEXT@158..159 " "
+                    LOWER@159..160 "a"
+                  Annotation@160..161
+                    TEXT@160..161 " "
+                  RIGHT_ARROW@161..163 "->"
+                  TypeVariable@163..165
+                    Annotation@163..164
+                      TEXT@163..164 " "
+                    LOWER@164..165 "a"
+            RIGHT_SQUARE@165..166 "]"
+        LAYOUT_SEPARATOR@166..166 ""
+        ValueSignature@166..217
+          Annotation@166..168
+            TEXT@166..168 "\n\n"
+          LOWER@168..183 "openAppliedTail"
+          Annotation@183..184
+            TEXT@183..184 " "
+          DOUBLE_COLON@184..186 "::"
+          TypeEffectSet@186..217
+            Annotation@186..187
+              TEXT@186..187 " "
+            LEFT_SQUARE@187..188 "["
+            TypeEffectSetMember@188..196
+              TypeConstructor@188..196
+                QualifiedName@188..196
+                  UPPER@188..196 "Database"
+            TypeEffectSetTail@196..216
+              Annotation@196..197
+                TEXT@196..197 " "
+              PIPE@197..198 "|"
+              TypeApplicationChain@198..216
+                TypeConstructor@198..208
+                  Annotation@198..199
+                    TEXT@198..199 " "
+                  QualifiedName@199..208
+                    UPPER@199..208 "EffectRow"
+                TypeVariable@208..216
+                  Annotation@208..209
+                    TEXT@208..209 " "
+                  LOWER@209..216 "effects"
+            RIGHT_SQUARE@216..217 "]"
+        LAYOUT_SEPARATOR@217..217 ""
+        ValueSignature@217..261
+          Annotation@217..219
+            TEXT@217..219 "\n\n"
+          LOWER@219..230 "application"
+          Annotation@230..231
+            TEXT@230..231 " "
+          DOUBLE_COLON@231..233 "::"
+          TypeApplicationChain@233..261
+            TypeConstructor@233..243
+              Annotation@233..234
+                TEXT@233..234 " "
+              QualifiedName@234..243
+                UPPER@234..243 "Effectful"
+            TypeEffectSet@243..254
+              Annotation@243..244
+                TEXT@243..244 " "
+              LEFT_SQUARE@244..245 "["
+              TypeEffectSetMember@245..253
+                TypeConstructor@245..253
+                  QualifiedName@245..253
+                    UPPER@245..253 "Database"
+              RIGHT_SQUARE@253..254 "]"
+            TypeConstructor@254..261
+              Annotation@254..255
+                TEXT@254..255 " "
+              QualifiedName@255..261
+                UPPER@255..261 "Result"
+        LAYOUT_SEPARATOR@261..261 ""
+        ValueSignature@261..303
+          Annotation@261..263
+            TEXT@261..263 "\n\n"
+          LOWER@263..269 "nested"
+          Annotation@269..270
+            TEXT@269..270 " "
+          DOUBLE_COLON@270..272 "::"
+          TypeEffectSet@272..303
+            Annotation@272..273
+              TEXT@272..273 " "
+            LEFT_SQUARE@273..274 "["
+            TypeEffectSetMember@274..284
+              TypeEffectSet@274..284
+                LEFT_SQUARE@274..275 "["
+                TypeEffectSetMember@275..283
+                  TypeConstructor@275..283
+                    QualifiedName@275..283
+                      UPPER@275..283 "Database"
+                RIGHT_SQUARE@283..284 "]"
+            COMMA@284..285 ","
+            TypeEffectSetMember@285..292
+              TypeConstructor@285..292
+                Annotation@285..286
+                  TEXT@285..286 " "
+                QualifiedName@286..292
+                  UPPER@286..292 "Logger"
+            TypeEffectSetTail@292..302
+              Annotation@292..293
+                TEXT@292..293 " "
+              PIPE@293..294 "|"
+              TypeVariable@294..302
+                Annotation@294..295
+                  TEXT@294..295 " "
+                LOWER@295..302 "effects"
+            RIGHT_SQUARE@302..303 "]"
+      LAYOUT_END@303..303 ""
+      Annotation@303..304
+        TEXT@303..304 "\n"
+      END_OF_FILE@304..304 ""
+    ,
+    [],
+)

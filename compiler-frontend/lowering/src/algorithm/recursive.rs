@@ -1146,6 +1146,18 @@ fn lower_type_kind(
             TypeKind::Variable { name, resolution }
         }
         cst::Type::TypeWildcard(_) => TypeKind::Wildcard,
+        cst::Type::TypeEffectSet(cst) => {
+            let members = cst
+                .members()
+                .filter_map(|member| member.type_())
+                .map(|member| lower_type(state, context, &member))
+                .collect();
+            let tail = cst.tail().and_then(|tail| {
+                let tail = tail.type_()?;
+                Some(lower_type(state, context, &tail))
+            });
+            TypeKind::EffectSet { members, tail }
+        }
         cst::Type::TypeRecord(cst) => {
             let items = cst.children().map(|cst| lower_row_item(state, context, &cst)).collect();
             let tail = cst.tail().and_then(|cst| {

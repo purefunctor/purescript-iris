@@ -315,6 +315,32 @@ where
             Ok((t, k))
         }
 
+        lowering::TypeKind::EffectSet { members, tail } => {
+            let mut members = members
+                .iter()
+                .map(|member| {
+                    let (member, _) = check_kind(state, context, *member, context.prim.t)?;
+                    Ok(member)
+                })
+                .collect::<QueryResult<Vec<_>>>()?;
+            members.sort_unstable();
+            members.dedup();
+
+            let tail = if let Some(tail) = tail {
+                let (tail, _) = check_kind(state, context, *tail, context.prim.effects)?;
+                tail
+            } else {
+                context.prim.effect_nil
+            };
+
+            let effect_set = members.into_iter().rev().fold(tail, |effects, effect| {
+                let constructor = context.intern_application(context.prim.effect_cons, effect);
+                context.intern_application(constructor, effects)
+            });
+
+            Ok((effect_set, context.prim.effects))
+        }
+
         lowering::TypeKind::Record { items, tail } => {
             let (row_type, row_kind) =
                 infer_row_kind(state, context, items, tail, EmptyRowTail::Check)?;

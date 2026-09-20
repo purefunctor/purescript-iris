@@ -120,6 +120,9 @@ pub(super) fn type_atom(p: &mut Parser) {
     } else if p.at(SyntaxKind::LEFT_CURLY) {
         type_record(p);
         m.cancel(p);
+    } else if p.at(SyntaxKind::LEFT_SQUARE) {
+        type_effect_set(p);
+        m.cancel(p);
     } else if p.eat(SyntaxKind::HOLE) {
         m.end(p, SyntaxKind::TypeHole);
     } else if p.eat(SyntaxKind::UNDERSCORE) {
@@ -144,6 +147,7 @@ pub(super) const TYPE_ATOM_START: TokenSet = TokenSet::new(&[
     SyntaxKind::OPERATOR_NAME,
     SyntaxKind::LEFT_PARENTHESIS,
     SyntaxKind::LEFT_CURLY,
+    SyntaxKind::LEFT_SQUARE,
     SyntaxKind::UNDERSCORE,
 ])
 .union(names::LOWER);
@@ -316,4 +320,56 @@ fn type_record(p: &mut Parser) {
 
     p.expect(SyntaxKind::RIGHT_CURLY);
     m.end(p, SyntaxKind::TypeRecord);
+}
+
+fn type_effect_set(p: &mut Parser) {
+    let mut m = p.start();
+
+    p.expect(SyntaxKind::LEFT_SQUARE);
+    while !p.at(SyntaxKind::PIPE) && !p.at(SyntaxKind::RIGHT_SQUARE) && !p.at_eof() {
+        if p.at_in(TYPE_EFFECT_SET_MEMBER_START) {
+            effect_set_member(p);
+            let ending = p.at_next(SyntaxKind::PIPE) || p.at_next(SyntaxKind::RIGHT_SQUARE);
+            if p.at(SyntaxKind::COMMA) && ending {
+                p.error_recover("Trailing comma");
+            } else if !p.at(SyntaxKind::PIPE) && !p.at(SyntaxKind::RIGHT_SQUARE) {
+                p.expect(SyntaxKind::COMMA);
+            }
+        } else {
+            if p.at_in(TYPE_EFFECT_SET_RECOVERY) {
+                break;
+            }
+            p.error_recover("Unexpected token in effect set");
+        }
+    }
+
+    if p.at(SyntaxKind::PIPE) {
+        effect_set_tail(p);
+    }
+
+    p.expect(SyntaxKind::RIGHT_SQUARE);
+    m.end(p, SyntaxKind::TypeEffectSet);
+}
+
+const TYPE_EFFECT_SET_RECOVERY: TokenSet = TokenSet::new(&[
+    SyntaxKind::PIPE,
+    SyntaxKind::RIGHT_SQUARE,
+    SyntaxKind::LAYOUT_SEPARATOR,
+    SyntaxKind::LAYOUT_END,
+]);
+
+const TYPE_EFFECT_SET_MEMBER_START: TokenSet =
+    TYPE_ATOM_START.union(TokenSet::new(&[SyntaxKind::FORALL, SyntaxKind::HOLE]));
+
+fn effect_set_member(p: &mut Parser) {
+    let mut m = p.start();
+    type_(p);
+    m.end(p, SyntaxKind::TypeEffectSetMember);
+}
+
+fn effect_set_tail(p: &mut Parser) {
+    let mut m = p.start();
+    p.expect(SyntaxKind::PIPE);
+    type_(p);
+    m.end(p, SyntaxKind::TypeEffectSetTail);
 }
