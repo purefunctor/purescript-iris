@@ -19,6 +19,9 @@ default-members = [
 ]
 resolver = "3"
 
+[workspace.package]
+license = "BSD-3-Clause"
+
 [workspace.dependencies]
 lsp-types = "=0.95.1"
 

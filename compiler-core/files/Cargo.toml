@@ -2,6 +2,7 @@
 name = "files"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 
 [dependencies]
 rayon = "1.12.0"

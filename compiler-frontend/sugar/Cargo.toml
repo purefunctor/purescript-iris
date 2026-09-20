@@ -2,6 +2,7 @@
 name = "sugar"
 version = "0.1.0"
 edition = "2024"
+license.workspace = true
 
 [dependencies]
 building-types = { version = "0.1.0", path = "../../compiler-core/building-types" }
