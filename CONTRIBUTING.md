@@ -14,6 +14,9 @@ these tools. Native prerequisites remain platform-managed: a C/C++ toolchain,
 pkg-config, OpenSSL development libraries, curl, and xz. Buildkite installs them
 through apt on Linux or Homebrew on macOS (with Xcode command-line tools present).
 
+Before pushing commits for a pull request, run `just format` and `just licenses`,
+then squash any resulting changes into the relevant commits in the branch.
+
 ## Integration tests
 
 Run `just t compiler` (alias `just t c`) for the unified compiler integration

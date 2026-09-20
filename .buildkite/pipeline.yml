@@ -48,11 +48,13 @@ steps:
         - "~/Library/Caches/spago-nodejs"
     timeout_in_minutes: 30
 
-  - label: ":rust: Static checks (rustfmt, clippy, wasm)"
+  - label: ":rust: Static checks (rustfmt, licenses, clippy, wasm)"
     key: static-checks
     commands:
       - source .buildkite/setup.sh
       - just format --check
+      - just licenses
+      - git diff --exit-code -- THIRDPARTY.toml
       - cargo clippy --workspace --locked
       - cargo check -p analyzer --locked --target wasm32-unknown-unknown
     cache:

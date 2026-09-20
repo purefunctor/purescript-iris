@@ -168,6 +168,9 @@ required checks pass, broaden or repeat them only for new changes, failures, or 
 Commits must be atomic units of work. Pull requests use merge commits that retain branch history;
 curate the branch into a reviewable story before opening a PR to avoid force-push noise.
 
+Before pushing commits for a pull request, run `just format` and `just licenses`, then squash any
+resulting changes into the relevant commits in the branch.
+
 ### Commit format
 
 Regular commits use a short imperative, sentence-case subject naming the behavior or subsystem, not
