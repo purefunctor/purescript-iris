@@ -1,0 +1,7 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+{
+  "kind": "end",
+  "message": "Workspace preparation cancelled"
+}

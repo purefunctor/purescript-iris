@@ -1819,6 +1819,7 @@ dependencies = [
  "configuration",
  "dunce",
  "files",
+ "futures",
  "iris-build",
  "iris-spago",
  "itertools 0.15.0",

@@ -1,0 +1,22 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+[
+  {
+    "kind": 12,
+    "location": {
+      "range": {
+        "end": {
+          "character": 16,
+          "line": 1
+        },
+        "start": {
+          "character": 0,
+          "line": 1
+        }
+      },
+      "uri": "[WORKSPACE]/src/Library.purs"
+    },
+    "name": "startupOnly"
+  }
+]

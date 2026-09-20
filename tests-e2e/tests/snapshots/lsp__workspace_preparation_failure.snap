@@ -1,0 +1,13 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+{
+  "message": {
+    "message": "Iris could not prepare the Spago workspace at [WORKSPACE]/: SpagoError: Spago fetch failed with status exit code: 1\nsimulated spago failure. Correct the project (for example, by running `spago fetch`) and restart Iris.",
+    "type": 1
+  },
+  "progress": {
+    "kind": "end",
+    "message": "Workspace preparation failed"
+  }
+}

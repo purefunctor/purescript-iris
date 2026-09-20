@@ -1,0 +1,59 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+{
+  "codeActionProvider": {
+    "codeActionKinds": [
+      "quickfix"
+    ]
+  },
+  "completionProvider": {
+    "completionItem": {
+      "labelDetailsSupport": true
+    },
+    "resolveProvider": true,
+    "triggerCharacters": [
+      "."
+    ]
+  },
+  "definitionProvider": true,
+  "documentHighlightProvider": true,
+  "documentSymbolProvider": true,
+  "hoverProvider": true,
+  "positionEncoding": "utf-16",
+  "referencesProvider": true,
+  "renameProvider": {
+    "prepareProvider": true
+  },
+  "semanticTokensProvider": {
+    "full": true,
+    "legend": {
+      "tokenModifiers": [
+        "declaration"
+      ],
+      "tokenTypes": [
+        "namespace",
+        "type",
+        "class",
+        "enumMember",
+        "typeParameter",
+        "parameter",
+        "variable",
+        "property",
+        "function",
+        "method",
+        "keyword",
+        "string",
+        "number",
+        "operator"
+      ]
+    },
+    "range": false
+  },
+  "textDocumentSync": {
+    "change": 2,
+    "openClose": true,
+    "save": true
+  },
+  "workspaceSymbolProvider": true
+}
