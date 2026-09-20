@@ -75,7 +75,8 @@ Diagnostic settings control the corresponding document-event triggers, not all d
 
 ## Editor features
 
-Iris provides code intelligence for PureScript projects through its VS Code extension.
+Iris provides code intelligence for PureScript projects through its
+[VS Code extension](https://github.com/purefunctor/purescript-iris-vscode).
 
 <details>
 <summary><strong>Completion</strong></summary>
