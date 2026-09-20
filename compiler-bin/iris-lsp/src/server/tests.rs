@@ -23,8 +23,8 @@ use super::workspace::{
     DiagnosticTrigger, PreparedInitialWorkspace, WorkspaceContext, WorkspaceNotification,
 };
 use super::{
-    ConfigurationReceived, SourceMetadata, State, apply_content_changes, document_kind,
-    finish_workspace_configuration, finish_workspace_preparation, observe_disk,
+    ConfigurationReceived, SnapshotReadiness, SourceMetadata, State, apply_content_changes,
+    document_kind, finish_workspace_configuration, finish_workspace_preparation, observe_disk,
     package_source_roots, source_unit_from_document_uri, source_unit_from_foreign_uri,
     source_unit_from_source_uri,
 };
@@ -78,7 +78,7 @@ fn open_notification(uri: Url, text: &str) -> WorkspaceNotification {
 }
 
 #[test]
-fn requests_report_content_modified_while_the_workspace_is_loading() {
+fn direct_snapshot_reports_content_modified_while_the_workspace_is_loading() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let state = State::new(
@@ -99,7 +99,7 @@ fn requests_report_content_modified_while_the_workspace_is_loading() {
 }
 
 #[test]
-fn loading_workspace_preserves_notifications_and_rejects_analysis() {
+fn loading_workspace_preserves_notifications_and_rejects_a_direct_snapshot() {
     let config = test_config();
     let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
         let mut state = State::new(
@@ -128,6 +128,32 @@ fn loading_workspace_preserves_notifications_and_rejects_analysis() {
             .expect_err("invariant violated: loading workspace produced a snapshot");
         assert_eq!(error.code(), async_lsp::ErrorCode::CONTENT_MODIFIED);
         assert_eq!(error.message(), "Workspace is loading");
+        Router::<State, ResponseError>::new(state)
+    });
+}
+
+#[test]
+fn snapshot_readiness_waits_for_the_initial_generation() {
+    let config = test_config();
+    let (_server, _) = async_lsp::MainLoop::new_server(move |client| {
+        let preparation = Arc::new(Preparation::new());
+        let generation = preparation.test_arm();
+        let mut state = State::new(
+            Arc::clone(&config),
+            client,
+            "iris-lsp".into(),
+            "test".into(),
+            Arc::clone(&preparation),
+        );
+
+        let waiting = state.snapshot_readiness().unwrap();
+        let SnapshotReadiness::Waiting(ticket) = waiting else {
+            panic!("invariant violated: request acquired a loading snapshot");
+        };
+        assert_eq!(ticket.generation(), generation);
+
+        state.protocol.shutting_down = true;
+        assert!(matches!(state.snapshot_readiness(), Err(super::LspError::WorkspaceNotReady)));
         Router::<State, ResponseError>::new(state)
     });
 }

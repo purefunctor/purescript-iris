@@ -16,8 +16,9 @@ use lsp_types::request::{
     RegisterCapability, WorkDoneProgressCreate, WorkspaceConfiguration, WorkspaceSymbolRequest,
 };
 use lsp_types::{
-    ClientCapabilities, InitializeParams, InitializedParams, ProgressToken, Registration,
-    WorkDoneProgressCancelParams, WorkspaceFolder, WorkspaceSymbolParams,
+    ClientCapabilities, DocumentSymbolParams, InitializeParams, InitializedParams,
+    PartialResultParams, ProgressToken, Registration, TextDocumentIdentifier,
+    WorkDoneProgressCancelParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceSymbolParams,
 };
 use regex::Regex;
 use serde_json::{Value, json};
@@ -429,6 +430,22 @@ impl LanguageServer {
         self.runtime.spawn(async move {
             let request = server.request::<WorkspaceSymbolRequest>(parameters).await;
             let request = request.map(|value| serde_json::to_value(value).unwrap());
+            let _ = response.send(request);
+        });
+        result
+    }
+
+    fn document_symbols_async(&self, uri: Url) -> Receiver<Result<Value, Error>> {
+        let parameters = DocumentSymbolParams {
+            text_document: TextDocumentIdentifier { uri },
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+        };
+        let mut server = self.server.clone();
+        let request = server.document_symbol(parameters);
+        let (response, result) = mpsc::channel();
+        self.runtime.spawn(async move {
+            let request = request.await.map(|value| serde_json::to_value(value).unwrap());
             let _ = response.send(request);
         });
         result
@@ -878,13 +895,11 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
     for token in [ProgressToken::Number(99), ProgressToken::String("unknown".to_string())] {
         server.server.work_done_progress_cancel(WorkDoneProgressCancelParams { token }).unwrap();
     }
-    let error = server
-        .request_once("workspace/symbol", json!({"query": "fromDisk"}))
-        .expect_err("invariant violated: loading workspace answered a request");
-    let Error::Response(response) = error else {
-        panic!("expected a response error while loading, got {error:?}");
-    };
-    snapshot_json("workspace_request_while_preparing", &serde_json::to_value(response).unwrap());
+    let request = server.request_async("workspace/symbol", json!({"query": "fromDisk"}));
+    assert!(matches!(
+        request.recv_timeout(Duration::from_millis(200)),
+        Err(RecvTimeoutError::Timeout)
+    ));
     #[cfg(unix)]
     {
         assert!(process_is_running(pid));
@@ -903,6 +918,15 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
         "cancelled_workspace_preparation_progress",
         &json!([begin["params"]["value"], end["params"]["value"]]),
     );
+    let error = request
+        .recv_timeout(Duration::from_secs(10))
+        .expect("timed out waiting for the cancelled preparation request")
+        .expect_err("cancelled preparation unexpectedly answered its waiting request");
+    let Error::Response(response) = error else {
+        panic!("expected a response error after cancellation, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
+    snapshot_json("workspace_request_while_preparing", &serde_json::to_value(response).unwrap());
 
     #[cfg(unix)]
     {
@@ -1200,14 +1224,6 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
     let mut server = LanguageServer::start(&workspace, "", &["lsp"], &root);
     wait_for_path(&started, "Spago fetch to start");
 
-    let error = server
-        .request_once("workspace/symbol", json!({"query": "anything"}))
-        .expect_err("invariant violated: loading workspace answered a request");
-    let Error::Response(response) = error else {
-        panic!("expected a response error while loading, got {error:?}");
-    };
-    snapshot_json("workspace_request_during_buffering", &serde_json::to_value(response).unwrap());
-
     let uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
     server.notify(
         "textDocument/didOpen",
@@ -1216,21 +1232,46 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
                 "uri": uri,
                 "languageId": "purescript",
                 "version": 1,
-                "text": "module Library where\nfromBuffer = 1\n"
+                "text": "module Library where\nfromOpenBuffer = 1\n"
             }
         }),
     );
+    let document_symbols = server.document_symbols_async(Url::clone(&uri));
     server.notify(
         "textDocument/didChange",
         json!({
             "textDocument": {"uri": uri, "version": 2},
-            "contentChanges": [{"text": "module Library where\nfromBuffer = 2\n"}]
+            "contentChanges": [{"text": "module Library where\nfromChangedBuffer = 2\n"}]
         }),
     );
     server.notify("textDocument/didSave", json!({"textDocument": {"uri": uri}}));
+    let workspace_symbols =
+        server.request_async("workspace/symbol", json!({"query": "fromChangedBuffer"}));
+    assert!(matches!(
+        document_symbols.recv_timeout(Duration::from_millis(200)),
+        Err(RecvTimeoutError::Timeout)
+    ));
+    assert!(matches!(
+        workspace_symbols.recv_timeout(Duration::from_millis(200)),
+        Err(RecvTimeoutError::Timeout)
+    ));
 
     fs::write(&release, "release\n").unwrap();
-    server.wait_for_symbol("fromBuffer", true);
+    let symbols = document_symbols
+        .recv_timeout(Duration::from_secs(30))
+        .expect("timed out waiting for deferred document symbols")
+        .expect("deferred document-symbol request failed");
+    let symbols = symbols.as_array().expect("document-symbol response was not an array");
+    assert!(symbols.iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
+    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromOpenBuffer"));
+    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromDisk"));
+    let symbols = workspace_symbols
+        .recv_timeout(Duration::from_secs(30))
+        .expect("timed out waiting for deferred workspace symbols")
+        .expect("deferred workspace-symbol request failed");
+    assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
+    server.wait_for_symbol("fromChangedBuffer", true);
+    server.wait_for_symbol("fromOpenBuffer", false);
     server.wait_for_symbol("fromDisk", false);
     server.shutdown();
 }
@@ -1294,8 +1335,22 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
     let _pid: i32 = fs::read_to_string(&pid_file).unwrap().trim().parse().unwrap();
     let _descendant_pid: i32 =
         fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
+    let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
+    let document_symbols = server.document_symbols_async(uri);
+    assert!(matches!(
+        document_symbols.recv_timeout(Duration::from_millis(200)),
+        Err(RecvTimeoutError::Timeout)
+    ));
 
     server.request_shutdown();
+    let error = document_symbols
+        .recv_timeout(Duration::from_secs(10))
+        .expect("timed out waiting for document symbols to terminate during shutdown")
+        .expect_err("document symbols unexpectedly succeeded during shutdown");
+    let Error::Response(response) = error else {
+        panic!("expected a response error during shutdown, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
     let end = server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
     });
@@ -1373,6 +1428,7 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
     workspace
         .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
+    let (started, release) = gate_preparation(&workspace);
     workspace.set_env("IRIS_E2E_SPAGO_FAIL", "simulated spago failure\n");
 
     let mut server = LanguageServer::start_with_capabilities(
@@ -1383,6 +1439,14 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
         json!({"window": {"workDoneProgress": true}}),
         None,
     );
+    wait_for_path(&started, "Spago fetch to start");
+    let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
+    let document_symbols = server.document_symbols_async(uri);
+    assert!(matches!(
+        document_symbols.recv_timeout(Duration::from_millis(200)),
+        Err(RecvTimeoutError::Timeout)
+    ));
+    fs::write(release, "release\n").unwrap();
 
     let message = server.wait_for_notification("window/showMessage");
     let end = server.wait_for_notification_matching("$/progress", |notification| {
@@ -1396,6 +1460,14 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
         }),
         workspace.path(),
     );
+    let error = document_symbols
+        .recv_timeout(Duration::from_secs(10))
+        .expect("timed out waiting for deferred request after preparation failure")
+        .expect_err("deferred request unexpectedly succeeded after preparation failure");
+    let Error::Response(response) = error else {
+        panic!("expected a response error after failure, got {error:?}");
+    };
+    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
 
     let error = server
         .request_once("workspace/symbol", json!({"query": "fromDisk"}))

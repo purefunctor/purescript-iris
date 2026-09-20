@@ -74,7 +74,7 @@ struct ActiveGeneration {
 }
 
 enum GenerationKind {
-    Initial,
+    Initial(watch::Sender<GenerationOutcome>),
     Requested(RequestedGeneration),
 }
 
@@ -132,9 +132,17 @@ impl Preparation {
         inner.input = Some(PreparationInput { root, client, work_done_progress });
         inner.generation = inner.generation.wrapping_add(1);
         let generation = inner.generation;
-        let active = start_generation(&mut inner, generation, GenerationKind::Initial);
+        let (completion, _) = watch::channel(GenerationOutcome::Pending);
+        let active = start_generation(&mut inner, generation, GenerationKind::Initial(completion));
         inner.state = PreparationState::Running(active);
         Some(generation)
+    }
+
+    /// Subscribes to the active initial generation without starting or replacing preparation.
+    pub(super) fn initial_ticket(&self) -> Option<PreparationTicket> {
+        let inner = self.inner.lock();
+        let PreparationState::Running(active) = &inner.state else { return None };
+        matches!(&active.kind, GenerationKind::Initial(_)).then(|| active.ticket())
     }
 
     pub(super) fn demand_retry(&self) -> Option<PreparationTicket> {
@@ -142,7 +150,8 @@ impl Preparation {
         let state = mem::replace(&mut inner.state, PreparationState::Transitioning);
         match state {
             PreparationState::Running(active) => {
-                let ticket = active.ticket();
+                let ticket =
+                    matches!(&active.kind, GenerationKind::Requested(_)).then(|| active.ticket());
                 inner.state = PreparationState::Running(active);
                 ticket
             }
@@ -251,9 +260,10 @@ impl Preparation {
         inner.generation = inner.generation.wrapping_add(1);
         let generation = inner.generation;
         let (cancel, _) = watch::channel(false);
+        let (completion, _) = watch::channel(GenerationOutcome::Pending);
         inner.state = PreparationState::Running(ActiveGeneration {
             generation,
-            kind: GenerationKind::Initial,
+            kind: GenerationKind::Initial(completion),
             cancel,
             progress: None,
             task: None,
@@ -337,16 +347,20 @@ impl Preparation {
 }
 
 impl ActiveGeneration {
-    fn ticket(&self) -> Option<PreparationTicket> {
-        match &self.kind {
-            GenerationKind::Initial => None,
-            GenerationKind::Requested(requested) => Some(requested.ticket()),
-        }
+    fn ticket(&self) -> PreparationTicket {
+        let completion = match &self.kind {
+            GenerationKind::Initial(completion) => completion.subscribe(),
+            GenerationKind::Requested(requested) => requested.completion.subscribe(),
+        };
+        PreparationTicket { generation: self.generation, completion }
     }
 
     fn publish(&self, outcome: GenerationOutcome) {
-        if let GenerationKind::Requested(requested) = &self.kind {
-            requested.publish(outcome);
+        match &self.kind {
+            GenerationKind::Initial(completion) => {
+                completion.send_replace(outcome);
+            }
+            GenerationKind::Requested(requested) => requested.publish(outcome),
         }
     }
 }
@@ -839,6 +853,78 @@ mod tests {
 
         assert_eq!(report.message.as_deref(), Some("No packages to compile"));
         assert_eq!(report.percentage, Some(100));
+    }
+
+    #[test]
+    fn initial_ticket_observes_only_the_running_initial_generation() {
+        let preparation = Preparation::new();
+        assert!(preparation.initial_ticket().is_none());
+
+        let generation = preparation.test_arm();
+        let first = preparation.initial_ticket().unwrap();
+        let second = preparation.initial_ticket().unwrap();
+
+        assert_eq!(first.generation(), generation);
+        assert_eq!(second.generation(), generation);
+        assert!(preparation.demand_retry().is_none());
+
+        cancel_active(&preparation);
+        assert!(preparation.initial_ticket().is_none());
+    }
+
+    #[tokio::test]
+    async fn initial_generation_wakes_only_after_success_is_committed() {
+        let preparation = Preparation::new();
+        let generation = preparation.test_arm();
+        let mut ticket = preparation.initial_ticket().unwrap();
+
+        assert!(matches!(preparation.finish_disposition(generation), CompletionDisposition::Apply));
+        assert_eq!(*ticket.completion.borrow_and_update(), GenerationOutcome::Pending);
+        assert!(!preparation.finish_success(generation.wrapping_add(1), "stale"));
+        assert_eq!(*ticket.completion.borrow_and_update(), GenerationOutcome::Pending);
+
+        assert!(preparation.finish_success(generation, "finished"));
+        assert!(ticket.wait().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn initial_generation_failure_resolves_all_waiters() {
+        let preparation = Preparation::new();
+        let generation = preparation.test_arm();
+        let first = preparation.initial_ticket().unwrap();
+        let second = preparation.initial_ticket().unwrap();
+
+        assert!(preparation.finish_failure(generation, "failed"));
+
+        assert!(matches!(first.wait().await, Err(LspError::WorkspaceFailed)));
+        assert!(matches!(second.wait().await, Err(LspError::WorkspaceFailed)));
+        assert!(preparation.initial_ticket().is_none());
+        assert!(preparation.demand_retry().is_none());
+    }
+
+    #[tokio::test]
+    async fn initial_generation_cancellation_does_not_migrate_its_waiter() {
+        let preparation = Preparation::new();
+        let generation = preparation.test_arm();
+        let initial = preparation.initial_ticket().unwrap();
+
+        assert_eq!(cancel_active(&preparation), generation);
+        let retry = preparation.demand_retry().unwrap();
+
+        assert!(matches!(initial.wait().await, Err(LspError::WorkspaceCancelled)));
+        assert_eq!(retry.generation(), generation.wrapping_add(1));
+    }
+
+    #[tokio::test]
+    async fn shutdown_resolves_initial_generation_waiters() {
+        let preparation = Preparation::new();
+        let generation = preparation.test_arm();
+        let ticket = preparation.initial_ticket().unwrap();
+
+        preparation.cancel();
+
+        assert!(matches!(ticket.wait().await, Err(LspError::WorkspaceNotReady)));
+        assert!(matches!(preparation.finish_disposition(generation), CompletionDisposition::Stale));
     }
 
     #[test]
