@@ -11,8 +11,9 @@ use it as a guide to compiler internals.
 ## Choose the computation type
 
 ```purescript
-import Iris.Effect (Async, Fiber, Sync)
+import Iris.Effect (Async, Fiber, Promise, Sync)
 import Iris.Effect.Async as Async
+import Iris.Effect.Compat as Compat
 import Iris.Effect.Sync as Sync
 import Prim.Effect (Abort)
 import Prelude
@@ -31,8 +32,8 @@ Fiber value
   interruption-safe resource management.
 - Use `Async.lift` to execute a `Sync` action inside `Async` while preserving its effects.
 - There is no synchronous operation for waiting on an `Async` computation.
-- Native `Sync` and `Async` are not the ecosystem's `Effect` and `Aff`. These modules currently
-  provide no automatic adapters to those types.
+- Native `Sync` and `Async` are not the ecosystem's `Effect` and `Aff`. Use the explicit
+  compatibility operations below at their boundaries.
 
 Use qualified `Sync.do` and `Async.do` notation. Do not assume ordinary Prelude `Monad`
 operations sequence these computations.
@@ -73,6 +74,7 @@ Generic library signatures can import the compiler-solved classes from `Prim.Eff
 | `Remove effect input remaining` | `remaining` is `input` without `effect`. |
 | `Subset required allowed` | Every required effect is permitted by `allowed`. |
 | `AbortIdentity error` | Supplies the type identity for selective abort handling. |
+| `Runnable effects` | A closed set contains no unhandled `Abort` effect and may start a fiber. |
 
 `Union` determines its third argument from its first two. `Remove` determines its third argument
 from the effect and input set.
@@ -180,6 +182,45 @@ identity for an unconstrained type variable.
 JavaScript exceptions are defects, not typed aborts. `catchAbort` does not catch arbitrary thrown
 exceptions or interruption. Lifting a native `Sync.abort` does preserve its typed abort behavior.
 
+## Lift ecosystem Effect operations
+
+`Iris.Effect.Compat` is an opt-in bridge to the ecosystem's thunk-based `Effect` type:
+
+```purescript
+Compat.liftEffect
+  :: forall value
+   . Effect value
+  -> Sync [] value
+
+Compat.liftEffectAs
+  :: forall @effect value
+   . Effect value
+  -> Sync [effect] value
+```
+
+Both operations preserve laziness: the `Effect` thunk runs only when the resulting `Sync` action
+runs. `liftEffect` deliberately records no native requirement. Use `liftEffectAs` when defining a
+tracked library operation, and define the effect label in that ordinary library module:
+
+```purescript
+module Console (Console, log) where
+
+import Effect.Console as Effect.Console
+import Iris.Effect (Sync)
+import Iris.Effect.Compat as Compat
+import Prelude
+
+foreign import data Console :: Type
+
+log :: String -> Sync [Console] Unit
+log message = Compat.liftEffectAs @Console (Effect.Console.log message)
+```
+
+The type application classifies an operation; it does not inspect its implementation or convert
+exceptions into typed aborts. Do not claim a narrower effect than the operation actually requires.
+Iris intentionally does not ship capability-specific modules such as this example; libraries own
+their labels and APIs.
+
 ## Construct asynchronous computations
 
 ```purescript
@@ -194,13 +235,33 @@ Async.defer
   -> Async effects value
 
 Async.yield :: Async [] {}
+
+Async.fromPromise
+  :: forall effects value
+   . Sync effects (Promise value)
+  -> Async effects value
 ```
 
 - `lift` runs the synchronous thunk when execution reaches it.
 - `defer` delays construction of the next computation. Its factory receives `{}` and does not
   start another fiber.
 - `yield` is an action value. Write `Async.yield`, not `Async.yield {}`.
+- `fromPromise` runs its `Sync` factory when reached, immediately attaches settlement handlers,
+  and suspends until the Promise settles.
 - Async descriptions are reusable. Each `Async.run` starts a fresh execution.
+
+Prefer passing a delayed Promise factory rather than an already-running Promise:
+
+```purescript
+foreign import request :: Effect (Promise Response)
+
+response :: Async [] Response
+response = Async.fromPromise (Compat.liftEffect request)
+```
+
+A rejected Promise is an untyped defect. Interruption stops waiting and ignores later settlement;
+it cannot cancel the Promise or its underlying work. If the host operation supports cancellation,
+use `Async.register` and return a real cancellation action instead.
 
 Use `defer` to avoid eagerly constructing recursive computations:
 
@@ -290,12 +351,18 @@ through the typed PureScript API.
 ## Start, join, and interrupt fibers
 
 ```purescript
-Async.run :: forall value. Async [] value -> Sync [] (Fiber value)
+Async.run
+  :: forall effects value
+   . Runnable effects
+  => Async effects value
+  -> Sync effects (Fiber value)
 Async.join :: forall value. Fiber value -> Async [] value
 Async.interrupt :: forall value. Fiber value -> Async [] {}
 ```
 
-- `run` accepts only `Async [] value`. Handle tracked aborts before starting the fiber.
+- `run` preserves ordinary capability requirements in the returned `Sync` action.
+- `Runnable` is compiler-solved for closed effect sets without `Abort`. Handle every typed abort
+  inside the `Async` program before starting its fiber.
 - Executing the `Sync` action returned by `run` starts a fresh fiber. It does not wait for the
   result, and synchronous work may run before the action returns.
 - `join` waits for success and returns the target value. A target defect or interruption propagates
@@ -373,7 +440,7 @@ Treat effect signatures as checked budgets. For a `MissingEffects` diagnostic:
 2. Follow the primary expression and related source locations that introduced each effect.
 3. Handle the specific abort, propagate its requirement through the signature, or remove the
    operation.
-4. Recheck the entry boundary: `Async.run` still requires `[]`.
+4. Recheck the entry boundary: `Async.run` requires a closed, `Abort`-free effect set.
 
 Diagnostics can report several missing effects together and identify the responsible expression,
 including a final `do` expression or a local declaration. When precise provenance is unavailable,
@@ -389,10 +456,10 @@ annotations, open tails, and whether a generic helper must retain the constraint
   can remain unresolved when the effect is not explicit in an open input. Subset checks involving
   unknown tails may require more information or a retained constraint.
 - Arbitrary polymorphic or higher-rank error types do not automatically acquire an abort identity.
-- Other effect labels can be written, but these modules expose no general operation/handler API for
-  discharging them. `catchAbort` handles only its selected `Abort error`.
-- There is no Promise adapter, timeout, race, parallel traversal, generic defect catcher,
-  user-controlled interruption mask, or dedicated structured-concurrency API.
+- Ordinary libraries define their own effect labels and tracked operations with `liftEffectAs`.
+  `catchAbort` handles only its selected `Abort error`; capability labels are preserved to the root.
+- There is no timeout, race, parallel traversal, generic defect catcher, user-controlled
+  interruption mask, or dedicated structured-concurrency API.
 - There is no `Sync.bracket`. Use `Async.bracket` and lift synchronous operations where necessary.
 - Effect sets track declared requirements, not arbitrary JavaScript behavior. FFI must honor its
   signatures.

@@ -47,6 +47,8 @@ export const syncCatchAbort = (identity) => (program) => (handler) => () => {
   }
 };
 
+export const syncLiftEffect = (action) => action;
+
 const PURE = 0;
 const BIND = 1;
 const LIFT = 2;
@@ -132,6 +134,45 @@ export const asyncAbort = (identity) => (error) => ({ tag: ABORT, identity, erro
 
 export const asyncCatchAbort = (identity) => (program) => (handler) =>
   ({ tag: CATCH_ABORT, identity, program, handler });
+
+function asyncDefect(error) {
+  return asyncDefer(() => {
+    throw error;
+  });
+}
+
+export const asyncFromPromise = (factory) =>
+  asyncRegister((resume) => () => {
+    let promise;
+    try {
+      promise = factory();
+    } catch (error) {
+      const program = error instanceof IrisAbort
+        ? asyncAbort(error.identity)(error.error)
+        : asyncDefect(error);
+      resume(program)();
+      return asyncPure(UNIT);
+    }
+
+    let deliver = (program) => {
+      if (deliver === undefined) return;
+      deliver = undefined;
+      resume(program)();
+    };
+    Promise.resolve(promise).then(
+      (value) => {
+        if (deliver !== undefined) deliver(asyncPure(value));
+      },
+      (error) => {
+        if (deliver !== undefined) deliver(asyncDefect(error));
+      },
+    );
+
+    return asyncLift(() => {
+      deliver = undefined;
+      return UNIT;
+    });
+  });
 
 let readyFibers = [];
 let readyFiberIndex = 0;

@@ -524,10 +524,12 @@ impl PrimCore {
 #[derive(Debug, PartialEq, Eq)]
 pub struct PrimEffectCore {
     pub file_id: FileId,
+    pub abort: TypeItemId,
     pub abort_identity: TypeItemId,
     pub union: TypeItemId,
     pub remove: TypeItemId,
     pub subset: TypeItemId,
+    pub runnable: TypeItemId,
 }
 
 impl PrimEffectCore {
@@ -541,10 +543,12 @@ impl PrimEffectCore {
 
         Ok(PrimEffectCore {
             file_id,
+            abort: lookup.type_item("Abort"),
             abort_identity: lookup.class_item("AbortIdentity"),
             union: lookup.class_item("Union"),
             remove: lookup.class_item("Remove"),
             subset: lookup.class_item("Subset"),
+            runnable: lookup.class_item("Runnable"),
         })
     }
 }

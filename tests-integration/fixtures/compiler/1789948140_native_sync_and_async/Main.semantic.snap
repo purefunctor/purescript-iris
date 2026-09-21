@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 314
 expression: semantic_report
 ---
 newtype DatabaseError :: Prim.Type
@@ -53,10 +53,10 @@ deep = \remaining -> \total ->
     defer \_ -> deep (sub {ringInt} remaining 1) (add {semiringInt} total 1)
 
 main :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
-main = run asyncProgram
+main = run {trivial} asyncProgram
 
 runDeep :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
-runDeep = run (deep 100000 0)
+runDeep = run {trivial} (deep 100000 0)
 
 syncFailure :: Iris.Effect.Sync [Prim.Effect.Abort Main.DatabaseError] Prim.Int
 syncFailure = abort {abortIdentity("c4:Main13:DatabaseError")} (DatabaseError 7)
@@ -82,7 +82,7 @@ asyncRecovered =
     asyncPartiallyHandled \(ValidationError code) -> pure code
 
 runAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
-runAbort = run asyncRecovered
+runAbort = run {trivial} asyncRecovered
 
 structuralFailure :: Iris.Effect.Async [Prim.Effect.Abort Main.FirstStructuralError] Prim.Int
 structuralFailure =
@@ -97,4 +97,4 @@ structuralRecovered =
       pure 99) \(_ :: Main.FirstStructuralError) -> pure 42
 
 runStructuralAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
-runStructuralAbort = run structuralRecovered
+runStructuralAbort = run {trivial} structuralRecovered

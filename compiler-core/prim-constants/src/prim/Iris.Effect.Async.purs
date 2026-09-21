@@ -1,7 +1,7 @@
 module Iris.Effect.Async where
 
-import Iris.Effect (Async, Fiber, Sync)
-import Prim.Effect (Abort, class AbortIdentity, class Remove, class Union)
+import Iris.Effect (Async, Fiber, Promise, Sync)
+import Prim.Effect (Abort, class AbortIdentity, class Remove, class Runnable, class Union)
 
 foreign import pure :: forall value. value -> Async [] value
 
@@ -55,7 +55,16 @@ foreign import bracket
   -> (resource -> Async use value)
   -> Async combined value
 
-foreign import run :: forall value. Async [] value -> Sync [] (Fiber value)
+foreign import fromPromise
+  :: forall effects value
+   . Sync effects (Promise value)
+  -> Async effects value
+
+foreign import run
+  :: forall effects value
+   . Runnable effects
+  => Async effects value
+  -> Sync effects (Fiber value)
 
 foreign import join :: forall value. Fiber value -> Async [] value
 

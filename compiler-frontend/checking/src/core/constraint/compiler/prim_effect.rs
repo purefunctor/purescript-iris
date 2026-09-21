@@ -20,6 +20,12 @@ pub enum SubsetMatch {
     Missing { effects: Vec<TypeId>, origins: Vec<EffectOrigin> },
 }
 
+enum RunnableMember {
+    Runnable,
+    Abort,
+    Unknown,
+}
+
 pub fn seed_continuation_origin<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -255,4 +261,63 @@ where
         .collect();
 
     Ok(Some(SubsetMatch::Missing { effects: missing, origins }))
+}
+
+pub fn match_runnable<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    arguments: &[TypeId],
+) -> QueryResult<Option<MatchInstance>>
+where
+    Q: ExternalQueries,
+{
+    let &[effects] = arguments else {
+        return Ok(None);
+    };
+
+    let effect_set = extract_effect_set(state, context, effects)?;
+    if let Some(tail) = effect_set.tail {
+        return Ok(Some(matching::blocking_constraint(state, context, &[tail])?));
+    }
+
+    for effect in effect_set.members {
+        match runnable_member(state, context, effect)? {
+            RunnableMember::Runnable => {}
+            RunnableMember::Abort => return Ok(Some(MatchInstance::Apart)),
+            RunnableMember::Unknown => {
+                return Ok(Some(matching::blocking_constraint(state, context, &[effect])?));
+            }
+        }
+    }
+
+    Ok(Some(MatchInstance::empty()))
+}
+
+fn runnable_member<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    effect: TypeId,
+) -> QueryResult<RunnableMember>
+where
+    Q: ExternalQueries,
+{
+    let mut head = normalise::expand(state, context, effect)?;
+    loop {
+        match *context.lookup_type(head) {
+            Type::Application(function, _) | Type::KindApplication(function, _) => {
+                head = normalise::expand(state, context, function)?;
+            }
+            Type::Kinded(effect, _) => head = normalise::expand(state, context, effect)?,
+            Type::Constructor(file_id, item_id)
+                if file_id == context.prim_effect.file_id
+                    && item_id == context.prim_effect.abort =>
+            {
+                return Ok(RunnableMember::Abort);
+            }
+            Type::Rigid(_, _, _) | Type::Unification(_) | Type::Free(_) | Type::Unknown(_) => {
+                return Ok(RunnableMember::Unknown);
+            }
+            _ => return Ok(RunnableMember::Runnable),
+        }
+    }
 }

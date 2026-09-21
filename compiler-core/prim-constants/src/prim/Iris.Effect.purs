@@ -14,3 +14,7 @@ data Fiber :: Type -> Type
 data Fiber value
 
 type role Fiber representational
+
+foreign import data Promise :: Type -> Type
+
+type role Promise representational

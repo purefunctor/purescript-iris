@@ -1,0 +1,58 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 314
+expression: semantic_report
+---
+newtype PromiseError :: Prim.Type
+newtype PromiseError
+  | PromiseError :: Prim.Int -> Main.PromiseError
+
+foreign import countedEffect :: Prim.Int -> Effect.Effect Prim.Int
+
+foreign import delayedPromise :: Prim.Int -> Effect.Effect (Iris.Effect.Promise Prim.Int)
+
+foreign import rejectedPromise :: Effect.Effect (Iris.Effect.Promise Prim.Int)
+
+foreign import throwingPromise :: Effect.Effect (Iris.Effect.Promise Prim.Int)
+
+foreign import pendingPromise :: Effect.Effect (Iris.Effect.Promise Prim.Int)
+
+liftedEffect :: Iris.Effect.Sync [] Prim.Int
+liftedEffect = liftEffect (countedEffect 17)
+
+trackedConsole :: Iris.Effect.Sync [Console.Console] Data.Unit.Unit
+trackedConsole = log "tracked console"
+
+program :: Iris.Effect.Async [Console.Console] Prim.Int
+program =
+  discard {trivial} (lift trackedConsole) \_ ->
+    bind {trivial} (fromPromise (liftEffect (delayedPromise 41))) \value ->
+      pure (add {semiringInt} value 1)
+
+main :: Iris.Effect.Sync [Console.Console] (Iris.Effect.Fiber Prim.Int)
+main = run {trivial} program
+
+rejected :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+rejected = run {trivial} (fromPromise (liftEffect rejectedPromise))
+
+thrown :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+thrown = run {trivial} (fromPromise (liftEffect throwingPromise))
+
+pending :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+pending = run {trivial} (fromPromise (liftEffect pendingPromise))
+
+factoryAbort :: Iris.Effect.Async [] Prim.Int
+factoryAbort =
+  catchAbort {abortIdentity("c4:Main12:PromiseError")} {trivial} {trivial}
+    (fromPromise
+      (abort {abortIdentity("c4:Main12:PromiseError")} (PromiseError 5))) \(PromiseError code) ->
+    pure code
+
+runFactoryAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+runFactoryAbort = run {trivial} factoryAbort
+
+runGeneric :: forall @effects value.
+  Prim.Effect.Runnable effects =>
+  Prim.Effect.Subset effects effects =>
+  Iris.Effect.Async effects value -> Iris.Effect.Sync effects (Iris.Effect.Fiber value)
+runGeneric = \{runnableDict} -> \{subsetDict} -> run {runnableDict}

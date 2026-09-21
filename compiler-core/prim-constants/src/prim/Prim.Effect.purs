@@ -13,3 +13,6 @@ class Remove effect input output | effect input -> output
 
 class Subset :: Effects -> Effects -> Constraint
 class Subset required allowed
+
+class Runnable :: Effects -> Constraint
+class Runnable effects

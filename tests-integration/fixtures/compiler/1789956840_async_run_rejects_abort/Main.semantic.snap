@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 314
+expression: semantic_report
+---
+newtype Failure :: Prim.Type
+newtype Failure
+  | Failure :: Prim.Int -> Main.Failure
+
+direct :: Iris.Effect.Sync [Prim.Effect.Abort Main.Failure] (Iris.Effect.Fiber Prim.Int)
+direct = run {error} (abort {abortIdentity("c4:Main7:Failure")} (Failure 1))
+
+aliased :: Iris.Effect.Sync [Main.FailureEffect] (Iris.Effect.Fiber Prim.Int)
+aliased = run {error} (abort {abortIdentity("c4:Main7:Failure")} (Failure 2))
+
+unknown :: forall @effect value.
+  Prim.Effect.Subset [effect] [effect] =>
+  Iris.Effect.Async [effect] value -> Iris.Effect.Sync [effect] (Iris.Effect.Fiber value)
+unknown = \{subsetDict} -> run {error}

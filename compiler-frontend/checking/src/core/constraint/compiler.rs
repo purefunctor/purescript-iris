@@ -323,6 +323,11 @@ where
                 }
                 None => Ok(None),
             };
+        } else if item_id == context.prim_effect.runnable {
+            let Some(arguments) = canonical.expect_type_arguments::<1>() else {
+                return Ok(None);
+            };
+            prim_effect::match_runnable(state, context, &arguments)?
         } else {
             None
         }

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 315
+expression: functional_report
+---
+@export direct = <native asyncRun> (<error>)
+  (<native asyncAbort> (abort identity "c4:Main7:Failure") 1)
+
+@export aliased = <native asyncRun> (<error>)
+  (<native asyncAbort> (abort identity "c4:Main7:Failure") 2)
+
+@export unknown = \subsetEffectConsEffectEffectNilEffectConsDict%0 -> <native asyncRun> (<error>)

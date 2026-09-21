@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 313
+expression: diagnostics_report
+---
+Error! · [NoInstanceFound] · Main.purs:11:1
+  •
+  │
+  • No instance found for: Runnable [Abort Failure]
+  │
+  │   direct :: Sync [Abort Failure] (Fiber Int)
+  │   ╰─────────────────────────────────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:14:1
+  •
+  │
+  • No instance found for: Runnable [Abort Failure]
+  │
+  │   aliased :: Sync [FailureEffect] (Fiber Int)
+  │   ╰──────────────────────────────────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:17:1
+  •
+  │
+  • No instance found for: Runnable [effect]
+  │
+  │   unknown
+  │   ╰──────
+  • while
+  │
+  │   Subset [effect] [effect] is in scope
+  •

@@ -1,0 +1,46 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 315
+expression: functional_report
+---
+@export foreign countedEffect
+
+@export foreign delayedPromise
+
+@export foreign rejectedPromise
+
+@export foreign throwingPromise
+
+@export foreign pendingPromise
+
+@export liftedEffect = <native syncLiftEffect> (countedEffect 17)
+
+@export trackedConsole = log "tracked console"
+
+@export program = <native asyncDiscard> <trivial evidence> (<native asyncLift> trackedConsole)
+  (\$unit%0@(_) ->
+    <native asyncBind> <trivial evidence>
+      (<native asyncFromPromise> (<native syncLiftEffect> (delayedPromise 41)))
+      (\value%1 -> <native asyncPure> (integer.add value%1 1)))
+
+@export main = <native asyncRun> <trivial evidence> program
+
+@export rejected = <native asyncRun> <trivial evidence>
+  (<native asyncFromPromise> (<native syncLiftEffect> rejectedPromise))
+
+@export thrown = <native asyncRun> <trivial evidence>
+  (<native asyncFromPromise> (<native syncLiftEffect> throwingPromise))
+
+@export pending = <native asyncRun> <trivial evidence>
+  (<native asyncFromPromise> (<native syncLiftEffect> pendingPromise))
+
+@export factoryAbort = <native asyncCatchAbort> (abort identity "c4:Main12:PromiseError")
+  <trivial evidence>
+  <trivial evidence>
+  (<native asyncFromPromise> (<native syncAbort> (abort identity "c4:Main12:PromiseError") 5))
+  (\code%2 -> <native asyncPure> code%2)
+
+@export runFactoryAbort = <native asyncRun> <trivial evidence> factoryAbort
+
+@export runGeneric = \runnableEffectsDict%3 subsetEffectsEffectsDict%4 ->
+  <native asyncRun> runnableEffectsDict%3

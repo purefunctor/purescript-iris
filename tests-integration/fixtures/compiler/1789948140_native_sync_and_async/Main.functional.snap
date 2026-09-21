@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
+assertion_line: 315
 expression: functional_report
 ---
 @export available = \dictionary%0 -> dictionary%0.available
@@ -34,9 +34,9 @@ expression: functional_report
     else <native asyncDefer>
       (\$record%9@(_) -> deep (integer.subtract remaining%7 1) (integer.add total%8 1))
 
-@export main = <native asyncRun> asyncProgram
+@export main = <native asyncRun> <trivial evidence> asyncProgram
 
-@export runDeep = <native asyncRun> (deep 100000 0)
+@export runDeep = <native asyncRun> <trivial evidence> (deep 100000 0)
 
 @export syncFailure = <native syncAbort> (abort identity "c4:Main13:DatabaseError") 7
 
@@ -60,7 +60,7 @@ expression: functional_report
   asyncPartiallyHandled
   (\code%12 -> <native asyncPure> code%12)
 
-@export runAbort = <native asyncRun> asyncRecovered
+@export runAbort = <native asyncRun> <trivial evidence> asyncRecovered
 
 @export structuralFailure = <native asyncAbort>
   (abort identity "ac4:Prim6:Recordr2:1:ac4:Prim3:Int1:bc4:Prim6:String.")
@@ -78,4 +78,4 @@ expression: functional_report
     (\$secondStructuralError%13@(_) -> <native asyncPure> 99))
   (\$firstStructuralError%14@(_) -> <native asyncPure> 42)
 
-@export runStructuralAbort = <native asyncRun> structuralRecovered
+@export runStructuralAbort = <native asyncRun> <trivial evidence> structuralRecovered

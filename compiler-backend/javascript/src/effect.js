@@ -8,6 +8,7 @@ export const syncApply = (_unionEvidence) => runtime.syncApply;
 export const syncAbort = runtime.syncAbort;
 export const syncCatchAbort = (identity) => (_removeEvidence) => (_unionEvidence) =>
   runtime.syncCatchAbort(identity);
+export const syncLiftEffect = runtime.syncLiftEffect;
 
 export const asyncPure = runtime.asyncPure;
 export const asyncBind = (_unionEvidence) => runtime.asyncBind;
@@ -20,7 +21,8 @@ export const asyncYield = runtime.asyncYield;
 export const asyncRegister = runtime.asyncRegister;
 export const asyncBracket = (_acquiredEffectsEvidence) => (_combinedEffectsEvidence) =>
   runtime.asyncBracket;
-export const asyncRun = runtime.asyncRun;
+export const asyncFromPromise = runtime.asyncFromPromise;
+export const asyncRun = (_runnableEvidence) => runtime.asyncRun;
 export const asyncJoin = runtime.asyncJoin;
 export const asyncInterrupt = runtime.asyncInterrupt;
 export const asyncAbort = runtime.asyncAbort;

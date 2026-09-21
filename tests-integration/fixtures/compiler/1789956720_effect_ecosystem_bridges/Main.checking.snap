@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 312
+expression: checking_report
+---
+Terms
+PromiseError :: Prim.Int -> Main.PromiseError
+countedEffect :: Prim.Int -> Effect.Effect Prim.Int
+delayedPromise :: Prim.Int -> Effect.Effect (Iris.Effect.Promise Prim.Int)
+rejectedPromise :: Effect.Effect (Iris.Effect.Promise Prim.Int)
+throwingPromise :: Effect.Effect (Iris.Effect.Promise Prim.Int)
+pendingPromise :: Effect.Effect (Iris.Effect.Promise Prim.Int)
+liftedEffect :: Iris.Effect.Sync [] Prim.Int
+trackedConsole :: Iris.Effect.Sync [Console.Console] Data.Unit.Unit
+program :: Iris.Effect.Async [Console.Console] Prim.Int
+main :: Iris.Effect.Sync [Console.Console] (Iris.Effect.Fiber Prim.Int)
+rejected :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+thrown :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+pending :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+factoryAbort :: Iris.Effect.Async [] Prim.Int
+runFactoryAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+runGeneric ::
+  forall (@effects :: Prim.Effects) value.
+    Prim.Effect.Runnable (effects :: Prim.Effects) =>
+    Prim.Effect.Subset (effects :: Prim.Effects) (effects :: Prim.Effects) =>
+    Iris.Effect.Async (effects :: Prim.Effects) value ->
+    Iris.Effect.Sync (effects :: Prim.Effects) (Iris.Effect.Fiber value)
+
+Types
+PromiseError :: Prim.Type
+
+Roles
+PromiseError = []

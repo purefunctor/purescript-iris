@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 312
+expression: checking_report
+---
+Terms
+Failure :: Prim.Int -> Main.Failure
+direct :: Iris.Effect.Sync [Prim.Effect.Abort Main.Failure] (Iris.Effect.Fiber Prim.Int)
+aliased :: Iris.Effect.Sync [Main.FailureEffect] (Iris.Effect.Fiber Prim.Int)
+unknown ::
+  forall @effect value.
+    Prim.Effect.Subset [effect] [effect] =>
+    Iris.Effect.Async [effect] value -> Iris.Effect.Sync [effect] (Iris.Effect.Fiber value)
+
+Types
+Failure :: Prim.Type
+FailureEffect :: Prim.Type
+
+Synonyms
+type FailureEffect = Prim.Effect.Abort Main.Failure
+
+Roles
+Failure = []

@@ -28,6 +28,9 @@ where
             ("Iris.Effect.Sync", "apply") => Some(NativeOperation::SyncApply),
             ("Iris.Effect.Sync", "abort") => Some(NativeOperation::SyncAbort),
             ("Iris.Effect.Sync", "catchAbort") => Some(NativeOperation::SyncCatchAbort),
+            ("Iris.Effect.Compat", "liftEffect" | "liftEffectAs") => {
+                Some(NativeOperation::SyncLiftEffect)
+            }
             ("Iris.Effect.Async", "pure") => Some(NativeOperation::AsyncPure),
             ("Iris.Effect.Async", "bind") => Some(NativeOperation::AsyncBind),
             ("Iris.Effect.Async", "discard") => Some(NativeOperation::AsyncDiscard),
@@ -38,6 +41,7 @@ where
             ("Iris.Effect.Async", "yield") => Some(NativeOperation::AsyncYield),
             ("Iris.Effect.Async", "register") => Some(NativeOperation::AsyncRegister),
             ("Iris.Effect.Async", "bracket") => Some(NativeOperation::AsyncBracket),
+            ("Iris.Effect.Async", "fromPromise") => Some(NativeOperation::AsyncFromPromise),
             ("Iris.Effect.Async", "run") => Some(NativeOperation::AsyncRun),
             ("Iris.Effect.Async", "join") => Some(NativeOperation::AsyncJoin),
             ("Iris.Effect.Async", "interrupt") => Some(NativeOperation::AsyncInterrupt),
