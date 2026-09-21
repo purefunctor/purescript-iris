@@ -1,0 +1,80 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 306
+expression: checking_report
+---
+Terms
+Program ::
+  forall (@effects :: Prim.Effects) @value. value -> Main.Program (effects :: Prim.Effects) value
+succeed :: forall value. value -> Main.Program [] value
+bind ::
+  forall value result (left :: Prim.Effects) (right :: Prim.Effects) (combined :: Prim.Effects).
+    Prim.Effect.Union (left :: Prim.Effects) (right :: Prim.Effects) (combined :: Prim.Effects) =>
+    Main.Program (left :: Prim.Effects) value ->
+    (value -> Main.Program (right :: Prim.Effects) result) ->
+    Main.Program (combined :: Prim.Effects) result
+discard ::
+  forall ignored result (left :: Prim.Effects) (right :: Prim.Effects) (combined :: Prim.Effects).
+    Prim.Effect.Union (left :: Prim.Effects) (right :: Prim.Effects) (combined :: Prim.Effects) =>
+    Main.Program (left :: Prim.Effects) ignored ->
+    (ignored -> Main.Program (right :: Prim.Effects) result) ->
+    Main.Program (combined :: Prim.Effects) result
+findUser :: Main.Program [Main.Database] Prim.Int
+writeLog :: Prim.Int -> Main.Program [Main.Logger] Prim.Int
+currentTime :: Main.Program [Main.Clock] Prim.Int
+databaseFailure :: Main.Program [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+validationFailure :: Main.Program [Prim.Effect.Abort Main.ValidationError] Prim.Int
+catchDatabase ::
+  forall value (input :: Prim.Effects) (output :: Prim.Effects).
+    Prim.Effect.Remove
+      (Prim.Effect.Abort Main.DatabaseError)
+      (input :: Prim.Effects)
+      (output :: Prim.Effects) =>
+    Main.Program (input :: Prim.Effects) value -> Main.Program (output :: Prim.Effects) value
+catchValidation ::
+  forall value (input :: Prim.Effects) (output :: Prim.Effects).
+    Prim.Effect.Remove
+      (Prim.Effect.Abort Main.ValidationError)
+      (input :: Prim.Effects)
+      (output :: Prim.Effects) =>
+    Main.Program (input :: Prim.Effects) value -> Main.Program (output :: Prim.Effects) value
+provideDatabase ::
+  forall value (input :: Prim.Effects) (output :: Prim.Effects).
+    Prim.Effect.Remove Main.Database (input :: Prim.Effects) (output :: Prim.Effects) =>
+    Main.Program (input :: Prim.Effects) value -> Main.Program (output :: Prim.Effects) value
+restrictEffects ::
+  forall value (required :: Prim.Effects) (allowed :: Prim.Effects).
+    Prim.Effect.Subset (required :: Prim.Effects) (allowed :: Prim.Effects) =>
+    Main.Program (required :: Prim.Effects) value -> Main.Program (allowed :: Prim.Effects) value
+combined :: Main.Program [Main.Database, Main.Logger, Main.Clock] Prim.Int
+reordered :: Main.Program [Main.Database, Main.Logger, Main.Clock] Prim.Int
+deduplicated :: Main.Program [Main.Database] Prim.Int
+duplicateAnnotation :: Main.Program [Main.Database] Prim.Int
+expanded :: Main.Program [Main.Database, Main.Logger] Prim.Int
+handled :: Main.Program [Main.Logger, Main.Clock] Prim.Int
+failures ::
+  Main.Program
+    [Prim.Effect.Abort Main.DatabaseError, Prim.Effect.Abort Main.ValidationError]
+    Prim.Int
+partiallyHandled :: Main.Program [Prim.Effect.Abort Main.ValidationError] Prim.Int
+fullyHandled :: Main.Program [] Prim.Int
+openTail ::
+  forall value (effects :: Prim.Effects).
+    Main.Program [Main.Database, Main.Logger | (effects :: Prim.Effects)] value ->
+    Main.Program [Main.Logger | (effects :: Prim.Effects)] value
+
+Types
+Program :: Prim.Effects -> Prim.Type -> Prim.Type
+Database :: Prim.Type
+Logger :: Prim.Type
+Clock :: Prim.Type
+DatabaseError :: Prim.Type
+ValidationError :: Prim.Type
+
+Roles
+Program = [Phantom, Representational]
+Database = []
+Logger = []
+Clock = []
+DatabaseError = []
+ValidationError = []

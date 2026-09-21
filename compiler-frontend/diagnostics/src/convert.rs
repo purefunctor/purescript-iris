@@ -802,6 +802,33 @@ impl ToDiagnostics for CheckingError {
                     format!("Additional properties not allowed: {labels_str}"),
                 )
             }
+            ErrorKind::MissingEffects { missing, allowed, origins, .. } => {
+                let missing_count = missing.len();
+                let missing = missing.iter().map(|effect| render_type(*effect)).join(", ");
+                let allowed = render_type(*allowed);
+                let message = if origins.len() == 1 && missing_count == 1 {
+                    let effect = render_type(origins[0].effect);
+                    format!(
+                        "This expression requires `{effect}`, which is not present in the \
+                         declaration's effect set {allowed}"
+                    )
+                } else if !origins.is_empty() {
+                    format!(
+                        "These expressions require effects not present in the declaration's effect \
+                         set: {missing}. Declared effects: {allowed}"
+                    )
+                } else {
+                    format!(
+                        "This declaration requires effects not present in its declared effect set: \
+                         {missing}. Declared effects: {allowed}"
+                    )
+                };
+                (
+                    Severity::Error,
+                    "MissingEffects",
+                    message,
+                )
+            }
         };
 
         let mut diagnostic = match severity {
@@ -818,6 +845,29 @@ impl ToDiagnostics for CheckingError {
         }
 
         match &self.kind {
+            ErrorKind::MissingEffects { allowed, origins, declaration, .. } => {
+                let declaration = declaration.iter().rev().find_map(|crumb| match crumb {
+                    checking::error::ErrorCrumb::CheckingLetName(_)
+                    | checking::error::ErrorCrumb::TermDeclaration(_) => {
+                        context.span_from_error_crumb(crumb)
+                    }
+                    _ => None,
+                });
+                if let Some(declaration) = declaration.filter(|declaration| *declaration != span) {
+                    let allowed = render_type(*allowed);
+                    diagnostic = diagnostic.with_related(
+                        declaration,
+                        format!("This declaration allows effects {allowed}"),
+                    );
+                }
+
+                for origin in origins.iter().skip(1) {
+                    let effect = render_type(origin.effect);
+                    let origin = context.primary_span_from_crumbs(&origin.crumbs);
+                    diagnostic = diagnostic
+                        .with_related(origin, format!("`{effect}` is required by this expression"));
+                }
+            }
             ErrorKind::OverlappingInstances { instances, .. } => {
                 for &instance in instances.iter() {
                     let instance = render_type(instance);

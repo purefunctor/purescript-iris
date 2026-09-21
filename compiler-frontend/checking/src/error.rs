@@ -35,6 +35,12 @@ pub enum ErrorCrumb {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectOrigin {
+    pub effect: TypeId,
+    pub crumbs: Arc<[ErrorCrumb]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ErrorKind {
     AmbiguousConstraint {
         constraint: TypeId,
@@ -169,6 +175,12 @@ pub enum ErrorKind {
     },
     AdditionalProperty {
         labels: Arc<[SmolStr]>,
+    },
+    MissingEffects {
+        missing: Arc<[TypeId]>,
+        allowed: TypeId,
+        origins: Arc<[EffectOrigin]>,
+        declaration: Arc<[ErrorCrumb]>,
     },
 }
 

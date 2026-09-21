@@ -1,0 +1,54 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+expression: functional_report
+---
+@export constructor Program/1
+
+@export instance fabricatedSubset = {  }
+
+@export succeed = \value%0 -> { tag: "Program", _1: value%0 }
+
+@export bind = \unionLeftRightCombinedDict%5 ->
+  \$program%4@(Program value%2) continuation%1 ->
+    case continuation%1 value%2 of
+      Program result%3 ->
+        { tag: "Program", _1: result%3 }
+
+@export writeLog = \value%6 -> { tag: "Program", _1: value%6 }
+
+@export databaseFailure = { tag: "Program", _1: 0 }
+
+@export validationFailure = { tag: "Program", _1: 0 }
+
+@export restrictEffects = \subsetRequiredAllowedDict%9 ->
+  \$program%8@(Program value%7) -> { tag: "Program", _1: value%7 }
+
+@export missingEffect = restrictEffects (<error>)
+  (bind <trivial evidence> { tag: "Program", _1: 1 }
+    (\value%10 -> bind <trivial evidence> (writeLog value%10) (\logged%11 -> succeed logged%11)))
+
+@export anotherMissingEffect = restrictEffects (<error>)
+  (bind <trivial evidence> (writeLog 2)
+    (\logged%12 ->
+      bind <trivial evidence> { tag: "Program", _1: logged%12 } (\value%13 -> succeed value%13)))
+
+@export uncaughtAborts = restrictEffects (<error>)
+  (bind <trivial evidence> databaseFailure
+    (\value%14 ->
+      bind <trivial evidence> validationFailure (\validation%15 -> succeed validation%15)))
+
+@export finalAbort = restrictEffects (<error>)
+  (bind <trivial evidence> (succeed 1) (\value%16 -> databaseFailure))
+
+@export localBudget = let
+  local%17 = restrictEffects (<error>)
+    (bind <trivial evidence> databaseFailure (\value%18 -> succeed value%18))
+in local%17
+
+@export siblingBudgets = {
+  allowed: bind <trivial evidence> databaseFailure (\value%19 -> succeed value%19),
+  rejected:
+    restrictEffects (<error>)
+      (bind <trivial evidence> databaseFailure (\value%20 -> succeed value%20))
+}

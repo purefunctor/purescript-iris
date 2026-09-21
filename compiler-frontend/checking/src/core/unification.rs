@@ -610,6 +610,7 @@ where
     let solution_kind = types::elaborate_kind(state, context, solution)?;
     unify(state, context, unification_kind, solution_kind)?;
 
+    state.transfer_effect_origins(unification, solution);
     state.unifications.solve(id, solution);
     Ok(true)
 }

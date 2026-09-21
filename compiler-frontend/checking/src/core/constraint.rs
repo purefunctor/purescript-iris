@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 use std::mem;
 use std::num::NonZeroU32;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use building_types::QueryResult;
 use indexmap::{IndexMap, IndexSet};
@@ -28,7 +29,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use crate::context::CheckContext;
 use crate::core::fd::{compute_closure, get_functional_dependencies};
 use crate::core::{ApplicationArgument, TypeId, unification};
-use crate::error::{CheckingError, ErrorKind};
+use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
 use crate::implication::{GivenConstraint, ImplicationId, Patterns, WantedConstraint};
 use crate::state::{CheckState, UnificationState};
@@ -109,7 +110,15 @@ fn fresh_scoped_constraints(
         let wanted_evidence = state.checked.evidence.fresh_variable();
         let given = Rc::clone(&parent.key.given);
         let given_evidence = Rc::clone(&parent.evidence.given);
-        ConstraintInScope::new(parent.key.scope, given, wanted, given_evidence, wanted_evidence)
+        let crumbs = Arc::clone(&parent.evidence.crumbs);
+        ConstraintInScope::new(
+            parent.key.scope,
+            given,
+            wanted,
+            given_evidence,
+            wanted_evidence,
+            crumbs,
+        )
     });
     constraints.collect()
 }
@@ -255,7 +264,13 @@ where
         }
 
         let given = constraint.key.given.iter().copied();
-        match compiler::match_compiler_instance(state, context, constraint.key.wanted, given)? {
+        match compiler::match_compiler_instance(
+            state,
+            context,
+            constraint.key.wanted,
+            given,
+            Some(&constraint.evidence.crumbs),
+        )? {
             Some(compiler::CompilerMatch::Match { unifications, constraints, resolution }) => {
                 let solve_with_evidence = |state: &mut CheckState, evidence: Evidence| {
                     let evidence = state.checked.evidence.allocate(evidence);
@@ -282,6 +297,10 @@ where
                         state.insert_error(ErrorKind::CustomFailure { message_id });
                         state.checked.evidence.mark_error(constraint.evidence.wanted);
                     }
+                    compiler::CompilerResolution::Error { error } => {
+                        state.checked.errors.push(error);
+                        state.checked.evidence.mark_error(constraint.evidence.wanted);
+                    }
                 }
 
                 let constraints = fresh_scoped_constraints(state, &constraint, constraints);
@@ -295,37 +314,45 @@ where
             Some(compiler::CompilerMatch::Apart) | None => (),
         }
 
-        let search = instances::collect_instance_chains(state, context, constraint.key.wanted)?;
-        'chain: for chain in search.chains() {
-            for &candidate in chain {
-                match matching::match_declared(state, context, constraint.key.wanted, candidate)? {
-                    matching::MatchInstance::Match { unifications, constraints } => {
-                        let constraints = fresh_scoped_constraints(state, &constraint, constraints);
-                        let subgoals = constraints
-                            .iter()
-                            .map(|constraint| constraint.evidence.wanted)
-                            .collect();
-                        let evidence = state
-                            .checked
-                            .evidence
-                            .allocate(Evidence::Instance { origin: candidate.origin, subgoals });
-                        state.checked.evidence.solve(constraint.evidence.wanted, evidence);
-                        work.extend_from_parts(unifications, constraints);
-                        continue 'work;
+        if !compiler::is_effect_constraint(state, context, constraint.key.wanted) {
+            let search = instances::collect_instance_chains(state, context, constraint.key.wanted)?;
+            'chain: for chain in search.chains() {
+                for &candidate in chain {
+                    match matching::match_declared(
+                        state,
+                        context,
+                        constraint.key.wanted,
+                        candidate,
+                    )? {
+                        matching::MatchInstance::Match { unifications, constraints } => {
+                            let constraints =
+                                fresh_scoped_constraints(state, &constraint, constraints);
+                            let subgoals = constraints
+                                .iter()
+                                .map(|constraint| constraint.evidence.wanted)
+                                .collect();
+                            let evidence = state.checked.evidence.allocate(Evidence::Instance {
+                                origin: candidate.origin,
+                                subgoals,
+                            });
+                            state.checked.evidence.solve(constraint.evidence.wanted, evidence);
+                            work.extend_from_parts(unifications, constraints);
+                            continue 'work;
+                        }
+                        matching::MatchInstance::Stuck { stuck, skolem } => {
+                            blocked.extend(stuck);
+                            blocked_on_skolem |= skolem;
+                            continue 'chain;
+                        }
+                        matching::MatchInstance::Apart => (),
                     }
-                    matching::MatchInstance::Stuck { stuck, skolem } => {
-                        blocked.extend(stuck);
-                        blocked_on_skolem |= skolem;
-                        continue 'chain;
-                    }
-                    matching::MatchInstance::Apart => (),
                 }
             }
-        }
 
-        // If no candidate matched, the candidate search itself may also be incomplete
-        // due to unsolved unification variables; we will wait for them to be solved.
-        blocked.extend(search.blocking);
+            // If no candidate matched, the candidate search itself may also be incomplete
+            // due to unsolved unification variables; we will wait for them to be solved.
+            blocked.extend(search.blocking);
+        }
 
         if blocked.is_empty() {
             if blocked_on_skolem {
@@ -416,6 +443,7 @@ pub struct ConstraintKey {
 pub struct ConstraintEvidence {
     pub given: Rc<[EvidenceId]>,
     pub wanted: EvidenceVarId,
+    pub crumbs: Arc<[ErrorCrumb]>,
 }
 
 #[derive(Clone)]
@@ -431,6 +459,7 @@ impl ConstraintInScope {
         wanted: CanonicalConstraintId,
         given_evidence: Rc<[EvidenceId]>,
         wanted_evidence: EvidenceVarId,
+        crumbs: Arc<[ErrorCrumb]>,
     ) -> ConstraintInScope {
         assert_eq!(
             given.len(),
@@ -438,7 +467,8 @@ impl ConstraintInScope {
             "critical violation: given constraints and evidence must correspond",
         );
         let key = ConstraintKey { scope, given, wanted };
-        let evidence = ConstraintEvidence { given: given_evidence, wanted: wanted_evidence };
+        let evidence =
+            ConstraintEvidence { given: given_evidence, wanted: wanted_evidence, crumbs };
         ConstraintInScope { key, evidence }
     }
 
@@ -481,6 +511,7 @@ impl ConstraintInScope {
             wanted,
             given_evidence,
             self.evidence.wanted,
+            Arc::clone(&self.evidence.crumbs),
         ))
     }
 
@@ -582,7 +613,7 @@ where
             let given: Rc<[CanonicalConstraintId]> = Rc::from(given);
             let given_evidence: Rc<[EvidenceId]> = Rc::from(given_evidence);
 
-            for WantedConstraint { constraint, evidence: wanted_evidence } in wanted {
+            for WantedConstraint { constraint, evidence: wanted_evidence, crumbs } in wanted {
                 if let Some(wanted) = canonical::canonicalise(state, context, constraint)? {
                     let given = Rc::clone(&given);
                     let given_evidence = Rc::clone(&given_evidence);
@@ -594,6 +625,7 @@ where
                         wanted,
                         given_evidence,
                         wanted_evidence,
+                        crumbs,
                     ));
                 } else {
                     state.checked.evidence.mark_error(wanted_evidence);

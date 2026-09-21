@@ -1,0 +1,104 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+expression: diagnostics_report
+---
+Error! · [MissingEffects] · Main.purs:47:5
+  •
+  │
+  • These expressions require effects not present in the declaration's effect set: Database, Logger.
+  │ Declared effects: []
+  │
+  │       value <- (Program 1 :: Program [Database] Int)
+  │       ╰─────────────────────────────────────────────
+  │
+  • This declaration allows effects []
+  │
+  │   missingEffect :: Program [] Int
+  │   ╰──────────────────────────────
+  │
+  • `Logger` is required by this expression
+  │
+  │       logged <- writeLog value
+  │       ╰───────────────────────
+  •
+
+Error! · [MissingEffects] · Main.purs:55:5
+  •
+  │
+  • This expression requires `Database`, which is not present in the declaration's effect set
+  │ [Logger]
+  │
+  │       value <- (Program logged :: Program [Database] Int)
+  │       ╰──────────────────────────────────────────────────
+  │
+  • This declaration allows effects [Logger]
+  │
+  │   anotherMissingEffect :: Program [Logger] Int
+  │   ╰───────────────────────────────────────────
+  •
+
+Error! · [MissingEffects] · Main.purs:61:5
+  •
+  │
+  • These expressions require effects not present in the declaration's effect set: Abort
+  │ DatabaseError, Abort ValidationError. Declared effects: []
+  │
+  │       value <- databaseFailure
+  │       ╰───────────────────────
+  │
+  • This declaration allows effects []
+  │
+  │   uncaughtAborts :: Program [] Int
+  │   ╰───────────────────────────────
+  │
+  • `Abort ValidationError` is required by this expression
+  │
+  │       validation <- validationFailure
+  │       ╰──────────────────────────────
+  •
+
+Error! · [MissingEffects] · Main.purs:69:5
+  •
+  │
+  • This expression requires `Abort DatabaseError`, which is not present in the declaration's effect
+  │ set []
+  │
+  │       databaseFailure
+  │       ╰──────────────
+  │
+  • This declaration allows effects []
+  │
+  │   finalAbort :: Program [] Int
+  │   ╰───────────────────────────
+  •
+
+Error! · [MissingEffects] · Main.purs:77:9
+  •
+  │
+  • This expression requires `Abort DatabaseError`, which is not present in the declaration's effect
+  │ set []
+  │
+  │           value <- databaseFailure
+  │           ╰───────────────────────
+  │
+  • This declaration allows effects []
+  │
+  │       local :: Program [] Int
+  │       ╰──────────────────────
+  •
+
+Error! · [MissingEffects] · Main.purs:91:9
+  •
+  │
+  • This expression requires `Abort DatabaseError`, which is not present in the declaration's effect
+  │ set []
+  │
+  │           value <- databaseFailure
+  │           ╰───────────────────────
+  │
+  • This declaration allows effects []
+  │
+  │   siblingBudgets
+  │   ╰─────────────
+  •

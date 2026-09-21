@@ -173,6 +173,8 @@ pub struct CheckState {
     pub implications: Implications,
     pub canonicals: Canonicals,
     pub canonical_errors: FxHashMap<CanonicalConstraintId, Vec<ErrorKind>>,
+    effect_origins: FxHashMap<TypeId, FxHashMap<TypeId, Vec<Arc<[ErrorCrumb]>>>>,
+    effect_channel_origins: FxHashMap<TypeId, Vec<Arc<[ErrorCrumb]>>>,
 
     pub defer_expansion: bool,
     pub depth: Depth,
@@ -193,6 +195,8 @@ impl CheckState {
             implications: Default::default(),
             canonicals: Default::default(),
             canonical_errors: Default::default(),
+            effect_origins: Default::default(),
+            effect_channel_origins: Default::default(),
             defer_expansion: Default::default(),
             depth: Depth(0),
             crumbs: Default::default(),
@@ -294,8 +298,64 @@ impl CheckState {
 
     pub fn push_wanted(&mut self, constraint: TypeId) -> EvidenceVarId {
         let evidence = self.checked.evidence.fresh_variable();
-        self.implications.current_mut().wanted.push_back(WantedConstraint { constraint, evidence });
+        let crumbs = self.crumbs.iter().copied().collect();
+        self.implications.current_mut().wanted.push_back(WantedConstraint {
+            constraint,
+            evidence,
+            crumbs,
+        });
         evidence
+    }
+
+    pub fn insert_effect_origin(
+        &mut self,
+        effects: TypeId,
+        effect: TypeId,
+        crumbs: Arc<[ErrorCrumb]>,
+    ) {
+        let origins = self.effect_origins.entry(effects).or_default().entry(effect).or_default();
+        if !origins.contains(&crumbs) {
+            origins.push(crumbs);
+        }
+    }
+
+    pub fn effect_origin(
+        &self,
+        effects: TypeId,
+        effect: TypeId,
+        context: &[ErrorCrumb],
+    ) -> Option<Arc<[ErrorCrumb]>> {
+        most_specific_origin(self.effect_origins.get(&effects)?.get(&effect)?, context)
+    }
+
+    pub fn insert_effect_channel_origin(&mut self, effects: TypeId, crumbs: Arc<[ErrorCrumb]>) {
+        let origins = self.effect_channel_origins.entry(effects).or_default();
+        if !origins.contains(&crumbs) {
+            origins.push(crumbs);
+        }
+    }
+
+    pub fn effect_channel_origin(
+        &self,
+        effects: TypeId,
+        context: &[ErrorCrumb],
+    ) -> Option<Arc<[ErrorCrumb]>> {
+        most_specific_origin(self.effect_channel_origins.get(&effects)?, context)
+    }
+
+    pub fn transfer_effect_origins(&mut self, source: TypeId, target: TypeId) {
+        if let Some(origins) = self.effect_origins.get(&source).cloned() {
+            for (effect, origins) in origins {
+                for origin in origins {
+                    self.insert_effect_origin(target, effect, origin);
+                }
+            }
+        }
+        if let Some(origins) = self.effect_channel_origins.get(&source).cloned() {
+            for origin in origins {
+                self.insert_effect_channel_origin(target, origin);
+            }
+        }
     }
 
     pub fn push_given(&mut self, constraint: TypeId) -> EvidenceBinderId {
@@ -469,4 +529,19 @@ impl CheckState {
     pub fn allocate_wildcard(&mut self, t: TypeId) -> PatternId {
         self.allocate_pattern(PatternKind::Wildcard, t)
     }
+}
+
+fn most_specific_origin(
+    origins: &[Arc<[ErrorCrumb]>],
+    context: &[ErrorCrumb],
+) -> Option<Arc<[ErrorCrumb]>> {
+    origins
+        .iter()
+        .filter_map(|origin| {
+            let common =
+                origin.iter().zip(context).take_while(|(left, right)| left == right).count();
+            (common > 1).then_some((common, origin))
+        })
+        .max_by_key(|(common, _)| *common)
+        .map(|(_, origin)| Arc::clone(origin))
 }

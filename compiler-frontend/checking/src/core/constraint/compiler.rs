@@ -1,4 +1,5 @@
 pub mod prim_coerce;
+pub mod prim_effect;
 pub mod prim_int;
 pub mod prim_reflectable;
 pub mod prim_row;
@@ -14,6 +15,7 @@ use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
 use crate::core::unification::{CanUnify, can_unify};
 use crate::core::{RowField, RowType, SmolStrId, Type, TypeId, normalise};
+use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence};
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
@@ -27,6 +29,7 @@ pub enum CompilerResolution {
     Synthesized,
     Warning { message_id: SmolStrId },
     Failure { message_id: SmolStrId },
+    Error { error: CheckingError },
 }
 
 pub enum CompilerMatch {
@@ -223,6 +226,7 @@ pub fn match_compiler_instance<Q>(
     context: &CheckContext<Q>,
     wanted: CanonicalConstraintId,
     given: impl IntoIterator<Item = CanonicalConstraintId>,
+    crumbs: Option<&[ErrorCrumb]>,
 ) -> QueryResult<Option<CompilerMatch>>
 where
     Q: ExternalQueries,
@@ -268,6 +272,48 @@ where
                 return Ok(None);
             };
             prim_int::match_to_string(state, context, &arguments)?
+        } else {
+            None
+        }
+    } else if file_id == context.prim_effect.file_id {
+        if item_id == context.prim_effect.union {
+            let Some(arguments) = canonical.expect_type_arguments::<3>() else {
+                return Ok(None);
+            };
+            prim_effect::match_union(state, context, &arguments, crumbs)?
+        } else if item_id == context.prim_effect.remove {
+            let Some(arguments) = canonical.expect_type_arguments::<3>() else {
+                return Ok(None);
+            };
+            prim_effect::match_remove(state, context, &arguments, crumbs)?
+        } else if item_id == context.prim_effect.subset {
+            let Some(arguments) = canonical.expect_type_arguments::<2>() else {
+                return Ok(None);
+            };
+            return match prim_effect::match_subset(state, context, &arguments, crumbs)? {
+                Some(prim_effect::SubsetMatch::Instance(instance)) => {
+                    Ok(Some(CompilerMatch::from_instance(instance, CompilerResolution::Trivial)))
+                }
+                Some(prim_effect::SubsetMatch::Missing { effects, origins }) => {
+                    let declaration = Arc::from(crumbs.unwrap_or_default());
+                    let error_crumbs = origins
+                        .first()
+                        .map(|origin| Arc::clone(&origin.crumbs))
+                        .unwrap_or_else(|| Arc::clone(&declaration));
+                    Ok(Some(CompilerMatch::resolved(CompilerResolution::Error {
+                        error: CheckingError {
+                            kind: ErrorKind::MissingEffects {
+                                missing: Arc::from(effects),
+                                allowed: arguments[1],
+                                origins: Arc::from(origins),
+                                declaration,
+                            },
+                            crumbs: error_crumbs,
+                        },
+                    })))
+                }
+                None => Ok(None),
+            };
         } else {
             None
         }
@@ -370,6 +416,17 @@ where
     let canonical = &state.canonicals[constraint];
     canonical.file_id == context.prim_type_error.file_id
         && canonical.type_id == context.prim_type_error.fail
+}
+
+pub fn is_effect_constraint<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    constraint: CanonicalConstraintId,
+) -> bool
+where
+    Q: ExternalQueries,
+{
+    state.canonicals[constraint].file_id == context.prim_effect.file_id
 }
 
 pub fn synthesized_evidence_for_constraint<Q>(

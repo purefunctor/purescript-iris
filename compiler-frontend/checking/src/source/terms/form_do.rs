@@ -1,9 +1,11 @@
 use std::iter;
+use std::sync::Arc;
 
 use building_types::QueryResult;
 use itertools::Itertools;
 
 use crate::context::CheckContext;
+use crate::core::constraint::compiler::prim_effect;
 use crate::core::{TypeId, toolkit, unification};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::binder;
@@ -58,8 +60,10 @@ impl DoStep<'_> {
 struct CheckedDoApplication {
     function: ElaboratedExpression,
     implicit: Vec<application::ImplicitApplication>,
+    constraints: Vec<TypeId>,
     result: TypeId,
     lambda_type: TypeId,
+    crumbs: Arc<[ErrorCrumb]>,
 }
 
 enum CheckedDoStep {
@@ -478,7 +482,25 @@ where
         *continuation_types.last().expect("invariant violated: empty continuation_types");
 
     let final_expression = if let Some(final_expression) = final_expression {
-        super::check_expression(state, context, final_expression, final_continuation)?
+        let checked =
+            super::check_expression(state, context, final_expression, final_continuation)?;
+        if let Some(CheckedDoStep::Application { application, .. }) = checked_steps
+            .iter()
+            .rev()
+            .find(|step| matches!(step, CheckedDoStep::Application { .. }))
+        {
+            for constraint in &application.constraints {
+                let mut crumbs = Vec::from(application.crumbs.as_ref());
+                crumbs.push(ErrorCrumb::InferringExpression(final_expression));
+                prim_effect::seed_continuation_origin(
+                    state,
+                    context,
+                    *constraint,
+                    Arc::from(crumbs),
+                )?;
+            }
+        }
+        checked
     } else {
         super::allocate_error_expression(state, final_continuation)
     };
@@ -533,27 +555,39 @@ fn infer_do_bind_core<Q>(
 where
     Q: ExternalQueries,
 {
+    let crumbs = Arc::from(state.crumbs.as_slice());
     let expression = super::infer_expression(state, context, expression)?;
     let lambda_type = context.intern_function(binder_type, continuation_type);
 
-    let Some(application::UnanchoredApplication { implicit, argument, result }) =
+    let Some(application::UnanchoredApplication { implicit: first_implicit, argument, result }) =
         application::check_unanchored_application(state, context, function.type_id())?
     else {
         return Ok(invalid_do_application(state, context, lambda_type));
     };
+    let mut constraints = first_implicit
+        .iter()
+        .filter_map(|implicit| match implicit {
+            application::ImplicitApplication::Evidence { constraint, .. } => Some(*constraint),
+            application::ImplicitApplication::Type { .. } => None,
+        })
+        .collect::<Vec<_>>();
     let expression = application::subtype_expression(state, context, expression, argument)?;
     let function = function.allocate_expression(state);
     let function =
-        application::materialize_application(state, function, implicit, result, expression);
+        application::materialize_application(state, function, first_implicit, result, expression);
 
     let Some(application::UnanchoredApplication { implicit, argument, result }) =
         application::check_unanchored_application(state, context, function.type_id)?
     else {
         return Ok(invalid_do_application(state, context, lambda_type));
     };
+    constraints.extend(implicit.iter().filter_map(|implicit| match implicit {
+        application::ImplicitApplication::Evidence { constraint, .. } => Some(*constraint),
+        application::ImplicitApplication::Type { .. } => None,
+    }));
     unification::subtype(state, context, lambda_type, argument)?;
 
-    Ok(CheckedDoApplication { function, implicit, result, lambda_type })
+    Ok(CheckedDoApplication { function, implicit, constraints, result, lambda_type, crumbs })
 }
 
 fn infer_do_discard_core<Q>(
@@ -583,5 +617,13 @@ fn invalid_do_application(
     let result = context.unknown("invalid function application");
     let function_type = context.intern_function(lambda_type, result);
     let function = super::allocate_error_expression(state, function_type);
-    CheckedDoApplication { function, implicit: vec![], result, lambda_type }
+    let crumbs = Arc::from(state.crumbs.as_slice());
+    CheckedDoApplication {
+        function,
+        implicit: vec![],
+        constraints: vec![],
+        result,
+        lambda_type,
+        crumbs,
+    }
 }

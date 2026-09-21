@@ -372,6 +372,18 @@ where
             let function_type = zonk(state, context, function_type)?;
             ErrorKind::NoVisibleTypeVariable { function_type }
         }
+        ErrorKind::MissingEffects { missing, allowed, origins, declaration } => {
+            let missing = zonk_types(state, context, &missing)?.unwrap_or(missing);
+            let allowed = zonk(state, context, allowed)?;
+            let origins = origins
+                .iter()
+                .map(|origin| {
+                    let effect = zonk(state, context, origin.effect)?;
+                    Ok(crate::error::EffectOrigin { effect, crumbs: Arc::clone(&origin.crumbs) })
+                })
+                .collect::<QueryResult<Arc<[_]>>>()?;
+            ErrorKind::MissingEffects { missing, allowed, origins, declaration }
+        }
         kind @ (ErrorKind::CannotDeriveClass { .. }
         | ErrorKind::DeriveInvalidArity { .. }
         | ErrorKind::DeriveNotSupportedYet { .. }

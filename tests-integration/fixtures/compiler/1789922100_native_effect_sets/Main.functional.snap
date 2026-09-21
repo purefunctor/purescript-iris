@@ -1,0 +1,65 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+expression: functional_report
+---
+@export constructor Program/1
+
+@export succeed = \value%0 -> { tag: "Program", _1: value%0 }
+
+@export bind = \unionLeftRightCombinedDict%5 ->
+  \$program%4@(Program value%2) continuation%1 ->
+    case continuation%1 value%2 of
+      Program result%3 ->
+        { tag: "Program", _1: result%3 }
+
+@export discard = \unionLeftRightCombinedDict%10 ->
+  \$program%9@(Program value%7) continuation%6 ->
+    case continuation%6 value%7 of
+      Program result%8 ->
+        { tag: "Program", _1: result%8 }
+
+@export findUser = { tag: "Program", _1: 1 }
+
+@export writeLog = \value%11 -> { tag: "Program", _1: value%11 }
+
+@export currentTime = { tag: "Program", _1: 2 }
+
+@export databaseFailure = { tag: "Program", _1: 0 }
+
+@export validationFailure = { tag: "Program", _1: 0 }
+
+@export catchDatabase = \removeAbortDatabaseErrorInputOutputDict%14 ->
+  \$program%13@(Program value%12) -> { tag: "Program", _1: value%12 }
+
+@export catchValidation = \removeAbortValidationErrorInputOutputDict%17 ->
+  \$program%16@(Program value%15) -> { tag: "Program", _1: value%15 }
+
+@export provideDatabase = \removeDatabaseInputOutputDict%20 ->
+  \$program%19@(Program value%18) -> { tag: "Program", _1: value%18 }
+
+@export restrictEffects = \subsetRequiredAllowedDict%23 ->
+  \$program%22@(Program value%21) -> { tag: "Program", _1: value%21 }
+
+@export combined = discard <trivial evidence> currentTime
+  (\$int%24@(_) -> bind <trivial evidence> findUser (\user%25 -> writeLog user%25))
+
+@export reordered = combined
+
+@export deduplicated = bind <trivial evidence> findUser
+  (\first%26 -> discard <trivial evidence> findUser (\$int%27@(_) -> succeed first%26))
+
+@export duplicateAnnotation = findUser
+
+@export expanded = restrictEffects <trivial evidence> findUser
+
+@export handled = provideDatabase <trivial evidence> combined
+
+@export failures = discard <trivial evidence> databaseFailure (\$int%28@(_) -> validationFailure)
+
+@export partiallyHandled = catchDatabase <trivial evidence> failures
+
+@export fullyHandled = catchValidation <trivial evidence>
+  (catchDatabase <trivial evidence> failures)
+
+@export openTail = provideDatabase <trivial evidence>

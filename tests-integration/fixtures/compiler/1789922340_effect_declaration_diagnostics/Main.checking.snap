@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 306
+expression: checking_report
+---
+Terms
+Program ::
+  forall (@effects :: Prim.Effects) @value. value -> Main.Program (effects :: Prim.Effects) value
+succeed :: forall value. value -> Main.Program [] value
+bind ::
+  forall value result (left :: Prim.Effects) (right :: Prim.Effects) (combined :: Prim.Effects).
+    Prim.Effect.Union (left :: Prim.Effects) (right :: Prim.Effects) (combined :: Prim.Effects) =>
+    Main.Program (left :: Prim.Effects) value ->
+    (value -> Main.Program (right :: Prim.Effects) result) ->
+    Main.Program (combined :: Prim.Effects) result
+writeLog :: Prim.Int -> Main.Program [Main.Logger] Prim.Int
+databaseFailure :: Main.Program [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+validationFailure :: Main.Program [Prim.Effect.Abort Main.ValidationError] Prim.Int
+restrictEffects ::
+  forall value (required :: Prim.Effects) (allowed :: Prim.Effects).
+    Prim.Effect.Subset (required :: Prim.Effects) (allowed :: Prim.Effects) =>
+    Main.Program (required :: Prim.Effects) value -> Main.Program (allowed :: Prim.Effects) value
+missingEffect :: Main.Program [] Prim.Int
+anotherMissingEffect :: Main.Program [Main.Logger] Prim.Int
+uncaughtAborts :: Main.Program [] Prim.Int
+finalAbort :: Main.Program [] Prim.Int
+localBudget :: Main.Program [] Prim.Int
+siblingBudgets ::
+  { allowed :: Main.Program [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+  , rejected :: Main.Program [] Prim.Int
+  }
+
+Types
+Program :: Prim.Effects -> Prim.Type -> Prim.Type
+Database :: Prim.Type
+Logger :: Prim.Type
+DatabaseError :: Prim.Type
+ValidationError :: Prim.Type
+
+Instances
+instance Prim.Effect.Subset [Main.Database, Main.Logger] []
+
+Roles
+Program = [Phantom, Representational]
+Database = []
+Logger = []
+DatabaseError = []
+ValidationError = []

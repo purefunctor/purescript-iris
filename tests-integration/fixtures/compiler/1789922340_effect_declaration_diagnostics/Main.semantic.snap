@@ -1,0 +1,68 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+expression: semantic_report
+---
+data Program :: Prim.Effects -> Prim.Type -> Prim.Type
+data Program @effects @value
+  | Program :: value -> Main.Program effects value
+
+dictionary fabricatedSubset :: Prim.Effect.Subset [Main.Database, Main.Logger] []
+
+succeed :: forall value. value -> Main.Program [] value
+succeed = \value -> Program value
+
+bind :: forall value result left right combined.
+  Prim.Effect.Union left right combined =>
+  Main.Program left value -> (value -> Main.Program right result) -> Main.Program combined result
+bind = \{unionDict} -> \(Program value) -> \continuation ->
+  case continuation value of
+    (Program result) -> Program result
+
+writeLog :: Prim.Int -> Main.Program [Main.Logger] Prim.Int
+writeLog = \value -> Program value
+
+databaseFailure :: Main.Program [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+databaseFailure = Program 0
+
+validationFailure :: Main.Program [Prim.Effect.Abort Main.ValidationError] Prim.Int
+validationFailure = Program 0
+
+restrictEffects :: forall value required allowed.
+  Prim.Effect.Subset required allowed => Main.Program required value -> Main.Program allowed value
+restrictEffects = \{subsetDict} -> \(Program value) -> Program value
+
+missingEffect :: Main.Program [] Prim.Int
+missingEffect =
+  restrictEffects {error}
+    (bind {trivial} (Program 1) \value -> bind {trivial} (writeLog value) \logged -> succeed logged)
+
+anotherMissingEffect :: Main.Program [Main.Logger] Prim.Int
+anotherMissingEffect =
+  restrictEffects {error}
+    (bind {trivial} (writeLog 2) \logged -> bind {trivial} (Program logged) \value -> succeed value)
+
+uncaughtAborts :: Main.Program [] Prim.Int
+uncaughtAborts =
+  restrictEffects {error}
+    (bind {trivial} databaseFailure \value ->
+      bind {trivial} validationFailure \validation -> succeed validation)
+
+finalAbort :: Main.Program [] Prim.Int
+finalAbort = restrictEffects {error} (bind {trivial} (succeed 1) \value -> databaseFailure)
+
+localBudget :: Main.Program [] Prim.Int
+localBudget =
+  let
+    local :: Main.Program [] Prim.Int
+    local = restrictEffects {error} (bind {trivial} databaseFailure \value -> succeed value)
+  in
+    local
+
+siblingBudgets :: { allowed :: Main.Program [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+, rejected :: Main.Program [] Prim.Int
+}
+siblingBudgets =
+  { allowed: bind {trivial} databaseFailure \value ->
+    succeed value, rejected: restrictEffects {error}
+    (bind {trivial} databaseFailure \value -> succeed value) }

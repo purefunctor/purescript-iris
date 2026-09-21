@@ -261,8 +261,13 @@ where
 
         for &(constraint, _) in &given_evidence {
             let given_constraints = given_evidence.iter().map(|&(constraint, _)| constraint);
-            let Some(matched) =
-                compiler::match_compiler_instance(state, context, constraint, given_constraints)?
+            let Some(matched) = compiler::match_compiler_instance(
+                state,
+                context,
+                constraint,
+                given_constraints,
+                None,
+            )?
             else {
                 continue;
             };

@@ -1,0 +1,93 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+expression: semantic_report
+---
+data Program :: Prim.Effects -> Prim.Type -> Prim.Type
+data Program @effects @value
+  | Program :: value -> Main.Program effects value
+
+succeed :: forall value. value -> Main.Program [] value
+succeed = \value -> Program value
+
+bind :: forall value result left right combined.
+  Prim.Effect.Union left right combined =>
+  Main.Program left value -> (value -> Main.Program right result) -> Main.Program combined result
+bind = \{unionDict} -> \(Program value) -> \continuation ->
+  case continuation value of
+    (Program result) -> Program result
+
+discard :: forall ignored result left right combined.
+  Prim.Effect.Union left right combined =>
+  Main.Program left ignored ->
+  (ignored -> Main.Program right result) ->
+  Main.Program combined result
+discard = \{unionDict} -> \(Program value) -> \continuation ->
+  case continuation value of
+    (Program result) -> Program result
+
+findUser :: Main.Program [Main.Database] Prim.Int
+findUser = Program 1
+
+writeLog :: Prim.Int -> Main.Program [Main.Logger] Prim.Int
+writeLog = \value -> Program value
+
+currentTime :: Main.Program [Main.Clock] Prim.Int
+currentTime = Program 2
+
+databaseFailure :: Main.Program [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+databaseFailure = Program 0
+
+validationFailure :: Main.Program [Prim.Effect.Abort Main.ValidationError] Prim.Int
+validationFailure = Program 0
+
+catchDatabase :: forall value input output.
+  Prim.Effect.Remove (Prim.Effect.Abort Main.DatabaseError) input output =>
+  Main.Program input value -> Main.Program output value
+catchDatabase = \{removeDict} -> \(Program value) -> Program value
+
+catchValidation :: forall value input output.
+  Prim.Effect.Remove (Prim.Effect.Abort Main.ValidationError) input output =>
+  Main.Program input value -> Main.Program output value
+catchValidation = \{removeDict} -> \(Program value) -> Program value
+
+provideDatabase :: forall value input output.
+  Prim.Effect.Remove Main.Database input output =>
+  Main.Program input value -> Main.Program output value
+provideDatabase = \{removeDict} -> \(Program value) -> Program value
+
+restrictEffects :: forall value required allowed.
+  Prim.Effect.Subset required allowed => Main.Program required value -> Main.Program allowed value
+restrictEffects = \{subsetDict} -> \(Program value) -> Program value
+
+combined :: Main.Program [Main.Database, Main.Logger, Main.Clock] Prim.Int
+combined = discard {trivial} currentTime \_ -> bind {trivial} findUser \user -> writeLog user
+
+reordered :: Main.Program [Main.Database, Main.Logger, Main.Clock] Prim.Int
+reordered = combined
+
+deduplicated :: Main.Program [Main.Database] Prim.Int
+deduplicated = bind {trivial} findUser \first -> discard {trivial} findUser \_ -> succeed first
+
+duplicateAnnotation :: Main.Program [Main.Database] Prim.Int
+duplicateAnnotation = findUser
+
+expanded :: Main.Program [Main.Database, Main.Logger] Prim.Int
+expanded = restrictEffects {trivial} findUser
+
+handled :: Main.Program [Main.Logger, Main.Clock] Prim.Int
+handled = provideDatabase {trivial} combined
+
+failures :: Main.Program [Prim.Effect.Abort Main.DatabaseError, Prim.Effect.Abort Main.ValidationError] Prim.Int
+failures = discard {trivial} databaseFailure \_ -> validationFailure
+
+partiallyHandled :: Main.Program [Prim.Effect.Abort Main.ValidationError] Prim.Int
+partiallyHandled = catchDatabase {trivial} failures
+
+fullyHandled :: Main.Program [] Prim.Int
+fullyHandled = catchValidation {trivial} (catchDatabase {trivial} failures)
+
+openTail :: forall value effects.
+  Main.Program [Main.Database, Main.Logger | effects] value ->
+  Main.Program [Main.Logger | effects] value
+openTail = provideDatabase {trivial}
