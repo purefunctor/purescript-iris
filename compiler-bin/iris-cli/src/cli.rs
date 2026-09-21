@@ -32,6 +32,8 @@ pub enum Command {
     New(NewOptions),
     /// Add dependencies to a Spago package.
     Add(AddOptions),
+    /// Print skills that teach coding agents how to use Iris features.
+    AgentSkills(AgentSkillsOptions),
     /// Build a Spago workspace or package.
     Build(BuildOptions),
     /// Build a Spago workspace or package and rebuild when inputs change.
@@ -48,6 +50,19 @@ pub enum Command {
         #[usage(flatten)]
         options: TestOptions,
     },
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct AgentSkillsOptions {
+    #[usage(subcommand)]
+    pub skill: AgentSkill,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum AgentSkill {
+    /// Print the skill for building with native Sync and Async effects.
+    Effect,
 }
 
 pub struct LspConfig {

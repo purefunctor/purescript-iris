@@ -1,0 +1,12 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 0
+--- stdout
+Print the skill for building with native Sync and Async effects.
+
+Usage: iris agent-skills effect
+
+Flags:
+  -h, --help  Print help
+--- stderr

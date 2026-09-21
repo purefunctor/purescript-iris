@@ -3,6 +3,8 @@ mod logging;
 
 pub(crate) const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
 pub(crate) const VERSION: &str = env!("IRIS_VERSION");
+const EFFECT_AGENT_SKILL: &str =
+    include_str!("../bundled/agent-skills/building-with-native-iris-effects/SKILL.md");
 
 pub fn run() -> i32 {
     let program = cli::Program::parse_with_diagnostics();
@@ -19,6 +21,12 @@ pub fn run() -> i32 {
             Err(error) => {
                 eprintln!("{error}");
                 1
+            }
+        },
+        cli::Command::AgentSkills(options) => match options.skill {
+            cli::AgentSkill::Effect => {
+                print!("{EFFECT_AGENT_SKILL}");
+                0
             }
         },
         cli::Command::Build(options) => match iris_build::build(options.into_config()) {

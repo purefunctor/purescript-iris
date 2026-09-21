@@ -24,6 +24,8 @@ fn prints_help_for_every_command_path() {
         ("help_root", &["--help"]),
         ("help_new", &["new", "--help"]),
         ("help_add", &["add", "--help"]),
+        ("help_agent_skills", &["agent-skills", "--help"]),
+        ("help_agent_skills_effect", &["agent-skills", "effect", "--help"]),
         ("help_build", &["build", "--help"]),
         ("help_watch", &["watch", "--help"]),
         ("help_lsp", &["lsp", "--help"]),
@@ -38,6 +40,20 @@ fn prints_help_for_every_command_path() {
         assert!(output.stderr.is_empty(), "{name} help wrote stderr");
         snapshot_output(name, &output);
     }
+}
+
+#[test]
+fn prints_effect_agent_skill() {
+    let workspace = TestWorkspace::empty();
+    let output = workspace.command(&["agent-skills", "effect"]);
+    assert!(output.status.success());
+    assert_eq!(
+        output.stdout,
+        include_bytes!(
+            "../../compiler-bin/iris-cli/bundled/agent-skills/building-with-native-iris-effects/SKILL.md"
+        )
+    );
+    assert!(output.stderr.is_empty());
 }
 
 #[test]
