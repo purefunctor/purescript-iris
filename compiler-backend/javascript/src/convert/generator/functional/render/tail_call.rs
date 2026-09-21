@@ -243,6 +243,7 @@ fn function_profile(
         | ExpressionKind::Binary { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::Application { .. }
         | ExpressionKind::UncurriedApplication { .. }
@@ -338,6 +339,7 @@ fn collect_tail_edges(
         | ExpressionKind::Binary { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::Abstraction { .. }
         | ExpressionKind::UncurriedAbstraction { .. }
@@ -381,6 +383,7 @@ fn application(
         | ExpressionKind::Binary { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::Abstraction { .. }
         | ExpressionKind::UncurriedAbstraction { .. }

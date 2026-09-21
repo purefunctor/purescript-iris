@@ -1,7 +1,7 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+expression: functional_report
 ---
 @export name = \dictionary%0 -> dictionary%0.name
 

@@ -109,6 +109,7 @@ impl<'a> Printer<'a, '_> {
             | ExpressionKind::Project { .. }
             | ExpressionKind::Constructor { .. }
             | ExpressionKind::Global { .. }
+            | ExpressionKind::Native { .. }
             | ExpressionKind::Local { .. }
             | ExpressionKind::TrivialEvidence => ExpressionPrecedence::Atom,
         };
@@ -170,6 +171,9 @@ impl<'a> Printer<'a, '_> {
             }
             ExpressionKind::Constructor { global } | ExpressionKind::Global { global } => {
                 self.arena.text(global.item_name.to_string())
+            }
+            ExpressionKind::Native { operation } => {
+                self.arena.text(format!("<native {}>", operation.javascript_name()))
             }
             ExpressionKind::Local { parameter } => self.parameter(parameter),
             ExpressionKind::Abstraction { parameters, body } => {
@@ -488,6 +492,9 @@ impl<'a> Printer<'a, '_> {
                     ReflectableOrdering::Equal => "reflectable EQ".into(),
                     ReflectableOrdering::Greater => "reflectable GT".into(),
                 }
+            }
+            SynthesizedEvidence::AbortIdentity(identity) => {
+                format!("abort identity {identity:?}")
             }
         };
         self.arena.text(rendered)

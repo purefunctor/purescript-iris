@@ -2,6 +2,9 @@ module Prim.Effect where
 
 data Abort :: Type -> Type
 
+class AbortIdentity :: Type -> Constraint
+class AbortIdentity error
+
 class Union :: Effects -> Effects -> Effects -> Constraint
 class Union left right union | left right -> union
 

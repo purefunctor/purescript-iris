@@ -424,12 +424,19 @@ fn write_modules(
     owned_outputs: &mut BTreeSet<PathBuf>,
 ) -> Result<BTreeSet<PathBuf>, CompileError> {
     let mut outputs = BTreeSet::new();
-    if modules.iter().any(|module| module.requires_runtime()) {
+    let requires_effect_module = modules.iter().any(|module| module.requires_effect_module());
+    if requires_effect_module || modules.iter().any(|module| module.requires_runtime()) {
         fs::create_dir_all(output)?;
         let runtime = output.join(javascript::runtime_filename());
         write_if_changed(&runtime, javascript::runtime_source().as_bytes())?;
         owned_outputs.insert(PathBuf::clone(&runtime));
         outputs.insert(runtime);
+    }
+    if requires_effect_module {
+        let effect_module = output.join(javascript::effect_filename());
+        write_if_changed(&effect_module, javascript::effect_source().as_bytes())?;
+        owned_outputs.insert(PathBuf::clone(&effect_module));
+        outputs.insert(effect_module);
     }
     let module_writes = modules.par_iter().map(|module| write_module(compilation, module, output));
     let module_writes = module_writes.collect::<Vec<_>>();

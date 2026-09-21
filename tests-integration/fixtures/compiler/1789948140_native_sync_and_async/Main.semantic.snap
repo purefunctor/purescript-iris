@@ -1,0 +1,100 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+expression: semantic_report
+---
+newtype DatabaseError :: Prim.Type
+newtype DatabaseError
+  | DatabaseError :: Prim.Int -> Main.DatabaseError
+
+newtype ValidationError :: Prim.Type
+newtype ValidationError
+  | ValidationError :: Prim.Int -> Main.ValidationError
+
+interface Available :: Prim.Effects -> Prim.Constraint
+interface Available effects where
+  available :: Prim.Int
+
+dictionary availableInstance ::
+  forall effects.
+  { subsetDict :: Prim.Effect.Subset [] effects } =>
+  Main.Available effects
+  where
+  available :: Prim.Int
+  available = 17
+
+proofRetained :: forall @effects. Prim.Effect.Subset [] effects => Prim.Int
+proofRetained = \{subsetDict} -> available {availableInstance {subsetDict}}
+
+proofRetention :: Prim.Int
+proofRetention = proofRetained {trivial}
+
+foreign import mark :: Prim.String -> Prim.Int -> Iris.Effect.Sync [] Prim.Int
+
+foreign import delayed :: Prim.Int -> Iris.Effect.Async [] Prim.Int
+
+syncProgram :: Iris.Effect.Sync [] Prim.Int
+syncProgram =
+  bind {trivial} (mark "first" 20) \first ->
+    bind {trivial} (mark "second" 22) \second -> pure (add {semiringInt} first second)
+
+wrappedProgram :: Iris.Effect.Sync [] Prim.Int
+wrappedProgram = pure 21
+
+asyncProgram :: Iris.Effect.Async [] Prim.Int
+asyncProgram =
+  bind {trivial} (lift syncProgram) \value -> discard {trivial} yield \_ -> delayed value
+
+deep :: Prim.Int -> Prim.Int -> Iris.Effect.Async [] Prim.Int
+deep = \remaining -> \total ->
+  if eq {eqInt} remaining 0 then
+    pure total
+  else
+    defer \_ -> deep (sub {ringInt} remaining 1) (add {semiringInt} total 1)
+
+main :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+main = run asyncProgram
+
+runDeep :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+runDeep = run (deep 100000 0)
+
+syncFailure :: Iris.Effect.Sync [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+syncFailure = abort {abortIdentity("c4:Main13:DatabaseError")} (DatabaseError 7)
+
+syncRecovered :: Iris.Effect.Sync [] Prim.Int
+syncRecovered =
+  catchAbort {abortIdentity("c4:Main13:DatabaseError")} {trivial} {trivial}
+    syncFailure \(DatabaseError code) -> pure code
+
+asyncFailures :: Iris.Effect.Async
+  [Prim.Effect.Abort Main.DatabaseError, Prim.Effect.Abort Main.ValidationError]
+  Prim.Int
+asyncFailures = abort {abortIdentity("c4:Main15:ValidationError")} (ValidationError 13)
+
+asyncPartiallyHandled :: Iris.Effect.Async [Prim.Effect.Abort Main.ValidationError] Prim.Int
+asyncPartiallyHandled =
+  catchAbort {abortIdentity("c4:Main13:DatabaseError")} {trivial} {trivial}
+    asyncFailures \(DatabaseError _) -> pure 0
+
+asyncRecovered :: Iris.Effect.Async [] Prim.Int
+asyncRecovered =
+  catchAbort {abortIdentity("c4:Main15:ValidationError")} {trivial} {trivial}
+    asyncPartiallyHandled \(ValidationError code) -> pure code
+
+runAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+runAbort = run asyncRecovered
+
+structuralFailure :: Iris.Effect.Async [Prim.Effect.Abort Main.FirstStructuralError] Prim.Int
+structuralFailure =
+  abort {abortIdentity("ac4:Prim6:Recordr2:1:ac4:Prim3:Int1:bc4:Prim6:String.")}
+    { a: 1, b: "first" }
+
+structuralRecovered :: Iris.Effect.Async [] Prim.Int
+structuralRecovered =
+  catchAbort {abortIdentity("ac4:Prim6:Recordr2:1:ac4:Prim3:Int1:bc4:Prim6:String.")} {trivial} {trivial}
+    (catchAbort {abortIdentity("ac4:Prim6:Recordr1:16:a :: Prim.Int, bc4:Prim6:String.")} {trivial} {trivial}
+      structuralFailure \(_ :: Main.SecondStructuralError) ->
+      pure 99) \(_ :: Main.FirstStructuralError) -> pure 42
+
+runStructuralAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+runStructuralAbort = run structuralRecovered

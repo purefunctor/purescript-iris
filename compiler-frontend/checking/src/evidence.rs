@@ -54,6 +54,7 @@ pub struct EvidenceBinder {
 pub enum SynthesizedEvidence {
     IsSymbol(lowering::StringLiteral),
     Reflectable(ReflectableEvidence),
+    AbortIdentity(lowering::StringLiteral),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2137,5 +2137,8 @@ fn synthesized_evidence_name(evidence: &SynthesizedEvidence) -> SmolStr {
         SynthesizedEvidence::Reflectable(ReflectableEvidence::Ordering(
             ReflectableOrdering::Greater,
         )) => REFLECTABLE_GREATER_EVIDENCE,
+        SynthesizedEvidence::AbortIdentity(identity) => {
+            format_smolstr!("abortIdentity({identity:?})")
+        }
     }
 }

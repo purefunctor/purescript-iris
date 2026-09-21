@@ -2,6 +2,7 @@
 
 pub mod convert;
 pub mod error;
+pub mod native;
 pub mod optimize;
 pub mod pretty;
 pub mod stylex;

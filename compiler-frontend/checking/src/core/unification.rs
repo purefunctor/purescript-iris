@@ -287,6 +287,29 @@ where
             P::on_constrained(state, context, t1, *constraint, *constrained, t2)
         }
 
+        // Native computations are covariant in their effect budget. An
+        // expression may require fewer effects than its surrounding context
+        // permits, while the result value remains invariant.
+        (Type::Application(t1_function, t1_value), Type::Application(t2_function, t2_value))
+            if let (
+                Type::Application(t1_constructor, t1_effects),
+                Type::Application(t2_constructor, t2_effects),
+            ) = (context.lookup_type(*t1_function), context.lookup_type(*t2_function))
+                && t1_constructor == t2_constructor
+                && (*t1_constructor == context.iris_effect.sync
+                    || *t1_constructor == context.iris_effect.asynchronous)
+                && !matches!(context.lookup_type(*t2_effects), Type::Unification(_)) =>
+        {
+            let subset = context.queries.intern_type(Type::Constructor(
+                context.prim_effect.file_id,
+                context.prim_effect.subset,
+            ));
+            let subset = context.intern_application(subset, *t1_effects);
+            let subset = context.intern_application(subset, *t2_effects);
+            state.push_wanted(subset);
+            unify(state, context, *t1_value, *t2_value)
+        }
+
         // Record subtyping is implemented through subtype_rows. Unlike
         // unification, the directionality of subtyping allows us to emit
         // errors like AdditionalProperty and PropertyIsMissing.

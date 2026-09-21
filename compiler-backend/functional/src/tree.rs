@@ -9,6 +9,7 @@ use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
 use smol_str::SmolStr;
 
+use crate::native::NativeOperation;
 use crate::stylex::StyleXExpression;
 
 pub type ExpressionId = Idx<Expression>;
@@ -184,6 +185,7 @@ pub enum ExpressionKind {
     Binary { operator: BinaryOperator, left: ExpressionId, right: ExpressionId },
     Constructor { global: Global },
     Global { global: Global },
+    Native { operation: NativeOperation },
     Local { parameter: Parameter },
     Abstraction { parameters: Arc<[PatternId]>, body: ExpressionId },
     UncurriedAbstraction { parameters: Arc<[PatternId]>, body: ExpressionId },
@@ -286,6 +288,7 @@ pub struct RecordPatternField {
 pub enum SynthesizedEvidence {
     IsSymbol(lowering::StringLiteral),
     Reflectable(ReflectableEvidence),
+    AbortIdentity(lowering::StringLiteral),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

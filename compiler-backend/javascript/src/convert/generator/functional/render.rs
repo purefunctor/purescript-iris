@@ -24,7 +24,7 @@ use smol_str::{SmolStr, format_smolstr};
 
 use super::super::names::NameAllocator;
 use crate::error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
-use crate::module::{Module, module_filename, runtime_filename};
+use crate::module::{Module, effect_filename, module_filename, runtime_filename};
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
 
@@ -56,6 +56,7 @@ pub(crate) struct Generator<'m> {
     stylex_namespace: Option<SmolStr>,
     foreign_import: Option<ForeignImport>,
     runtime_namespace: Option<SmolStr>,
+    effect_namespace: Option<SmolStr>,
     lazy_global_names: FxHashMap<GlobalId, SmolStr>,
     global_tail_call_groups: Vec<TailCallGroup>,
     global_tail_call_group_positions: FxHashMap<GlobalId, usize>,
@@ -307,6 +308,10 @@ impl<'m> Generator<'m> {
         let has_stylex =
             expressions.any(|(_, expression)| matches!(expression.kind, ExpressionKind::StyleX(_)));
         let stylex_namespace = has_stylex.then(|| allocator.allocate("$stylex"));
+        let has_native_effect_operation = module
+            .storage
+            .expressions()
+            .any(|(_, expression)| matches!(expression.kind, ExpressionKind::Native { .. }));
 
         let has_foreign = module
             .declarations
@@ -319,6 +324,7 @@ impl<'m> Generator<'m> {
         let lazy_globals = cyclic_instance_initializers(module);
         let requires_runtime = !lazy_globals.is_empty() || has_local_lazy_initializers(module);
         let runtime_namespace = requires_runtime.then(|| allocator.allocate("$runtime"));
+        let effect_namespace = has_native_effect_operation.then(|| allocator.allocate("$effect"));
         let lazy_global_names = lazy_globals.into_iter().map(|id| {
             let global_name = &global_names[&id];
             let lazy_name = allocator.allocate(format_smolstr!("$lazy_{global_name}"));
@@ -367,6 +373,7 @@ impl<'m> Generator<'m> {
             stylex_namespace,
             foreign_import,
             runtime_namespace,
+            effect_namespace,
             lazy_global_names,
             global_tail_call_groups,
             global_tail_call_group_positions,
@@ -399,6 +406,7 @@ impl<'m> Generator<'m> {
             vec![ModuleDiagnostic::InitializerCycle { declarations: initializer_cycle }]
         };
         let requires_runtime = self.runtime_namespace.is_some();
+        let requires_effect_module = self.effect_namespace.is_some();
         let source = writer.finish();
         Ok(Module::new(
             self.module.file_id,
@@ -408,6 +416,7 @@ impl<'m> Generator<'m> {
             diagnostics,
             self.foreign_import.as_ref().map(|foreign_import| foreign_import.kind),
             requires_runtime,
+            requires_effect_module,
         ))
     }
 
@@ -477,11 +486,16 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
         let path = format!("../{}", runtime_filename());
         writer.import_namespace(namespace, &path);
     }
+    if let Some(namespace) = &generator.effect_namespace {
+        let path = format!("../{}", effect_filename());
+        writer.import_namespace(namespace, &path);
+    }
     if !generator.external_references.is_empty()
         || generator.stylex_namespace.is_some()
         || !generator.external_named_imports.is_empty()
         || generator.foreign_import.is_some()
         || generator.runtime_namespace.is_some()
+        || generator.effect_namespace.is_some()
     {
         writer.blank();
     }
@@ -1672,6 +1686,7 @@ impl Generator<'_> {
             ExpressionKind::Literal { .. }
             | ExpressionKind::Constructor { .. }
             | ExpressionKind::Global { .. }
+            | ExpressionKind::Native { .. }
             | ExpressionKind::Local { .. }
             | ExpressionKind::SynthesizedEvidence { .. }
             | ExpressionKind::TrivialEvidence => {
@@ -1689,6 +1704,7 @@ impl Generator<'_> {
             ExpressionKind::Literal { .. }
             | ExpressionKind::Constructor { .. }
             | ExpressionKind::Global { .. }
+            | ExpressionKind::Native { .. }
             | ExpressionKind::Local { .. }
             | ExpressionKind::Abstraction { .. }
             | ExpressionKind::UncurriedAbstraction { .. }
@@ -1747,6 +1763,7 @@ impl Generator<'_> {
     ) -> bool {
         match &self.module.storage[expression].kind {
             ExpressionKind::Literal { .. } => true,
+            ExpressionKind::Native { .. } => true,
             ExpressionKind::Constructor { global } | ExpressionKind::Global { global } => {
                 global_file(global.id) == self.module.file_id
                     && !self.lazy_global_names.contains_key(&global.id)
@@ -1858,6 +1875,14 @@ impl Generator<'_> {
             }
             ExpressionKind::Constructor { global } => self.global_expression(tree, global)?,
             ExpressionKind::Global { global } => self.global_expression(tree, global)?,
+            ExpressionKind::Native { operation } => {
+                let effect_namespace = self
+                    .effect_namespace
+                    .as_ref()
+                    .expect("invariant violated: native operation rendered without effect runtime");
+                let effect_namespace = tree.identifier(effect_namespace);
+                tree.member(effect_namespace, operation.javascript_name())
+            }
             ExpressionKind::Local { parameter } => {
                 local_expression(self, tree, parameter, context)?
             }
@@ -1955,6 +1980,7 @@ impl Generator<'_> {
             ExpressionKind::Literal { .. }
             | ExpressionKind::Constructor { .. }
             | ExpressionKind::Global { .. }
+            | ExpressionKind::Native { .. }
             | ExpressionKind::Local { .. }
             | ExpressionKind::SynthesizedEvidence { .. }
             | ExpressionKind::TrivialEvidence => true,
@@ -3202,6 +3228,7 @@ fn collect_expression_references(
     match &module.storage[expression].kind {
         ExpressionKind::Error
         | ExpressionKind::Literal { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => {}
@@ -3428,6 +3455,7 @@ fn collect_expression_children(
         | ExpressionKind::Literal { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => {}

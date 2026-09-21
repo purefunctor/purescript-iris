@@ -150,6 +150,7 @@ pub struct CheckedCore {
     pub prim_row_list: PrimRowListCore,
     pub prim_coerce: PrimCoerceCore,
     pub prim_type_error: PrimTypeErrorCore,
+    pub iris_effect: IrisEffectCore,
     pub known_types: KnownTypesCore,
     pub known_terms: KnownTermsCore,
     pub known_reflectable: KnownReflectableCore,
@@ -170,6 +171,7 @@ impl CheckedCore {
         let prim_row_list = PrimRowListCore::collect(queries)?;
         let prim_coerce = PrimCoerceCore::collect(queries)?;
         let prim_type_error = PrimTypeErrorCore::collect(queries)?;
+        let iris_effect = IrisEffectCore::collect(queries)?;
         let known_types = KnownTypesCore::collect(queries)?;
         let known_terms = KnownTermsCore::collect(queries)?;
         let known_reflectable = KnownReflectableCore::collect(queries)?;
@@ -190,12 +192,35 @@ impl CheckedCore {
             prim_row_list,
             prim_coerce,
             prim_type_error,
+            iris_effect,
             known_types,
             known_terms,
             known_reflectable,
             known_generic,
             prim_indexed,
             prim_resolved,
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct IrisEffectCore {
+    pub sync: TypeId,
+    pub asynchronous: TypeId,
+}
+
+impl IrisEffectCore {
+    fn collect(queries: &impl ExternalQueries) -> QueryResult<IrisEffectCore> {
+        let file_id = queries
+            .module_file("Iris.Effect")
+            .unwrap_or_else(|| unreachable!("invariant violated: Iris.Effect not found"));
+
+        let resolved = queries.resolved(file_id)?;
+        let lookup = PrimLookup::new(&resolved, queries, "Iris.Effect");
+
+        Ok(IrisEffectCore {
+            sync: lookup.type_constructor("Sync"),
+            asynchronous: lookup.type_constructor("Async"),
         })
     }
 }
@@ -499,6 +524,7 @@ impl PrimCore {
 #[derive(Debug, PartialEq, Eq)]
 pub struct PrimEffectCore {
     pub file_id: FileId,
+    pub abort_identity: TypeItemId,
     pub union: TypeItemId,
     pub remove: TypeItemId,
     pub subset: TypeItemId,
@@ -515,6 +541,7 @@ impl PrimEffectCore {
 
         Ok(PrimEffectCore {
             file_id,
+            abort_identity: lookup.class_item("AbortIdentity"),
             union: lookup.class_item("Union"),
             remove: lookup.class_item("Remove"),
             subset: lookup.class_item("Subset"),

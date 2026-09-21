@@ -276,7 +276,16 @@ where
             None
         }
     } else if file_id == context.prim_effect.file_id {
-        if item_id == context.prim_effect.union {
+        if item_id == context.prim_effect.abort_identity {
+            let Some([error]) = canonical.expect_type_arguments::<1>() else {
+                return Ok(None);
+            };
+            let error = recursively_normalise(state, context, error)?;
+            if abort_identity(state, context, error)?.is_none() {
+                return Ok(None);
+            }
+            return Ok(Some(CompilerMatch::resolved(CompilerResolution::Synthesized)));
+        } else if item_id == context.prim_effect.union {
             let Some(arguments) = canonical.expect_type_arguments::<3>() else {
                 return Ok(None);
             };
@@ -440,6 +449,19 @@ where
     let canonical = &state.canonicals[constraint];
     let class = (canonical.file_id, canonical.type_id);
 
+    if class == (context.prim_effect.file_id, context.prim_effect.abort_identity) {
+        let Some([error]) = canonical.expect_type_arguments::<1>() else {
+            unreachable!(
+                "invariant violated: solved AbortIdentity constraint has invalid arguments"
+            );
+        };
+        let error = recursively_normalise(state, context, error)?;
+        let identity = abort_identity(state, context, error)?.unwrap_or_else(|| {
+            unreachable!("invariant violated: solved AbortIdentity constraint is not concrete")
+        });
+        return Ok(SynthesizedEvidence::AbortIdentity(identity.into()));
+    }
+
     if context.known_reflectable.is_symbol == Some(class) {
         let Some([symbol]) = canonical.expect_type_arguments::<1>() else {
             unreachable!("invariant violated: solved IsSymbol constraint has invalid arguments");
@@ -476,4 +498,126 @@ where
     }
 
     unreachable!("invariant violated: compiler constraint does not synthesize evidence")
+}
+
+fn append_identity_text(identity: &mut String, text: &str) {
+    identity.push_str(&text.len().to_string());
+    identity.push(':');
+    identity.push_str(text);
+}
+
+// Abort handlers compare identities at runtime. Each type form has a distinct tag, and every
+// variable-length component is length-prefixed so structurally different types cannot collide.
+fn abort_identity<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    error_type: TypeId,
+) -> QueryResult<Option<String>>
+where
+    Q: ExternalQueries,
+{
+    fn encode_type<Q>(
+        state: &mut CheckState,
+        context: &CheckContext<Q>,
+        type_id: TypeId,
+        identity: &mut String,
+    ) -> QueryResult<bool>
+    where
+        Q: ExternalQueries,
+    {
+        let type_id = normalise::normalise(state, context, type_id);
+        match context.lookup_type(type_id) {
+            Type::Application(function, argument) => {
+                identity.push('a');
+                Ok(encode_type(state, context, *function, identity)?
+                    && encode_type(state, context, *argument, identity)?)
+            }
+            Type::KindApplication(function, argument) => {
+                identity.push('k');
+                Ok(encode_type(state, context, *function, identity)?
+                    && encode_type(state, context, *argument, identity)?)
+            }
+            Type::Constrained(constraint, constrained) => {
+                identity.push('q');
+                Ok(encode_type(state, context, *constraint, identity)?
+                    && encode_type(state, context, *constrained, identity)?)
+            }
+            Type::Function(argument, result) => {
+                identity.push('f');
+                Ok(encode_type(state, context, *argument, identity)?
+                    && encode_type(state, context, *result, identity)?)
+            }
+            Type::Kinded(inner, kind) => {
+                identity.push('t');
+                Ok(encode_type(state, context, *inner, identity)?
+                    && encode_type(state, context, *kind, identity)?)
+            }
+            Type::Constructor(file_id, item_id) => {
+                identity.push('c');
+                let content = context.queries.content(*file_id)?;
+                let (parsed, _) = context.queries.parsed(*file_id)?;
+                let Some(module_name) = parsed.module_name(&content) else {
+                    return Ok(false);
+                };
+                let indexed = context.queries.indexed(*file_id)?;
+                let Some(item_name) = indexed.items[*item_id].name.as_deref() else {
+                    return Ok(false);
+                };
+                append_identity_text(identity, &module_name);
+                append_identity_text(identity, item_name);
+                Ok(true)
+            }
+            Type::Integer(integer) => {
+                identity.push('i');
+                append_identity_text(identity, &integer.to_string());
+                Ok(true)
+            }
+            Type::String(kind, string) => {
+                identity.push(match kind {
+                    lowering::StringKind::String => 's',
+                    lowering::StringKind::RawString => 'w',
+                });
+                identity.push_str(&string.as_utf16().len().to_string());
+                identity.push(':');
+                for code_unit in string.as_utf16() {
+                    identity.push_str(&format!("{code_unit:04x}"));
+                }
+                Ok(true)
+            }
+            Type::Row(row) => {
+                identity.push('r');
+                let row = context.lookup_row_type(*row);
+                identity.push_str(&row.fields.len().to_string());
+                identity.push(':');
+                for field in row.fields.iter() {
+                    append_identity_text(identity, &field.label);
+                    if !encode_type(state, context, field.id, identity)? {
+                        return Ok(false);
+                    }
+                }
+                match row.tail {
+                    Some(tail) => {
+                        identity.push('+');
+                        encode_type(state, context, tail, identity)
+                    }
+                    None => {
+                        identity.push('.');
+                        Ok(true)
+                    }
+                }
+            }
+            Type::Forall(_, _)
+            | Type::Rigid(_, _, _)
+            | Type::Unification(_)
+            | Type::Free(_)
+            | Type::Unknown(_) => Ok(false),
+        }
+    }
+
+    let mut identity = String::new();
+    if encode_type(state, context, error_type, &mut identity)? {
+        Ok(Some(identity))
+    } else {
+        Ok(None)
+    }
 }

@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
+assertion_line: 309
 expression: functional_report
 ---
 @export foreign interleaved

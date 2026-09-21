@@ -23,6 +23,9 @@ define!(
     PRIM_ROW_LIST, "prim/Prim.RowList.purs", "Prim.RowList";
     PRIM_SYMBOL, "prim/Prim.Symbol.purs", "Prim.Symbol";
     PRIM_TYPE_ERROR, "prim/Prim.TypeError.purs", "Prim.TypeError";
+    IRIS_EFFECT, "prim/Iris.Effect.purs", "Iris.Effect";
+    IRIS_EFFECT_SYNC, "prim/Iris.Effect.Sync.purs", "Iris.Effect.Sync";
+    IRIS_EFFECT_ASYNC, "prim/Iris.Effect.Async.purs", "Iris.Effect.Async";
     IRIS_STYLEX, "prim/Iris.StyleX.purs", "Iris.StyleX";
     IRIS_STYLEX_WHEN, "prim/Iris.StyleX.When.purs", "Iris.StyleX.When";
     IRIS_STYLEX_TYPES, "prim/Iris.StyleX.Types.purs", "Iris.StyleX.Types";

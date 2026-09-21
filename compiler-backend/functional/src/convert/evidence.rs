@@ -557,6 +557,9 @@ fn synthesized_evidence(
             };
             SynthesizedEvidence::Reflectable(reflectable)
         }
+        checking::evidence::SynthesizedEvidence::AbortIdentity(identity) => {
+            SynthesizedEvidence::AbortIdentity(lowering::StringLiteral::clone(identity))
+        }
     }
 }
 

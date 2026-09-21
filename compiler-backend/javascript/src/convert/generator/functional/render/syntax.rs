@@ -173,6 +173,7 @@ pub(super) fn synthesized_evidence_expression(
                 value: reflect,
             }])
         }
+        SynthesizedEvidence::AbortIdentity(identity) => tree.string_utf16(identity.as_utf16()),
     }
 }
 

@@ -227,6 +227,7 @@ fn is_trivial_expression(
     match &storage[expression].kind {
         ExpressionKind::Literal { .. }
         | ExpressionKind::Constructor { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => true,
@@ -245,6 +246,7 @@ fn is_simple_expression(
         match &storage[expression].kind {
             ExpressionKind::Literal { .. }
             | ExpressionKind::Constructor { .. }
+            | ExpressionKind::Native { .. }
             | ExpressionKind::Local { .. }
             | ExpressionKind::Abstraction { .. }
             | ExpressionKind::UncurriedAbstraction { .. }
@@ -300,6 +302,7 @@ pub fn try_for_each_expression_child<Error>(
         | ExpressionKind::Literal { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
+        | ExpressionKind::Native { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => {}

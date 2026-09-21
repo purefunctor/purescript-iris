@@ -13,6 +13,7 @@ pub struct Module {
     diagnostics: Arc<[ModuleDiagnostic]>,
     foreign_kind: Option<ForeignSourceKind>,
     requires_runtime: bool,
+    requires_effect_module: bool,
 }
 
 impl Module {
@@ -24,6 +25,7 @@ impl Module {
         diagnostics: Vec<ModuleDiagnostic>,
         foreign_kind: Option<ForeignSourceKind>,
         requires_runtime: bool,
+        requires_effect_module: bool,
     ) -> Module {
         Module {
             file_id,
@@ -33,6 +35,7 @@ impl Module {
             diagnostics: diagnostics.into(),
             foreign_kind,
             requires_runtime,
+            requires_effect_module,
         }
     }
 
@@ -67,6 +70,10 @@ impl Module {
     pub fn requires_runtime(&self) -> bool {
         self.requires_runtime
     }
+
+    pub fn requires_effect_module(&self) -> bool {
+        self.requires_effect_module
+    }
 }
 
 pub fn runtime_filename() -> &'static str {
@@ -75,6 +82,14 @@ pub fn runtime_filename() -> &'static str {
 
 pub fn runtime_source() -> &'static str {
     include_str!("runtime.js")
+}
+
+pub fn effect_filename() -> &'static str {
+    "effect.js"
+}
+
+pub fn effect_source() -> &'static str {
+    include_str!("effect.js")
 }
 
 pub fn module_filename(module_name: &str) -> String {

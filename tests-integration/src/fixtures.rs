@@ -57,9 +57,15 @@ struct JavaScriptModules {
 
 impl JavaScriptModules {
     fn write_to(&self, files: &Files, output: &Path) -> FixtureResult {
-        if self.modules.iter().any(|module| module.requires_runtime()) {
+        let requires_effect_module =
+            self.modules.iter().any(|module| module.requires_effect_module());
+        if requires_effect_module || self.modules.iter().any(|module| module.requires_runtime()) {
             let runtime = output.join(javascript::runtime_filename());
             std::fs::write(runtime, javascript::runtime_source())?;
+        }
+        if requires_effect_module {
+            let effect_module = output.join(javascript::effect_filename());
+            std::fs::write(effect_module, javascript::effect_source())?;
         }
         for module in &self.modules {
             let output_path = output.join(module.filename());

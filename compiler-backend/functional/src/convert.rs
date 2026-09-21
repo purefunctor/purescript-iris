@@ -4,6 +4,7 @@ mod application;
 mod declaration;
 mod evidence;
 mod expression;
+mod native;
 mod stylex;
 
 use std::cell::RefCell;

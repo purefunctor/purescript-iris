@@ -33,6 +33,11 @@ pub(super) fn term_declaration(
     };
     let global = Global { id: GlobalId::Term(context.file_id, term_id), item_name };
     let recursive_group = context.recursive_groups.get(&term_id).copied();
+    if let Some(operation) = context.native_operation(context.file_id, term_id)? {
+        let expression = context.expression(ExpressionKind::Native { operation });
+        let kind = DeclarationKind::Value(expression);
+        return Ok(Some(Declaration { global, exported, recursive_group, kind }));
+    }
     if matches!(indexed.kind, IndexedTermItemKind::ClassMember { .. }) {
         let kind = DeclarationKind::Value(class_member_selector(context, term_id)?);
         return Ok(Some(Declaration { global, exported, recursive_group, kind }));

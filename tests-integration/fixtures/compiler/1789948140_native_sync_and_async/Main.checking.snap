@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 306
+expression: checking_report
+---
+Terms
+DatabaseError :: Prim.Int -> Main.DatabaseError
+ValidationError :: Prim.Int -> Main.ValidationError
+available :: forall (@effects :: Prim.Effects). Main.Available (effects :: Prim.Effects) => Prim.Int
+proofRetained ::
+  forall (@effects :: Prim.Effects). Prim.Effect.Subset [] (effects :: Prim.Effects) => Prim.Int
+proofRetention :: Prim.Int
+mark :: Prim.String -> Prim.Int -> Iris.Effect.Sync [] Prim.Int
+delayed :: Prim.Int -> Iris.Effect.Async [] Prim.Int
+syncProgram :: Iris.Effect.Sync [] Prim.Int
+wrappedProgram :: Iris.Effect.Sync [] Prim.Int
+asyncProgram :: Iris.Effect.Async [] Prim.Int
+deep :: Prim.Int -> Prim.Int -> Iris.Effect.Async [] Prim.Int
+main :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+runDeep :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+syncFailure :: Iris.Effect.Sync [Prim.Effect.Abort Main.DatabaseError] Prim.Int
+syncRecovered :: Iris.Effect.Sync [] Prim.Int
+asyncFailures ::
+  Iris.Effect.Async
+    [Prim.Effect.Abort Main.DatabaseError, Prim.Effect.Abort Main.ValidationError]
+    Prim.Int
+asyncPartiallyHandled :: Iris.Effect.Async [Prim.Effect.Abort Main.ValidationError] Prim.Int
+asyncRecovered :: Iris.Effect.Async [] Prim.Int
+runAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+structuralFailure :: Iris.Effect.Async [Prim.Effect.Abort Main.FirstStructuralError] Prim.Int
+structuralRecovered :: Iris.Effect.Async [] Prim.Int
+runStructuralAbort :: Iris.Effect.Sync [] (Iris.Effect.Fiber Prim.Int)
+
+Types
+DatabaseError :: Prim.Type
+ValidationError :: Prim.Type
+FirstStructuralError :: Prim.Type
+SecondStructuralError :: Prim.Type
+Available :: Prim.Effects -> Prim.Constraint
+
+Synonyms
+type FirstStructuralError = { a :: Prim.Int, b :: Prim.String }
+type SecondStructuralError = { a :: Prim.Int, b :: Prim.String }
+
+Classes
+class forall (effects :: Prim.Effects). Main.Available (effects :: Prim.Effects)
+  available :: forall (@effects :: Prim.Effects). Main.Available (effects :: Prim.Effects) => Prim.Int
+
+Instances
+instance forall (effects :: Prim.Effects).
+  Prim.Effect.Subset [] (effects :: Prim.Effects) => Main.Available (effects :: Prim.Effects)
+
+Roles
+DatabaseError = []
+ValidationError = []

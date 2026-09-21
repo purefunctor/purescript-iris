@@ -312,6 +312,9 @@ fn variable(
                 Ok(context.expression(ExpressionKind::Local { parameter }))
             }
             lowering::TermVariableResolution::Reference(file_id, term_id) => {
+                if let Some(operation) = context.native_operation(file_id, term_id)? {
+                    return Ok(context.expression(ExpressionKind::Native { operation }));
+                }
                 if let Some(expression) = context.stylex_value_intrinsic(file_id, term_id)? {
                     return Ok(expression);
                 }

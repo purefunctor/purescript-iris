@@ -1,0 +1,81 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+expression: functional_report
+---
+@export available = \dictionary%0 -> dictionary%0.available
+
+@export instance availableInstance = \subsetEffectNilEffectsDict%1 -> { available: 17 }
+
+@export proofRetained = \subsetEffectNilEffectsDict%2 ->
+  available (availableInstance subsetEffectNilEffectsDict%2)
+
+@export proofRetention = proofRetained <trivial evidence>
+
+@export foreign mark
+
+@export foreign delayed
+
+@export syncProgram = <native syncBind> <trivial evidence> (mark "first" 20)
+  (\first%3 ->
+    <native syncBind> <trivial evidence> (mark "second" 22)
+      (\second%4 -> <native syncPure> (integer.add first%3 second%4)))
+
+@export wrappedProgram = <native syncPure> 21
+
+@export asyncProgram = <native asyncBind> <trivial evidence> (<native asyncLift> syncProgram)
+  (\value%5 ->
+    <native asyncDiscard> <trivial evidence> <native asyncYield>
+      (\$record%6@(_) -> delayed value%5))
+
+@export recursive[10] deep = \remaining%7 total%8 ->
+  if eq eqInt remaining%7 0
+    then <native asyncPure> total%8
+    else <native asyncDefer>
+      (\$record%9@(_) -> deep (integer.subtract remaining%7 1) (integer.add total%8 1))
+
+@export main = <native asyncRun> asyncProgram
+
+@export runDeep = <native asyncRun> (deep 100000 0)
+
+@export syncFailure = <native syncAbort> (abort identity "c4:Main13:DatabaseError") 7
+
+@export syncRecovered = <native syncCatchAbort> (abort identity "c4:Main13:DatabaseError")
+  <trivial evidence>
+  <trivial evidence>
+  syncFailure
+  (\code%10 -> <native syncPure> code%10)
+
+@export asyncFailures = <native asyncAbort> (abort identity "c4:Main15:ValidationError") 13
+
+@export asyncPartiallyHandled = <native asyncCatchAbort> (abort identity "c4:Main13:DatabaseError")
+  <trivial evidence>
+  <trivial evidence>
+  asyncFailures
+  (\$databaseError%11@(_) -> <native asyncPure> 0)
+
+@export asyncRecovered = <native asyncCatchAbort> (abort identity "c4:Main15:ValidationError")
+  <trivial evidence>
+  <trivial evidence>
+  asyncPartiallyHandled
+  (\code%12 -> <native asyncPure> code%12)
+
+@export runAbort = <native asyncRun> asyncRecovered
+
+@export structuralFailure = <native asyncAbort>
+  (abort identity "ac4:Prim6:Recordr2:1:ac4:Prim3:Int1:bc4:Prim6:String.")
+  { a: 1, b: "first" }
+
+@export structuralRecovered = <native asyncCatchAbort>
+  (abort identity "ac4:Prim6:Recordr2:1:ac4:Prim3:Int1:bc4:Prim6:String.")
+  <trivial evidence>
+  <trivial evidence>
+  (<native asyncCatchAbort>
+    (abort identity "ac4:Prim6:Recordr1:16:a :: Prim.Int, bc4:Prim6:String.")
+    <trivial evidence>
+    <trivial evidence>
+    structuralFailure
+    (\$secondStructuralError%13@(_) -> <native asyncPure> 99))
+  (\$firstStructuralError%14@(_) -> <native asyncPure> 42)
+
+@export runStructuralAbort = <native asyncRun> structuralRecovered
