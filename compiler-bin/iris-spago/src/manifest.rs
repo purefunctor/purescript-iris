@@ -25,20 +25,20 @@ pub enum ManifestError {
     Parse {
         path: PathBuf,
         #[source]
-        source: serde_yml::Error,
+        source: yaml_serde::Error,
     },
 }
 
 /// Parses a `spago.yaml` manifest from its text.
-pub fn parse_manifest(source: &str) -> Result<Manifest, serde_yml::Error> {
-    serde_yml::from_str(source)
+pub fn parse_manifest(source: &str) -> Result<Manifest, yaml_serde::Error> {
+    yaml_serde::from_str(source)
 }
 
 /// Reads and parses the `spago.yaml` manifest at the given path.
 pub fn read_manifest(path: &Path) -> Result<Manifest, ManifestError> {
     let source = fs::read_to_string(path)
         .map_err(|source| ManifestError::Read { path: path.to_path_buf(), source })?;
-    serde_yml::from_str(&source)
+    yaml_serde::from_str(&source)
         .map_err(|source| ManifestError::Parse { path: path.to_path_buf(), source })
 }
 

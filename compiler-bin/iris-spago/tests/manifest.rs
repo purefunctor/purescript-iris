@@ -93,6 +93,14 @@ fn rejects_constrained_test_without_main() {
 }
 
 #[test]
+fn parses_yaml_1_2_strings() {
+    let manifest = iris_spago::parse_manifest("package:\n  name: NO\n  description: on\n").unwrap();
+    let package = manifest.package.unwrap();
+    assert_eq!(package.name, "NO");
+    assert_eq!(package.description.as_deref(), Some("on"));
+}
+
+#[test]
 fn parses_multiple_constraints_from_each_dependency_map() {
     let manifest = iris_spago::parse_manifest(
         r#"package:

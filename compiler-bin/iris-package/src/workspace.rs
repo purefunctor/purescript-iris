@@ -37,7 +37,7 @@ pub enum WorkspaceError {
     ParseManifest {
         path: PathBuf,
         #[source]
-        source: serde_yml::Error,
+        source: yaml_serde::Error,
     },
     #[error(transparent)]
     Walk(#[from] ignore::Error),
@@ -45,7 +45,7 @@ pub enum WorkspaceError {
 
 #[derive(Deserialize)]
 struct Manifest {
-    workspace: Option<serde_yml::Value>,
+    workspace: Option<yaml_serde::Value>,
     package: Option<PackageManifest>,
 }
 
@@ -201,6 +201,6 @@ fn excluded_directory(path: &Path, root: &Path) -> bool {
 fn read_manifest(path: &Path) -> Result<Manifest, WorkspaceError> {
     let source = fs::read_to_string(path)
         .map_err(|source| WorkspaceError::ReadManifest { path: path.to_path_buf(), source })?;
-    serde_yml::from_str(&source)
+    yaml_serde::from_str(&source)
         .map_err(|source| WorkspaceError::ParseManifest { path: path.to_path_buf(), source })
 }
