@@ -13,3 +13,5 @@ oxc_parser = "=0.151.0"
 oxc_span = "=0.151.0"
 oxc_syntax = "=0.151.0"
 smol_str = "0.3.6"
+# Preserve the pre-update identifier set until validation targets the Node.js baseline explicitly.
+unicode-id-start = "=1.4.0"

@@ -11090,7 +11090,7 @@ text = """
 
 [[third_party_libraries]]
 package_name = "unicode-id-start"
-package_version = "1.5.0"
+package_version = "1.4.0"
 repository = "https://github.com/Boshen/unicode-id-start"
 license = "(MIT OR Apache-2.0) AND Unicode-3.0"
 

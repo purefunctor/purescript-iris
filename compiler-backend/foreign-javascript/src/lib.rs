@@ -136,4 +136,12 @@ mod tests {
         assert!(module.errors.is_empty(), "{:#?}", module.errors);
         assert!(module.exports.contains("component"));
     }
+
+    #[test]
+    fn rejects_identifiers_newer_than_supported_node_versions() {
+        let module = parse_module(ForeignSourceKind::JavaScript, "const \u{107bb} = 1;");
+
+        let errors = module.errors.iter().map(|error| error.as_ref()).collect::<Vec<_>>();
+        assert_eq!(errors, ["Invalid Character `\u{107bb}`"]);
+    }
 }
