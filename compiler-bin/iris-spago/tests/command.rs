@@ -37,13 +37,15 @@ fn executes_spago_package_commands_through_the_compiler_shim() {
     let _log = EnvironmentVariable::set("IRIS_SPAGO_TEST_LOG", &log);
     let command = SpagoCommand::new(temporary.path()).unwrap();
 
+    assert_eq!(command.latest_package_set("0.15.15").unwrap(), "80.4.0");
     command.fetch(Some("application"), true).unwrap();
     command.add("application", &["console".to_owned(), "effect".to_owned()], true).unwrap();
     assert!(matches!(command.fetch(None, true), Err(SpagoError::Failed { .. })));
     let calls = fs::read_to_string(log).unwrap().replace("\r\n", "\n");
     assert_eq!(
         calls,
-        r#"fetch -p application
+        r#"registry package-sets --latest --json --quiet
+fetch -p application
 fetch -p application --test-deps console effect
 "#
     );
@@ -59,6 +61,11 @@ fn write_executable(directory: &Path) -> PathBuf {
         r#"#!/bin/sh
 command -v purs >/dev/null || exit 8
 case "$*" in
+  "registry package-sets --latest --json --quiet")
+    printf '%s\n' "$*" >> "$IRIS_SPAGO_TEST_LOG"
+    printf '%s\n' '[{"version":"99.0.0","compiler":"0.15.16"},{"version":"80.4.0","compiler":"0.15.15"}]'
+    exit 0
+    ;;
   "fetch -p application"|"fetch -p application --test-deps console effect")
     printf '%s\n' "$*" >> "$IRIS_SPAGO_TEST_LOG"
     exit 0
@@ -79,9 +86,14 @@ fn write_executable(directory: &Path) -> PathBuf {
         &executable,
         r#"@echo off
 where purs >nul 2>nul || exit /b 8
+if "%*"=="registry package-sets --latest --json --quiet" goto package_sets
 if "%*"=="fetch -p application" goto success
 if "%*"=="fetch -p application --test-deps console effect" goto success
 exit /b 7
+:package_sets
+echo %*>>"%IRIS_SPAGO_TEST_LOG%"
+echo [{"version":"99.0.0","compiler":"0.15.16"},{"version":"80.4.0","compiler":"0.15.15"}]
+exit /b 0
 :success
 echo %*>>"%IRIS_SPAGO_TEST_LOG%"
 exit /b 0

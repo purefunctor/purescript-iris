@@ -8,7 +8,13 @@ pub fn run() -> i32 {
     let program = cli::Program::parse_with_diagnostics();
     match program.command {
         cli::Command::New(options) => match iris_package::create(options.into_config()) {
-            Ok(()) => 0,
+            Ok(package) => {
+                println!(
+                    "Created package `{}` with package set {}.\nRun `iris build` to get started.",
+                    package.name, package.package_set
+                );
+                0
+            }
             Err(error) => {
                 eprintln!("{error}");
                 1

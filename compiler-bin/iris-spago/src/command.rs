@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::{env, fs};
 
+use serde::Deserialize;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -14,6 +15,10 @@ pub enum SpagoError {
     Execute(io::Error),
     #[error("Spago {command} failed with status {status}{stderr}")]
     Failed { command: String, status: String, stderr: String },
+    #[error("failed to parse package sets reported by Spago: {0}")]
+    ParsePackageSets(serde_json::Error),
+    #[error("Spago reported no package set for PureScript {0}")]
+    MissingPackageSet(String),
 }
 
 impl SpagoError {
@@ -37,6 +42,12 @@ pub struct SpagoCommand {
     _shim: tempfile::TempDir,
 }
 
+#[derive(Deserialize)]
+struct PackageSet {
+    compiler: String,
+    version: String,
+}
+
 impl SpagoCommand {
     pub fn new(current_directory: &Path) -> Result<SpagoCommand, SpagoError> {
         let shim = tempfile::tempdir().map_err(SpagoError::Shim)?;
@@ -57,6 +68,20 @@ impl SpagoCommand {
             forward_output(&output)?;
         }
         ensure_success("fetch", &output)
+    }
+
+    pub fn latest_package_set(&self, compiler: &str) -> Result<String, SpagoError> {
+        let arguments =
+            ["registry", "package-sets", "--latest", "--json", "--quiet"].map(str::to_owned);
+        let output = self.execute(&arguments)?;
+        ensure_success("registry package-sets", &output)?;
+        let package_sets: Vec<PackageSet> =
+            serde_json::from_slice(&output.stdout).map_err(SpagoError::ParsePackageSets)?;
+        package_sets
+            .into_iter()
+            .find(|package_set| package_set.compiler == compiler)
+            .map(|package_set| package_set.version)
+            .ok_or_else(|| SpagoError::MissingPackageSet(compiler.to_owned()))
     }
 
     /// Builds the configured `spago fetch` invocation for supervised execution.

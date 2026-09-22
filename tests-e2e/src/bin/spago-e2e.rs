@@ -70,10 +70,26 @@ fn main() {
         eprint!("{}", message.to_string_lossy());
         process::exit(1);
     }
+    if is_package_set_query(&arguments) {
+        println!(
+            "{}",
+            r#"[{"date":"2026-09-20","version":"99.0.0","compiler":"0.15.16"},{"date":"2026-09-12","version":"81.1.0","compiler":"0.15.15"}]"#
+        );
+        return;
+    }
 
     let executable = env::var_os("IRIS_E2E_SPAGO").expect("missing real Spago executable");
     let status = Command::new(executable).args(arguments).status().unwrap();
     process::exit(status.code().unwrap_or(1));
+}
+
+fn is_package_set_query(arguments: &[std::ffi::OsString]) -> bool {
+    arguments.len() == 5
+        && arguments[0] == "registry"
+        && arguments[1] == "package-sets"
+        && arguments[2] == "--latest"
+        && arguments[3] == "--json"
+        && arguments[4] == "--quiet"
 }
 
 fn wait_for_attempt_release(directory: PathBuf) {
