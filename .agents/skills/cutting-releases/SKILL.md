@@ -42,7 +42,7 @@ Both commands should report that the target does not exist. Stop if either exist
 
 Create a release branch from current `main`. Update both version sources:
 
-- `compiler-bin/iris-cli/Cargo.toml`: package `version`
+- `compiler-executable/iris-cli/Cargo.toml`: package `version`
 - `Cargo.lock`: the `iris-cli` package `version`
 
 Do not change the internal compiler crates, which remain independently versioned.
@@ -54,13 +54,13 @@ cargo check -p iris-cli --tests --locked
 cargo run -p iris-cli --locked \
   --bin iris -- --version
 git diff --check
-git diff -- compiler-bin/iris-cli/Cargo.toml Cargo.lock
+git diff -- compiler-executable/iris-cli/Cargo.toml Cargo.lock
 ```
 
 The CLI must print `iris $version`. Commit only the manifest and lockfile:
 
 ```bash
-git add compiler-bin/iris-cli/Cargo.toml Cargo.lock
+git add compiler-executable/iris-cli/Cargo.toml Cargo.lock
 git commit -m "Prepare $version release"
 ```
 
@@ -94,7 +94,7 @@ Do not tag the release-branch commit. Read the merge commit OID from the merged 
 
 - It has two parents.
 - It is the current `origin/main`.
-- `compiler-bin/iris-cli/Cargo.toml` and `Cargo.lock` contain the requested version at that commit.
+- `compiler-executable/iris-cli/Cargo.toml` and `Cargo.lock` contain the requested version at that commit.
 - The remote release tag is still absent.
 
 After tag-push approval, create the lightweight tag on that exact merge commit and push only the tag:
