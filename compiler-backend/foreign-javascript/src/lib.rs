@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_identifiers_newer_than_supported_node_versions() {
+    fn rejects_identifiers_newer_than_node_22() {
         let module = parse_module(ForeignSourceKind::JavaScript, "const \u{107bb} = 1;");
 
         let errors = module.errors.iter().map(|error| error.as_ref()).collect::<Vec<_>>();
