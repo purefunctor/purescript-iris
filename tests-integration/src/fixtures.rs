@@ -302,6 +302,7 @@ pub fn compiler(path: &Path) -> FixtureResult {
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(&fixture);
     settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
     settings.bind(|| {
         insta::assert_snapshot!(format!("{file}.checking"), checking_report);
         insta::assert_snapshot!(format!("{file}.diagnostics"), diagnostics_report);
@@ -358,6 +359,7 @@ pub fn lowering(path: &Path) -> FixtureResult {
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
     settings.bind(|| insta::assert_snapshot!(file, report));
 
     Ok(())
@@ -378,6 +380,7 @@ pub fn resolving(path: &Path) -> FixtureResult {
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
     settings.bind(|| insta::assert_snapshot!(file, report));
 
     Ok(())
@@ -393,6 +396,7 @@ pub fn docs(path: &Path) -> FixtureResult {
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path);
     settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
     settings.bind(|| insta::assert_snapshot!(file, report));
 
     Ok(())
@@ -419,6 +423,7 @@ pub fn lsp(path: &Path) -> FixtureResult {
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
     settings.bind(|| insta::assert_snapshot!(file, report));
 
     Ok(())

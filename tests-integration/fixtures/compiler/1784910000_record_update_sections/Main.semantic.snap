@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 singleFieldUpdate :: forall t0 t1. { a :: t0 | t1 } -> { a :: Prim.Int | t1 }
 singleFieldUpdate = \v9 -> v9 { a = 1 }

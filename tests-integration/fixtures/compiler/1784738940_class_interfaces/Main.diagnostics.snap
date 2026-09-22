@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: diagnostics_report
 ---
 

@@ -1,6 +1,5 @@
 ---
 source: compiler-bin/iris-spago/tests/manifest.rs
-expression: "parse_fixture(\"workspace-packageset-url.yaml\")"
 ---
 Manifest {
     package: Some(

@@ -1,8 +1,6 @@
 ---
-source: compiler-core/lexing/tests/lexer.rs
+source: compiler-frontend/lexing/tests/lexer.rs
 description: "(\n)\n{ \n}\n[\n]\n"
-expression: snapshot
-snapshot_kind: text
 ---
 annotation : ""
  qualifier : ""

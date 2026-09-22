@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 apply :: forall f g. Main.NatTrans @Prim.Type f g -> f Prim.Int -> g Prim.Int
 apply = \nat -> \fa -> nat fa

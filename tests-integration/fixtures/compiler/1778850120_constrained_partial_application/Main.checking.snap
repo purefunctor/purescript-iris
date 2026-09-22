@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 test :: Module2.JSX -> Module2.JSX

@@ -1,8 +1,6 @@
 ---
-source: compiler-core/lexing/tests/lexer.rs
+source: compiler-frontend/lexing/tests/lexer.rs
 description: "123.0\n\n00123.0\n\n123e\n\n123E\n\n123e10\n\n123e+10\n\n123e-10\n\n123.0e10\n\n123.0e+10\n\n123.0e-10\n"
-expression: snapshot
-snapshot_kind: text
 ---
 annotation : ""
  qualifier : ""

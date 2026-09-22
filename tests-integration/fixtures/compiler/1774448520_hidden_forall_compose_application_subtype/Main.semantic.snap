@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface Semigroupoid :: forall k. (k -> k -> Prim.Type) -> Prim.Constraint
 interface Semigroupoid f where

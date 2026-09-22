@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export integer = \$int%0 $a%1 ->
   case $int%0, $a%1 of

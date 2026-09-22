@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface Const :: (Prim.Type -> Prim.Type) -> Prim.Constraint
 interface Const f where

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface Merge :: forall k0. Prim.Row k0 -> Prim.Row k0 -> Prim.Row k0 -> Prim.Constraint
 interface Merge r1 r2 r3 where

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 data Box :: (Prim.Type -> Prim.Type) -> Prim.Type -> Prim.Type
 data Box @f @a

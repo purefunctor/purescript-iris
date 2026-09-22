@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export mk = \consSAR'CombinedRowDict%2 -> \$proxy%0@(_) $a%1@(_) -> "Proxy"
 

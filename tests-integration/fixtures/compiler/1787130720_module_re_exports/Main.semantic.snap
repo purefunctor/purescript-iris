@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 constructorValue :: Origin.Option
 constructorValue = Just 42

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 297
-expression: checking_report
 ---
 Terms
 failAt :: Prim.String -> Prim.Boolean -> Prim.Int -> Prim.Int

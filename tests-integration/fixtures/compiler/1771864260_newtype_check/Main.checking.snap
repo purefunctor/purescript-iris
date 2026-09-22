@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 Tagged :: forall k (@t :: k) @a. a -> Main.Tagged @k (t :: k) a

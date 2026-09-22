@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export safeZero = \partialDict%1 -> \$int%0@(0) -> 0
 

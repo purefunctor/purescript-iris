@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export test = \monadRecMDict%2 ->
   \a%1 -> (\x%3 -> pure ((monadRecMDict%2."Monad0"())."Applicative0"()) x%3) a%1

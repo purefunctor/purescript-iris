@@ -17,7 +17,7 @@ test_each_file! { in "./compiler-frontend/lexing/tests/lexer" => |content: &str|
         writeln!(snapshot).unwrap();
     }
 
-    insta::with_settings!({ description => content }, {
+    insta::with_settings!({ description => content, omit_expression => true }, {
         insta::assert_snapshot!(snapshot);
     })
 }}

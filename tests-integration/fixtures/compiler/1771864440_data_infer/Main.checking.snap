@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 Proxy :: forall t0 (@a :: t0). Main.Proxy @t0 (a :: t0)

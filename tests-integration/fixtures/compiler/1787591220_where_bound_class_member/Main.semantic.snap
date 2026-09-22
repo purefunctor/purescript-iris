@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 interface Named :: Prim.Type -> Prim.Constraint
 interface Named a where

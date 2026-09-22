@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 101
-expression: report
 ---
 DocumentHighlight at Position { line: 4, character: 5 }
 

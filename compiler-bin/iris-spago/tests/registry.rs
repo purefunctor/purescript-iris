@@ -4,6 +4,9 @@ use smol_str::SmolStr;
 
 #[test]
 fn parses_registry_package_manifest() {
+    let mut settings = insta::Settings::clone_current();
+    settings.set_omit_expression(true);
+    let _settings = settings.bind_to_scope();
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/console-purs.json");
     let contents = std::fs::read_to_string(&path).unwrap();
     let manifest = iris_spago::parse_registry_manifest(&contents).unwrap();

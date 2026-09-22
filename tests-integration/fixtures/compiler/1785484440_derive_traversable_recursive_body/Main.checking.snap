@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 Leaf :: forall @a. a -> Main.Tree a

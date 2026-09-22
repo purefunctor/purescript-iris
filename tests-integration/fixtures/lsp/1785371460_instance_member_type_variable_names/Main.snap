@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 134
-expression: report
 ---
 Hover at Position { line: 9, character: 6 }
 

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 eq :: forall @a. Main.Eq a => a -> a -> Prim.Boolean

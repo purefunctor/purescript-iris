@@ -1,6 +1,5 @@
 ---
-source: compiler-core/parsing/tests/parser.rs
-expression: "(node.debug(&content), errors)"
+source: compiler-frontend/parsing/tests/parser.rs
 ---
 (
     Module@0..188

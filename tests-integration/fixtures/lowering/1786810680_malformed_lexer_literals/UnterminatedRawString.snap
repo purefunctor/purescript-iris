@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 85
-expression: report
 ---
 module UnterminatedRawString
 

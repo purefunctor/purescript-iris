@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 test :: { outer :: { x :: Prim.Int } }
 test = { outer: { x: 1, y: 2 } }

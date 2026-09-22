@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
-expression: diagnostics_report
 ---
 Warning! · [DuplicateImport] · Main.purs:5:5
   •

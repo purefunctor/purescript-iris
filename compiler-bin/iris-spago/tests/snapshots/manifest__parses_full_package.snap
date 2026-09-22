@@ -1,6 +1,5 @@
 ---
 source: compiler-bin/iris-spago/tests/manifest.rs
-expression: "parse_fixture(\"full-package.yaml\")"
 ---
 Manifest {
     package: Some(

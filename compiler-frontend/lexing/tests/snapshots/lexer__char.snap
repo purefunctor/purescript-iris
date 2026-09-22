@@ -1,7 +1,6 @@
 ---
-source: compiler-core/lexing/tests/lexer.rs
+source: compiler-frontend/lexing/tests/lexer.rs
 description: "'a'\n\n'\\xFF'\n\n'\\x2603'\n\n'\\n2'\n\n'abc'\n\n'\\''\n\n'\\\\'\n"
-expression: snapshot
 ---
 annotation : ""
  qualifier : ""

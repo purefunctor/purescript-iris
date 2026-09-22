@@ -1,6 +1,5 @@
 ---
 source: compiler-bin/iris-progress/src/tests.rs
-expression: rebuild_with_diagnostics(false)
 ---
 12:35:01  Rebuild completed with diagnostics in 1.25 s
           Changed 1 input: Application

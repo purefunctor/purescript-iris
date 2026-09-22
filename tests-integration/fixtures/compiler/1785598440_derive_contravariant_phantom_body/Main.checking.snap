@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 Constant :: forall t0 @value (@a :: t0). value -> Main.Constant @t0 value (a :: t0)

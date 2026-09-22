@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 bind :: forall t0 t1. t0 -> (t0 -> t1) -> t1
 bind = \x -> \f -> f x

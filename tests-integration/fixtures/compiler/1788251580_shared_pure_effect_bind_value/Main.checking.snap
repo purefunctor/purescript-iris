@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 297
-expression: checking_report
 ---
 Terms
 sharedBind :: Data.Unit.Unit -> Effect.Effect { left :: Prim.Int, right :: Prim.Int }

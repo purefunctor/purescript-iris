@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export nonAssociative = \left%0 right%1 -> left%0
 

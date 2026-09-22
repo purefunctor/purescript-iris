@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 newtype Endo :: forall k. (k -> k -> Prim.Type) -> k -> Prim.Type
 newtype Endo @c @a

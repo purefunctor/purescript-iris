@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export qualifiedDo = bind action (\value%0 -> discard action (\$argument0%1@(_) -> pure value%0))
 

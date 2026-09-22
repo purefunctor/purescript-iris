@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: diagnostics_report
 ---
 Parse error · Main.purs:17:1 · Expected COMMA
 Parse error · Main.purs:17:1 · Expected RIGHT_ARROW

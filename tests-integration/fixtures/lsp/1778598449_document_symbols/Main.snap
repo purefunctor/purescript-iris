@@ -1,7 +1,5 @@
 ---
-source: tests-integration/tests/lsp/generated.rs
-assertion_line: 12
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 DocumentSymbols at Position { line: 1, character: 3 }
 

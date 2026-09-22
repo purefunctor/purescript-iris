@@ -1,7 +1,5 @@
 ---
-source: compiler-core/lexing/tests/layout.rs
-expression: source
-snapshot_kind: text
+source: compiler-frontend/lexing/tests/layout.rs
 ---
 module Test where{
 

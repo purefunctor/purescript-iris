@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 useBoth :: forall s m. Class.Marker m => Class.Lookup s m => s -> Prim.Int

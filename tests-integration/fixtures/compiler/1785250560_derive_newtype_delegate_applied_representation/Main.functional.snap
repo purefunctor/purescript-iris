@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export instance showNonEmpty = \showADict%0 -> showArray showADict%0

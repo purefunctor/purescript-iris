@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export instance child = \parentValueDict%0 -> { "Parent0": \() -> parentValueDict%0 }

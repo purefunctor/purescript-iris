@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 openLeftHigherKinded :: forall tail output.
   Prim.Row.Union @(Prim.Type -> Prim.Type) ( effect :: Main.Effect | tail ) () output =>

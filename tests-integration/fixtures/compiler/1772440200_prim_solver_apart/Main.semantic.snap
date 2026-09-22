@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 invalidAdd :: Prim.Int.Add 2 3 10 => Type.Proxy.Proxy @Prim.Int 10
 invalidAdd = \{addDict} -> Proxy

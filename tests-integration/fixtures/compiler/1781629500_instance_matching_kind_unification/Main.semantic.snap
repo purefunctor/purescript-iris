@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface Pick :: forall k0 k1 k2. k0 -> k1 -> k2 -> Prim.Constraint
 interface Pick a b result where

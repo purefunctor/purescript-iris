@@ -1,6 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export foreign addInt
 

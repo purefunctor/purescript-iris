@@ -3,8 +3,15 @@ use std::iter;
 use building::{QueryEngine, prim};
 use files::Files;
 
+fn snapshot_settings() -> insta::Settings {
+    let mut settings = insta::Settings::clone_current();
+    settings.set_omit_expression(true);
+    settings
+}
+
 #[test]
 fn test_basic_cycle() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -50,6 +57,7 @@ type Triple3 a = Triple1 a
 
 #[test]
 fn test_operator_cycle() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -82,6 +90,7 @@ infix 5 type Add as +
 
 #[test]
 fn test_non_cycle_ordering() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -110,6 +119,7 @@ c _ = 0
 
 #[test]
 fn test_recursive_synonym_errors() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -136,6 +146,7 @@ type H = H
 
 #[test]
 fn test_do_fn_not_in_scope() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -160,6 +171,7 @@ x = do
 
 #[test]
 fn test_ado_fn_not_in_scope() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -185,6 +197,7 @@ x = ado
 
 #[test]
 fn test_negate_not_in_scope() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -208,6 +221,7 @@ x = -1
 
 #[test]
 fn test_recursive_kinds_errors() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
@@ -237,6 +251,7 @@ foreign import data Proxy :: forall k. k -> Type
 
 #[test]
 fn test_non_recursive_kinds() {
+    let _settings = snapshot_settings().bind_to_scope();
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);

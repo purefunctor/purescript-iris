@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export example = \$int%0@(_) $argument1%1@(_) $argument2%2@(_) -> 42

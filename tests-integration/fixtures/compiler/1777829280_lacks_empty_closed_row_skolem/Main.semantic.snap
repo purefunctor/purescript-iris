@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 useLacksEmpty :: forall t0 name. Prim.Row.Lacks @t0 name () => Type.Proxy.Proxy @Prim.Symbol name -> Prim.Int
 useLacksEmpty = \{lacksDict} -> \_ -> 0

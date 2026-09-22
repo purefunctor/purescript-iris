@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 constrained :: forall value. Main.Select @Prim.Type value => Main.Effect value

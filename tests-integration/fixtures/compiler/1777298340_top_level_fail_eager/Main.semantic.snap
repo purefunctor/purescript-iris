@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 boom :: Prim.TypeError.Fail (Prim.TypeError.Text "top-level Fail was checked") => Prim.Int
 boom = \{failDict} -> 0

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 integer :: Prim.Int -> Prim.Boolean
 integer = \0 -> true

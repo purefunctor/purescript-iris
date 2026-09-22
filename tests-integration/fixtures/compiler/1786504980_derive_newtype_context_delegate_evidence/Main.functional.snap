@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export instance relationWrapper = \relationLabelValueDict%0 -> relationLabelValueDict%0

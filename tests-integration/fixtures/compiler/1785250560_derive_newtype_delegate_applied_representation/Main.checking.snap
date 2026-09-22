@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 NonEmpty :: forall @a. Prim.Array a -> Main.NonEmpty a

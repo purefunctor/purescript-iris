@@ -1,6 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export apply = \function%0 value%1 -> function%0 value%1
 

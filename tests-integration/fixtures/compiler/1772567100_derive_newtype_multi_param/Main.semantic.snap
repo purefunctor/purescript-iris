@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 newtype Pair :: forall k0. Prim.Type -> k0 -> Prim.Type
 newtype Pair @a @b

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 apply :: forall a b. (a -> b) -> a -> b
 apply = \function -> \value -> function value

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export headOr = \$a%0 $array%1 ->
   case $a%0, $array%1 of

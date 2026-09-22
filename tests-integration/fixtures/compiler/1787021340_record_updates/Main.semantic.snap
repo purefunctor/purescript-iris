@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 model :: Main.Model
 model = { count: 0, nested: { enabled: true, label: "before" } }

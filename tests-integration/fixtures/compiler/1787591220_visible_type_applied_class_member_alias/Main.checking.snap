@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 297
-expression: checking_report
 ---
 Terms
 name :: forall t0 (@a :: t0). Main.Named @t0 (a :: t0) => Prim.String

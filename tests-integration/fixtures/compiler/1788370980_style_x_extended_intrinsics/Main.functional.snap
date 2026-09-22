@@ -1,7 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export constants = stylex.defineConsts { compact: "@media (max-width: 40rem)", columns: 12 }
 

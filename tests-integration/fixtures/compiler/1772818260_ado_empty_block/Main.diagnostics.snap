@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
-expression: diagnostics_report
 ---
 Parse error · Main.purs:11:1 · Expected LAYOUT_START
 Parse error · Main.purs:11:1 · Expected LAYOUT_END
