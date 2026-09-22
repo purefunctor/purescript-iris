@@ -1,6 +1,6 @@
 //! Direct JavaScript code generation from functional trees.
 //!
-//! Generated modules target ES2022 and require Node.js 16 or newer. In particular, source names that
+//! Generated modules target ES2022 and require Node.js 22 or newer. In particular, source names that
 //! are not JavaScript identifiers use string-literal module export names.
 
 mod convert;

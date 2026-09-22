@@ -38,7 +38,7 @@ pub enum WorkspaceError {
     ParseManifest {
         path: PathBuf,
         #[source]
-        source: serde_yml::Error,
+        source: yaml_serde::Error,
     },
     #[error(transparent)]
     Walk(#[from] ignore::Error),

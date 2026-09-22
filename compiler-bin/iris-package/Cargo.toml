@@ -12,5 +12,5 @@ ignore = "0.4.33"
 iris-spago = { version = "0.1.0", path = "../iris-spago" }
 itertools = "0.15.0"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_yml = "0.0.12"
 thiserror = "2.0.20"
+yaml_serde = "0.10.7"
