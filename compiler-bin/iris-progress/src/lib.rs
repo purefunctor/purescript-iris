@@ -19,8 +19,16 @@ use terminal_colorsaurus::QueryOptions;
 const ANIMATION_INTERVAL: Duration = Duration::from_millis(80);
 pub const PACKAGE_HISTORY_LENGTH: usize = 10;
 pub const PROGRESS_REGION_WIDTH: usize = 80;
-pub const PROGRESS_REGION_HEIGHT: u16 = PACKAGE_HISTORY_LENGTH as u16 + 3;
+pub const PROGRESS_REGION_HEIGHT: u16 = progress_region_height(PACKAGE_HISTORY_LENGTH);
 const WATCH_INPUT_DISPLAY_LIMIT: usize = 4;
+
+const fn package_history_height(package_count: usize) -> usize {
+    if package_count < PACKAGE_HISTORY_LENGTH { package_count } else { PACKAGE_HISTORY_LENGTH }
+}
+
+const fn progress_region_height(package_count: usize) -> u16 {
+    package_history_height(package_count) as u16 + 3
+}
 
 type ProgressTerminal = Terminal<CrosstermBackend<io::Stderr>>;
 
@@ -208,7 +216,8 @@ impl Widget for ProgressView<'_> {
                 .render(Rect::new(area.x, area.y, area.width, 1), buffer);
             return;
         }
-        if area.height < PROGRESS_REGION_HEIGHT {
+        let package_history_height = package_history_height(self.model.package_count);
+        if area.height < progress_region_height(self.model.package_count) {
             let bar = render_progress_bar(self.model, width, self.appearance, animation_frame);
             let bar_row = area.bottom() - area.height.min(2);
             Paragraph::new(bar).render(Rect::new(area.x, bar_row, area.width, 1), buffer);
@@ -224,7 +233,7 @@ impl Widget for ProgressView<'_> {
             return;
         }
 
-        let blank_rows = PACKAGE_HISTORY_LENGTH.saturating_sub(self.model.completed_packages.len());
+        let blank_rows = package_history_height.saturating_sub(self.model.completed_packages.len());
         for (index, package) in self.model.completed_packages.iter().enumerate() {
             let row = blank_rows + index;
             let line = Line::styled(
@@ -235,17 +244,17 @@ impl Widget for ProgressView<'_> {
                 .render(Rect::new(area.x, area.y + row as u16, area.width, 1), buffer);
         }
         Paragraph::new("─".repeat(width)).render(
-            Rect::new(area.x, area.y + PACKAGE_HISTORY_LENGTH as u16, area.width, 1),
+            Rect::new(area.x, area.y + package_history_height as u16, area.width, 1),
             buffer,
         );
         Paragraph::new(render_progress_bar(self.model, width, self.appearance, animation_frame))
             .render(
-                Rect::new(area.x, area.y + PACKAGE_HISTORY_LENGTH as u16 + 1, area.width, 1),
+                Rect::new(area.x, area.y + package_history_height as u16 + 1, area.width, 1),
                 buffer,
             );
         Paragraph::new(render_progress_status(self.model, width, self.appearance, self.elapsed))
             .render(
-                Rect::new(area.x, area.y + PACKAGE_HISTORY_LENGTH as u16 + 2, area.width, 1),
+                Rect::new(area.x, area.y + package_history_height as u16 + 2, area.width, 1),
                 buffer,
             );
     }
@@ -342,8 +351,8 @@ fn run(receiver: Receiver<RuntimeMessage>, color: bool) {
                 if expand {
                     let _ = clear_terminal(&mut terminal);
                     let backend = CrosstermBackend::new(io::stderr());
-                    let options =
-                        TerminalOptions { viewport: Viewport::Inline(PROGRESS_REGION_HEIGHT) };
+                    let height = progress_region_height(model.package_count);
+                    let options = TerminalOptions { viewport: Viewport::Inline(height) };
                     if let Ok(expanded) = Terminal::with_options(backend, options) {
                         terminal = expanded;
                     }
