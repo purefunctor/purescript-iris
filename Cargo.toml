@@ -1,10 +1,10 @@
 [workspace]
 members = [
-  "compiler-bin/*",
+  "compiler-executable/*",
   "compiler-backend/*",
   "compiler-core/*",
   "compiler-frontend/*",
-  "compiler-lsp/*",
+  "compiler-services/*",
   "compiler-scripts",
   "tests-compatibility",
   "tests-e2e",
@@ -15,7 +15,7 @@ default-members = [
   "compiler-backend/*",
   "compiler-core/*",
   "compiler-frontend/*",
-  "compiler-lsp/*",
+  "compiler-services/*",
 ]
 resolver = "3"
 

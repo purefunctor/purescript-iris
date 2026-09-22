@@ -54,7 +54,7 @@ fix:
   cargo clippy --workspace --fix && cargo fmt
 
 [doc("Update THIRDPARTY.toml")]
-[working-directory: 'compiler-bin/iris-cli']
+[working-directory: 'compiler-executable/iris-cli']
 licenses:
   cargo bundle-licenses --prefer MIT -o ../../THIRDPARTY.toml
 
@@ -74,4 +74,4 @@ prepare-release version:
 
 [doc("Regenerate the language server configuration JSON Schema")]
 @configuration-schema:
-  cargo run -q -p configuration --features schema --example export-schema
+  cargo run -q -p iris-configuration --features schema --example export-schema

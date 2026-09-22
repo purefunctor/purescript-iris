@@ -68,7 +68,7 @@ The defaults are:
 All settings are optional. Missing or `null` fields retain their defaults; `{}` and top-level
 `null` also select the defaults. Unknown fields and invalid values are errors, reported on stderr
 with exit status 2 before the LSP starts. Use the
-[configuration JSON Schema](compiler-lsp/configuration/configuration.schema.json) for editor
+[configuration JSON Schema](compiler-services/iris-configuration/configuration.schema.json) for editor
 validation; associate it through editor settings rather than adding a `$schema` property.
 
 Diagnostic settings control the corresponding document-event triggers, not all diagnostic publishing.
@@ -191,4 +191,4 @@ continue to use GitHub's latest release.
 Iris keeps its package version separate from source provenance. Packagers can set
 `IRIS_BUILD_REVISION` to a Git revision when invoking Cargo to include that revision in the reported
 CLI and language-server versions. The value is read at compile time; builds that omit it report the
-version from `compiler-bin/iris-cli/Cargo.toml` unchanged.
+version from `compiler-executable/iris-cli/Cargo.toml` unchanged.

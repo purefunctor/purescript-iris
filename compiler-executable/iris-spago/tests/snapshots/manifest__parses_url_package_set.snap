@@ -1,0 +1,27 @@
+---
+source: compiler-executable/iris-spago/tests/manifest.rs
+---
+Manifest {
+    package: Some(
+        Package {
+            name: "application",
+            description: None,
+            dependencies: [],
+            run: None,
+            test: None,
+        },
+    ),
+    workspace: Some(
+        Workspace {
+            package_set: Some(
+                Remote {
+                    url: "https://example.com/packages.json",
+                    hash: Some(
+                        "abc123",
+                    ),
+                },
+            ),
+            extra_packages: {},
+        },
+    ),
+}

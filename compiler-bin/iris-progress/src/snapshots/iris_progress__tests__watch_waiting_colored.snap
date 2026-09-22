@@ -1,4 +1,0 @@
----
-source: compiler-bin/iris-progress/src/tests.rs
----
-"\u{1b}[36m\u{1b}[2m12:35:03\u{1b}[0m  \u{1b}[36m\u{1b}[1mNo input files; waiting for changes\u{1b}[0m\n          \u{1b}[2mChanged 1 input: src/Main.purs\u{1b}[0m"

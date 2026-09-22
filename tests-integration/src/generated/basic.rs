@@ -1,12 +1,12 @@
 use std::fmt::Write;
 
-use analyzer::position;
 use building::QueryEngine;
 use checking::core::pretty;
 use checking::{PrettyQueries, core};
 use diagnostics::{collect_diagnostics, format_rich_with_path};
 use files::FileId;
 use indexing::{ImportKind, IndexedTermItem, IndexedTypeItem, IndexedTypeItemKind, TypeItemId};
+use iris_analysis::position;
 use itertools::Itertools;
 use line_index::LineIndex;
 use lowering::{
