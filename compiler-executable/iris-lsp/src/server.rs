@@ -86,7 +86,7 @@ struct ServerIdentity {
 }
 
 struct ProtocolSession {
-    startup_configuration: Arc<Configuration>,
+    default_configuration: Arc<Configuration>,
     root: Option<PathBuf>,
     configuration_scope: Option<Url>,
     configuration_capabilities: ConfigurationCapabilities,
@@ -129,7 +129,7 @@ impl State {
             client,
             identity: ServerIdentity { name, version },
             protocol: ProtocolSession {
-                startup_configuration: Arc::clone(&config),
+                default_configuration: Arc::clone(&config),
                 root: None,
                 configuration_scope: None,
                 configuration_capabilities: ConfigurationCapabilities::default(),
@@ -311,7 +311,7 @@ fn initialized(state: &mut State, _: InitializedParams) -> Result<(), LspError> 
         request_workspace_configuration(state);
         Ok(())
     } else {
-        apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))
+        apply_configuration(state, Arc::clone(&state.protocol.default_configuration))
     }
 }
 
@@ -384,7 +384,7 @@ fn finish_workspace_configuration(
             let value = values.pop().expect("invariant violated: expected one configuration item");
             serde_json::from_value::<Option<ConfigurationSettings>>(value)
                 .map(|settings| {
-                    settings.unwrap_or_default().apply_to(&state.protocol.startup_configuration)
+                    settings.unwrap_or_default().apply_to(&state.protocol.default_configuration)
                 })
                 .map_err(|error| format!("Invalid Iris settings: {error}"))
         });
@@ -396,7 +396,7 @@ fn finish_workspace_configuration(
                 let error = format!("Failed to apply Iris settings: {error}");
                 report_configuration_error(state, &error);
                 if !state.protocol.configuration_initialized {
-                    apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))?;
+                    apply_configuration(state, Arc::clone(&state.protocol.default_configuration))?;
                     state.protocol.configuration_initialized = true;
                 }
             } else {
@@ -409,7 +409,7 @@ fn finish_workspace_configuration(
             if state.protocol.configuration_initialized {
                 Ok(())
             } else {
-                apply_configuration(state, Arc::clone(&state.protocol.startup_configuration))?;
+                apply_configuration(state, Arc::clone(&state.protocol.default_configuration))?;
                 state.protocol.configuration_initialized = true;
                 Ok(())
             }
@@ -432,7 +432,7 @@ fn report_configuration_error(state: &mut State, error: &str) {
     let message = if state.protocol.configuration_initialized {
         format!("{error}. The previous Iris settings remain active.")
     } else {
-        format!("{error}. Iris will use its startup settings.")
+        format!("{error}. Iris will use its default settings.")
     };
     if let Err(error) =
         state.client.show_message(ShowMessageParams { typ: MessageType::ERROR, message })
@@ -1351,8 +1351,8 @@ fn response_error(error: LspError) -> ResponseError {
 }
 
 pub(crate) async fn async_start(config: ServerConfig) -> Result<(), ServerError> {
-    let ServerConfig { configuration, name, version } = config;
-    let config = Arc::new(configuration);
+    let ServerConfig { name, version } = config;
+    let config = Arc::new(Configuration::default());
     let preparation = Arc::new(Preparation::new());
     let preparation_for_state = Arc::clone(&preparation);
     let (server, _) = async_lsp::MainLoop::new_server(move |client| {

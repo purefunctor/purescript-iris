@@ -21,27 +21,14 @@ definition, hover information, find references, workspace symbol search, and dia
 
 Run `iris lsp --stdio` to start the language server. The `lsp` subcommand is required;
 `iris` alone no longer starts the server, and language-server options must follow `lsp`.
-Supply startup settings as inline JSON or a UTF-8 JSON file:
-
-```sh
-iris lsp --stdio --config '{"diagnostics":{"onChange":true}}'
-iris lsp --stdio --config-file ./iris.json
-```
-
-`--config` and `--config-file` are mutually exclusive and replace
-`--diagnostics-on-open`, `--diagnostics-on-save`, and `--diagnostics-on-change`. File paths are
-relative to the process working directory, not the editor's workspace or the configuration file's
-directory. Startup configuration files are read once and are not watched.
-
-Editors that advertise the LSP `workspace.configuration` capability can provide the same settings
-object in the `iris.server` workspace configuration section. Iris requests that section for the first
-workspace folder after initialization and requests it again after each
+Editors that advertise the LSP `workspace.configuration` capability can provide settings in the
+`iris.server` workspace configuration section. Iris requests that section for the first workspace
+folder after initialization and requests it again after each
 `workspace/didChangeConfiguration` notification; the notification's `settings` value is only an
-invalidation signal. Runtime settings take precedence over startup settings. Each response is a
-complete runtime layer, so omitted or `null` fields inherit from the startup configuration rather
-than from the preceding response. Invalid updates are shown in the editor and leave the last valid
-configuration active. Clients without workspace-configuration support continue using only the
-startup configuration.
+invalidation signal. Each response is a complete configuration, so omitted or `null` fields inherit
+from the defaults rather than from the preceding response. Invalid updates are shown in the editor
+and leave the last valid configuration active. Clients without workspace-configuration support use
+the defaults.
 
 Iris prepares the Spago workspace during startup before serving analysis. It runs `spago fetch` in
 the workspace root, then discovers sources from `spago.yaml` and package manifests, using the
@@ -66,8 +53,7 @@ The defaults are:
 ```
 
 All settings are optional. Missing or `null` fields retain their defaults; `{}` and top-level
-`null` also select the defaults. Unknown fields and invalid values are errors, reported on stderr
-with exit status 2 before the LSP starts. Use the
+`null` also select the defaults. Unknown fields and invalid values are shown in the editor. Use the
 [configuration JSON Schema](compiler-services/iris-configuration/configuration.schema.json) for editor
 validation; associate it through editor settings rather than adding a `$schema` property.
 

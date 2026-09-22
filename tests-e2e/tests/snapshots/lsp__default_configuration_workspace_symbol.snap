@@ -7,7 +7,7 @@ source: tests-e2e/tests/lsp.rs
     "location": {
       "range": {
         "end": {
-          "character": 14,
+          "character": 16,
           "line": 1
         },
         "start": {
@@ -15,8 +15,8 @@ source: tests-e2e/tests/lsp.rs
           "line": 1
         }
       },
-      "uri": "[WORKSPACE]/project/src/Library.purs"
+      "uri": "[WORKSPACE]/src/Library.purs"
     },
-    "name": "fromSpago"
+    "name": "defaultOnly"
   }
 ]

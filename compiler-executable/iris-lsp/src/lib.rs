@@ -1,12 +1,9 @@
 use std::error::Error;
 use std::fmt;
 
-use iris_configuration::Configuration;
-
 mod server;
 
 pub struct ServerConfig {
-    pub configuration: Configuration,
     pub name: String,
     pub version: String,
 }

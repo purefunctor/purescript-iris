@@ -52,19 +52,11 @@ pub fn run() -> i32 {
             0
         }
         cli::Command::Lsp(options) => {
-            let config = match options.into_config() {
-                Ok(config) => config,
-                Err(error) => {
-                    eprintln!("error: {error}");
-                    return 2;
-                }
-            };
-            if let Err(error) = logging::start(config.logging) {
+            if let Err(error) = logging::start(options.into_config()) {
                 eprintln!("error: failed to start logging: {error}");
                 return 1;
             }
             let server = iris_lsp::ServerConfig {
-                configuration: config.configuration,
                 name: PACKAGE_NAME.to_string(),
                 version: VERSION.to_string(),
             };
