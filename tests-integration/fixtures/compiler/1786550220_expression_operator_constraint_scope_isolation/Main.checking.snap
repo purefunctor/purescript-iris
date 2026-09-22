@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 combine :: forall result. (Main.First @Prim.Type Prim.Int => Prim.Int) -> result -> result

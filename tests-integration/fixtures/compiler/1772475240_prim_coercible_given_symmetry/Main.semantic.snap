@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 test :: forall a b. Prim.Coerce.Coercible @Prim.Type b a => a -> b
 test = \{coercibleDict} -> coerce {trivial}

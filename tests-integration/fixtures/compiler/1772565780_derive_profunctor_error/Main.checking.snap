@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 WrongFirst :: forall @a @b. a -> b -> Main.WrongFirst a b

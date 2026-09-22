@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 Just :: forall k (@n :: k) @a. a -> Main.Maybe @k (n :: k) a

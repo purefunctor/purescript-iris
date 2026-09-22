@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 step :: forall @f @a @x @a'. Main.Step f a x a' => f -> a -> x -> a'

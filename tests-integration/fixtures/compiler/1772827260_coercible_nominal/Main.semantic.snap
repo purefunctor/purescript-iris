@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 coerceNominalSame :: Main.Nominal Prim.Int -> Main.Nominal Prim.Int
 coerceNominalSame = coerce {trivial}

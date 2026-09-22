@@ -1,7 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export compareTwice = \eqADict%0 ->
   \left%1 right%2 ->

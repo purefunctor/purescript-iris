@@ -1,6 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export choose = \$int%0 $int%1 ->
   case $int%0, $int%1 of

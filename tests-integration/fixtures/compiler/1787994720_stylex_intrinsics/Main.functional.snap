@@ -1,7 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export animation = stylex.keyframes { from: { opacity: 0.0 }, to: { opacity: 1.0 } }
 

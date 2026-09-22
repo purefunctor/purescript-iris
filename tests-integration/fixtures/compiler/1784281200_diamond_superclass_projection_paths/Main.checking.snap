@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 useBottom :: forall a. Main.Bottom @Prim.Type a => a -> Prim.Int

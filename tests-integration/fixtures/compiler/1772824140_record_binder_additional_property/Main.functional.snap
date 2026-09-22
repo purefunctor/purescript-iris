@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export test = \$record%3@({ a: a%0, b: b%1, c: c%2 }) -> a%0

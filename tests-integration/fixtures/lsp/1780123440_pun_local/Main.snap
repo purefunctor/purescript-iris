@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 101
-expression: report
 ---
 References at Position { line: 2, character: 8 }
 

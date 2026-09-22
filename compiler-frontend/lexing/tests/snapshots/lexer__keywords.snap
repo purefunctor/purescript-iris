@@ -1,8 +1,6 @@
 ---
-source: compiler-core/lexing/tests/lexer.rs
+source: compiler-frontend/lexing/tests/lexer.rs
 description: "ado\nas\ncase\nclass\ndata\nderive\ndo\nelse\nfalse\nforall\nforeign\nhiding\nif\nimport\nin\ninfix\ninfixl\ninfixr\ninstance\nlet\nmodule\nnewtype\nnominal\nof\nphantom\nrepresentational\nrole\nthen\ntrue\ntype\nwhere\n\nAdo.ado\nDo.do\n"
-expression: snapshot
-snapshot_kind: text
 ---
 annotation : ""
  qualifier : ""

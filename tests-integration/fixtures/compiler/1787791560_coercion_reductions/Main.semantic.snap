@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 unsafelyCoerced :: Prim.Int
 unsafelyCoerced = unsafeCoerce 42

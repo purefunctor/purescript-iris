@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 animation :: Iris.StyleX.Keyframes
 animation = keyframes { from: { opacity: 0.0 }, to: { opacity: 1.0 } }

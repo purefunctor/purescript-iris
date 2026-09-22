@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
-expression: functional_report
 ---
 @export instance eqState = { eq: \$state%0@(_) $state%1@(_) -> true }
 

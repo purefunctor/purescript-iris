@@ -1,6 +1,4 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export compareArraysOnce = \left%0 right%1 -> eq (eqArray eqInt) left%0 right%1

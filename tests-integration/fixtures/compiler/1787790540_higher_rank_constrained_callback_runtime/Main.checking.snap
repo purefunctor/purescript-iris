@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 297
-expression: checking_report
 ---
 Terms
 before :: forall @value. Main.Before value => value -> value -> Prim.Boolean

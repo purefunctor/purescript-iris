@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 identity :: forall k (@value :: k) @result. Main.Example @k (value :: k) result => result -> result

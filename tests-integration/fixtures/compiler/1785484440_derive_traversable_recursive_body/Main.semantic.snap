@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 data Tree :: Prim.Type -> Prim.Type
 data Tree @a

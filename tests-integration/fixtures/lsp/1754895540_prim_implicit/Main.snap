@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 422
-expression: report
 ---
 GotoDefinition at Position { line: 2, character: 18 }
 

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 newtype Mu :: (Prim.Type -> Prim.Type) -> Prim.Type
 newtype Mu @f

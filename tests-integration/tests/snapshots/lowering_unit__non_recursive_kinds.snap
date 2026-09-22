@@ -1,5 +1,4 @@
 ---
 source: tests-integration/tests/lowering_unit.rs
-expression: errors
 ---
 []

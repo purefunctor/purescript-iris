@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 delay :: Prim.Int -> Effect.Effect Data.Unit.Unit

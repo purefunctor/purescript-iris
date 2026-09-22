@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 134
-expression: report
 ---
 Rename at Position { line: 5, character: 7 }
 

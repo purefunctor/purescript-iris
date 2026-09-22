@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 CovariantRecord :: forall @a. { value :: a } -> Main.CovariantRecord a

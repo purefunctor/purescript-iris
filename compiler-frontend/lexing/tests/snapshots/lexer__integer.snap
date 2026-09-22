@@ -1,8 +1,6 @@
 ---
-source: compiler-core/lexing/tests/lexer.rs
+source: compiler-frontend/lexing/tests/lexer.rs
 description: "123\n\n123_123\n\n00_123_123\n\n0xFFFFFF\n"
-expression: snapshot
-snapshot_kind: text
 ---
 annotation : ""
  qualifier : ""

@@ -1,7 +1,6 @@
 ---
-source: compiler-core/lexing/tests/lexer.rs
+source: compiler-frontend/lexing/tests/lexer.rs
 description: "\"hello\\\n\\\\\"world\"\n"
-expression: snapshot
 ---
 annotation : ""
  qualifier : ""

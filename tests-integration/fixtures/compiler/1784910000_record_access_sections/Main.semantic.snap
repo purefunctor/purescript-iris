@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 map :: forall a b. (a -> b) -> Prim.Array a -> Prim.Array b
 map = \f -> \x -> []

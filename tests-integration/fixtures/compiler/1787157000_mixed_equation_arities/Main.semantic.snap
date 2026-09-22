@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 choose :: Prim.Int -> Prim.Int -> Prim.Int
 choose = \0 -> \value -> value

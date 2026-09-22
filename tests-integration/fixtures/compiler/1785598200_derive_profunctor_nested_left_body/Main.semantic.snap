@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 data Function :: Prim.Type -> Prim.Type -> Prim.Type
 data Function @a @b

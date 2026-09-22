@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 101
-expression: report
 ---
 CodeAction at Position { line: 11, character: 4 }
 

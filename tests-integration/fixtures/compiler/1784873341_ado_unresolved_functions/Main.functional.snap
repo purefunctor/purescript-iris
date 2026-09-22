@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export unresolvedMap = (<error>) (\value%0 -> value%0) 1
 

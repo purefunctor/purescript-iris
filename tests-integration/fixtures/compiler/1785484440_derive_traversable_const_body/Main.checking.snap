@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 Const :: forall t0 @e (@a :: t0). e -> Main.Const @t0 e (a :: t0)

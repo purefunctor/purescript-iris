@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 unresolvedMap :: forall t0 t1. t0 t1
 unresolvedMap = <error> (\value -> value) 1

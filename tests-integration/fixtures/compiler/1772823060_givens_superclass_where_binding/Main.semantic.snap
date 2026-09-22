@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 test :: forall m a. Control.Monad.Rec.Class.MonadRec m => a -> m a
 test = \{monadRecDict} -> \a -> go a

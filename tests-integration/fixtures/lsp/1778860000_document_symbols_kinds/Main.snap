@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 101
-expression: report
 ---
 DocumentSymbols at Position { line: 1, character: 3 }
 

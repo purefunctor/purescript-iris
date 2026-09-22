@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 298
-expression: diagnostics_report
 ---
 Warning! · [MissingPatterns] · Main.purs:6:3
   •

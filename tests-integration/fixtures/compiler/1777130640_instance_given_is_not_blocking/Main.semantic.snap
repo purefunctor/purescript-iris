@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface BuildRecord :: Prim.Row Prim.Type -> Prim.Row Prim.Type -> Prim.Constraint
 interface BuildRecord row subrow where

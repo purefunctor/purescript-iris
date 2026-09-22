@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 record :: { nested :: { value :: Prim.Int }, value :: Prim.Int }
 record = { nested: { value: 1 }, value: 2 }

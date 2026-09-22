@@ -6,7 +6,9 @@ test_each_file! { in "./compiler-frontend/parsing/tests/parser" => |content: &st
     let tokens = lexing::layout(&lexed);
     let (parsed, errors) = parsing::parse(&lexed, &tokens);
     let node = parsed.syntax_node();
-    insta::assert_debug_snapshot!((node.debug(&content), errors));
+    insta::with_settings!({ omit_expression => true }, {
+        insta::assert_debug_snapshot!((node.debug(&content), errors));
+    });
 }}
 
 test_each_file! { in "./compiler-frontend/parsing/tests/parser" as lossless => |content: &str| {

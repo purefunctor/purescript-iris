@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 useBoth :: forall s m. Class.Marker m => Class.Lookup s m => s -> Prim.Int
 useBoth = \{markerDict} -> \{lookupDict} -> \_ -> 0

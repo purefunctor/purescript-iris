@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 compare :: forall @a. Main.Ord a => a -> a -> Prim.Int

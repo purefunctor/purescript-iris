@@ -1,7 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export nestedBind = \$unit%2@(_) ->
   effect.bind (effect.bind (effect.pure unit) \$unit%0 -> effect.pure 42)

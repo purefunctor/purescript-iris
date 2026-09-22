@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 const0 :: forall a b. Main.Const a b
 const0 = \a b -> a

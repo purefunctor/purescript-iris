@@ -1,6 +1,5 @@
 ---
 source: compiler-bin/iris-progress/src/tests.rs
-expression: waiting_for_inputs(false)
 ---
 12:35:03  No input files; waiting for changes
           Changed 1 input: src/Main.purs

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 boom :: Prim.TypeError.Fail (Prim.TypeError.Text "top-level Fail was checked") => Prim.Int

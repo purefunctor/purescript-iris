@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 380
-expression: report
 ---
 WorkspaceSymbols query "cache"
 

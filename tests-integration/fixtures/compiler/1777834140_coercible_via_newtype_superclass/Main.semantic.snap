@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 useUnwrap :: forall t. Data.Newtype.Newtype t Lib.HiddenInt => t -> Lib.HiddenInt
 useUnwrap = \{newtypeDict} -> unwrap {newtypeDict}

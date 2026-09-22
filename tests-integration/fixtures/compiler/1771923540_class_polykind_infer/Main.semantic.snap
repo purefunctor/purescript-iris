@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface HasKind' :: forall k0. k0 -> Prim.Constraint
 interface HasKind' a where

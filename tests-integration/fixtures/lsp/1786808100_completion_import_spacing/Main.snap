@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 134
-expression: report
 ---
 Completion at Position { line: 1, character: 15 }
 

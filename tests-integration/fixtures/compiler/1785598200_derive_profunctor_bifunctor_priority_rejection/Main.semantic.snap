@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 data Pair :: Prim.Type -> Prim.Type -> Prim.Type
 data Pair @a @b

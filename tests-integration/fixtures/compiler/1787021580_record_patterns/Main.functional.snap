@@ -1,5 +1,4 @@
 ---
-source: tests-integration/tests/functional.rs
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export select = \$record%2@({ first: first%1, nested: { second: second%0 } }) -> second%0

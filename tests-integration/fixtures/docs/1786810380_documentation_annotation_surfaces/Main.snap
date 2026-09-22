@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-expression: report
 ---
 {
   "manifest": {

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
-expression: diagnostics_report
 ---
 Parse error · Main.purs:6:3 · Expected LEFT_ARROW
 Parse error · Main.purs:6:5 · Unexpected token in function binders

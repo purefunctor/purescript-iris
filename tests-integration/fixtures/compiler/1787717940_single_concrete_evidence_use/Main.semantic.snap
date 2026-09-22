@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 compareArraysOnce :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Boolean
 compareArraysOnce = \left -> \right -> eq {eqArray {eqInt}} left right

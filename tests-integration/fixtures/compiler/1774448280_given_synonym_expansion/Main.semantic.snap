@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 interface TypeEquals :: forall k. k -> k -> Prim.Constraint
 interface TypeEquals a b where

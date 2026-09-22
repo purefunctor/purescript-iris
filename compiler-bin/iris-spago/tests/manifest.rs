@@ -11,58 +11,75 @@ fn parse_fixture(name: &str) -> iris_spago::Manifest {
     iris_spago::parse_manifest(&fixture(name)).unwrap()
 }
 
+fn snapshot_settings() -> insta::Settings {
+    let mut settings = insta::Settings::clone_current();
+    settings.set_omit_expression(true);
+    settings
+}
+
 #[test]
 fn parses_minimal_package() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("minimal-package.yaml"));
 }
 
 #[test]
 fn parses_full_package() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("full-package.yaml"));
 }
 
 #[test]
 fn parses_registry_workspace() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-registry.yaml"));
 }
 
 #[test]
 fn parses_registry_extra_packages() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-extra-registry.yaml"));
 }
 
 #[test]
 fn parses_git_extra_packages() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-extra-git.yaml"));
 }
 
 #[test]
 fn parses_local_extra_packages() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-extra-local.yaml"));
 }
 
 #[test]
 fn parses_legacy_extra_packages() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-extra-legacy.yaml"));
 }
 
 #[test]
 fn parses_url_package_set() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-packageset-url.yaml"));
 }
 
 #[test]
 fn parses_path_package_set() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-packageset-path.yaml"));
 }
 
 #[test]
 fn parses_unconsumed_future_options() {
+    let _settings = snapshot_settings().bind_to_scope();
     insta::assert_debug_snapshot!(parse_fixture("workspace-future-options.yaml"));
 }
 
 #[test]
 fn derives_package_metadata_and_source_globs() {
+    let _settings = snapshot_settings().bind_to_scope();
     let manifest = parse_fixture("workspace-extra-git.yaml");
     let package = manifest.package.as_ref().expect("fixture has a package");
     let core = package.core_dependency_names().map(SmolStr::as_str).collect::<Vec<_>>();
@@ -85,6 +102,7 @@ fn derives_package_metadata_and_source_globs() {
 
 #[test]
 fn rejects_constrained_test_without_main() {
+    let _settings = snapshot_settings().bind_to_scope();
     let error = iris_spago::parse_manifest(
         "package:\n  name: application\n  dependencies: []\n  test:\n    dependencies: []\n",
     )

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 dictionary eqOpaque :: forall a. { eqDict :: Data.Eq.Eq a } => Data.Eq.Eq (Main.Opaque a) where
   eq :: Main.Opaque a -> Main.Opaque a -> Prim.Boolean

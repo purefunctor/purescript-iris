@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 integer :: forall a. Prim.Int -> a -> a
 integer = \(-1) -> \value -> value

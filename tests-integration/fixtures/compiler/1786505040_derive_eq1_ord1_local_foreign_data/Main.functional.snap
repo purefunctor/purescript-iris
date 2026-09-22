@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
-expression: functional_report
 ---
 @export instance eqOpaque = \eqADict%0 -> { eq: \$opaque%1@(_) $opaque%2@(_) -> true }
 

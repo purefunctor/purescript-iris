@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 354
-expression: report
 ---
 module ImportQualifiedHiding
 

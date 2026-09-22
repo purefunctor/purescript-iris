@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 qualifiedDo :: Control.Box Prim.Int
 qualifiedDo = bind action \value -> discard action \_ -> pure value

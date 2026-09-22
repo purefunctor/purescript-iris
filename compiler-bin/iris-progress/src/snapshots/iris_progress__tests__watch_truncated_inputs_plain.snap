@@ -1,6 +1,5 @@
 ---
 source: compiler-bin/iris-progress/src/tests.rs
-expression: rebuild_with_truncated_inputs(false)
 ---
 12:35:04  Rebuild succeeded in 0.00 ms
           Changed 5 inputs: First, Second�Module, Third, Fourth, … +1 more

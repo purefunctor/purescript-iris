@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 data LeftDuplicate :: forall k0. (k0 -> Prim.Type -> Prim.Type) -> k0 -> Prim.Type
 data LeftDuplicate @p @a

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 select :: { first :: Prim.Int, nested :: { second :: Prim.String } } -> Prim.String
 select = \{ first, nested: { second } } -> second

@@ -1,6 +1,5 @@
 ---
-source: tests-integration/tests/lsp/generated.rs
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 DocumentHighlight at Position { line: 19, character: 6 }
 

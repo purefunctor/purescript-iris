@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 deriveUnion :: forall u.
   Prim.Row.Union @Prim.Type ( a :: Prim.Int ) ( b :: Prim.String ) u =>

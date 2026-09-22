@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 variables :: { accent :: Iris.StyleX.Variable (Iris.StyleX.TypedValue Iris.StyleX.Types.Color Prim.String)
 , spacing :: Iris.StyleX.Variable (Iris.StyleX.TypedValue Iris.StyleX.Types.Length Prim.String)

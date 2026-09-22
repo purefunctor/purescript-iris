@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 constants :: { columns :: Prim.Int, compact :: Prim.String }
 constants = defineConsts { compact: "@media (max-width: 40rem)", columns: 12 }

@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 306
-expression: checking_report
 ---
 Terms
 Z3 :: forall @r @mode @a. Main.Aff a -> Main.Z3 r mode a

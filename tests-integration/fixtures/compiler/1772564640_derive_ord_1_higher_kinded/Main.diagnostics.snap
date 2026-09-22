@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
-expression: diagnostics_report
 ---
 Error! · [NoInstanceFound] · Main.purs:14:1
   •

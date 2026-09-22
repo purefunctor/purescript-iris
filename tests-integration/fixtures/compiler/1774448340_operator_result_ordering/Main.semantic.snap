@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: semantic_report
 ---
 newtype Wrap :: Prim.Type -> Prim.Type
 newtype Wrap @a

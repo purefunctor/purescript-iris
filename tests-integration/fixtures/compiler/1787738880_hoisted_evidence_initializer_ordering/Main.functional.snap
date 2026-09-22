@@ -1,7 +1,5 @@
 ---
-source: tests-integration/tests/functional.rs
-assertion_line: 14
-expression: report
+source: tests-integration/src/fixtures.rs
 ---
 @export compareInts = \left%0 right%1 ->
   if eqIntDictEq left%0 right%1 then eqIntDictEq right%1 left%0 else false

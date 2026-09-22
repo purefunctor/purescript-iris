@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 foreign import makeContinuation :: Data.Unit.Unit -> Data.Unit.Unit -> Effect.Effect Prim.Int
 

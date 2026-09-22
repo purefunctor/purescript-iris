@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
-expression: checking_report
 ---
 Terms
 example :: forall @a @b. Main.Example a b => a -> b -> Prim.Boolean

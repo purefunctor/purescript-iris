@@ -1,7 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
-expression: semantic_report
 ---
 forwarded :: forall t0 t1. Prim.Partial => Library.Maybe t0 -> Library.Maybe t1 -> { first :: t0, second :: t1 }
 forwarded = \{partialDict} -> \first -> \second ->
