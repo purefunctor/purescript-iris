@@ -1,5 +1,5 @@
-use analyzer::AnalyzerCapabilities;
-use analyzer::position::PositionEncoding;
+use iris_analysis::AnalyzerCapabilities;
+use iris_analysis::position::PositionEncoding;
 use lsp_types::{InitializeParams, PositionEncodingKind};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

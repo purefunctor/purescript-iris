@@ -16,9 +16,9 @@ name = "iris"
 path = "src/bin/iris.rs"
 
 [dependencies]
-configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
 directories = "6.0.0"
 iris-build = { version = "0.1.0", path = "../iris-build" }
+iris-configuration = { version = "0.1.0", path = "../../compiler-services/iris-configuration" }
 iris-lsp = { version = "0.1.0", path = "../iris-lsp" }
 iris-package = { version = "0.1.0", path = "../iris-package" }
 iris-watch = { version = "0.1.0", path = "../iris-watch" }

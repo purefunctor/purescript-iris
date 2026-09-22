@@ -1,16 +1,16 @@
 use std::fs;
 use std::sync::Arc;
 
-use analyzer::position::PositionEncoding;
 use async_lsp::ResponseError;
 use async_lsp::router::Router;
 use building::lifecycle::{
     ContentAuthority, DiskObservation, DocumentKind, ForeignEvent, LifecycleEvent, SourceEvent,
     SourceUnitKey,
 };
-use configuration::{Configuration, Diagnostics};
 use files::ForeignSourceKind;
+use iris_analysis::position::PositionEncoding;
 use iris_build::compilation::{CompilationState, MaterializedPrim};
+use iris_configuration::{Configuration, Diagnostics};
 use lsp_types::{
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, Position, Range,
     TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem, Url,

@@ -1,8 +1,8 @@
 use std::io;
 
-use analyzer::AnalyzerError;
 use async_lsp::ErrorCode;
 use building::QueryError;
+use iris_analysis::AnalyzerError;
 use iris_build::compile::CompileError;
 use iris_build::{PackagesError, WorkspaceError};
 use iris_spago::SpagoError;

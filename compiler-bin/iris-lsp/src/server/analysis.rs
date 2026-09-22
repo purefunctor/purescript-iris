@@ -1,15 +1,15 @@
 use std::mem;
 use std::sync::Arc;
 
-use analyzer::completion::SuggestionsCache;
-use analyzer::position::PositionEncoding;
-use analyzer::symbols::WorkspaceSymbolsCache;
-use analyzer::{AnalyzerCapabilities, AnalyzerContext, AnalyzerHost};
 use building::QueryEngine;
 use building::lifecycle::{
     AnalysisInvalidation, DocumentKind, FileLifecycle, LifecycleChange, LifecycleEvent,
 };
 use files::FileId;
+use iris_analysis::completion::SuggestionsCache;
+use iris_analysis::position::PositionEncoding;
+use iris_analysis::symbols::WorkspaceSymbolsCache;
+use iris_analysis::{AnalyzerCapabilities, AnalyzerContext, AnalyzerHost};
 use lsp_types::Url;
 use parking_lot::{RwLock, RwLockReadGuard};
 

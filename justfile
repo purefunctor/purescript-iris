@@ -74,4 +74,4 @@ prepare-release version:
 
 [doc("Regenerate the language server configuration JSON Schema")]
 @configuration-schema:
-  cargo run -q -p configuration --features schema --example export-schema
+  cargo run -q -p iris-configuration --features schema --example export-schema

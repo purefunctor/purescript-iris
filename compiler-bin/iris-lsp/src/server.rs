@@ -19,8 +19,6 @@ use std::sync::Arc;
 use std::thread::available_parallelism;
 use std::{env, fs, io};
 
-use analyzer::AnalyzerCapabilities;
-use analyzer::position::PositionEncoding;
 use async_lsp::client_monitor::ClientProcessMonitorLayer;
 use async_lsp::panic::CatchUnwindLayer;
 use async_lsp::router::Router;
@@ -30,11 +28,13 @@ use building::lifecycle::{
     DiskObservation, DocumentKey, DocumentKind, ForeignEvent, LifecycleEvent, ReloadFailure,
     SourceEvent, SourceUnitKey,
 };
-use configuration::{Configuration, ConfigurationSettings};
 use files::ForeignSourceKind;
+use iris_analysis::AnalyzerCapabilities;
+use iris_analysis::position::PositionEncoding;
 use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
 use iris_build::events::BuildEventSink;
 use iris_build::plan::PackageInput;
+use iris_configuration::{Configuration, ConfigurationSettings};
 use itertools::Itertools;
 use lsp_types::notification::Notification;
 use lsp_types::request::Request;
@@ -255,8 +255,8 @@ fn initialize(
                                 work_done_progress: None,
                             },
                             legend: SemanticTokensLegend {
-                                token_types: analyzer::semantic_tokens::TOKEN_TYPES.to_vec(),
-                                token_modifiers: analyzer::semantic_tokens::TOKEN_MODIFIERS
+                                token_types: iris_analysis::semantic_tokens::TOKEN_TYPES.to_vec(),
+                                token_modifiers: iris_analysis::semantic_tokens::TOKEN_MODIFIERS
                                     .to_vec(),
                             },
                             range: Some(false),
@@ -724,7 +724,7 @@ fn definition(
     let position = parameters.text_document_position_params.position;
 
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::definition::implementation(context, uri, position)
+        iris_analysis::definition::implementation(context, uri, position)
     });
 
     result.on_non_fatal(None)
@@ -735,8 +735,9 @@ fn hover(snapshot: StateSnapshot, parameters: HoverParams) -> Result<Option<Hove
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
 
-    let result = snapshot
-        .with_analyzer_context(|context| analyzer::hover::implementation(context, uri, position));
+    let result = snapshot.with_analyzer_context(|context| {
+        iris_analysis::hover::implementation(context, uri, position)
+    });
 
     result.on_non_fatal(None)
 }
@@ -751,7 +752,7 @@ fn code_action(
     let action_context = parameters.context;
 
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::code_action::implementation(context, uri, range, action_context)
+        iris_analysis::code_action::implementation(context, uri, range, action_context)
     });
 
     result.on_non_fatal(None)
@@ -768,7 +769,7 @@ fn completion(
     let mut cache = snapshot.suggestions_cache.write();
 
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::completion::implementation(context, &mut cache, uri, position)
+        iris_analysis::completion::implementation(context, &mut cache, uri, position)
     });
 
     result.on_non_fatal(None)
@@ -779,7 +780,7 @@ fn resolve_completion_item(
     item: CompletionItem,
 ) -> Result<CompletionItem, LspError> {
     let _span = tracing::info_span!("resolve_completion_item").entered();
-    analyzer::completion::resolve::implementation(&snapshot.engine, item)
+    iris_analysis::completion::resolve::implementation(&snapshot.engine, item)
         .or_else(|(error, item)| Err(error).on_non_fatal(item))
 }
 
@@ -792,7 +793,7 @@ fn references(
     let position = parameters.text_document_position.position;
 
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::references::implementation(context, uri, position)
+        iris_analysis::references::implementation(context, uri, position)
     });
 
     result.on_non_fatal(None)
@@ -808,7 +809,7 @@ fn rename(
     let new_name = parameters.new_name;
 
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::rename::implementation(context, uri, position, new_name)
+        iris_analysis::rename::implementation(context, uri, position, new_name)
     });
 
     result.on_non_fatal(None)
@@ -822,8 +823,8 @@ fn prepare_rename(
     let uri = parameters.text_document.uri;
     let position = parameters.position;
 
-    let result =
-        snapshot.with_analyzer_context(|context| analyzer::rename::prepare(context, uri, position));
+    let result = snapshot
+        .with_analyzer_context(|context| iris_analysis::rename::prepare(context, uri, position));
 
     result.on_non_fatal(None)
 }
@@ -836,7 +837,7 @@ fn document_highlight(
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::document_highlight::implementation(context, uri, position)
+        iris_analysis::document_highlight::implementation(context, uri, position)
     });
 
     result.on_non_fatal(None)
@@ -851,7 +852,7 @@ fn workspace_symbols(
     let mut cache = snapshot.workspace_symbols_cache.write();
 
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::symbols::workspace(context, &mut cache, &parameters.query)
+        iris_analysis::symbols::workspace(context, &mut cache, &parameters.query)
     });
 
     result.on_non_fatal(None)
@@ -864,7 +865,7 @@ fn document_symbols(
     let _span = tracing::info_span!("document_symbols").entered();
     let uri = parameters.text_document.uri;
     let result =
-        snapshot.with_analyzer_context(|context| analyzer::symbols::document(context, uri));
+        snapshot.with_analyzer_context(|context| iris_analysis::symbols::document(context, uri));
 
     result.on_non_fatal(None)
 }
@@ -876,7 +877,7 @@ fn semantic_tokens(
     let _span = tracing::info_span!("semantic_tokens").entered();
     let uri = parameters.text_document.uri;
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::semantic_tokens::implementation(context, uri)
+        iris_analysis::semantic_tokens::implementation(context, uri)
             .map(|tokens| tokens.map(SemanticTokensResult::Tokens))
     });
 
@@ -896,7 +897,8 @@ fn apply_content_changes(
             continue;
         };
 
-        let positions = analyzer::position::PositionConverter::new(&content, position_encoding);
+        let positions =
+            iris_analysis::position::PositionConverter::new(&content, position_encoding);
         let start = positions
             .protocol_position_to_utf8(range.start)
             .and_then(|position| positions.utf8_position_to_offset(position));

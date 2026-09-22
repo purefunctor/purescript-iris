@@ -1,9 +1,9 @@
 use std::collections::hash_map::Entry;
 
-use analyzer::diagnostics::CollectedDiagnostics;
 use async_lsp::{ClientSocket, LanguageClient};
 use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange};
 use files::FileId;
+use iris_analysis::diagnostics::CollectedDiagnostics;
 use itertools::Itertools;
 use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
@@ -148,7 +148,7 @@ fn collect_diagnostics_core(
     ticket: DiagnosticTicket,
 ) -> Option<CollectedDiagnostics> {
     let result = snapshot.with_analyzer_context(|context| {
-        analyzer::diagnostics::implementation(context, ticket.file_id)
+        iris_analysis::diagnostics::implementation(context, ticket.file_id)
     });
     match result {
         Ok(collected) => Some(collected),

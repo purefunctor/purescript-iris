@@ -2,13 +2,13 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use analyzer::AnalyzerCapabilities;
-use analyzer::position::PositionEncoding;
 use async_lsp::{ClientSocket, LanguageClient};
 use building::lifecycle::{AnalysisInvalidation, LifecycleChange, LifecycleEvent};
-use configuration::Configuration;
 use files::FileId;
+use iris_analysis::AnalyzerCapabilities;
+use iris_analysis::position::PositionEncoding;
 use iris_build::compilation::{CompilationParts, CompilationState, MaterializedPrim};
+use iris_configuration::Configuration;
 use itertools::Itertools;
 use lsp_types::{
     DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidCloseTextDocumentParams,

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use configuration::Configuration;
+use iris_configuration::Configuration;
 
 mod server;
 

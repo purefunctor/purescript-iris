@@ -47,39 +47,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "analyzer"
-version = "0.1.0"
-dependencies = [
- "building-types",
- "checking",
- "diagnostics",
- "files",
- "foreign-javascript",
- "indexing",
- "insta",
- "itertools 0.15.0",
- "javascript",
- "la-arena",
- "lexing",
- "line-index",
- "lowering",
- "lsp-types",
- "parsing",
- "radix_trie",
- "resolving",
- "rustc-hash",
- "serde",
- "serde_json",
- "smol_str",
- "stabilizing",
- "strsim",
- "syntax",
- "thiserror",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "anes"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -574,16 +541,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "configuration"
-version = "0.1.0"
-dependencies = [
- "jsonschema",
- "schemars",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "console"
 version = "0.16.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -936,21 +893,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
 dependencies = [
  "litrs",
-]
-
-[[package]]
-name = "documentation"
-version = "0.1.0"
-dependencies = [
- "building",
- "checking",
- "documenting",
- "files",
- "indexing",
- "lowering",
- "serde",
- "thiserror",
- "ts-rs",
 ]
 
 [[package]]
@@ -1807,6 +1749,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "791930b43c0d5973160d90a8f3894509f2b273430f5c5c73b668636d0287c5c0"
 
 [[package]]
+name = "iris-analysis"
+version = "0.1.0"
+dependencies = [
+ "building-types",
+ "checking",
+ "diagnostics",
+ "files",
+ "foreign-javascript",
+ "indexing",
+ "insta",
+ "itertools 0.15.0",
+ "javascript",
+ "la-arena",
+ "lexing",
+ "line-index",
+ "lowering",
+ "lsp-types",
+ "parsing",
+ "radix_trie",
+ "resolving",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "smol_str",
+ "stabilizing",
+ "strsim",
+ "syntax",
+ "thiserror",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "iris-build"
 version = "0.1.0"
 dependencies = [
@@ -1841,9 +1816,9 @@ dependencies = [
 name = "iris-cli"
 version = "0.1.0"
 dependencies = [
- "configuration",
  "directories",
  "iris-build",
+ "iris-configuration",
  "iris-lsp",
  "iris-package",
  "iris-watch",
@@ -1856,17 +1831,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-configuration"
+version = "0.1.0"
+dependencies = [
+ "jsonschema",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "iris-documentation"
+version = "0.1.0"
+dependencies = [
+ "building",
+ "checking",
+ "documenting",
+ "files",
+ "indexing",
+ "lowering",
+ "serde",
+ "thiserror",
+ "ts-rs",
+]
+
+[[package]]
 name = "iris-lsp"
 version = "0.1.0"
 dependencies = [
- "analyzer",
  "async-lsp",
  "building",
- "configuration",
  "dunce",
  "files",
  "futures",
+ "iris-analysis",
  "iris-build",
+ "iris-configuration",
  "iris-spago",
  "itertools 0.15.0",
  "lsp-types",
@@ -4279,19 +4279,19 @@ dependencies = [
 name = "tests-integration"
 version = "0.1.0"
 dependencies = [
- "analyzer",
  "async-lsp",
  "building",
  "checking",
  "datatest-stable",
  "diagnostics",
- "documentation",
  "files",
  "functional",
  "glob",
  "indexing",
  "insta",
  "interner",
+ "iris-analysis",
+ "iris-documentation",
  "itertools 0.15.0",
  "javascript",
  "line-index",

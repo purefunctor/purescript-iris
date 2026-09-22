@@ -2,11 +2,12 @@ pub mod render;
 
 use std::fmt::Write;
 
-use analyzer::completion::SuggestionsCache;
-use analyzer::position::PositionEncoding;
-use analyzer::{AnalyzerCapabilities, AnalyzerHost};
 use building::QueryEngine;
 use files::{FileId, Files};
+use iris_analysis as analyzer;
+use iris_analysis::completion::SuggestionsCache;
+use iris_analysis::position::PositionEncoding;
+use iris_analysis::{AnalyzerCapabilities, AnalyzerHost};
 use itertools::Itertools;
 use line_index::{LineIndex, TextSize};
 use lsp_types::{

@@ -3,8 +3,8 @@ use std::io::{self, IsTerminal};
 use std::path::PathBuf;
 use std::{env, fs};
 
-use configuration::{Configuration, ConfigurationSettings};
 use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
+use iris_configuration::{Configuration, ConfigurationSettings};
 use iris_package::{AddConfig, NewConfig};
 use itertools::Itertools;
 use thiserror::Error;
