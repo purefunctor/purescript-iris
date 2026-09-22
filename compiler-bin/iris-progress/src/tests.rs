@@ -267,6 +267,23 @@ fn compilation_frame_has_reviewable_plain_output() {
 }
 
 #[test]
+fn package_history_height_tracks_small_build_plan() {
+    let packages = [
+        ("prelude", Duration::from_micros(6_880)),
+        ("effect", Duration::from_micros(3_250)),
+        ("console", Duration::from_micros(980)),
+        ("assert", Duration::from_micros(410)),
+        ("acme", Duration::from_micros(110)),
+    ];
+    let model = model_with_packages(&packages, packages.len());
+    let output = render_plain(&model, 48, progress_region_height(model.package_count));
+
+    insta::with_settings!({ omit_expression => true }, {
+        insta::assert_snapshot!("small_build_plan_frame_plain", output);
+    });
+}
+
+#[test]
 fn finalization_frame_has_reviewable_plain_output() {
     let output = render_plain(&representative_finalization(), 48, PROGRESS_REGION_HEIGHT);
 
@@ -380,6 +397,14 @@ fn model_keeps_only_latest_ten_completions() {
     assert_eq!(model.completed_packages.len(), 10);
     assert_eq!(model.completed_packages.front().unwrap().package_name, "package-3");
     assert_eq!(model.completed_packages.back().unwrap().package_name, "package-12");
+}
+
+#[test]
+fn package_history_height_is_capped_at_ten_packages() {
+    assert_eq!(package_history_height(0), 0);
+    assert_eq!(package_history_height(5), 5);
+    assert_eq!(package_history_height(10), 10);
+    assert_eq!(package_history_height(12), 10);
 }
 
 #[test]
