@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
-use iris_spago::{SpagoCommand, SpagoError};
+use iris_spago::{COMPILER_VERSION, SpagoCommand, SpagoError};
 use itertools::Itertools;
 use thiserror::Error;
 
@@ -15,6 +15,11 @@ const GITIGNORE: &str = include_str!("../bundled/project/gitignore");
 
 pub struct NewConfig {
     pub name: Option<String>,
+}
+
+pub struct CreatedPackage {
+    pub name: String,
+    pub package_set: String,
 }
 
 pub struct AddConfig {
@@ -45,7 +50,7 @@ pub enum PackageManagerError {
     },
 }
 
-pub fn create(config: NewConfig) -> Result<(), PackageManagerError> {
+pub fn create(config: NewConfig) -> Result<CreatedPackage, PackageManagerError> {
     let current_directory = env::current_dir().map_err(PackageManagerError::CurrentDirectory)?;
     if let Some(root) = Workspace::find_ancestor(&current_directory)? {
         return Err(PackageManagerError::ExistingWorkspace(root));
@@ -75,6 +80,8 @@ pub fn create(config: NewConfig) -> Result<(), PackageManagerError> {
         return Err(PackageManagerError::ExistingPaths(existing.join(", ")));
     }
 
+    let spago = SpagoCommand::new(&current_directory)?;
+    let package_set = spago.latest_package_set(COMPILER_VERSION)?;
     let manifest = format!(
         r#"package:
   name: {name}
@@ -86,13 +93,16 @@ pub fn create(config: NewConfig) -> Result<(), PackageManagerError> {
     main: Test.Main
     dependencies:
       - assert
-workspace: {{}}
+workspace:
+  packageSet:
+    registry: {package_set}
 "#
     );
     write_file(&targets[0], &manifest)?;
     write_file(&targets[1], MAIN_SOURCE)?;
     write_file(&targets[2], TEST_SOURCE)?;
-    write_file(&targets[3], GITIGNORE)
+    write_file(&targets[3], GITIGNORE)?;
+    Ok(CreatedPackage { name, package_set })
 }
 
 pub fn add(config: AddConfig) -> Result<(), PackageManagerError> {

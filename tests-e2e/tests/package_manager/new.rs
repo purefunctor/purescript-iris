@@ -1,11 +1,21 @@
+use std::fs;
+
 use super::support::{TestWorkspace, assert_success};
 
 #[test]
-fn creates_a_spago_project_without_running_spago() {
+fn creates_a_spago_project_with_the_latest_supported_package_set() {
     let workspace = TestWorkspace::empty();
     let output = workspace.command(&["new", "--name", "example"]);
     assert_success(&output);
-    workspace.assert_spago_calls("", &[]);
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "Created package `example` with package set 81.1.0.\n\
+         Run `iris build` to get started.\n"
+    );
+    assert!(output.stderr.is_empty());
+    workspace
+        .assert_spago_calls("", &[&["registry", "package-sets", "--latest", "--json", "--quiet"]]);
+    fs::remove_file(workspace.path().join("spago-calls")).unwrap();
 
     insta::assert_snapshot!(workspace.summary(), @r#"
     --- .gitignore
@@ -22,7 +32,9 @@ fn creates_a_spago_project_without_running_spago() {
         main: Test.Main
         dependencies:
           - assert
-    workspace: {}
+    workspace:
+      packageSet:
+        registry: 81.1.0
     --- src/Main.purs
     module Main where
 
@@ -47,6 +59,37 @@ fn creates_a_spago_project_without_running_spago() {
       log "🍕"
       log "You should add some tests."
     "#);
+}
+
+#[test]
+fn builds_a_new_project() {
+    let workspace = TestWorkspace::empty();
+    let new_output = workspace.command(&["new", "--name", "example"]);
+    assert_success(&new_output);
+
+    let build_output = workspace.command(&["build", "--quiet"]);
+    assert_success(&build_output);
+    assert!(workspace.path().join("output/Main/index.js").is_file());
+    workspace.assert_spago_calls(
+        "",
+        &[
+            &["registry", "package-sets", "--latest", "--json", "--quiet"],
+            &["fetch", "-p", "example"],
+        ],
+    );
+}
+
+#[test]
+fn does_not_create_a_partial_project_when_package_set_discovery_fails() {
+    let workspace = TestWorkspace::empty();
+    workspace.set_env("IRIS_E2E_SPAGO_FAIL", "registry unavailable");
+
+    let output = workspace.command(&["new", "--name", "example"]);
+    assert!(!output.status.success());
+    assert!(!workspace.path().join("spago.yaml").exists());
+    assert!(!workspace.path().join("src/Main.purs").exists());
+    workspace
+        .assert_spago_calls("", &[&["registry", "package-sets", "--latest", "--json", "--quiet"]]);
 }
 
 #[test]
