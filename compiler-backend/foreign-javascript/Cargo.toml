@@ -8,8 +8,8 @@ license.workspace = true
 building-types = { version = "0.1.0", path = "../../compiler-core/building-types" }
 files = { version = "0.1.0", path = "../../compiler-core/files" }
 indexing = { version = "0.1.0", path = "../../compiler-frontend/indexing" }
-oxc_allocator = "=0.149.0"
-oxc_parser = "=0.149.0"
-oxc_span = "=0.149.0"
-oxc_syntax = "=0.149.0"
+oxc_allocator = "=0.151.0"
+oxc_parser = "=0.151.0"
+oxc_span = "=0.151.0"
+oxc_syntax = "=0.151.0"
 smol_str = "0.3.6"

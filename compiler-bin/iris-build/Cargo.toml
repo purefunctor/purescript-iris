@@ -24,7 +24,7 @@ petgraph = "0.8.3"
 prim-constants = { version = "0.1.0", path = "../../compiler-core/prim-constants" }
 rayon = "1.12.0"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.151"
 serde_yml = "0.0.12"
 smol_str = "0.3.6"
 tempfile = "3.27.0"

@@ -14,7 +14,7 @@ building = { version = "0.1.0", path = "../../compiler-core/building" }
 configuration = { version = "0.1.0", path = "../../compiler-lsp/configuration" }
 dunce = "1.0.5"
 files = { version = "0.1.0", path = "../../compiler-core/files" }
-futures = "0.3.32"
+futures = "0.3.34"
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-spago = { version = "0.1.0", path = "../iris-spago" }
 itertools = "0.15.0"
