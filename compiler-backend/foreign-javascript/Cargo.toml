@@ -13,5 +13,5 @@ oxc_parser = "=0.151.0"
 oxc_span = "=0.151.0"
 oxc_syntax = "=0.151.0"
 smol_str = "0.3.6"
-# Match the Unicode 17 identifier tables supported by Node.js 22.
-unicode-id-start = "=1.4.0"
+# Match the Unicode 15.1 identifier tables in the Node.js 22 baseline.
+unicode-id-start = "=1.2.0"

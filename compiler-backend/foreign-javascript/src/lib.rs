@@ -138,10 +138,10 @@ mod tests {
     }
 
     #[test]
-    fn rejects_identifiers_newer_than_node_22() {
-        let module = parse_module(ForeignSourceKind::JavaScript, "const \u{107bb} = 1;");
+    fn rejects_identifiers_newer_than_the_node_22_baseline() {
+        let module = parse_module(ForeignSourceKind::JavaScript, "const \u{10940} = 1;");
 
         let errors = module.errors.iter().map(|error| error.as_ref()).collect::<Vec<_>>();
-        assert_eq!(errors, ["Invalid Character `\u{107bb}`"]);
+        assert_eq!(errors, ["Invalid Character `\u{10940}`"]);
     }
 }
