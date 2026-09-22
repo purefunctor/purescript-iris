@@ -1,13 +1,11 @@
+use std::env;
 use std::ffi::OsStr;
 use std::io::{self, IsTerminal};
 use std::path::PathBuf;
-use std::{env, fs};
 
 use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
-use iris_configuration::{Configuration, ConfigurationSettings};
 use iris_package::{AddConfig, NewConfig};
 use itertools::Itertools;
-use thiserror::Error;
 use tracing::level_filters::LevelFilter;
 use usage::{Args, Subcommands, ValueEnum};
 
@@ -48,11 +46,6 @@ pub enum Command {
         #[usage(flatten)]
         options: TestOptions,
     },
-}
-
-pub struct LspConfig {
-    pub configuration: Configuration,
-    pub logging: LoggingFilters,
 }
 
 pub struct WatchConfig {
@@ -281,53 +274,12 @@ pub struct LspOptions {
         choices("off", "error", "warn", "info", "debug", "trace")
     )]
     lsp_log: LevelFilter,
-
-    /// Language server configuration as a JSON object, read once at startup.
-    #[usage(long, value_name = "JSON", conflicts = "--config-file")]
-    config: Option<String>,
-
-    /// Language server configuration file, relative to the working directory.
-    #[usage(long, value_name = "PATH", conflicts = "--config")]
-    config_file: Option<PathBuf>,
-}
-
-#[derive(Debug, Error)]
-pub enum ConfigurationError {
-    #[error("failed to read configuration file {}: {error}", path.display())]
-    ReadFile { path: PathBuf, error: io::Error },
-    #[error("invalid configuration in {input}: {error}")]
-    InvalidJson { input: String, error: serde_json::Error },
 }
 
 impl LspOptions {
-    pub fn into_config(self) -> Result<LspConfig, ConfigurationError> {
-        let configuration = read_configuration(self.config, self.config_file)?;
-        let logging = LoggingFilters {
-            query: self.query_log,
-            checking: self.checking_log,
-            lsp: self.lsp_log,
-        };
-        Ok(LspConfig { configuration, logging })
+    pub fn into_config(self) -> LoggingFilters {
+        LoggingFilters { query: self.query_log, checking: self.checking_log, lsp: self.lsp_log }
     }
-}
-
-fn read_configuration(
-    config: Option<String>,
-    config_file: Option<PathBuf>,
-) -> Result<Configuration, ConfigurationError> {
-    let (input, content) = if let Some(path) = config_file {
-        let content = fs::read_to_string(&path)
-            .map_err(|error| ConfigurationError::ReadFile { path: PathBuf::clone(&path), error })?;
-        (path.display().to_string(), content)
-    } else if let Some(content) = config {
-        ("--config".to_string(), content)
-    } else {
-        return Ok(Configuration::default());
-    };
-    let settings = serde_json::from_str::<Option<ConfigurationSettings>>(&content)
-        .map_err(|error| ConfigurationError::InvalidJson { input, error })?
-        .unwrap_or_default();
-    Ok(settings.apply_to(&Configuration::default()))
 }
 
 fn use_color(choice: ColorChoice) -> bool {

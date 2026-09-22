@@ -277,7 +277,7 @@ fn failed_initial_configuration_falls_back_and_replays_notifications() {
         state.protocol.root = Some(root);
         state.protocol.configuration_generation = 1;
         // Preparation is armed rather than started so the fallback stages the
-        // startup settings without spawning a real Spago process.
+        // default settings without spawning a real Spago process.
         let generation = state.preparation.test_arm();
         let context = WorkspaceContext {
             root: state.protocol.root.as_deref(),

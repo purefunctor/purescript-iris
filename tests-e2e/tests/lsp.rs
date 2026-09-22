@@ -665,15 +665,8 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
     workspace
         .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nfromSpago = 42\n");
-    workspace.write("config/empty.json", "{}");
 
-    let cases: &[&[&str]] = &[
-        &["lsp"],
-        &["lsp", "--stdio"],
-        &["lsp", "--config", "null"],
-        &["lsp", "--config-file", "config/empty.json"],
-        &["lsp", "--config", r#"{"diagnostics":{"onOpen":null,"onSave":null,"onChange":null}}"#],
-    ];
+    let cases: &[&[&str]] = &[&["lsp"], &["lsp", "--stdio"]];
     for arguments in cases {
         let mut server = LanguageServer::start(&workspace, "", arguments, workspace.path());
         let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
@@ -1504,51 +1497,6 @@ fn discovers_workspace_sources_through_a_symlinked_root() {
 }
 
 #[test]
-fn json_inputs_configure_diagnostic_triggers() {
-    let workspace = TestWorkspace::empty();
-    workspace.write(
-        "project/spago.yaml",
-        "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
-    );
-    workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 42\n");
-    let configuration = json!({
-        "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
-    })
-    .to_string();
-    let absolute_path = workspace.path().join("settings/server config.json");
-    let root = dunce::canonicalize(workspace.path().join("project")).unwrap();
-    let cases: &[&[&str]] = &[
-        &["lsp", "--config", &configuration],
-        &["lsp", "--config-file", "../settings/server config.json"],
-        &["lsp", "--config-file", absolute_path.to_str().unwrap()],
-    ];
-    for arguments in cases {
-        workspace.write("settings/server config.json", &configuration);
-        let mut server = LanguageServer::start(&workspace, "launcher", arguments, &root);
-        workspace.write("settings/server config.json", "invalid after startup");
-        let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
-        snapshot_workspace_json("configured_workspace_symbol", &symbols, workspace.path());
-        assert_diagnostic_triggers(&mut server, &root, false, false, true);
-        server.shutdown();
-    }
-}
-
-#[test]
-fn partial_diagnostic_configuration_preserves_omitted_triggers() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    let mut server = LanguageServer::start(
-        &workspace,
-        "",
-        &["lsp", "--config", r#"{"diagnostics":{"onOpen":false}}"#],
-        workspace.path(),
-    );
-    assert_diagnostic_triggers(&mut server, workspace.path(), false, true, false);
-    server.shutdown();
-}
-
-#[test]
 fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     let workspace = TestWorkspace::empty();
     workspace.write(
@@ -1556,7 +1504,6 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
         "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
     );
     workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 1\n");
-    let startup = r#"{"diagnostics":{"onOpen":false,"onSave":false,"onChange":true}}"#;
     let runtime = json!({
         "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
     });
@@ -1564,7 +1511,7 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     let mut server = LanguageServer::start_with_capabilities(
         &workspace,
         "launcher",
-        &["lsp", "--config", startup],
+        &["lsp"],
         &root,
         json!({"workspace": {"configuration": true}}),
         Some(runtime),
@@ -1593,7 +1540,7 @@ fn workspace_configuration_applies_initial_and_runtime_snapshots() {
     server.notify("textDocument/didClose", json!({"textDocument": {"uri": library_uri}}));
     server.wait_for_symbol("unsavedSpago", false);
     server.wait_for_symbol("fromSpago", true);
-    assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, false, true);
+    assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, true, false);
     assert!(server.client.configuration_requests.load(Ordering::Relaxed) >= 2);
     server.shutdown();
 }
@@ -1647,18 +1594,18 @@ fn invalid_runtime_configuration_preserves_the_previous_workspace() {
 }
 
 #[test]
-fn clients_without_workspace_configuration_keep_startup_settings() {
+fn clients_without_workspace_configuration_use_default_settings() {
     let workspace = TestWorkspace::empty();
     workspace
         .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nstartupOnly = 42\n");
+    workspace.write("src/Library.purs", "module Library where\ndefaultOnly = 42\n");
     let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
     server.notify(
         "workspace/didChangeConfiguration",
         json!({"settings": {"diagnostics": {"onOpen": false}}}),
     );
-    let symbols = server.request("workspace/symbol", json!({"query": "startupOnly"}));
-    snapshot_workspace_json("startup_configuration_workspace_symbol", &symbols, workspace.path());
+    let symbols = server.request("workspace/symbol", json!({"query": "defaultOnly"}));
+    snapshot_workspace_json("default_configuration_workspace_symbol", &symbols, workspace.path());
     assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
     server.shutdown();
 }

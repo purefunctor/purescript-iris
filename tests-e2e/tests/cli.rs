@@ -61,6 +61,16 @@ fn rejects_unpromoted_commands() {
 }
 
 #[test]
+fn rejects_removed_lsp_configuration_options() {
+    let workspace = TestWorkspace::empty();
+    for arguments in [["lsp", "--config", "{}"], ["lsp", "--config-file", "iris.json"]] {
+        let output = workspace.command(&arguments);
+        assert_eq!(output.status.code(), Some(2), "{arguments:?} was accepted");
+        assert!(output.stdout.is_empty(), "{arguments:?} wrote stdout");
+    }
+}
+
+#[test]
 fn run_and_test_require_separator_before_trailing_arguments() {
     let workspace = TestWorkspace::empty();
     for (name, arguments) in [
@@ -80,24 +90,4 @@ fn add_requires_dependencies() {
     assert_eq!(output.status.code(), Some(2), "add without dependencies succeeded");
     assert!(output.stdout.is_empty(), "add error wrote stdout");
     snapshot_output("add_requires_dependencies", &output);
-}
-
-#[test]
-fn rejects_invalid_lsp_configuration_before_starting() {
-    let workspace = TestWorkspace::empty();
-    let cases: &[(&str, &[&str])] = &[
-        ("config_invalid", &["lsp", "--config", "{"]),
-        ("config_conflict", &["lsp", "--config", "{}", "--config-file", "missing.json"]),
-        ("config_file_missing", &["lsp", "--config-file", "missing.json"]),
-    ];
-    for (name, arguments) in cases {
-        let output = workspace.command(arguments);
-        assert_eq!(output.status.code(), Some(2), "{name} was accepted");
-        assert!(output.stdout.is_empty(), "{name} wrote stdout");
-        insta::with_settings!({filters => vec![
-            (r"No such file or directory \(os error 2\)|The system cannot find the file specified\. \(os error 2\)", "[FILE NOT FOUND]"),
-        ]}, {
-            snapshot_output(name, &output);
-        });
-    }
 }

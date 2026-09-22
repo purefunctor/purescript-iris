@@ -1818,13 +1818,10 @@ version = "0.1.0"
 dependencies = [
  "directories",
  "iris-build",
- "iris-configuration",
  "iris-lsp",
  "iris-package",
  "iris-watch",
  "itertools 0.15.0",
- "serde_json",
- "thiserror",
  "tracing",
  "tracing-subscriber",
  "usage-rs",
