@@ -10,6 +10,6 @@ representations should be owned; frontend crates must not depend on code generat
   separate from the Node.js version required to run the integration-test harness.
 - Report unsupported frontend states explicitly rather than silently emitting incorrect JavaScript.
 - Keep pretty-printers useful for diagnosing intermediate functional trees.
-- Run `just t backend` whenever generated JavaScript, foreign-module validation, or executable
-  behavior can change. Update fixture output through `just t backend <filters> --update-output`,
+- Run `just t compiler` whenever generated JavaScript, foreign-module validation, or executable
+  behavior can change. Update fixture output through `just t compiler <filters> --update-output`,
   then inspect every changed file.
