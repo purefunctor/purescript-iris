@@ -54,7 +54,7 @@ fix:
   cargo clippy --workspace --fix && cargo fmt
 
 [doc("Update THIRDPARTY.toml")]
-[working-directory: 'compiler-bin/iris-cli']
+[working-directory: 'compiler-executable/iris-cli']
 licenses:
   cargo bundle-licenses --prefer MIT -o ../../THIRDPARTY.toml
 

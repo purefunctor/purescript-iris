@@ -7,7 +7,7 @@ publish = false
 autotests = false
 
 [dependencies]
-iris-cli = { path = "../compiler-bin/iris-cli" }
+iris-cli = { path = "../compiler-executable/iris-cli" }
 
 [dev-dependencies]
 async-lsp = { version = "0.2.4", features = ["tokio"] }

@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "compiler-bin/*",
+  "compiler-executable/*",
   "compiler-backend/*",
   "compiler-core/*",
   "compiler-frontend/*",

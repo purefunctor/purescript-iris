@@ -1,0 +1,15 @@
+---
+source: compiler-executable/iris-spago/tests/manifest.rs
+---
+Manifest {
+    package: Some(
+        Package {
+            name: "minimal",
+            description: None,
+            dependencies: [],
+            run: None,
+            test: None,
+        },
+    ),
+    workspace: None,
+}

@@ -1,0 +1,4 @@
+---
+source: compiler-executable/iris-spago/tests/manifest.rs
+---
+package.test: missing field `main` at line 5 column 5

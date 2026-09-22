@@ -1,0 +1,63 @@
+---
+source: compiler-executable/iris-spago/tests/manifest.rs
+---
+Manifest {
+    package: Some(
+        Package {
+            name: "application",
+            description: Some(
+                "An application with every package section.",
+            ),
+            dependencies: [
+                Dependency {
+                    name: "prelude",
+                    constraint: None,
+                },
+                Dependency {
+                    name: "effect",
+                    constraint: Some(
+                        ">=4.0.0 <5.0.0",
+                    ),
+                },
+                Dependency {
+                    name: "arrays",
+                    constraint: Some(
+                        "*",
+                    ),
+                },
+            ],
+            run: Some(
+                ExecutionConfig {
+                    main: Some(
+                        "Main",
+                    ),
+                    exec_args: [
+                        "first",
+                        "second",
+                    ],
+                },
+            ),
+            test: Some(
+                TestConfig {
+                    main: "Test.Main",
+                    dependencies: [
+                        Dependency {
+                            name: "spec",
+                            constraint: None,
+                        },
+                        Dependency {
+                            name: "assert",
+                            constraint: Some(
+                                ">=6.0.0 <7.0.0",
+                            ),
+                        },
+                    ],
+                    exec_args: [
+                        "from-manifest",
+                    ],
+                },
+            ),
+        },
+    ),
+    workspace: None,
+}

@@ -1,0 +1,17 @@
+---
+source: compiler-executable/iris-spago/tests/registry.rs
+---
+(
+    RegistryManifest {
+        name: "console",
+        version: "6.1.0",
+        dependencies: {
+            "effect": ">=4.0.0 <5.0.0",
+            "prelude": ">=6.0.0 <7.0.0",
+        },
+    },
+    [
+        "effect",
+        "prelude",
+    ],
+)

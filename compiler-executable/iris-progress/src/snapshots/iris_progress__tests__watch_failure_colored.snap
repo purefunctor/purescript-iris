@@ -1,0 +1,4 @@
+---
+source: compiler-executable/iris-progress/src/tests.rs
+---
+"\u{1b}[36m\u{1b}[2m12:35:02\u{1b}[0m  \u{1b}[31m\u{1b}[1mRebuild failed\u{1b}[0m in 2.00 ms"

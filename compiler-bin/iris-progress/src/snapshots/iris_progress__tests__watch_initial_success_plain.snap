@@ -1,5 +1,0 @@
----
-source: compiler-bin/iris-progress/src/tests.rs
----
-12:34:56  Build succeeded in 12.50 ms
-          Loaded 2 inputs: Application, Library

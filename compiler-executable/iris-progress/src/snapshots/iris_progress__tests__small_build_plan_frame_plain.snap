@@ -1,0 +1,11 @@
+---
+source: compiler-executable/iris-progress/src/tests.rs
+---
+prelude                                  6.88 ms
+effect                                   3.25 ms
+console                                  0.98 ms
+assert                                   0.41 ms
+acme                                     0.11 ms
+────────────────────────────────────────────────
+[==============================================]
+Compiling 5 of 5 packages in 2.34s
