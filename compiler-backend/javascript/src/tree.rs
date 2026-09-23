@@ -13,13 +13,13 @@ use oxc_syntax::operator::{
 };
 use smol_str::SmolStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ExpressionId(RawIdx);
 
 pub(crate) struct Tree<'a> {
     allocator: &'a Allocator,
     builder: AstBuilder<'a>,
-    expressions: Arena<Expression<'a>>,
+    expressions: Arena<Option<Expression<'a>>>,
 }
 
 pub(crate) enum ObjectProperty {
@@ -50,32 +50,47 @@ impl<'a> Tree<'a> {
     }
 
     fn allocate(&mut self, expression: Expression<'a>) -> ExpressionId {
-        ExpressionId(self.expressions.alloc(expression).into_raw())
+        ExpressionId(self.expressions.alloc(Some(expression)).into_raw())
     }
 
-    pub(crate) fn expression(&self, expression: ExpressionId) -> Expression<'a> {
-        let expression = &self.expressions[Idx::from_raw(expression.0)];
-        expression.clone_in(self.allocator)
+    pub(crate) fn expression(&mut self, expression: ExpressionId) -> Expression<'a> {
+        self.expressions[Idx::from_raw(expression.0)]
+            .take()
+            .expect("invariant violated: JavaScript expression was already consumed")
+    }
+
+    pub(crate) fn duplicate(&mut self, expression: &ExpressionId) -> ExpressionId {
+        let expression = self.expressions[Idx::from_raw(expression.0)]
+            .as_ref()
+            .expect("invariant violated: JavaScript expression was already consumed")
+            .clone_in(self.allocator);
+        self.allocate(expression)
     }
 
     pub(crate) fn expression_in<'b>(
         &self,
-        expression: ExpressionId,
+        expression: &ExpressionId,
         allocator: &'b Allocator,
     ) -> Expression<'b> {
-        let expression = &self.expressions[Idx::from_raw(expression.0)];
+        let expression = self.expressions[Idx::from_raw(expression.0)]
+            .as_ref()
+            .expect("invariant violated: JavaScript expression was already consumed");
         expression.clone_in(allocator)
     }
 
-    pub(crate) fn clear_call_purity(&mut self, expression: ExpressionId) {
-        let expression = &mut self.expressions[Idx::from_raw(expression.0)];
+    pub(crate) fn clear_call_purity(&mut self, expression: &ExpressionId) {
+        let expression = self.expressions[Idx::from_raw(expression.0)]
+            .as_mut()
+            .expect("invariant violated: JavaScript expression was already consumed");
         if let Expression::CallExpression(call) = expression {
             call.pure = false;
         }
     }
 
-    pub(crate) fn expression_is_atomic(&self, expression: ExpressionId) -> bool {
-        let expression = &self.expressions[Idx::from_raw(expression.0)];
+    pub(crate) fn expression_is_atomic(&self, expression: &ExpressionId) -> bool {
+        let expression = self.expressions[Idx::from_raw(expression.0)]
+            .as_ref()
+            .expect("invariant violated: JavaScript expression was already consumed");
         matches!(
             expression,
             Expression::Identifier(_)
@@ -86,8 +101,10 @@ impl<'a> Tree<'a> {
         )
     }
 
-    pub(crate) fn expression_identifier(&self, expression: ExpressionId) -> Option<&str> {
-        let expression = &self.expressions[Idx::from_raw(expression.0)];
+    pub(crate) fn expression_identifier(&self, expression: &ExpressionId) -> Option<&str> {
+        let expression = self.expressions[Idx::from_raw(expression.0)]
+            .as_ref()
+            .expect("invariant violated: JavaScript expression was already consumed");
         let Expression::Identifier(identifier) = expression else { return None };
         Some(identifier.name.as_str())
     }
@@ -385,7 +402,34 @@ fn property_is_identifier(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::oxc_string_value;
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Expression;
+
+    use super::{Tree, oxc_string_value};
+
+    #[test]
+    fn duplicated_call_keeps_independent_purity() {
+        let allocator = Allocator::default();
+        let mut tree = Tree::new(&allocator);
+        let function = tree.identifier("f");
+        let original = tree.pure_call(function, vec![]);
+        let copy = tree.duplicate(&original);
+
+        tree.clear_call_purity(&copy);
+        let outer = tree.call(copy, vec![]);
+
+        let Expression::CallExpression(original) = tree.expression(original) else {
+            panic!("expected original call")
+        };
+        let Expression::CallExpression(outer) = tree.expression(outer) else {
+            panic!("expected outer call")
+        };
+        let Expression::CallExpression(inner) = &outer.callee else {
+            panic!("expected nested call")
+        };
+        assert!(original.pure);
+        assert!(!inner.pure);
+    }
 
     #[test]
     fn oxc_string_value_preserves_utf16_code_units() {

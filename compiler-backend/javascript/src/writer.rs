@@ -1,5 +1,6 @@
 //! Oxc JavaScript program construction and code generation.
 
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -229,13 +230,13 @@ impl<'a> Writer<'a> {
         &mut self,
         tree: &Tree<'_>,
         name: &str,
-        value: ExpressionId,
+        value: impl Borrow<ExpressionId>,
         exported: bool,
     ) {
         let statement = self.variable_statement(
             VariableDeclarationKind::Const,
             name,
-            Some(tree.expression_in(value, self.allocator)),
+            Some(tree.expression_in(value.borrow(), self.allocator)),
             exported,
         );
         self.statements.push(statement);
@@ -245,7 +246,7 @@ impl<'a> Writer<'a> {
         &mut self,
         tree: &Tree<'_>,
         names: &[Option<SmolStr>],
-        value: ExpressionId,
+        value: impl Borrow<ExpressionId>,
     ) {
         let properties = names.iter().enumerate().filter_map(|(index, name)| {
             let name = name.as_deref()?;
@@ -260,7 +261,7 @@ impl<'a> Writer<'a> {
             SPAN,
             pattern,
             None,
-            Some(tree.expression_in(value, self.allocator)),
+            Some(tree.expression_in(value.borrow(), self.allocator)),
             false,
             &self.builder,
         );
@@ -281,14 +282,18 @@ impl<'a> Writer<'a> {
     }
 
     pub(crate) fn mutable_value(&mut self, tree: &Tree<'_>, name: &str, value: ExpressionId) {
-        let value = tree.expression_in(value, self.allocator);
+        let value = tree.expression_in(&value, self.allocator);
         let statement =
             self.variable_statement(VariableDeclarationKind::Let, name, Some(value), false);
         self.statements.push(statement);
     }
 
-    pub(crate) fn expression(&self, tree: &Tree<'_>, expression: ExpressionId) -> Expression<'a> {
-        tree.expression_in(expression, self.allocator)
+    pub(crate) fn expression(
+        &self,
+        tree: &Tree<'_>,
+        expression: impl Borrow<ExpressionId>,
+    ) -> Expression<'a> {
+        tree.expression_in(expression.borrow(), self.allocator)
     }
 
     pub(crate) fn assign(&mut self, tree: &Tree<'_>, name: &str, value: ExpressionId) {
@@ -301,7 +306,7 @@ impl<'a> Writer<'a> {
             SPAN,
             AssignmentOperator::Assign,
             target,
-            tree.expression_in(value, self.allocator),
+            tree.expression_in(&value, self.allocator),
             &self.builder,
         );
         self.statements.push(Statement::new_expression_statement(SPAN, expression, &self.builder));
@@ -310,7 +315,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn return_expression(&mut self, tree: &Tree<'_>, value: ExpressionId) {
         self.statements.push(Statement::new_return_statement(
             SPAN,
-            Some(tree.expression_in(value, self.allocator)),
+            Some(tree.expression_in(&value, self.allocator)),
             &self.builder,
         ));
     }
@@ -496,7 +501,7 @@ impl<'a> Writer<'a> {
         let alternate = self.block_statement(else_writer.statements);
         self.statements.push(Statement::new_if_statement(
             SPAN,
-            tree.expression_in(condition, self.allocator),
+            tree.expression_in(&condition, self.allocator),
             consequent,
             Some(alternate),
             &self.builder,
@@ -521,7 +526,7 @@ impl<'a> Writer<'a> {
         let alternate = self.block_statement(else_writer.statements);
         self.statements.push(Statement::new_if_statement(
             SPAN,
-            tree.expression_in(condition, self.allocator),
+            tree.expression_in(&condition, self.allocator),
             consequent,
             Some(alternate),
             &self.builder,
@@ -541,7 +546,7 @@ impl<'a> Writer<'a> {
         let consequent = self.block_statement(body.statements);
         self.statements.push(Statement::new_if_statement(
             SPAN,
-            tree.expression_in(condition, self.allocator),
+            tree.expression_in(&condition, self.allocator),
             consequent,
             None,
             &self.builder,
@@ -582,7 +587,7 @@ impl<'a> Writer<'a> {
         let result = render(tree, &mut body);
         self.has_eager_throw |= body.has_eager_throw;
         let body = self.block_statement(body.statements);
-        let condition = tree.expression_in(condition, self.allocator);
+        let condition = tree.expression_in(&condition, self.allocator);
         self.statements.push(Statement::new_while_statement(SPAN, condition, body, &self.builder));
         result
     }
@@ -601,14 +606,14 @@ impl<'a> Writer<'a> {
             let mut body = self.child();
             render(position, tree, &mut body)?;
             has_eager_throw |= body.has_eager_throw;
-            let test = tree.expression_in(*test, self.allocator);
+            let test = tree.expression_in(test, self.allocator);
             let body = self.block_statement(body.statements);
             let consequent = ArenaVec::from_array_in([body], &self.allocator);
             let switch_case = SwitchCase::new(span, Some(test), consequent, &self.builder);
             switch_cases.push(switch_case);
         }
         self.has_eager_throw |= has_eager_throw;
-        let discriminant = tree.expression_in(discriminant, self.allocator);
+        let discriminant = tree.expression_in(&discriminant, self.allocator);
         let switch_cases = ArenaVec::from_iter_in(switch_cases, &self.allocator);
         self.statements.push(Statement::new_switch_statement(
             SPAN,
@@ -683,7 +688,7 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn finish(self) -> String {
         let body = ArenaVec::from_iter_in(self.statements, &self.allocator);
-        let comments = self.comments.borrow();
+        let comments = self.comments.as_ref().borrow();
         let source_text = self.allocator.alloc_str(&comments.source_text);
         let span = Span::new(0, source_text.len() as u32);
         let program_comments =
