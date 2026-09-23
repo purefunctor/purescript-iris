@@ -4324,7 +4324,6 @@ dependencies = [
 name = "tests-integration"
 version = "0.1.0"
 dependencies = [
- "async-lsp",
  "building",
  "checking",
  "datatest-stable",
