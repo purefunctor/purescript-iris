@@ -677,6 +677,13 @@ where
     where
         Q: ExternalQueries,
     {
+        // Synonym expansion substitutes arguments into a body whose own
+        // variables are bound by its parameters or quantifiers, so it cannot
+        // introduce a variable that could fail the occurs or escape checks.
+        if !context.lookup_type_flags(id).has_variables() {
+            return Ok(PromoteResult::Ok);
+        }
+
         let id = normalise::expand(state, context, id)?;
         let t = context.lookup_type(id);
 

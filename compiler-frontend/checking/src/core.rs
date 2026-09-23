@@ -314,6 +314,11 @@ impl TypeFlags {
         self.0 & (TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_NESTED_ROW) != 0
     }
 
+    /// Whether this type contains unification or rigid variables.
+    pub fn has_variables(self) -> bool {
+        self.0 & (TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_RIGID) != 0
+    }
+
     /// Whether substituting rigid variables may change this type.
     ///
     /// Unification variables are included since their solutions may contain
