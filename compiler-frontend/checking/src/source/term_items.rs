@@ -79,13 +79,19 @@ fn check_overlapping_instance_declarations<Q>(
 where
     Q: ExternalQueries,
 {
+    let mut candidate_arguments = FxHashMap::default();
     for &item_id in &context.grouped.instance_sources {
         let crumb = match item_id {
             InstanceSourceItemId::Instance(id) => ErrorCrumb::InstanceDeclaration(id),
             InstanceSourceItemId::Derive(id) => ErrorCrumb::DeriveDeclaration(id),
         };
         state.with_error_crumb(crumb, |state| {
-            constraint::instances::validate_declared_instance_overlap(state, context, item_id)
+            constraint::instances::validate_declared_instance_overlap(
+                state,
+                context,
+                item_id,
+                &mut candidate_arguments,
+            )
         })?;
     }
 

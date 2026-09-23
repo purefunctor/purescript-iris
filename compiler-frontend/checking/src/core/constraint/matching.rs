@@ -694,7 +694,9 @@ pub fn declared_instances_overlap<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     left: CheckedInstance,
+    left_arguments: &[TypeId],
     right: CheckedInstance,
+    right_arguments: &[TypeId],
 ) -> QueryResult<bool>
 where
     Q: ExternalQueries,
@@ -705,27 +707,15 @@ where
 
     let (file_id, type_id) = left.resolution;
 
-    let Some(left) = toolkit::instance_info(state, context, left.signature, left.resolution)?
-    else {
-        return Ok(false);
-    };
-    let Some(right) = toolkit::instance_info(state, context, right.signature, right.resolution)?
-    else {
-        return Ok(false);
-    };
-
-    let left_arguments = type_arguments(&left.arguments);
-    let right_arguments = type_arguments(&right.arguments);
-
     if left_arguments.len() != right_arguments.len() {
         return Ok(false);
     }
 
     let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
-    instances_overlap(state, context, &functional_dependencies, &left_arguments, &right_arguments)
+    instances_overlap(state, context, &functional_dependencies, left_arguments, right_arguments)
 }
 
-fn type_arguments(arguments: &[ApplicationArgument]) -> Vec<TypeId> {
+pub(crate) fn type_arguments(arguments: &[ApplicationArgument]) -> Vec<TypeId> {
     arguments
         .iter()
         .filter_map(
