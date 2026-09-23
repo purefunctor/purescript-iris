@@ -35,6 +35,8 @@ tracing = "0.1.44"
 url = "2.5.8"
 
 [dev-dependencies]
+iris-lsp-workspace = { version = "0.1.0", path = "../iris-lsp-workspace", features = ["test-support"] }
+lsp-server = "0.10.0"
 tempfile = "3.27.0"
 
 [target.'cfg(not(unix))'.dependencies]

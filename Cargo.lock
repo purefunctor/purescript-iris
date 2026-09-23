@@ -1877,6 +1877,7 @@ dependencies = [
  "iris-lsp-workspace",
  "iris-spago",
  "itertools 0.15.0",
+ "lsp-server",
  "lsp-types",
  "parking_lot",
  "path-absolutize",

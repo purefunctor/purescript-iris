@@ -6,6 +6,9 @@ use iris_lsp_workspace::{WorkspaceConfig, WorkspaceService};
 
 mod server;
 
+#[cfg(test)]
+mod tests;
+
 pub struct ServerConfig {
     pub name: String,
     pub version: String,
@@ -47,17 +50,24 @@ pub fn start_next(config: ServerConfig) -> Result<(), ServerError> {
         .enable_all()
         .build()
         .map_err(ServerError::new)?;
-    let result = runtime.block_on(async {
-        let (workspace_events, workspace_event_receiver) = WorkspaceEventSender::channel();
-        let (workspace_senders, workspace_receivers) = WorkspaceSenders::channel();
-        let workspace =
-            WorkspaceService::new(WorkspaceConfig::new(name, version), workspace_events);
-        let workspace = tokio::spawn(workspace.run(workspace_receivers));
-        let transport = Transport::stdio();
-        Server::new(transport, workspace_senders, workspace_event_receiver, workspace).run().await
-    });
+    let result = runtime.block_on(connect(Transport::stdio(), |events| {
+        WorkspaceService::new(WorkspaceConfig::new(name, version), events)
+    }));
     // Cleanup already waited for the work it needs; blocking work that outlived its deadline
     // must not keep the process alive.
     runtime.shutdown_background();
     result.map_err(ServerError::new)
+}
+
+/// Creates the protocol actor and the workspace actor, connects them, and runs them until the
+/// server stops.
+async fn connect(
+    transport: Transport,
+    workspace: impl FnOnce(WorkspaceEventSender) -> WorkspaceService,
+) -> Result<(), iris_lsp_server::ServerError> {
+    let (workspace_events, workspace_event_receiver) = WorkspaceEventSender::channel();
+    let (workspace_senders, workspace_receivers) = WorkspaceSenders::channel();
+    let workspace = workspace(workspace_events);
+    let workspace = tokio::spawn(workspace.run(workspace_receivers));
+    Server::new(transport, workspace_senders, workspace_event_receiver, workspace).run().await
 }
