@@ -1,5 +1,6 @@
 //! Implements searching for instance chains.
 
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -7,7 +8,7 @@ use files::FileId;
 use indexing::{
     DeriveId, IndexedModule, InstanceChainId, InstanceId, InstanceSourceItemId, TypeItemId,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::constraint::{CanonicalConstraint, CanonicalConstraintId};
@@ -73,6 +74,7 @@ pub fn validate_declared_instance_overlap<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     item_id: InstanceSourceItemId,
+    candidate_arguments: &mut FxHashMap<InstanceCandidateOrigin, Option<Vec<TypeId>>>,
 ) -> QueryResult<()>
 where
     Q: ExternalQueries,
@@ -92,6 +94,7 @@ where
             origin,
             current_position,
             instance,
+            candidate_arguments,
         )?
     else {
         return Ok(());
@@ -139,6 +142,7 @@ fn collect_overlapping_declared_candidates<Q>(
     origin: InstanceCandidateOrigin,
     origin_position: usize,
     instance: CheckedInstance,
+    candidate_arguments: &mut FxHashMap<InstanceCandidateOrigin, Option<Vec<TypeId>>>,
 ) -> QueryResult<Option<OverlappingDeclaredCandidates>>
 where
     Q: ExternalQueries,
@@ -146,16 +150,19 @@ where
     // An instance head is the dual of a constraint; we synthesise it here to reuse
     // [`collect_instance_chains`]'s file-scoped enumeration, which scopes modules
     // by walking the head's type constructors, not by matching against candidates.
-    let wanted = {
-        let Some(toolkit::InstanceInfo { arguments, .. }) =
-            toolkit::instance_info(state, context, instance.signature, instance.resolution)?
-        else {
-            return Ok(None);
-        };
-        let (file_id, type_id) = instance.resolution;
-        let arguments = Arc::from(arguments);
-        state.canonicals.intern(CanonicalConstraint { file_id, type_id, arguments })
+    let Some(toolkit::InstanceInfo { arguments, .. }) =
+        toolkit::instance_info(state, context, instance.signature, instance.resolution)?
+    else {
+        return Ok(None);
     };
+    let (file_id, type_id) = instance.resolution;
+    let arguments: Arc<[ApplicationArgument]> = Arc::from(arguments);
+    let wanted = state.canonicals.intern(CanonicalConstraint {
+        file_id,
+        type_id,
+        arguments: Arc::clone(&arguments),
+    });
+    let left_arguments = constraint::matching::type_arguments(&arguments);
 
     let search = collect_instance_chains(state, context, wanted)?;
     let current_chain = instance_candidate_chain(context, origin);
@@ -178,11 +185,18 @@ where
     });
     let mut found = false;
     for candidate in reportable_overlap {
+        let Some(right_arguments) =
+            declared_candidate_arguments(state, context, candidate, candidate_arguments)?
+        else {
+            continue;
+        };
         if constraint::matching::declared_instances_overlap(
             state,
             context,
             instance,
+            &left_arguments,
             candidate.instance,
+            right_arguments,
         )? {
             found = true;
             break;
@@ -200,11 +214,18 @@ where
             if is_chain_sibling(candidate, current_chain, origin) {
                 continue;
             }
+            let Some(right_arguments) =
+                declared_candidate_arguments(state, context, &candidate, candidate_arguments)?
+            else {
+                continue;
+            };
             if constraint::matching::declared_instances_overlap(
                 state,
                 context,
                 instance,
+                &left_arguments,
                 candidate.instance,
+                right_arguments,
             )? {
                 matches.push(candidate);
                 continue 'chain;
@@ -213,6 +234,30 @@ where
     }
 
     Ok(Some(OverlappingDeclaredCandidates { matches, wanted }))
+}
+
+fn declared_candidate_arguments<'a, Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    candidate: &InstanceCandidate,
+    cache: &'a mut FxHashMap<InstanceCandidateOrigin, Option<Vec<TypeId>>>,
+) -> QueryResult<Option<&'a [TypeId]>>
+where
+    Q: ExternalQueries,
+{
+    let arguments = match cache.entry(candidate.origin) {
+        Entry::Occupied(entry) => entry.into_mut(),
+        Entry::Vacant(entry) => {
+            let info = toolkit::instance_info(
+                state,
+                context,
+                candidate.instance.signature,
+                candidate.instance.resolution,
+            )?;
+            entry.insert(info.map(|info| constraint::matching::type_arguments(&info.arguments)))
+        }
+    };
+    Ok(arguments.as_deref())
 }
 
 /// Collects [`InstanceCandidate`]s for a given constraint.
