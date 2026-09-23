@@ -851,10 +851,13 @@ fn source_and_foreign_uris_produce_the_same_unit_key() {
 
 #[test]
 fn localhost_source_and_foreign_uris_keep_the_same_authority() {
+    // A drive segment keeps the URIs convertible to file paths on Windows as well.
     let source_uri =
-        Url::parse("file://localhost/workspace/Source%20Files/Main.purs?view=1#selection").unwrap();
+        Url::parse("file://localhost/C:/workspace/Source%20Files/Main.purs?view=1#selection")
+            .unwrap();
     let foreign_uri =
-        Url::parse("file://localhost/workspace/Source%20Files/Main.js?view=1#selection").unwrap();
+        Url::parse("file://localhost/C:/workspace/Source%20Files/Main.js?view=1#selection")
+            .unwrap();
 
     let from_source = source_unit_from_source_uri(&source_uri).unwrap();
     let from_foreign = source_unit_from_foreign_uri(&foreign_uri).unwrap();
