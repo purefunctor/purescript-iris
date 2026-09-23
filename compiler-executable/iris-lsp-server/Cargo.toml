@@ -10,11 +10,13 @@ repository = "https://github.com/purefunctor/purescript-iris"
 [dependencies]
 lsp-server = "0.10.0"
 lsp-types.workspace = true
+serde = "1.0.229"
 serde_json = "1.0.151"
 thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["macros", "rt", "sync", "time"] }
 tracing = "0.1.44"
 url = "2.5.8"
+waitpid-any = "0.3.0"
 
 [dev-dependencies]
 tokio = { version = "1.53.1", features = ["macros", "rt", "sync", "test-util", "time"] }

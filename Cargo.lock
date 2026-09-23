@@ -1900,11 +1900,13 @@ version = "0.1.0"
 dependencies = [
  "lsp-server",
  "lsp-types",
+ "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tracing",
  "url",
+ "waitpid-any",
 ]
 
 [[package]]

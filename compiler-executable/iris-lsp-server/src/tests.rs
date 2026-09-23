@@ -9,8 +9,8 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 use crate::service::{
-    ControlMessage, OrderedMessage, Rejection, WorkspaceEvent, WorkspaceEventSender,
-    WorkspaceFailure, WorkspaceReceivers, WorkspaceSenders,
+    ControlMessage, OrderedMessage, Rejection, SettingsResponse, WorkspaceEvent,
+    WorkspaceEventSender, WorkspaceFailure, WorkspaceReceivers, WorkspaceSenders,
 };
 use crate::{Server, ServerError, Transport};
 
@@ -69,13 +69,19 @@ impl ServerHarness {
         ServerHarness::running_with(json!({})).await
     }
 
+    /// Starts a server with the given `initialize` parameters. Without `workspace/configuration`
+    /// support, the settings message that follows `initialized` is consumed too.
     async fn running_with(initialize: Value) -> ServerHarness {
+        let configuration = initialize["capabilities"]["workspace"]["configuration"] == true;
         let mut harness = ServerHarness::start();
         harness.initialize(initialize).await;
         harness.editor.notify("initialized", json!({}));
         let OrderedMessage::Initialized = harness.workspace.ordered().await else {
             panic!("expected initialized to reach the workspace actor");
         };
+        if !configuration {
+            assert_eq!(harness.workspace.settings().await, SettingsResponse::Unsupported);
+        }
         harness
     }
 
@@ -192,6 +198,34 @@ impl Editor {
         self.error(id).await.0
     }
 
+    /// Waits for a request from the server.
+    async fn server_request(&mut self, method: &str) -> Request {
+        self.claim(&format!("a {method} request"), |message| match message {
+            Message::Request(request) if request.method == method => Some(Request::clone(request)),
+            _ => None,
+        })
+        .await
+    }
+
+    async fn notification(&mut self, method: &str) -> Value {
+        self.claim(&format!("a {method} notification"), |message| match message {
+            Message::Notification(notification) if notification.method == method => {
+                Some(Value::clone(&notification.params))
+            }
+            _ => None,
+        })
+        .await
+    }
+
+    fn reply(&self, request: &Request, result: Value) {
+        self.send(Response::new_ok(RequestId::clone(&request.id), result));
+    }
+
+    fn reply_error(&self, request: &Request, message: &str) {
+        let code = ErrorCode::InternalError as i32;
+        self.send(Response::new_err(RequestId::clone(&request.id), code, message.to_string()));
+    }
+
     /// Asserts that no unclaimed message and no message within a short period satisfies `check`.
     async fn assert_no_message(&mut self, description: &str, check: impl Fn(&Message) -> bool) {
         assert!(!self.unclaimed.iter().any(&check), "unexpected {description}");
@@ -245,6 +279,73 @@ impl FakeWorkspace {
             matches!(self.receivers.ordered.try_recv(), Err(mpsc::error::TryRecvError::Empty)),
             "unexpected ordered message"
         );
+    }
+
+    fn assert_no_control_message(&mut self) {
+        assert!(
+            matches!(self.receivers.control.try_recv(), Err(mpsc::error::TryRecvError::Empty)),
+            "unexpected control message"
+        );
+    }
+
+    async fn settings(&mut self) -> SettingsResponse {
+        match self.ordered().await {
+            OrderedMessage::Settings(response) => response,
+            _ => panic!("expected settings"),
+        }
+    }
+}
+
+fn configuration_capabilities() -> Value {
+    json!({
+        "capabilities": {"workspace": {"configuration": true}},
+        "workspaceFolders": [{"uri": "file:///workspace/", "name": "workspace"}]
+    })
+}
+
+fn progress_capabilities() -> Value {
+    json!({"capabilities": {"window": {"workDoneProgress": true}}})
+}
+
+fn started(generation: u64) -> WorkspaceEvent {
+    WorkspaceEvent::PreparationStarted {
+        generation,
+        title: "Preparing Iris workspace".to_string(),
+        message: "Discovering Spago workspace".to_string(),
+    }
+}
+
+fn reported(generation: u64, message: &str, percentage: u32) -> WorkspaceEvent {
+    WorkspaceEvent::PreparationProgress {
+        generation,
+        message: message.to_string(),
+        percentage: Some(percentage),
+    }
+}
+
+fn ended(generation: u64, message: &str) -> WorkspaceEvent {
+    WorkspaceEvent::PreparationEnded { generation, message: message.to_string() }
+}
+
+fn progress_value(notification: &Message) -> Option<Value> {
+    match notification {
+        Message::Notification(notification) if notification.method == "$/progress" => {
+            Some(Value::clone(&notification.params["value"]))
+        }
+        _ => None,
+    }
+}
+
+fn is_progress(message: &Message) -> bool {
+    progress_value(message).is_some()
+}
+
+impl Editor {
+    /// Waits for the next `$/progress` value for `token`.
+    async fn progress(&mut self, token: &str) -> Value {
+        let params = self.notification("$/progress").await;
+        assert_eq!(params["token"], token);
+        Value::clone(&params["value"])
     }
 }
 
@@ -357,6 +458,7 @@ async fn notifications_are_dropped_before_initialize_is_answered_and_after_shutd
     let OrderedMessage::Initialized = harness.workspace.ordered().await else {
         panic!("expected initialized");
     };
+    assert_eq!(harness.workspace.settings().await, SettingsResponse::Unsupported);
     harness.shutdown(1).await;
     harness.editor.notify("textDocument/didOpen", json!({"shutdown": true}));
     harness.editor.exit();
@@ -374,6 +476,7 @@ async fn unexpected_and_repeated_initialized_notifications_are_ignored() {
     let OrderedMessage::Initialized = harness.workspace.ordered().await else {
         panic!("expected initialized");
     };
+    assert_eq!(harness.workspace.settings().await, SettingsResponse::Unsupported);
     harness.editor.notify("initialized", json!({}));
     harness.editor.request(1, "textDocument/hover", json!({}));
     let (method, reply) = harness.workspace.request().await;
@@ -504,4 +607,448 @@ async fn shutdown_does_not_reject_requests_still_waiting_for_answers() {
     assert_eq!(harness.editor.result(1).await, json!("late but valid"));
     harness.editor.exit();
     harness.stopped().await.unwrap();
+}
+
+#[tokio::test]
+async fn late_answer_after_cancellation_does_not_answer_reused_id() {
+    let mut harness = ServerHarness::running().await;
+    harness.editor.request(7, "textDocument/hover", json!({}));
+    let OrderedMessage::Request { reply: mut stale, .. } = harness.workspace.ordered().await else {
+        panic!()
+    };
+
+    harness.editor.cancel(7);
+    assert_eq!(harness.editor.error_code(7).await, ErrorCode::RequestCanceled as i32);
+    tokio::time::timeout(PATIENCE, stale.closed()).await.expect("the reply channel stayed open");
+
+    harness.editor.request(7, "textDocument/hover", json!({}));
+    let OrderedMessage::Request { reply: fresh, .. } = harness.workspace.ordered().await else {
+        panic!()
+    };
+    let _ = stale.send(Ok(json!("stale")));
+    let _ = fresh.send(Ok(json!("fresh")));
+    assert_eq!(harness.editor.result(7).await, json!("fresh"));
+    harness.editor.assert_no_message("second response", |message| is_response_to(message, 7)).await;
+}
+
+#[tokio::test]
+async fn cancellation_is_answered_once_and_ignores_unknown_ids() {
+    let mut harness = ServerHarness::running().await;
+    harness.editor.request(1, "textDocument/hover", json!({}));
+    let (_, reply) = harness.workspace.request().await;
+    harness.editor.cancel(1);
+    harness.editor.cancel(1);
+    harness.editor.cancel(99);
+    harness.editor.notify("$/cancelRequest", json!({"id": "not-waiting"}));
+    assert_eq!(
+        harness.editor.error(1).await,
+        (ErrorCode::RequestCanceled as i32, "Client cancelled the request".to_string())
+    );
+    let _ = reply.send(Ok(Value::Null));
+    harness.editor.assert_no_message("second response", |message| is_response_to(message, 1)).await;
+    harness
+        .editor
+        .assert_no_message("response to an unknown ID", |message| is_response_to(message, 99))
+        .await;
+}
+
+#[tokio::test]
+async fn requests_after_shutdown_can_still_be_cancelled() {
+    let mut harness = ServerHarness::running().await;
+    harness.editor.request(1, "textDocument/hover", json!({}));
+    let (_, _reply) = harness.workspace.request().await;
+    harness.shutdown(2).await;
+    harness.editor.cancel(1);
+    assert_eq!(harness.editor.error_code(1).await, ErrorCode::RequestCanceled as i32);
+    harness.editor.exit();
+    harness.stopped().await.unwrap();
+}
+
+#[tokio::test]
+async fn registrations_follow_the_client_capabilities() {
+    let cases = [
+        (json!({}), vec![]),
+        (
+            json!({"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true}}}),
+            vec!["workspace/didChangeWatchedFiles"],
+        ),
+        (json!({"workspace": {"didChangeConfiguration": {"dynamicRegistration": true}}}), vec![]),
+        (
+            json!({"workspace": {
+                "configuration": true,
+                "didChangeConfiguration": {"dynamicRegistration": true}
+            }}),
+            vec!["workspace/didChangeConfiguration"],
+        ),
+        (
+            json!({"workspace": {
+                "configuration": true,
+                "didChangeConfiguration": {"dynamicRegistration": true},
+                "didChangeWatchedFiles": {"dynamicRegistration": true}
+            }}),
+            vec!["workspace/didChangeWatchedFiles", "workspace/didChangeConfiguration"],
+        ),
+    ];
+    for (capabilities, expected) in cases {
+        let mut harness = ServerHarness::running_with(json!({"capabilities": capabilities})).await;
+        let mut methods = vec![];
+        for _ in 0..expected.len() {
+            let request = harness.editor.server_request("client/registerCapability").await;
+            let registration = &request.params["registrations"][0];
+            match registration["method"].as_str().unwrap() {
+                "workspace/didChangeWatchedFiles" => {
+                    assert_eq!(registration["id"], "purescript-source-files");
+                    assert_eq!(
+                        registration["registerOptions"],
+                        json!({"watchers": [
+                            {"globPattern": "**/*.purs"},
+                            {"globPattern": "**/*.js"},
+                            {"globPattern": "**/*.jsx"}
+                        ]})
+                    );
+                }
+                "workspace/didChangeConfiguration" => {
+                    assert_eq!(registration["id"], "iris-workspace-configuration");
+                    assert!(registration.get("registerOptions").is_none());
+                }
+                method => panic!("unexpected registration {method}"),
+            }
+            methods.push(registration["method"].as_str().unwrap().to_string());
+            harness.editor.reply(&request, Value::Null);
+        }
+        assert_eq!(methods, expected);
+        harness
+            .editor
+            .assert_no_message("registration", |message| {
+                matches!(message, Message::Request(request) if request.method == "client/registerCapability")
+            })
+            .await;
+    }
+}
+
+#[tokio::test]
+async fn settings_are_requested_on_initialized_and_forwarded() {
+    let mut harness = ServerHarness::running_with(configuration_capabilities()).await;
+    let request = harness.editor.server_request("workspace/configuration").await;
+    assert_eq!(
+        request.params,
+        json!({"items": [{"scopeUri": "file:///workspace/", "section": "iris.server"}]})
+    );
+    harness.editor.reply(&request, json!([{"diagnostics": {"onChange": true}}]));
+    assert_eq!(
+        harness.workspace.settings().await,
+        SettingsResponse::Received(json!([{"diagnostics": {"onChange": true}}]))
+    );
+
+    // A repeated response is a response to an unknown request.
+    harness.editor.reply(&request, json!([{}]));
+    harness.editor.request(1, "textDocument/hover", json!({}));
+    let (method, _) = harness.workspace.request().await;
+    assert_eq!(method, "textDocument/hover");
+}
+
+#[tokio::test]
+async fn only_the_latest_settings_generation_is_forwarded() {
+    let mut harness = ServerHarness::running_with(configuration_capabilities()).await;
+    let first = harness.editor.server_request("workspace/configuration").await;
+    harness
+        .editor
+        .notify("workspace/didChangeConfiguration", json!({"settings": {"ignored": true}}));
+    let second = harness.editor.server_request("workspace/configuration").await;
+    assert_ne!(first.id, second.id);
+
+    harness.editor.reply(&first, json!([{"stale": true}]));
+    harness.editor.reply_error(&second, "boom");
+    assert_eq!(
+        harness.workspace.settings().await,
+        SettingsResponse::Failed("boom (jsonrpc error -32603)".to_string())
+    );
+    harness.workspace.assert_no_ordered_message();
+}
+
+#[tokio::test]
+async fn settings_requests_time_out_after_ten_seconds() {
+    let mut harness = ServerHarness::running_with(configuration_capabilities()).await;
+    let request = harness.editor.server_request("workspace/configuration").await;
+    tokio::time::pause();
+    tokio::time::advance(Duration::from_secs(9)).await;
+    harness.workspace.assert_no_ordered_message();
+    tokio::time::advance(Duration::from_secs(2)).await;
+    assert_eq!(
+        harness.workspace.settings().await,
+        SettingsResponse::Failed("workspace/configuration request timed out".to_string())
+    );
+    tokio::time::resume();
+
+    // The late response is ignored.
+    harness.editor.reply(&request, json!([{}]));
+    harness.editor.request(1, "textDocument/hover", json!({}));
+    let (method, _) = harness.workspace.request().await;
+    assert_eq!(method, "textDocument/hover");
+}
+
+#[tokio::test]
+async fn clients_without_workspace_configuration_get_unsupported_settings_once() {
+    // `running` consumes the one `SettingsResponse::Unsupported`.
+    let mut harness = ServerHarness::running().await;
+    harness.editor.notify("workspace/didChangeConfiguration", json!({"settings": {}}));
+    harness.editor.request(1, "textDocument/hover", json!({}));
+    let (method, _) = harness.workspace.request().await;
+    assert_eq!(method, "textDocument/hover");
+    harness
+        .editor
+        .assert_no_message("configuration request", |message| {
+            matches!(message, Message::Request(request) if request.method == "workspace/configuration")
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn progress_accepted_immediately_reports_in_order() {
+    let mut harness = ServerHarness::running_with(progress_capabilities()).await;
+    harness.workspace.emit(started(1));
+    let create = harness.editor.server_request("window/workDoneProgress/create").await;
+    assert_eq!(create.params, json!({"token": "iris/startup/1"}));
+    harness.editor.reply(&create, Value::Null);
+    assert_eq!(
+        harness.editor.progress("iris/startup/1").await,
+        json!({
+            "kind": "begin",
+            "title": "Preparing Iris workspace",
+            "cancellable": true,
+            "message": "Discovering Spago workspace",
+            "percentage": 0
+        })
+    );
+    harness.workspace.emit(reported(1, "Compiling packages (0/2 completed)", 0));
+    assert_eq!(
+        harness.editor.progress("iris/startup/1").await,
+        json!({
+            "kind": "report",
+            "cancellable": true,
+            "message": "Compiling packages (0/2 completed)",
+            "percentage": 0
+        })
+    );
+    harness.workspace.emit(ended(1, "Workspace preparation finished"));
+    assert_eq!(
+        harness.editor.progress("iris/startup/1").await,
+        json!({"kind": "end", "message": "Workspace preparation finished"})
+    );
+    harness.workspace.emit(reported(1, "after the end", 100));
+    harness.editor.assert_no_message("progress after the end", is_progress).await;
+}
+
+#[tokio::test]
+async fn progress_accepted_late_sends_begin_the_latest_report_and_end() {
+    let mut harness = ServerHarness::running_with(progress_capabilities()).await;
+    harness.workspace.emit(started(1));
+    let create = harness.editor.server_request("window/workDoneProgress/create").await;
+    harness.workspace.emit(reported(1, "first", 10));
+    harness.workspace.emit(reported(1, "latest", 20));
+    harness.workspace.emit(ended(1, "Workspace preparation finished"));
+    harness.editor.assert_no_message("progress before acceptance", is_progress).await;
+
+    harness.editor.reply(&create, Value::Null);
+    let values = [
+        harness.editor.progress("iris/startup/1").await,
+        harness.editor.progress("iris/startup/1").await,
+        harness.editor.progress("iris/startup/1").await,
+    ];
+    assert_eq!(values[0]["kind"], "begin");
+    assert_eq!(
+        values[1],
+        json!({"kind": "report", "cancellable": true, "message": "latest", "percentage": 20})
+    );
+    assert_eq!(values[2], json!({"kind": "end", "message": "Workspace preparation finished"}));
+    harness.editor.assert_no_message("more progress", is_progress).await;
+}
+
+#[tokio::test]
+async fn progress_accepted_after_shutdown_is_still_balanced() {
+    let mut harness = ServerHarness::running_with(progress_capabilities()).await;
+    harness.workspace.emit(started(1));
+    let create = harness.editor.server_request("window/workDoneProgress/create").await;
+    harness.shutdown(1).await;
+    harness.workspace.emit(ended(1, "Workspace preparation cancelled"));
+    harness.editor.assert_no_message("progress before acceptance", is_progress).await;
+
+    harness.editor.reply(&create, Value::Null);
+    assert_eq!(harness.editor.progress("iris/startup/1").await["kind"], "begin");
+    assert_eq!(
+        harness.editor.progress("iris/startup/1").await,
+        json!({"kind": "end", "message": "Workspace preparation cancelled"})
+    );
+    harness.editor.exit();
+    harness.stopped().await.unwrap();
+}
+
+#[tokio::test]
+async fn rejected_progress_creation_sends_no_progress() {
+    let mut harness = ServerHarness::running_with(progress_capabilities()).await;
+    harness.workspace.emit(started(1));
+    let create = harness.editor.server_request("window/workDoneProgress/create").await;
+    harness.editor.reply_error(&create, "rejected");
+    harness.workspace.emit(reported(1, "report", 50));
+    harness.workspace.emit(ended(1, "Workspace preparation finished"));
+    harness.editor.assert_no_message("progress after rejection", is_progress).await;
+}
+
+#[tokio::test]
+async fn progress_is_omitted_without_client_support() {
+    let mut harness = ServerHarness::running().await;
+    harness.workspace.emit(started(1));
+    harness.workspace.emit(ended(1, "Workspace preparation finished"));
+    harness
+        .editor
+        .assert_no_message("progress", |message| {
+            is_progress(message)
+                || matches!(message, Message::Request(request) if request.method == "window/workDoneProgress/create")
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn cancelling_the_current_progress_token_cancels_preparation_ahead_of_ordered_messages() {
+    let mut harness = ServerHarness::running_with(progress_capabilities()).await;
+    harness.workspace.emit(started(1));
+    let create = harness.editor.server_request("window/workDoneProgress/create").await;
+    harness.editor.reply(&create, Value::Null);
+    assert_eq!(harness.editor.progress("iris/startup/1").await["kind"], "begin");
+    harness.workspace.emit(ended(1, "Workspace preparation cancelled"));
+    assert_eq!(harness.editor.progress("iris/startup/1").await["kind"], "end");
+
+    harness.workspace.emit(started(2));
+    let create = harness.editor.server_request("window/workDoneProgress/create").await;
+    harness.editor.reply(&create, Value::Null);
+    assert_eq!(harness.editor.progress("iris/startup/2").await["kind"], "begin");
+
+    // Ordered messages that the workspace actor has not reached yet.
+    harness.editor.notify("textDocument/didOpen", json!({"queued": 1}));
+    harness.editor.notify("textDocument/didChange", json!({"queued": 2}));
+    for token in [json!("iris/startup/1"), json!("unknown"), json!(2)] {
+        harness.editor.notify("window/workDoneProgress/cancel", json!({"token": token}));
+    }
+    harness.editor.notify("window/workDoneProgress/cancel", json!({"token": "iris/startup/2"}));
+    harness.editor.notify("window/workDoneProgress/cancel", json!({"token": "iris/startup/2"}));
+    assert_eq!(
+        harness.workspace.control().await,
+        ControlMessage::CancelPreparation { generation: 2 }
+    );
+
+    let OrderedMessage::Notification { params, .. } = harness.workspace.ordered().await else {
+        panic!("expected the first queued notification");
+    };
+    assert_eq!(params, json!({"queued": 1}));
+    let OrderedMessage::Notification { params, .. } = harness.workspace.ordered().await else {
+        panic!("expected the second queued notification");
+    };
+    assert_eq!(params, json!({"queued": 2}));
+    harness.workspace.assert_no_control_message();
+
+    harness.workspace.emit(ended(2, "Workspace preparation cancelled"));
+    assert_eq!(
+        harness.editor.progress("iris/startup/2").await,
+        json!({"kind": "end", "message": "Workspace preparation cancelled"})
+    );
+    harness.editor.assert_no_message("a second end", is_progress).await;
+}
+
+#[tokio::test]
+async fn workspace_events_become_editor_notifications() {
+    let mut harness = ServerHarness::running().await;
+    let uri = url::Url::parse("file:///workspace/src/Main.purs").unwrap();
+    harness.workspace.emit(WorkspaceEvent::Diagnostics {
+        uri: url::Url::clone(&uri),
+        version: Some(3),
+        diagnostics: json!([{"message": "problem"}]),
+    });
+    assert_eq!(
+        harness.editor.notification("textDocument/publishDiagnostics").await,
+        json!({"uri": uri, "version": 3, "diagnostics": [{"message": "problem"}]})
+    );
+    harness.workspace.emit(WorkspaceEvent::Diagnostics {
+        uri: url::Url::clone(&uri),
+        version: None,
+        diagnostics: json!([]),
+    });
+    assert_eq!(
+        harness.editor.notification("textDocument/publishDiagnostics").await,
+        json!({"uri": uri, "diagnostics": []})
+    );
+    harness.workspace.emit(WorkspaceEvent::Error { message: "Invalid Iris settings".to_string() });
+    assert_eq!(
+        harness.editor.notification("window/showMessage").await,
+        json!({"type": 1, "message": "Invalid Iris settings"})
+    );
+}
+
+#[tokio::test]
+async fn malformed_notifications_that_the_server_decodes_stop_it() {
+    let harness = ServerHarness::running().await;
+    harness.editor.notify("workspace/didChangeConfiguration", json!(42));
+    let error = harness.stopped().await.unwrap_err();
+    assert!(
+        matches!(&error, ServerError::InvalidNotification { method, .. } if method == "workspace/didChangeConfiguration"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn a_process_id_that_cannot_be_represented_installs_no_monitor() {
+    // As an `i32`, 2^31 would wrap to a negative ID that names no process; monitoring it would
+    // report the editor as exited and stop the server.
+    let mut harness = ServerHarness::running_with(json!({"processId": 2_147_483_648_i64})).await;
+    harness.editor.request(1, "textDocument/hover", json!({}));
+    let (_, reply) = harness.workspace.request().await;
+    reply.send(Ok(Value::Null)).unwrap();
+    assert_eq!(harness.editor.result(1).await, Value::Null);
+    harness.shutdown(2).await;
+    harness.editor.exit();
+    harness.stopped().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_live_editor_process_keeps_the_server_running() {
+    let mut harness = ServerHarness::running_with(json!({"processId": std::process::id()})).await;
+    harness.shutdown(1).await;
+    harness.editor.exit();
+    harness.stopped().await.unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn an_exited_editor_process_stops_the_server() {
+    let mut child = std::process::Command::new("sh").arg("-c").arg("exit 0").spawn().unwrap();
+    let process_id = child.id();
+    child.wait().unwrap();
+    let mut harness = ServerHarness::start();
+    harness.initialize(json!({"processId": process_id})).await;
+    assert!(matches!(harness.stopped().await, Err(ServerError::EditorExited)));
+}
+
+#[test]
+fn lsp_server_rejects_a_response_with_neither_result_nor_error() {
+    let text = r#"{"jsonrpc":"2.0","id":1}"#;
+    let framed = format!("Content-Length: {}\r\n\r\n{text}", text.len());
+    let error = Message::read(&mut framed.as_bytes()).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+}
+
+#[test]
+fn lsp_server_decodes_a_response_with_both_fields_from_the_first() {
+    let read = |text: &str| {
+        let framed = format!("Content-Length: {}\r\n\r\n{text}", text.len());
+        let Some(Message::Response(response)) = Message::read(&mut framed.as_bytes()).unwrap()
+        else {
+            panic!("expected a response");
+        };
+        response.response_result
+    };
+    let result_first =
+        read(r#"{"jsonrpc":"2.0","id":1,"result":42,"error":{"code":-32603,"message":"no"}}"#);
+    assert_eq!(result_first.unwrap(), json!(42));
+    let error_first =
+        read(r#"{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"no"},"result":42}"#);
+    assert_eq!(error_first.unwrap_err().message, "no");
 }
