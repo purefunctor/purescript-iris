@@ -92,9 +92,6 @@ impl TestWorkspace {
         for (key, value) in self.environment.borrow().iter() {
             command.env(key, value);
         }
-        if arguments.first() == Some(&"lsp") && std::env::var_os("IRIS_E2E_LSP_NEXT").is_some() {
-            command.arg("--next");
-        }
         command
     }
 

@@ -12,6 +12,7 @@ members = [
   "tests-support",
 ]
 default-members = [
+  "compiler-executable/*",
   "compiler-backend/*",
   "compiler-core/*",
   "compiler-frontend/*",

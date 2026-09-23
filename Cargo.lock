@@ -1865,33 +1865,12 @@ dependencies = [
 name = "iris-lsp"
 version = "0.1.0"
 dependencies = [
- "async-lsp",
- "building",
- "dunce",
- "files",
- "futures",
- "iris-analysis",
- "iris-build",
- "iris-configuration",
  "iris-lsp-server",
  "iris-lsp-workspace",
- "iris-spago",
- "itertools 0.15.0",
  "lsp-server",
- "lsp-types",
- "parking_lot",
- "path-absolutize",
- "process-wrap",
- "rustc-hash",
- "serde",
  "serde_json",
- "smol_str",
  "tempfile",
- "thiserror",
  "tokio",
- "tokio-util",
- "tower",
- "tracing",
  "url",
 ]
 

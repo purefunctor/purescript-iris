@@ -1,10 +1,11 @@
+//! The Iris language server: [`start`] connects the protocol actor from `iris-lsp-server` with
+//! the workspace actor from `iris-lsp-workspace`. See the crate README for how they interact.
+
 use std::error::Error;
 use std::fmt;
 
 use iris_lsp_server::{Server, Transport, WorkspaceEventSender, WorkspaceSenders};
 use iris_lsp_workspace::{WorkspaceConfig, WorkspaceService};
-
-mod server;
 
 #[cfg(test)]
 mod tests;
@@ -18,7 +19,7 @@ pub struct ServerConfig {
 pub struct ServerError(Box<dyn Error + Send + Sync>);
 
 impl ServerError {
-    pub(crate) fn new(error: impl Error + Send + Sync + 'static) -> ServerError {
+    fn new(error: impl Error + Send + Sync + 'static) -> ServerError {
         ServerError(Box::new(error))
     }
 }
@@ -35,16 +36,8 @@ impl Error for ServerError {
     }
 }
 
+/// Runs the language server over standard input and output until the editor ends the session.
 pub fn start(config: ServerConfig) -> Result<(), ServerError> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(ServerError::new)?;
-    runtime.block_on(server::async_start(config))
-}
-
-/// Runs the server built from `iris-lsp-server` and `iris-lsp-workspace`.
-pub fn start_next(config: ServerConfig) -> Result<(), ServerError> {
     let ServerConfig { name, version } = config;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
