@@ -1,7 +1,0 @@
----
-source: tests-e2e/tests/lsp.rs
----
-{
-  "message": "Invalid Iris settings: invalid type: string \"invalid\", expected a boolean. The previous Iris settings remain active.",
-  "type": 1
-}

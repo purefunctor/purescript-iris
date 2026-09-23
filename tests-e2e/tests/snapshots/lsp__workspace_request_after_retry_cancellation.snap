@@ -1,8 +1,0 @@
----
-source: tests-e2e/tests/lsp.rs
----
-{
-  "code": -32803,
-  "data": null,
-  "message": "Workspace preparation cancelled"
-}
