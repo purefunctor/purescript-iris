@@ -248,16 +248,27 @@ where
                 constraint.type_id,
             );
         } else {
+            let key = (file_id, constraint.file_id, constraint.type_id);
+            let cached = context.dependency_instance_candidates.borrow();
+            if let Some(candidates) = cached.get(&key) {
+                instances.extend_from_slice(candidates);
+                continue;
+            }
+            drop(cached);
+
             let checked = context.checked_dependency(file_id)?;
             let indexed = context.queries.indexed(file_id)?;
+            let mut candidates = vec![];
             collect_instances_from_checked(
-                &mut instances,
+                &mut candidates,
                 file_id,
                 &checked,
                 &indexed,
                 constraint.file_id,
                 constraint.type_id,
             );
+            instances.extend_from_slice(&candidates);
+            context.dependency_instance_candidates.borrow_mut().insert(key, candidates);
         }
     }
 
