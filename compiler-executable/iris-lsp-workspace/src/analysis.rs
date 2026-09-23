@@ -302,8 +302,8 @@ impl Workers {
     }
 }
 
-/// Runs an analysis job, turning a panic into the error `async-lsp`'s `CatchUnwindLayer`
-/// produced.
+/// Runs an analysis job, turning a panic into an internal error that names the method, so that
+/// one failing handler answers its own request instead of stopping the server.
 fn run_job(method: &str, snapshot: Snapshot, job: AnalysisJob) -> Answer {
     let answer = catch_unwind(AssertUnwindSafe(|| job(&snapshot)));
     drop(snapshot);

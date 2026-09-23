@@ -124,26 +124,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
-name = "async-lsp"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8b8fd1e175c5ee3108095da452e816519de618beccea23aa053c00cf5e344b9"
-dependencies = [
- "futures",
- "lsp-types",
- "pin-project-lite",
- "rustix",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tower-layer",
- "tower-service",
- "tracing",
- "waitpid-any",
-]
-
-[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4306,17 +4286,17 @@ dependencies = [
 name = "tests-e2e"
 version = "0.1.0"
 dependencies = [
- "async-lsp",
  "dunce",
  "insta",
  "iris-cli",
  "itertools 0.15.0",
+ "lsp-server",
  "lsp-types",
  "regex",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
- "tokio-util",
  "url",
 ]
 
@@ -4509,7 +4489,6 @@ checksum = "494815d09bf52b5548659851081238f0ca39ff638363907596da739561c62c52"
 dependencies = [
  "bytes",
  "futures-core",
- "futures-io",
  "futures-sink",
  "futures-util",
  "pin-project-lite",
