@@ -276,20 +276,50 @@ pub enum Type {
     Unknown(SmolStrId),
 }
 
-/// Immutable properties of an interned type's outermost node.
+/// Immutable properties of an interned type.
+///
+/// Head flags describe the outermost node, while transitive flags describe
+/// whether the node or any of its descendants has the property. Folds use
+/// transitive flags to skip subtrees they cannot change.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TypeFlags(u8);
 
 impl TypeFlags {
-    const MAY_NORMALISE: u8 = 1 << 0;
+    pub(crate) const MAY_NORMALISE: u8 = 1 << 0;
+    pub(crate) const HAS_UNIFICATION: u8 = 1 << 1;
+    pub(crate) const HAS_RIGID: u8 = 1 << 2;
+    pub(crate) const HAS_NESTED_ROW: u8 = 1 << 3;
 
-    pub(crate) fn new(may_normalise: bool) -> TypeFlags {
-        TypeFlags(if may_normalise { TypeFlags::MAY_NORMALISE } else { 0 })
+    const TRANSITIVE: u8 =
+        TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_RIGID | TypeFlags::HAS_NESTED_ROW;
+
+    pub(crate) fn from_bits(bits: u8) -> TypeFlags {
+        TypeFlags(bits)
+    }
+
+    /// The transitive flags to propagate into a type containing this one.
+    pub(crate) fn transitive(self) -> u8 {
+        self.0 & TypeFlags::TRANSITIVE
     }
 
     /// Whether head normalisation may change this type.
     pub fn may_normalise(self) -> bool {
         self.0 & TypeFlags::MAY_NORMALISE != 0
+    }
+
+    /// Whether zonking may change this type.
+    ///
+    /// Zonking replaces solved unification variables and flattens nested rows.
+    pub fn may_zonk(self) -> bool {
+        self.0 & (TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_NESTED_ROW) != 0
+    }
+
+    /// Whether substituting rigid variables may change this type.
+    ///
+    /// Unification variables are included since their solutions may contain
+    /// the rigid variables being substituted.
+    pub fn may_substitute(self) -> bool {
+        self.0 & TypeFlags::TRANSITIVE != 0
     }
 }
 

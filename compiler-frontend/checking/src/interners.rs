@@ -27,16 +27,38 @@ impl CoreInterners {
     }
 
     fn type_flags(&self, t: &Type) -> TypeFlags {
-        let may_normalise = match *t {
-            Type::Unification(_) => true,
+        let transitive = |id: TypeId| self.types.metadata(id).transitive();
+        let bits = match *t {
+            Type::Application(left, right)
+            | Type::KindApplication(left, right)
+            | Type::Constrained(left, right)
+            | Type::Function(left, right)
+            | Type::Kinded(left, right) => transitive(left) | transitive(right),
+            Type::Forall(binder_id, inner) => {
+                transitive(self.forall_binders[binder_id].kind) | transitive(inner)
+            }
+            Type::Constructor(..)
+            | Type::Integer(_)
+            | Type::String(..)
+            | Type::Free(_)
+            | Type::Unknown(_) => 0,
             Type::Row(row_id) => {
                 let row = &self.row_types[row_id];
-                row.tail.is_some_and(|tail| matches!(self.types[tail], Type::Row(_)))
+                let fields = row.fields.iter().fold(0, |bits, field| bits | transitive(field.id));
+                let tail = row.tail.map_or(0, |tail| {
+                    if matches!(self.types[tail], Type::Row(_)) {
+                        TypeFlags::MAY_NORMALISE | TypeFlags::HAS_NESTED_ROW | transitive(tail)
+                    } else {
+                        transitive(tail)
+                    }
+                });
+                fields | tail
             }
-            _ => false,
+            Type::Rigid(_, _, kind) => TypeFlags::HAS_RIGID | transitive(kind),
+            Type::Unification(_) => TypeFlags::MAY_NORMALISE | TypeFlags::HAS_UNIFICATION,
         };
 
-        TypeFlags::new(may_normalise)
+        TypeFlags::from_bits(bits)
     }
 
     pub fn intern_forall_binder(&self, b: ForallBinder) -> ForallBinderId {
@@ -74,7 +96,7 @@ mod tests {
     use smol_str::SmolStr;
 
     use super::CoreInterners;
-    use crate::core::{RowField, RowType, Type};
+    use crate::core::{Depth, Name, RowField, RowType, Type};
 
     #[test]
     fn borrowed_values_remain_stable_during_concurrent_interning() {
@@ -135,5 +157,48 @@ mod tests {
 
         assert!(!interners.lookup_type_flags(closed_row).may_normalise());
         assert!(interners.lookup_type_flags(nested_row).may_normalise());
+    }
+
+    #[test]
+    fn transitive_flags_describe_descendants() {
+        let interners = CoreInterners::default();
+        let file = files::Files::default().insert("Main.purs", "");
+
+        let integer = interners.intern_type(Type::Integer(0));
+        let unification = interners.intern_type(Type::Unification(0));
+        let name = Name { file, unique: 0, scope: None };
+        let rigid = interners.intern_type(Type::Rigid(name, Depth(0), integer));
+
+        let closed = interners.intern_type(Type::Function(integer, integer));
+        assert!(!interners.lookup_type_flags(closed).may_zonk());
+        assert!(!interners.lookup_type_flags(closed).may_substitute());
+
+        let with_rigid = interners.intern_type(Type::Function(integer, rigid));
+        let with_rigid = interners.intern_type(Type::Application(with_rigid, integer));
+        assert!(!interners.lookup_type_flags(with_rigid).may_zonk());
+        assert!(interners.lookup_type_flags(with_rigid).may_substitute());
+
+        let row = RowType::from_closed(Arc::from([RowField {
+            label: SmolStr::new("field"),
+            id: unification,
+        }]));
+        let row = interners.intern_row_type(row);
+        let with_unification = interners.intern_type(Type::Row(row));
+        assert!(!interners.lookup_type_flags(with_unification).may_normalise());
+        assert!(interners.lookup_type_flags(with_unification).may_zonk());
+        assert!(interners.lookup_type_flags(with_unification).may_substitute());
+
+        let inner_row = RowType::from_closed(Arc::from([]));
+        let inner_row = interners.intern_row_type(inner_row);
+        let inner_row = interners.intern_type(Type::Row(inner_row));
+        let nested_row = RowType::from_open(
+            Arc::from([RowField { label: SmolStr::new("outer"), id: integer }]),
+            inner_row,
+        );
+        let nested_row = interners.intern_row_type(nested_row);
+        let nested_row = interners.intern_type(Type::Row(nested_row));
+        let with_nested_row = interners.intern_type(Type::Kinded(integer, nested_row));
+        assert!(!interners.lookup_type_flags(with_nested_row).may_normalise());
+        assert!(interners.lookup_type_flags(with_nested_row).may_zonk());
     }
 }

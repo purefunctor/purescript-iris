@@ -6,7 +6,7 @@ use smol_str::SmolStr;
 
 use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
-use crate::core::{Type, TypeId};
+use crate::core::{Type, TypeFlags, TypeId};
 use crate::error::{CheckingError, ErrorKind};
 use crate::holes::{HoleBinding, TermHole, TypeHole};
 use crate::state::CheckState;
@@ -19,6 +19,10 @@ use crate::{ExternalQueries, OperatorBranchTypes, holes};
 struct Zonk;
 
 impl TypeFold for Zonk {
+    fn may_change(&self, flags: TypeFlags) -> bool {
+        flags.may_zonk()
+    }
+
     fn transform<Q>(
         &mut self,
         state: &mut CheckState,
