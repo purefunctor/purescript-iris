@@ -99,6 +99,10 @@ pub fn compile_sources(source_files: &[SourceFile]) -> Result<CompileReport, Ver
         report.verifier_errors.extend(file_report.verifier_errors);
     }
 
+    // The verifier exits after reporting; tearing down every cached query costs more
+    // than the operating system reclaiming the memory.
+    std::mem::forget(engine);
+
     Ok(report)
 }
 
