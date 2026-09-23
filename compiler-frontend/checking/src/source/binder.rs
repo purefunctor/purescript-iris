@@ -501,9 +501,8 @@ where
     safe_loop! {
         match application::analyse_callable_head(state, context, constructor)? {
             application::CallableAnalysis::Forall { binder, body } => {
-                let (_, result) =
-                    application::instantiate_callable_forall(state, context, binder, body)?;
-                constructor = result;
+                constructor =
+                    application::instantiate_callable_foralls(state, context, binder, body)?;
             }
             application::CallableAnalysis::Constraint { result, .. } => constructor = result,
             application::CallableAnalysis::Function { argument, result } => {

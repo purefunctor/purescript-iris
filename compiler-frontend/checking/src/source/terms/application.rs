@@ -1,7 +1,7 @@
 use building_types::QueryResult;
 
 use crate::context::CheckContext;
-use crate::core::substitute::SubstituteName;
+use crate::core::substitute::{NameToType, SubstituteName};
 use crate::core::{ForallBinder, Type, TypeId, normalise, unification};
 use crate::error::ErrorKind;
 use crate::evidence::EvidenceVarId;
@@ -103,19 +103,43 @@ where
     }
 }
 
-pub fn instantiate_callable_forall<Q>(
+/// Instantiates `binder` and the invisible binders that immediately follow it
+/// with fresh unification variables in a single substitution.
+///
+/// Instantiation stops at a visible binder so that a following type
+/// application, such as `f @Int`, can still supply its argument.
+pub fn instantiate_callable_foralls<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     binder: ForallBinder,
-    body: TypeId,
-) -> QueryResult<(TypeId, TypeId)>
+    mut body: TypeId,
+) -> QueryResult<TypeId>
 where
     Q: ExternalQueries,
 {
     let binder_kind = normalise::expand(state, context, binder.kind)?;
     let argument = state.fresh_unification(context.queries, binder_kind);
-    let result = SubstituteName::one(state, context, binder.name, argument, body)?;
-    Ok((argument, result))
+
+    let mut bindings = NameToType::default();
+    bindings.insert(binder.name, argument);
+
+    safe_loop! {
+        let expanded = normalise::expand(state, context, body)?;
+        let Type::Forall(binder_id, inner) = *context.lookup_type(expanded) else {
+            break;
+        };
+        let binder = context.lookup_forall_binder(binder_id);
+        if binder.visible {
+            break;
+        }
+        let binder_kind = SubstituteName::many(state, context, &bindings, binder.kind)?;
+        let binder_kind = normalise::expand(state, context, binder_kind)?;
+        let argument = state.fresh_unification(context.queries, binder_kind);
+        bindings.insert(binder.name, argument);
+        body = inner;
+    }
+
+    SubstituteName::many(state, context, &bindings, body)
 }
 
 pub fn instantiate_expression<Q>(
@@ -131,8 +155,7 @@ where
         match *context.lookup_type(type_id) {
             Type::Forall(binder_id, body) => {
                 let binder = context.lookup_forall_binder(binder_id);
-                let (_, result) = instantiate_callable_forall(state, context, binder, body)?;
-                expression.type_id = result;
+                expression.type_id = instantiate_callable_foralls(state, context, binder, body)?;
             }
             Type::Constrained(constraint, result) => {
                 let evidence = state.push_wanted(constraint);
@@ -186,7 +209,7 @@ where
     safe_loop! {
         match analyse_callable_head(state, context, function)? {
             CallableAnalysis::Forall { binder, body } => {
-                let (_, result) = instantiate_callable_forall(state, context, binder, body)?;
+                let result = instantiate_callable_foralls(state, context, binder, body)?;
                 implicit.push(PendingImplicitApplication::Type { result });
                 function = result;
             }
@@ -322,8 +345,7 @@ where
     safe_loop! {
         match analyse_callable_head(state, context, function.type_id)? {
             CallableAnalysis::Forall { binder, body } => {
-                let (_, result) = instantiate_callable_forall(state, context, binder, body)?;
-                function.type_id = result;
+                function.type_id = instantiate_callable_foralls(state, context, binder, body)?;
             }
             CallableAnalysis::Constraint { constraint, result } => {
                 let evidence = state.push_wanted(constraint);
@@ -377,8 +399,7 @@ where
                     break Ok(ApplicationStep::Applied(application));
                 }
 
-                let (_, result) = instantiate_callable_forall(state, context, binder, body)?;
-                function.type_id = result;
+                function.type_id = instantiate_callable_foralls(state, context, binder, body)?;
             }
             Type::Constrained(constraint, result) => {
                 let evidence = state.push_wanted(constraint);

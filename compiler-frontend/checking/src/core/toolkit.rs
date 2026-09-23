@@ -10,7 +10,7 @@ use lowering::{TermItemKind, TypeItemKind};
 use rustc_hash::FxHashMap;
 
 use crate::context::CheckContext;
-use crate::core::substitute::SubstituteName;
+use crate::core::substitute::{NameToType, SubstituteName};
 use crate::core::walk::{self, TypeWalker};
 use crate::core::{
     ApplicationArgument, CheckedClass, CheckedSynonym, ForallBinder, Name, Role, SmolStrId, Type,
@@ -481,6 +481,7 @@ pub fn instantiate_unifications<Q>(
 where
     Q: ExternalQueries,
 {
+    let mut bindings = NameToType::default();
     safe_loop! {
         id = normalise::expand(state, context, id)?;
 
@@ -489,13 +490,23 @@ where
         };
 
         let binder = context.lookup_forall_binder(binder_id);
-        let binder_kind = normalise::normalise(state, context, binder.kind);
+        let binder_kind = if bindings.is_empty() {
+            binder.kind
+        } else {
+            SubstituteName::many(state, context, &bindings, binder.kind)?
+        };
+        let binder_kind = normalise::normalise(state, context, binder_kind);
 
         let replacement = state.fresh_unification(context.queries, binder_kind);
-        id = SubstituteName::one(state, context, binder.name, replacement, inner)?;
+        bindings.insert(binder.name, replacement);
+        id = inner;
     }
 
-    Ok(id)
+    if bindings.is_empty() {
+        return Ok(id);
+    }
+    let id = SubstituteName::many(state, context, &bindings, id)?;
+    normalise::expand(state, context, id)
 }
 
 /// Replaces forall binders with rigid (skolem) variables.
@@ -507,6 +518,7 @@ pub fn skolemise_forall<Q>(
 where
     Q: ExternalQueries,
 {
+    let mut bindings = NameToType::default();
     safe_loop! {
         id = normalise::expand(state, context, id)?;
 
@@ -515,14 +527,24 @@ where
         };
 
         let binder = context.lookup_forall_binder(binder_id);
-        let binder_kind = normalise::normalise(state, context, binder.kind);
+        let binder_kind = if bindings.is_empty() {
+            binder.kind
+        } else {
+            SubstituteName::many(state, context, &bindings, binder.kind)?
+        };
+        let binder_kind = normalise::normalise(state, context, binder_kind);
 
         let text = state.checked.lookup_name(binder.name);
         let rigid = state.fresh_rigid_named(context.queries, binder_kind, text);
-        id = SubstituteName::one(state, context, binder.name, rigid, inner)?;
+        bindings.insert(binder.name, rigid);
+        id = inner;
     }
 
-    Ok(id)
+    if bindings.is_empty() {
+        return Ok(id);
+    }
+    let id = SubstituteName::many(state, context, &bindings, id)?;
+    normalise::expand(state, context, id)
 }
 
 /// Peels constraint layers, pushing each as a wanted.
