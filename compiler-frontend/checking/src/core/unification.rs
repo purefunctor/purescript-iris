@@ -337,6 +337,10 @@ pub fn unify<Q>(
 where
     Q: ExternalQueries,
 {
+    if t1 == t2 {
+        return Ok(true);
+    }
+
     let t1 = normalise::expand(state, context, t1)?;
     let t2 = normalise::expand(state, context, t2)?;
 
