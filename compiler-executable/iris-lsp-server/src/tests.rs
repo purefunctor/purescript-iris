@@ -103,6 +103,15 @@ impl ServerHarness {
     async fn stopped(self) -> Result<(), ServerError> {
         stopped(self.server).await
     }
+
+    /// Checks that a request reaches the workspace actor and its answer reaches the editor.
+    async fn answers_requests(&mut self, id: i32) {
+        self.editor.request(id, "textDocument/hover", json!({}));
+        let (method, reply) = self.workspace.request().await;
+        assert_eq!(method, "textDocument/hover");
+        reply.send(Ok(json!("answered"))).unwrap();
+        assert_eq!(self.editor.result(id).await, json!("answered"));
+    }
 }
 
 /// Forwards messages from the server to the test until the server closes the ordered channel.
@@ -837,6 +846,11 @@ async fn progress_accepted_immediately_reports_in_order() {
     );
     harness.workspace.emit(reported(1, "after the end", 100));
     harness.editor.assert_no_message("progress after the end", is_progress).await;
+
+    // Cancelling the progress of a finished attempt cancels nothing.
+    harness.editor.notify("window/workDoneProgress/cancel", json!({"token": "iris/startup/1"}));
+    harness.answers_requests(1).await;
+    harness.workspace.assert_no_control_message();
 }
 
 #[tokio::test]
@@ -848,6 +862,8 @@ async fn progress_accepted_late_sends_begin_the_latest_report_and_end() {
     harness.workspace.emit(reported(1, "latest", 20));
     harness.workspace.emit(ended(1, "Workspace preparation finished"));
     harness.editor.assert_no_message("progress before acceptance", is_progress).await;
+    // Requests are answered while progress creation waits for the editor.
+    harness.answers_requests(1).await;
 
     harness.editor.reply(&create, Value::Null);
     let values = [
@@ -892,6 +908,7 @@ async fn rejected_progress_creation_sends_no_progress() {
     harness.workspace.emit(reported(1, "report", 50));
     harness.workspace.emit(ended(1, "Workspace preparation finished"));
     harness.editor.assert_no_message("progress after rejection", is_progress).await;
+    harness.answers_requests(1).await;
 }
 
 #[tokio::test]

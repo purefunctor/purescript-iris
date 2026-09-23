@@ -23,6 +23,10 @@ struct Session {
 
 impl Session {
     async fn start() -> Session {
+        Session::start_with(json!({})).await
+    }
+
+    async fn start_with(capabilities: Value) -> Session {
         let (editor, server) = Connection::memory();
         let config = WorkspaceConfig {
             name: "iris".to_string(),
@@ -40,7 +44,7 @@ impl Session {
             0,
             "initialize",
             json!({
-                "capabilities": {},
+                "capabilities": capabilities,
                 "workspaceFolders": [{"uri": root_uri, "name": "workspace"}]
             }),
         );
@@ -52,6 +56,93 @@ impl Session {
 
     fn uri(&self, name: &str) -> Url {
         Url::from_file_path(self.root.path().join(name)).unwrap()
+    }
+
+    fn reply(&self, request: &Request, result: Value) {
+        let response = Response::new_ok(RequestId::clone(&request.id), result);
+        self.editor.sender.send(Message::Response(response)).unwrap();
+    }
+
+    async fn server_request(&mut self, method: &str) -> Request {
+        self.claim(method, |message| match message {
+            Message::Request(request) if request.method == method => Some(Request::clone(request)),
+            _ => None,
+        })
+        .await
+    }
+
+    fn open(&self, uri: &Url, version: i32, text: &str) {
+        self.notify(
+            "textDocument/didOpen",
+            json!({"textDocument": {
+                "uri": uri, "languageId": "purescript", "version": version, "text": text
+            }}),
+        );
+    }
+
+    fn change(&self, uri: &Url, version: i32, text: &str) {
+        self.notify(
+            "textDocument/didChange",
+            json!({"textDocument": {"uri": uri, "version": version}, "contentChanges": [{"text": text}]}),
+        );
+    }
+
+    fn save(&self, uri: &Url) {
+        self.notify("textDocument/didSave", json!({"textDocument": {"uri": uri}}));
+    }
+
+    /// Answers the next `workspace/configuration` request with one settings item.
+    async fn answer_configuration(&mut self, settings: Value) {
+        let request = self.server_request("workspace/configuration").await;
+        assert_eq!(request.params["items"][0]["section"], "iris.server");
+        self.reply(&request, json!([settings]));
+    }
+
+    /// Waits for diagnostics for `uri` and returns their version.
+    async fn diagnostics(&mut self, uri: &Url) -> Value {
+        let params = self
+            .claim("diagnostics", |message| match message {
+                Message::Notification(notification)
+                    if notification.method == "textDocument/publishDiagnostics"
+                        && notification.params["uri"] == uri.as_str() =>
+                {
+                    Some(Value::clone(&notification.params))
+                }
+                _ => None,
+            })
+            .await;
+        assert_eq!(params["diagnostics"][0]["code"], "CannotUnify");
+        Value::clone(&params["version"])
+    }
+
+    /// Asserts that no diagnostics for `uri` arrive after every earlier notification was handled.
+    async fn assert_no_diagnostics(&mut self, id: i32, uri: &Url) {
+        // The answer proves that the preceding notifications reached the workspace actor.
+        self.request(id, "workspace/symbol", json!({"query": ""}));
+        self.result(id).await;
+        let receiver = self.editor.receiver.clone();
+        let messages = tokio::task::spawn_blocking(move || {
+            let mut messages = vec![];
+            while let Ok(message) = receiver.recv_timeout(Duration::from_millis(300)) {
+                messages.push(message);
+            }
+            messages
+        })
+        .await
+        .unwrap();
+        self.unclaimed.extend(messages);
+        let published = self.unclaimed.iter().any(|message| {
+            matches!(message, Message::Notification(notification)
+                if notification.method == "textDocument/publishDiagnostics"
+                    && notification.params["uri"] == uri.as_str())
+        });
+        assert!(!published, "unexpected diagnostics for {uri}");
+    }
+
+    async fn document_symbol_names(&mut self, id: i32, uri: &Url) -> Vec<String> {
+        self.document_symbols(id, uri);
+        let symbols = self.result(id).await;
+        symbol_names(&symbols).into_iter().map(str::to_string).collect()
     }
 
     fn request(&self, id: i32, method: &str, params: Value) {
@@ -181,6 +272,87 @@ async fn shutdown_and_exit_stop_both_actors() {
         session.response(3).await.response_result.unwrap_err().code,
         ErrorCode::InvalidRequest as i32
     );
+    session.notify("exit", Value::Null);
+    session.stopped().await.unwrap();
+}
+
+fn invalid_module(name: &str, text: &str) -> String {
+    format!("module {name} where\nvalue :: Int\nvalue = \"{text}\"\n")
+}
+
+#[tokio::test]
+async fn workspace_configuration_updates_diagnostic_triggers_without_replacing_documents() {
+    let mut session = Session::start_with(json!({"workspace": {
+        "configuration": true,
+        "didChangeConfiguration": {"dynamicRegistration": true}
+    }}))
+    .await;
+    let registration = session.server_request("client/registerCapability").await;
+    assert_eq!(
+        registration.params["registrations"][0]["method"],
+        "workspace/didChangeConfiguration"
+    );
+    session.reply(&registration, Value::Null);
+    session
+        .answer_configuration(
+            json!({"diagnostics": {"onOpen": false, "onSave": false, "onChange": true}}),
+        )
+        .await;
+
+    // Only changes publish diagnostics.
+    let main = session.uri("Main.purs");
+    session.open(&main, 1, &invalid_module("Main", "one"));
+    session.assert_no_diagnostics(1, &main).await;
+    session.change(&main, 2, &invalid_module("Main", "two"));
+    assert_eq!(session.diagnostics(&main).await, 2);
+    session.save(&main);
+    session.assert_no_diagnostics(2, &main).await;
+
+    // Runtime settings replace the startup settings over the defaults: opens and saves publish
+    // diagnostics again, and changes no longer do.
+    session.notify("workspace/didChangeConfiguration", json!({"settings": null}));
+    session.answer_configuration(json!({"diagnostics": {"onOpen": true}})).await;
+    let other = session.uri("Other.purs");
+    session.open(&other, 1, &invalid_module("Other", "one"));
+    assert_eq!(session.diagnostics(&other).await, 1);
+    session.change(&other, 2, &invalid_module("Other", "two"));
+    session.assert_no_diagnostics(3, &other).await;
+    session.save(&other);
+    assert_eq!(session.diagnostics(&other).await, 2);
+    assert_eq!(session.document_symbol_names(4, &main).await, ["value"]);
+
+    // Invalid settings keep the previous ones.
+    session.notify("workspace/didChangeConfiguration", json!({"settings": null}));
+    session.answer_configuration(json!({"diagnostics": {"onOpen": "invalid"}})).await;
+    assert_eq!(
+        session.notification("window/showMessage").await,
+        json!({
+            "type": 1,
+            "message": "Invalid Iris settings: invalid type: string \"invalid\", expected a boolean. \
+                        The previous Iris settings remain active."
+        })
+    );
+    session.notify("workspace/didChangeConfiguration", json!({"settings": null}));
+    session
+        .answer_configuration(json!({"sources": {
+            "kind": "command", "program": "node", "arguments": ["slow failure.mjs"]
+        }}))
+        .await;
+    assert_eq!(
+        session.notification("window/showMessage").await,
+        json!({
+            "type": 1,
+            "message": "Invalid Iris settings: unknown field `sources`, expected `diagnostics`. \
+                        The previous Iris settings remain active."
+        })
+    );
+    let third = session.uri("Third.purs");
+    session.open(&third, 1, &invalid_module("Third", "one"));
+    assert_eq!(session.diagnostics(&third).await, 1);
+    assert_eq!(session.document_symbol_names(5, &main).await, ["value"]);
+
+    session.request(6, "shutdown", Value::Null);
+    session.result(6).await;
     session.notify("exit", Value::Null);
     session.stopped().await.unwrap();
 }

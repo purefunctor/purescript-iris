@@ -866,7 +866,7 @@ fn discovers_workspace_sources_when_opened_from_a_nested_package() {
 fn prepares_the_spago_workspace_before_serving_analysis() {
     let workspace = TestWorkspace::empty();
     workspace.write(
-        "spago.yaml",
+        "project/spago.yaml",
         r#"package:
   name: application
   dependencies: []
@@ -874,17 +874,19 @@ workspace: {}
 "#,
     );
     workspace.write(
-        "src/Library.purs",
+        "project/src/Library.purs",
         r#"module Library where
 fromFreshClone = 42
 "#,
     );
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    // The server starts outside the project; the editor's workspace folder names the project.
+    let project = workspace.path().join("project");
+    let mut server = LanguageServer::start(&workspace, "launcher", &["lsp"], &project);
 
     let symbols = server.request("workspace/symbol", json!({"query": "fromFreshClone"}));
 
-    snapshot_workspace_json("prepared_workspace_symbol", &symbols, workspace.path());
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    snapshot_workspace_json("prepared_workspace_symbol", &symbols, &project);
+    workspace.assert_spago_calls("project", &[&["fetch", "-p", "application"]]);
     server.shutdown();
 }
 
@@ -1207,6 +1209,7 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         assert!(symbols.as_array().unwrap().is_empty());
     }
     assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromBuffer"));
+    assert!(!symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromDisk"));
     snapshot_workspace_json("workspace_symbol_after_preparation_retry", &symbols, workspace.path());
     let second_end = server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
@@ -1224,6 +1227,31 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         "",
         &[&["fetch", "-p", "application"], &["fetch", "-p", "application"]],
     );
+
+    // One progress token per attempt, and the reports of the real preparation stay cancellable
+    // with percentages of at most 100.
+    let tokens = [&first_begin, &second_begin].map(|begin| begin["params"]["token"].clone());
+    assert_eq!(first_end["params"]["token"], tokens[0]);
+    assert_eq!(second_end["params"]["token"], tokens[1]);
+    let created = server.client.progress_tokens.lock().unwrap().clone();
+    let created = created.iter().map(|token| serde_json::to_value(token).unwrap());
+    assert_eq!(created.collect::<Vec<_>>(), tokens);
+    server.collect_notifications();
+    let progress =
+        server.notifications.iter().filter(|notification| notification["method"] == "$/progress");
+    for notification in progress {
+        assert!(tokens.contains(&notification["params"]["token"]), "{notification}");
+        let value = &notification["params"]["value"];
+        if value["kind"] == "report" {
+            assert_eq!(value["cancellable"], true);
+            assert!(value["percentage"].as_u64().unwrap() <= 100);
+        }
+    }
+
+    // Closing the buffer restores the discovered source from disk.
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": uri}}));
+    server.wait_for_symbol("fromDisk", true);
+    server.wait_for_symbol("fromBuffer", false);
     server.shutdown();
 }
 

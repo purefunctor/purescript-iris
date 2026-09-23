@@ -525,17 +525,36 @@ async fn cancelling_preparation_rejects_waiting_requests_and_the_next_request_re
     // Cancelling an attempt that is not running does nothing.
     harness.senders.control(ControlMessage::CancelPreparation { generation: 1 });
 
+    // Cancelling the retry rejects its waiter too.
     let retrying = harness.request("workspace/symbol", json!({"query": "Prim"}));
     assert!(matches!(
         harness.event().await,
         WorkspaceEvent::PreparationStarted { generation: 2, .. }
+    ));
+    harness.senders.control(ControlMessage::CancelPreparation { generation: 2 });
+    assert_eq!(
+        answer(retrying).await,
+        Err(Rejection::RequestFailed("Workspace preparation cancelled".to_string()))
+    );
+    assert_eq!(
+        harness.event().await,
+        WorkspaceEvent::PreparationEnded {
+            generation: 2,
+            message: "Workspace preparation cancelled".to_string()
+        }
+    );
+
+    let retrying = harness.request("workspace/symbol", json!({"query": "Prim"}));
+    assert!(matches!(
+        harness.event().await,
+        WorkspaceEvent::PreparationStarted { generation: 3, .. }
     ));
     preparation_gate(&harness.root()).release.notify_one();
     assert!(answer(retrying).await.is_ok());
     assert_eq!(
         harness.event().await,
         WorkspaceEvent::PreparationEnded {
-            generation: 2,
+            generation: 3,
             message: "Workspace preparation finished".to_string()
         }
     );
@@ -646,20 +665,30 @@ async fn invalid_settings_while_preparing_keep_the_staged_settings() {
     harness.diagnostic_settings(false, false, true);
     assert!(matches!(harness.event().await, WorkspaceEvent::PreparationStarted { .. }));
     harness.settings(SettingsResponse::Received(json!([{"diagnostics": {"onChange": "invalid"}}])));
-    let WorkspaceEvent::Error { message } = harness.event().await else {
-        panic!("expected an error message");
-    };
-    assert!(message.ends_with("The previous Iris settings remain active."), "{message}");
+    assert_eq!(
+        harness.event().await,
+        WorkspaceEvent::Error {
+            message:
+                "Invalid Iris settings: invalid type: string \"invalid\", expected a boolean. \
+                      The previous Iris settings remain active."
+                    .to_string()
+        }
+    );
 
     preparation_gate(&harness.root()).release.notify_one();
     let uri = harness.uri("Main.purs");
     harness.open(&uri, 1, "module Main where\nvalue :: Int\nvalue = \"one\"\n");
     harness.change(&uri, 2, "module Main where\nvalue :: Int\nvalue = \"two\"\n");
     assert!(matches!(harness.event().await, WorkspaceEvent::PreparationEnded { .. }));
+    // Diagnostics on open stay disabled, so the first diagnostics are for the change.
     let WorkspaceEvent::Diagnostics { version, .. } = harness.event().await else {
         panic!("expected diagnostics on change");
     };
     assert_eq!(version, Some(2));
+    harness.notify("textDocument/didSave", json!({"textDocument": {"uri": uri}}));
+    let symbols = harness.document_symbols(&uri);
+    assert_eq!(symbol_names(&answer(symbols).await.unwrap()), ["value"]);
+    harness.assert_no_event(Duration::from_millis(300)).await;
     harness.stop().await.unwrap();
 }
 
