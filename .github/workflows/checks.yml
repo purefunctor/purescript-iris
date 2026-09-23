@@ -40,10 +40,10 @@ jobs:
           tool: cargo-nextest
 
       - name: Build workspace
-        run: cargo build --workspace --verbose
+        run: cargo build --workspace --locked --verbose
 
       - name: Run workspace tests
-        run: cargo nextest run
+        run: cargo nextest run --locked
 
       - name: Install Node.js for backend verification
         uses: actions/setup-node@v6
@@ -57,13 +57,13 @@ jobs:
           key: integration-packages-v3-${{ runner.os }}-${{ hashFiles('tests-integration/packages.json', 'tests-support/src/**') }}
 
       - name: Prepare integration packages
-        run: cargo run -p tests-support -- prepare tests-integration/packages.json target/integration-packages
+        run: cargo run -p tests-support --locked -- prepare tests-integration/packages.json target/integration-packages
 
       - name: Test registry preparation
-        run: cargo nextest run -p tests-support
+        run: cargo nextest run -p tests-support --locked
 
       - name: Run integration tests
-        run: cargo nextest run -p tests-integration
+        run: cargo nextest run -p tests-integration --locked
 
   end_to_end:
     name: End-to-end tests (${{ matrix.os }})
@@ -130,7 +130,7 @@ jobs:
         run: just e2e-prepare
 
       - name: Run end-to-end tests
-        run: just e2e
+        run: just e2e --locked
 
   compatibility:
     name: Package compatibility
