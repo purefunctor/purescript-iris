@@ -75,6 +75,10 @@ pub fn compile_sources(source_files: &[SourceFile]) -> Result<CompileReport, Ver
         );
     }
 
+    // Registration queries each parsed module serially, so parse in parallel beforehand.
+    file_ids.par_iter().for_each(|&file_id| {
+        let _ = engine.snapshot().parsed(file_id);
+    });
     register_modules(&engine, &file_ids, &file_metadata, &mut report);
 
     let file_reports = file_ids.par_iter().map(|&file_id| {
