@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::iter;
 use std::sync::Arc;
 
@@ -24,9 +25,12 @@ impl NameAllocator {
     pub(super) fn allocate(&mut self, preferred: impl AsRef<str>) -> SmolStr {
         let mut normalized = normalize_identifier(preferred.as_ref());
         if identifier_is_reserved(&normalized) {
-            normalized.insert(0, '$');
+            normalized.to_mut().insert(0, '$');
         }
-        let normalized = SmolStr::from(normalized);
+        let normalized = match normalized {
+            Cow::Borrowed(name) => SmolStr::new(name),
+            Cow::Owned(name) => SmolStr::from(name),
+        };
         if self.claim(&normalized) {
             return normalized;
         }
@@ -52,10 +56,14 @@ impl NameAllocator {
 }
 
 pub(crate) fn identifier_is_binding(identifier: &str) -> bool {
-    normalize_identifier(identifier) == identifier && !identifier_is_reserved(identifier)
+    identifier_has_valid_syntax(identifier) && !identifier_is_reserved(identifier)
 }
 
-fn normalize_identifier(preferred: &str) -> String {
+fn normalize_identifier(preferred: &str) -> Cow<'_, str> {
+    if identifier_has_valid_syntax(preferred) {
+        return Cow::Borrowed(preferred);
+    }
+
     let mut normalized = String::new();
     for (position, character) in preferred.chars().enumerate() {
         let valid_initial = character.is_ascii_alphabetic() || character == '_' || character == '$';
@@ -72,7 +80,14 @@ fn normalize_identifier(preferred: &str) -> String {
     if normalized.is_empty() {
         normalized.push_str("value");
     }
-    normalized
+    Cow::Owned(normalized)
+}
+
+fn identifier_has_valid_syntax(identifier: &str) -> bool {
+    let mut bytes = identifier.bytes();
+    let Some(first) = bytes.next() else { return false };
+    (first.is_ascii_alphabetic() || first == b'_' || first == b'$')
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$')
 }
 
 fn identifier_is_reserved(identifier: &str) -> bool {
@@ -138,7 +153,7 @@ mod tests {
     use rustc_hash::FxHashSet;
     use smol_str::{SmolStr, format_smolstr};
 
-    use super::NameAllocator;
+    use super::{NameAllocator, identifier_is_binding};
 
     fn reserved(names: &[&str]) -> Arc<FxHashSet<SmolStr>> {
         Arc::new(names.iter().map(SmolStr::new).collect())
@@ -197,5 +212,22 @@ mod tests {
         assert_eq!(allocator.allocate("value_1"), "value_1$1");
         assert_eq!(allocator.allocate(""), "value");
         assert_eq!(allocator.allocate(""), "value$1");
+    }
+
+    #[test]
+    fn binding_syntax_rejects_invalid_and_reserved_names() {
+        for (identifier, expected) in [
+            ("value", true),
+            ("value$1", true),
+            ("_", true),
+            ("$", true),
+            ("", false),
+            ("1value", false),
+            ("foo-bar", false),
+            ("é", false),
+            ("class", false),
+        ] {
+            assert_eq!(identifier_is_binding(identifier), expected, "{identifier}");
+        }
     }
 }
