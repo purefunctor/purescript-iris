@@ -84,6 +84,7 @@ struct Context<'c, Q> {
     recursive_groups: FxHashMap<TermItemId, RecursiveGroupId>,
     record_pun_names: FxHashMap<lowering::RecordPunId, SmolStr>,
     dependencies: FxHashMap<FileId, Dependency>,
+    indexed_dependencies: RefCell<FxHashMap<FileId, Arc<indexing::IndexedModule>>>,
 
     parameters: FxHashMap<BindingSource, Parameter>,
     next_local: u32,
@@ -143,6 +144,7 @@ where
             recursive_groups,
             record_pun_names,
             dependencies: FxHashMap::default(),
+            indexed_dependencies: RefCell::default(),
 
             parameters: FxHashMap::default(),
             next_local: 0,
@@ -584,7 +586,12 @@ where
         {
             Ok(Arc::clone(indexed))
         } else {
-            self.queries.indexed(file_id)
+            if let Some(indexed) = self.indexed_dependencies.borrow().get(&file_id) {
+                return Ok(Arc::clone(indexed));
+            }
+            let indexed = self.queries.indexed(file_id)?;
+            self.indexed_dependencies.borrow_mut().insert(file_id, Arc::clone(&indexed));
+            Ok(indexed)
         }
     }
 

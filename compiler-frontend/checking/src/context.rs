@@ -17,7 +17,7 @@ use smol_str::SmolStr;
 use stabilizing::StabilizedModule;
 use sugar::{Bracketed, Sectioned};
 
-use crate::core::constraint::instances::InstanceCandidateOrigin;
+use crate::core::constraint::instances::{InstanceCandidate, InstanceCandidateOrigin};
 use crate::core::{
     CheckedSynonym, Depth, ForallBinder, ForallBinderId, Name, RowField, RowType, RowTypeId, Type,
     TypeFlags, TypeId,
@@ -46,6 +46,8 @@ where
     pub resolved: Arc<ResolvedModule>,
 
     pub(crate) instance_positions: FxHashMap<InstanceCandidateOrigin, usize>,
+    pub(crate) dependency_instance_candidates:
+        RefCell<FxHashMap<(FileId, FileId, TypeItemId), Vec<InstanceCandidate>>>,
     checked_dependencies: RefCell<FxHashMap<FileId, Arc<CheckedModule>>>,
     checked_synonyms: RefCell<FxHashMap<(FileId, TypeItemId), Option<CheckedSynonym>>>,
 }
@@ -100,6 +102,7 @@ where
             sectioned,
             resolved,
             instance_positions,
+            dependency_instance_candidates: RefCell::default(),
             checked_dependencies: RefCell::default(),
             checked_synonyms: RefCell::default(),
         })
