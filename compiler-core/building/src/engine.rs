@@ -1318,10 +1318,12 @@ impl javascript::ModuleQueries for QueryEngine {
 }
 
 impl checking::PrettyQueries for QueryEngine {
+    #[inline]
     fn lookup_type(&self, id: checking::TypeId) -> &checking::Type {
         self.interned.checking.lookup_type(id)
     }
 
+    #[inline]
     fn lookup_forall_binder(
         &self,
         id: checking::core::ForallBinderId,
@@ -1329,10 +1331,12 @@ impl checking::PrettyQueries for QueryEngine {
         self.interned.checking.lookup_forall_binder(id)
     }
 
+    #[inline]
     fn lookup_row_type(&self, id: checking::core::RowTypeId) -> &checking::core::RowType {
         self.interned.checking.lookup_row_type(id)
     }
 
+    #[inline]
     fn lookup_smol_str(&self, id: checking::core::SmolStrId) -> &smol_str::SmolStr {
         self.interned.checking.lookup_smol_str(id)
     }
@@ -1347,6 +1351,7 @@ impl checking::ExternalQueries for QueryEngine {
         self.interned.checking.intern_type(t)
     }
 
+    #[inline]
     fn lookup_type_flags(&self, id: checking::TypeId) -> checking::core::TypeFlags {
         self.interned.checking.lookup_type_flags(id)
     }

@@ -16,10 +16,12 @@ impl CoreInterners {
         self.types.intern_with_metadata(t, flags)
     }
 
+    #[inline]
     pub fn lookup_type(&self, id: TypeId) -> &Type {
         &self.types[id]
     }
 
+    #[inline]
     pub fn lookup_type_flags(&self, id: TypeId) -> TypeFlags {
         self.types.metadata(id)
     }
@@ -41,6 +43,7 @@ impl CoreInterners {
         self.forall_binders.intern(b)
     }
 
+    #[inline]
     pub fn lookup_forall_binder(&self, id: ForallBinderId) -> ForallBinder {
         self.forall_binders[id]
     }
@@ -49,6 +52,7 @@ impl CoreInterners {
         self.row_types.intern(r)
     }
 
+    #[inline]
     pub fn lookup_row_type(&self, id: RowTypeId) -> &RowType {
         &self.row_types[id]
     }
@@ -57,6 +61,7 @@ impl CoreInterners {
         self.smol_strs.intern(s)
     }
 
+    #[inline]
     pub fn lookup_smol_str(&self, id: crate::core::SmolStrId) -> &SmolStr {
         &self.smol_strs[id]
     }
