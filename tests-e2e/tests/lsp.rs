@@ -1250,19 +1250,36 @@ fn preparation_is_responsive_and_replays_ordered_buffers() {
     ));
 
     fs::write(&release, "release\n").unwrap();
-    let symbols = document_symbols
+    // The request was sent before the change, so it sees the opened buffer, or the change
+    // cancels it.
+    let document_symbols = document_symbols
         .recv_timeout(Duration::from_secs(30))
-        .expect("timed out waiting for deferred document symbols")
-        .expect("deferred document-symbol request failed");
-    let symbols = symbols.as_array().expect("document-symbol response was not an array");
-    assert!(symbols.iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
-    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromOpenBuffer"));
-    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromDisk"));
+        .expect("timed out waiting for deferred document symbols");
+    match document_symbols {
+        Ok(symbols) => {
+            let symbols = symbols.as_array().expect("document-symbol response was not an array");
+            assert!(symbols.iter().any(|symbol| symbol["name"] == "fromOpenBuffer"));
+            assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
+            assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromDisk"));
+        }
+        Err(Error::Response(response)) => {
+            assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
+        }
+        Err(error) => panic!("deferred document-symbol request failed: {error}"),
+    }
     let symbols = workspace_symbols
         .recv_timeout(Duration::from_secs(30))
         .expect("timed out waiting for deferred workspace symbols")
         .expect("deferred workspace-symbol request failed");
     assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
+    let symbols = server
+        .document_symbols_async(Url::clone(&uri))
+        .recv_timeout(Duration::from_secs(30))
+        .expect("timed out waiting for document symbols after the change")
+        .expect("document-symbol request after the change failed");
+    let symbols = symbols.as_array().expect("document-symbol response was not an array");
+    assert!(symbols.iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
+    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromOpenBuffer"));
     server.wait_for_symbol("fromChangedBuffer", true);
     server.wait_for_symbol("fromOpenBuffer", false);
     server.wait_for_symbol("fromDisk", false);
