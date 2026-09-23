@@ -94,14 +94,24 @@ where
 ///
 /// This function should be used in checking rules where
 /// synonyms must remain opaque such as in kind checking.
-pub fn normalise<Q>(state: &mut CheckState, context: &CheckContext<Q>, mut id: TypeId) -> TypeId
+#[inline]
+pub fn normalise<Q>(state: &mut CheckState, context: &CheckContext<Q>, id: TypeId) -> TypeId
 where
     Q: ExternalQueries,
 {
     if !context.lookup_type_flags(id).may_normalise() {
         return id;
     }
+    normalise_head(state, context, id)
+}
 
+// Most types cannot normalise, so keeping the reduction loop out of line lets
+// callers inline the flag check without carrying the loop's stack frame.
+#[inline(never)]
+fn normalise_head<Q>(state: &mut CheckState, context: &CheckContext<Q>, mut id: TypeId) -> TypeId
+where
+    Q: ExternalQueries,
+{
     let mut reduction = ReductionContext::new(state, context);
 
     let id = safe_loop! {

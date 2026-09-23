@@ -3,7 +3,7 @@
 use building_types::QueryResult;
 
 use crate::context::CheckContext;
-use crate::core::{ForallBinder, RowField, RowTypeId, Type, TypeId, normalise};
+use crate::core::{ForallBinder, RowField, RowTypeId, Type, TypeFlags, TypeId, normalise};
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
@@ -23,6 +23,11 @@ pub trait TypeFold {
     ) -> QueryResult<FoldAction>;
 
     fn transform_binder(&mut self, _binder: &mut ForallBinder) {}
+
+    /// Whether the folder may change a type with the given flags.
+    fn may_change(&self, _flags: TypeFlags) -> bool {
+        true
+    }
 
     fn complete<Q: ExternalQueries>(
         &mut self,
@@ -45,6 +50,10 @@ where
     Q: ExternalQueries,
     F: TypeFold,
 {
+    if !folder.may_change(context.lookup_type_flags(id)) {
+        return Ok(id);
+    }
+
     let mut id = normalise::normalise(state, context, id);
 
     let t = safe_loop! {

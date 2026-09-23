@@ -7,7 +7,7 @@ use building_types::QueryResult;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
-use crate::core::{Depth, Name, Type, TypeId};
+use crate::core::{Depth, Name, Type, TypeFlags, TypeId};
 use crate::state::CheckState;
 
 pub type NameToType = FxHashMap<Name, TypeId>;
@@ -101,6 +101,10 @@ impl SubstituteName<'_> {
 }
 
 impl TypeFold for SubstituteName<'_> {
+    fn may_change(&self, flags: TypeFlags) -> bool {
+        flags.may_substitute()
+    }
+
     fn transform<Q>(
         &mut self,
         _state: &mut CheckState,
@@ -131,6 +135,10 @@ struct SubstituteRigidName<'a> {
 }
 
 impl TypeFold for SubstituteRigidName<'_> {
+    fn may_change(&self, flags: TypeFlags) -> bool {
+        flags.may_substitute()
+    }
+
     fn transform<Q>(
         &mut self,
         _state: &mut CheckState,
