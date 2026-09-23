@@ -50,7 +50,8 @@ pub fn start_next(config: ServerConfig) -> Result<(), ServerError> {
     let result = runtime.block_on(async {
         let (workspace_events, workspace_event_receiver) = WorkspaceEventSender::channel();
         let (workspace_senders, workspace_receivers) = WorkspaceSenders::channel();
-        let workspace = WorkspaceService::new(WorkspaceConfig { name, version }, workspace_events);
+        let workspace =
+            WorkspaceService::new(WorkspaceConfig::new(name, version), workspace_events);
         let workspace = tokio::spawn(workspace.run(workspace_receivers));
         let transport = Transport::stdio();
         Server::new(transport, workspace_senders, workspace_event_receiver, workspace).run().await
