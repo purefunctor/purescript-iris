@@ -52,7 +52,8 @@ pub fn run() -> i32 {
             0
         }
         cli::Command::Lsp(options) => {
-            if let Err(error) = logging::start(options.into_config()) {
+            let (filters, next) = options.into_config();
+            if let Err(error) = logging::start(filters) {
                 eprintln!("error: failed to start logging: {error}");
                 return 1;
             }
@@ -60,7 +61,8 @@ pub fn run() -> i32 {
                 name: PACKAGE_NAME.to_string(),
                 version: VERSION.to_string(),
             };
-            match iris_lsp::start(server) {
+            let result = if next { iris_lsp::start_next(server) } else { iris_lsp::start(server) };
+            match result {
                 Ok(()) => 0,
                 Err(error) => {
                     eprintln!("error: language server failed: {error}");

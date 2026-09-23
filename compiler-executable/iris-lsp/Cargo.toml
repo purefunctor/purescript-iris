@@ -16,6 +16,8 @@ futures = "0.3.34"
 iris-analysis = { version = "0.1.0", path = "../../compiler-services/iris-analysis" }
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-configuration = { version = "0.1.0", path = "../../compiler-services/iris-configuration" }
+iris-lsp-server = { version = "0.1.0", path = "../iris-lsp-server" }
+iris-lsp-workspace = { version = "0.1.0", path = "../iris-lsp-workspace" }
 iris-spago = { version = "0.1.0", path = "../iris-spago" }
 itertools = "0.15.0"
 lsp-types.workspace = true

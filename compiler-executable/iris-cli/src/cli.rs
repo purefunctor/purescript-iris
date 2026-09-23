@@ -274,11 +274,20 @@ pub struct LspOptions {
         choices("off", "error", "warn", "info", "debug", "trace")
     )]
     lsp_log: LevelFilter,
+
+    /// Use the rebuilt language server while both implementations are compared.
+    #[usage(long, hide)]
+    next: bool,
 }
 
 impl LspOptions {
-    pub fn into_config(self) -> LoggingFilters {
-        LoggingFilters { query: self.query_log, checking: self.checking_log, lsp: self.lsp_log }
+    pub fn into_config(self) -> (LoggingFilters, bool) {
+        let filters = LoggingFilters {
+            query: self.query_log,
+            checking: self.checking_log,
+            lsp: self.lsp_log,
+        };
+        (filters, self.next)
     }
 }
 

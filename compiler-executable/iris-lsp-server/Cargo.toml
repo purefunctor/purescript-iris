@@ -1,0 +1,20 @@
+[package]
+name = "iris-lsp-server"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license.workspace = true
+description = "Language Server Protocol transport, lifecycle, and editor messages for Iris."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+lsp-server = "0.10.0"
+lsp-types.workspace = true
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["macros", "rt", "sync", "time"] }
+tracing = "0.1.44"
+url = "2.5.8"
+
+[dev-dependencies]
+tokio = { version = "1.53.1", features = ["macros", "rt", "sync", "test-util", "time"] }
