@@ -37,7 +37,10 @@ where
     fn default() -> Interner<T, M> {
         Interner {
             arena: boxcar::Vec::new(),
-            table: papaya::HashMap::builder().hasher(FxBuildHasher).build(),
+            table: papaya::HashMap::builder()
+                .hasher(FxBuildHasher)
+                .resize_mode(papaya::ResizeMode::Blocking)
+                .build(),
             overflow: Mutex::new(Vec::new()),
             phantom: PhantomData,
         }
@@ -52,7 +55,11 @@ where
     pub fn with_capacity(capacity: usize) -> Interner<T, M> {
         Interner {
             arena: boxcar::Vec::with_capacity(capacity),
-            table: papaya::HashMap::builder().capacity(capacity).hasher(FxBuildHasher).build(),
+            table: papaya::HashMap::builder()
+                .capacity(capacity)
+                .hasher(FxBuildHasher)
+                .resize_mode(papaya::ResizeMode::Blocking)
+                .build(),
             overflow: Mutex::new(Vec::new()),
             phantom: PhantomData,
         }
