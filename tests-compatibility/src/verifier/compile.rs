@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::path::Path;
 use std::sync::OnceLock;
 
 use building::{QueryEngine, QueryError, prim};
@@ -49,15 +50,18 @@ pub fn compile_sources(source_files: &[SourceFile]) -> Result<CompileReport, Ver
     let mut file_ids = Vec::new();
     let mut file_metadata = HashMap::new();
 
-    for source in source_files {
-        let content = fs::read_to_string(&source.path)?;
-        let absolute_path = fs::canonicalize(&source.path)?;
-        let uri = Url::from_file_path(&absolute_path)
-            .map_err(|_| VerifierError::FileUrl(absolute_path.clone()))?
-            .to_string();
+    let loaded_sources = source_files.par_iter().map(load_source);
+    let loaded_sources = loaded_sources.collect::<Result<Vec<_>, VerifierError>>()?;
+
+    for (source, loaded) in source_files.iter().zip(loaded_sources) {
+        let LoadedSource { uri, content, foreign } = loaded;
         let file_id = files.insert(uri, content.clone());
         engine.set_content(file_id, content.clone());
-        register_foreign_modules(&engine, &mut foreign_files, source, file_id)?;
+        for LoadedForeign { kind, uri, content } in foreign {
+            let foreign_id = foreign_files.insert(kind, uri, content.clone());
+            engine.set_foreign_content(foreign_id, content);
+            engine.set_foreign_file(file_id, foreign_id);
+        }
         file_ids.push(file_id);
         file_metadata.insert(
             file_id,
@@ -94,28 +98,39 @@ pub fn compile_sources(source_files: &[SourceFile]) -> Result<CompileReport, Ver
     Ok(report)
 }
 
-fn register_foreign_modules(
-    engine: &QueryEngine,
-    foreign_files: &mut ForeignFiles,
-    source: &SourceFile,
-    file_id: FileId,
-) -> Result<(), VerifierError> {
+struct LoadedSource {
+    uri: String,
+    content: String,
+    foreign: Vec<LoadedForeign>,
+}
+
+struct LoadedForeign {
+    kind: ForeignSourceKind,
+    uri: String,
+    content: String,
+}
+
+fn load_source(source: &SourceFile) -> Result<LoadedSource, VerifierError> {
+    let (uri, content) = load_file(&source.path)?;
+    let mut foreign = Vec::new();
     for kind in ForeignSourceKind::ALL {
         let foreign_path = source.path.with_extension(kind.extension());
         if !foreign_path.is_file() {
             continue;
         }
-
-        let content = fs::read_to_string(&foreign_path)?;
-        let absolute_path = fs::canonicalize(&foreign_path)?;
-        let uri = Url::from_file_path(&absolute_path)
-            .map_err(|_| VerifierError::FileUrl(absolute_path.clone()))?
-            .to_string();
-        let foreign_id = foreign_files.insert(kind, uri, content.clone());
-        engine.set_foreign_content(foreign_id, content);
-        engine.set_foreign_file(file_id, foreign_id);
+        let (uri, content) = load_file(&foreign_path)?;
+        foreign.push(LoadedForeign { kind, uri, content });
     }
-    Ok(())
+    Ok(LoadedSource { uri, content, foreign })
+}
+
+fn load_file(path: &Path) -> Result<(String, String), VerifierError> {
+    let content = fs::read_to_string(path)?;
+    let absolute_path = fs::canonicalize(path)?;
+    let uri = Url::from_file_path(&absolute_path)
+        .map_err(|_| VerifierError::FileUrl(absolute_path.clone()))?
+        .to_string();
+    Ok((uri, content))
 }
 
 fn register_modules(
