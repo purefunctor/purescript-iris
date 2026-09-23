@@ -2842,11 +2842,17 @@ impl Generator<'_> {
         updates: &[RecordUpdate],
         context: &mut FunctionContext,
     ) -> ModuleResult<ExpressionId> {
-        if record_updates_reuse_source(updates) && !record_is_reusable {
-            record = self.materialize_value(tree, writer, record, "$record", context);
-        }
         let mut properties = Vec::with_capacity(updates.len() + 1);
-        properties.push(ObjectProperty::Spread(tree.duplicate(&record)));
+        let record = if record_updates_reuse_source(updates) {
+            if !record_is_reusable {
+                record = self.materialize_value(tree, writer, record, "$record", context);
+            }
+            properties.push(ObjectProperty::Spread(tree.duplicate(&record)));
+            Some(record)
+        } else {
+            properties.push(ObjectProperty::Spread(record));
+            None
+        };
         for update in updates {
             if self.record_update_rendering_is_eager(update, context) {
                 let value = tree.object(std::mem::take(&mut properties));
@@ -2864,7 +2870,9 @@ impl Generator<'_> {
                 RecordUpdate::Branch { field, updates } => {
                     // Nested updates revisit their original source paths. Reusing the path here
                     // preserves each observable property read while the root record remains stable.
-                    let source = tree.duplicate(&record);
+                    let record =
+                        record.as_ref().expect("invariant violated: nested update has no source");
+                    let source = tree.duplicate(record);
                     let nested = tree.member(source, field.name.as_str());
                     let value =
                         self.record_updates(tree, writer, nested, true, updates, context)?;
