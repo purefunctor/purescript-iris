@@ -602,11 +602,14 @@ where
         let GlobalId::Term(member_file, member_id) = global.id else {
             return Ok(None);
         };
+        if global.item_name != member_name {
+            return Ok(None);
+        }
         let indexed = self.indexed_module(member_file)?;
         let IndexedTermItemKind::ClassMember { parent, .. } = indexed.items[member_id].kind else {
             return Ok(None);
         };
-        if global.item_name != member_name || self.source_module_name(member_file)? != module_name {
+        if self.source_module_name(member_file)? != module_name {
             return Ok(None);
         }
         let Some((record, arguments)) = arguments.split_first() else {
