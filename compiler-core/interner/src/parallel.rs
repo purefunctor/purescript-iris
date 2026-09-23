@@ -1,22 +1,32 @@
-//! Lock-free interner backed by [`boxcar`] and [`papaya`].
+//! Concurrent interner backed by [`boxcar`] and sharded [`HashTable`]s.
 //!
-//! Since `papaya` currently does not expose its HashTable API, we use the
-//! [`FxBuildHasher::hash_one`] of the value being interned. This seems
-//! wasteful at first, but in practice [`u64`] hashing is cheap enough.
+//! Values are stored in an append-only arena, so references handed out by
+//! lookups stay valid while other threads intern. Deduplication tables are
+//! split into shards selected by the value's hash; each shard stores the
+//! hash beside the arena index, so tables grow without rehashing values and
+//! collisions resolve by comparing against the arena.
 //!
-//! For hash collisions, we use an overflow chain to emulate buckets in
-//! a hashmap; on every lookup and insertion, we check that the value
-//! stored in the arena is equal to the value stored in the deduplication
-//! table, searching the overflow chain when the values are not equal.
+//! Lookups that hit an existing value take the shard lock briefly. Sharding
+//! keeps this uncontended in practice, and avoids the per-entry allocation
+//! that a lock-free map requires on every insertion.
 
 use std::hash::{BuildHasher, Hash};
 use std::marker::PhantomData;
 use std::num::NonZeroU32;
 
+use hashbrown::HashTable;
 use parking_lot::Mutex;
 use rustc_hash::FxBuildHasher;
 
 use crate::Id;
+
+const SHARD_BITS: u32 = 5;
+const SHARDS: usize = 1 << SHARD_BITS;
+
+// Aligning shards to separate cache lines prevents threads that lock
+// neighbouring shards from contending on the same line.
+#[repr(align(128))]
+struct Shard(Mutex<HashTable<(u64, NonZeroU32)>>);
 
 pub struct Interner<T, M = ()>
 where
@@ -24,8 +34,7 @@ where
     M: Copy + Send + Sync + 'static,
 {
     arena: boxcar::Vec<(T, M)>,
-    table: papaya::HashMap<u64, NonZeroU32, FxBuildHasher>,
-    overflow: Mutex<Vec<(u64, NonZeroU32)>>,
+    shards: Box<[Shard]>,
     phantom: PhantomData<fn() -> T>,
 }
 
@@ -35,12 +44,7 @@ where
     M: Copy + Send + Sync + 'static,
 {
     fn default() -> Interner<T, M> {
-        Interner {
-            arena: boxcar::Vec::new(),
-            table: papaya::HashMap::builder().hasher(FxBuildHasher).build(),
-            overflow: Mutex::new(Vec::new()),
-            phantom: PhantomData,
-        }
+        Interner::with_capacity(0)
     }
 }
 
@@ -50,12 +54,18 @@ where
     M: Copy + Send + Sync + 'static,
 {
     pub fn with_capacity(capacity: usize) -> Interner<T, M> {
-        Interner {
-            arena: boxcar::Vec::with_capacity(capacity),
-            table: papaya::HashMap::builder().capacity(capacity).hasher(FxBuildHasher).build(),
-            overflow: Mutex::new(Vec::new()),
-            phantom: PhantomData,
-        }
+        let shard_capacity = capacity.div_ceil(SHARDS);
+        let shards = (0..SHARDS)
+            .map(|_| Shard(Mutex::new(HashTable::with_capacity(shard_capacity))))
+            .collect();
+        Interner { arena: boxcar::Vec::with_capacity(capacity), shards, phantom: PhantomData }
+    }
+
+    fn shard(&self, hash: u64) -> &Mutex<HashTable<(u64, NonZeroU32)>> {
+        // hashbrown consumes the top 7 bits for control bytes and the low bits for
+        // bucket selection, so select shards from bits that neither uses heavily.
+        let index = (hash >> (64 - 7 - SHARD_BITS)) as usize & (SHARDS - 1);
+        &self.shards[index].0
     }
 }
 
@@ -76,67 +86,28 @@ where
 {
     pub fn intern_with_metadata(&self, value: T, metadata: M) -> Id<T> {
         let hash = FxBuildHasher.hash_one(&value);
-        let table = self.table.pin();
+        let mut table = self.shard(hash).lock();
 
-        if let Some(&id) = table.get(&hash) {
-            if self.arena_value(id) == &value {
-                return Id::new(id);
-            }
-            return self.intern_at_collision(hash, value, metadata);
-        }
-
-        let index = self.arena.push((value, metadata));
-        let candidate = unsafe { NonZeroU32::new_unchecked(index as u32 + 1) };
-
-        match table.try_insert(hash, candidate) {
-            Ok(_) => Id::new(candidate),
-            // Another thread has already published a value at this hash.
-            // If the values are the same, abandon the current candidate
-            // and return the existing `Id`. This sacrifices a handful
-            // of bytes in arena slots for the sake of concurrency.
-            Err(papaya::OccupiedError { current, .. }) => {
-                if self.arena_value(*current) == self.arena_value(candidate) {
-                    return Id::new(*current);
-                }
-                self.publish_collision(hash, candidate)
-            }
-        }
-    }
-
-    fn intern_at_collision(&self, hash: u64, value: T, metadata: M) -> Id<T> {
-        let mut overflow = self.overflow.lock();
-        if let Some(id) = self.scan_overflow(&overflow, hash, &value) {
+        let equivalent = |&(entry_hash, id): &(u64, NonZeroU32)| {
+            entry_hash == hash && self.arena_value(id) == &value
+        };
+        if let Some(&(_, id)) = table.find(hash, equivalent) {
             return Id::new(id);
         }
 
         let index = self.arena.push((value, metadata));
-        let candidate = unsafe { NonZeroU32::new_unchecked(index as u32 + 1) };
-
-        overflow.push((hash, candidate));
-        Id::new(candidate)
-    }
-
-    fn publish_collision(&self, hash: u64, candidate: NonZeroU32) -> Id<T> {
-        let mut overflow = self.overflow.lock();
-        if let Some(id) = self.scan_overflow(&overflow, hash, self.arena_value(candidate)) {
-            return Id::new(id);
-        }
-
-        overflow.push((hash, candidate));
-        Id::new(candidate)
+        let id = unsafe { NonZeroU32::new_unchecked(index as u32 + 1) };
+        table.insert_unique(hash, (hash, id), |&(entry_hash, _)| entry_hash);
+        Id::new(id)
     }
 
     pub fn get(&self, value: &T) -> Option<Id<T>> {
         let hash = FxBuildHasher.hash_one(value);
-        let table = self.table.pin();
-
-        let id = table.get(&hash).copied()?;
-        if self.arena_value(id) == value {
-            return Some(Id::new(id));
-        }
-
-        let overflow = self.overflow.lock();
-        self.scan_overflow(&overflow, hash, value).map(Id::new)
+        let table = self.shard(hash).lock();
+        let equivalent = |&(entry_hash, id): &(u64, NonZeroU32)| {
+            entry_hash == hash && self.arena_value(id) == value
+        };
+        table.find(hash, equivalent).map(|&(_, id)| Id::new(id))
     }
 
     fn arena_value(&self, id: NonZeroU32) -> &T {
@@ -147,23 +118,6 @@ where
         } else {
             unreachable!("invariant violated: {id} is not a valid index");
         }
-    }
-
-    fn scan_overflow(
-        &self,
-        overflow: &[(u64, NonZeroU32)],
-        hash: u64,
-        value: &T,
-    ) -> Option<NonZeroU32> {
-        for &(overflow_hash, overflow_id) in overflow.iter().rev() {
-            if overflow_hash != hash {
-                continue;
-            }
-            if self.arena_value(overflow_id) == value {
-                return Some(overflow_id);
-            }
-        }
-        None
     }
 
     pub fn metadata(&self, Id { id, .. }: Id<T>) -> M {
@@ -223,6 +177,29 @@ mod tests {
 
         assert_eq!(a, b);
         assert_eq!(interner.metadata(a), 7);
+    }
+
+    #[test]
+    fn test_hash_collisions() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Colliding(u32);
+
+        impl std::hash::Hash for Colliding {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                state.write_u32(0);
+            }
+        }
+
+        let interner: Interner<Colliding> = Interner::default();
+
+        let ids: Vec<_> = (0..64).map(|value| interner.intern(Colliding(value))).collect();
+
+        for (value, &id) in ids.iter().enumerate() {
+            assert_eq!(interner[id], Colliding(value as u32));
+            assert_eq!(interner.intern(Colliding(value as u32)), id);
+            assert_eq!(interner.get(&Colliding(value as u32)), Some(id));
+        }
+        assert_eq!(interner.get(&Colliding(64)), None);
     }
 
     #[test]
