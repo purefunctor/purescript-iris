@@ -188,8 +188,10 @@ impl WorkspaceHarness {
         harness
     }
 
-    fn root(&self) -> PathBuf {
-        dunce::canonicalize(self.root.path()).unwrap()
+    /// The gate for this workspace's preparation attempts. Preparation receives the workspace
+    /// folder's path as the editor sent it, not its canonical spelling.
+    fn preparation_gate(&self) -> Arc<PreparationGate> {
+        preparation_gate(self.root.path())
     }
 
     fn uri(&self, name: &str) -> Url {
@@ -477,7 +479,7 @@ async fn a_request_waiting_for_preparation_is_answered_and_later_settings_apply(
     harness.change(&uri, 2, "module Main where\nvalue :: Int\nvalue = \"changed\"\n");
     let after = harness.document_symbols(&uri);
 
-    preparation_gate(&harness.root()).release.notify_one();
+    harness.preparation_gate().release.notify_one();
     match answer(waiting).await {
         Ok(symbols) => assert_eq!(symbol_names(&symbols), ["opened"]),
         rejected => assert_eq!(rejected, content_modified()),
@@ -549,7 +551,7 @@ async fn cancelling_preparation_rejects_waiting_requests_and_the_next_request_re
         harness.event().await,
         WorkspaceEvent::PreparationStarted { generation: 3, .. }
     ));
-    preparation_gate(&harness.root()).release.notify_one();
+    harness.preparation_gate().release.notify_one();
     assert!(answer(retrying).await.is_ok());
     assert_eq!(
         harness.event().await,
@@ -575,7 +577,7 @@ async fn failed_preparation_is_reported_and_rejects_analysis() {
     harness.settings(SettingsResponse::Unsupported);
     assert!(matches!(harness.event().await, WorkspaceEvent::PreparationStarted { .. }));
     let waiting = harness.request("workspace/symbol", json!({"query": ""}));
-    let gate = preparation_gate(&harness.root());
+    let gate = harness.preparation_gate();
     gate.fail.store(true, Ordering::SeqCst);
     gate.release.notify_one();
 
@@ -584,11 +586,13 @@ async fn failed_preparation_is_reported_and_rejects_analysis() {
     let WorkspaceEvent::Error { message } = harness.event().await else {
         panic!("expected an error message");
     };
-    let root = harness.root.path().display().to_string();
+    // The root is the workspace folder's path, spelled with a trailing separator.
+    let root = Url::from_directory_path(harness.root.path()).unwrap().to_file_path().unwrap();
+    let root = root.display();
     assert_eq!(
         message,
         format!(
-            "Iris could not prepare the Spago workspace at {root}/: IoError: simulated failure. \
+            "Iris could not prepare the Spago workspace at {root}: IoError: simulated failure. \
              Correct the project (for example, by running `spago fetch`) and restart Iris."
         )
     );
@@ -675,7 +679,7 @@ async fn invalid_settings_while_preparing_keep_the_staged_settings() {
         }
     );
 
-    preparation_gate(&harness.root()).release.notify_one();
+    harness.preparation_gate().release.notify_one();
     let uri = harness.uri("Main.purs");
     harness.open(&uri, 1, "module Main where\nvalue :: Int\nvalue = \"one\"\n");
     harness.change(&uri, 2, "module Main where\nvalue :: Int\nvalue = \"two\"\n");
