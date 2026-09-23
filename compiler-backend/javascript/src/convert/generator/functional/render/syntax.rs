@@ -178,9 +178,9 @@ pub(super) fn synthesized_evidence_expression(
 
 pub(super) fn combine_conditions(
     tree: &mut Tree,
-    conditions: &[ExpressionId],
+    conditions: Vec<ExpressionId>,
 ) -> Option<ExpressionId> {
-    let mut conditions = conditions.iter().copied();
+    let mut conditions = conditions.into_iter();
     let first = conditions.next()?;
     Some(
         conditions.fold(first, |condition, next| {

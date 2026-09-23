@@ -1385,7 +1385,7 @@ impl Generator<'_> {
             let mut values = vec![marker, state];
             for argument in tail_call.arguments {
                 let value = self.expression_value(tree, writer, argument, context)?;
-                let value = if tree.expression_is_atomic(value) {
+                let value = if tree.expression_is_atomic(&value) {
                     value
                 } else {
                     self.materialize_value(tree, writer, value, "$tailArgument", context)
@@ -1402,7 +1402,7 @@ impl Generator<'_> {
 
         for (name, argument) in argument_names.iter().zip(tail_call.arguments) {
             let value = self.expression_value(tree, writer, argument, context)?;
-            if tree.expression_identifier(value) == Some(name) {
+            if tree.expression_identifier(&value) == Some(name) {
                 continue;
             }
             writer.assign(tree, name, value);
@@ -1557,7 +1557,7 @@ impl Generator<'_> {
             ExpressionKind::Application { function, arguments, synthetic } => {
                 let mut function = self.rendered_expression(tree, writer, *function, context)?;
                 if *synthetic {
-                    tree.clear_call_purity(function.value);
+                    tree.clear_call_purity(&function.value);
                 }
                 if arguments.is_empty() {
                     let value = if *synthetic {
@@ -1597,7 +1597,7 @@ impl Generator<'_> {
             ExpressionKind::UncurriedApplication { function, arguments, synthetic } => {
                 let mut function = self.rendered_expression(tree, writer, *function, context)?;
                 if *synthetic {
-                    tree.clear_call_purity(function.value);
+                    tree.clear_call_purity(&function.value);
                 }
                 let mut values = Vec::with_capacity(arguments.len());
                 for argument in arguments.iter() {
@@ -1882,7 +1882,7 @@ impl Generator<'_> {
                     return Ok(None);
                 };
                 if *synthetic {
-                    tree.clear_call_purity(function);
+                    tree.clear_call_purity(&function);
                 }
                 let Some(arguments) = arguments
                     .iter()
@@ -1898,7 +1898,7 @@ impl Generator<'_> {
                     return Ok(None);
                 };
                 if *synthetic {
-                    tree.clear_call_purity(function);
+                    tree.clear_call_purity(&function);
                 }
                 let Some(arguments) = arguments
                     .iter()
@@ -2275,7 +2275,7 @@ fn render_lazy_let(
     let binding_function = tree.member(runtime, "binding");
     for (binding, accessor) in bindings.iter().zip(&accessors) {
         let source_name = tree.string(binding.parameter.name.as_str());
-        let binding_function = writer.expression(tree, binding_function);
+        let binding_function = writer.expression(tree, &binding_function);
         let source_name = writer.expression(tree, source_name);
         writer.binding_call(
             BindingCallTarget::Assignment(accessor),
@@ -2372,9 +2372,10 @@ impl Generator<'_> {
         for alternative in alternatives {
             let mut plan = PatternPlan::default();
             for (pattern, value) in alternative.patterns.iter().zip(scrutinees) {
-                self.extend_pattern_plan(tree, *pattern, *value, None, context, &mut plan)?;
+                let value = tree.duplicate(value);
+                self.extend_pattern_plan(tree, *pattern, value, None, context, &mut plan)?;
             }
-            let condition = combine_conditions(tree, &plan.conditions);
+            let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
             if let Some(condition) = condition {
                 writer.if_block(tree, condition, |tree, writer| {
                     self.render_pattern_bindings(tree, writer, &plan);
@@ -2533,8 +2534,8 @@ impl Generator<'_> {
                 let source = *value;
                 let value = self.rendered_expression(tree, writer, source, context)?;
                 let value = self.materialize_pattern_value(tree, writer, source, value, context);
-                let plan = self.pattern_plan(tree, *pattern, value, None, context)?;
-                let condition = combine_conditions(tree, &plan.conditions);
+                let mut plan = self.pattern_plan(tree, *pattern, value, None, context)?;
+                let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
                 if let Some(condition) = condition {
                     writer.if_block(tree, condition, |tree, writer| {
                         self.render_pattern_bindings(tree, writer, &plan);
@@ -2567,11 +2568,11 @@ impl Generator<'_> {
         &self,
         tree: &mut Tree,
         writer: &mut Writer<'_>,
-        plan: PatternPlan,
+        mut plan: PatternPlan,
         context: &mut FunctionContext,
         render: impl FnOnce(&mut Tree, &mut Writer<'_>, &mut FunctionContext) -> ModuleResult<()>,
     ) -> ModuleResult<()> {
-        let condition = combine_conditions(tree, &plan.conditions);
+        let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
         if let Some(condition) = condition {
             writer.if_else(
                 tree,
@@ -2595,10 +2596,10 @@ impl Generator<'_> {
         for binding in &plan.bindings {
             match binding {
                 PatternBinding::Variable { name, value } => {
-                    writer.constant(tree, name, *value, false);
+                    writer.constant(tree, name, value, false);
                 }
                 PatternBinding::Constructor { names, value } => {
-                    writer.constant_object_pattern(tree, names, *value);
+                    writer.constant_object_pattern(tree, names, value);
                 }
             }
         }
@@ -2635,7 +2636,8 @@ impl Generator<'_> {
                 self.bind_pattern_parameter(parameter, value, root_name, context, plan);
             }
             PatternKind::Named { parameter, pattern } => {
-                self.bind_pattern_parameter(parameter, value, root_name, context, plan);
+                let binding = tree.duplicate(&value);
+                self.bind_pattern_parameter(parameter, binding, root_name, context, plan);
                 self.extend_pattern_plan(tree, *pattern, value, root_name, context, plan)?;
             }
             PatternKind::Wildcard => {}
@@ -2646,20 +2648,24 @@ impl Generator<'_> {
             PatternKind::Array(patterns) => {
                 let array = tree.identifier("Array");
                 let is_array = tree.member(array, "isArray");
-                let is_array = tree.call(is_array, vec![value]);
+                let argument = tree.duplicate(&value);
+                let is_array = tree.call(is_array, vec![argument]);
                 plan.conditions.push(is_array);
-                let length = tree.member(value, "length");
+                let source = tree.duplicate(&value);
+                let length = tree.member(source, "length");
                 let expected = tree.number(patterns.len().to_string());
                 plan.conditions.push(tree.binary(BinaryOperator::StrictEqual, length, expected));
                 for (index, pattern) in patterns.iter().enumerate() {
                     let index = tree.number(index.to_string());
-                    let element = tree.index(value, index);
+                    let source = tree.duplicate(&value);
+                    let element = tree.index(source, index);
                     self.extend_pattern_plan(tree, *pattern, element, None, context, plan)?;
                 }
             }
             PatternKind::Record(fields) => {
                 for field in fields.iter() {
-                    let field_value = tree.member(value, field.field.name.as_str());
+                    let source = tree.duplicate(&value);
+                    let field_value = tree.member(source, field.field.name.as_str());
                     self.extend_pattern_plan(
                         tree,
                         field.pattern,
@@ -2673,9 +2679,15 @@ impl Generator<'_> {
             PatternKind::Constructor { global, arguments } => {
                 let expected = tree.string(global.item_name.as_str());
                 if arguments.is_empty() {
-                    plan.conditions.push(tree.binary(BinaryOperator::StrictEqual, value, expected));
+                    let source = tree.duplicate(&value);
+                    plan.conditions.push(tree.binary(
+                        BinaryOperator::StrictEqual,
+                        source,
+                        expected,
+                    ));
                 } else {
-                    let tag = tree.member(value, "tag");
+                    let source = tree.duplicate(&value);
+                    let tag = tree.member(source, "tag");
                     plan.conditions.push(tree.binary(BinaryOperator::StrictEqual, tag, expected));
                 }
 
@@ -2691,7 +2703,8 @@ impl Generator<'_> {
                     arguments.iter().zip(argument_names.iter()).enumerate()
                 {
                     let field = format!("_{}", index + 1);
-                    let argument = tree.member(value, field);
+                    let source = tree.duplicate(&value);
+                    let argument = tree.member(source, field);
                     self.extend_pattern_plan(
                         tree,
                         *pattern,
@@ -2775,8 +2788,9 @@ impl Generator<'_> {
         if rendered_expression_is_reusable(tree, expression) {
             return;
         }
-        expression.value =
-            self.materialize_value(tree, writer, expression.value, preferred, context);
+        let name = context.allocate(preferred);
+        writer.constant(tree, &name, &expression.value, false);
+        expression.value = tree.identifier(name);
         expression.pending_evaluation = false;
     }
 
@@ -2832,7 +2846,7 @@ impl Generator<'_> {
             record = self.materialize_value(tree, writer, record, "$record", context);
         }
         let mut properties = Vec::with_capacity(updates.len() + 1);
-        properties.push(ObjectProperty::Spread(record));
+        properties.push(ObjectProperty::Spread(tree.duplicate(&record)));
         for update in updates {
             if self.record_update_rendering_is_eager(update, context) {
                 let value = tree.object(std::mem::take(&mut properties));
@@ -2850,7 +2864,8 @@ impl Generator<'_> {
                 RecordUpdate::Branch { field, updates } => {
                     // Nested updates revisit their original source paths. Reusing the path here
                     // preserves each observable property read while the root record remains stable.
-                    let nested = tree.member(record, field.name.as_str());
+                    let source = tree.duplicate(&record);
+                    let nested = tree.member(source, field.name.as_str());
                     let value =
                         self.record_updates(tree, writer, nested, true, updates, context)?;
                     properties.push(ObjectProperty::Field { name: field.name.to_string(), value });
@@ -2862,7 +2877,7 @@ impl Generator<'_> {
 }
 
 fn rendered_expression_is_reusable(tree: &Tree, expression: &RenderedExpression) -> bool {
-    !expression.pending_evaluation || tree.expression_is_atomic(expression.value)
+    !expression.pending_evaluation || tree.expression_is_atomic(&expression.value)
 }
 
 fn record_updates_reuse_source(updates: &[RecordUpdate]) -> bool {
@@ -2962,7 +2977,8 @@ fn execute_effect(
                 && let CapturedEffect::Pure { value } = effect.as_ref()
                 && local_uses(&renderer.generator.module.storage, body, parameter.id) <= 1
             {
-                renderer.context.bind_inline(&parameter, *value);
+                let value = renderer.tree.duplicate(value);
+                renderer.context.bind_inline(&parameter, value);
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3034,7 +3050,7 @@ fn execute_effect_action(
         }
         CapturedEffectAction::Effect(effect) => {
             if let CapturedEffect::Pure { value } = effect.as_ref() {
-                renderer.writer.constant(renderer.tree, &name, *value, false);
+                renderer.writer.constant(renderer.tree, &name, value, false);
             } else {
                 renderer.writer.mutable(&name);
                 execute_effect(renderer, *effect, Destination::Assign(&name))?;
@@ -3052,7 +3068,7 @@ fn local_expression(
 ) -> ModuleResult<ExpressionId> {
     match context.locals.get(&parameter.id) {
         Some(LocalBinding::Direct(name)) => Ok(tree.identifier(name)),
-        Some(LocalBinding::Inline(expression)) => Ok(*expression),
+        Some(LocalBinding::Inline(expression)) => Ok(tree.duplicate(expression)),
         Some(LocalBinding::Lazy(name)) => {
             let accessor = tree.identifier(name);
             Ok(tree.call(accessor, vec![]))
