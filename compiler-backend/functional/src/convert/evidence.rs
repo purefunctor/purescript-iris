@@ -1052,6 +1052,9 @@ fn unsafe_local_instances(
             hazards.insert(position);
         }
     }
+    if hazards.is_empty() {
+        return FxHashSet::default();
+    }
 
     let mut unsafe_instances = FxHashSet::default();
     for (position, (global, _, _)) in values.iter().enumerate() {
