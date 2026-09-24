@@ -14,7 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{Terminal, TerminalOptions, Viewport};
 use smol_str::SmolStr;
-use terminal_colorsaurus::QueryOptions;
+use terminal_colorsaurus::{QueryOptions, ThemeMode};
 
 const ANIMATION_INTERVAL: Duration = Duration::from_millis(80);
 pub const PACKAGE_HISTORY_LENGTH: usize = 10;
@@ -192,17 +192,14 @@ impl ProgressModel {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProgressAppearance {
-    TrueColor { foreground: (u8, u8, u8), background: (u8, u8, u8) },
+    TrueColor { foreground: (u8, u8, u8), background: (u8, u8, u8), theme_mode: ThemeMode },
     Ansi,
     Plain,
 }
 
 impl ProgressAppearance {
     fn is_light(self) -> bool {
-        let ProgressAppearance::TrueColor { background: (red, green, blue), .. } = self else {
-            return false;
-        };
-        u32::from(red) * 299 + u32::from(green) * 587 + u32::from(blue) * 114 >= 128_000
+        matches!(self, ProgressAppearance::TrueColor { theme_mode: ThemeMode::Light, .. })
     }
 }
 
@@ -445,6 +442,7 @@ fn detect_appearance(color: bool) -> ProgressAppearance {
     ProgressAppearance::TrueColor {
         foreground: palette.foreground.scale_to_8bit(),
         background: palette.background.scale_to_8bit(),
+        theme_mode: palette.theme_mode(),
     }
 }
 
@@ -621,7 +619,7 @@ fn bar_style(
         ProgressAppearance::TrueColor { foreground, .. } if index == filled => style
             .fg(Color::Rgb(foreground.0, foreground.1, foreground.2))
             .add_modifier(Modifier::BOLD),
-        ProgressAppearance::TrueColor { foreground, background } => {
+        ProgressAppearance::TrueColor { foreground, background, .. } => {
             let blend = |foreground: u8, background: u8| {
                 (background as f32 + (foreground as f32 - background as f32) * 0.16).round() as u8
             };
@@ -656,7 +654,7 @@ fn bar_style(
 
 fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
     match appearance {
-        ProgressAppearance::TrueColor { foreground, background } => {
+        ProgressAppearance::TrueColor { foreground, background, .. } => {
             let minimum = if appearance.is_light() { 0.8 } else { 0.18 };
             let opacity =
                 minimum + (1.0 - minimum) * row as f32 / (PACKAGE_HISTORY_LENGTH - 1) as f32;
