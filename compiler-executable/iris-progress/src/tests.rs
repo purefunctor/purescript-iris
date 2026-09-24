@@ -232,12 +232,18 @@ fn render_plain(model: &ProgressModel, width: u16, height: u16) -> String {
     buffer_text(&buffer)
 }
 
-fn render_true_color(model: &ProgressModel, width: u16, height: u16) -> String {
+fn render_true_color_with_palette(
+    model: &ProgressModel,
+    width: u16,
+    height: u16,
+    foreground: (u8, u8, u8),
+    background: (u8, u8, u8),
+) -> String {
     let buffer = render_model(
         model,
         width,
         height,
-        ProgressAppearance::TrueColor { foreground: (230, 220, 210), background: (20, 30, 40) },
+        ProgressAppearance::TrueColor { foreground, background },
         Duration::from_millis(2_340),
     );
     let previous = Buffer::empty(buffer.area);
@@ -246,6 +252,10 @@ fn render_true_color(model: &ProgressModel, width: u16, height: u16) -> String {
     ratatui::crossterm::style::force_color_output(true);
     CrosstermBackend::new(&mut output).draw(changes.into_iter()).unwrap();
     String::from_utf8(output).unwrap()
+}
+
+fn render_true_color(model: &ProgressModel, width: u16, height: u16) -> String {
+    render_true_color_with_palette(model, width, height, (230, 220, 210), (20, 30, 40))
 }
 
 #[test]
@@ -354,6 +364,32 @@ fn narrow_frame_has_reviewable_true_color_output() {
     insta::with_settings!({ omit_expression => true }, {
         insta::assert_debug_snapshot!("narrow_frame_true_color_ansi", output);
     });
+}
+
+#[test]
+fn compilation_frame_has_reviewable_light_true_color_output() {
+    let output = render_true_color_with_palette(
+        &representative_compilation(),
+        48,
+        PROGRESS_REGION_HEIGHT,
+        (76, 83, 107),
+        (248, 250, 255),
+    );
+
+    insta::with_settings!({ omit_expression => true }, {
+        insta::assert_debug_snapshot!("compilation_frame_light_true_color_ansi", output);
+    });
+}
+
+#[test]
+fn light_palette_preserves_contrast_across_history_and_animation() {
+    let appearance =
+        ProgressAppearance::TrueColor { foreground: (76, 83, 107), background: (248, 250, 255) };
+    assert_eq!(accent_style(appearance).fg, Some(Color::Rgb(76, 83, 107)));
+    assert_eq!(history_style(appearance, 0).fg, Some(Color::Rgb(110, 116, 137)));
+    assert_eq!(history_style(appearance, 9).fg, Some(Color::Rgb(76, 83, 107)));
+    assert_eq!(bar_style(appearance, 0, 48, 12, 7, false).fg, Some(Color::Rgb(156, 83, 88)));
+    assert_eq!(bar_style(appearance, 7, 48, 12, 7, false).fg, Some(Color::Rgb(89, 50, 57)));
 }
 
 #[test]

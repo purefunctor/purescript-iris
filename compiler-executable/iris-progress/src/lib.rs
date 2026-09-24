@@ -197,6 +197,15 @@ pub enum ProgressAppearance {
     Plain,
 }
 
+impl ProgressAppearance {
+    fn is_light(self) -> bool {
+        let ProgressAppearance::TrueColor { background: (red, green, blue), .. } = self else {
+            return false;
+        };
+        u32::from(red) * 299 + u32::from(green) * 587 + u32::from(blue) * 114 >= 128_000
+    }
+}
+
 pub struct ProgressView<'a> {
     pub model: &'a ProgressModel,
     pub appearance: ProgressAppearance,
@@ -582,6 +591,14 @@ fn bar_style(
             };
             let mut color =
                 (interpolate(from.0, to.0), interpolate(from.1, to.1), interpolate(from.2, to.2));
+            let light_background = appearance.is_light();
+            if light_background {
+                color = (
+                    (color.0 as f32 * 0.65).round() as u8,
+                    (color.1 as f32 * 0.65).round() as u8,
+                    (color.2 as f32 * 0.65).round() as u8,
+                );
+            }
             if !finished && filled > 0 {
                 let distance = index.abs_diff(frame % filled);
                 let brightness = match distance {
@@ -590,10 +607,14 @@ fn bar_style(
                     2 => 0.25,
                     _ => 0.0,
                 };
-                let lighten = |channel: u8| {
-                    (channel as f32 + (255.0 - channel as f32) * brightness).round() as u8
+                let highlight = |channel: u8| {
+                    if light_background {
+                        (channel as f32 * (1.0 - brightness * 0.5)).round() as u8
+                    } else {
+                        (channel as f32 + (255.0 - channel as f32) * brightness).round() as u8
+                    }
                 };
-                color = (lighten(color.0), lighten(color.1), lighten(color.2));
+                color = (highlight(color.0), highlight(color.1), highlight(color.2));
             }
             style.fg(Color::Rgb(color.0, color.1, color.2))
         }
@@ -636,7 +657,9 @@ fn bar_style(
 fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
     match appearance {
         ProgressAppearance::TrueColor { foreground, background } => {
-            let opacity = 0.18 + 0.82 * row as f32 / (PACKAGE_HISTORY_LENGTH - 1) as f32;
+            let minimum = if appearance.is_light() { 0.8 } else { 0.18 };
+            let opacity =
+                minimum + (1.0 - minimum) * row as f32 / (PACKAGE_HISTORY_LENGTH - 1) as f32;
             let blend = |foreground: u8, background: u8| {
                 (background as f32 + (foreground as f32 - background as f32) * opacity).round()
                     as u8
@@ -660,9 +683,10 @@ fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
 fn accent_style(appearance: ProgressAppearance) -> Style {
     match appearance {
         ProgressAppearance::Plain => Style::default(),
-        ProgressAppearance::TrueColor { .. } | ProgressAppearance::Ansi => {
-            Style::default().fg(Color::White)
+        ProgressAppearance::TrueColor { foreground, .. } => {
+            Style::default().fg(Color::Rgb(foreground.0, foreground.1, foreground.2))
         }
+        ProgressAppearance::Ansi => Style::default(),
     }
 }
 
