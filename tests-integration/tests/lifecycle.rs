@@ -75,7 +75,61 @@ fn duplicate_registration(path: &Path) -> datatest_stable::Result<()> {
     Ok(())
 }
 
+fn batched_registration(path: &Path) -> datatest_stable::Result<()> {
+    let content: Arc<str> = fs::read_to_string(path)?.into();
+    let renamed: Arc<str> = fs::read_to_string(path.with_file_name("Renamed.purs"))?.into();
+    let edited: Arc<str> = fs::read_to_string(path.with_file_name("Edited.purs"))?.into();
+    let unit = SourceUnitKey::new("file:///src/Main.purs", "file:///src/Main.js");
+    let duplicate = SourceUnitKey::new("file:///other/Main.purs", "file:///other/Main.js");
+    let events = || {
+        vec![
+            source_disk(&unit, &content),
+            source_disk(&duplicate, &content),
+            LifecycleEvent::Source {
+                unit: SourceUnitKey::clone(&duplicate),
+                event: SourceEvent::DiskObserved { disk: DiskObservation::NotFound, metadata: () },
+            },
+            source_disk(&duplicate, &renamed),
+            source_disk(&unit, &renamed),
+            source_disk(&duplicate, &edited),
+            source_disk(&unit, &content),
+        ]
+    };
+
+    for length in 0..=events().len() {
+        let individual_engine = QueryEngine::default();
+        let mut individual_files = FileLifecycle::default();
+        let mut individual_change = building::LifecycleChange::default();
+        for event in events().into_iter().take(length) {
+            individual_change.combine(individual_files.apply(&individual_engine, event));
+        }
+        let batched_engine = QueryEngine::default();
+        let mut batched_files = FileLifecycle::default();
+        let batched_change =
+            batched_files.apply_all(&batched_engine, events().into_iter().take(length));
+        assert_eq!(batched_change, individual_change, "prefix {length}");
+        for name in ["Main", "Renamed"] {
+            assert_eq!(
+                batched_engine.module_file(name),
+                individual_engine.module_file(name),
+                "{name}, prefix {length}"
+            );
+        }
+        for unit in [&unit, &duplicate] {
+            assert_eq!(
+                batched_files.source_id(unit.source()),
+                individual_files.source_id(unit.source())
+            );
+        }
+        if length == 3 {
+            assert_eq!(batched_engine.module_file("Main"), None);
+        }
+    }
+    Ok(())
+}
+
 datatest_stable::harness! {
     { test = missing_header, root = "fixtures/lifecycle/missing_header", pattern = r"Main\.purs$" },
     { test = duplicate_registration, root = "fixtures/lifecycle/duplicate_registration", pattern = r"Main\.purs$" },
+    { test = batched_registration, root = "fixtures/lifecycle/duplicate_registration", pattern = r"Main\.purs$" },
 }

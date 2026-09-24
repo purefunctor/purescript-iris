@@ -20,6 +20,7 @@ lowering = { version = "0.1.0", path = "../../compiler-frontend/lowering" }
 parking_lot = "0.12.5"
 parsing = { version = "0.1.0", path = "../../compiler-frontend/parsing" }
 prim-constants = { version = "0.1.0", path = "../prim-constants" }
+rayon = "1.12.0"
 resolving = { version = "0.1.0", path = "../../compiler-frontend/resolving" }
 rustc-hash = "2.1.3"
 stabilizing = { version = "0.1.0", path = "../../compiler-frontend/stabilizing" }

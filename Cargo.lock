@@ -264,6 +264,7 @@ dependencies = [
  "parking_lot",
  "parsing",
  "prim-constants",
+ "rayon",
  "resolving",
  "rustc-hash",
  "smol_str",
