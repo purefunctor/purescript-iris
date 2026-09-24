@@ -109,14 +109,6 @@ mod tests {
     use super::*;
     use itertools::Itertools;
     use std::fs;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn temporary_directory() -> PathBuf {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let directory = std::env::temp_dir().join(format!("iris-walk-{nanos}"));
-        fs::create_dir_all(&directory).unwrap();
-        directory
-    }
 
     fn touch(path: &Path) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -134,38 +126,36 @@ mod tests {
 
     #[test]
     fn filtered_walk_excludes_matching_files() {
-        let root = temporary_directory();
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
         touch(&root.join("package/src/Main.purs"));
         touch(&root.join("package/test/Test.Main.purs"));
         touch(&root.join("package/test/Excluded.purs"));
 
         let walk = walk_filtered(
-            &root,
+            root,
             ["package/src/**/*.purs", "package/test/**/*.purs"],
             ["package/test/Excluded.purs"],
         )
         .unwrap();
 
         assert_eq!(
-            relative_files(&root, walk.files),
+            relative_files(root, walk.files),
             vec!["package/src/Main.purs", "package/test/Test.Main.purs"]
         );
-
-        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn filtered_walk_excludes_directory_trees() {
-        let root = temporary_directory();
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
         touch(&root.join("package/src/Main.purs"));
         touch(&root.join("package/src/generated/Ignored.purs"));
 
         let walk =
-            walk_filtered(&root, ["package/src/**/*.purs"], ["package/src/generated"]).unwrap();
+            walk_filtered(root, ["package/src/**/*.purs"], ["package/src/generated"]).unwrap();
 
-        assert_eq!(relative_files(&root, walk.files), vec!["package/src/Main.purs"]);
-
-        fs::remove_dir_all(root).unwrap();
+        assert_eq!(relative_files(root, walk.files), vec!["package/src/Main.purs"]);
     }
 
     #[test]
@@ -219,14 +209,14 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn walks_windows_style_globs() {
-        let root = temporary_directory();
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
         touch(&root.join("src/Main.purs"));
-        let canonical_root = dunce::canonicalize(&root).unwrap();
+        let canonical_root = dunce::canonicalize(root).unwrap();
 
         let walk = walk_filtered(&canonical_root, [r"src\**\*.purs"], std::iter::empty::<&Path>())
             .unwrap();
 
         assert_eq!(relative_files(&canonical_root, walk.files), vec!["src/Main.purs"]);
-        fs::remove_dir_all(root).unwrap();
     }
 }
