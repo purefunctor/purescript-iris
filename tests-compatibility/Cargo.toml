@@ -21,6 +21,7 @@ indexing = { version = "0.1.0", path = "../compiler-frontend/indexing" }
 lexing = { version = "0.1.0", path = "../compiler-frontend/lexing" }
 line-index = "0.1.2"
 lowering = { version = "0.1.0", path = "../compiler-frontend/lowering" }
+mimalloc = "0.1.52"
 parsing = { version = "0.1.0", path = "../compiler-frontend/parsing" }
 rayon = "1.12.0"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }

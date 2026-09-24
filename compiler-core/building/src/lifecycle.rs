@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use files::{FileId, Files, ForeignFileCandidates, ForeignFileId, ForeignFiles, ForeignSourceKind};
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
 
 use crate::QueryEngine;
 
@@ -140,6 +142,40 @@ where
         engine: &QueryEngine,
         event: LifecycleEvent<Version, Metadata>,
     ) -> LifecycleChange {
+        self.apply_event(engine, event, &mut ModuleRegistration::Immediate)
+    }
+
+    /// Applies events in order, parsing the sources they introduce in parallel.
+    ///
+    /// The resulting state is the same as applying each event individually.
+    pub fn apply_all(
+        &mut self,
+        engine: &QueryEngine,
+        events: impl IntoIterator<Item = LifecycleEvent<Version, Metadata>>,
+    ) -> LifecycleChange {
+        let mut pending = vec![];
+        let mut change = LifecycleChange::default();
+        for event in events {
+            // Updating or removing a source must observe earlier registrations,
+            // including ownership displaced by a duplicate module name.
+            if let LifecycleEvent::Source { unit, .. } = &event
+                && self.source_id(unit.source()).is_some()
+            {
+                self.register_pending_modules(engine, std::mem::take(&mut pending));
+            }
+            let registration = &mut ModuleRegistration::Deferred(&mut pending);
+            change.combine(self.apply_event(engine, event, registration));
+        }
+        self.register_pending_modules(engine, pending);
+        change
+    }
+
+    fn apply_event(
+        &mut self,
+        engine: &QueryEngine,
+        event: LifecycleEvent<Version, Metadata>,
+        registration: &mut ModuleRegistration<'_>,
+    ) -> LifecycleChange {
         let unit = match &event {
             LifecycleEvent::Source { unit, .. } | LifecycleEvent::Foreign { unit, .. } => unit,
         };
@@ -149,7 +185,9 @@ where
             return change;
         }
         match event {
-            LifecycleEvent::Source { unit, event } => self.apply_source(engine, unit, event),
+            LifecycleEvent::Source { unit, event } => {
+                self.apply_source(engine, unit, event, registration)
+            }
             LifecycleEvent::Foreign { unit, kind, event } => {
                 self.apply_foreign(engine, unit, kind, event)
             }
@@ -281,6 +319,15 @@ where
         None
     }
 
+    fn register_pending_modules(&self, engine: &QueryEngine, pending: Vec<PendingModule>) {
+        pending.par_iter().for_each(|module| {
+            let _ = engine.snapshot().parsed(module.id);
+        });
+        for module in pending {
+            update_module_name(engine, module.id, module.previous_name);
+        }
+    }
+
     fn store_unit(&mut self, unit: SourceUnitKey, source_unit: SourceUnit<Version, Metadata>) {
         if source_unit.is_missing() {
             let source_owner = self.source_owners.remove(unit.source());
@@ -302,6 +349,48 @@ where
             debug_assert!(previous_foreign_owner.is_none_or(|owner| owner == unit));
         }
         self.units.insert(unit, source_unit);
+    }
+}
+
+/// Registering the module name of a source requires parsing it, which bulk
+/// application defers so that sources are parsed in parallel rather than one
+/// at a time under exclusive access to the engine.
+enum ModuleRegistration<'a> {
+    Immediate,
+    Deferred(&'a mut Vec<PendingModule>),
+}
+
+impl ModuleRegistration<'_> {
+    fn register(&mut self, engine: &QueryEngine, id: FileId, previous_name: Option<SmolStr>) {
+        match self {
+            ModuleRegistration::Immediate => update_module_name(engine, id, previous_name),
+            ModuleRegistration::Deferred(pending) => {
+                pending.push(PendingModule { id, previous_name });
+            }
+        }
+    }
+}
+
+struct PendingModule {
+    id: FileId,
+    previous_name: Option<SmolStr>,
+}
+
+fn update_module_name(engine: &QueryEngine, id: FileId, previous_name: Option<SmolStr>) {
+    let content = engine
+        .content(id)
+        .expect("invariant violated: source lifecycle requires exclusive engine mutation");
+    let (parsed, _) = engine
+        .parsed(id)
+        .expect("invariant violated: source lifecycle requires exclusive engine mutation");
+    let current_name = parsed.module_name(&content);
+    if previous_name != current_name
+        && let Some(previous_name) = previous_name
+    {
+        engine.remove_module_file(&previous_name, id);
+    }
+    if let Some(current_name) = current_name {
+        engine.set_module_file(&current_name, id);
     }
 }
 

@@ -2,9 +2,11 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use std::{fs, io};
+use std::{fs, io, iter};
 
-use building::{DiskObservation, QueryError, SourceUnitKey};
+use building::{
+    DiskObservation, ForeignEvent, LifecycleEvent, QueryError, SourceEvent, SourceUnitKey,
+};
 use diagnostics::Severity;
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
@@ -164,11 +166,21 @@ where
     let planned_source_paths =
         plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
     let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
-    let mut sources = HashMap::new();
-    for path in &source_paths {
+    let source_units = source_paths.par_iter().map(|path| read_source_unit(path));
+    let source_units = source_units.collect::<Result<Vec<_>, _>>()?;
+    let mut observations = vec![];
+    for (path, source_unit) in source_paths.iter().zip(&source_units) {
         let metadata = source_metadata(path);
-        sources.insert(PathBuf::clone(path), load_source(&mut compilation, path, metadata)?);
+        observations.extend(source_unit.observations(metadata));
     }
+    compilation.observe_all(observations);
+    let sources = source_paths.iter().zip(&source_units).map(|(path, source_unit)| {
+        let file_id = compilation
+            .source_id(source_unit.unit.source())
+            .expect("invariant violated: loaded source has no lifecycle identity");
+        (PathBuf::clone(path), file_id)
+    });
+    let sources = sources.collect::<HashMap<_, _>>();
 
     let engine = compilation.query_engine();
     let execute = |package: &super::plan::PlannedPackage| {
@@ -290,41 +302,50 @@ pub(crate) fn finish_initial(
     Ok(RebuildResult { outcome, outputs })
 }
 
-fn load_source<Version, Metadata>(
-    compilation: &mut CompilationState<Version, Metadata>,
-    path: &Path,
-    metadata: Metadata,
-) -> Result<FileId, CompileError>
-where
-    Version: Clone + Ord,
-    Metadata: Clone,
-{
+struct SourceUnitRead {
+    unit: SourceUnitKey,
+    source: Arc<str>,
+    foreign: Vec<(ForeignSourceKind, DiskObservation)>,
+}
+
+impl SourceUnitRead {
+    fn observations<Version, Metadata>(
+        &self,
+        metadata: Metadata,
+    ) -> Vec<LifecycleEvent<Version, Metadata>> {
+        let disk = DiskObservation::Found(Arc::clone(&self.source));
+        let source = LifecycleEvent::Source {
+            unit: SourceUnitKey::clone(&self.unit),
+            event: SourceEvent::DiskObserved { disk, metadata },
+        };
+        let foreign = self.foreign.iter().map(|(kind, disk)| LifecycleEvent::Foreign {
+            unit: SourceUnitKey::clone(&self.unit),
+            kind: *kind,
+            event: ForeignEvent::DiskObserved { disk: DiskObservation::clone(disk) },
+        });
+        iter::once(source).chain(foreign).collect()
+    }
+}
+
+fn read_source_unit(path: &Path) -> Result<SourceUnitRead, CompileError> {
     let source_url =
         Url::from_file_path(path).map_err(|_| CompileError::InvalidPath(path.to_path_buf()))?;
     let foreign_path = path.with_extension("js");
     let foreign_url = Url::from_file_path(&foreign_path)
         .map_err(|_| CompileError::InvalidPath(PathBuf::clone(&foreign_path)))?;
     let unit = SourceUnitKey::new(source_url.as_str(), foreign_url.as_str());
-    let content = fs::read_to_string(path)?;
-    let change = compilation.observe_source(
-        SourceUnitKey::clone(&unit),
-        DiskObservation::Found(content.into()),
-        metadata,
-    );
-    let file_id = change
-        .changed_sources()
-        .next()
-        .expect("invariant violated: newly loaded source did not change its lifecycle");
-    for kind in ForeignSourceKind::ALL {
+    let source = fs::read_to_string(path)?.into();
+    let foreign = ForeignSourceKind::ALL.into_iter().map(|kind| {
         let foreign_path = path.with_extension(kind.extension());
         let disk = match fs::read_to_string(&foreign_path) {
             Ok(content) => DiskObservation::Found(content.into()),
             Err(error) if error.kind() == io::ErrorKind::NotFound => DiskObservation::NotFound,
-            Err(error) => return Err(error.into()),
+            Err(error) => return Err(error),
         };
-        compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, disk);
-    }
-    Ok(file_id)
+        Ok((kind, disk))
+    });
+    let foreign = foreign.collect::<Result<Vec<_>, _>>()?;
+    Ok(SourceUnitRead { unit, source, foreign })
 }
 
 fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(), CompileError> {

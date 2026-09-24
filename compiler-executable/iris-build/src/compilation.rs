@@ -90,6 +90,20 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
         change
     }
 
+    /// Observes lifecycle events in order, parsing the sources they introduce
+    /// in parallel.
+    pub fn observe_all(
+        &mut self,
+        events: impl IntoIterator<Item = LifecycleEvent<Version, Metadata>>,
+    ) -> LifecycleChange {
+        let change = self.files.apply_all(&self.engine, events);
+        self.sources.extend(change.changed_sources());
+        for removed in change.removed_sources() {
+            self.sources.remove(&removed.file_id);
+        }
+        change
+    }
+
     pub fn observe_foreign(
         &mut self,
         unit: SourceUnitKey,
@@ -127,6 +141,10 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
 
     pub fn into_parts(self) -> CompilationParts<Version, Metadata> {
         CompilationParts { engine: self.engine, files: self.files, prim: self.prim }
+    }
+
+    pub fn source_id(&self, locator: &str) -> Option<FileId> {
+        self.files.source_id(locator)
     }
 
     pub fn source_path(&self, file_id: FileId) -> Option<Arc<str>> {
