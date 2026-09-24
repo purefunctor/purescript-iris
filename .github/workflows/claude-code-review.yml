@@ -1,0 +1,96 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    # The reviewer builds and runs the pull request's code with the review
+    # credentials in its environment, so it only runs for a trusted author.
+    if: >-
+      github.event.pull_request.user.login == 'purefunctor' &&
+      !github.event.pull_request.draft
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Install development tools
+        uses: jdx/mise-action@v4
+        with:
+          version: 2026.9.3
+
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          cache-bin: "false"
+          prefix-key: "v1-claude-review"
+
+      - name: Cache integration packages
+        uses: actions/cache@v6
+        with:
+          path: target/integration-packages
+          key: integration-packages-v3-${{ runner.os }}-${{ hashFiles('tests-integration/packages.json', 'tests-support/src/**') }}
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request against AGENTS.md, which is the canonical
+            statement of the project's ethos, code style, test ownership,
+            verification, and commit conventions. Read it before reviewing.
+
+            Read the pull request with `gh pr view` and `gh pr diff`. Judge
+            whether each change fixes the cause in the layer that owns it,
+            whether tests sit at the level AGENTS.md assigns, and whether
+            accepted snapshots describe intended behavior rather than merely
+            observed behavior.
+
+            Verify the change proactively, following the Verification section
+            of AGENTS.md and scaling checks to the affected behavior:
+            `cargo check -p <crate> --tests` and `cargo nextest run -p <crate>`
+            for changed crates, and `just t <category>` for affected
+            integration categories. Use these runs to confirm or refute
+            suspected problems, not to repeat CI. The Cargo Build & Test
+            workflow already builds and tests the whole workspace on every
+            platform; do not run the entire workspace test suite.
+
+            CI does not check formatting, third-party licenses, or pending
+            snapshots, so always check these:
+            - `just format --check` for formatting.
+            - `just licenses`, then `git status` to see whether THIRDPARTY.toml
+              changed.
+            - `git status` after integration runs for pending `.snap.new` files.
+
+            Only report issues you are confident are real. Do not report
+            pre-existing issues or style preferences AGENTS.md does not state.
+            Before commenting, read the existing review comments with
+            `gh pr view --comments` and do not repeat an issue already raised.
+
+            Post each issue as an inline comment with
+            `mcp__github_inline_comment__create_inline_comment`, quoting the
+            AGENTS.md rule where one applies. Then post one summary comment with
+            `gh pr comment` listing the checks you ran and their results.
+          claude_args: >-
+            --allowedTools
+            "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(cargo check:*),Bash(cargo nextest run:*),Bash(just t:*),Bash(just integration-prepare),Bash(just format --check),Bash(just licenses)"
