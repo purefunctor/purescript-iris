@@ -11,13 +11,13 @@ building = { version = "0.1.0", path = "../compiler-core/building" }
 checking = { version = "0.1.0", path = "../compiler-frontend/checking" }
 clap = { version = "4", features = ["derive"] }
 criterion = { version = "0.8.2", features = ["html_reports"] }
-diagnostics = { version = "0.1.0", path = "../compiler-frontend/diagnostics" }
 files = { version = "0.1.0", path = "../compiler-core/files" }
 flate2 = "1"
 git2 = { version = "0.21", features = ["https"] }
 globset = "0.4.20"
 indicatif = "0.18.6"
 indexing = { version = "0.1.0", path = "../compiler-frontend/indexing" }
+iris-diagnostics = { version = "0.1.0", path = "../compiler-services/iris-diagnostics" }
 lexing = { version = "0.1.0", path = "../compiler-frontend/lexing" }
 line-index = "0.1.2"
 lowering = { version = "0.1.0", path = "../compiler-frontend/lowering" }

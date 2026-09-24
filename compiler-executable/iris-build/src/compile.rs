@@ -7,8 +7,8 @@ use std::{fs, io, iter};
 use building::{
     DiskObservation, ForeignEvent, LifecycleEvent, QueryError, SourceEvent, SourceUnitKey,
 };
-use diagnostics::Severity;
 use files::{FileId, ForeignSourceKind};
+use iris_diagnostics::Severity;
 use itertools::Itertools;
 use rayon::prelude::*;
 use thiserror::Error;
@@ -83,7 +83,7 @@ pub struct InitialBuild<Version, Metadata> {
 
 pub(crate) struct InitialBuildReport {
     sources: Vec<FileId>,
-    diagnostics: Vec<diagnostics::DiagnosticCollection>,
+    diagnostics: Vec<iris_diagnostics::DiagnosticCollection>,
     has_errors: bool,
     no_inputs: bool,
     failure: Option<CompileError>,
@@ -365,23 +365,23 @@ fn query_package(engine: &building::QueryEngine, sources: &[FileId]) -> Result<(
 fn collect_diagnostics<Version, Metadata>(
     compilation: &CompilationState<Version, Metadata>,
     sources: &[FileId],
-) -> Result<(Vec<diagnostics::DiagnosticCollection>, bool), CompileError>
+) -> Result<(Vec<iris_diagnostics::DiagnosticCollection>, bool), CompileError>
 where
     Version: Clone + Ord,
     Metadata: Clone,
 {
     let engine = compilation.snapshot();
-    let diagnostics = diagnostics::collect_diagnostics(&engine, sources)?;
+    let diagnostics = iris_diagnostics::collect_diagnostics(&engine, sources)?;
     let has_errors = diagnostics
         .iter()
-        .flat_map(diagnostics::DiagnosticCollection::diagnostics)
+        .flat_map(iris_diagnostics::DiagnosticCollection::diagnostics)
         .any(|diagnostic| diagnostic.severity == Severity::Error);
     Ok((diagnostics, has_errors))
 }
 
 fn report_diagnostics(
     compilation: &CompilationState,
-    diagnostics: Vec<diagnostics::DiagnosticCollection>,
+    diagnostics: Vec<iris_diagnostics::DiagnosticCollection>,
     root: &Path,
     color: bool,
 ) {
@@ -396,7 +396,7 @@ fn report_diagnostics(
         let line_index = line_index::LineIndex::new(&collected.content);
         eprint!(
             "{}",
-            diagnostics::format_rich_with_path(
+            iris_diagnostics::format_rich_with_path(
                 collected.diagnostics(),
                 &collected.content,
                 &line_index,

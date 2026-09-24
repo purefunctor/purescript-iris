@@ -7,11 +7,11 @@ license.workspace = true
 [dependencies]
 building-types = { version = "0.1.0", path = "../../compiler-core/building-types" }
 checking = { version = "0.1.0", path = "../../compiler-frontend/checking" }
-diagnostics = { version = "0.1.0", path = "../../compiler-frontend/diagnostics" }
 files = { version = "0.1.0", path = "../../compiler-core/files" }
 foreign-javascript = { version = "0.1.0", path = "../../compiler-backend/foreign-javascript" }
 indexing = { version = "0.1.0", path = "../../compiler-frontend/indexing" }
 itertools = "0.15.0"
+iris-diagnostics = { version = "0.1.0", path = "../iris-diagnostics" }
 javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
 la-arena = "0.3.1"
 lexing = { version = "0.1.0", path = "../../compiler-frontend/lexing" }

@@ -1,5 +1,5 @@
 [package]
-name = "diagnostics"
+name = "iris-diagnostics"
 version = "0.1.0"
 edition = "2024"
 license.workspace = true
@@ -9,13 +9,13 @@ building-types = { version = "0.1.0", path = "../../compiler-core/building-types
 files = { version = "0.1.0", path = "../../compiler-core/files" }
 foreign-javascript = { version = "0.1.0", path = "../../compiler-backend/foreign-javascript" }
 functional = { version = "0.1.0", path = "../../compiler-backend/functional" }
-indexing = { version = "0.1.0", path = "../indexing" }
+indexing = { version = "0.1.0", path = "../../compiler-frontend/indexing" }
 javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
-lowering = { version = "0.1.0", path = "../lowering" }
-resolving = { version = "0.1.0", path = "../resolving" }
-checking = { version = "0.1.0", path = "../checking" }
-stabilizing = { version = "0.1.0", path = "../stabilizing" }
-syntax = { version = "0.1.0", path = "../syntax" }
+lowering = { version = "0.1.0", path = "../../compiler-frontend/lowering" }
+resolving = { version = "0.1.0", path = "../../compiler-frontend/resolving" }
+checking = { version = "0.1.0", path = "../../compiler-frontend/checking" }
+stabilizing = { version = "0.1.0", path = "../../compiler-frontend/stabilizing" }
+syntax = { version = "0.1.0", path = "../../compiler-frontend/syntax" }
 
 lsp-types.workspace = true
 line-index = "0.1.2"

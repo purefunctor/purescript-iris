@@ -9,8 +9,8 @@ use std::time::Duration;
 use std::{env, io};
 
 use building::QueryEngine;
-use diagnostics::{collect_diagnostics, format_rich_with_path};
 use files::{FileId, Files};
+use iris_diagnostics::{collect_diagnostics, format_rich_with_path};
 use itertools::Itertools;
 use line_index::LineIndex;
 use process_control::{ChildExt, Control};
