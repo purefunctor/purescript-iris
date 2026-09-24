@@ -68,13 +68,22 @@ jobs:
           if-no-files-found: error
 
   tests:
-    name: Tests (${{ matrix.category }})
+    name: Tests (${{ matrix.category }}${{ matrix.partition && format(', {0}', matrix.partition) || '' }})
     needs: build
     runs-on: ${{ inputs.os }}
     strategy:
       fail-fast: false
       matrix:
-        category: [workspace, support, compiler, lowering, resolving, lsp, docs, integration-other]
+        category: [workspace, support, lowering, resolving, lsp, docs, integration-other]
+        include:
+          - category: compiler
+            partition: hash:1/4
+          - category: compiler
+            partition: hash:2/4
+          - category: compiler
+            partition: hash:3/4
+          - category: compiler
+            partition: hash:4/4
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -106,6 +115,7 @@ jobs:
         shell: bash
         env:
           CATEGORY: ${{ matrix.category }}
+          PARTITION: ${{ matrix.partition }}
         run: |
           case "$CATEGORY" in
             workspace)
@@ -114,6 +124,10 @@ jobs:
               ;;
             support)
               cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst -E 'package(tests-support)'
+              ;;
+            compiler)
+              cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
+                -E 'package(tests-integration) and binary(compiler)' --partition "$PARTITION"
               ;;
             integration-other)
               cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
