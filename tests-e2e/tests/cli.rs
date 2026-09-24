@@ -9,7 +9,7 @@ fn snapshot_output(name: &str, output: &Output) {
     let status = output.status.code().map_or_else(|| "signal".to_owned(), |code| code.to_string());
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    insta::with_settings!({omit_expression => true}, {
+    insta::with_settings!({omit_expression => true, filters => vec![(r"(?m)^iris \d+\.\d+\.\d+(?:-dev\.[0-9a-f]{7,64})?$", "iris [version]")]}, {
         insta::assert_snapshot!(
             name,
             format!("status: {status}\n--- stdout\n{stdout}--- stderr\n{stderr}")
@@ -45,8 +45,17 @@ fn prints_version_to_stdout() {
     let workspace = TestWorkspace::empty();
     let output = workspace.command(&["--version"]);
     assert!(output.status.success());
-    assert!(!output.stdout.is_empty());
     assert!(output.stderr.is_empty());
+    let manifest = include_str!("../../compiler-executable/iris-cli/Cargo.toml");
+    let version = manifest
+        .lines()
+        .find_map(|line| line.strip_prefix("version = \"")?.strip_suffix('"'))
+        .expect("iris-cli package version");
+    let version = match option_env!("IRIS_BUILD_REVISION") {
+        Some(revision) => format!("{version}-dev.{}", revision.to_ascii_lowercase()),
+        None => version.to_owned(),
+    };
+    assert_eq!(output.stdout, format!("iris {version}\n").as_bytes());
     snapshot_output("version", &output);
 }
 
