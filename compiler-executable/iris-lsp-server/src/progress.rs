@@ -86,7 +86,9 @@ impl Progress {
         match &mut attempt.state {
             AttemptState::Creating { latest, end: None, .. } => *latest = Some(report),
             AttemptState::Creating { end: Some(_), .. } => {}
-            AttemptState::Active => notify(editor, &attempt.token, report),
+            AttemptState::Active => {
+                notify(editor, &attempt.token, WorkDoneProgress::Report(report))
+            }
         }
     }
 
@@ -97,7 +99,7 @@ impl Progress {
             AttemptState::Creating { end: Some(_), .. } => {}
             AttemptState::Active => {
                 let end = WorkDoneProgressEnd { message: Some(message) };
-                notify(editor, &attempt.token, end);
+                notify(editor, &attempt.token, WorkDoneProgress::End(end));
                 self.attempts.remove(&generation);
             }
         }
@@ -118,13 +120,13 @@ impl Progress {
             return;
         }
         let token = ProgressToken::clone(&attempt.token);
-        notify(editor, &token, begin.clone());
+        notify(editor, &token, WorkDoneProgress::Begin(begin.clone()));
         if let Some(report) = latest.take() {
-            notify(editor, &token, report);
+            notify(editor, &token, WorkDoneProgress::Report(report));
         }
         if let Some(message) = end.take() {
             let end = WorkDoneProgressEnd { message: Some(message) };
-            notify(editor, &token, end);
+            notify(editor, &token, WorkDoneProgress::End(end));
             self.attempts.remove(&generation);
             return;
         }
@@ -151,7 +153,16 @@ pub(crate) fn creation_result(
     result.map(|_| ()).map_err(|error| format!("{} (jsonrpc error {})", error.message, error.code))
 }
 
-fn notify(editor: &EditorConnection, token: &ProgressToken, value: impl Serialize) {
+/// The `$/progress` payloads for work done progress. Each structure serializes its own `kind`.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum WorkDoneProgress {
+    Begin(WorkDoneProgressBegin),
+    Report(WorkDoneProgressReport),
+    End(WorkDoneProgressEnd),
+}
+
+fn notify(editor: &EditorConnection, token: &ProgressToken, value: WorkDoneProgress) {
     let parameters = ProgressParams { token: ProgressToken::clone(token), value: to_value(value) };
     editor.notify(ProgressNotification::METHOD.as_str(), to_value(parameters));
 }
