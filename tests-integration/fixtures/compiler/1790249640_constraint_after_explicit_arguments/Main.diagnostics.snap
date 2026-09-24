@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [CannotUnify] · Main.purs:30:7
+  •
+  │
+  • Cannot unify 'Show ?34 => ?34 -> String' with 'a -> String'
+  │
+  │   eta = after
+  │         ╰────
+  •

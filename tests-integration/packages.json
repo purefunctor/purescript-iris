@@ -10,6 +10,7 @@
     "partial",
     "prelude",
     "profunctor",
+    "profunctor-lenses",
     "safe-coerce",
     "tailrec"
   ]

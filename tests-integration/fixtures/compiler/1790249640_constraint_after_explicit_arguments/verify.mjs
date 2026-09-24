@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import * as Main from "./output/Main/index.js";
+import { showInt } from "./output/Data.Show/index.js";
+
+assert.equal(Main.test, 42);
+assert.equal(Main.partial(7), 30);
+assert.equal(Main.direct, "value=42");
+assert.equal(Main.applied(19), "partial=19");
+assert.equal(Main.after("direct=")(showInt)(23), "direct=23");
+const partial = Main.after("saved=");
+assert.equal(partial(showInt)(31), "saved=31");
+assert.equal(Main.dictionaryFirst, "before=17");
+assert.equal(Main.before(showInt)("first=")(29), "first=29");
+assert.equal(Main.eta("eta=")(showInt)(37), "eta=37");
+assert.equal(Main.branches(true)(showInt)(41), "true=41");
+assert.equal(Main.branches(false)(showInt)(43), "false=43");
+const equality = { eq: left => right => left === right };
+assert.equal(Main.interleaved(showInt)(47)(equality)(2)(2), "47");
+assert.equal(Main.interleaved(showInt)(47)(equality)(2)(3), "different");
+assert.equal(Main.local, "local=13");
