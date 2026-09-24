@@ -126,6 +126,12 @@ fn register_modules(
 ) {
     let mut modules: HashMap<String, FileId> = HashMap::new();
 
+    // Registration mutates the engine and reports duplicates in file order,
+    // so only the parse it depends on is computed in parallel beforehand.
+    file_ids.par_iter().for_each(|&file_id| {
+        let _ = engine.snapshot().parsed(file_id);
+    });
+
     for &file_id in file_ids {
         let metadata = file_metadata.get(&file_id).expect("file metadata exists");
         match engine.parsed(file_id) {
