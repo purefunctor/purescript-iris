@@ -10,62 +10,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Compilation
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-        toolchain:
-          - stable
+  linux_tests:
+    uses: ./.github/workflows/platform-tests.yml
+    with:
+      os: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+  macos_tests:
+    uses: ./.github/workflows/platform-tests.yml
+    with:
+      os: macos-latest
 
-      - name: Install Rust toolchain
-        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-
-      - name: Cache build artifacts
-        uses: Swatinem/rust-cache@v2.9.2
-        with:
-          cache-bin: "false"
-          prefix-key: "v8-nextest-workspace-${{ matrix.os }}-${{ matrix.toolchain }}"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Install tools
-        uses: taiki-e/install-action@v2.87.1
-        with:
-          tool: cargo-nextest
-
-      - name: Build workspace
-        run: cargo build --workspace --locked --verbose
-
-      - name: Run workspace tests
-        run: cargo nextest run --locked
-
-      - name: Install Node.js for backend verification
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Cache integration packages
-        uses: actions/cache@v6
-        with:
-          path: target/integration-packages
-          key: integration-packages-v3-${{ runner.os }}-${{ hashFiles('tests-integration/packages.json', 'tests-support/src/**') }}
-
-      - name: Prepare integration packages
-        run: cargo run -p tests-support --locked -- prepare tests-integration/packages.json target/integration-packages
-
-      - name: Test registry preparation
-        run: cargo nextest run -p tests-support --locked
-
-      - name: Run integration tests
-        run: cargo nextest run -p tests-integration --locked
+  windows_tests:
+    uses: ./.github/workflows/platform-tests.yml
+    with:
+      os: windows-latest
 
   end_to_end:
     name: End-to-end tests (${{ matrix.os }})
