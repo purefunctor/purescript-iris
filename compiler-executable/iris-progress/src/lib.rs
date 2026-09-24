@@ -576,7 +576,7 @@ fn bar_style(
 ) -> Style {
     let style = Style::default();
     match appearance {
-        ProgressAppearance::TrueColor { .. } if index < filled => {
+        ProgressAppearance::TrueColor { foreground, background, .. } if index < filled => {
             let progress = index as f32 / width.saturating_sub(1).max(1) as f32;
             let colors = [(240, 128, 136), (248, 152, 184), (184, 136, 224), (136, 72, 192)];
             let scaled = progress * (colors.len() - 1) as f32;
@@ -614,6 +614,9 @@ fn bar_style(
                 };
                 color = (highlight(color.0), highlight(color.1), highlight(color.2));
             }
+            if light_background {
+                color = contrasting_bar_color(color, foreground, background);
+            }
             style.fg(Color::Rgb(color.0, color.1, color.2))
         }
         ProgressAppearance::TrueColor { foreground, .. } if index == filled => style
@@ -650,6 +653,44 @@ fn bar_style(
         ProgressAppearance::Ansi => style.fg(Color::DarkGray),
         ProgressAppearance::Plain => unreachable!("plain bars are rendered without styles"),
     }
+}
+
+fn contrasting_bar_color(
+    color: (u8, u8, u8),
+    foreground: (u8, u8, u8),
+    background: (u8, u8, u8),
+) -> (u8, u8, u8) {
+    let background_luminance = relative_luminance(background);
+    let contrast = |color| {
+        let luminance = relative_luminance(color);
+        (luminance.max(background_luminance) + 0.05) / (luminance.min(background_luminance) + 0.05)
+    };
+    if contrast(color) >= 3.0 {
+        return color;
+    }
+    for step in 1..=16 {
+        let amount = step as f32 / 16.0;
+        let blend = |color: u8, foreground: u8| {
+            (color as f32 + (foreground as f32 - color as f32) * amount).round() as u8
+        };
+        let blended = (
+            blend(color.0, foreground.0),
+            blend(color.1, foreground.1),
+            blend(color.2, foreground.2),
+        );
+        if contrast(blended) >= 3.0 {
+            return blended;
+        }
+    }
+    foreground
+}
+
+fn relative_luminance((red, green, blue): (u8, u8, u8)) -> f32 {
+    let linear = |channel: u8| {
+        let value = channel as f32 / 255.0;
+        if value <= 0.04045 { value / 12.92 } else { ((value + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
 }
 
 fn history_style(appearance: ProgressAppearance, row: usize) -> Style {

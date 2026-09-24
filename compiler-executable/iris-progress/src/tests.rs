@@ -391,6 +391,36 @@ fn compilation_frame_has_reviewable_light_true_color_output() {
 }
 
 #[test]
+fn finished_bar_remains_visible_on_matching_midtone_background() {
+    let background = (156, 83, 88);
+    let appearance = ProgressAppearance::TrueColor {
+        foreground: (0, 0, 0),
+        background,
+        theme_mode: ThemeMode::Light,
+    };
+    for finished in [false, true] {
+        let first_cell = bar_style(appearance, 0, 48, 12, 0, finished).fg.unwrap();
+        assert_ne!(first_cell, Color::Rgb(background.0, background.1, background.2));
+        let Color::Rgb(red, green, blue) = first_cell else { panic!("expected RGB") };
+        let contrast = (relative_luminance(background) + 0.05)
+            / (relative_luminance((red, green, blue)) + 0.05);
+        assert!(contrast >= 3.0);
+    }
+
+    let output = render_true_color_with_palette(
+        &representative_finished_compilation(),
+        48,
+        PROGRESS_REGION_HEIGHT,
+        (0, 0, 0),
+        background,
+        ThemeMode::Light,
+    );
+    insta::with_settings!({ omit_expression => true }, {
+        insta::assert_debug_snapshot!("finished_frame_midtone_light_true_color_ansi", output);
+    });
+}
+
+#[test]
 fn light_palette_preserves_contrast_across_history_and_animation() {
     let appearance = ProgressAppearance::TrueColor {
         foreground: (76, 83, 107),
