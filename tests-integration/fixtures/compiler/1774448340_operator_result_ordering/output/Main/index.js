@@ -9,8 +9,10 @@ export function identity(a) {
 export function dimap(dictionary) {
   return dictionary.dimap;
 }
-export function lens(profunctorPDict) {
-  return (pack) => (unpack) => (pab) => /* @__PURE__ */ dimap(profunctorPDict)(unpack)(pack)(pab);
+export function lens(pack) {
+  return (unpack) => {
+    return (profunctorPDict) => (pab) => /* @__PURE__ */ dimap(profunctorPDict)(unpack)(pack)(pab);
+  };
 }
 export function wrapped(profunctorPDict) {
   const $closure = (section183) => {

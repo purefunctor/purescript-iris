@@ -11,7 +11,7 @@ partial =
     add {semiringInt} v60 5
 
 after :: forall a. Prim.String -> Main.Transform a
-after = \{showDict} -> \prefix -> \value -> append {semigroupString} prefix (show {showDict} value)
+after = \prefix -> \{showDict} -> \value -> append {semigroupString} prefix (show {showDict} value)
 
 before :: forall a. Data.Show.Show a => Prim.String -> a -> Prim.String
 before = \{showDict} -> \prefix -> \value -> append {semigroupString} prefix (show {showDict} value)
@@ -26,20 +26,20 @@ dictionaryFirst :: Prim.String
 dictionaryFirst = before {showInt} "before=" 17
 
 eta :: forall a. Prim.String -> Main.Transform a
-eta = \{showDict} -> after
+eta = after
 
 branches :: forall a. Prim.Boolean -> Main.Transform a
-branches = \{showDict} -> \true -> \value ->
+branches = \true -> \{showDict} -> \value ->
   append {semigroupString} "true=" (show {showDict} value)
-branches = \{showDict} -> \false -> after "false=" {showDict}
+branches = \false -> \{showDict} -> after "false=" {showDict}
 
 interleaved :: forall a b. Data.Show.Show a => a -> (Data.Eq.Eq b => b -> b -> Prim.String)
-interleaved = \{showDict} -> \{eqDict} -> \value -> \left -> \right ->
+interleaved = \{showDict} -> \value -> \{eqDict} -> \left -> \right ->
   if eq {eqDict} left right then show {showDict} value else "different"
 
 local :: Prim.String
 local = nested "local=" {showInt} 13
   where
   nested :: forall a. Prim.String -> Main.Transform a
-  nested = \{showDict} -> \prefix -> \value ->
+  nested = \prefix -> \{showDict} -> \value ->
     append {semigroupString} prefix (show {showDict} value)

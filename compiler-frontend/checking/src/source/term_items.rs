@@ -3,6 +3,7 @@ use std::sync::Arc;
 use building_types::QueryResult;
 use files::FileId;
 use indexing::{IndexedTermItemKind, InstanceItemId, InstanceSourceItemId, TermItemId, TypeItemId};
+use itertools::Itertools;
 use lowering::TermItemKind;
 use rustc_hash::FxHashMap;
 
@@ -124,13 +125,13 @@ where
     let class_kind = toolkit::lookup_file_type(state, context, class_file, class_id)?;
 
     let expected_kinds = {
-        let signature::DecomposedSignature { arguments, .. } = signature::decompose_signature(
+        let signature = signature::decompose_signature(
             state,
             context,
             class_kind,
             signature::DecomposeSignatureMode::Full,
         )?;
-        arguments
+        signature.arguments().collect_vec()
     };
 
     if expected_kinds.len() != arguments.len() {

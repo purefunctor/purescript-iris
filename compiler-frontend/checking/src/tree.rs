@@ -67,8 +67,16 @@ pub struct ValueDeclaration {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeclarationAbstraction {
-    Type { binder: ForallBinderId, rigid: TypeId },
-    Evidence { constraint: TypeId, binder: EvidenceBinderId },
+    Type {
+        binder: ForallBinderId,
+        rigid: TypeId,
+    },
+    Evidence {
+        constraint: TypeId,
+        binder: EvidenceBinderId,
+    },
+    /// Consume the next explicit parameter at this point in the type spine.
+    Argument,
 }
 
 #[derive(Debug, PartialEq, Eq)]

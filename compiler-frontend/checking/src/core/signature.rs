@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
-use itertools::Itertools;
 use lowering::TypeVariableBinding;
 
 use crate::context::CheckContext;
@@ -15,25 +14,44 @@ use crate::{ExternalQueries, safe_loop};
 pub enum DecomposedAbstraction {
     Type { binder: ForallBinderId },
     Constraint { constraint: TypeId },
+    Argument { argument: TypeId },
 }
 
 pub struct DecomposedSignature {
+    /// The type spine in source order, including explicit function arguments.
     pub abstractions: Vec<DecomposedAbstraction>,
-    pub arguments: Vec<TypeId>,
     pub result: TypeId,
+}
+
+impl DecomposedSignature {
+    pub fn arguments(&self) -> impl Iterator<Item = TypeId> {
+        self.abstractions.iter().filter_map(|abstraction| match abstraction {
+            DecomposedAbstraction::Argument { argument } => Some(*argument),
+            _ => None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkolemisedAbstraction {
     Type { binder: ForallBinderId, rigid: TypeId },
     Constraint { constraint: TypeId },
+    Argument { argument: TypeId },
 }
 
 pub struct SkolemisedSignature {
     pub renaming: Arc<RigidRenaming>,
     pub abstractions: Vec<SkolemisedAbstraction>,
-    pub arguments: Vec<TypeId>,
     pub result: TypeId,
+}
+
+impl SkolemisedSignature {
+    pub fn arguments(&self) -> impl Iterator<Item = TypeId> {
+        self.abstractions.iter().filter_map(|abstraction| match abstraction {
+            SkolemisedAbstraction::Argument { argument } => Some(*argument),
+            _ => None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,7 +70,7 @@ where
     Q: ExternalQueries,
 {
     let mut abstractions = vec![];
-    let mut arguments = vec![];
+    let mut argument_count = 0;
 
     safe_loop! {
         current = normalise::expand(state, context, current)?;
@@ -70,20 +88,21 @@ where
 
             Type::Function(argument, result) => {
                 if let DecomposeSignatureMode::Patterns { required } = mode
-                    && arguments.len() >= required
+                    && argument_count >= required
                 {
-                    return Ok(DecomposedSignature { abstractions, arguments, result: current });
+                    return Ok(DecomposedSignature { abstractions, result: current });
                 }
 
-                arguments.push(argument);
+                abstractions.push(DecomposedAbstraction::Argument { argument });
+                argument_count += 1;
                 current = result;
             }
 
             Type::Application(function_argument, result) => {
                 if let DecomposeSignatureMode::Patterns { required } = mode
-                    && arguments.len() >= required
+                    && argument_count >= required
                 {
-                    return Ok(DecomposedSignature { abstractions, arguments, result: current });
+                    return Ok(DecomposedSignature { abstractions, result: current });
                 }
 
                 let function_argument =
@@ -91,19 +110,20 @@ where
 
                 let Type::Application(function, argument) = *context.lookup_type(function_argument)
                 else {
-                    return Ok(DecomposedSignature { abstractions, arguments, result: current });
+                    return Ok(DecomposedSignature { abstractions, result: current });
                 };
 
                 let function = normalise::expand(state, context, function)?;
                 if function == context.prim.function {
-                    arguments.push(argument);
+                    abstractions.push(DecomposedAbstraction::Argument { argument });
+                    argument_count += 1;
                     current = result;
                 } else {
-                    return Ok(DecomposedSignature { abstractions, arguments, result: current });
+                    return Ok(DecomposedSignature { abstractions, result: current });
                 }
             }
 
-            _ => return Ok(DecomposedSignature { abstractions, arguments, result: current }),
+            _ => return Ok(DecomposedSignature { abstractions, result: current }),
         }
     }
 }
@@ -121,7 +141,7 @@ where
         decompose_signature(state, context, signature_type, DecomposeSignatureMode::Full)?;
 
     let actual = bindings.len() as u32;
-    let expected = signature.arguments.len() as u32;
+    let expected = signature.arguments().count() as u32;
 
     if actual > expected {
         state.insert_error(ErrorKind::TypeSignatureVariableMismatch {
@@ -131,11 +151,21 @@ where
         });
     }
 
-    let mut remaining = signature.arguments.into_iter();
-    let arguments = remaining.by_ref().take(actual as usize).collect();
-    let result = context.intern_function_iter(remaining, signature.result);
-
-    Ok(DecomposedSignature { abstractions: signature.abstractions, arguments, result })
+    let mut argument_count = expected as usize;
+    let mut result = signature.result;
+    let mut abstractions = vec![];
+    for abstraction in signature.abstractions.into_iter().rev() {
+        if let DecomposedAbstraction::Argument { argument } = abstraction {
+            argument_count -= 1;
+            if argument_count >= bindings.len() {
+                result = context.intern_function(argument, result);
+                continue;
+            }
+        }
+        abstractions.push(abstraction);
+    }
+    abstractions.reverse();
+    Ok(DecomposedSignature { abstractions, result })
 }
 
 pub fn expect_term_signature<Q>(
@@ -149,31 +179,51 @@ where
 {
     let signature =
         decompose_signature(state, context, signature_type, DecomposeSignatureMode::Full)?;
+    let signature = skolemise_decomposed_signature(state, context, signature)?;
+    let mut argument_count = signature.arguments().count();
+    let mut result = signature.result;
+    let mut abstractions = vec![];
 
-    let SkolemisedSignature { renaming, abstractions, arguments, result } =
-        skolemise_decomposed_signature(state, context, signature)?;
+    // Skolemise the whole spine to preserve hidden forall scopes, but leave
+    // evidence beyond unapplied arguments in the result. With `f = g`, the
+    // signature `A -> C => B` requires a body of type `A -> C => B`, not `A -> B`.
+    for abstraction in signature.abstractions.into_iter().rev() {
+        match abstraction {
+            SkolemisedAbstraction::Argument { argument } => {
+                argument_count -= 1;
+                if argument_count >= required {
+                    result = context.intern_function(argument, result);
+                    continue;
+                }
+            }
+            SkolemisedAbstraction::Constraint { constraint } if argument_count > required => {
+                result = context.intern_constrained(constraint, result);
+                continue;
+            }
+            _ => {}
+        }
+        abstractions.push(abstraction);
+    }
+    abstractions.reverse();
 
-    let mut remaining = arguments.into_iter();
-    let mut arguments = remaining.by_ref().take(required).collect_vec();
+    let mut signature = SkolemisedSignature { renaming: signature.renaming, abstractions, result };
+    synthesise_functions(state, context, &mut signature, required)?;
 
-    let mut result = context.intern_function_iter(remaining, result);
-    synthesise_functions(state, context, &mut arguments, &mut result, required)?;
-
-    Ok(SkolemisedSignature { renaming, abstractions, arguments, result })
+    Ok(signature)
 }
 
 fn synthesise_functions<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    arguments: &mut Vec<TypeId>,
-    result_type: &mut TypeId,
+    signature: &mut SkolemisedSignature,
     required: usize,
 ) -> QueryResult<()>
 where
     Q: ExternalQueries,
 {
-    while arguments.len() < required {
-        let current = normalise::expand(state, context, *result_type)?;
+    let mut argument_count = signature.arguments().count();
+    while argument_count < required {
+        let current = normalise::expand(state, context, signature.result)?;
 
         let Type::Unification(unification_id) = *context.lookup_type(current) else {
             break;
@@ -187,8 +237,9 @@ where
             break;
         }
 
-        arguments.push(argument);
-        *result_type = result;
+        signature.abstractions.push(SkolemisedAbstraction::Argument { argument });
+        signature.result = result;
+        argument_count += 1;
     }
 
     Ok(())
@@ -219,17 +270,15 @@ where
                 let constraint = renaming.substitute(state, context, constraint)?;
                 abstractions.push(SkolemisedAbstraction::Constraint { constraint });
             }
+            DecomposedAbstraction::Argument { argument } => {
+                let argument = renaming.substitute(state, context, argument)?;
+                abstractions.push(SkolemisedAbstraction::Argument { argument });
+            }
         }
     }
-
-    let arguments = signature
-        .arguments
-        .iter()
-        .map(|&argument| renaming.substitute(state, context, argument))
-        .collect::<QueryResult<Vec<_>>>()?;
 
     let result = renaming.substitute(state, context, signature.result)?;
     let renaming = Arc::new(renaming);
 
-    Ok(SkolemisedSignature { renaming, abstractions, arguments, result })
+    Ok(SkolemisedSignature { renaming, abstractions, result })
 }

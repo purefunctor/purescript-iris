@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
-use itertools::izip;
+use itertools::{Itertools, izip};
 use smol_str::format_smolstr;
 
 use crate::context::CheckContext;
@@ -74,13 +74,14 @@ impl DecodedTraversalMember {
             TraversalKind::Contravariant => 2,
             TraversalKind::Profunctor => 3,
         };
-        let signature::SkolemisedSignature { renaming, abstractions, arguments, result } =
-            signature::expect_term_signature(
-                state,
-                context,
-                member.implementation_type,
-                argument_count,
-            )?;
+        let signature = signature::expect_term_signature(
+            state,
+            context,
+            member.implementation_type,
+            argument_count,
+        )?;
+        let arguments = signature.arguments().collect_vec();
+        let signature::SkolemisedSignature { renaming, abstractions, result } = signature;
 
         let (source_type, mappings) = match (traversal, arguments.as_slice()) {
             (TraversalKind::Contravariant, [mapping, source]) => {

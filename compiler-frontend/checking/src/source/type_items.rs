@@ -4,6 +4,7 @@ use std::sync::Arc;
 use building_types::QueryResult;
 use files::FileId;
 use indexing::{IndexedTypeItemKind, TermItemId, TypeItemId};
+use itertools::Itertools;
 use lowering::{
     ClassDeclaration, DataDeclaration, LoweringError, NewtypeDeclaration, RecursiveGroup, Scc,
     TermItemKind, TypeItemKind, TypeSynonymDeclaration, TypeVariableBinding,
@@ -367,7 +368,8 @@ where
     Q: ExternalQueries,
 {
     let signature = signature::expect_type_signature(state, context, signature, bindings)?;
-    check_type_variable_bindings(state, context, bindings, &signature.arguments)
+    let arguments = signature.arguments().collect_vec();
+    check_type_variable_bindings(state, context, bindings, &arguments)
 }
 
 fn check_type_variable_bindings<Q>(
@@ -507,13 +509,14 @@ where
             continue;
         };
 
-        let signature::DecomposedSignature { abstractions, arguments: parameter_kinds, .. } =
-            signature::decompose_signature(
-                state,
-                context,
-                constructor_kind,
-                signature::DecomposeSignatureMode::Full,
-            )?;
+        let signature = signature::decompose_signature(
+            state,
+            context,
+            constructor_kind,
+            signature::DecomposeSignatureMode::Full,
+        )?;
+        let parameter_kinds = signature.arguments().collect_vec();
+        let abstractions = signature.abstractions;
         let kind_binders = abstractions.into_iter().filter_map(|abstraction| {
             let signature::DecomposedAbstraction::Type { binder } = abstraction else {
                 return None;
@@ -710,7 +713,8 @@ where
 {
     let signature =
         signature::expect_type_signature(state, context, (signature_id, signature_kind), bindings)?;
-    let parameters = check_type_variable_bindings(state, context, bindings, &signature.arguments)?;
+    let arguments = signature.arguments().collect_vec();
+    let parameters = check_type_variable_bindings(state, context, bindings, &arguments)?;
     Ok((parameters, signature.result))
 }
 
@@ -807,7 +811,8 @@ where
     Q: ExternalQueries,
 {
     let signature = signature::expect_type_signature(state, context, signature, bindings)?;
-    check_type_variable_bindings(state, context, bindings, &signature.arguments)
+    let arguments = signature.arguments().collect_vec();
+    check_type_variable_bindings(state, context, bindings, &arguments)
 }
 
 fn check_class_equation_infer<Q>(
@@ -874,13 +879,14 @@ where
             continue;
         };
 
-        let signature::DecomposedSignature { abstractions, arguments: class_parameters, .. } =
-            signature::decompose_signature(
-                state,
-                context,
-                class_kind,
-                signature::DecomposeSignatureMode::Full,
-            )?;
+        let signature = signature::decompose_signature(
+            state,
+            context,
+            class_kind,
+            signature::DecomposeSignatureMode::Full,
+        )?;
+        let class_parameters = signature.arguments().collect_vec();
+        let abstractions = signature.abstractions;
         let class_binders = abstractions.into_iter().filter_map(|abstraction| {
             let signature::DecomposedAbstraction::Type { binder } = abstraction else {
                 return None;

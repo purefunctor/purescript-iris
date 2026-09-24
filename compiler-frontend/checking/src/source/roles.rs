@@ -40,13 +40,13 @@ pub fn count_kind_arguments<Q>(
 where
     Q: ExternalQueries,
 {
-    let signature::DecomposedSignature { arguments, .. } = signature::decompose_signature(
+    let signature = signature::decompose_signature(
         state,
         context,
         kind,
         signature::DecomposeSignatureMode::Full,
     )?;
-    Ok(arguments.len())
+    Ok(signature.arguments().count())
 }
 
 pub fn check_declared_roles(
