@@ -181,9 +181,7 @@ fn did_change(
         },
     };
     let trigger = if workspace.configuration.diagnostics.on_change {
-        DiagnosticTrigger::AssociatedSource(Uri::clone(
-            &parameters.text_document.text_document_identifier.uri,
-        ))
+        DiagnosticTrigger::AssociatedSource(Uri::clone(uri))
     } else {
         DiagnosticTrigger::None
     };

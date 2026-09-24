@@ -58,17 +58,7 @@ pub fn document(
         let kind = term_symbol_kind(&indexed.items[term_id].kind);
         let uri = Uri::clone(&uri);
         let location = common::file_term_location(context, uri, current_file, &positions, term_id)?;
-        symbols.push(SymbolInformation {
-            base_symbol_information: BaseSymbolInformation {
-                name: name.to_string(),
-                kind,
-                tags: None,
-                container_name: None,
-            },
-            #[allow(deprecated)]
-            deprecated: None,
-            location,
-        });
+        symbols.push(symbol_information(name, kind, location));
     }
 
     for (name, file_id, type_id) in resolved.locals.iter_types() {
@@ -78,17 +68,7 @@ pub fn document(
         let kind = type_symbol_kind(&indexed.items[type_id].kind);
         let uri = Uri::clone(&uri);
         let location = common::file_type_location(context, uri, current_file, &positions, type_id)?;
-        symbols.push(SymbolInformation {
-            base_symbol_information: BaseSymbolInformation {
-                name: name.to_string(),
-                kind,
-                tags: None,
-                container_name: None,
-            },
-            #[allow(deprecated)]
-            deprecated: None,
-            location,
-        });
+        symbols.push(symbol_information(name, kind, location));
     }
 
     for (name, file_id, type_id) in resolved.locals.iter_classes() {
@@ -98,17 +78,7 @@ pub fn document(
         let kind = SymbolKind::Interface;
         let uri = Uri::clone(&uri);
         let location = common::file_type_location(context, uri, current_file, &positions, type_id)?;
-        symbols.push(SymbolInformation {
-            base_symbol_information: BaseSymbolInformation {
-                name: name.to_string(),
-                kind,
-                tags: None,
-                container_name: None,
-            },
-            #[allow(deprecated)]
-            deprecated: None,
-            location,
-        });
+        symbols.push(symbol_information(name, kind, location));
     }
 
     symbols.sort_by_key(|s| (s.location.range.start.line, s.location.range.start.character));
@@ -207,17 +177,7 @@ fn build_symbol_list(
                 PositionConverter::new(&content, context.position_encoding())
             });
             let location = common::file_term_location(context, uri, file_id, positions, term_id)?;
-            symbols.push(SymbolInformation {
-                base_symbol_information: BaseSymbolInformation {
-                    name: name.to_string(),
-                    kind,
-                    tags: None,
-                    container_name: None,
-                },
-                #[allow(deprecated)]
-                deprecated: None,
-                location,
-            });
+            symbols.push(symbol_information(name, kind, location));
         }
 
         for (name, _, type_id) in resolved.locals.iter_types() {
@@ -230,17 +190,7 @@ fn build_symbol_list(
                 PositionConverter::new(&content, context.position_encoding())
             });
             let location = common::file_type_location(context, uri, file_id, positions, type_id)?;
-            symbols.push(SymbolInformation {
-                base_symbol_information: BaseSymbolInformation {
-                    name: name.to_string(),
-                    kind,
-                    tags: None,
-                    container_name: None,
-                },
-                #[allow(deprecated)]
-                deprecated: None,
-                location,
-            });
+            symbols.push(symbol_information(name, kind, location));
         }
 
         for (name, _, type_id) in resolved.locals.iter_classes() {
@@ -252,17 +202,7 @@ fn build_symbol_list(
                 PositionConverter::new(&content, context.position_encoding())
             });
             let location = common::file_type_location(context, uri, file_id, positions, type_id)?;
-            symbols.push(SymbolInformation {
-                base_symbol_information: BaseSymbolInformation {
-                    name: name.to_string(),
-                    kind: SymbolKind::Interface,
-                    tags: None,
-                    container_name: None,
-                },
-                #[allow(deprecated)]
-                deprecated: None,
-                location,
-            });
+            symbols.push(symbol_information(name, SymbolKind::Interface, location));
         }
     }
 
@@ -270,3 +210,11 @@ fn build_symbol_list(
 }
 
 pub type WorkspaceSymbolsCache = Trie<String, Arc<Vec<SymbolInformation>>>;
+
+fn symbol_information(name: &str, kind: SymbolKind, location: Location) -> SymbolInformation {
+    let name = name.to_string();
+    let base_symbol_information =
+        BaseSymbolInformation { name, kind, tags: None, container_name: None };
+    #[allow(deprecated)]
+    SymbolInformation { deprecated: None, location, base_symbol_information }
+}
