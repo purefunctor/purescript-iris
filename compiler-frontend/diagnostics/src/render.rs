@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use line_index::{LineCol, LineIndex, WideEncoding};
 use lsp_types::{
-    Code, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Position, Range,
+    Code, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Message, Position, Range,
 };
 use syntax::TextSize;
 use unicode_width::UnicodeWidthChar;
@@ -327,7 +327,7 @@ pub fn to_lsp_diagnostic(
         code: Some(Code::String(diagnostic.code.to_string())),
         code_description: None,
         source: Some(format!("analyzer/{}", diagnostic.source)),
-        message: diagnostic.message.clone().into(),
+        message: Message::String(String::clone(&diagnostic.message)),
         related_information: if related_information.is_empty() {
             None
         } else {
