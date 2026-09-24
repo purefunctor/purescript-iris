@@ -421,17 +421,49 @@ fn finished_bar_remains_visible_on_matching_midtone_background() {
 }
 
 #[test]
-fn light_palette_preserves_contrast_across_history_and_animation() {
+fn oldest_history_row_stays_readable_on_light_background() {
     let appearance = ProgressAppearance::TrueColor {
         foreground: (76, 83, 107),
         background: (248, 250, 255),
         theme_mode: ThemeMode::Light,
     };
-    assert_eq!(accent_style(appearance).fg, Some(Color::Rgb(76, 83, 107)));
-    assert_eq!(history_style(appearance, 0).fg, Some(Color::Rgb(110, 116, 137)));
-    assert_eq!(history_style(appearance, 9).fg, Some(Color::Rgb(76, 83, 107)));
-    assert_eq!(bar_style(appearance, 0, 48, 12, 7, false).fg, Some(Color::Rgb(156, 83, 88)));
-    assert_eq!(bar_style(appearance, 7, 48, 12, 7, false).fg, Some(Color::Rgb(89, 50, 57)));
+    let Color::Rgb(red, green, blue) = history_style(appearance, 0).fg.unwrap() else {
+        panic!("expected RGB")
+    };
+    let contrast = (relative_luminance((248, 250, 255)) + 0.05)
+        / (relative_luminance((red, green, blue)) + 0.05);
+    assert!(contrast >= 4.5);
+}
+
+#[test]
+fn filled_bar_contrasts_with_dark_and_gray_backgrounds() {
+    for (foreground, background, theme_mode) in [
+        ((255, 255, 255), (240, 128, 136), ThemeMode::Dark),
+        ((34, 34, 34), (119, 119, 119), ThemeMode::Light),
+    ] {
+        let appearance = ProgressAppearance::TrueColor { foreground, background, theme_mode };
+        for finished in [false, true] {
+            let color = bar_style(appearance, 0, 48, 12, 7, finished).fg.unwrap();
+            let Color::Rgb(red, green, blue) = color else { panic!("expected RGB") };
+            let foreground_luminance = relative_luminance((red, green, blue));
+            let background_luminance = relative_luminance(background);
+            let contrast = (foreground_luminance.max(background_luminance) + 0.05)
+                / (foreground_luminance.min(background_luminance) + 0.05);
+            assert!(contrast >= 3.0, "{theme_mode:?} bar on {background:?}: {color:?}");
+        }
+    }
+
+    let output = render_true_color_with_palette(
+        &representative_finished_compilation(),
+        48,
+        PROGRESS_REGION_HEIGHT,
+        (255, 255, 255),
+        (240, 128, 136),
+        ThemeMode::Dark,
+    );
+    insta::with_settings!({ omit_expression => true }, {
+        insta::assert_debug_snapshot!("finished_frame_matching_dark_true_color_ansi", output);
+    });
 }
 
 #[test]

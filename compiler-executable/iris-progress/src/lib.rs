@@ -614,9 +614,7 @@ fn bar_style(
                 };
                 color = (highlight(color.0), highlight(color.1), highlight(color.2));
             }
-            if light_background {
-                color = contrasting_bar_color(color, foreground, background);
-            }
+            color = contrasting_bar_color(color, foreground, background);
             style.fg(Color::Rgb(color.0, color.1, color.2))
         }
         ProgressAppearance::TrueColor { foreground, .. } if index == filled => style
@@ -668,21 +666,25 @@ fn contrasting_bar_color(
     if contrast(color) >= 3.0 {
         return color;
     }
+    let target = if contrast(foreground) >= 3.0 {
+        foreground
+    } else if background_luminance > 0.18 {
+        (0, 0, 0)
+    } else {
+        (255, 255, 255)
+    };
     for step in 1..=16 {
         let amount = step as f32 / 16.0;
-        let blend = |color: u8, foreground: u8| {
-            (color as f32 + (foreground as f32 - color as f32) * amount).round() as u8
+        let blend = |color: u8, target: u8| {
+            (color as f32 + (target as f32 - color as f32) * amount).round() as u8
         };
-        let blended = (
-            blend(color.0, foreground.0),
-            blend(color.1, foreground.1),
-            blend(color.2, foreground.2),
-        );
+        let blended =
+            (blend(color.0, target.0), blend(color.1, target.1), blend(color.2, target.2));
         if contrast(blended) >= 3.0 {
             return blended;
         }
     }
-    foreground
+    target
 }
 
 fn relative_luminance((red, green, blue): (u8, u8, u8)) -> f32 {
@@ -696,7 +698,7 @@ fn relative_luminance((red, green, blue): (u8, u8, u8)) -> f32 {
 fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
     match appearance {
         ProgressAppearance::TrueColor { foreground, background, .. } => {
-            let minimum = if appearance.is_light() { 0.8 } else { 0.18 };
+            let minimum = if appearance.is_light() { 0.85 } else { 0.18 };
             let opacity =
                 minimum + (1.0 - minimum) * row as f32 / (PACKAGE_HISTORY_LENGTH - 1) as f32;
             let blend = |foreground: u8, background: u8| {
