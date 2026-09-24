@@ -10,173 +10,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Compilation
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - macos-latest
-          - windows-latest
-        toolchain:
-          - stable
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-
-      - name: Cache build artifacts
-        uses: Swatinem/rust-cache@v2.9.2
-        with:
-          cache-bin: "false"
-          prefix-key: "v8-nextest-workspace-${{ matrix.os }}-${{ matrix.toolchain }}"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Install tools
-        uses: taiki-e/install-action@v2.87.1
-        with:
-          tool: cargo-nextest
-
-      - name: Build workspace
-        run: cargo build --workspace --locked --verbose
-
-      - name: Run workspace tests
-        run: cargo nextest run --locked
-
-      - name: Install Node.js for backend verification
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Cache integration packages
-        uses: actions/cache@v6
-        with:
-          path: target/integration-packages
-          key: integration-packages-v3-${{ runner.os }}-${{ hashFiles('tests-integration/packages.json', 'tests-support/src/**') }}
-
-      - name: Prepare integration packages
-        run: cargo run -p tests-support --locked -- prepare tests-integration/packages.json target/integration-packages
-
-      - name: Test registry preparation
-        run: cargo nextest run -p tests-support --locked
-
-      - name: Run integration tests
-        run: cargo nextest run -p tests-integration --locked
-
-  linux_build:
-    name: Compilation (Linux)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        run: rustup update stable && rustup default stable
-
-      - name: Cache build artifacts
-        uses: Swatinem/rust-cache@v2.9.2
-        with:
-          cache-bin: "false"
-          prefix-key: "v8-nextest-workspace-ubuntu-latest-stable"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-
-      - name: Install tools
-        uses: taiki-e/install-action@v2.87.1
-        with:
-          tool: cargo-nextest
-
-      - name: Build workspace
-        run: cargo build --workspace --locked --verbose
-
-      - name: Archive test binaries
-        run: >-
-          cargo nextest archive --workspace
-          --exclude tests-e2e --exclude tests-compatibility --exclude compiler-scripts
-          --locked --archive-file nextest-linux.tar.zst
-
-      - name: Upload test binaries
-        uses: actions/upload-artifact@v7
-        with:
-          path: nextest-linux.tar.zst
-          archive: false
-          if-no-files-found: error
-
-      - name: Cache integration packages
-        uses: actions/cache@v6
-        with:
-          path: target/integration-packages
-          key: integration-packages-v3-${{ runner.os }}-${{ hashFiles('tests-integration/packages.json', 'tests-support/src/**') }}
-
-      - name: Prepare integration packages
-        run: cargo run -p tests-support --locked -- prepare tests-integration/packages.json target/integration-packages
-
-      - name: Upload integration packages
-        uses: actions/upload-artifact@v7
-        with:
-          name: integration-packages-linux
-          path: target/integration-packages
-          include-hidden-files: true
-          if-no-files-found: error
-
   linux_tests:
-    name: Linux tests (${{ matrix.category }})
-    needs: linux_build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        category: [workspace, support, compiler, lowering, resolving, lsp, docs, integration-other]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+    uses: ./.github/workflows/platform-tests.yml
+    with:
+      os: ubuntu-latest
 
-      - name: Install tools
-        uses: taiki-e/install-action@v2.87.1
-        with:
-          tool: cargo-nextest
+  macos_tests:
+    uses: ./.github/workflows/platform-tests.yml
+    with:
+      os: macos-latest
 
-      - name: Download test binaries
-        uses: actions/download-artifact@v8
-        with:
-          name: nextest-linux.tar.zst
-
-      - name: Install Node.js for backend verification
-        if: matrix.category == 'compiler'
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Download integration packages
-        if: matrix.category == 'compiler'
-        uses: actions/download-artifact@v8
-        with:
-          name: integration-packages-linux
-          path: target/integration-packages
-
-      - name: Run tests
-        env:
-          CATEGORY: ${{ matrix.category }}
-        run: |
-          case "$CATEGORY" in
-            workspace)
-              cargo nextest run --archive-file nextest-linux.tar.zst \
-                -E 'not package(tests-integration) and not package(tests-support)'
-              ;;
-            support)
-              cargo nextest run --archive-file nextest-linux.tar.zst -E 'package(tests-support)'
-              ;;
-            integration-other)
-              cargo nextest run --archive-file nextest-linux.tar.zst \
-                -E 'package(tests-integration) and not (binary(compiler) or binary(lowering) or binary(resolving) or binary(lsp) or binary(docs))'
-              ;;
-            *)
-              cargo nextest run --archive-file nextest-linux.tar.zst \
-                -E "package(tests-integration) and binary($CATEGORY)"
-              ;;
-          esac
+  windows_tests:
+    uses: ./.github/workflows/platform-tests.yml
+    with:
+      os: windows-latest
 
   end_to_end:
     name: End-to-end tests (${{ matrix.os }})
