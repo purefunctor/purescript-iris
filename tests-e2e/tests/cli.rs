@@ -51,9 +51,9 @@ fn prints_version_to_stdout() {
         .lines()
         .find_map(|line| line.strip_prefix("version = \"")?.strip_suffix('"'))
         .expect("iris-cli package version");
-    let version = match std::env::var("IRIS_BUILD_REVISION") {
-        Ok(revision) => format!("{version}-dev.{}", revision.to_ascii_lowercase()),
-        Err(_) => version.to_owned(),
+    let version = match option_env!("IRIS_BUILD_REVISION") {
+        Some(revision) => format!("{version}-dev.{}", revision.to_ascii_lowercase()),
+        None => version.to_owned(),
     };
     assert_eq!(output.stdout, format!("iris {version}\n").as_bytes());
     snapshot_output("version", &output);
