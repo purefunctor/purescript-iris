@@ -10,11 +10,11 @@ use crate::{AnalyzerContext, AnalyzerError, common};
 
 fn term_symbol_kind(kind: &IndexedTermItemKind) -> SymbolKind {
     match kind {
-        IndexedTermItemKind::Constructor { .. } => SymbolKind::CONSTRUCTOR,
-        IndexedTermItemKind::ClassMember { .. } => SymbolKind::METHOD,
-        IndexedTermItemKind::Operator { .. } => SymbolKind::OPERATOR,
+        IndexedTermItemKind::Constructor { .. } => SymbolKind::Constructor,
+        IndexedTermItemKind::ClassMember { .. } => SymbolKind::Method,
+        IndexedTermItemKind::Operator { .. } => SymbolKind::Operator,
         IndexedTermItemKind::Value { .. } | IndexedTermItemKind::Foreign { .. } => {
-            SymbolKind::FUNCTION
+            SymbolKind::Function
         }
     }
 }
@@ -23,19 +23,19 @@ fn type_symbol_kind(kind: &IndexedTypeItemKind) -> SymbolKind {
     match kind {
         // Note: type classes are partitioned out of `iter_types()` and exposed via `iter_classes()`.
         // Keep this arm for exhaustiveness in case that invariant changes.
-        IndexedTypeItemKind::Class { .. } => SymbolKind::INTERFACE,
-        IndexedTypeItemKind::Operator { .. } => SymbolKind::OPERATOR,
-        IndexedTypeItemKind::Data { .. } => SymbolKind::ENUM,
-        IndexedTypeItemKind::Synonym { .. } => SymbolKind::TYPE_PARAMETER,
+        IndexedTypeItemKind::Class { .. } => SymbolKind::Interface,
+        IndexedTypeItemKind::Operator { .. } => SymbolKind::Operator,
+        IndexedTypeItemKind::Data { .. } => SymbolKind::Enum,
+        IndexedTypeItemKind::Synonym { .. } => SymbolKind::TypeParameter,
         IndexedTypeItemKind::Newtype { .. } | IndexedTypeItemKind::Foreign { .. } => {
-            SymbolKind::STRUCT
+            SymbolKind::Struct
         }
     }
 }
 
 pub fn document(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
 ) -> Result<Option<DocumentSymbolResponse>, AnalyzerError> {
     let engine = context.queries();
 
@@ -56,17 +56,9 @@ pub fn document(
             continue;
         }
         let kind = term_symbol_kind(&indexed.items[term_id].kind);
-        let uri = Url::clone(&uri);
+        let uri = Uri::clone(&uri);
         let location = common::file_term_location(context, uri, current_file, &positions, term_id)?;
-        symbols.push(SymbolInformation {
-            name: name.to_string(),
-            kind,
-            tags: None,
-            #[allow(deprecated)]
-            deprecated: None,
-            location,
-            container_name: None,
-        });
+        symbols.push(symbol_information(name, kind, location));
     }
 
     for (name, file_id, type_id) in resolved.locals.iter_types() {
@@ -74,39 +66,23 @@ pub fn document(
             continue;
         }
         let kind = type_symbol_kind(&indexed.items[type_id].kind);
-        let uri = Url::clone(&uri);
+        let uri = Uri::clone(&uri);
         let location = common::file_type_location(context, uri, current_file, &positions, type_id)?;
-        symbols.push(SymbolInformation {
-            name: name.to_string(),
-            kind,
-            tags: None,
-            #[allow(deprecated)]
-            deprecated: None,
-            location,
-            container_name: None,
-        });
+        symbols.push(symbol_information(name, kind, location));
     }
 
     for (name, file_id, type_id) in resolved.locals.iter_classes() {
         if file_id != current_file {
             continue;
         }
-        let kind = SymbolKind::INTERFACE;
-        let uri = Url::clone(&uri);
+        let kind = SymbolKind::Interface;
+        let uri = Uri::clone(&uri);
         let location = common::file_type_location(context, uri, current_file, &positions, type_id)?;
-        symbols.push(SymbolInformation {
-            name: name.to_string(),
-            kind,
-            tags: None,
-            #[allow(deprecated)]
-            deprecated: None,
-            location,
-            container_name: None,
-        });
+        symbols.push(symbol_information(name, kind, location));
     }
 
     symbols.sort_by_key(|s| (s.location.range.start.line, s.location.range.start.character));
-    Ok(Some(DocumentSymbolResponse::Flat(symbols)))
+    Ok(Some(DocumentSymbolResponse::SymbolInformationList(symbols)))
 }
 
 pub fn workspace(
@@ -123,7 +99,7 @@ pub fn workspace(
     if let Some(exact_symbols) = cache.get(&query) {
         tracing::debug!("Found exact match for '{query}'");
         let flat = Vec::clone(exact_symbols);
-        return Ok(Some(WorkspaceSymbolResponse::Flat(flat)));
+        return Ok(Some(WorkspaceSymbolResponse::SymbolInformationList(flat)));
     }
 
     let symbols = if let Some(prefix_symbols) = cache.get_ancestor_value(&query) {
@@ -145,7 +121,7 @@ pub fn workspace(
     cache.insert(key, value);
 
     let flat = Vec::clone(&*symbols);
-    Ok(Some(WorkspaceSymbolResponse::Flat(flat)))
+    Ok(Some(WorkspaceSymbolResponse::SymbolInformationList(flat)))
 }
 
 fn name_starts_with_folded(name: &str, folded_query: &str) -> bool {
@@ -171,7 +147,11 @@ fn name_starts_with_folded(name: &str, folded_query: &str) -> bool {
 }
 
 fn filter_symbols(cached: &[SymbolInformation], query: &str) -> Vec<SymbolInformation> {
-    cached.iter().filter(|symbol| name_starts_with_folded(&symbol.name, query)).cloned().collect()
+    cached
+        .iter()
+        .filter(|symbol| name_starts_with_folded(&symbol.base_symbol_information.name, query))
+        .cloned()
+        .collect()
 }
 
 fn build_symbol_list(
@@ -192,20 +172,12 @@ fn build_symbol_list(
                 continue;
             }
             let kind = term_symbol_kind(&indexed.items[term_id].kind);
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let positions = positions.get_or_insert_with(|| {
                 PositionConverter::new(&content, context.position_encoding())
             });
             let location = common::file_term_location(context, uri, file_id, positions, term_id)?;
-            symbols.push(SymbolInformation {
-                name: name.to_string(),
-                kind,
-                tags: None,
-                #[allow(deprecated)]
-                deprecated: None,
-                location,
-                container_name: None,
-            });
+            symbols.push(symbol_information(name, kind, location));
         }
 
         for (name, _, type_id) in resolved.locals.iter_types() {
@@ -213,40 +185,24 @@ fn build_symbol_list(
                 continue;
             }
             let kind = type_symbol_kind(&indexed.items[type_id].kind);
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let positions = positions.get_or_insert_with(|| {
                 PositionConverter::new(&content, context.position_encoding())
             });
             let location = common::file_type_location(context, uri, file_id, positions, type_id)?;
-            symbols.push(SymbolInformation {
-                name: name.to_string(),
-                kind,
-                tags: None,
-                #[allow(deprecated)]
-                deprecated: None,
-                location,
-                container_name: None,
-            });
+            symbols.push(symbol_information(name, kind, location));
         }
 
         for (name, _, type_id) in resolved.locals.iter_classes() {
             if !name_starts_with_folded(name, query) {
                 continue;
             }
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let positions = positions.get_or_insert_with(|| {
                 PositionConverter::new(&content, context.position_encoding())
             });
             let location = common::file_type_location(context, uri, file_id, positions, type_id)?;
-            symbols.push(SymbolInformation {
-                name: name.to_string(),
-                kind: SymbolKind::INTERFACE,
-                tags: None,
-                #[allow(deprecated)]
-                deprecated: None,
-                location,
-                container_name: None,
-            });
+            symbols.push(symbol_information(name, SymbolKind::Interface, location));
         }
     }
 
@@ -254,3 +210,11 @@ fn build_symbol_list(
 }
 
 pub type WorkspaceSymbolsCache = Trie<String, Arc<Vec<SymbolInformation>>>;
+
+fn symbol_information(name: &str, kind: SymbolKind, location: Location) -> SymbolInformation {
+    let name = name.to_string();
+    let base_symbol_information =
+        BaseSymbolInformation { name, kind, tags: None, container_name: None };
+    #[allow(deprecated)]
+    SymbolInformation { deprecated: None, location, base_symbol_information }
+}

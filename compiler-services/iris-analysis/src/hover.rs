@@ -21,7 +21,7 @@ const PRETTY_CONFIG: PrettyConfig = PrettyConfig::new().width(80);
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     position: Position,
 ) -> Result<Option<Hover>, AnalyzerError> {
     let current_file = {
@@ -123,8 +123,8 @@ fn hover_instance_signature(
     let signature = signature.ok_or(AnalyzerError::NonFatal)?;
     let pretty = Pretty::with_config(engine, checked, PRETTY_CONFIG);
     let value = pretty.render_signature(name.unwrap_or("<unknown>"), signature).to_string();
-    let value = MarkedString::from_language_code("purescript".to_string(), value);
-    Ok(Some(Hover { contents: HoverContents::Scalar(value), range: None }))
+    let value = purescript_marked_string(value);
+    Ok(Some(Hover { contents: Contents::MarkedString(value), range: None }))
 }
 
 fn hover_name_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<TextRange> {
@@ -164,7 +164,7 @@ fn hover_module_name(
     let syntax = range.syntax.and_then(|range| render_syntax(&content, range));
 
     let array = [syntax, annotation].into_iter().flatten().collect_vec();
-    let contents = HoverContents::Array(array);
+    let contents = Contents::MarkedStringList(array);
     let range = None;
 
     Ok(Some(Hover { contents, range }))
@@ -394,9 +394,9 @@ fn hover_checked_type(
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
     let value = pretty.render(type_id).to_string();
-    let value = MarkedString::from_language_code("purescript".to_string(), value);
+    let value = purescript_marked_string(value);
 
-    let contents = HoverContents::Scalar(value);
+    let contents = Contents::MarkedString(value);
     let range = None;
 
     Ok(Some(Hover { contents, range }))
@@ -411,14 +411,15 @@ fn hover_checked_kind(
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
     let value = pretty.render_kind(type_id).to_string();
-    let value = MarkedString::from_language_code("purescript".to_string(), value);
+    let value = purescript_marked_string(value);
 
-    let contents = HoverContents::Scalar(value);
+    let contents = Contents::MarkedString(value);
     let range = None;
 
     Ok(Some(Hover { contents, range }))
 }
 
+#[allow(deprecated)]
 fn hover_file_term(
     engine: &impl AnalyzerQueries,
     file_id: FileId,
@@ -436,18 +437,19 @@ fn hover_file_term(
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
     let value = pretty.render_signature(name, signature).to_string();
-    let value = MarkedString::from_language_code("purescript".to_string(), value);
+    let value = purescript_marked_string(value);
 
     let array = [Some(value), annotation].into_iter().flatten();
     let separator = MarkedString::String("---".to_string());
     let array = Itertools::intersperse(array, separator).collect();
 
-    let contents = HoverContents::Array(array);
+    let contents = Contents::MarkedStringList(array);
     let range = None;
 
     Ok(Some(Hover { contents, range }))
 }
 
+#[allow(deprecated)]
 fn hover_file_type(
     engine: &impl AnalyzerQueries,
     file_id: FileId,
@@ -465,27 +467,36 @@ fn hover_file_type(
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
     let value = pretty.render_signature(name, signature).to_string();
-    let value = MarkedString::from_language_code("purescript".to_string(), value);
+    let value = purescript_marked_string(value);
 
     let array = [Some(value), annotation].into_iter().flatten();
     let separator = MarkedString::String("---".to_string());
     let array = Itertools::intersperse(array, separator).collect();
 
-    let contents = HoverContents::Array(array);
+    let contents = Contents::MarkedStringList(array);
     let range = None;
 
     Ok(Some(Hover { contents, range }))
 }
 
+#[allow(deprecated)]
 fn render_annotation(source: &str, range: TextRange) -> Option<MarkedString> {
     let cleaned = extract::extract_annotation(source, range);
     if cleaned.is_empty() { None } else { Some(MarkedString::String(cleaned)) }
 }
 
+#[allow(deprecated)]
 fn render_syntax(source: &str, range: TextRange) -> Option<MarkedString> {
     let value = extract::extract_syntax(source, range);
-    let string = LanguageString { language: "purescript".to_string(), value };
-    Some(MarkedString::LanguageString(string))
+    Some(purescript_marked_string(value))
+}
+
+// `MarkedString` is deprecated in LSP 3.18, but hovers keep it until clients are moved to
+// `MarkupContent` deliberately rather than as part of a type library change.
+#[allow(deprecated)]
+fn purescript_marked_string(value: String) -> MarkedString {
+    let language = "purescript".to_string();
+    MarkedString::MarkedStringWithLanguage(MarkedStringWithLanguage { language, value })
 }
 
 fn hover_pun(

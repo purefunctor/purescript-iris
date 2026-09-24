@@ -12,10 +12,10 @@ use crate::{AnalyzerContext, AnalyzerError, locate};
 
 pub fn implementation(
     language: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     range: Range,
     action_context: CodeActionContext,
-) -> Result<Option<CodeActionResponse>, AnalyzerError> {
+) -> Result<Option<Vec<CodeActionResponse>>, AnalyzerError> {
     let file = {
         let uri = uri.as_str();
         language.file_id(uri).ok_or(AnalyzerError::NonFatal)?
@@ -40,7 +40,7 @@ pub fn implementation(
 
 pub struct CodeActionRequest<'request, 'language, Host> {
     pub language: &'request AnalyzerContext<'language, Host>,
-    pub uri: &'request Url,
+    pub uri: &'request Uri,
     pub file: FileId,
     pub positions: &'request PositionConverter<'request>,
     pub kinds: RequestedCodeActionKinds<'request>,
@@ -67,10 +67,10 @@ fn code_action_kind_matches(requested: &CodeActionKind, action_kind: &CodeAction
     suffix.is_empty() || suffix.starts_with('.')
 }
 
-pub fn workspace_edit(uri: &Url, edits: Vec<TextEdit>) -> WorkspaceEdit {
+pub fn workspace_edit(uri: &Uri, edits: Vec<TextEdit>) -> WorkspaceEdit {
     let mut changes = HashMap::default();
 
-    let uri = Url::clone(uri);
+    let uri = Uri::clone(uri);
     changes.insert(uri, edits);
 
     WorkspaceEdit { changes: Some(changes), ..WorkspaceEdit::default() }

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use line_index::{LineCol, LineIndex, WideEncoding};
 use lsp_types::{
-    DiagnosticRelatedInformation, DiagnosticSeverity, Location, NumberOrString, Position, Range,
+    Code, DiagnosticRelatedInformation, DiagnosticSeverity, Location, Message, Position, Range,
 };
 use syntax::TextSize;
 use unicode_width::UnicodeWidthChar;
@@ -295,7 +295,7 @@ fn offset_to_lsp_position(
 pub fn to_lsp_diagnostic(
     diagnostic: &Diagnostic,
     line_index: &LineIndex,
-    uri: &lsp_types::Url,
+    uri: &lsp_types::Uri,
     encoding: &lsp_types::PositionEncodingKind,
 ) -> Option<lsp_types::Diagnostic> {
     let to_position =
@@ -306,8 +306,8 @@ pub fn to_lsp_diagnostic(
     let range = Range { start, end };
 
     let severity = match diagnostic.severity {
-        Severity::Error => DiagnosticSeverity::ERROR,
-        Severity::Warning => DiagnosticSeverity::WARNING,
+        Severity::Error => DiagnosticSeverity::Error,
+        Severity::Warning => DiagnosticSeverity::Warning,
     };
 
     let related_information = diagnostic.related.iter().filter_map(|related| {
@@ -324,10 +324,10 @@ pub fn to_lsp_diagnostic(
     Some(lsp_types::Diagnostic {
         range,
         severity: Some(severity),
-        code: Some(NumberOrString::String(diagnostic.code.to_string())),
+        code: Some(Code::String(diagnostic.code.to_string())),
         code_description: None,
         source: Some(format!("analyzer/{}", diagnostic.source)),
-        message: diagnostic.message.clone(),
+        message: Message::String(String::clone(&diagnostic.message)),
         related_information: if related_information.is_empty() {
             None
         } else {

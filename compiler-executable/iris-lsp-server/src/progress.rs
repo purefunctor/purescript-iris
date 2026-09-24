@@ -9,13 +9,12 @@
 use std::collections::HashMap;
 
 use lsp_server::ResponseError;
-use lsp_types::notification::{Notification, Progress as ProgressNotification};
-use lsp_types::request::{Request, WorkDoneProgressCreate};
 use lsp_types::{
-    NumberOrString, ProgressParams, ProgressParamsValue, ProgressToken, WorkDoneProgress,
-    WorkDoneProgressBegin, WorkDoneProgressCreateParams, WorkDoneProgressEnd,
-    WorkDoneProgressReport,
+    Notification, ProgressNotification, ProgressParams, ProgressToken, Request,
+    WorkDoneProgressBegin, WorkDoneProgressCreateParams, WorkDoneProgressCreateRequest,
+    WorkDoneProgressEnd, WorkDoneProgressReport,
 };
+use serde::Serialize;
 
 use crate::outgoing::{EditorConnection, OutgoingPurpose};
 use crate::settings::to_value;
@@ -58,7 +57,7 @@ impl Progress {
         if !self.supported {
             return;
         }
-        let token = NumberOrString::String(format!("iris/startup/{generation}"));
+        let token = ProgressToken::String(format!("iris/startup/{generation}"));
         let begin = WorkDoneProgressBegin {
             title,
             cancellable: Some(true),
@@ -70,7 +69,8 @@ impl Progress {
         self.current = Some(generation);
         self.attempts.insert(generation, Attempt { token, state, cancel_requested: false });
         let purpose = OutgoingPurpose::ProgressCreation { generation };
-        editor.request(WorkDoneProgressCreate::METHOD, to_value(parameters), purpose, None);
+        let method = WorkDoneProgressCreateRequest::METHOD.as_str();
+        editor.request(method, to_value(parameters), purpose, None);
     }
 
     pub(crate) fn report(
@@ -153,10 +153,16 @@ pub(crate) fn creation_result(
     result.map(|_| ()).map_err(|error| format!("{} (jsonrpc error {})", error.message, error.code))
 }
 
+/// The `$/progress` payloads for work done progress. Each structure serializes its own `kind`.
+#[derive(Serialize)]
+#[serde(untagged)]
+enum WorkDoneProgress {
+    Begin(WorkDoneProgressBegin),
+    Report(WorkDoneProgressReport),
+    End(WorkDoneProgressEnd),
+}
+
 fn notify(editor: &EditorConnection, token: &ProgressToken, value: WorkDoneProgress) {
-    let parameters = ProgressParams {
-        token: ProgressToken::clone(token),
-        value: ProgressParamsValue::WorkDone(value),
-    };
-    editor.notify(ProgressNotification::METHOD, to_value(parameters));
+    let parameters = ProgressParams { token: ProgressToken::clone(token), value: to_value(value) };
+    editor.notify(ProgressNotification::METHOD.as_str(), to_value(parameters));
 }

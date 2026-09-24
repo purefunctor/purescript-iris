@@ -22,7 +22,7 @@ use iris_analysis::position::PositionEncoding;
 use iris_analysis::symbols::WorkspaceSymbolsCache;
 use iris_analysis::{AnalyzerCapabilities, AnalyzerContext, AnalyzerHost};
 use iris_lsp_server::{Answer, Rejection};
-use lsp_types::Url;
+use lsp_types::Uri;
 use parking_lot::{RwLock, RwLockReadGuard};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, oneshot, watch};
 use tokio::task;
@@ -121,23 +121,23 @@ impl Analysis {
     pub(crate) fn document_content(
         &self,
         document: DocumentKind,
-        uri: &Url,
+        uri: &Uri,
     ) -> Result<Arc<str>, DocumentError> {
         let files = self.files.read();
         match document {
             DocumentKind::Source => {
                 let file_id = files
                     .source_id(uri.as_str())
-                    .ok_or_else(|| DocumentError::InvalidContentChange(Url::clone(uri)))?;
+                    .ok_or_else(|| DocumentError::InvalidContentChange(Uri::clone(uri)))?;
                 self.engine.content(file_id).map_err(DocumentError::from)
             }
             DocumentKind::Foreign(_) => {
                 let file_id = files
                     .foreign_id(uri.as_str())
-                    .ok_or_else(|| DocumentError::InvalidContentChange(Url::clone(uri)))?;
+                    .ok_or_else(|| DocumentError::InvalidContentChange(Uri::clone(uri)))?;
                 self.engine
                     .foreign_content(file_id)
-                    .ok_or_else(|| DocumentError::InvalidContentChange(Url::clone(uri)))
+                    .ok_or_else(|| DocumentError::InvalidContentChange(Uri::clone(uri)))
             }
         }
     }
@@ -177,11 +177,11 @@ impl AnalyzerHost for LspAnalyzerHost<'_> {
         self.files.source_id(uri)
     }
 
-    fn file_uri(&self, file_id: FileId) -> Result<Option<Url>, url::ParseError> {
+    fn file_uri(&self, file_id: FileId) -> Result<Option<Uri>, url::ParseError> {
         let Some(uri) = self.files.source_path(file_id) else {
             return Ok(None);
         };
-        Url::parse(&uri).map(Some)
+        Uri::parse(&uri).map(Some)
     }
 
     fn active_files(&self) -> impl Iterator<Item = FileId> {

@@ -1,11 +1,11 @@
 use files::FileId;
 use line_index::LineIndex;
-use lsp_types::{Diagnostic, Url};
+use lsp_types::{Diagnostic, Uri};
 
 use crate::{AnalyzerContext, AnalyzerError, AnalyzerHost, common};
 
 pub struct CollectedDiagnostics {
-    pub uri: Url,
+    pub uri: Uri,
     pub diagnostics: Vec<Diagnostic>,
 }
 

@@ -1,28 +1,28 @@
 use building_types::QueryProxy;
-use lsp_types::{SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens};
+use lsp_types::{SemanticToken, SemanticTokenModifiers, SemanticTokenTypes, SemanticTokens};
 use syntax::{SyntaxKind, SyntaxToken, TextRange, WalkEvent};
 
 use crate::position::PositionConverter;
 use crate::{AnalyzerContext, AnalyzerError};
 
-pub const TOKEN_TYPES: &[SemanticTokenType] = &[
-    SemanticTokenType::NAMESPACE,
-    SemanticTokenType::TYPE,
-    SemanticTokenType::CLASS,
-    SemanticTokenType::ENUM_MEMBER,
-    SemanticTokenType::TYPE_PARAMETER,
-    SemanticTokenType::PARAMETER,
-    SemanticTokenType::VARIABLE,
-    SemanticTokenType::PROPERTY,
-    SemanticTokenType::FUNCTION,
-    SemanticTokenType::METHOD,
-    SemanticTokenType::KEYWORD,
-    SemanticTokenType::STRING,
-    SemanticTokenType::NUMBER,
-    SemanticTokenType::OPERATOR,
+pub const TOKEN_TYPES: &[SemanticTokenTypes] = &[
+    SemanticTokenTypes::Namespace,
+    SemanticTokenTypes::Type,
+    SemanticTokenTypes::Class,
+    SemanticTokenTypes::EnumMember,
+    SemanticTokenTypes::TypeParameter,
+    SemanticTokenTypes::Parameter,
+    SemanticTokenTypes::Variable,
+    SemanticTokenTypes::Property,
+    SemanticTokenTypes::Function,
+    SemanticTokenTypes::Method,
+    SemanticTokenTypes::Keyword,
+    SemanticTokenTypes::String,
+    SemanticTokenTypes::Number,
+    SemanticTokenTypes::Operator,
 ];
 
-pub const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[SemanticTokenModifier::DECLARATION];
+pub const TOKEN_MODIFIERS: &[SemanticTokenModifiers] = &[SemanticTokenModifiers::Declaration];
 
 const NAMESPACE: u32 = 0;
 const TYPE: u32 = 1;
@@ -59,7 +59,7 @@ impl TokenClassification {
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: lsp_types::Url,
+    uri: lsp_types::Uri,
 ) -> Result<Option<SemanticTokens>, AnalyzerError> {
     let current_file = {
         let uri = uri.as_str();

@@ -445,18 +445,12 @@ mod tests {
     #[test]
     fn position_encoding_converts_to_lsp_encoding_kind() {
         let encodings = [PositionEncoding::Utf8, PositionEncoding::Utf16, PositionEncoding::Utf32]
-            .map(PositionEncodingKind::from);
+            .map(|encoding| PositionEncodingKind::from(encoding).as_str().to_string());
         insta::assert_debug_snapshot!(encodings, @r#"
         [
-            PositionEncodingKind(
-                "utf-8",
-            ),
-            PositionEncodingKind(
-                "utf-16",
-            ),
-            PositionEncodingKind(
-                "utf-32",
-            ),
+            "utf-8",
+            "utf-16",
+            "utf-32",
         ]
         "#);
     }

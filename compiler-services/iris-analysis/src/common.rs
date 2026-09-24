@@ -10,7 +10,7 @@ use crate::{AnalyzerContext, AnalyzerError, locate};
 
 pub fn file_term_location(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     file_id: FileId,
     positions: &PositionConverter<'_>,
     term_id: TermItemId,
@@ -31,7 +31,7 @@ pub fn file_term_location(
 
 pub fn file_type_location(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     file_id: FileId,
     positions: &PositionConverter<'_>,
     type_id: TypeItemId,
@@ -53,7 +53,7 @@ pub fn file_type_location(
 
 pub fn file_instance_location(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     file_id: FileId,
     item_id: InstanceItemId,
 ) -> Result<Location, AnalyzerError> {
@@ -63,7 +63,7 @@ pub fn file_instance_location(
 
 pub fn file_derive_location(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     file_id: FileId,
     item_id: DeriveItemId,
 ) -> Result<Location, AnalyzerError> {
@@ -73,7 +73,7 @@ pub fn file_derive_location(
 
 fn file_source_location<T: AstNode>(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     file_id: FileId,
     source_id: stabilizing::AstId<T>,
 ) -> Result<Location, AnalyzerError> {
@@ -90,7 +90,7 @@ fn file_source_location<T: AstNode>(
 pub fn file_uri(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     file_id: FileId,
-) -> Result<Url, AnalyzerError> {
+) -> Result<Uri, AnalyzerError> {
     context.file_uri(file_id)?.ok_or(AnalyzerError::NonFatal)
 }
 

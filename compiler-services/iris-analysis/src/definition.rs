@@ -17,9 +17,9 @@ use crate::{AnalyzerContext, AnalyzerError, common, locate, position};
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     position: Position,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let current_file = {
         let uri = uri.as_str();
         context.file_id(uri).ok_or(AnalyzerError::NonFatal)?
@@ -72,12 +72,12 @@ pub fn implementation(
         locate::Located::InstanceItem(item_id) => {
             let uri = common::file_uri(context, current_file)?;
             let location = common::file_instance_location(context, uri, current_file, item_id)?;
-            Ok(Some(GotoDefinitionResponse::Scalar(location)))
+            Ok(Some(DefinitionResponse::Definition(Definition::Location(location))))
         }
         locate::Located::DeriveItem(item_id) => {
             let uri = common::file_uri(context, current_file)?;
             let location = common::file_derive_location(context, uri, current_file, item_id)?;
-            Ok(Some(GotoDefinitionResponse::Scalar(location)))
+            Ok(Some(DefinitionResponse::Definition(Definition::Location(location))))
         }
         locate::Located::LetBinding(let_id) => {
             definition_let_binding(context, current_file, let_id)
@@ -94,7 +94,7 @@ fn definition_module_name(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     current_file: FileId,
     module_name: AstPtr<cst::ModuleName>,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let engine = context.queries();
     let content = engine.content(current_file)?;
     let (parsed, _) = engine.parsed(current_file)?;
@@ -116,14 +116,14 @@ fn definition_module_name(
     let uri = common::file_uri(context, module_id)?;
     let range = positions.text_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
 
-    Ok(Some(GotoDefinitionResponse::Scalar(Location { uri, range })))
+    Ok(Some(DefinitionResponse::Definition(Definition::Location(Location { uri, range }))))
 }
 
 fn definition_import(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     current_file: FileId,
     import_id: ImportItemId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let engine = context.queries();
     let content = engine.content(current_file)?;
     let (parsed, _) = engine.parsed(current_file)?;
@@ -210,7 +210,7 @@ fn definition_binder(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     current_file: FileId,
     binder_id: BinderId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let lowered = context.queries().lowered(current_file)?;
     let kind = lowered.tree.get_binder_kind(binder_id).ok_or(AnalyzerError::NonFatal)?;
     match kind {
@@ -224,10 +224,10 @@ fn definition_binder(
 
 fn definition_expression(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     current_file: FileId,
     expression_id: ExpressionId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let engine = context.queries();
     let content = engine.content(current_file)?;
     let positions = PositionConverter::new(&content, context.position_encoding());
@@ -253,7 +253,10 @@ fn definition_expression(
                         .ok_or(AnalyzerError::NonFatal)?;
                     let range =
                         positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-                    Ok(Some(GotoDefinitionResponse::Scalar(Location { uri, range })))
+                    Ok(Some(DefinitionResponse::Definition(Definition::Location(Location {
+                        uri,
+                        range,
+                    }))))
                 }
                 TermVariableResolution::Let(binding_id) => {
                     let root = parsed.syntax_node();
@@ -280,7 +283,10 @@ fn definition_expression(
                     let range =
                         positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
 
-                    Ok(Some(GotoDefinitionResponse::Scalar(Location { uri, range })))
+                    Ok(Some(DefinitionResponse::Definition(Definition::Location(Location {
+                        uri,
+                        range,
+                    }))))
                 }
                 TermVariableResolution::RecordPun(id) => {
                     let root = parsed.syntax_node();
@@ -289,7 +295,10 @@ fn definition_expression(
                         .ok_or(AnalyzerError::NonFatal)?;
                     let range =
                         positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-                    Ok(Some(GotoDefinitionResponse::Scalar(Location { uri, range })))
+                    Ok(Some(DefinitionResponse::Definition(Definition::Location(Location {
+                        uri,
+                        range,
+                    }))))
                 }
                 TermVariableResolution::Reference(f_id, t_id) => {
                     definition_file_term(context, *f_id, *t_id)
@@ -306,10 +315,10 @@ fn definition_expression(
 
 fn definition_type(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     current_file: FileId,
     type_id: TypeId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let engine = context.queries();
     let content = engine.content(current_file)?;
     let positions = PositionConverter::new(&content, context.position_encoding());
@@ -340,7 +349,10 @@ fn definition_type(
                         .ok_or(AnalyzerError::NonFatal)?;
                     let range =
                         positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-                    Ok(Some(GotoDefinitionResponse::Scalar(Location { uri, range })))
+                    Ok(Some(DefinitionResponse::Definition(Definition::Location(Location {
+                        uri,
+                        range,
+                    }))))
                 }
                 TypeVariableResolution::Implicit(ImplicitTypeVariable { .. }) => Ok(None),
             }
@@ -353,31 +365,31 @@ fn definition_file_term(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     file_id: FileId,
     term_id: TermItemId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let uri = common::file_uri(context, file_id)?;
     let content = context.queries().content(file_id)?;
     let positions = PositionConverter::new(&content, context.position_encoding());
     let location = common::file_term_location(context, uri, file_id, &positions, term_id)?;
-    Ok(Some(GotoDefinitionResponse::Scalar(location)))
+    Ok(Some(DefinitionResponse::Definition(Definition::Location(location))))
 }
 
 fn definition_file_type(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     file_id: FileId,
     type_id: TypeItemId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let uri = common::file_uri(context, file_id)?;
     let content = context.queries().content(file_id)?;
     let positions = PositionConverter::new(&content, context.position_encoding());
     let location = common::file_type_location(context, uri, file_id, &positions, type_id)?;
-    Ok(Some(GotoDefinitionResponse::Scalar(location)))
+    Ok(Some(DefinitionResponse::Definition(Definition::Location(location))))
 }
 
 fn definition_let_binding(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     file_id: FileId,
     let_id: LetBindingNameGroupId,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let engine = context.queries();
     let content = engine.content(file_id)?;
     let positions = PositionConverter::new(&content, context.position_encoding());
@@ -397,5 +409,5 @@ fn definition_let_binding(
     let range = common::pointers_range(&positions, root, pointers)?;
     let range = positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
 
-    Ok(Some(GotoDefinitionResponse::Scalar(Location { uri, range })))
+    Ok(Some(DefinitionResponse::Definition(Definition::Location(Location { uri, range }))))
 }

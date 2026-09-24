@@ -3,7 +3,7 @@ use std::sync::Arc;
 use building_types::QueryProxy;
 use checking::core::pretty::PrettyQueries;
 use files::FileId;
-use lsp_types::Url;
+use lsp_types::Uri;
 
 use crate::position::PositionEncoding;
 
@@ -38,7 +38,7 @@ pub trait AnalyzerHost {
 
     fn queries(&self) -> &Self::Queries;
     fn file_id(&self, uri: &str) -> Option<FileId>;
-    fn file_uri(&self, file_id: FileId) -> Result<Option<Url>, url::ParseError>;
+    fn file_uri(&self, file_id: FileId) -> Result<Option<Uri>, url::ParseError>;
     fn active_files(&self) -> impl Iterator<Item = FileId> + '_;
     fn is_editable(&self, file_id: FileId) -> bool;
 }
@@ -82,7 +82,7 @@ impl<'a, Host: AnalyzerHost> AnalyzerContext<'a, Host> {
         self.host.file_id(uri)
     }
 
-    pub fn file_uri(&self, file_id: FileId) -> Result<Option<Url>, url::ParseError> {
+    pub fn file_uri(&self, file_id: FileId) -> Result<Option<Uri>, url::ParseError> {
         self.host.file_uri(file_id)
     }
 

@@ -12,7 +12,7 @@ use files::{FileId, ForeignSourceKind};
 use iris_build::compilation::{CompilationParts, CompilationState, MaterializedPrim};
 use iris_configuration::Configuration;
 use itertools::Itertools;
-use lsp_types::Url;
+use lsp_types::Uri;
 
 use crate::analysis::{Analysis, ChangeSignal};
 use crate::diagnostics::DiagnosticScheduler;
@@ -70,7 +70,7 @@ pub(crate) struct ReadyWorkspace {
 /// Which sources a document change collects diagnostics for.
 pub(crate) enum DiagnosticTrigger {
     None,
-    AssociatedSource(Url),
+    AssociatedSource(Uri),
     AnalysisChange,
 }
 
@@ -79,7 +79,7 @@ pub(crate) enum DiagnosticTrigger {
 #[must_use]
 pub(crate) struct WorkspaceEffects {
     /// Removed sources whose published diagnostics are cleared.
-    pub(crate) clear_diagnostics: Vec<Url>,
+    pub(crate) clear_diagnostics: Vec<Uri>,
     pub(crate) collect_diagnostics: Vec<FileId>,
 }
 
@@ -112,7 +112,7 @@ impl ReadyWorkspace {
         }
 
         let clear_diagnostics = change.removed_sources().iter().map(|removed| {
-            Url::parse(&removed.locator)
+            Uri::parse(&removed.locator)
                 .expect("invariant violated: removed source has an invalid locator")
         });
         let clear_diagnostics = clear_diagnostics.collect_vec();
@@ -139,7 +139,7 @@ impl ReadyWorkspace {
     }
 
     /// Collects diagnostics for the source associated with `uri`, without changing anything.
-    pub(crate) fn associated_effects(&self, uri: &Url) -> Result<WorkspaceEffects, DocumentError> {
+    pub(crate) fn associated_effects(&self, uri: &Uri) -> Result<WorkspaceEffects, DocumentError> {
         let (_, unit) = source_unit_from_document_uri(uri)?;
         let files = self.analysis.files.read();
         let collect_diagnostics = files.source_id(unit.source()).into_iter().collect_vec();
@@ -152,7 +152,7 @@ impl ReadyWorkspace {
         &self,
         root: Option<&Path>,
         unit: &SourceUnitKey,
-        uri: &Url,
+        uri: &Uri,
     ) -> SourceMetadata {
         let previous = {
             let files = self.analysis.files.read();
@@ -181,7 +181,7 @@ impl ReadyWorkspace {
         &self,
         root: Option<&Path>,
         unit: &SourceUnitKey,
-        uri: &Url,
+        uri: &Uri,
     ) -> bool {
         self.source_metadata(root, unit, uri).editable()
     }
@@ -198,7 +198,7 @@ impl ReadyWorkspace {
             if self.analysis.files.read().is_open(&document) {
                 continue;
             }
-            let uri = Url::parse(unit.foreign_for(kind))?;
+            let uri = Uri::parse(unit.foreign_for(kind))?;
             events.push(LifecycleEvent::Foreign {
                 unit: SourceUnitKey::clone(unit),
                 kind,
@@ -209,7 +209,7 @@ impl ReadyWorkspace {
     }
 }
 
-pub(crate) fn document_kind(uri: &Url) -> Option<DocumentKind> {
+pub(crate) fn document_kind(uri: &Uri) -> Option<DocumentKind> {
     if uri.path().ends_with(".js") {
         Some(DocumentKind::Foreign(ForeignSourceKind::JavaScript))
     } else if uri.path().ends_with(".jsx") {
@@ -222,10 +222,10 @@ pub(crate) fn document_kind(uri: &Url) -> Option<DocumentKind> {
 }
 
 pub(crate) fn source_unit_from_document_uri(
-    uri: &Url,
+    uri: &Uri,
 ) -> Result<(DocumentKind, SourceUnitKey), DocumentError> {
     let document =
-        document_kind(uri).ok_or_else(|| DocumentError::UnsupportedDocumentUri(Url::clone(uri)))?;
+        document_kind(uri).ok_or_else(|| DocumentError::UnsupportedDocumentUri(Uri::clone(uri)))?;
     let unit = match document {
         DocumentKind::Source => source_unit_from_source_uri(uri)?,
         DocumentKind::Foreign(_) => source_unit_from_foreign_uri(uri)?,
@@ -233,9 +233,9 @@ pub(crate) fn source_unit_from_document_uri(
     Ok((document, unit))
 }
 
-fn file_uri_with_extension(uri: &Url, extension: &str) -> Result<Url, DocumentError> {
+fn file_uri_with_extension(uri: &Uri, extension: &str) -> Result<Uri, DocumentError> {
     if uri.scheme() != "file" || uri.to_file_path().is_err() {
-        return Err(DocumentError::InvalidFileUri(Url::clone(uri)));
+        return Err(DocumentError::InvalidFileUri(Uri::clone(uri)));
     }
     let uri_path = uri.path();
     let file_name_start = uri_path.rfind('/').map_or(0, |index| index + 1);
@@ -247,13 +247,13 @@ fn file_uri_with_extension(uri: &Url, extension: &str) -> Result<Url, DocumentEr
     sibling_path.push('.');
     sibling_path.push_str(extension);
 
-    let mut sibling_uri = Url::clone(uri);
+    let mut sibling_uri = Uri::clone(uri);
     sibling_uri.set_path(&sibling_path);
     Ok(sibling_uri)
 }
 
 pub(crate) fn source_unit_from_source_uri(
-    source_uri: &Url,
+    source_uri: &Uri,
 ) -> Result<SourceUnitKey, DocumentError> {
     let javascript_uri = file_uri_with_extension(source_uri, "js")?;
     let jsx_uri = file_uri_with_extension(source_uri, "jsx")?;
@@ -265,13 +265,13 @@ pub(crate) fn source_unit_from_source_uri(
 }
 
 pub(crate) fn source_unit_from_foreign_uri(
-    foreign_uri: &Url,
+    foreign_uri: &Uri,
 ) -> Result<SourceUnitKey, DocumentError> {
     let source_uri = file_uri_with_extension(foreign_uri, "purs")?;
     source_unit_from_source_uri(&source_uri)
 }
 
-pub(crate) fn observe_disk(uri: &Url) -> DiskObservation {
+pub(crate) fn observe_disk(uri: &Uri) -> DiskObservation {
     let path = uri.to_file_path().expect("invariant violated: expected a valid file URI");
     match fs::read_to_string(path) {
         Ok(content) => DiskObservation::Found(Arc::from(content)),

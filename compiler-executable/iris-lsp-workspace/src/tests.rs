@@ -25,7 +25,7 @@ use iris_lsp_server::{
     Answer, ControlMessage, OrderedMessage, Rejection, SettingsResponse, WorkspaceEvent,
     WorkspaceEventSender, WorkspaceFailure, WorkspaceSenders,
 };
-use lsp_types::{Position, Range, TextDocumentContentChangeEvent, Url};
+use lsp_types::{Position, Range, Uri};
 use parking_lot::Mutex;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -36,7 +36,8 @@ use crate::WorkspaceConfig;
 use crate::analysis::{CONTENT_MODIFIED, Snapshot};
 use crate::discovery::package_source_roots;
 use crate::handlers::{
-    AnalysisJob, DocumentContext, DocumentNotification, apply_content_changes, apply_document,
+    AnalysisJob, ContentChange, DocumentContext, DocumentNotification, apply_content_changes,
+    apply_document,
 };
 use crate::preparation::{PreparationError, ProgressSink};
 use crate::service::Actor;
@@ -179,7 +180,7 @@ impl WorkspaceHarness {
             task,
             root,
         };
-        let root_uri = Url::from_directory_path(harness.root.path()).unwrap();
+        let root_uri = Uri::from_directory_path(harness.root.path()).unwrap();
         let initialize = harness.senders.initialize(json!({
             "capabilities": {},
             "workspaceFolders": [{"uri": root_uri, "name": "workspace"}]
@@ -194,8 +195,8 @@ impl WorkspaceHarness {
         preparation_gate(self.root.path())
     }
 
-    fn uri(&self, name: &str) -> Url {
-        Url::from_file_path(self.root.path().join(name)).unwrap()
+    fn uri(&self, name: &str) -> Uri {
+        Uri::from_file_path(self.root.path().join(name)).unwrap()
     }
 
     fn request(&self, method: &str, params: Value) -> oneshot::Receiver<Answer> {
@@ -206,7 +207,7 @@ impl WorkspaceHarness {
         self.request(GATED_METHOD, json!({"gate": gate}))
     }
 
-    fn document_symbols(&self, uri: &Url) -> oneshot::Receiver<Answer> {
+    fn document_symbols(&self, uri: &Uri) -> oneshot::Receiver<Answer> {
         self.request("textDocument/documentSymbol", json!({"textDocument": {"uri": uri}}))
     }
 
@@ -214,14 +215,14 @@ impl WorkspaceHarness {
         self.senders.send(OrderedMessage::Notification { method: method.to_string(), params });
     }
 
-    fn open(&self, uri: &Url, version: i32, text: &str) {
+    fn open(&self, uri: &Uri, version: i32, text: &str) {
         self.notify(
             "textDocument/didOpen",
             json!({"textDocument": {"uri": uri, "languageId": "purescript", "version": version, "text": text}}),
         );
     }
 
-    fn change(&self, uri: &Url, version: i32, text: &str) {
+    fn change(&self, uri: &Uri, version: i32, text: &str) {
         self.notify(
             "textDocument/didChange",
             json!({"textDocument": {"uri": uri, "version": version}, "contentChanges": [{"text": text}]}),
@@ -587,7 +588,7 @@ async fn failed_preparation_is_reported_and_rejects_analysis() {
         panic!("expected an error message");
     };
     // The root is the workspace folder's path, spelled with a trailing separator.
-    let root = Url::from_directory_path(harness.root.path()).unwrap().to_file_path().unwrap();
+    let root = Uri::from_directory_path(harness.root.path()).unwrap().to_file_path().unwrap();
     let root = root.display();
     assert_eq!(
         message,
@@ -733,6 +734,73 @@ async fn a_malformed_document_notification_stops_the_actor() {
     assert!(failure.0.starts_with("invalid textDocument/didOpen notification: "), "{failure}");
 }
 
+#[test]
+fn a_content_change_with_a_malformed_range_is_rejected() {
+    let parameters = json!({
+        "textDocument": {"uri": "file:///workspace/Main.purs", "version": 2},
+        "contentChanges": [{
+            "range": {
+                "start": {"line": 0, "character": "broken"},
+                "end": {"line": 0, "character": 1},
+            },
+            "text": "replacement",
+        }],
+    });
+    let result = DocumentNotification::decode("textDocument/didChange", parameters);
+    assert!(result.is_err());
+}
+
+#[test]
+fn a_content_change_with_a_range_edits_the_document() {
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
+    let parameters = json!({
+        "textDocument": {"uri": uri, "version": 2},
+        "contentChanges": [{
+            "range": {"start": {"line": 0, "character": 7}, "end": {"line": 0, "character": 8}},
+            "rangeLength": 1,
+            "unknown": true,
+            "text": "2",
+        }],
+    });
+    let notification =
+        DocumentNotification::decode("textDocument/didChange", parameters).unwrap().unwrap();
+    let DocumentNotification::Change(parameters) = notification else {
+        panic!("expected a didChange notification");
+    };
+    let content = apply_content_changes(
+        &uri,
+        "life = 1",
+        &parameters.content_changes,
+        PositionEncoding::Utf16,
+    )
+    .unwrap();
+    assert_eq!(content.as_ref(), "life = 2");
+}
+
+#[test]
+fn a_content_change_without_a_range_replaces_the_document() {
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
+    for change in [json!({"text": "life = 1"}), json!({"range": null, "text": "life = 1"})] {
+        let parameters = json!({
+            "textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [change],
+        });
+        let notification =
+            DocumentNotification::decode("textDocument/didChange", parameters).unwrap().unwrap();
+        let DocumentNotification::Change(parameters) = notification else {
+            panic!("expected a didChange notification");
+        };
+        let content = apply_content_changes(
+            &uri,
+            "discarded",
+            &parameters.content_changes,
+            PositionEncoding::Utf16,
+        )
+        .unwrap();
+        assert_eq!(content.as_ref(), "life = 1");
+    }
+}
+
 #[tokio::test]
 async fn unknown_notifications_are_ignored() {
     let harness = WorkspaceHarness::builtin(1).await;
@@ -786,7 +854,7 @@ fn apply_event(workspace: &mut ReadyWorkspace, event: LifecycleEvent<i32, Source
         workspace.apply_lifecycle_events([event], crate::state::DiagnosticTrigger::None, &signal);
 }
 
-fn close(workspace: &mut ReadyWorkspace, uri: &Url) {
+fn close(workspace: &mut ReadyWorkspace, uri: &Uri) {
     let notification = DocumentNotification::decode(
         "textDocument/didClose",
         json!({"textDocument": {"uri": uri}}),
@@ -797,8 +865,8 @@ fn close(workspace: &mut ReadyWorkspace, uri: &Url) {
 }
 
 fn assert_source_close_result(
-    source_uri: Url,
-    foreign_uri: Url,
+    source_uri: Uri,
+    foreign_uri: Uri,
     source_authority: Option<ContentAuthority>,
 ) {
     let unit = source_unit_from_source_uri(&source_uri).unwrap();
@@ -834,9 +902,9 @@ fn source_and_foreign_uris_produce_the_same_unit_key() {
     let source_path = directory.path().join("Source Files").join("Main.purs");
     let foreign_path = source_path.with_extension("js");
     let jsx_path = source_path.with_extension("jsx");
-    let source_uri = Url::from_file_path(source_path).unwrap();
-    let foreign_uri = Url::from_file_path(foreign_path).unwrap();
-    let jsx_uri = Url::from_file_path(jsx_path).unwrap();
+    let source_uri = Uri::from_file_path(source_path).unwrap();
+    let foreign_uri = Uri::from_file_path(foreign_path).unwrap();
+    let jsx_uri = Uri::from_file_path(jsx_path).unwrap();
 
     let from_source = source_unit_from_source_uri(&source_uri).unwrap();
     let from_foreign = source_unit_from_foreign_uri(&foreign_uri).unwrap();
@@ -853,10 +921,10 @@ fn source_and_foreign_uris_produce_the_same_unit_key() {
 fn localhost_source_and_foreign_uris_keep_the_same_authority() {
     // A drive segment keeps the URIs convertible to file paths on Windows as well.
     let source_uri =
-        Url::parse("file://localhost/C:/workspace/Source%20Files/Main.purs?view=1#selection")
+        Uri::parse("file://localhost/C:/workspace/Source%20Files/Main.purs?view=1#selection")
             .unwrap();
     let foreign_uri =
-        Url::parse("file://localhost/C:/workspace/Source%20Files/Main.js?view=1#selection")
+        Uri::parse("file://localhost/C:/workspace/Source%20Files/Main.js?view=1#selection")
             .unwrap();
 
     let from_source = source_unit_from_source_uri(&source_uri).unwrap();
@@ -869,16 +937,16 @@ fn localhost_source_and_foreign_uris_keep_the_same_authority() {
 
 #[test]
 fn non_file_document_uris_are_rejected() {
-    let source_uri = Url::parse("untitled:Main.purs").unwrap();
+    let source_uri = Uri::parse("untitled:Main.purs").unwrap();
     assert!(source_unit_from_source_uri(&source_uri).is_err());
 }
 
 #[test]
 fn document_kind_is_bounded_to_source_and_foreign_extensions() {
-    let source_uri = Url::parse("file:///workspace/Main.purs").unwrap();
-    let foreign_uri = Url::parse("file:///workspace/Main.js").unwrap();
-    let jsx_uri = Url::parse("file:///workspace/Main.jsx").unwrap();
-    let unsupported_uri = Url::parse("file:///workspace/Main.json").unwrap();
+    let source_uri = Uri::parse("file:///workspace/Main.purs").unwrap();
+    let foreign_uri = Uri::parse("file:///workspace/Main.js").unwrap();
+    let jsx_uri = Uri::parse("file:///workspace/Main.jsx").unwrap();
+    let unsupported_uri = Uri::parse("file:///workspace/Main.json").unwrap();
 
     assert_eq!(document_kind(&source_uri), Some(DocumentKind::Source));
     assert_eq!(
@@ -895,8 +963,8 @@ fn closing_a_deleted_source_also_removes_its_deleted_disk_foreign() {
     let directory = tempfile::tempdir().unwrap();
     let source_path = directory.path().join("Main.purs");
     let foreign_path = source_path.with_extension("js");
-    let source_uri = Url::from_file_path(source_path).unwrap();
-    let foreign_uri = Url::from_file_path(foreign_path).unwrap();
+    let source_uri = Uri::from_file_path(source_path).unwrap();
+    let foreign_uri = Uri::from_file_path(foreign_path).unwrap();
     assert_source_close_result(source_uri, foreign_uri, None);
 }
 
@@ -906,8 +974,8 @@ fn failed_source_reload_still_removes_its_deleted_disk_foreign() {
     let source_path = directory.path().join("Main.purs");
     let foreign_path = source_path.with_extension("js");
     fs::write(&source_path, [0xff]).unwrap();
-    let source_uri = Url::from_file_path(source_path).unwrap();
-    let foreign_uri = Url::from_file_path(foreign_path).unwrap();
+    let source_uri = Uri::from_file_path(source_path).unwrap();
+    let foreign_uri = Uri::from_file_path(foreign_path).unwrap();
     assert_source_close_result(source_uri, foreign_uri, Some(ContentAuthority::Retained));
 }
 
@@ -918,8 +986,8 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
     let foreign_path = source_path.with_extension("js");
     fs::write(&source_path, "module Main where\n").unwrap();
     fs::write(&foreign_path, "export const life = 42;\n").unwrap();
-    let source_uri = Url::from_file_path(source_path).unwrap();
-    let foreign_uri = Url::from_file_path(&foreign_path).unwrap();
+    let source_uri = Uri::from_file_path(source_path).unwrap();
+    let foreign_uri = Uri::from_file_path(&foreign_path).unwrap();
     let unit = source_unit_from_source_uri(&source_uri).unwrap();
     let mut workspace = ready_workspace();
     let event = LifecycleEvent::Source {
@@ -961,7 +1029,7 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
 fn disk_observation_distinguishes_content_and_absence() {
     let directory = tempfile::tempdir().unwrap();
     let source_path = directory.path().join("Main.purs");
-    let source_uri = Url::from_file_path(&source_path).unwrap();
+    let source_uri = Uri::from_file_path(&source_path).unwrap();
 
     fs::write(&source_path, "module Main where\n").unwrap();
     assert!(matches!(
@@ -998,16 +1066,14 @@ fn package_roots_include_canonical_symlink_aliases() {
 
 #[test]
 fn incremental_content_changes_apply_sequentially() {
-    let uri = Url::parse("file:///workspace/Main.purs").unwrap();
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
     let changes = [
-        TextDocumentContentChangeEvent {
+        ContentChange {
             range: Some(Range::new(Position::new(1, 0), Position::new(1, 4))),
-            range_length: Some(4),
             text: "answer".to_string(),
         },
-        TextDocumentContentChangeEvent {
+        ContentChange {
             range: Some(Range::new(Position::new(1, 9), Position::new(1, 10))),
-            range_length: Some(1),
             text: "42".to_string(),
         },
     ];
@@ -1025,10 +1091,9 @@ fn incremental_content_changes_apply_sequentially() {
 
 #[test]
 fn incremental_content_changes_use_negotiated_position_encoding() {
-    let uri = Url::parse("file:///workspace/Main.purs").unwrap();
-    let changes = [TextDocumentContentChangeEvent {
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
+    let changes = [ContentChange {
         range: Some(Range::new(Position::new(0, 3), Position::new(0, 4))),
-        range_length: Some(1),
         text: "c".to_string(),
     }];
 
@@ -1039,16 +1104,11 @@ fn incremental_content_changes_use_negotiated_position_encoding() {
 
 #[test]
 fn full_content_change_resets_incremental_change_base() {
-    let uri = Url::parse("file:///workspace/Main.purs").unwrap();
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
     let changes = [
-        TextDocumentContentChangeEvent {
-            range: None,
-            range_length: None,
-            text: "life = 1".to_string(),
-        },
-        TextDocumentContentChangeEvent {
+        ContentChange { range: None, text: "life = 1".to_string() },
+        ContentChange {
             range: Some(Range::new(Position::new(0, 7), Position::new(0, 8))),
-            range_length: Some(1),
             text: "2".to_string(),
         },
     ];
