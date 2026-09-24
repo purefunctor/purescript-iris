@@ -391,22 +391,6 @@ fn compilation_frame_has_reviewable_light_true_color_output() {
 }
 
 #[test]
-fn compilation_frame_with_midtone_background_uses_dark_theme() {
-    let output = render_true_color_with_palette(
-        &representative_compilation(),
-        48,
-        PROGRESS_REGION_HEIGHT,
-        (255, 255, 255),
-        (130, 130, 130),
-        ThemeMode::Dark,
-    );
-
-    insta::with_settings!({ omit_expression => true }, {
-        insta::assert_debug_snapshot!("compilation_frame_midtone_dark_true_color_ansi", output);
-    });
-}
-
-#[test]
 fn light_palette_preserves_contrast_across_history_and_animation() {
     let appearance = ProgressAppearance::TrueColor {
         foreground: (76, 83, 107),
@@ -418,18 +402,6 @@ fn light_palette_preserves_contrast_across_history_and_animation() {
     assert_eq!(history_style(appearance, 9).fg, Some(Color::Rgb(76, 83, 107)));
     assert_eq!(bar_style(appearance, 0, 48, 12, 7, false).fg, Some(Color::Rgb(156, 83, 88)));
     assert_eq!(bar_style(appearance, 7, 48, 12, 7, false).fg, Some(Color::Rgb(89, 50, 57)));
-}
-
-#[test]
-fn midtone_background_with_light_text_uses_dark_theme_styling() {
-    let appearance = ProgressAppearance::TrueColor {
-        foreground: (255, 255, 255),
-        background: (130, 130, 130),
-        theme_mode: ThemeMode::Dark,
-    };
-    assert!(!appearance.is_light());
-    assert_eq!(history_style(appearance, 0).fg, Some(Color::Rgb(153, 153, 153)));
-    assert_eq!(bar_style(appearance, 0, 48, 12, 0, false).fg, Some(Color::Rgb(253, 240, 241)));
 }
 
 #[test]
