@@ -1,6 +1,6 @@
 //! Source glob expansion for build preparation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -29,7 +29,7 @@ pub fn walk_filtered(
 ) -> Result<Walk, Error> {
     let mut files = vec![];
 
-    let mut roots = BTreeSet::default();
+    let mut roots: BTreeMap<PathBuf, GlobSetBuilder> = BTreeMap::default();
     let mut globs = GlobSetBuilder::new();
 
     for path in includes {
@@ -38,7 +38,10 @@ pub fn walk_filtered(
             && let Some(path) = path.to_str()
             && let Ok(glob) = Glob::new(path)
         {
-            roots.insert(glob_literal_base(path));
+            roots
+                .entry(glob_literal_base(path))
+                .or_insert_with(GlobSetBuilder::new)
+                .add(glob.clone());
             globs.add(glob);
         } else {
             files.push(path);
@@ -50,16 +53,17 @@ pub fn walk_filtered(
     files.retain(|path| !excludes.is_match(path));
     let mut files_from_glob = BTreeSet::default();
 
-    for root in &roots {
+    for (root, root_globs) in &roots {
         if !root.exists() {
             continue;
         }
 
+        let root_globs = root_globs.build()?;
         let entries =
             WalkDir::new(root).into_iter().filter_entry(|entry| !excludes.is_match(entry.path()));
         for entry in entries {
             let path = entry?.into_path();
-            if globs.is_match(&path) {
+            if root_globs.is_match(&path) {
                 files_from_glob.insert(path);
             }
         }
@@ -67,6 +71,7 @@ pub fn walk_filtered(
 
     files.extend(files_from_glob);
 
+    let roots = roots.into_keys().collect();
     Ok(Walk { roots, globs, files })
 }
 
@@ -156,6 +161,29 @@ mod tests {
             walk_filtered(root, ["package/src/**/*.purs"], ["package/src/generated"]).unwrap();
 
         assert_eq!(relative_files(root, walk.files), vec!["package/src/Main.purs"]);
+    }
+
+    #[test]
+    fn filtered_walk_matches_globs_with_nested_literal_bases() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        touch(&root.join("package/src/Main.purs"));
+        touch(&root.join("package/src/nested/Test.purs"));
+        touch(&root.join("package/src/nested/Other.purs"));
+
+        let walk = walk_filtered(
+            root,
+            ["package/**/Test.purs", "package/src/*Main.purs", "package/src/**/Test.purs"],
+            std::iter::empty::<&Path>(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            relative_files(root, walk.files),
+            vec!["package/src/Main.purs", "package/src/nested/Test.purs"]
+        );
+        assert!(walk.globs.is_match(root.join("package/src/nested/Test.purs")));
+        assert_eq!(walk.roots, BTreeSet::from([root.join("package"), root.join("package/src")]));
     }
 
     #[test]
