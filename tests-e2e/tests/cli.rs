@@ -45,8 +45,17 @@ fn prints_version_to_stdout() {
     let workspace = TestWorkspace::empty();
     let output = workspace.command(&["--version"]);
     assert!(output.status.success());
-    assert!(!output.stdout.is_empty());
     assert!(output.stderr.is_empty());
+    let manifest = include_str!("../../compiler-executable/iris-cli/Cargo.toml");
+    let version = manifest
+        .lines()
+        .find_map(|line| line.strip_prefix("version = \"")?.strip_suffix('"'))
+        .expect("iris-cli package version");
+    let version = match std::env::var("IRIS_BUILD_REVISION") {
+        Ok(revision) => format!("{version}-dev.{}", revision.to_ascii_lowercase()),
+        Err(_) => version.to_owned(),
+    };
+    assert_eq!(output.stdout, format!("iris {version}\n").as_bytes());
     snapshot_output("version", &output);
 }
 
