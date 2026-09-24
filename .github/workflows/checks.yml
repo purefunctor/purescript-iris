@@ -72,8 +72,9 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.2
         with:
           cache-bin: "false"
-          prefix-key: "v2-e2e-${{ matrix.os }}"
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          prefix-key: "v9-workspace"
+          shared-key: "build-e2e"
+          save-if: "false"
 
       - name: Install tools
         uses: taiki-e/install-action@v2.87.1

@@ -26,7 +26,8 @@ jobs:
         uses: Swatinem/rust-cache@v2.9.2
         with:
           cache-bin: "false"
-          prefix-key: "v8-nextest-workspace-${{ inputs.os }}-stable"
+          prefix-key: "v9-workspace"
+          shared-key: "build-e2e"
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install tools
