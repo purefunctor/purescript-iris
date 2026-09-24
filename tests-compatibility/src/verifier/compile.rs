@@ -3,10 +3,10 @@ use std::fs;
 use std::sync::OnceLock;
 
 use building::{QueryEngine, QueryError, prim};
-use diagnostics::{
+use files::{FileId, Files, ForeignFiles, ForeignSourceKind};
+use iris_diagnostics::{
     Diagnostic, DiagnosticsContext, Severity, Span, ToDiagnostics, format_rich_with_path,
 };
-use files::{FileId, Files, ForeignFiles, ForeignSourceKind};
 use line_index::LineIndex;
 use rayon::prelude::*;
 use url::Url;

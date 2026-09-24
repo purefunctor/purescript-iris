@@ -8,13 +8,13 @@ publish = false
 [dependencies]
 building = { version = "0.1.0", path = "../compiler-core/building" }
 checking = { version = "0.1.0", path = "../compiler-frontend/checking" }
-diagnostics = { version = "0.1.0", path = "../compiler-frontend/diagnostics" }
 files = { version = "0.1.0", path = "../compiler-core/files" }
 functional = { version = "0.1.0", path = "../compiler-backend/functional" }
 glob = "0.3.4"
 indexing = { version = "0.1.0", path = "../compiler-frontend/indexing" }
 interner = { version = "0.1.0", path = "../compiler-core/interner" }
 iris-analysis = { version = "0.1.0", path = "../compiler-services/iris-analysis" }
+iris-diagnostics = { version = "0.1.0", path = "../compiler-services/iris-diagnostics" }
 iris-documentation = { version = "0.1.0", path = "../compiler-services/iris-documentation" }
 itertools = "0.15.0"
 insta = "1.48.0"

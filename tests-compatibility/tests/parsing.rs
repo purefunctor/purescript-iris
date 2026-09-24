@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use building::{QueryEngine, prim};
-use diagnostics::{DiagnosticsContext, Severity, ToDiagnostics};
 use files::Files;
+use iris_diagnostics::{DiagnosticsContext, Severity, ToDiagnostics};
 use tests_compatibility::all_source_files;
 
 type ErrorPerFile<E> = HashMap<PathBuf, E>;

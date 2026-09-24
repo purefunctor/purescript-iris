@@ -11,7 +11,7 @@ repository = "https://github.com/purefunctor/purescript-iris"
 building = { version = "0.1.0", path = "../../compiler-core/building" }
 iris-progress = { version = "0.1.0", path = "../iris-progress" }
 iris-spago = { version = "0.1.0", path = "../iris-spago" }
-diagnostics = { version = "0.1.0", path = "../../compiler-frontend/diagnostics" }
+iris-diagnostics = { version = "0.1.0", path = "../../compiler-services/iris-diagnostics" }
 dunce = "1.0.5"
 files = { version = "0.1.0", path = "../../compiler-core/files" }
 globset = "0.4.20"

@@ -811,29 +811,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diagnostics"
-version = "0.1.0"
-dependencies = [
- "building-types",
- "checking",
- "files",
- "foreign-javascript",
- "functional",
- "gen-lsp-types",
- "indexing",
- "itertools 0.15.0",
- "javascript",
- "line-index",
- "lowering",
- "resolving",
- "smol_str",
- "stabilizing",
- "syntax",
- "textwrap",
- "unicode-width",
-]
-
-[[package]]
 name = "digest"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1755,12 +1732,12 @@ version = "0.1.0"
 dependencies = [
  "building-types",
  "checking",
- "diagnostics",
  "files",
  "foreign-javascript",
  "gen-lsp-types",
  "indexing",
  "insta",
+ "iris-diagnostics",
  "itertools 0.15.0",
  "javascript",
  "la-arena",
@@ -1787,11 +1764,11 @@ name = "iris-build"
 version = "0.1.0"
 dependencies = [
  "building",
- "diagnostics",
  "dunce",
  "files",
  "globset",
  "ignore",
+ "iris-diagnostics",
  "iris-progress",
  "iris-spago",
  "itertools 0.15.0",
@@ -1837,6 +1814,29 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "iris-diagnostics"
+version = "0.1.0"
+dependencies = [
+ "building-types",
+ "checking",
+ "files",
+ "foreign-javascript",
+ "functional",
+ "gen-lsp-types",
+ "indexing",
+ "itertools 0.15.0",
+ "javascript",
+ "line-index",
+ "lowering",
+ "resolving",
+ "smol_str",
+ "stabilizing",
+ "syntax",
+ "textwrap",
+ "unicode-width",
 ]
 
 [[package]]
@@ -4263,13 +4263,13 @@ dependencies = [
  "checking",
  "clap",
  "criterion",
- "diagnostics",
  "files",
  "flate2",
  "git2",
  "globset",
  "indexing",
  "indicatif",
+ "iris-diagnostics",
  "lexing",
  "line-index",
  "lowering",
@@ -4314,7 +4314,6 @@ dependencies = [
  "building",
  "checking",
  "datatest-stable",
- "diagnostics",
  "files",
  "functional",
  "gen-lsp-types",
@@ -4323,6 +4322,7 @@ dependencies = [
  "insta",
  "interner",
  "iris-analysis",
+ "iris-diagnostics",
  "iris-documentation",
  "itertools 0.15.0",
  "javascript",

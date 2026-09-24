@@ -15,18 +15,18 @@ pub fn implementation<Host>(
 ) -> Result<CollectedDiagnostics, AnalyzerError>
 where
     Host: AnalyzerHost,
-    Host::Queries: diagnostics::ExternalQueries
+    Host::Queries: iris_diagnostics::ExternalQueries
         + foreign_javascript::ForeignQueries
         + javascript::ModuleQueries,
 {
     let queries = context.queries();
-    let mut collected = diagnostics::collect_diagnostics(queries, &[file_id])?;
+    let mut collected = iris_diagnostics::collect_diagnostics(queries, &[file_id])?;
     let collected = collected.pop().expect("one source file should produce one collection");
     let uri = common::file_uri(context, file_id)?;
     let position_encoding = context.position_encoding().into();
     let line_index = LineIndex::new(&collected.content);
     let diagnostics = collected.diagnostics().iter().filter_map(|diagnostic| {
-        diagnostics::to_lsp_diagnostic(diagnostic, &line_index, &uri, &position_encoding)
+        iris_diagnostics::to_lsp_diagnostic(diagnostic, &line_index, &uri, &position_encoding)
     });
 
     let diagnostics = diagnostics.collect();
