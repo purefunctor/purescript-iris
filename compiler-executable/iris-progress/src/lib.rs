@@ -14,7 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{Terminal, TerminalOptions, Viewport};
 use smol_str::SmolStr;
-use terminal_colorsaurus::QueryOptions;
+use terminal_colorsaurus::{QueryOptions, ThemeMode};
 
 const ANIMATION_INTERVAL: Duration = Duration::from_millis(80);
 pub const PACKAGE_HISTORY_LENGTH: usize = 10;
@@ -192,9 +192,15 @@ impl ProgressModel {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProgressAppearance {
-    TrueColor { foreground: (u8, u8, u8), background: (u8, u8, u8) },
+    TrueColor { foreground: (u8, u8, u8), background: (u8, u8, u8), theme_mode: ThemeMode },
     Ansi,
     Plain,
+}
+
+impl ProgressAppearance {
+    fn is_light(self) -> bool {
+        matches!(self, ProgressAppearance::TrueColor { theme_mode: ThemeMode::Light, .. })
+    }
 }
 
 pub struct ProgressView<'a> {
@@ -436,6 +442,7 @@ fn detect_appearance(color: bool) -> ProgressAppearance {
     ProgressAppearance::TrueColor {
         foreground: palette.foreground.scale_to_8bit(),
         background: palette.background.scale_to_8bit(),
+        theme_mode: palette.theme_mode(),
     }
 }
 
@@ -569,7 +576,7 @@ fn bar_style(
 ) -> Style {
     let style = Style::default();
     match appearance {
-        ProgressAppearance::TrueColor { .. } if index < filled => {
+        ProgressAppearance::TrueColor { foreground, background, .. } if index < filled => {
             let progress = index as f32 / width.saturating_sub(1).max(1) as f32;
             let colors = [(240, 128, 136), (248, 152, 184), (184, 136, 224), (136, 72, 192)];
             let scaled = progress * (colors.len() - 1) as f32;
@@ -582,6 +589,14 @@ fn bar_style(
             };
             let mut color =
                 (interpolate(from.0, to.0), interpolate(from.1, to.1), interpolate(from.2, to.2));
+            let light_background = appearance.is_light();
+            if light_background {
+                color = (
+                    (color.0 as f32 * 0.65).round() as u8,
+                    (color.1 as f32 * 0.65).round() as u8,
+                    (color.2 as f32 * 0.65).round() as u8,
+                );
+            }
             if !finished && filled > 0 {
                 let distance = index.abs_diff(frame % filled);
                 let brightness = match distance {
@@ -590,17 +605,22 @@ fn bar_style(
                     2 => 0.25,
                     _ => 0.0,
                 };
-                let lighten = |channel: u8| {
-                    (channel as f32 + (255.0 - channel as f32) * brightness).round() as u8
+                let highlight = |channel: u8| {
+                    if light_background {
+                        (channel as f32 * (1.0 - brightness * 0.5)).round() as u8
+                    } else {
+                        (channel as f32 + (255.0 - channel as f32) * brightness).round() as u8
+                    }
                 };
-                color = (lighten(color.0), lighten(color.1), lighten(color.2));
+                color = (highlight(color.0), highlight(color.1), highlight(color.2));
             }
+            color = contrasting_color(color, foreground, background, 3.0);
             style.fg(Color::Rgb(color.0, color.1, color.2))
         }
         ProgressAppearance::TrueColor { foreground, .. } if index == filled => style
             .fg(Color::Rgb(foreground.0, foreground.1, foreground.2))
             .add_modifier(Modifier::BOLD),
-        ProgressAppearance::TrueColor { foreground, background } => {
+        ProgressAppearance::TrueColor { foreground, background, .. } => {
             let blend = |foreground: u8, background: u8| {
                 (background as f32 + (foreground as f32 - background as f32) * 0.16).round() as u8
             };
@@ -633,19 +653,76 @@ fn bar_style(
     }
 }
 
+fn contrasting_color(
+    color: (u8, u8, u8),
+    foreground: (u8, u8, u8),
+    background: (u8, u8, u8),
+    minimum_contrast: f32,
+) -> (u8, u8, u8) {
+    let background_luminance = relative_luminance(background);
+    let contrast = |color| contrast_ratio(color, background);
+    if contrast(color) >= minimum_contrast {
+        return color;
+    }
+    let target = if contrast(foreground) >= minimum_contrast {
+        foreground
+    } else if background_luminance > 0.18 {
+        (0, 0, 0)
+    } else {
+        (255, 255, 255)
+    };
+    for step in 1..=16 {
+        let amount = step as f32 / 16.0;
+        let blend = |color: u8, target: u8| {
+            (color as f32 + (target as f32 - color as f32) * amount).round() as u8
+        };
+        let blended =
+            (blend(color.0, target.0), blend(color.1, target.1), blend(color.2, target.2));
+        if contrast(blended) >= minimum_contrast {
+            return blended;
+        }
+    }
+    target
+}
+
+fn relative_luminance((red, green, blue): (u8, u8, u8)) -> f32 {
+    let linear = |channel: u8| {
+        let value = channel as f32 / 255.0;
+        if value <= 0.04045 { value / 12.92 } else { ((value + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+}
+
+fn contrast_ratio(color: (u8, u8, u8), background: (u8, u8, u8)) -> f32 {
+    let color_luminance = relative_luminance(color);
+    let background_luminance = relative_luminance(background);
+    (color_luminance.max(background_luminance) + 0.05)
+        / (color_luminance.min(background_luminance) + 0.05)
+}
+
 fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
     match appearance {
-        ProgressAppearance::TrueColor { foreground, background } => {
-            let opacity = 0.18 + 0.82 * row as f32 / (PACKAGE_HISTORY_LENGTH - 1) as f32;
+        ProgressAppearance::TrueColor { foreground, background, .. } => {
+            let minimum = if appearance.is_light() { 0.85 } else { 0.18 };
+            let opacity =
+                minimum + (1.0 - minimum) * row as f32 / (PACKAGE_HISTORY_LENGTH - 1) as f32;
             let blend = |foreground: u8, background: u8| {
                 (background as f32 + (foreground as f32 - background as f32) * opacity).round()
                     as u8
             };
-            Style::default().fg(Color::Rgb(
+            let mut color = (
                 blend(foreground.0, background.0),
                 blend(foreground.1, background.1),
                 blend(foreground.2, background.2),
-            ))
+            );
+            if appearance.is_light() {
+                color = if contrast_ratio(foreground, background) >= 4.5 {
+                    contrasting_color(color, foreground, background, 4.5)
+                } else {
+                    foreground
+                };
+            }
+            Style::default().fg(Color::Rgb(color.0, color.1, color.2))
         }
         ProgressAppearance::Ansi if row + 1 == PACKAGE_HISTORY_LENGTH => {
             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
@@ -660,9 +737,10 @@ fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
 fn accent_style(appearance: ProgressAppearance) -> Style {
     match appearance {
         ProgressAppearance::Plain => Style::default(),
-        ProgressAppearance::TrueColor { .. } | ProgressAppearance::Ansi => {
-            Style::default().fg(Color::White)
+        ProgressAppearance::TrueColor { foreground, .. } => {
+            Style::default().fg(Color::Rgb(foreground.0, foreground.1, foreground.2))
         }
+        ProgressAppearance::Ansi => Style::default(),
     }
 }
 
