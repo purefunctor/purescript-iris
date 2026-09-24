@@ -1,6 +1,8 @@
 <h1 align="center">iris</h1>
 <p align="center">a language implementation for PureScript</p>
 
+<!-- Temporary CI cache probe; do not merge. -->
+
 ---
 
 Iris is a language implementation for PureScript, powered by an incremental, query-based build
