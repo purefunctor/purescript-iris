@@ -614,7 +614,7 @@ fn bar_style(
                 };
                 color = (highlight(color.0), highlight(color.1), highlight(color.2));
             }
-            color = contrasting_bar_color(color, foreground, background);
+            color = contrasting_color(color, foreground, background, 3.0);
             style.fg(Color::Rgb(color.0, color.1, color.2))
         }
         ProgressAppearance::TrueColor { foreground, .. } if index == filled => style
@@ -653,20 +653,18 @@ fn bar_style(
     }
 }
 
-fn contrasting_bar_color(
+fn contrasting_color(
     color: (u8, u8, u8),
     foreground: (u8, u8, u8),
     background: (u8, u8, u8),
+    minimum_contrast: f32,
 ) -> (u8, u8, u8) {
     let background_luminance = relative_luminance(background);
-    let contrast = |color| {
-        let luminance = relative_luminance(color);
-        (luminance.max(background_luminance) + 0.05) / (luminance.min(background_luminance) + 0.05)
-    };
-    if contrast(color) >= 3.0 {
+    let contrast = |color| contrast_ratio(color, background);
+    if contrast(color) >= minimum_contrast {
         return color;
     }
-    let target = if contrast(foreground) >= 3.0 {
+    let target = if contrast(foreground) >= minimum_contrast {
         foreground
     } else if background_luminance > 0.18 {
         (0, 0, 0)
@@ -680,7 +678,7 @@ fn contrasting_bar_color(
         };
         let blended =
             (blend(color.0, target.0), blend(color.1, target.1), blend(color.2, target.2));
-        if contrast(blended) >= 3.0 {
+        if contrast(blended) >= minimum_contrast {
             return blended;
         }
     }
@@ -695,6 +693,13 @@ fn relative_luminance((red, green, blue): (u8, u8, u8)) -> f32 {
     0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
 }
 
+fn contrast_ratio(color: (u8, u8, u8), background: (u8, u8, u8)) -> f32 {
+    let color_luminance = relative_luminance(color);
+    let background_luminance = relative_luminance(background);
+    (color_luminance.max(background_luminance) + 0.05)
+        / (color_luminance.min(background_luminance) + 0.05)
+}
+
 fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
     match appearance {
         ProgressAppearance::TrueColor { foreground, background, .. } => {
@@ -705,11 +710,19 @@ fn history_style(appearance: ProgressAppearance, row: usize) -> Style {
                 (background as f32 + (foreground as f32 - background as f32) * opacity).round()
                     as u8
             };
-            Style::default().fg(Color::Rgb(
+            let mut color = (
                 blend(foreground.0, background.0),
                 blend(foreground.1, background.1),
                 blend(foreground.2, background.2),
-            ))
+            );
+            if appearance.is_light() {
+                color = if contrast_ratio(foreground, background) >= 4.5 {
+                    contrasting_color(color, foreground, background, 4.5)
+                } else {
+                    foreground
+                };
+            }
+            Style::default().fg(Color::Rgb(color.0, color.1, color.2))
         }
         ProgressAppearance::Ansi if row + 1 == PACKAGE_HISTORY_LENGTH => {
             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)

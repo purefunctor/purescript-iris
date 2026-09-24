@@ -422,17 +422,49 @@ fn finished_bar_remains_visible_on_matching_midtone_background() {
 
 #[test]
 fn oldest_history_row_stays_readable_on_light_background() {
-    let appearance = ProgressAppearance::TrueColor {
-        foreground: (76, 83, 107),
-        background: (248, 250, 255),
+    for (foreground, background) in
+        [((76, 83, 107), (248, 250, 255)), ((117, 117, 117), (255, 255, 255))]
+    {
+        let appearance =
+            ProgressAppearance::TrueColor { foreground, background, theme_mode: ThemeMode::Light };
+        let Color::Rgb(red, green, blue) = history_style(appearance, 0).fg.unwrap() else {
+            panic!("expected RGB")
+        };
+        let contrast = (relative_luminance(background) + 0.05)
+            / (relative_luminance((red, green, blue)) + 0.05);
+        assert!(contrast >= 4.5, "oldest row on {background:?}: {red}, {green}, {blue}");
+    }
+    let low_contrast = ProgressAppearance::TrueColor {
+        foreground: (0, 0, 0),
+        background: (156, 83, 88),
         theme_mode: ThemeMode::Light,
     };
-    let Color::Rgb(red, green, blue) = history_style(appearance, 0).fg.unwrap() else {
-        panic!("expected RGB")
-    };
-    let contrast = (relative_luminance((248, 250, 255)) + 0.05)
-        / (relative_luminance((red, green, blue)) + 0.05);
-    assert!(contrast >= 4.5);
+    assert_eq!(history_style(low_contrast, 0).fg, Some(Color::Rgb(0, 0, 0)));
+
+    let packages = [
+        ("prelude", Duration::from_millis(1)),
+        ("effect", Duration::from_millis(1)),
+        ("console", Duration::from_millis(1)),
+        ("arrays", Duration::from_millis(1)),
+        ("strings", Duration::from_millis(1)),
+        ("maybe", Duration::from_millis(1)),
+        ("either", Duration::from_millis(1)),
+        ("control", Duration::from_millis(1)),
+        ("aff", Duration::from_millis(1)),
+        ("application", Duration::from_millis(1)),
+    ];
+    let model = model_with_packages(&packages, packages.len());
+    let output = render_true_color_with_palette(
+        &model,
+        48,
+        PROGRESS_REGION_HEIGHT,
+        (117, 117, 117),
+        (255, 255, 255),
+        ThemeMode::Light,
+    );
+    insta::with_settings!({ omit_expression => true }, {
+        insta::assert_debug_snapshot!("history_near_threshold_light_true_color_ansi", output);
+    });
 }
 
 #[test]
