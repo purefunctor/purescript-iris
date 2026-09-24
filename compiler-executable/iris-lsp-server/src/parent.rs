@@ -13,6 +13,12 @@ use tokio::sync::oneshot;
 #[cfg(unix)]
 const NO_SUCH_PROCESS: i32 = 3;
 
+/// `ERROR_INVALID_PARAMETER`, reported by `OpenProcess` when no process has the given ID. A process
+/// that exited while another handle keeps it open can still be opened, and waiting on it returns
+/// immediately.
+#[cfg(windows)]
+const NO_SUCH_PROCESS: i32 = 87;
+
 /// Returns the `processId` in the `initialize` parameters if it names a process that can be
 /// monitored.
 ///
@@ -62,12 +68,12 @@ pub(crate) fn monitor(process_id: i32) -> Option<oneshot::Receiver<()>> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn already_exited(error: &io::Error) -> bool {
     error.raw_os_error() == Some(NO_SUCH_PROCESS)
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn already_exited(_: &io::Error) -> bool {
     false
 }
