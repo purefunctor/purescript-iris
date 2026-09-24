@@ -9,7 +9,7 @@ fn snapshot_output(name: &str, output: &Output) {
     let status = output.status.code().map_or_else(|| "signal".to_owned(), |code| code.to_string());
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    insta::with_settings!({omit_expression => true}, {
+    insta::with_settings!({omit_expression => true, filters => vec![(r"(?m)^iris \d+\.\d+\.\d+$", "iris [version]")]}, {
         insta::assert_snapshot!(
             name,
             format!("status: {status}\n--- stdout\n{stdout}--- stderr\n{stderr}")
@@ -38,16 +38,6 @@ fn prints_help_for_every_command_path() {
         assert!(output.stderr.is_empty(), "{name} help wrote stderr");
         snapshot_output(name, &output);
     }
-}
-
-#[test]
-fn prints_version_to_stdout() {
-    let workspace = TestWorkspace::empty();
-    let output = workspace.command(&["--version"]);
-    assert!(output.status.success());
-    assert!(!output.stdout.is_empty());
-    assert!(output.stderr.is_empty());
-    snapshot_output("version", &output);
 }
 
 #[test]
