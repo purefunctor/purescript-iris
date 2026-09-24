@@ -25,10 +25,7 @@ use iris_lsp_server::{
     Answer, ControlMessage, OrderedMessage, Rejection, SettingsResponse, WorkspaceEvent,
     WorkspaceEventSender, WorkspaceFailure, WorkspaceSenders,
 };
-use lsp_types::{
-    Position, Range, TextDocumentContentChangeEvent, TextDocumentContentChangePartial,
-    TextDocumentContentChangeWholeDocument, Uri,
-};
+use lsp_types::{Position, Range, Uri};
 use parking_lot::Mutex;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -39,7 +36,8 @@ use crate::WorkspaceConfig;
 use crate::analysis::{CONTENT_MODIFIED, Snapshot};
 use crate::discovery::package_source_roots;
 use crate::handlers::{
-    AnalysisJob, DocumentContext, DocumentNotification, apply_content_changes, apply_document,
+    AnalysisJob, ContentChange, DocumentContext, DocumentNotification, apply_content_changes,
+    apply_document,
 };
 use crate::preparation::{PreparationError, ProgressSink};
 use crate::service::Actor;
@@ -736,6 +734,73 @@ async fn a_malformed_document_notification_stops_the_actor() {
     assert!(failure.0.starts_with("invalid textDocument/didOpen notification: "), "{failure}");
 }
 
+#[test]
+fn a_content_change_with_a_malformed_range_is_rejected() {
+    let parameters = json!({
+        "textDocument": {"uri": "file:///workspace/Main.purs", "version": 2},
+        "contentChanges": [{
+            "range": {
+                "start": {"line": 0, "character": "broken"},
+                "end": {"line": 0, "character": 1},
+            },
+            "text": "replacement",
+        }],
+    });
+    let result = DocumentNotification::decode("textDocument/didChange", parameters);
+    assert!(result.is_err());
+}
+
+#[test]
+fn a_content_change_with_a_range_edits_the_document() {
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
+    let parameters = json!({
+        "textDocument": {"uri": uri, "version": 2},
+        "contentChanges": [{
+            "range": {"start": {"line": 0, "character": 7}, "end": {"line": 0, "character": 8}},
+            "rangeLength": 1,
+            "unknown": true,
+            "text": "2",
+        }],
+    });
+    let notification =
+        DocumentNotification::decode("textDocument/didChange", parameters).unwrap().unwrap();
+    let DocumentNotification::Change(parameters) = notification else {
+        panic!("expected a didChange notification");
+    };
+    let content = apply_content_changes(
+        &uri,
+        "life = 1",
+        &parameters.content_changes,
+        PositionEncoding::Utf16,
+    )
+    .unwrap();
+    assert_eq!(content.as_ref(), "life = 2");
+}
+
+#[test]
+fn a_content_change_without_a_range_replaces_the_document() {
+    let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
+    for change in [json!({"text": "life = 1"}), json!({"range": null, "text": "life = 1"})] {
+        let parameters = json!({
+            "textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [change],
+        });
+        let notification =
+            DocumentNotification::decode("textDocument/didChange", parameters).unwrap().unwrap();
+        let DocumentNotification::Change(parameters) = notification else {
+            panic!("expected a didChange notification");
+        };
+        let content = apply_content_changes(
+            &uri,
+            "discarded",
+            &parameters.content_changes,
+            PositionEncoding::Utf16,
+        )
+        .unwrap();
+        assert_eq!(content.as_ref(), "life = 1");
+    }
+}
+
 #[tokio::test]
 async fn unknown_notifications_are_ignored() {
     let harness = WorkspaceHarness::builtin(1).await;
@@ -999,18 +1064,18 @@ fn package_roots_include_canonical_symlink_aliases() {
     assert!(roots.iter().any(|root| root.path == canonical));
 }
 
-fn partial_change(range: Range, text: &str) -> TextDocumentContentChangeEvent {
-    let text = text.to_string();
-    let change = TextDocumentContentChangePartial { range, text, ..Default::default() };
-    TextDocumentContentChangeEvent::TextDocumentContentChangePartial(change)
-}
-
 #[test]
 fn incremental_content_changes_apply_sequentially() {
     let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
     let changes = [
-        partial_change(Range::new(Position::new(1, 0), Position::new(1, 4)), "answer"),
-        partial_change(Range::new(Position::new(1, 9), Position::new(1, 10)), "42"),
+        ContentChange {
+            range: Some(Range::new(Position::new(1, 0), Position::new(1, 4))),
+            text: "answer".to_string(),
+        },
+        ContentChange {
+            range: Some(Range::new(Position::new(1, 9), Position::new(1, 10))),
+            text: "42".to_string(),
+        },
     ];
 
     let content = apply_content_changes(
@@ -1027,7 +1092,10 @@ fn incremental_content_changes_apply_sequentially() {
 #[test]
 fn incremental_content_changes_use_negotiated_position_encoding() {
     let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
-    let changes = [partial_change(Range::new(Position::new(0, 3), Position::new(0, 4)), "c")];
+    let changes = [ContentChange {
+        range: Some(Range::new(Position::new(0, 3), Position::new(0, 4))),
+        text: "c".to_string(),
+    }];
 
     let content = apply_content_changes(&uri, "a😀b", &changes, PositionEncoding::Utf16).unwrap();
 
@@ -1038,10 +1106,11 @@ fn incremental_content_changes_use_negotiated_position_encoding() {
 fn full_content_change_resets_incremental_change_base() {
     let uri = Uri::parse("file:///workspace/Main.purs").unwrap();
     let changes = [
-        TextDocumentContentChangeEvent::TextDocumentContentChangeWholeDocument(
-            TextDocumentContentChangeWholeDocument { text: "life = 1".to_string() },
-        ),
-        partial_change(Range::new(Position::new(0, 7), Position::new(0, 8)), "2"),
+        ContentChange { range: None, text: "life = 1".to_string() },
+        ContentChange {
+            range: Some(Range::new(Position::new(0, 7), Position::new(0, 8))),
+            text: "2".to_string(),
+        },
     ];
 
     let content =

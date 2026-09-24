@@ -12,7 +12,7 @@ use iris_analysis::position::PositionEncoding;
 use iris_lsp_server::{Answer, Rejection};
 use lsp_types::*;
 use rustc_hash::FxHashSet;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
@@ -39,10 +39,29 @@ pub(crate) enum DocumentError {
 /// A document notification the workspace actor handles.
 pub(crate) enum DocumentNotification {
     Open(DidOpenTextDocumentParams),
-    Change(DidChangeTextDocumentParams),
+    Change(DidChangeParameters),
     Close(DidCloseTextDocumentParams),
     Save(DidSaveTextDocumentParams),
     ChangeWatchedFiles(DidChangeWatchedFilesParams),
+}
+
+/// The parameters of `textDocument/didChange`.
+///
+/// `gen-lsp-types` decodes a content change as an untagged union, which reads a change with a
+/// malformed `range` as a whole-document replacement. [`ContentChange`] replaces the document only
+/// when `range` is absent or null, so a malformed range is rejected. The deprecated `rangeLength`
+/// is ignored, as are other fields the server does not read.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DidChangeParameters {
+    pub(crate) text_document: VersionedTextDocumentIdentifier,
+    pub(crate) content_changes: Vec<ContentChange>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct ContentChange {
+    pub(crate) range: Option<Range>,
+    pub(crate) text: String,
 }
 
 /// What document handlers need besides the workspace.
@@ -149,7 +168,7 @@ fn did_open(
 fn did_change(
     workspace: &mut ReadyWorkspace,
     context: &DocumentContext,
-    parameters: DidChangeTextDocumentParams,
+    parameters: DidChangeParameters,
 ) -> Result<WorkspaceEffects, DocumentError> {
     let uri = &parameters.text_document.text_document_identifier.uri;
     if parameters.content_changes.is_empty() {
@@ -317,19 +336,14 @@ fn did_change_watched_files(
 pub(crate) fn apply_content_changes(
     uri: &Uri,
     content: &str,
-    content_changes: &[TextDocumentContentChangeEvent],
+    content_changes: &[ContentChange],
     position_encoding: PositionEncoding,
 ) -> Result<Arc<str>, DocumentError> {
     let mut content = content.to_string();
     for content_change in content_changes {
-        let (range, text) = match content_change {
-            TextDocumentContentChangeEvent::TextDocumentContentChangePartial(change) => {
-                (change.range, &change.text)
-            }
-            TextDocumentContentChangeEvent::TextDocumentContentChangeWholeDocument(change) => {
-                content = String::clone(&change.text);
-                continue;
-            }
+        let Some(range) = content_change.range else {
+            content = String::clone(&content_change.text);
+            continue;
         };
 
         let positions =
@@ -353,7 +367,7 @@ pub(crate) fn apply_content_changes(
             return Err(DocumentError::InvalidContentChange(Uri::clone(uri)));
         }
 
-        content.replace_range(start..end, text);
+        content.replace_range(start..end, &content_change.text);
     }
     Ok(Arc::from(content))
 }
