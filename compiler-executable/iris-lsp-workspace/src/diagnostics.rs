@@ -1,20 +1,27 @@
+//! Diagnostic scheduling.
+//!
+//! Each source has at most one running diagnostic task and one queued collection. A change that
+//! invalidates a source advances its generation, so a running task's result is published only
+//! if its generation, file, and document version still match when it finishes.
+
 use std::collections::hash_map::Entry;
 
-use async_lsp::{ClientSocket, LanguageClient};
+use building::QueryError;
 use building::lifecycle::{AnalysisInvalidation, FileLifecycle, LifecycleChange};
 use files::FileId;
+use iris_analysis::AnalyzerError;
 use iris_analysis::diagnostics::CollectedDiagnostics;
 use itertools::Itertools;
-use lsp_types::PublishDiagnosticsParams;
 use rustc_hash::FxHashMap;
+use tokio::sync::mpsc;
 use tokio::task;
 
-use crate::server::analysis::StateSnapshot;
-use crate::server::error::LspError;
-use crate::server::{SourceMetadata, State};
+use crate::analysis::{Snapshot, Workers};
+use crate::service::Background;
+use crate::state::SourceMetadata;
 
 #[derive(Default)]
-pub struct DiagnosticScheduler {
+pub(crate) struct DiagnosticScheduler {
     generations: FxHashMap<FileId, u64>,
     jobs: FxHashMap<FileId, DiagnosticJob>,
 }
@@ -25,14 +32,14 @@ struct DiagnosticJob {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct DiagnosticTicket {
-    pub(super) file_id: FileId,
+pub(crate) struct DiagnosticTicket {
+    pub(crate) file_id: FileId,
     generation: u64,
-    pub(super) version: Option<i32>,
+    pub(crate) version: Option<i32>,
 }
 
 impl DiagnosticScheduler {
-    pub fn invalidate(
+    pub(crate) fn invalidate(
         &mut self,
         change: &LifecycleChange,
         files: &FileLifecycle<i32, SourceMetadata>,
@@ -67,7 +74,9 @@ impl DiagnosticScheduler {
         }
     }
 
-    pub(super) fn schedule(
+    /// Returns a ticket to start now, or `None` if a task for the file is already running; then
+    /// the collection is queued behind it.
+    pub(crate) fn schedule(
         &mut self,
         file_id: FileId,
         version: Option<i32>,
@@ -89,15 +98,16 @@ impl DiagnosticScheduler {
         }
     }
 
-    pub(super) fn is_running(&self, ticket: DiagnosticTicket) -> bool {
+    pub(crate) fn is_running(&self, ticket: DiagnosticTicket) -> bool {
         self.jobs.get(&ticket.file_id).is_some_and(|job| job.running == ticket)
     }
 
-    pub(super) fn is_current(&self, ticket: DiagnosticTicket) -> bool {
+    pub(crate) fn is_current(&self, ticket: DiagnosticTicket) -> bool {
         self.generations.get(&ticket.file_id).copied().unwrap_or_default() == ticket.generation
     }
 
-    pub(super) fn complete(&mut self, ticket: DiagnosticTicket) -> Option<DiagnosticTicket> {
+    /// Records that the task for `ticket` finished and returns the queued collection to start.
+    pub(crate) fn complete(&mut self, ticket: DiagnosticTicket) -> Option<DiagnosticTicket> {
         let job = self.jobs.get_mut(&ticket.file_id)?;
         if job.running != ticket {
             return None;
@@ -112,90 +122,49 @@ impl DiagnosticScheduler {
     }
 }
 
-pub struct CollectDiagnostics(pub(super) FileId);
-
-pub fn collect_diagnostics(
-    state: &mut State,
-    CollectDiagnostics(file_id): CollectDiagnostics,
-) -> Result<(), LspError> {
-    let ticket = state.workspace.schedule_diagnostics(file_id)?;
-    if let Some(ticket) = ticket {
-        start_diagnostics(state, ticket);
-    }
-    Ok(())
-}
-
-fn start_diagnostics(state: &State, ticket: DiagnosticTicket) {
-    let worker = state.spawn(move |snapshot| {
-        let _span = tracing::info_span!("collect_diagnostics").entered();
-        collect_diagnostics_core(snapshot, ticket)
-    });
-    let worker =
-        worker.expect("invariant violated: diagnostics started before the workspace was ready");
-
-    let client = ClientSocket::clone(&state.client);
-    task::spawn(async move {
-        let collected = await_diagnostics(worker).await;
-        let event = DiagnosticsFinished { ticket, collected };
-        if let Err(error) = client.emit(event) {
-            LspError::from(error).emit_trace();
-        }
-    });
-}
-
-fn collect_diagnostics_core(
-    snapshot: StateSnapshot,
+/// Starts a diagnostic task for `ticket`. It reports `Background::DiagnosticsFinished` with no
+/// diagnostics if a change to engine inputs arrives while it waits for a permit, or if the
+/// change cancels its queries.
+pub(crate) fn spawn(
+    workers: &Workers,
+    snapshot: Snapshot,
     ticket: DiagnosticTicket,
-) -> Option<CollectedDiagnostics> {
+    background: mpsc::UnboundedSender<Background>,
+) {
+    let permits = workers.diagnostic_permits();
+    let mut changes = workers.changes();
+    workers.spawn(async move {
+        let collected = match Workers::wait_for_permit(&permits, &mut changes).await {
+            Some(permit) => {
+                let collected = task::spawn_blocking(move || collect(snapshot, ticket)).await;
+                drop(permit);
+                collected.unwrap_or_else(|error| {
+                    tracing::error!("Diagnostic collection failed: {error}");
+                    None
+                })
+            }
+            None => None,
+        };
+        let _ = background.send(Background::DiagnosticsFinished { ticket, collected });
+    });
+}
+
+fn collect(snapshot: Snapshot, ticket: DiagnosticTicket) -> Option<CollectedDiagnostics> {
+    let _span = tracing::info_span!("collect_diagnostics").entered();
     let result = snapshot.with_analyzer_context(|context| {
         iris_analysis::diagnostics::implementation(context, ticket.file_id)
     });
     match result {
         Ok(collected) => Some(collected),
+        Err(error @ AnalyzerError::QueryError(QueryError::Cancelled)) => {
+            tracing::warn!("AnalyzerError: {error}");
+            None
+        }
         Err(error) => {
-            LspError::from(error).emit_trace();
+            tracing::error!("AnalyzerError: {error}");
             None
         }
     }
-}
-
-async fn await_diagnostics(
-    worker: task::JoinHandle<Option<CollectedDiagnostics>>,
-) -> Option<CollectedDiagnostics> {
-    match worker.await {
-        Ok(collected) => collected,
-        Err(error) => {
-            LspError::JoinError(error).emit_trace();
-            None
-        }
-    }
-}
-
-pub struct DiagnosticsFinished {
-    ticket: DiagnosticTicket,
-    collected: Option<CollectedDiagnostics>,
-}
-
-pub fn finish_diagnostics(
-    state: &mut State,
-    DiagnosticsFinished { ticket, collected }: DiagnosticsFinished,
-) -> Result<(), LspError> {
-    let (current, next) = state.workspace.finish_diagnostics(ticket)?;
-
-    let publish_result = if current && let Some(collected) = collected {
-        let mut client = ClientSocket::clone(&state.client);
-        client.publish_diagnostics(PublishDiagnosticsParams {
-            uri: collected.uri,
-            diagnostics: collected.diagnostics,
-            version: ticket.version,
-        })
-    } else {
-        Ok(())
-    };
-    if let Some(next) = next {
-        start_diagnostics(state, next);
-    }
-    publish_result.map_err(LspError::from)
 }
 
 #[cfg(test)]
@@ -208,7 +177,7 @@ mod tests {
     };
     use files::Files;
 
-    use super::{DiagnosticScheduler, SourceMetadata, await_diagnostics};
+    use super::{DiagnosticScheduler, SourceMetadata};
 
     fn file_id() -> files::FileId {
         let mut files = Files::default();
@@ -273,16 +242,5 @@ mod tests {
         scheduler.invalidate(&change, &lifecycle);
 
         assert!(!scheduler.is_current(ticket));
-    }
-
-    #[tokio::test]
-    async fn failed_diagnostics_worker_returns_no_result() {
-        let worker = tokio::spawn(async {
-            panic!("diagnostics worker failed");
-            #[allow(unreachable_code)]
-            None
-        });
-
-        assert!(await_diagnostics(worker).await.is_none());
     }
 }

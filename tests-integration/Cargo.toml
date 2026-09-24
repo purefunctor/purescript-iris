@@ -6,7 +6,6 @@ license.workspace = true
 publish = false
 
 [dependencies]
-async-lsp = "0.2.4"
 building = { version = "0.1.0", path = "../compiler-core/building" }
 checking = { version = "0.1.0", path = "../compiler-frontend/checking" }
 diagnostics = { version = "0.1.0", path = "../compiler-frontend/diagnostics" }

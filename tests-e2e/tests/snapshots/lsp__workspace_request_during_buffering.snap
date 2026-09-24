@@ -1,8 +1,0 @@
----
-source: tests-e2e/tests/lsp.rs
----
-{
-  "code": -32801,
-  "data": null,
-  "message": "Workspace is loading"
-}

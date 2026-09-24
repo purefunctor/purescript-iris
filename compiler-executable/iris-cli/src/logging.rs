@@ -48,12 +48,17 @@ pub fn start(filters: LoggingFilters) -> io::Result<()> {
         .with_target("building::engine", filters.query)
         .with_target("checking", filters.checking)
         .with_target("iris_lsp", filters.lsp)
+        .with_target("iris_lsp_server", filters.lsp)
+        .with_target("iris_lsp_workspace", filters.lsp)
         .with_target("meta", filters.lsp)
         .with_default(LevelFilter::OFF);
     let output = fmt::layer().with_writer(file).with_filter(output_filter);
 
-    let timing_filter =
-        filter::Targets::new().with_target("iris_lsp", filters.lsp).with_default(LevelFilter::OFF);
+    let timing_filter = filter::Targets::new()
+        .with_target("iris_lsp", filters.lsp)
+        .with_target("iris_lsp_server", filters.lsp)
+        .with_target("iris_lsp_workspace", filters.lsp)
+        .with_default(LevelFilter::OFF);
     let timing = SpanTimingLayer.with_filter(timing_filter);
 
     let subscriber = Registry::default().with(output).with(timing);

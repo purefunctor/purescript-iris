@@ -1,29 +1,12 @@
+//! Position encoding and analyzer capability negotiation, and the server capabilities.
+
 use iris_analysis::AnalyzerCapabilities;
 use iris_analysis::position::PositionEncoding;
-use lsp_types::{InitializeParams, PositionEncodingKind};
+use lsp_types::*;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct ConfigurationCapabilities {
-    pub workspace_configuration: bool,
-    pub dynamic_registration: bool,
-}
-
-pub fn negotiate_configuration_capabilities(
+pub(crate) fn negotiate_analyzer_capabilities(
     parameters: &InitializeParams,
-) -> ConfigurationCapabilities {
-    let Some(workspace) = &parameters.capabilities.workspace else {
-        return ConfigurationCapabilities::default();
-    };
-    let workspace_configuration = workspace.configuration == Some(true);
-    let dynamic_registration = workspace_configuration
-        && workspace
-            .did_change_configuration
-            .as_ref()
-            .is_some_and(|capability| capability.dynamic_registration == Some(true));
-    ConfigurationCapabilities { workspace_configuration, dynamic_registration }
-}
-
-pub fn negotiate_analyzer_capabilities(parameters: &InitializeParams) -> AnalyzerCapabilities {
+) -> AnalyzerCapabilities {
     let workspace_edit = parameters
         .capabilities
         .workspace
@@ -48,7 +31,7 @@ pub fn negotiate_analyzer_capabilities(parameters: &InitializeParams) -> Analyze
     }
 }
 
-pub fn negotiate_position_encoding(parameters: &InitializeParams) -> PositionEncoding {
+pub(crate) fn negotiate_position_encoding(parameters: &InitializeParams) -> PositionEncoding {
     let Some(encodings) = parameters
         .capabilities
         .general
@@ -69,12 +52,70 @@ pub fn negotiate_position_encoding(parameters: &InitializeParams) -> PositionEnc
     }
 }
 
+pub(crate) fn initialize_result(
+    name: &str,
+    version: &str,
+    position_encoding: PositionEncoding,
+) -> InitializeResult {
+    InitializeResult {
+        server_info: Some(ServerInfo {
+            name: name.to_string(),
+            version: Some(version.to_string()),
+        }),
+        capabilities: server_capabilities(position_encoding),
+    }
+}
+
+fn server_capabilities(position_encoding: PositionEncoding) -> ServerCapabilities {
+    ServerCapabilities {
+        completion_provider: Some(CompletionOptions {
+            resolve_provider: Some(true),
+            trigger_characters: Some(vec![".".to_string()]),
+            all_commit_characters: None,
+            work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
+            completion_item: Some(CompletionOptionsCompletionItem {
+                label_details_support: Some(true),
+            }),
+        }),
+        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
+            code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+            ..CodeActionOptions::default()
+        })),
+        definition_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(HoverProviderCapability::Simple(true)),
+        references_provider: Some(OneOf::Left(true)),
+        rename_provider: Some(OneOf::Right(RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
+        })),
+        document_highlight_provider: Some(OneOf::Left(true)),
+        workspace_symbol_provider: Some(OneOf::Left(true)),
+        document_symbol_provider: Some(OneOf::Left(true)),
+        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+            SemanticTokensOptions {
+                work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
+                legend: SemanticTokensLegend {
+                    token_types: iris_analysis::semantic_tokens::TOKEN_TYPES.to_vec(),
+                    token_modifiers: iris_analysis::semantic_tokens::TOKEN_MODIFIERS.to_vec(),
+                },
+                range: Some(false),
+                full: Some(SemanticTokensFullOptions::Bool(true)),
+            },
+        )),
+        text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
+            open_close: Some(true),
+            change: Some(TextDocumentSyncKind::INCREMENTAL),
+            save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+            ..TextDocumentSyncOptions::default()
+        })),
+        position_encoding: Some(PositionEncodingKind::from(position_encoding)),
+        ..ServerCapabilities::default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use lsp_types::{
-        ClientCapabilities, DynamicRegistrationClientCapabilities, GeneralClientCapabilities,
-        WorkspaceClientCapabilities,
-    };
+    use lsp_types::{ClientCapabilities, GeneralClientCapabilities};
 
     use super::*;
 
@@ -130,46 +171,5 @@ mod tests {
 
         let encoding = negotiate_position_encoding(&parameters);
         assert_eq!(encoding, PositionEncoding::Utf32);
-    }
-
-    #[test]
-    fn workspace_configuration_and_registration_are_negotiated_independently() {
-        let parameters = InitializeParams {
-            capabilities: ClientCapabilities {
-                workspace: Some(WorkspaceClientCapabilities {
-                    configuration: Some(true),
-                    did_change_configuration: Some(DynamicRegistrationClientCapabilities {
-                        dynamic_registration: Some(true),
-                    }),
-                    ..WorkspaceClientCapabilities::default()
-                }),
-                ..ClientCapabilities::default()
-            },
-            ..InitializeParams::default()
-        };
-
-        assert_eq!(
-            negotiate_configuration_capabilities(&parameters),
-            ConfigurationCapabilities { workspace_configuration: true, dynamic_registration: true }
-        );
-
-        let parameters = InitializeParams {
-            capabilities: ClientCapabilities {
-                workspace: Some(WorkspaceClientCapabilities {
-                    configuration: Some(false),
-                    did_change_configuration: Some(DynamicRegistrationClientCapabilities {
-                        dynamic_registration: Some(true),
-                    }),
-                    ..WorkspaceClientCapabilities::default()
-                }),
-                ..ClientCapabilities::default()
-            },
-            ..InitializeParams::default()
-        };
-
-        assert_eq!(
-            negotiate_configuration_capabilities(&parameters),
-            ConfigurationCapabilities::default()
-        );
     }
 }

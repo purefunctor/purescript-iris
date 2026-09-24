@@ -37,11 +37,14 @@ fn package<'a>(discovered: &'a DiscoveredPackages, name: &str) -> &'a Discovered
     discovered.packages.iter().find(|package| package.name == name).unwrap()
 }
 
+/// Discovered files are under the canonical workspace root, which differs from a temporary
+/// directory reached through a symlink, as on macOS.
 fn relative_files(root: &Path, package: &DiscoveredPackage) -> Vec<String> {
+    let root = dunce::canonicalize(root).unwrap();
     let mut files = package
         .files
         .iter()
-        .map(|path| path.strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"))
+        .map(|path| path.strip_prefix(&root).unwrap().to_string_lossy().replace('\\', "/"))
         .collect::<Vec<_>>();
     files.sort();
     files

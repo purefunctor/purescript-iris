@@ -11,6 +11,11 @@ fn parse_fixture(name: &str) -> iris_spago::Manifest {
     iris_spago::parse_manifest(&fixture(name)).unwrap()
 }
 
+/// Spells a joined path with `/` so that snapshots do not depend on the platform's separator.
+fn portable(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
 fn snapshot_settings() -> insta::Settings {
     let mut settings = insta::Settings::clone_current();
     settings.set_omit_expression(true);
@@ -87,13 +92,16 @@ fn derives_package_metadata_and_source_globs() {
     let all = package.all_dependency_names().map(SmolStr::as_str).collect::<Vec<_>>();
     let globs = iris_spago::package_source_directories()
         .iter()
-        .map(|directory| iris_spago::source_glob(directory))
+        .map(|directory| portable(&iris_spago::source_glob(directory)))
         .collect::<Vec<_>>();
     let workspace = manifest.workspace.as_ref().expect("fixture has a workspace");
     let extra = workspace.extra_packages.iter().map(|(name, extra)| {
         let dependencies =
             extra.dependency_names().into_iter().map(SmolStr::as_str).collect::<Vec<_>>();
-        (name, extra.subdirectory(), extra.dependency_source_directories(), dependencies)
+        let directories = extra.dependency_source_directories();
+        let directories =
+            directories.iter().map(|directory| portable(directory)).collect::<Vec<_>>();
+        (name, extra.subdirectory(), directories, dependencies)
     });
 
     let extra = extra.collect::<Vec<_>>();

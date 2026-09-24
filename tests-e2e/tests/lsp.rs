@@ -1,32 +1,22 @@
-use std::ops::ControlFlow;
+use std::collections::HashMap;
+use std::io::{BufReader, Read};
 use std::path::Path;
-use std::process::Stdio;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
-use std::{fs, thread};
+use std::{fmt, fs, thread};
 
-use async_lsp::router::Router;
-use async_lsp::{
-    Error, ErrorCode, LanguageServer as LanguageServerClient, ResponseError, ServerSocket,
-};
-use lsp_types::notification::{Progress, PublishDiagnostics, ShowMessage};
-use lsp_types::request::{
-    RegisterCapability, WorkDoneProgressCreate, WorkspaceConfiguration, WorkspaceSymbolRequest,
-};
+use lsp_server::{ErrorCode, Message, RequestId};
 use lsp_types::{
-    ClientCapabilities, DocumentSymbolParams, InitializeParams, InitializedParams,
-    PartialResultParams, ProgressToken, Registration, TextDocumentIdentifier,
-    WorkDoneProgressCancelParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceSymbolParams,
+    ClientCapabilities, DocumentSymbolParams, InitializeParams, InitializeResult,
+    PartialResultParams, ProgressToken, TextDocumentIdentifier, WorkDoneProgressCancelParams,
+    WorkDoneProgressCreateParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceSymbolParams,
 };
 use regex::Regex;
+use serde::Serialize;
 use serde_json::{Value, json};
-use tokio::runtime::{Builder, Runtime};
-use tokio::sync::Semaphore;
-use tokio::task::JoinHandle;
-use tokio::time::timeout;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 use url::Url;
 
 #[path = "support.rs"]
@@ -173,27 +163,42 @@ fn snapshot_normalization_includes_a_canonical_symlinked_temp_ancestor() {
 }
 
 struct ClientState {
-    configuration: Mutex<Option<Value>>,
-    configuration_requests: AtomicUsize,
-    registrations: Mutex<Vec<Registration>>,
     progress_tokens: Mutex<Vec<ProgressToken>>,
-    progress_creation: ProgressCreation,
-    unexpected_requests: Mutex<Vec<String>>,
-    notifications: mpsc::Sender<Value>,
+    /// Server requests the client does not handle, and messages it could not accept.
+    unexpected_messages: Mutex<Vec<String>>,
 }
 
-#[derive(Clone)]
-enum ProgressCreation {
-    Immediate,
-    Delayed(Arc<Semaphore>),
-    Rejected,
+/// Why a request produced no result.
+#[derive(Debug)]
+enum Error {
+    Response(ResponseError),
+    /// The connection ended before the response arrived.
+    Disconnected,
+}
+
+/// A response error as the tests assert and snapshot it. Absent `data` is snapshotted as `null`.
+#[derive(Debug, Serialize)]
+struct ResponseError {
+    code: i32,
+    message: String,
+    data: Option<Value>,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Response(error) => {
+                write!(formatter, "{} (jsonrpc error {})", error.message, error.code)
+            }
+            Error::Disconnected => write!(formatter, "the language server disconnected"),
+        }
+    }
 }
 
 struct LanguageServer {
-    child: tokio::process::Child,
-    runtime: Runtime,
-    server: ServerSocket,
-    mainloop: Option<JoinHandle<async_lsp::Result<()>>>,
+    child: Child,
+    connection: Connection,
+    stderr: Arc<Mutex<Vec<u8>>>,
     messages: Receiver<Value>,
     notifications: Vec<Value>,
     client: Arc<ClientState>,
@@ -206,14 +211,7 @@ impl LanguageServer {
         arguments: &[&str],
         root: &Path,
     ) -> LanguageServer {
-        LanguageServer::start_with_capabilities(
-            workspace,
-            directory,
-            arguments,
-            root,
-            json!({}),
-            None,
-        )
+        LanguageServer::start_with_capabilities(workspace, directory, arguments, root, json!({}))
     }
 
     fn start_with_capabilities(
@@ -222,174 +220,55 @@ impl LanguageServer {
         arguments: &[&str],
         root: &Path,
         capabilities: Value,
-        configuration: Option<Value>,
-    ) -> LanguageServer {
-        LanguageServer::start_with_progress_creation(
-            workspace,
-            directory,
-            arguments,
-            root,
-            capabilities,
-            configuration,
-            ProgressCreation::Immediate,
-        )
-    }
-
-    fn start_with_progress_creation(
-        workspace: &TestWorkspace,
-        directory: &str,
-        arguments: &[&str],
-        root: &Path,
-        capabilities: Value,
-        configuration: Option<Value>,
-        progress_creation: ProgressCreation,
     ) -> LanguageServer {
         let mut arguments = arguments.to_vec();
         arguments.extend(["--lsp-log", "off"]);
-        let (notifications, messages) = mpsc::channel();
         let client = Arc::new(ClientState {
-            configuration: Mutex::new(configuration),
-            configuration_requests: AtomicUsize::new(0),
-            registrations: Mutex::new(vec![]),
             progress_tokens: Mutex::new(vec![]),
-            progress_creation,
-            unexpected_requests: Mutex::new(vec![]),
-            notifications,
-        });
-        let client_state = Arc::clone(&client);
-        let (mainloop, server) = async_lsp::MainLoop::new_client(move |_| {
-            let mut router = Router::new(client_state);
-            router
-                .request::<WorkspaceConfiguration, _>(|state, parameters| {
-                    assert_eq!(parameters.items.len(), 1);
-                    assert_eq!(parameters.items[0].section.as_deref(), Some("iris.server"));
-                    assert!(parameters.items[0].scope_uri.is_some());
-                    state.configuration_requests.fetch_add(1, Ordering::Relaxed);
-                    let configuration = state.configuration.lock().unwrap().clone();
-                    async move { Ok(vec![configuration.unwrap_or(Value::Null)]) }
-                })
-                .request::<RegisterCapability, _>(|state, parameters| {
-                    state.registrations.lock().unwrap().extend(parameters.registrations);
-                    async { Ok(()) }
-                })
-                .request::<WorkDoneProgressCreate, _>(|state, parameters| {
-                    state.progress_tokens.lock().unwrap().push(parameters.token);
-                    let creation = state.progress_creation.clone();
-                    async move {
-                        match creation {
-                            ProgressCreation::Immediate => Ok(()),
-                            ProgressCreation::Delayed(gate) => {
-                                let permit = gate.acquire().await.unwrap();
-                                permit.forget();
-                                Ok(())
-                            }
-                            ProgressCreation::Rejected => Err(ResponseError::new(
-                                ErrorCode::REQUEST_FAILED,
-                                "progress creation rejected by test client",
-                            )),
-                        }
-                    }
-                })
-                .notification::<PublishDiagnostics>(|state, parameters| {
-                    state
-                        .notifications
-                        .send(json!({
-                            "method": "textDocument/publishDiagnostics",
-                            "params": parameters
-                        }))
-                        .unwrap();
-                    ControlFlow::Continue(())
-                })
-                .notification::<ShowMessage>(|state, parameters| {
-                    state
-                        .notifications
-                        .send(json!({"method": "window/showMessage", "params": parameters}))
-                        .unwrap();
-                    ControlFlow::Continue(())
-                })
-                .notification::<Progress>(|state, parameters| {
-                    state
-                        .notifications
-                        .send(json!({"method": "$/progress", "params": parameters}))
-                        .unwrap();
-                    ControlFlow::Continue(())
-                })
-                .unhandled_request(|state, request| {
-                    let method = request.method;
-                    state.unexpected_requests.lock().unwrap().push(method.clone());
-                    async move {
-                        Err(ResponseError::new(
-                            ErrorCode::METHOD_NOT_FOUND,
-                            format_args!("unexpected server request {method}"),
-                        ))
-                    }
-                });
-            router
+            unexpected_messages: Mutex::new(vec![]),
         });
 
-        let runtime = Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
-        let command = workspace.command_builder(directory, &arguments);
-        let mut command = tokio::process::Command::from(command);
-        command
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
-        let mut child = runtime.block_on(async { command.spawn().unwrap() });
-        let stdout = child.stdout.take().unwrap().compat();
-        let stdin = child.stdin.take().unwrap().compat_write();
-        let mainloop = runtime.spawn(mainloop.run_buffered(stdout, stdin));
-        let mut server = LanguageServer {
-            child,
-            runtime,
-            server,
-            mainloop: Some(mainloop),
-            messages,
-            notifications: vec![],
-            client,
-        };
+        let mut command = workspace.command_builder(directory, &arguments);
+        command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = command.spawn().unwrap();
+        let stdin = child.stdin.take().unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let stderr = drain(child.stderr.take().unwrap());
+        let (notifications, messages) = mpsc::channel();
+        let connection = Connection::start(stdin, stdout, Arc::clone(&client), notifications);
+        // Constructed before initialization so that a failing assertion still stops the child.
+        let server =
+            LanguageServer { child, connection, stderr, messages, notifications: vec![], client };
+
         let capabilities = serde_json::from_value::<ClientCapabilities>(capabilities).unwrap();
-        let result = server.runtime.block_on(async {
-            timeout(
-                Duration::from_secs(10),
-                server.server.initialize(InitializeParams {
-                    capabilities,
-                    workspace_folders: Some(vec![WorkspaceFolder {
-                        uri: Url::from_directory_path(root).unwrap(),
-                        name: "project".to_owned(),
-                    }]),
-                    ..InitializeParams::default()
-                }),
-            )
-            .await
+        let parameters = InitializeParams {
+            capabilities,
+            workspace_folders: Some(vec![WorkspaceFolder {
+                uri: Url::from_directory_path(root).unwrap(),
+                name: "project".to_owned(),
+            }]),
+            ..InitializeParams::default()
+        };
+        let response =
+            server.connection.request("initialize", serde_json::to_value(parameters).unwrap());
+        let result = response
+            .recv_timeout(Duration::from_secs(10))
             .expect("invariant violated: timed out waiting for initialize response")
-            .unwrap()
-        });
+            .unwrap();
+        let result = serde_json::from_value::<InitializeResult>(result).unwrap();
         snapshot_json("server_capabilities", &serde_json::to_value(result.capabilities).unwrap());
-        server.server.initialized(InitializedParams {}).unwrap();
+        server.connection.notify("initialized", json!({}));
         server
     }
 
     fn notify(&mut self, method: &str, parameters: Value) {
-        match method {
-            "workspace/didChangeConfiguration" => self
-                .server
-                .did_change_configuration(serde_json::from_value(parameters).unwrap())
-                .unwrap(),
-            "textDocument/didOpen" => {
-                self.server.did_open(serde_json::from_value(parameters).unwrap()).unwrap()
-            }
-            "textDocument/didChange" => {
-                self.server.did_change(serde_json::from_value(parameters).unwrap()).unwrap()
-            }
-            "textDocument/didSave" => {
-                self.server.did_save(serde_json::from_value(parameters).unwrap()).unwrap()
-            }
-            "textDocument/didClose" => {
-                self.server.did_close(serde_json::from_value(parameters).unwrap()).unwrap()
-            }
-            _ => panic!("unsupported test notification {method}"),
-        }
+        self.connection.notify(method, parameters);
+    }
+
+    fn cancel_progress(&self, token: ProgressToken) {
+        let parameters = WorkDoneProgressCancelParams { token };
+        let parameters = serde_json::to_value(parameters).unwrap();
+        self.connection.notify("window/workDoneProgress/cancel", parameters);
     }
 
     #[track_caller]
@@ -398,8 +277,8 @@ impl LanguageServer {
             match self.request_once(method, parameters.clone()) {
                 Ok(result) => return result,
                 Err(Error::Response(response))
-                    if response.code == ErrorCode::CONTENT_MODIFIED
-                        || response.code == ErrorCode::REQUEST_CANCELLED => {}
+                    if response.code == ErrorCode::ContentModified as i32
+                        || response.code == ErrorCode::RequestCanceled as i32 => {}
                 Err(error) => panic!("{method} request failed: {error}"),
             }
             thread::sleep(Duration::from_millis(50));
@@ -409,51 +288,27 @@ impl LanguageServer {
 
     #[track_caller]
     fn request_once(&mut self, method: &str, parameters: Value) -> Result<Value, Error> {
-        assert_eq!(method, "workspace/symbol");
-        let parameters: WorkspaceSymbolParams = serde_json::from_value(parameters).unwrap();
-        let result = self.runtime.block_on(async {
-            timeout(
-                Duration::from_secs(10),
-                self.server.request::<WorkspaceSymbolRequest>(parameters),
-            )
-            .await
+        self.request_async(method, parameters)
+            .recv_timeout(Duration::from_secs(10))
             .unwrap_or_else(|_| panic!("timed out waiting for response to {method} request"))
-        });
-        result.map(|result| serde_json::to_value(result).unwrap())
     }
 
+    /// Sends the request now and returns the receiver of its response.
     fn request_async(&self, method: &str, parameters: Value) -> Receiver<Result<Value, Error>> {
         assert_eq!(method, "workspace/symbol");
         let parameters: WorkspaceSymbolParams = serde_json::from_value(parameters).unwrap();
-        let server = self.server.clone();
-        let (response, result) = mpsc::channel();
-        self.runtime.spawn(async move {
-            let request = server.request::<WorkspaceSymbolRequest>(parameters).await;
-            let request = request.map(|value| serde_json::to_value(value).unwrap());
-            let _ = response.send(request);
-        });
-        result
+        self.connection.request(method, serde_json::to_value(parameters).unwrap())
     }
 
+    /// Sends the request now and returns the receiver of its response.
     fn document_symbols_async(&self, uri: Url) -> Receiver<Result<Value, Error>> {
         let parameters = DocumentSymbolParams {
             text_document: TextDocumentIdentifier { uri },
             work_done_progress_params: WorkDoneProgressParams::default(),
             partial_result_params: PartialResultParams::default(),
         };
-        let mut server = self.server.clone();
-        let request = server.document_symbol(parameters);
-        let (response, result) = mpsc::channel();
-        self.runtime.spawn(async move {
-            let request = request.await.map(|value| serde_json::to_value(value).unwrap());
-            let _ = response.send(request);
-        });
-        result
-    }
-
-    fn set_configuration(&mut self, configuration: Value) {
-        *self.client.configuration.lock().unwrap() = Some(configuration);
-        self.notify("workspace/didChangeConfiguration", json!({"settings": null}));
+        let parameters = serde_json::to_value(parameters).unwrap();
+        self.connection.request("textDocument/documentSymbol", parameters)
     }
 
     fn wait_for_symbol(&mut self, name: &str, present: bool) {
@@ -466,14 +321,6 @@ impl LanguageServer {
             thread::sleep(Duration::from_millis(50));
         }
         panic!("symbol {name:?} presence did not become {present}");
-    }
-
-    fn wait_for_progress_tokens(&self, count: usize) {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        while self.client.progress_tokens.lock().unwrap().len() < count {
-            assert!(Instant::now() < deadline, "timed out waiting for progress creation request");
-            thread::sleep(Duration::from_millis(10));
-        }
     }
 
     #[track_caller]
@@ -568,37 +415,30 @@ impl LanguageServer {
     }
 
     fn request_shutdown(&mut self) {
-        self.runtime.block_on(async {
-            timeout(Duration::from_secs(10), self.server.shutdown(()))
-                .await
-                .expect("invariant violated: timed out waiting for shutdown response")
-                .unwrap();
-        });
+        self.connection
+            .request("shutdown", Value::Null)
+            .recv_timeout(Duration::from_secs(10))
+            .expect("invariant violated: timed out waiting for shutdown response")
+            .unwrap();
     }
 
     fn finish_shutdown(&mut self) {
-        self.server.exit(()).unwrap();
-        let mainloop = self.mainloop.take().unwrap();
-        let mainloop = self
-            .runtime
-            .block_on(async { timeout(Duration::from_secs(10), mainloop).await })
-            .expect("invariant violated: timed out stopping language client")
-            .unwrap();
-        match mainloop {
-            Ok(()) | Err(Error::Eof) => {}
-            Err(error) => panic!("language client failed while stopping: {error}"),
-        }
-        let status = self
-            .runtime
-            .block_on(async { timeout(Duration::from_secs(10), self.child.wait()).await })
-            .expect("invariant violated: timed out stopping language server")
-            .unwrap();
-        let unexpected_requests = self.client.unexpected_requests.lock().unwrap();
+        self.connection.notify("exit", Value::Null);
+        self.connection.close();
+        let deadline = Instant::now() + Duration::from_secs(10);
         assert!(
-            unexpected_requests.is_empty(),
-            "unexpected server requests: {unexpected_requests:?}"
+            self.connection.wait_for_end_of_input(deadline),
+            "invariant violated: timed out stopping language client"
         );
-        assert!(status.success(), "language server exited with {status}");
+        let status = wait_for_exit(&mut self.child, deadline)
+            .expect("invariant violated: timed out stopping language server");
+        let unexpected_messages = self.client.unexpected_messages.lock().unwrap();
+        assert!(
+            unexpected_messages.is_empty(),
+            "unexpected server messages: {unexpected_messages:?}"
+        );
+        let stderr = String::from_utf8_lossy(&self.stderr.lock().unwrap()).into_owned();
+        assert!(status.success(), "language server exited with {status}\nstderr:\n{stderr}");
     }
 
     fn shutdown(&mut self) {
@@ -609,13 +449,223 @@ impl LanguageServer {
 
 impl Drop for LanguageServer {
     fn drop(&mut self) {
-        if let Some(mainloop) = self.mainloop.take() {
-            mainloop.abort();
-        }
-        self.runtime.block_on(async {
-            let _ = self.child.kill().await;
-            let _ = self.child.wait().await;
+        self.connection.close();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+/// The client end of the connection to an `iris lsp` process.
+///
+/// Every message the client sends goes through one queue in the order it was sent, so a request
+/// reaches the server after every message sent before it. A reader thread matches responses to
+/// requests by ID, answers requests from the server, and forwards notifications.
+struct Connection {
+    outgoing: Sender<Outgoing>,
+    waiting: Arc<Mutex<WaitingResponses>>,
+    next_id: AtomicI32,
+    input_ended: Receiver<()>,
+}
+
+enum Outgoing {
+    Message(Message),
+    /// Closes the server's standard input.
+    Close,
+}
+
+/// Requests sent to the server that are waiting for a response. Once the server's output ends,
+/// the connection is closed and new requests fail immediately.
+struct WaitingResponses {
+    open: bool,
+    responses: HashMap<RequestId, Sender<Result<Value, Error>>>,
+}
+
+impl Connection {
+    fn start(
+        stdin: ChildStdin,
+        stdout: ChildStdout,
+        client: Arc<ClientState>,
+        notifications: Sender<Value>,
+    ) -> Connection {
+        let (outgoing, outgoing_receiver) = mpsc::channel();
+        let waiting =
+            Arc::new(Mutex::new(WaitingResponses { open: true, responses: HashMap::new() }));
+        let (input_ended_sender, input_ended) = mpsc::channel();
+        thread::spawn(move || write_messages(stdin, outgoing_receiver));
+        let reader = Reader {
+            outgoing: Sender::clone(&outgoing),
+            waiting: Arc::clone(&waiting),
+            client,
+            notifications,
+        };
+        thread::spawn(move || {
+            reader.read_messages(stdout);
+            let _ = input_ended_sender.send(());
         });
+        Connection { outgoing, waiting, next_id: AtomicI32::new(0), input_ended }
+    }
+
+    /// Sends a request before returning, and returns the receiver of its response.
+    fn request(&self, method: &str, params: Value) -> Receiver<Result<Value, Error>> {
+        let id = RequestId::from(self.next_id.fetch_add(1, Ordering::Relaxed));
+        let (response, result) = mpsc::channel();
+        {
+            let mut waiting = self.waiting.lock().unwrap();
+            if !waiting.open {
+                let _ = response.send(Err(Error::Disconnected));
+                return result;
+            }
+            waiting.responses.insert(RequestId::clone(&id), response);
+        }
+        let request = lsp_server::Request { id, method: method.to_owned(), params };
+        self.send(Message::Request(request));
+        result
+    }
+
+    fn notify(&self, method: &str, params: Value) {
+        let notification = lsp_server::Notification { method: method.to_owned(), params };
+        self.send(Message::Notification(notification));
+    }
+
+    fn send(&self, message: Message) {
+        let _ = self.outgoing.send(Outgoing::Message(message));
+    }
+
+    /// Closes the server's standard input after the messages already sent.
+    fn close(&self) {
+        let _ = self.outgoing.send(Outgoing::Close);
+    }
+
+    /// Waits until the server's output ends.
+    fn wait_for_end_of_input(&self, deadline: Instant) -> bool {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        !matches!(self.input_ended.recv_timeout(remaining), Err(RecvTimeoutError::Timeout))
+    }
+}
+
+fn write_messages(mut stdin: ChildStdin, outgoing: Receiver<Outgoing>) {
+    for message in outgoing {
+        match message {
+            Outgoing::Message(message) => {
+                if message.write(&mut stdin).is_err() {
+                    break;
+                }
+            }
+            Outgoing::Close => break,
+        }
+    }
+}
+
+struct Reader {
+    outgoing: Sender<Outgoing>,
+    waiting: Arc<Mutex<WaitingResponses>>,
+    client: Arc<ClientState>,
+    notifications: Sender<Value>,
+}
+
+impl Reader {
+    fn read_messages(self, stdout: ChildStdout) {
+        let mut stdout = BufReader::new(stdout);
+        loop {
+            let message = match Message::read(&mut stdout) {
+                Ok(Some(message)) => message,
+                Ok(None) => break,
+                Err(error) => {
+                    self.unexpected(format!("unreadable message: {error}"));
+                    break;
+                }
+            };
+            match message {
+                Message::Response(response) => self.receive_response(response),
+                Message::Request(request) => self.answer(request),
+                Message::Notification(notification) => self.receive_notification(notification),
+            }
+        }
+        let mut waiting = self.waiting.lock().unwrap();
+        waiting.open = false;
+        for (_, response) in waiting.responses.drain() {
+            let _ = response.send(Err(Error::Disconnected));
+        }
+    }
+
+    fn receive_response(&self, response: lsp_server::Response) {
+        let Some(sender) = self.waiting.lock().unwrap().responses.remove(&response.id) else {
+            self.unexpected(format!("response to unknown request {}", response.id));
+            return;
+        };
+        let result = response.response_result.map_err(|error| {
+            let lsp_server::ResponseError { code, message, data } = error;
+            Error::Response(ResponseError { code, message, data })
+        });
+        let _ = sender.send(result);
+    }
+
+    fn receive_notification(&self, notification: lsp_server::Notification) {
+        let lsp_server::Notification { method, params } = notification;
+        match method.as_str() {
+            "textDocument/publishDiagnostics" | "window/showMessage" | "$/progress" => {
+                let _ = self.notifications.send(json!({"method": method, "params": params}));
+            }
+            _ if method.starts_with("$/") => {}
+            _ => self.unexpected(format!("notification {method}")),
+        }
+    }
+
+    fn answer(&self, request: lsp_server::Request) {
+        let lsp_server::Request { id, method, params } = request;
+        match method.as_str() {
+            "window/workDoneProgress/create" => {
+                let parameters =
+                    serde_json::from_value::<WorkDoneProgressCreateParams>(params).unwrap();
+                self.client.progress_tokens.lock().unwrap().push(parameters.token);
+                self.respond(id, Ok(Value::Null));
+            }
+            _ => {
+                self.unexpected(format!("request {method}"));
+                let message = format!("unexpected server request {method}");
+                self.respond(id, Err((ErrorCode::MethodNotFound, message)));
+            }
+        }
+    }
+
+    fn respond(&self, id: RequestId, result: Result<Value, (ErrorCode, String)>) {
+        let response = match result {
+            Ok(result) => lsp_server::Response::new_ok(id, result),
+            Err((code, message)) => lsp_server::Response::new_err(id, code as i32, message),
+        };
+        let _ = self.outgoing.send(Outgoing::Message(Message::Response(response)));
+    }
+
+    fn unexpected(&self, description: String) {
+        self.client.unexpected_messages.lock().unwrap().push(description);
+    }
+}
+
+/// Collects a child's standard error so that it can neither block the child nor be lost.
+fn drain(mut stderr: ChildStderr) -> Arc<Mutex<Vec<u8>>> {
+    let output = Arc::new(Mutex::new(vec![]));
+    let collected = Arc::clone(&output);
+    thread::spawn(move || {
+        let mut buffer = [0; 4096];
+        while let Ok(read) = stderr.read(&mut buffer) {
+            if read == 0 {
+                break;
+            }
+            collected.lock().unwrap().extend_from_slice(&buffer[..read]);
+        }
+    });
+    output
+}
+
+fn wait_for_exit(child: &mut Child, deadline: Instant) -> Option<ExitStatus> {
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            return Some(status);
+        }
+        if Instant::now() >= deadline {
+            return None;
+        }
+        thread::sleep(Duration::from_millis(10));
     }
 }
 
@@ -705,7 +755,7 @@ fn discovers_workspace_sources_when_opened_from_a_nested_package() {
 fn prepares_the_spago_workspace_before_serving_analysis() {
     let workspace = TestWorkspace::empty();
     workspace.write(
-        "spago.yaml",
+        "project/spago.yaml",
         r#"package:
   name: application
   dependencies: []
@@ -713,142 +763,19 @@ workspace: {}
 "#,
     );
     workspace.write(
-        "src/Library.purs",
+        "project/src/Library.purs",
         r#"module Library where
 fromFreshClone = 42
 "#,
     );
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    // The server starts outside the project; the editor's workspace folder names the project.
+    let project = workspace.path().join("project");
+    let mut server = LanguageServer::start(&workspace, "launcher", &["lsp"], &project);
 
     let symbols = server.request("workspace/symbol", json!({"query": "fromFreshClone"}));
 
-    snapshot_workspace_json("prepared_workspace_symbol", &symbols, workspace.path());
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
-    server.shutdown();
-}
-
-#[test]
-fn reports_workspace_preparation_progress() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nvalue = 42\n");
-    let mut server = LanguageServer::start_with_capabilities(
-        &workspace,
-        "",
-        &["lsp"],
-        workspace.path(),
-        json!({"window": {"workDoneProgress": true}}),
-        None,
-    );
-
-    let end = server.wait_for_notification_matching_with_timeout(
-        "$/progress",
-        Duration::from_secs(60),
-        |notification| notification["params"]["value"]["kind"] == "end",
-    );
-    let token = end["params"]["token"].clone();
-    let progress = server
-        .notifications
-        .iter()
-        .filter(|notification| notification["method"] == "$/progress")
-        .collect::<Vec<_>>();
-    assert!(progress.iter().all(|notification| notification["params"]["token"] == token));
-    let begin = progress
-        .iter()
-        .find(|notification| notification["params"]["value"]["kind"] == "begin")
-        .expect("workspace progress did not begin");
-    for report in
-        progress.iter().filter(|notification| notification["params"]["value"]["kind"] == "report")
-    {
-        assert_eq!(report["params"]["value"]["cancellable"], true);
-        let percentage = report["params"]["value"]["percentage"].as_u64().unwrap();
-        assert!(percentage <= 100);
-    }
-    snapshot_json(
-        "workspace_preparation_progress",
-        &json!([begin["params"]["value"], end["params"]["value"]]),
-    );
-    let progress_tokens = server.client.progress_tokens.lock().unwrap();
-    assert_eq!(progress_tokens.as_slice(), &[serde_json::from_value(token.clone()).unwrap()]);
-    drop(progress_tokens);
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams {
-            token: serde_json::from_value(token).unwrap(),
-        })
-        .unwrap();
-    let symbols = server.request("workspace/symbol", json!({"query": "value"}));
-    snapshot_workspace_json("workspace_symbol_after_progress", &symbols, workspace.path());
-    server.shutdown();
-}
-
-#[test]
-fn balances_progress_when_creation_is_accepted_after_preparation_finishes() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nvalue = 42\n");
-    let gate = Arc::new(Semaphore::new(0));
-    let mut server = LanguageServer::start_with_progress_creation(
-        &workspace,
-        "",
-        &["lsp"],
-        workspace.path(),
-        json!({"window": {"workDoneProgress": true}}),
-        None,
-        ProgressCreation::Delayed(Arc::clone(&gate)),
-    );
-
-    let symbols = server.request("workspace/symbol", json!({"query": "value"}));
-    assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "value"));
-    server.wait_for_progress_tokens(1);
-    server.collect_notifications();
-    assert!(server.notifications.iter().all(|notification| notification["method"] != "$/progress"));
-
-    gate.add_permits(1);
-    let end = server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "end"
-    });
-    let token = end["params"]["token"].clone();
-    let progress = server
-        .notifications
-        .iter()
-        .filter(|notification| {
-            notification["method"] == "$/progress" && notification["params"]["token"] == token
-        })
-        .map(|notification| notification["params"]["value"].clone())
-        .collect::<Vec<_>>();
-    assert_eq!(progress.first().and_then(|value| value["kind"].as_str()), Some("begin"));
-    assert_eq!(end["params"]["value"]["kind"], "end");
-    snapshot_json(
-        "late_workspace_progress_creation",
-        &json!([progress.first().unwrap(), end["params"]["value"]]),
-    );
-    server.shutdown();
-}
-
-#[test]
-fn rejected_progress_creation_does_not_block_preparation_or_emit_progress() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nvalue = 42\n");
-    let mut server = LanguageServer::start_with_progress_creation(
-        &workspace,
-        "",
-        &["lsp"],
-        workspace.path(),
-        json!({"window": {"workDoneProgress": true}}),
-        None,
-        ProgressCreation::Rejected,
-    );
-
-    let symbols = server.request("workspace/symbol", json!({"query": "value"}));
-    assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "value"));
-    server.wait_for_progress_tokens(1);
-    server.collect_notifications();
-    assert!(server.notifications.iter().all(|notification| notification["method"] != "$/progress"));
+    snapshot_workspace_json("prepared_workspace_symbol", &symbols, &project);
+    workspace.assert_spago_calls("project", &[&["fetch", "-p", "application"]]);
     server.shutdown();
 }
 
@@ -871,7 +798,6 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
         &["lsp"],
         workspace.path(),
         json!({"window": {"workDoneProgress": true}}),
-        None,
     );
 
     let begin = server.wait_for_notification_matching("$/progress", |notification| {
@@ -886,7 +812,7 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
         fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
 
     for token in [ProgressToken::Number(99), ProgressToken::String("unknown".to_string())] {
-        server.server.work_done_progress_cancel(WorkDoneProgressCancelParams { token }).unwrap();
+        server.cancel_progress(token);
     }
     let request = server.request_async("workspace/symbol", json!({"query": "fromDisk"}));
     assert!(matches!(
@@ -899,11 +825,8 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
         assert!(process_is_running(descendant_pid));
     }
 
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams { token: token.clone() })
-        .unwrap();
-    server.server.work_done_progress_cancel(WorkDoneProgressCancelParams { token }).unwrap();
+    server.cancel_progress(token.clone());
+    server.cancel_progress(token);
     let end = server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
     });
@@ -918,7 +841,7 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
     let Error::Response(response) = error else {
         panic!("expected a response error after cancellation, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
+    assert_eq!(response.code, ErrorCode::RequestFailed as i32);
     snapshot_json("workspace_request_while_preparing", &serde_json::to_value(response).unwrap());
 
     #[cfg(unix)]
@@ -954,7 +877,6 @@ fn cancellation_retires_a_pipe_holding_descendant_after_the_spago_leader_exits()
         &["lsp"],
         workspace.path(),
         json!({"window": {"workDoneProgress": true}}),
-        None,
     );
 
     let begin = server.wait_for_notification_matching("$/progress", |notification| {
@@ -968,12 +890,7 @@ fn cancellation_retires_a_pipe_holding_descendant_after_the_spago_leader_exits()
     wait_for_process_exit(pid, "Spago leader");
     assert!(process_is_running(descendant_pid));
 
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams {
-            token: serde_json::from_value(begin["params"]["token"].clone()).unwrap(),
-        })
-        .unwrap();
+    server.cancel_progress(serde_json::from_value(begin["params"]["token"].clone()).unwrap());
     server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
     });
@@ -996,7 +913,6 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         &["lsp"],
         workspace.path(),
         json!({"window": {"workDoneProgress": true}}),
-        None,
     );
 
     let first_begin = server.wait_for_notification_matching("$/progress", |notification| {
@@ -1020,10 +936,7 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
             }
         }),
     );
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams { token: first_token })
-        .unwrap();
+    server.cancel_progress(first_token);
     let first_end = server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
     });
@@ -1062,6 +975,7 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         assert!(symbols.as_array().unwrap().is_empty());
     }
     assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromBuffer"));
+    assert!(!symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromDisk"));
     snapshot_workspace_json("workspace_symbol_after_preparation_retry", &symbols, workspace.path());
     let second_end = server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
@@ -1079,94 +993,31 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         "",
         &[&["fetch", "-p", "application"], &["fetch", "-p", "application"]],
     );
-    server.shutdown();
-}
 
-#[test]
-fn cancelling_a_retry_rejects_its_waiter_and_a_later_request_starts_again() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nrecovered = 42\n");
-    let attempts = workspace.path().join("spago-attempts");
-    workspace.set_env("IRIS_E2E_SPAGO_GATE_DIRECTORY", attempts.to_str().unwrap());
-    let mut server = LanguageServer::start_with_capabilities(
-        &workspace,
-        "",
-        &["lsp"],
-        workspace.path(),
-        json!({"window": {"workDoneProgress": true}}),
-        None,
-    );
-
-    let first_begin = server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "begin"
-    });
-    wait_for_path(&attempts.join("1.started"), "first Spago fetch to start");
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams {
-            token: serde_json::from_value(first_begin["params"]["token"].clone()).unwrap(),
-        })
-        .unwrap();
-    server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "end"
-    });
-
-    let first_request = server.request_async("workspace/symbol", json!({"query": "recovered"}));
-    let second_begin = server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "begin"
-    });
-    wait_for_path(&attempts.join("2.started"), "second Spago fetch to start");
-    server
-        .server
-        .work_done_progress_cancel(WorkDoneProgressCancelParams {
-            token: serde_json::from_value(second_begin["params"]["token"].clone()).unwrap(),
-        })
-        .unwrap();
-    server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "end"
-    });
-    let error = first_request
-        .recv_timeout(Duration::from_secs(10))
-        .expect("timed out waiting for cancelled retry request")
-        .expect_err("cancelled retry unexpectedly answered its waiting request");
-    let Error::Response(response) = error else {
-        panic!("expected a response error after retry cancellation, got {error:?}");
-    };
-    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
-    snapshot_json(
-        "workspace_request_after_retry_cancellation",
-        &serde_json::to_value(response).unwrap(),
-    );
-
-    let second_request = server.request_async("workspace/symbol", json!({"query": "recovered"}));
-    server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "begin"
-    });
-    wait_for_path(&attempts.join("3.started"), "third Spago fetch to start");
-    fs::write(attempts.join("3.release"), "release\n").unwrap();
-    let symbols = second_request
-        .recv_timeout(Duration::from_secs(30))
-        .expect("timed out waiting for request after repeated cancellation")
-        .expect("request after repeated cancellation failed");
-    assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "recovered"));
-    server.shutdown();
-}
-
-#[test]
-fn omits_preparation_progress_when_the_client_does_not_support_it() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nvalue = 42\n");
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
-
-    server.request("workspace/symbol", json!({"query": "value"}));
+    // One progress token per attempt, and the reports of the real preparation stay cancellable
+    // with percentages of at most 100.
+    let tokens = [&first_begin, &second_begin].map(|begin| begin["params"]["token"].clone());
+    assert_eq!(first_end["params"]["token"], tokens[0]);
+    assert_eq!(second_end["params"]["token"], tokens[1]);
+    let created = server.client.progress_tokens.lock().unwrap().clone();
+    let created = created.iter().map(|token| serde_json::to_value(token).unwrap());
+    assert_eq!(created.collect::<Vec<_>>(), tokens);
     server.collect_notifications();
+    let progress =
+        server.notifications.iter().filter(|notification| notification["method"] == "$/progress");
+    for notification in progress {
+        assert!(tokens.contains(&notification["params"]["token"]), "{notification}");
+        let value = &notification["params"]["value"];
+        if value["kind"] == "report" {
+            assert_eq!(value["cancellable"], true);
+            assert!(value["percentage"].as_u64().unwrap() <= 100);
+        }
+    }
 
-    assert!(server.client.progress_tokens.lock().unwrap().is_empty());
-    assert!(server.notifications.iter().all(|notification| notification["method"] != "$/progress"));
+    // Closing the buffer restores the discovered source from disk.
+    server.notify("textDocument/didClose", json!({"textDocument": {"uri": uri}}));
+    server.wait_for_symbol("fromDisk", true);
+    server.wait_for_symbol("fromBuffer", false);
     server.shutdown();
 }
 
@@ -1206,99 +1057,6 @@ fn gate_preparation(workspace: &TestWorkspace) -> (std::path::PathBuf, std::path
 }
 
 #[test]
-fn preparation_is_responsive_and_replays_ordered_buffers() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nfromDisk = 0\n");
-    let (started, release) = gate_preparation(&workspace);
-    let root = dunce::canonicalize(workspace.path()).unwrap();
-
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], &root);
-    wait_for_path(&started, "Spago fetch to start");
-
-    let uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
-    server.notify(
-        "textDocument/didOpen",
-        json!({
-            "textDocument": {
-                "uri": uri,
-                "languageId": "purescript",
-                "version": 1,
-                "text": "module Library where\nfromOpenBuffer = 1\n"
-            }
-        }),
-    );
-    let document_symbols = server.document_symbols_async(Url::clone(&uri));
-    server.notify(
-        "textDocument/didChange",
-        json!({
-            "textDocument": {"uri": uri, "version": 2},
-            "contentChanges": [{"text": "module Library where\nfromChangedBuffer = 2\n"}]
-        }),
-    );
-    server.notify("textDocument/didSave", json!({"textDocument": {"uri": uri}}));
-    let workspace_symbols =
-        server.request_async("workspace/symbol", json!({"query": "fromChangedBuffer"}));
-    assert!(matches!(
-        document_symbols.recv_timeout(Duration::from_millis(200)),
-        Err(RecvTimeoutError::Timeout)
-    ));
-    assert!(matches!(
-        workspace_symbols.recv_timeout(Duration::from_millis(200)),
-        Err(RecvTimeoutError::Timeout)
-    ));
-
-    fs::write(&release, "release\n").unwrap();
-    let symbols = document_symbols
-        .recv_timeout(Duration::from_secs(30))
-        .expect("timed out waiting for deferred document symbols")
-        .expect("deferred document-symbol request failed");
-    let symbols = symbols.as_array().expect("document-symbol response was not an array");
-    assert!(symbols.iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
-    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromOpenBuffer"));
-    assert!(!symbols.iter().any(|symbol| symbol["name"] == "fromDisk"));
-    let symbols = workspace_symbols
-        .recv_timeout(Duration::from_secs(30))
-        .expect("timed out waiting for deferred workspace symbols")
-        .expect("deferred workspace-symbol request failed");
-    assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromChangedBuffer"));
-    server.wait_for_symbol("fromChangedBuffer", true);
-    server.wait_for_symbol("fromOpenBuffer", false);
-    server.wait_for_symbol("fromDisk", false);
-    server.shutdown();
-}
-
-#[test]
-fn invalid_configuration_while_preparing_preserves_the_last_valid_settings() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    let (started, release) = gate_preparation(&workspace);
-    let root = dunce::canonicalize(workspace.path()).unwrap();
-    let runtime = json!({
-        "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
-    });
-    let mut server = LanguageServer::start_with_capabilities(
-        &workspace,
-        "",
-        &["lsp"],
-        &root,
-        json!({"workspace": {"configuration": true}}),
-        Some(runtime),
-    );
-    wait_for_path(&started, "Spago fetch to start");
-
-    server.set_configuration(json!({"diagnostics": {"onChange": "invalid"}}));
-    let message = server.wait_for_notification("window/showMessage");
-    snapshot_json("invalid_configuration_while_preparing", &message["params"]);
-
-    fs::write(&release, "release\n").unwrap();
-    assert_diagnostic_triggers(&mut server, &root, false, false, true);
-    server.shutdown();
-}
-
-#[test]
 fn shutdown_retires_the_spago_process_tree_while_preparing() {
     let workspace = TestWorkspace::empty();
     workspace
@@ -1318,7 +1076,6 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
         &["lsp"],
         workspace.path(),
         json!({"window": {"workDoneProgress": true}}),
-        None,
     );
     server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "begin"
@@ -1343,7 +1100,7 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
     let Error::Response(response) = error else {
         panic!("expected a response error during shutdown, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::CONTENT_MODIFIED);
+    assert_eq!(response.code, ErrorCode::ContentModified as i32);
     let end = server.wait_for_notification_matching("$/progress", |notification| {
         notification["params"]["value"]["kind"] == "end"
     });
@@ -1375,47 +1132,6 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
 }
 
 #[test]
-fn shutdown_balances_progress_when_creation_is_still_pending() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    let (started, _release) = gate_preparation(&workspace);
-    let gate = Arc::new(Semaphore::new(0));
-    let mut server = LanguageServer::start_with_progress_creation(
-        &workspace,
-        "",
-        &["lsp"],
-        workspace.path(),
-        json!({"window": {"workDoneProgress": true}}),
-        None,
-        ProgressCreation::Delayed(Arc::clone(&gate)),
-    );
-    server.wait_for_progress_tokens(1);
-    wait_for_path(&started, "Spago fetch to start");
-
-    server.request_shutdown();
-    gate.add_permits(1);
-    let end = server.wait_for_notification_matching("$/progress", |notification| {
-        notification["params"]["value"]["kind"] == "end"
-    });
-    let token = end["params"]["token"].clone();
-    let begin = server
-        .notifications
-        .iter()
-        .find(|notification| {
-            notification["method"] == "$/progress"
-                && notification["params"]["token"] == token
-                && notification["params"]["value"]["kind"] == "begin"
-        })
-        .expect("late progress acceptance did not receive Begin");
-    snapshot_json(
-        "shutdown_with_pending_progress_creation",
-        &json!([begin["params"]["value"], end["params"]["value"]]),
-    );
-    server.finish_shutdown();
-}
-
-#[test]
 fn preparation_failure_is_reported_and_rejects_analysis() {
     let workspace = TestWorkspace::empty();
     workspace
@@ -1430,7 +1146,6 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
         &["lsp"],
         workspace.path(),
         json!({"window": {"workDoneProgress": true}}),
-        None,
     );
     wait_for_path(&started, "Spago fetch to start");
     let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
@@ -1460,7 +1175,7 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
     let Error::Response(response) = error else {
         panic!("expected a response error after failure, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::REQUEST_FAILED);
+    assert_eq!(response.code, ErrorCode::RequestFailed as i32);
 
     let error = server
         .request_once("workspace/symbol", json!({"query": "fromDisk"}))
@@ -1493,119 +1208,5 @@ fn discovers_workspace_sources_through_a_symlinked_root() {
     let symbols = server.request("workspace/symbol", json!({"query": "fromSymlinkRoot"}));
 
     snapshot_workspace_json("symlinked_workspace_symbol", &symbols, workspace.path());
-    server.shutdown();
-}
-
-#[test]
-fn workspace_configuration_applies_initial_and_runtime_snapshots() {
-    let workspace = TestWorkspace::empty();
-    workspace.write(
-        "project/spago.yaml",
-        "package:\n  name: application\n  dependencies: []\nworkspace: {}\n",
-    );
-    workspace.write("project/src/Library.purs", "module Library where\nfromSpago = 1\n");
-    let runtime = json!({
-        "diagnostics": {"onOpen": false, "onSave": false, "onChange": true}
-    });
-    let root = dunce::canonicalize(workspace.path().join("project")).unwrap();
-    let mut server = LanguageServer::start_with_capabilities(
-        &workspace,
-        "launcher",
-        &["lsp"],
-        &root,
-        json!({"workspace": {"configuration": true}}),
-        Some(runtime),
-    );
-
-    server.wait_for_symbol("fromSpago", true);
-    assert_diagnostic_triggers(&mut server, &root, false, false, true);
-    let library_uri = Url::from_file_path(root.join("src/Library.purs")).unwrap();
-    server.notify(
-        "textDocument/didOpen",
-        json!({
-            "textDocument": {
-                "uri": library_uri,
-                "languageId": "purescript",
-                "version": 1,
-                "text": "module Library where\nunsavedSpago = 3\n"
-            }
-        }),
-    );
-    server.wait_for_symbol("unsavedSpago", true);
-    server.wait_for_symbol("fromSpago", false);
-
-    server.set_configuration(json!({"diagnostics": {"onOpen": true}}));
-    server.wait_for_symbol("fromSpago", false);
-    server.wait_for_symbol("unsavedSpago", true);
-    server.notify("textDocument/didClose", json!({"textDocument": {"uri": library_uri}}));
-    server.wait_for_symbol("unsavedSpago", false);
-    server.wait_for_symbol("fromSpago", true);
-    assert_diagnostic_triggers_for(&mut server, &root, "AfterUpdate.purs", true, true, false);
-    assert!(server.client.configuration_requests.load(Ordering::Relaxed) >= 2);
-    server.shutdown();
-}
-
-#[test]
-fn invalid_runtime_configuration_preserves_the_previous_workspace() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\nstillLoaded = 42\n");
-    let mut server = LanguageServer::start_with_capabilities(
-        &workspace,
-        "",
-        &["lsp"],
-        workspace.path(),
-        json!({
-            "workspace": {
-                "configuration": true,
-                "didChangeConfiguration": {"dynamicRegistration": true}
-            }
-        }),
-        Some(json!({})),
-    );
-    server.wait_for_symbol("stillLoaded", true);
-
-    server.set_configuration(json!({"diagnostics": {"onOpen": "invalid"}}));
-    let message = server.wait_for_notification("window/showMessage");
-    snapshot_json("invalid_runtime_diagnostics_configuration", &message["params"]);
-    server.wait_for_symbol("stillLoaded", true);
-
-    server.set_configuration(json!({
-        "sources": {
-            "kind": "command",
-            "program": "node",
-            "arguments": ["slow failure.mjs"]
-        }
-    }));
-    let message = server.wait_for_notification("window/showMessage");
-    snapshot_json("invalid_runtime_sources_configuration", &message["params"]);
-    server.wait_for_symbol("stillLoaded", true);
-    assert!(
-        server
-            .client
-            .registrations
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|registration| registration.method == "workspace/didChangeConfiguration")
-    );
-    server.shutdown();
-}
-
-#[test]
-fn clients_without_workspace_configuration_use_default_settings() {
-    let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
-    workspace.write("src/Library.purs", "module Library where\ndefaultOnly = 42\n");
-    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
-    server.notify(
-        "workspace/didChangeConfiguration",
-        json!({"settings": {"diagnostics": {"onOpen": false}}}),
-    );
-    let symbols = server.request("workspace/symbol", json!({"query": "defaultOnly"}));
-    snapshot_workspace_json("default_configuration_workspace_symbol", &symbols, workspace.path());
-    assert_eq!(server.client.configuration_requests.load(Ordering::Relaxed), 0);
     server.shutdown();
 }

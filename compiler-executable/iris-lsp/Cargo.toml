@@ -8,32 +8,14 @@ description = "PureScript language server implementation for Iris."
 repository = "https://github.com/purefunctor/purescript-iris"
 
 [dependencies]
-async-lsp = { version = "0.2.4", features = ["tokio"] }
-building = { version = "0.1.0", path = "../../compiler-core/building" }
-dunce = "1.0.5"
-files = { version = "0.1.0", path = "../../compiler-core/files" }
-futures = "0.3.34"
-iris-analysis = { version = "0.1.0", path = "../../compiler-services/iris-analysis" }
-iris-build = { version = "0.1.0", path = "../iris-build" }
-iris-configuration = { version = "0.1.0", path = "../../compiler-services/iris-configuration" }
-iris-spago = { version = "0.1.0", path = "../iris-spago" }
-itertools = "0.15.0"
-lsp-types.workspace = true
-parking_lot = "0.12.5"
-path-absolutize = "4.0.1"
-process-wrap = { version = "10", features = ["job-object", "kill-on-drop", "process-group", "tokio1"], default-features = false }
-rustc-hash = "2.1.3"
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.151"
-smol_str = "0.3.6"
-thiserror = "2.0.20"
-tokio = { version = "1.53.1", features = ["io-std", "io-util", "macros", "process", "rt", "sync", "time"] }
-tower = "0.5.3"
-tracing = "0.1.44"
-url = "2.5.8"
+iris-lsp-server = { version = "0.1.0", path = "../iris-lsp-server" }
+iris-lsp-workspace = { version = "0.1.0", path = "../iris-lsp-workspace" }
+tokio = { version = "1.53.1", features = ["rt"] }
 
 [dev-dependencies]
+iris-lsp-workspace = { version = "0.1.0", path = "../iris-lsp-workspace", features = ["test-support"] }
+lsp-server = "0.10.0"
+serde_json = "1.0.151"
 tempfile = "3.27.0"
-
-[target.'cfg(not(unix))'.dependencies]
-tokio-util = { version = "0.7.19", features = ["compat"] }
+tokio = { version = "1.53.1", features = ["macros", "rt", "time"] }
+url = "2.5.8"
