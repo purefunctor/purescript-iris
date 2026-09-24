@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test :: Prim.Int
+partial :: Prim.Int -> Prim.Int
+after :: forall a. Prim.String -> Main.Transform a
+before :: forall a. Data.Show.Show a => Prim.String -> a -> Prim.String
+direct :: Prim.String
+applied :: Prim.Int -> Prim.String
+dictionaryFirst :: Prim.String
+eta :: forall a. Prim.String -> Main.Transform a
+branches :: forall a. Prim.Boolean -> Main.Transform a
+interleaved :: forall a b. Data.Show.Show a => a -> (Data.Eq.Eq b => b -> b -> Prim.String)
+local :: Prim.String
+
+Types
+Transform :: Prim.Type -> Prim.Type
+
+Synonyms
+type Transform a = Data.Show.Show a => a -> Prim.String

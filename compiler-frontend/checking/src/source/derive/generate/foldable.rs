@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
-use itertools::izip;
+use itertools::{Itertools, izip};
 use smol_str::format_smolstr;
 
 use crate::context::CheckContext;
@@ -100,13 +100,14 @@ impl DecodedFoldMember {
             (TraversalKind::Foldable, FoldOperation::Map) => 2,
             (TraversalKind::Bifoldable, FoldOperation::Map) => 3,
         };
-        let signature::SkolemisedSignature { renaming, abstractions, arguments, result } =
-            signature::expect_term_signature(
-                state,
-                context,
-                member.implementation_type,
-                argument_count,
-            )?;
+        let signature = signature::expect_term_signature(
+            state,
+            context,
+            member.implementation_type,
+            argument_count,
+        )?;
+        let arguments = signature.arguments().collect_vec();
+        let signature::SkolemisedSignature { renaming, abstractions, result } = signature;
 
         let decoded = (traversal, operation, arguments.as_slice());
         let (source_type, accumulator_type, mappings) = match decoded {

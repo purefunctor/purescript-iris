@@ -108,6 +108,7 @@ where
             DeclarationAbstraction::Evidence { constraint, .. } => {
                 *constraint = zonk(state, context, *constraint)?;
             }
+            DeclarationAbstraction::Argument => {}
         }
     }
     Ok(())

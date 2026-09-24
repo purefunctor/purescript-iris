@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
-use itertools::izip;
+use itertools::{Itertools, izip};
 use smol_str::format_smolstr;
 
 use crate::context::CheckContext;
@@ -92,13 +92,14 @@ impl DecodedTraversalMember {
             TraversalKind::Traversable => 2,
             TraversalKind::Bitraversable => 3,
         };
-        let signature::SkolemisedSignature { renaming, abstractions, arguments, result } =
-            signature::expect_term_signature(
-                state,
-                context,
-                member.implementation_type,
-                argument_count,
-            )?;
+        let signature = signature::expect_term_signature(
+            state,
+            context,
+            member.implementation_type,
+            argument_count,
+        )?;
+        let arguments = signature.arguments().collect_vec();
+        let signature::SkolemisedSignature { renaming, abstractions, result } = signature;
 
         // Separate the transformations from the structural source.
         //
@@ -320,13 +321,11 @@ where
         else {
             return Ok(None);
         };
-        let signature::SkolemisedSignature {
-            renaming,
-            abstractions,
-            arguments,
-            result: body_type,
-        } =
+        let signature =
             signature::expect_term_signature(state, context, member.implementation_type, 1)?;
+        let arguments = signature.arguments().collect_vec();
+        let signature::SkolemisedSignature { renaming, abstractions, result: body_type } =
+            signature;
         let [source_type] = arguments.as_slice() else {
             return Ok(None);
         };

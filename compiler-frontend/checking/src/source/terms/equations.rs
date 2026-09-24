@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
+use itertools::Itertools;
 
 use crate::context::CheckContext;
 use crate::core::{TypeId, signature, toolkit, unification};
@@ -71,9 +72,9 @@ where
 {
     let required = equations.iter().map(|equation| equation.binders.len()).max().unwrap_or(0);
 
-    let signature::SkolemisedSignature { renaming, abstractions, arguments, result } =
-        signature::expect_term_signature(state, context, expected_type, required)?;
-
+    let signature = signature::expect_term_signature(state, context, expected_type, required)?;
+    let arguments = signature.arguments().collect_vec();
+    let signature::SkolemisedSignature { renaming, abstractions, result } = signature;
     let abstractions = bind_signature_abstractions(state, &abstractions);
 
     let signature = context.intern_function_list(&arguments, result);
@@ -158,6 +159,7 @@ pub fn bind_signature_abstractions(
             let binder = state.push_given(constraint);
             tree::DeclarationAbstraction::Evidence { constraint, binder }
         }
+        signature::SkolemisedAbstraction::Argument { .. } => tree::DeclarationAbstraction::Argument,
     });
     abstractions.collect()
 }

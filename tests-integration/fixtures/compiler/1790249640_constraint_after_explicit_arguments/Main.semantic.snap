@@ -1,0 +1,45 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: Prim.Int
+test = iso (identity {categoryFn}) (identity {categoryFn}) {profunctorFn} (identity {categoryFn}) 42
+
+partial :: Prim.Int -> Prim.Int
+partial =
+  iso (\v46 -> add {semiringInt} v46 3) (\v53 -> mul {semiringInt} v53 2) {profunctorFn} \v60 ->
+    add {semiringInt} v60 5
+
+after :: forall a. Prim.String -> Main.Transform a
+after = \prefix -> \{showDict} -> \value -> append {semigroupString} prefix (show {showDict} value)
+
+before :: forall a. Data.Show.Show a => Prim.String -> a -> Prim.String
+before = \{showDict} -> \prefix -> \value -> append {semigroupString} prefix (show {showDict} value)
+
+direct :: Prim.String
+direct = after "value=" {showInt} 42
+
+applied :: Prim.Int -> Prim.String
+applied = after "partial=" {showInt}
+
+dictionaryFirst :: Prim.String
+dictionaryFirst = before {showInt} "before=" 17
+
+eta :: forall a. Prim.String -> Main.Transform a
+eta = after
+
+branches :: forall a. Prim.Boolean -> Main.Transform a
+branches = \true -> \{showDict} -> \value ->
+  append {semigroupString} "true=" (show {showDict} value)
+branches = \false -> \{showDict} -> after "false=" {showDict}
+
+interleaved :: forall a b. Data.Show.Show a => a -> (Data.Eq.Eq b => b -> b -> Prim.String)
+interleaved = \{showDict} -> \value -> \{eqDict} -> \left -> \right ->
+  if eq {eqDict} left right then show {showDict} value else "different"
+
+local :: Prim.String
+local = nested "local=" {showInt} 13
+  where
+  nested :: forall a. Prim.String -> Main.Transform a
+  nested = \prefix -> \{showDict} -> \value ->
+    append {semigroupString} prefix (show {showDict} value)

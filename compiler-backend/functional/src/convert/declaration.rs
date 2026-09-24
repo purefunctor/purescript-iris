@@ -3,6 +3,7 @@ use std::sync::Arc;
 use checking::evidence::Evidence;
 use checking::tree as checking_tree;
 use indexing::{DeriveItemId, IndexedTermItemKind, InstanceItemId, TermItemId};
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, format_smolstr};
 
@@ -163,13 +164,7 @@ fn value_declaration(
     value: &checking_tree::ValueDeclaration,
 ) -> ConversionResult<ExpressionId> {
     let body = equations(context, &value.equations)?;
-    let mut evidence_parameters = Vec::new();
-    for abstraction in value.abstractions.iter() {
-        if let checking_tree::DeclarationAbstraction::Evidence { binder, .. } = abstraction {
-            evidence_parameters.push(context.evidence_parameter(*binder)?);
-        }
-    }
-    Ok(context.parameter_abstraction(evidence_parameters, body))
+    declaration_abstraction(context, &value.abstractions, body)
 }
 
 fn equations(
@@ -225,6 +220,57 @@ fn equations(
         }))
     })?;
     Ok(context.abstraction(parameter_patterns, body))
+}
+
+fn declaration_abstraction(
+    context: &mut Context<'_, impl checking::ExternalQueries>,
+    abstractions: &[checking_tree::DeclarationAbstraction],
+    mut body: ExpressionId,
+) -> ConversionResult<ExpressionId> {
+    // Equations and generated member bodies already supply the explicit lambdas.
+    // Open only the prefix containing evidence so `A -> C => B` becomes
+    // `\argument -> \dictionary -> body`, preserving the remaining lambdas.
+    let Some(last_evidence) = abstractions.iter().rposition(|abstraction| {
+        matches!(abstraction, checking_tree::DeclarationAbstraction::Evidence { .. })
+    }) else {
+        return Ok(body);
+    };
+    let runtime_abstractions = abstractions[..=last_evidence].iter().filter(|abstraction| {
+        !matches!(abstraction, checking_tree::DeclarationAbstraction::Type { .. })
+    });
+    let groups = runtime_abstractions.chunk_by(|abstraction| {
+        matches!(abstraction, checking_tree::DeclarationAbstraction::Evidence { .. })
+    });
+    let mut parameter_groups = vec![];
+    for (_, group) in &groups {
+        let mut parameters = vec![];
+        for abstraction in group {
+            match abstraction {
+                checking_tree::DeclarationAbstraction::Evidence { binder, .. } => {
+                    let parameter = context.evidence_parameter(*binder)?;
+                    parameters.push(context.pattern(PatternKind::Variable(parameter)));
+                }
+                checking_tree::DeclarationAbstraction::Argument => {
+                    let ExpressionKind::Abstraction { parameters: arguments, body: inner } =
+                        &context.storage[body].kind
+                    else {
+                        unreachable!("invariant violated: declaration argument has no lambda")
+                    };
+                    let (argument, remaining) = arguments
+                        .split_first()
+                        .expect("invariant violated: declaration argument has an empty lambda");
+                    parameters.push(*argument);
+                    body = context.abstraction(remaining.to_vec(), *inner);
+                }
+                checking_tree::DeclarationAbstraction::Type { .. } => unreachable!(),
+            }
+        }
+        parameter_groups.push(parameters);
+    }
+    for parameters in parameter_groups.into_iter().rev() {
+        body = context.abstraction(parameters, body);
+    }
+    Ok(body)
 }
 
 pub(super) fn function_patterns(

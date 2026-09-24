@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export apply = \f%0 x%1 -> f%0 x%1
 
@@ -9,8 +10,8 @@ source: tests-integration/src/fixtures.rs
 
 @export instance profunctorFn = { dimap: \ab%7 cd%5 bc%6 -> \a%4 -> cd%5 (bc%6 (ab%7 a%4)) }
 
-@export lens = \profunctorPDict%8 ->
-  \pack%10 unpack%9 pab%11 -> dimap profunctorPDict%8 unpack%9 pack%10 pab%11
+@export lens = \pack%10 unpack%9 ->
+  \profunctorPDict%8 -> \pab%11 -> dimap profunctorPDict%8 unpack%9 pack%10 pab%11
 
 @export wrapped = \profunctorPDict%15 ->
   apply (lens (\value%12 -> value%12))

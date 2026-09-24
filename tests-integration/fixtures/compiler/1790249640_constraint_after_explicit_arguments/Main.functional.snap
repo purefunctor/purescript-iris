@@ -1,0 +1,51 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export test = iso categoryFunctionDictIdentity categoryFunctionDictIdentity profunctorFn
+  categoryFunctionDictIdentity
+  42
+
+@export partial = iso (\section46%0 -> integer.add section46%0 3)
+  (\section53%1 -> integer.multiply section53%1 2)
+  profunctorFn
+  (\section60%2 -> integer.add section60%2 5)
+
+@export after = \prefix%3 ->
+  \showADict%4 -> \value%5 -> semigroupStringDictAppend prefix%3 (show showADict%4 value%5)
+
+@export before = \showADict%7 ->
+  \prefix%6 value%8 -> semigroupStringDictAppend prefix%6 (show showADict%7 value%8)
+
+@export direct = after "value=" showInt 42
+
+@export applied = after "partial=" showInt
+
+@export dictionaryFirst = before showInt "before=" 17
+
+@export eta = after
+
+@export branches = \$boolean%9 ->
+  \showADict%12 ->
+    \$a%10 ->
+      case $boolean%9, $a%10 of
+        true, value%11 ->
+          semigroupStringDictAppend "true=" (show showADict%12 value%11)
+        false, _ ->
+          after "false=" showADict%12 $a%10
+
+@export interleaved = \showADict%16 ->
+  \value%17 ->
+    \eqBDict%13 ->
+      \left%14 right%15 ->
+        if eq eqBDict%13 left%14 right%15 then show showADict%16 value%17 else "different"
+
+@export local = (\prefix%19 ->
+  \showADict%20 -> \value%21 -> semigroupStringDictAppend prefix%19 (show showADict%20 value%21))
+  "local="
+  showInt
+  13
+
+categoryFunctionDictIdentity = identity categoryFn
+
+semigroupStringDictAppend = append semigroupString

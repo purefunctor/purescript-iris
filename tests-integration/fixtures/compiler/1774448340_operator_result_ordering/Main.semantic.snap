@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 newtype Wrap :: Prim.Type -> Prim.Type
 newtype Wrap @a
@@ -20,7 +21,7 @@ dictionary profunctorFn :: Main.Profunctor Prim.Function where
   dimap = \ab -> \cd -> \bc -> \a -> cd (bc (ab a))
 
 lens :: forall s a. (a -> s) -> (s -> a) -> Main.Lens s a
-lens = \{profunctorDict} -> \pack -> \unpack -> \pab -> dimap {profunctorDict} unpack pack pab
+lens = \pack -> \unpack -> \{profunctorDict} -> \pab -> dimap {profunctorDict} unpack pack pab
 
 wrapped :: forall a. Main.Lens (Main.Wrap a) a
 wrapped = \{profunctorDict} ->

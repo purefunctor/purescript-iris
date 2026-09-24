@@ -554,6 +554,7 @@ fn inspect_abstractions<Q>(
             DeclarationAbstraction::Evidence { constraint, .. } => {
                 inspect_type(checker, *constraint, crumb);
             }
+            DeclarationAbstraction::Argument => {}
         }
     }
 }

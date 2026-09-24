@@ -664,7 +664,8 @@ where
                     let member_binders =
                         member.abstractions.iter().filter_map(|abstraction| match abstraction {
                             DeclarationAbstraction::Evidence { binder, .. } => Some(binder),
-                            DeclarationAbstraction::Type { .. } => None,
+                            DeclarationAbstraction::Type { .. }
+                            | DeclarationAbstraction::Argument => None,
                         });
                     for binder in instance_binders.chain(member_binders) {
                         self.evidence_binder_name(&mut evidence_names, *binder)?;
@@ -974,16 +975,25 @@ where
             };
 
             let mut abstractions = vec![];
+            let mut binders = equation.binders.iter();
             for abstraction in declaration_abstractions {
-                // Type abstractions are omitted because the declaration's
-                // rendered signature already communicates its binders.
-                let DeclarationAbstraction::Evidence { binder, .. } = abstraction else {
-                    continue;
-                };
-                let binder = self.evidence_binder_name(evidence_names, *binder)?;
-                abstractions.push(self.arena.text(format!("\\{{{binder}}} ->")));
+                match abstraction {
+                    DeclarationAbstraction::Type { .. } => {}
+                    DeclarationAbstraction::Evidence { binder, .. } => {
+                        let binder = self.evidence_binder_name(evidence_names, *binder)?;
+                        abstractions.push(self.arena.text(format!("\\{{{binder}}} ->")));
+                    }
+                    DeclarationAbstraction::Argument => {
+                        if let Some(&binder) = binders.next() {
+                            let binder = self.binder(binder, type_pretty)?;
+                            abstractions.push(
+                                self.arena.text("\\").append(binder).append(self.arena.text(" ->")),
+                            );
+                        }
+                    }
+                }
             }
-            for &binder in equation.binders.iter() {
+            for &binder in binders {
                 let binder = self.binder(binder, type_pretty)?;
                 let abstraction =
                     self.arena.text("\\").append(binder).append(self.arena.text(" ->"));
