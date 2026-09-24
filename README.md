@@ -63,88 +63,120 @@ Diagnostic settings control the corresponding document-event triggers, not all d
 
 Iris provides code intelligence for PureScript projects through its
 [VS Code extension](https://github.com/purefunctor/purescript-iris-vscode).
+These recordings use the [Iris website](https://github.com/purefunctor/purescript-iris-website)
+as a real-world PureScript workspace.
+
+### Type intelligence while editing
 
 <details>
-<summary><strong>Completion</strong></summary>
+<summary><strong>Inferred local types</strong></summary>
 
-![Completing a PureScript expression](.github/assets/vscode-demos/completion.gif)
+![Hovering unannotated local values in a website component](.github/assets/vscode-demos/inferred-types.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/inferred-types.mp4)
 
 </details>
 
 <details>
-<summary><strong>Automatic imports</strong></summary>
+<summary><strong>Scope-aware rename</strong></summary>
 
-![Automatically importing a completed PureScript name](.github/assets/vscode-demos/automatic-import.gif)
+![Renaming a local package binding without changing a similarly named style field](.github/assets/vscode-demos/rename.webp)
 
-</details>
-
-<details>
-<summary><strong>Live diagnostics</strong></summary>
-
-![Updating diagnostics while editing PureScript](.github/assets/vscode-demos/live-diagnostics.gif)
+[Watch at 1080p60](.github/assets/vscode-demos/rename.mp4)
 
 </details>
 
 <details>
-<summary><strong>Inferred types</strong></summary>
+<summary><strong>Live diagnostics on unsaved edits</strong></summary>
 
-![Viewing an inferred PureScript type](.github/assets/vscode-demos/inferred-types.gif)
+![Finding and clearing a type error while editing a website component](.github/assets/vscode-demos/live-diagnostics.webp)
 
-</details>
+[Watch at 1080p60](.github/assets/vscode-demos/live-diagnostics.mp4)
 
-<details>
-<summary><strong>Go to definition</strong></summary>
-
-![Navigating to a PureScript definition](.github/assets/vscode-demos/go-to-definition.gif)
-
-</details>
-
-<details>
-<summary><strong>Find references</strong></summary>
-
-![Finding references to a PureScript name](.github/assets/vscode-demos/find-references.gif)
-
-</details>
-
-<details>
-<summary><strong>Rename</strong></summary>
-
-![Renaming a PureScript name across files](.github/assets/vscode-demos/rename.gif)
-
-</details>
-
-<details>
-<summary><strong>Document symbols</strong></summary>
-
-![Searching symbols in a PureScript document](.github/assets/vscode-demos/document-symbols.gif)
-
-</details>
-
-<details>
-<summary><strong>Workspace symbols</strong></summary>
-
-![Searching PureScript symbols across a workspace](.github/assets/vscode-demos/workspace-symbols.gif)
-
-</details>
-
-<details>
-<summary><strong>Typed-hole suggestions</strong></summary>
-
-![Replacing a typed hole with an Iris suggestion](.github/assets/vscode-demos/typed-hole-suggestions.gif)
+This recording enables `iris.server.diagnostics.onChange` (off by default).
 
 </details>
 
 <details>
 <summary><strong>Document highlights</strong></summary>
 
-![Highlighting occurrences of PureScript names](.github/assets/vscode-demos/document-highlights.gif)
+![Highlighting local package references without highlighting a similarly named record field](.github/assets/vscode-demos/document-highlights.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/document-highlights.mp4)
 
 </details>
 
 <details>
 <summary><strong>Semantic highlighting</strong></summary>
 
-![Enabling semantic highlighting for PureScript](.github/assets/vscode-demos/semantic-highlighting.gif)
+![Enabling semantic highlighting for PureScript](.github/assets/vscode-demos/semantic-highlighting.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/semantic-highlighting.mp4)
+
+</details>
+
+### Everyday editor workflows
+
+<details>
+<summary><strong>Completion</strong></summary>
+
+![Completing a locally bound setter in a website component](.github/assets/vscode-demos/completion.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/completion.mp4)
+
+</details>
+
+<details>
+<summary><strong>Typed-hole suggestions</strong></summary>
+
+![Replacing a typed hole with an Iris suggestion](.github/assets/vscode-demos/typed-hole-suggestions.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/typed-hole-suggestions.mp4)
+
+</details>
+
+<details>
+<summary><strong>Automatic imports</strong></summary>
+
+![Automatically importing a completed PureScript name](.github/assets/vscode-demos/automatic-import.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/automatic-import.mp4)
+
+</details>
+
+<details>
+<summary><strong>Go to definition</strong></summary>
+
+![Navigating to a PureScript definition](.github/assets/vscode-demos/go-to-definition.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/go-to-definition.mp4)
+
+</details>
+
+<details>
+<summary><strong>Find references</strong></summary>
+
+![Finding references to a PureScript name](.github/assets/vscode-demos/find-references.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/find-references.mp4)
+
+</details>
+
+<details>
+<summary><strong>Document symbols</strong></summary>
+
+![Searching symbols in a PureScript document](.github/assets/vscode-demos/document-symbols.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/document-symbols.mp4)
+
+</details>
+
+<details>
+<summary><strong>Workspace symbols</strong></summary>
+
+![Searching PureScript symbols across a workspace](.github/assets/vscode-demos/workspace-symbols.webp)
+
+[Watch at 1080p60](.github/assets/vscode-demos/workspace-symbols.mp4)
 
 </details>
 
