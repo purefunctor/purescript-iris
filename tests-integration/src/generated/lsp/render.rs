@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use lsp_types::{CompletionItem, CompletionItemKind, CompletionTextEdit, TextEdit};
+use lsp_types::{CompletionItem, CompletionItemKind, CompletionItemTextEdit, TextEdit};
 use tabled::Tabled;
 use tabled::derive::display;
 
@@ -15,7 +15,7 @@ pub struct TabledCompletionItem {
     #[tabled(display("display::option", "..."))]
     filter_text: Option<String>,
     #[tabled(display("display_completion_text_edit"))]
-    text_edit: Option<CompletionTextEdit>,
+    text_edit: Option<CompletionItemTextEdit>,
     #[tabled(display("display_text_edits"))]
     additional_text_edits: Option<Vec<TextEdit>>,
 }
@@ -55,7 +55,7 @@ pub struct TabledDetailedCompletionItem {
     #[tabled(display("display::option", "..."))]
     detail: Option<String>,
     #[tabled(display("display_completion_text_edit"))]
-    text_edit: Option<CompletionTextEdit>,
+    text_edit: Option<CompletionItemTextEdit>,
     #[tabled(display("display_text_edits"))]
     additional_text_edits: Option<Vec<TextEdit>>,
 }
@@ -68,7 +68,7 @@ impl From<CompletionItem> for TabledDetailedCompletionItem {
         let sort_text = value.sort_text;
         let filter_text = value.filter_text;
         let detail =
-            (value.kind == Some(CompletionItemKind::VALUE)).then_some(value.detail).flatten();
+            (value.kind == Some(CompletionItemKind::Value)).then_some(value.detail).flatten();
         let text_edit = value.text_edit;
         let additional_text_edits = value.additional_text_edits;
         TabledDetailedCompletionItem {
@@ -84,10 +84,10 @@ impl From<CompletionItem> for TabledDetailedCompletionItem {
     }
 }
 
-fn display_completion_text_edit(edit: &Option<CompletionTextEdit>) -> String {
+fn display_completion_text_edit(edit: &Option<CompletionItemTextEdit>) -> String {
     if let Some(edit) = edit {
         match edit {
-            CompletionTextEdit::Edit(edit) => {
+            CompletionItemTextEdit::TextEdit(edit) => {
                 format!(
                     "{}:{}..{}:{}\n{}",
                     edit.range.start.line,
@@ -97,8 +97,8 @@ fn display_completion_text_edit(edit: &Option<CompletionTextEdit>) -> String {
                     edit.new_text.trim()
                 )
             }
-            CompletionTextEdit::InsertAndReplace(_) => {
-                unimplemented!("InsertAndReplace");
+            CompletionItemTextEdit::InsertReplaceEdit(_) => {
+                unimplemented!("InsertReplaceEdit");
             }
         }
     } else {

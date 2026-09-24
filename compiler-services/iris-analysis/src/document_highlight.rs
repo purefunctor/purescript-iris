@@ -22,7 +22,7 @@ use crate::{AnalyzerContext, AnalyzerError, locate, position};
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     position: Position,
 ) -> Result<Option<Vec<DocumentHighlight>>, AnalyzerError> {
     let current_file = {

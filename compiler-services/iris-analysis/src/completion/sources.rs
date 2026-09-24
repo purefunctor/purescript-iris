@@ -65,7 +65,7 @@ impl CompletionSource for ImportClasses {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::STRUCT,
+                CompletionItemKind::Struct,
                 CompletionResolveData::TypeItem(file_id, type_id),
             );
 
@@ -107,7 +107,7 @@ impl CompletionSource for QualifiedModules {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::MODULE,
+                CompletionItemKind::Module,
                 CompletionResolveData::Import(import.file),
             );
 
@@ -153,7 +153,7 @@ impl CompletionSource for ScopeTerms {
                         let mut item = CompletionItemSpec::new(
                             name.to_string(),
                             context.range,
-                            CompletionItemKind::VARIABLE,
+                            CompletionItemKind::Variable,
                             CompletionResolveData::Binder(context.current_file, *binder_id),
                         );
 
@@ -173,7 +173,7 @@ impl CompletionSource for ScopeTerms {
                         let mut item = CompletionItemSpec::new(
                             name.to_string(),
                             context.range,
-                            CompletionItemKind::VARIABLE,
+                            CompletionItemKind::Variable,
                             CompletionResolveData::RecordPun(context.current_file, *pun_id),
                         );
 
@@ -194,7 +194,7 @@ impl CompletionSource for ScopeTerms {
                         let mut item = CompletionItemSpec::new(
                             name.to_string(),
                             context.range,
-                            CompletionItemKind::VALUE,
+                            CompletionItemKind::Value,
                             CompletionResolveData::Let(context.current_file, *let_id),
                         );
 
@@ -242,7 +242,7 @@ impl CompletionSource for ScopeTypes {
                         let mut item = CompletionItemSpec::new(
                             name.to_string(),
                             context.range,
-                            CompletionItemKind::TYPE_PARAMETER,
+                            CompletionItemKind::TypeParameter,
                             CompletionResolveData::ForallTypeVariable(
                                 context.current_file,
                                 *binding_id,
@@ -271,7 +271,7 @@ impl CompletionSource for ScopeTypes {
                         let mut item = CompletionItemSpec::new(
                             name.to_string(),
                             context.range,
-                            CompletionItemKind::TYPE_PARAMETER,
+                            CompletionItemKind::TypeParameter,
                             CompletionResolveData::ImplicitTypeVariable(
                                 context.current_file,
                                 node_id,
@@ -326,7 +326,7 @@ impl CompletionSource for LocalTerms {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::VALUE,
+                CompletionItemKind::Value,
                 CompletionResolveData::TermItem(file_id, term_id),
             );
 
@@ -361,7 +361,7 @@ impl CompletionSource for LocalTypes {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::STRUCT,
+                CompletionItemKind::Struct,
                 CompletionResolveData::TypeItem(file_id, type_id),
             );
 
@@ -390,7 +390,7 @@ impl CompletionSource for LocalClasses {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::STRUCT,
+                CompletionItemKind::Struct,
                 CompletionResolveData::TypeItem(file_id, type_id),
             );
 
@@ -428,7 +428,7 @@ impl CompletionSource for ImportedTerms {
                 let mut item = CompletionItemSpec::new(
                     name.to_string(),
                     context.range,
-                    CompletionItemKind::VALUE,
+                    CompletionItemKind::Value,
                     CompletionResolveData::TermItem(file_id, term_id),
                 );
 
@@ -471,7 +471,7 @@ impl CompletionSource for ImportedTypes {
                 let mut item = CompletionItemSpec::new(
                     name.to_string(),
                     context.range,
-                    CompletionItemKind::STRUCT,
+                    CompletionItemKind::Struct,
                     CompletionResolveData::TypeItem(file_id, type_id),
                 );
 
@@ -508,7 +508,7 @@ impl CompletionSource for ImportedClasses {
                 let mut item = CompletionItemSpec::new(
                     name.to_string(),
                     context.range,
-                    CompletionItemKind::STRUCT,
+                    CompletionItemKind::Struct,
                     CompletionResolveData::TypeItem(file_id, type_id),
                 );
 
@@ -551,7 +551,7 @@ impl CompletionSource for QualifiedTerms<'_> {
                 let mut item = CompletionItemSpec::new(
                     name.to_string(),
                     context.range,
-                    CompletionItemKind::VALUE,
+                    CompletionItemKind::Value,
                     CompletionResolveData::TermItem(file_id, term_id),
                 );
 
@@ -598,7 +598,7 @@ impl CompletionSource for QualifiedTypes<'_> {
                 let mut item = CompletionItemSpec::new(
                     name.to_string(),
                     context.range,
-                    CompletionItemKind::STRUCT,
+                    CompletionItemKind::Struct,
                     CompletionResolveData::TypeItem(file_id, type_id),
                 );
 
@@ -639,7 +639,7 @@ impl CompletionSource for QualifiedClasses<'_> {
                 let mut item = CompletionItemSpec::new(
                     name.to_string(),
                     context.range,
-                    CompletionItemKind::STRUCT,
+                    CompletionItemKind::Struct,
                     CompletionResolveData::TypeItem(file_id, type_id),
                 );
 
@@ -714,7 +714,7 @@ impl SuggestionsHelper for SuggestedTerms {
         let mut item = CompletionItemSpec::new(
             name.to_string(),
             context.range,
-            CompletionItemKind::VALUE,
+            CompletionItemKind::Value,
             CompletionResolveData::TermItem(file_id, item_id),
         );
 
@@ -822,7 +822,7 @@ fn suggested_type_candidate(
     let mut item = CompletionItemSpec::new(
         name.to_string(),
         context.range,
-        CompletionItemKind::STRUCT,
+        CompletionItemKind::Struct,
         CompletionResolveData::TypeItem(file_id, item_id),
     );
 
@@ -941,7 +941,7 @@ impl CompletionSource for PrimTerms {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::VALUE,
+                CompletionItemKind::Value,
                 CompletionResolveData::TermItem(file_id, term_id),
             );
 
@@ -979,7 +979,7 @@ impl CompletionSource for PrimTypes {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::STRUCT,
+                CompletionItemKind::Struct,
                 CompletionResolveData::TypeItem(file_id, type_item),
             );
 
@@ -1011,7 +1011,7 @@ impl CompletionSource for PrimClasses {
             let mut item = CompletionItemSpec::new(
                 name.to_string(),
                 context.range,
-                CompletionItemKind::STRUCT,
+                CompletionItemKind::Struct,
                 CompletionResolveData::TypeItem(file_id, type_item),
             );
 
@@ -1058,7 +1058,7 @@ impl SuggestionsHelper for QualifiedTermsSuggestions<'_> {
         let mut item = CompletionItemSpec::new(
             name.to_string(),
             context.range,
-            CompletionItemKind::VALUE,
+            CompletionItemKind::Value,
             CompletionResolveData::TermItem(file_id, item_id),
         );
 
@@ -1144,7 +1144,7 @@ fn qualified_type_candidate(
     let mut item = CompletionItemSpec::new(
         name.to_string(),
         context.range,
-        CompletionItemKind::STRUCT,
+        CompletionItemKind::Struct,
         CompletionResolveData::TypeItem(file_id, item_id),
     );
 
@@ -1264,7 +1264,7 @@ impl CompletionSource for WorkspaceModules {
             let mut item = CompletionItemSpec::new(
                 module_name.to_string(),
                 context.range,
-                CompletionItemKind::MODULE,
+                CompletionItemKind::Module,
                 CompletionResolveData::Import(id),
             );
 

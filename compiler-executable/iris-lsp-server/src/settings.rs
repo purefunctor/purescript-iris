@@ -4,11 +4,10 @@
 use std::time::Duration;
 
 use lsp_server::ResponseError;
-use lsp_types::notification::{DidChangeConfiguration, DidChangeWatchedFiles, Notification};
 use lsp_types::{
-    ClientCapabilities, ConfigurationItem, ConfigurationParams,
-    DidChangeWatchedFilesRegistrationOptions, FileSystemWatcher, GlobPattern, RegistrationParams,
-    Url, WorkspaceFolder,
+    ClientCapabilities, ConfigurationItem, ConfigurationParams, DidChangeConfigurationNotification,
+    DidChangeWatchedFilesNotification, DidChangeWatchedFilesRegistrationOptions, FileSystemWatcher,
+    GlobPattern, Notification, RegistrationParams, Uri, WorkspaceFolder,
 };
 use serde_json::Value;
 
@@ -23,7 +22,7 @@ pub(crate) const CONFIGURATION_DEADLINE: Duration = Duration::from_secs(10);
 pub(crate) struct Settings {
     capabilities: SettingsCapabilities,
     /// The first workspace folder, which scopes `workspace/configuration`.
-    scope: Option<Url>,
+    scope: Option<Uri>,
     generation: u64,
 }
 
@@ -62,7 +61,7 @@ impl Settings {
     ) -> Settings {
         let scope = workspace_folders
             .and_then(|folders| folders.first())
-            .map(|folder| Url::clone(&folder.uri));
+            .map(|folder| Uri::clone(&folder.uri));
         Settings {
             capabilities: SettingsCapabilities::negotiate(capabilities),
             scope,
@@ -79,7 +78,7 @@ impl Settings {
         if self.capabilities.configuration_registration {
             let registration = lsp_types::Registration {
                 id: "iris-workspace-configuration".to_string(),
-                method: DidChangeConfiguration::METHOD.to_string(),
+                method: DidChangeConfigurationNotification::METHOD.to_string(),
                 register_options: None,
             };
             let parameters = RegistrationParams { registrations: vec![registration] };
@@ -128,7 +127,7 @@ fn describe(error: &ResponseError) -> String {
 
 fn watched_files_registration() -> RegistrationParams {
     let watcher = |glob: &str| FileSystemWatcher {
-        glob_pattern: GlobPattern::String(glob.to_string()),
+        glob_pattern: GlobPattern::Pattern(glob.to_string()),
         kind: None,
     };
     let options = DidChangeWatchedFilesRegistrationOptions {
@@ -138,7 +137,7 @@ fn watched_files_registration() -> RegistrationParams {
         .expect("invariant violated: watched file registration options must serialize");
     let registration = lsp_types::Registration {
         id: "purescript-source-files".to_string(),
-        method: DidChangeWatchedFiles::METHOD.to_string(),
+        method: DidChangeWatchedFilesNotification::METHOD.to_string(),
         register_options: Some(register_options),
     };
     RegistrationParams { registrations: vec![registration] }
@@ -151,7 +150,7 @@ pub(crate) fn to_value(parameters: impl serde::Serialize) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use lsp_types::{DynamicRegistrationClientCapabilities, WorkspaceClientCapabilities};
+    use lsp_types::{DidChangeConfigurationClientCapabilities, WorkspaceClientCapabilities};
 
     use super::*;
 
@@ -159,7 +158,7 @@ mod tests {
         ClientCapabilities {
             workspace: Some(WorkspaceClientCapabilities {
                 configuration,
-                did_change_configuration: Some(DynamicRegistrationClientCapabilities {
+                did_change_configuration: Some(DidChangeConfigurationClientCapabilities {
                     dynamic_registration: registration,
                 }),
                 ..WorkspaceClientCapabilities::default()

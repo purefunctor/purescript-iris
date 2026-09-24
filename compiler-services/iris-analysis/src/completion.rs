@@ -41,7 +41,7 @@ pub type SuggestionsCache = Trie<String, Arc<SuggestionsCacheEntry>>;
 pub fn implementation(
     language: &AnalyzerContext<impl crate::AnalyzerHost>,
     cache: &mut SuggestionsCache,
-    uri: Url,
+    uri: Uri,
     position: Position,
 ) -> Result<Option<CompletionResponse>, AnalyzerError> {
     let current_file = {
@@ -99,7 +99,11 @@ pub fn implementation(
     let items = collect(&context, cache)?;
     let is_incomplete = items.len() > 5;
 
-    Ok(Some(CompletionResponse::List(CompletionList { is_incomplete, items })))
+    Ok(Some(CompletionResponse::CompletionList(CompletionList {
+        is_incomplete,
+        items,
+        ..CompletionList::default()
+    })))
 }
 
 fn collect(
@@ -392,7 +396,7 @@ where
         let Some(range) = context.range else {
             return item;
         };
-        if let Some(CompletionTextEdit::Edit(text_edit)) = &mut item.text_edit {
+        if let Some(CompletionItemTextEdit::TextEdit(text_edit)) = &mut item.text_edit {
             text_edit.range = range;
         }
         item

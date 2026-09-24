@@ -73,44 +73,48 @@ fn server_capabilities(position_encoding: PositionEncoding) -> ServerCapabilitie
             trigger_characters: Some(vec![".".to_string()]),
             all_commit_characters: None,
             work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
-            completion_item: Some(CompletionOptionsCompletionItem {
+            completion_item: Some(ServerCompletionItemOptions {
                 label_details_support: Some(true),
             }),
         }),
-        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
-            code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+        code_action_provider: Some(CodeActionProvider::CodeActionOptions(CodeActionOptions {
+            code_action_kinds: Some(vec![CodeActionKind::QuickFix]),
             ..CodeActionOptions::default()
         })),
-        definition_provider: Some(OneOf::Left(true)),
-        hover_provider: Some(HoverProviderCapability::Simple(true)),
-        references_provider: Some(OneOf::Left(true)),
-        rename_provider: Some(OneOf::Right(RenameOptions {
+        definition_provider: Some(DefinitionProvider::Bool(true)),
+        hover_provider: Some(HoverProvider::Bool(true)),
+        references_provider: Some(ReferencesProvider::Bool(true)),
+        rename_provider: Some(RenameProvider::RenameOptions(RenameOptions {
             prepare_provider: Some(true),
             work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
         })),
-        document_highlight_provider: Some(OneOf::Left(true)),
-        workspace_symbol_provider: Some(OneOf::Left(true)),
-        document_symbol_provider: Some(OneOf::Left(true)),
-        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+        document_highlight_provider: Some(DocumentHighlightProvider::Bool(true)),
+        workspace_symbol_provider: Some(WorkspaceSymbolProvider::Bool(true)),
+        document_symbol_provider: Some(DocumentSymbolProvider::Bool(true)),
+        semantic_tokens_provider: Some(SemanticTokensProvider::SemanticTokensOptions(
             SemanticTokensOptions {
                 work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
                 legend: SemanticTokensLegend {
-                    token_types: iris_analysis::semantic_tokens::TOKEN_TYPES.to_vec(),
-                    token_modifiers: iris_analysis::semantic_tokens::TOKEN_MODIFIERS.to_vec(),
+                    token_types: legend(iris_analysis::semantic_tokens::TOKEN_TYPES),
+                    token_modifiers: legend(iris_analysis::semantic_tokens::TOKEN_MODIFIERS),
                 },
-                range: Some(false),
-                full: Some(SemanticTokensFullOptions::Bool(true)),
+                range: Some(SemanticTokensOptionsRange::Bool(false)),
+                full: Some(Full::Bool(true)),
             },
         )),
-        text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
+        text_document_sync: Some(TextDocumentSync::Options(TextDocumentSyncOptions {
             open_close: Some(true),
-            change: Some(TextDocumentSyncKind::INCREMENTAL),
-            save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+            change: Some(TextDocumentSyncKind::Incremental),
+            save: Some(Save::Bool(true)),
             ..TextDocumentSyncOptions::default()
         })),
         position_encoding: Some(PositionEncodingKind::from(position_encoding)),
         ..ServerCapabilities::default()
     }
+}
+
+fn legend(names: &[impl ToString]) -> Vec<String> {
+    names.iter().map(ToString::to_string).collect()
 }
 
 #[cfg(test)]

@@ -7,9 +7,9 @@ use crate::{AnalyzerError, locate};
 
 pub fn collect(
     request: &CodeActionRequest<impl crate::AnalyzerHost>,
-    actions: &mut Vec<CodeActionOrCommand>,
+    actions: &mut Vec<CodeActionResponse>,
 ) -> Result<(), AnalyzerError> {
-    if !request.kinds.includes(&CodeActionKind::QUICKFIX) {
+    if !request.kinds.includes(&CodeActionKind::QuickFix) {
         return Ok(());
     }
 
@@ -37,15 +37,15 @@ fn collect_binding_actions(
     request: &CodeActionRequest<impl crate::AnalyzerHost>,
     range: Range,
     bindings: &[HoleBinding],
-    actions: &mut Vec<CodeActionOrCommand>,
+    actions: &mut Vec<CodeActionResponse>,
 ) {
     for binding in bindings {
         let name = binding.name.to_string();
         let title = format!("Replace hole with '{name}'");
 
-        actions.push(CodeActionOrCommand::CodeAction(CodeAction {
+        actions.push(CodeActionResponse::CodeAction(CodeAction {
             title,
-            kind: Some(CodeActionKind::QUICKFIX),
+            kind: Some(CodeActionKind::QuickFix),
             edit: Some(workspace_edit(request.uri, vec![TextEdit { range, new_text: name }])),
             ..CodeAction::default()
         }));

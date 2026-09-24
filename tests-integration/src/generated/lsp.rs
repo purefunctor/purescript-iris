@@ -11,11 +11,11 @@ use iris_analysis::{AnalyzerCapabilities, AnalyzerHost};
 use itertools::Itertools;
 use line_index::{LineIndex, TextSize};
 use lsp_types::{
-    CodeActionContext, CodeActionKind, CodeActionOrCommand, CodeActionResponse,
-    CodeActionTriggerKind, CompletionItemKind, CompletionList, CompletionResponse, DocumentChanges,
-    DocumentHighlight, DocumentSymbolResponse, GotoDefinitionResponse, HoverContents,
-    LanguageString, Location, MarkedString, NumberOrString, OneOf, Position, PrepareRenameResponse,
-    Range, SemanticTokens, SymbolInformation, TextEdit, Url, WorkspaceEdit,
+    BaseSymbolInformation, Code, CodeActionContext, CodeActionKind, CodeActionResponse,
+    CodeActionTriggerKind, CompletionItemKind, CompletionList, CompletionResponse, Contents,
+    Definition, DefinitionResponse, DocumentChange, DocumentHighlight, DocumentSymbolResponse,
+    Edit, Location, Message, Position, PrepareRenameDefaultBehavior, PrepareRenamePlaceholder,
+    PrepareRenameResult, Range, SemanticTokens, SymbolInformation, TextEdit, Uri, WorkspaceEdit,
     WorkspaceSymbolResponse,
 };
 use render::{TabledCompletionItem, TabledDetailedCompletionItem};
@@ -41,9 +41,9 @@ impl AnalyzerHost for IntegrationAnalyzerHost<'_> {
         self.files.id(uri)
     }
 
-    fn file_uri(&self, file_id: FileId) -> Result<Option<Url>, url::ParseError> {
+    fn file_uri(&self, file_id: FileId) -> Result<Option<Uri>, url::ParseError> {
         let uri = self.files.path(file_id);
-        Url::parse(&uri).map(Some)
+        Uri::parse(&uri).map(Some)
     }
 
     fn active_files(&self) -> impl Iterator<Item = FileId> + '_ {
@@ -181,7 +181,7 @@ fn extract_requests(content: &str) -> Vec<Request> {
 pub fn report(engine: &QueryEngine, files: &Files, id: FileId) -> String {
     let uri = {
         let path = files.path(id);
-        Url::parse(&path).unwrap()
+        Uri::parse(&path).unwrap()
     };
 
     let content = engine.content(id).unwrap();
@@ -262,18 +262,16 @@ fn dispatch_diagnostics(result: &mut String, engine: &QueryEngine, files: &Files
 
     for diagnostic in collected.diagnostics {
         let code = match diagnostic.code {
-            Some(NumberOrString::Number(code)) => code.to_string(),
-            Some(NumberOrString::String(code)) => code,
+            Some(Code::Int(code)) => code.to_string(),
+            Some(Code::String(code)) => code,
             None => "<no code>".to_owned(),
         };
         let source = diagnostic.source.as_deref().unwrap_or("<no source>");
-        writeln!(
-            result,
-            "{} {source} [{code}] {}",
-            render_range(diagnostic.range),
-            diagnostic.message,
-        )
-        .unwrap();
+        let message = match diagnostic.message {
+            Message::String(message) => message,
+            Message::MarkupContent(markup) => markup.value,
+        };
+        writeln!(result, "{} {source} [{code}] {message}", render_range(diagnostic.range)).unwrap();
     }
 }
 
@@ -281,7 +279,7 @@ fn dispatch_semantic_tokens(
     result: &mut String,
     engine: &QueryEngine,
     files: &Files,
-    uri: Url,
+    uri: Uri,
     content: &str,
 ) {
     let encoding = PositionEncoding::Utf16;
@@ -387,14 +385,17 @@ fn assert_rename_annotations(edit: &WorkspaceEdit) {
         "rename change annotations must require confirmation"
     );
 
-    let Some(DocumentChanges::Edits(documents)) = edit.document_changes.as_ref() else {
+    let Some(documents) = edit.document_changes.as_ref() else {
         panic!("annotated rename edits must use text document edits");
     };
     assert!(!documents.is_empty(), "annotated rename edits must edit a document");
     for document in documents {
+        let DocumentChange::TextDocumentEdit(document) = document else {
+            panic!("annotated rename edits must use text document edits");
+        };
         assert!(!document.edits.is_empty(), "annotated rename documents must contain an edit");
         for edit in &document.edits {
-            let OneOf::Right(edit) = edit else {
+            let Edit::AnnotatedTextEdit(edit) = edit else {
                 panic!("every edit in an annotated rename must reference an annotation");
             };
             assert!(
@@ -420,14 +421,18 @@ fn render_rename_edit(edit: WorkspaceEdit, files: &Files, encoding: PositionEnco
 
     let changes = if let Some(changes) = edit.changes {
         changes
-    } else if let Some(DocumentChanges::Edits(documents)) = edit.document_changes {
+    } else if let Some(documents) = edit.document_changes {
         let documents = documents.into_iter().map(|document| {
+            let DocumentChange::TextDocumentEdit(document) = document else {
+                panic!("rename edits must only contain text document edits");
+            };
             let edits = document.edits.into_iter().map(|edit| match edit {
-                OneOf::Left(edit) => edit,
-                OneOf::Right(edit) => edit.text_edit,
+                Edit::TextEdit(edit) => edit,
+                Edit::AnnotatedTextEdit(edit) => edit.text_edit,
+                Edit::SnippetTextEdit(_) => panic!("rename edits must not contain snippets"),
             });
             let edits = edits.collect();
-            (document.text_document.uri, edits)
+            (document.text_document.text_document_identifier.uri, edits)
         });
         documents.collect()
     } else {
@@ -490,12 +495,12 @@ fn apply_text_edits(content: &str, edits: Vec<TextEdit>, encoding: PositionEncod
     result
 }
 
-fn render_code_action_response(response: CodeActionResponse) -> String {
+fn render_code_action_response(response: Vec<CodeActionResponse>) -> String {
     let mut result = vec![];
 
     for action in response {
         match action {
-            CodeActionOrCommand::CodeAction(action) => {
+            CodeActionResponse::CodeAction(action) => {
                 let kind = action.kind.as_ref().map(CodeActionKind::as_str).unwrap_or("<none>");
 
                 if let Some(edit) = action.edit {
@@ -511,7 +516,7 @@ fn render_code_action_response(response: CodeActionResponse) -> String {
                     result.push(format!("{} [{kind}] <no edit>", action.title));
                 }
             }
-            CodeActionOrCommand::Command(command) => {
+            CodeActionResponse::Command(command) => {
                 result.push(format!("{} [command:{}]", command.title, command.command));
             }
         }
@@ -527,7 +532,7 @@ fn dispatch_cursor(
     cache: &mut SuggestionsCache,
     position: Position,
     cursor: CursorKind,
-    uri: Url,
+    uri: Uri,
 ) {
     let encoding = PositionEncoding::Utf16;
     let host = IntegrationAnalyzerHost { queries: engine, files };
@@ -540,15 +545,15 @@ fn dispatch_cursor(
                 analyzer::definition::implementation(&context, uri, position)
             {
                 match response {
-                    GotoDefinitionResponse::Scalar(location) => {
+                    DefinitionResponse::Definition(Definition::Location(location)) => {
                         let location = render_location(location);
                         writeln!(result, "{location}").unwrap();
                     }
-                    GotoDefinitionResponse::Array(location) => {
+                    DefinitionResponse::Definition(Definition::LocationList(location)) => {
                         let location = location.into_iter().map(render_location).join("\n");
                         writeln!(result, "{location}").unwrap();
                     }
-                    GotoDefinitionResponse::Link(_) => (),
+                    DefinitionResponse::DefinitionLinkList(_) => (),
                 }
             } else {
                 writeln!(result, "<empty>").unwrap();
@@ -559,15 +564,6 @@ fn dispatch_cursor(
             let content = engine.content(file_id).unwrap();
             let positions = analyzer::position::PositionConverter::new(&content, encoding);
             if let Ok(Some(response)) = analyzer::hover::implementation(&context, uri, position) {
-                let convert = |marked: MarkedString| -> String {
-                    match marked {
-                        MarkedString::String(string) => string,
-                        MarkedString::LanguageString(LanguageString {
-                            language, value, ..
-                        }) => format!("```{language}\n{value}\n```"),
-                    }
-                };
-
                 let range = response.range.and_then(|range| {
                     positions
                         .protocol_position_to_utf8(range.start)
@@ -585,23 +581,23 @@ fn dispatch_cursor(
                 }
 
                 match response.contents {
-                    HoverContents::Scalar(marked) => {
-                        let marked = convert(marked);
+                    Contents::MarkedString(marked) => {
+                        let marked = render_marked_string(marked);
                         if marked.is_empty() {
                             writeln!(result, "<empty>").unwrap();
                         } else {
                             writeln!(result, "{marked}").unwrap();
                         }
                     }
-                    HoverContents::Array(marked) => {
-                        let marked = marked.into_iter().map(convert).join("\n");
+                    Contents::MarkedStringList(marked) => {
+                        let marked = marked.into_iter().map(render_marked_string).join("\n");
                         if marked.is_empty() {
                             writeln!(result, "<empty>").unwrap();
                         } else {
                             writeln!(result, "{marked}").unwrap();
                         }
                     }
-                    HoverContents::Markup(markup) => {
+                    Contents::MarkupContent(markup) => {
                         if markup.value.is_empty() {
                             writeln!(result, "<empty>").unwrap();
                         } else {
@@ -617,8 +613,8 @@ fn dispatch_cursor(
             let range = Range::new(position, position);
             let action_context = CodeActionContext {
                 diagnostics: vec![],
-                only: Some(vec![CodeActionKind::QUICKFIX]),
-                trigger_kind: Some(CodeActionTriggerKind::INVOKED),
+                only: Some(vec![CodeActionKind::QuickFix]),
+                trigger_kind: Some(CodeActionTriggerKind::Invoked),
             };
 
             if let Ok(Some(response)) =
@@ -634,8 +630,8 @@ fn dispatch_cursor(
                 analyzer::completion::implementation(&context, cache, uri, position)
             {
                 match response {
-                    CompletionResponse::Array(items)
-                    | CompletionResponse::List(CompletionList { items, .. }) => {
+                    CompletionResponse::CompletionItemList(items)
+                    | CompletionResponse::CompletionList(CompletionList { items, .. }) => {
                         let items: Vec<_> = items
                             .into_iter()
                             .filter_map(|item| {
@@ -644,7 +640,7 @@ fn dispatch_cursor(
                             .collect();
 
                         let has_values =
-                            items.iter().any(|item| item.kind == Some(CompletionItemKind::VALUE));
+                            items.iter().any(|item| item.kind == Some(CompletionItemKind::Value));
 
                         let mut table = if has_values {
                             let items: Vec<TabledDetailedCompletionItem> =
@@ -714,13 +710,18 @@ fn dispatch_cursor(
             }
         }
         CursorKind::PrepareRename => match analyzer::rename::prepare(&context, uri, position) {
-            Ok(Some(PrepareRenameResponse::Range(range))) => {
+            Ok(Some(PrepareRenameResult::Range(range))) => {
                 writeln!(result, "{}", render_range(range)).unwrap();
             }
-            Ok(Some(PrepareRenameResponse::RangeWithPlaceholder { range, placeholder })) => {
+            Ok(Some(PrepareRenameResult::PrepareRenamePlaceholder(PrepareRenamePlaceholder {
+                range,
+                placeholder,
+            }))) => {
                 writeln!(result, "{} {placeholder}", render_range(range)).unwrap();
             }
-            Ok(Some(PrepareRenameResponse::DefaultBehavior { default_behavior })) => {
+            Ok(Some(PrepareRenameResult::PrepareRenameDefaultBehavior(
+                PrepareRenameDefaultBehavior { default_behavior },
+            ))) => {
                 writeln!(result, "default behavior: {default_behavior}").unwrap();
             }
             Ok(None) | Err(_) => {
@@ -750,10 +751,22 @@ fn dispatch_cursor(
     }
 }
 
+// Hovers still use the `MarkedString` type that LSP 3.18 deprecates.
+#[allow(deprecated)]
+fn render_marked_string(marked: lsp_types::MarkedString) -> String {
+    use lsp_types::{MarkedString, MarkedStringWithLanguage};
+    match marked {
+        MarkedString::String(string) => string,
+        MarkedString::MarkedStringWithLanguage(MarkedStringWithLanguage { language, value }) => {
+            format!("```{language}\n{value}\n```")
+        }
+    }
+}
+
 fn rename_target_name(
     engine: &QueryEngine,
     files: &Files,
-    uri: Url,
+    uri: Uri,
     position: Position,
     encoding: PositionEncoding,
 ) -> Option<String> {
@@ -804,12 +817,13 @@ fn dispatch_workspace_symbols(
     let context = analyzer::AnalyzerContext::new(&host, encoding, capabilities);
 
     match analyzer::symbols::workspace(&context, cache, query) {
-        Ok(Some(WorkspaceSymbolResponse::Flat(symbols))) => {
+        Ok(Some(WorkspaceSymbolResponse::SymbolInformationList(symbols))) => {
             let mut lines = symbols
                 .into_iter()
                 .map(|symbol| {
                     let location = render_location(symbol.location);
-                    format!("{} {:?} {location}", symbol.name, symbol.kind)
+                    let BaseSymbolInformation { name, kind, .. } = symbol.base_symbol_information;
+                    format!("{name} {kind:?} {location}")
                 })
                 .collect_vec();
 
@@ -834,19 +848,20 @@ fn dispatch_workspace_symbols(
 
 fn render_document_symbols_response(response: DocumentSymbolResponse) -> String {
     match response {
-        DocumentSymbolResponse::Flat(symbols) => {
+        DocumentSymbolResponse::SymbolInformationList(symbols) => {
             if symbols.is_empty() {
                 "<empty>".into()
             } else {
                 symbols.into_iter().map(render_symbol_information).join("\n")
             }
         }
-        DocumentSymbolResponse::Nested(_) => "<nested>".into(),
+        DocumentSymbolResponse::DocumentSymbolList(_) => "<nested>".into(),
     }
 }
 
 fn render_symbol_information(symbol: SymbolInformation) -> String {
-    let SymbolInformation { name, kind, location, .. } = symbol;
+    let SymbolInformation { base_symbol_information, location, .. } = symbol;
+    let BaseSymbolInformation { name, kind, .. } = base_symbol_information;
     format!(
         "{name} :: {kind:?} @ {}:{}..{}:{}",
         location.range.start.line,

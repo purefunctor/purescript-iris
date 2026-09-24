@@ -10,15 +10,6 @@ use building::lifecycle::{
 use iris_analysis::AnalyzerError;
 use iris_analysis::position::PositionEncoding;
 use iris_lsp_server::{Answer, Rejection};
-use lsp_types::notification::{
-    DidChangeTextDocument, DidChangeWatchedFiles, DidCloseTextDocument, DidOpenTextDocument,
-    DidSaveTextDocument, Notification,
-};
-use lsp_types::request::{
-    CodeActionRequest, Completion, DocumentHighlightRequest, DocumentSymbolRequest, GotoDefinition,
-    HoverRequest, PrepareRenameRequest, References, Rename, Request, ResolveCompletionItem,
-    SemanticTokensFullRequest, WorkspaceSymbolRequest,
-};
 use lsp_types::*;
 use rustc_hash::FxHashSet;
 use serde::Serialize;
@@ -36,11 +27,11 @@ pub(crate) enum DocumentError {
     #[error("QueryError: {0}")]
     QueryError(#[from] QueryError),
     #[error("Expected a file URI, received {0}")]
-    InvalidFileUri(Url),
+    InvalidFileUri(Uri),
     #[error("Expected a PureScript or JavaScript document URI, received {0}")]
-    UnsupportedDocumentUri(Url),
+    UnsupportedDocumentUri(Uri),
     #[error("Invalid content change for document {0}")]
-    InvalidContentChange(Url),
+    InvalidContentChange(Uri),
     #[error("UrlParseError: {0}")]
     UrlParseError(#[from] url::ParseError),
 }
@@ -68,20 +59,20 @@ impl DocumentNotification {
         method: &str,
         params: Value,
     ) -> Result<Option<DocumentNotification>, serde_json::Error> {
-        let notification = match method {
-            DidOpenTextDocument::METHOD => {
+        let notification = match LspNotificationMethod::from(method) {
+            DidOpenTextDocumentNotification::METHOD => {
                 DocumentNotification::Open(serde_json::from_value(params)?)
             }
-            DidChangeTextDocument::METHOD => {
+            DidChangeTextDocumentNotification::METHOD => {
                 DocumentNotification::Change(serde_json::from_value(params)?)
             }
-            DidCloseTextDocument::METHOD => {
+            DidCloseTextDocumentNotification::METHOD => {
                 DocumentNotification::Close(serde_json::from_value(params)?)
             }
-            DidSaveTextDocument::METHOD => {
+            DidSaveTextDocumentNotification::METHOD => {
                 DocumentNotification::Save(serde_json::from_value(params)?)
             }
-            DidChangeWatchedFiles::METHOD => {
+            DidChangeWatchedFilesNotification::METHOD => {
                 DocumentNotification::ChangeWatchedFiles(serde_json::from_value(params)?)
             }
             _ => return Ok(None),
@@ -160,7 +151,7 @@ fn did_change(
     context: &DocumentContext,
     parameters: DidChangeTextDocumentParams,
 ) -> Result<WorkspaceEffects, DocumentError> {
-    let uri = &parameters.text_document.uri;
+    let uri = &parameters.text_document.text_document_identifier.uri;
     if parameters.content_changes.is_empty() {
         return Ok(WorkspaceEffects::default());
     }
@@ -190,7 +181,9 @@ fn did_change(
         },
     };
     let trigger = if workspace.configuration.diagnostics.on_change {
-        DiagnosticTrigger::AssociatedSource(Url::clone(&parameters.text_document.uri))
+        DiagnosticTrigger::AssociatedSource(Uri::clone(
+            &parameters.text_document.text_document_identifier.uri,
+        ))
     } else {
         DiagnosticTrigger::None
     };
@@ -272,7 +265,7 @@ fn did_change_watched_files(
         if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
-        let uri = Url::parse(unit.source())?;
+        let uri = Uri::parse(unit.source())?;
         if !workspace.source_editable(root, &unit, &uri) {
             continue;
         }
@@ -298,7 +291,7 @@ fn did_change_watched_files(
         if workspace.analysis.files.read().is_open(&document) {
             continue;
         }
-        let source_uri = Url::parse(unit.source())?;
+        let source_uri = Uri::parse(unit.source())?;
         if !workspace.source_editable(root, &unit, &source_uri) {
             continue;
         }
@@ -310,7 +303,7 @@ fn did_change_watched_files(
         if !tracked {
             continue;
         }
-        let uri = Url::parse(unit.foreign_for(kind))?;
+        let uri = Uri::parse(unit.foreign_for(kind))?;
         let event = LifecycleEvent::Foreign {
             unit,
             kind,
@@ -324,16 +317,21 @@ fn did_change_watched_files(
 }
 
 pub(crate) fn apply_content_changes(
-    uri: &Url,
+    uri: &Uri,
     content: &str,
     content_changes: &[TextDocumentContentChangeEvent],
     position_encoding: PositionEncoding,
 ) -> Result<Arc<str>, DocumentError> {
     let mut content = content.to_string();
     for content_change in content_changes {
-        let Some(range) = content_change.range else {
-            content = String::clone(&content_change.text);
-            continue;
+        let (range, text) = match content_change {
+            TextDocumentContentChangeEvent::TextDocumentContentChangePartial(change) => {
+                (change.range, &change.text)
+            }
+            TextDocumentContentChangeEvent::TextDocumentContentChangeWholeDocument(change) => {
+                content = String::clone(&change.text);
+                continue;
+            }
         };
 
         let positions =
@@ -347,17 +345,17 @@ pub(crate) fn apply_content_changes(
             .and_then(|position| positions.utf8_position_to_offset(position));
 
         let (Some(start), Some(end)) = (start, end) else {
-            return Err(DocumentError::InvalidContentChange(Url::clone(uri)));
+            return Err(DocumentError::InvalidContentChange(Uri::clone(uri)));
         };
 
         let start = usize::from(start);
         let end = usize::from(end);
 
         if start > end {
-            return Err(DocumentError::InvalidContentChange(Url::clone(uri)));
+            return Err(DocumentError::InvalidContentChange(Uri::clone(uri)));
         }
 
-        content.replace_range(start..end, &content_change.text);
+        content.replace_range(start..end, text);
     }
     Ok(Arc::from(content))
 }
@@ -368,25 +366,25 @@ pub(crate) type AnalysisJob = Box<dyn FnOnce(&Snapshot) -> Answer + Send>;
 /// Decodes an analysis request. Unknown methods and undecodable parameters are rejected before
 /// the request waits for the workspace.
 pub(crate) fn analysis_job(method: &str, params: Value) -> Result<AnalysisJob, Rejection> {
-    match method {
-        GotoDefinition::METHOD => job::<GotoDefinition>(params, definition),
+    match LspRequestMethod::from(method) {
+        DefinitionRequest::METHOD => job::<DefinitionRequest>(params, definition),
         HoverRequest::METHOD => job::<HoverRequest>(params, hover),
         CodeActionRequest::METHOD => job::<CodeActionRequest>(params, code_action),
-        Completion::METHOD => job::<Completion>(params, completion),
-        ResolveCompletionItem::METHOD => job::<ResolveCompletionItem>(params, resolve_completion),
-        References::METHOD => job::<References>(params, references),
+        CompletionRequest::METHOD => job::<CompletionRequest>(params, completion),
+        CompletionResolveRequest::METHOD => {
+            job::<CompletionResolveRequest>(params, resolve_completion)
+        }
+        ReferencesRequest::METHOD => job::<ReferencesRequest>(params, references),
         PrepareRenameRequest::METHOD => job::<PrepareRenameRequest>(params, prepare_rename),
-        Rename::METHOD => job::<Rename>(params, rename),
+        RenameRequest::METHOD => job::<RenameRequest>(params, rename),
         DocumentHighlightRequest::METHOD => {
             job::<DocumentHighlightRequest>(params, document_highlight)
         }
         WorkspaceSymbolRequest::METHOD => job::<WorkspaceSymbolRequest>(params, workspace_symbols),
         DocumentSymbolRequest::METHOD => job::<DocumentSymbolRequest>(params, document_symbols),
-        SemanticTokensFullRequest::METHOD => {
-            job::<SemanticTokensFullRequest>(params, semantic_tokens)
-        }
+        SemanticTokensRequest::METHOD => job::<SemanticTokensRequest>(params, semantic_tokens),
         #[cfg(test)]
-        crate::tests::GATED_METHOD => crate::tests::gated_job(params),
+        LspRequestMethod::Custom(crate::tests::GATED_METHOD) => crate::tests::gated_job(params),
         _ => Err(Rejection::MethodNotFound),
     }
 }
@@ -437,8 +435,8 @@ fn on_non_fatal<T>(result: Result<T, AnalyzerError>, item: T) -> Result<T, Analy
 
 fn definition(
     snapshot: &Snapshot,
-    parameters: GotoDefinitionParams,
-) -> Result<Option<GotoDefinitionResponse>, AnalyzerError> {
+    parameters: DefinitionParams,
+) -> Result<Option<DefinitionResponse>, AnalyzerError> {
     let _span = tracing::info_span!("definition").entered();
     let uri = parameters.text_document_position_params.text_document.uri;
     let position = parameters.text_document_position_params.position;
@@ -461,7 +459,7 @@ fn hover(snapshot: &Snapshot, parameters: HoverParams) -> Result<Option<Hover>, 
 fn code_action(
     snapshot: &Snapshot,
     parameters: CodeActionParams,
-) -> Result<Option<CodeActionResponse>, AnalyzerError> {
+) -> Result<Option<Vec<CodeActionResponse>>, AnalyzerError> {
     let _span = tracing::info_span!("code_action").entered();
     let uri = parameters.text_document.uri;
     let range = parameters.range;
@@ -477,8 +475,8 @@ fn completion(
     parameters: CompletionParams,
 ) -> Result<Option<CompletionResponse>, AnalyzerError> {
     let _span = tracing::info_span!("completion").entered();
-    let uri = parameters.text_document_position.text_document.uri;
-    let position = parameters.text_document_position.position;
+    let uri = parameters.text_document_position_params.text_document.uri;
+    let position = parameters.text_document_position_params.position;
     let mut cache = snapshot.suggestions_cache.write();
     let result = snapshot.with_analyzer_context(|context| {
         iris_analysis::completion::implementation(context, &mut cache, uri, position)
@@ -500,8 +498,8 @@ fn references(
     parameters: ReferenceParams,
 ) -> Result<Option<Vec<Location>>, AnalyzerError> {
     let _span = tracing::info_span!("references").entered();
-    let uri = parameters.text_document_position.text_document.uri;
-    let position = parameters.text_document_position.position;
+    let uri = parameters.text_document_position_params.text_document.uri;
+    let position = parameters.text_document_position_params.position;
     let result = snapshot.with_analyzer_context(|context| {
         iris_analysis::references::implementation(context, uri, position)
     });
@@ -510,11 +508,11 @@ fn references(
 
 fn prepare_rename(
     snapshot: &Snapshot,
-    parameters: TextDocumentPositionParams,
-) -> Result<Option<PrepareRenameResponse>, AnalyzerError> {
+    parameters: PrepareRenameParams,
+) -> Result<Option<PrepareRenameResult>, AnalyzerError> {
     let _span = tracing::info_span!("prepare_rename").entered();
-    let uri = parameters.text_document.uri;
-    let position = parameters.position;
+    let uri = parameters.text_document_position_params.text_document.uri;
+    let position = parameters.text_document_position_params.position;
     let result = snapshot
         .with_analyzer_context(|context| iris_analysis::rename::prepare(context, uri, position));
     on_non_fatal(result, None)
@@ -525,8 +523,8 @@ fn rename(
     parameters: RenameParams,
 ) -> Result<Option<WorkspaceEdit>, AnalyzerError> {
     let _span = tracing::info_span!("rename").entered();
-    let uri = parameters.text_document_position.text_document.uri;
-    let position = parameters.text_document_position.position;
+    let uri = parameters.text_document_position_params.text_document.uri;
+    let position = parameters.text_document_position_params.position;
     let new_name = parameters.new_name;
     let result = snapshot.with_analyzer_context(|context| {
         iris_analysis::rename::implementation(context, uri, position, new_name)
@@ -573,12 +571,11 @@ fn document_symbols(
 fn semantic_tokens(
     snapshot: &Snapshot,
     parameters: SemanticTokensParams,
-) -> Result<Option<SemanticTokensResult>, AnalyzerError> {
+) -> Result<Option<SemanticTokens>, AnalyzerError> {
     let _span = tracing::info_span!("semantic_tokens").entered();
     let uri = parameters.text_document.uri;
     let result = snapshot.with_analyzer_context(|context| {
         iris_analysis::semantic_tokens::implementation(context, uri)
-            .map(|tokens| tokens.map(SemanticTokensResult::Tokens))
     });
     on_non_fatal(result, None)
 }

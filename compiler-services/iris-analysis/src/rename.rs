@@ -57,7 +57,7 @@ enum NameKind {
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     position: Position,
     new_name: String,
 ) -> Result<Option<WorkspaceEdit>, AnalyzerError> {
@@ -477,9 +477,9 @@ fn resolution_changes(
 
 pub fn prepare(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     position: Position,
-) -> Result<Option<PrepareRenameResponse>, AnalyzerError> {
+) -> Result<Option<PrepareRenameResult>, AnalyzerError> {
     let (current_file, utf8_position, target) = target_at_position(context, &uri, position)?;
     let Some((old_name, _)) = target_name(context, target)? else {
         return Ok(None);
@@ -490,12 +490,13 @@ pub fn prepare(
 
     let range = rename_range(context, current_file, utf8_position, &old_name)?;
 
-    Ok(Some(PrepareRenameResponse::RangeWithPlaceholder { range, placeholder: old_name }))
+    let placeholder = PrepareRenamePlaceholder { range, placeholder: old_name };
+    Ok(Some(PrepareRenameResult::PrepareRenamePlaceholder(placeholder)))
 }
 
 fn target_at_position(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: &Url,
+    uri: &Uri,
     position: Position,
 ) -> Result<(FileId, position::Utf8Position, RenameTarget), AnalyzerError> {
     let current_file = {

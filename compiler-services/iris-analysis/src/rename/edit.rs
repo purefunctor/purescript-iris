@@ -1063,7 +1063,7 @@ where
             return self.finish_annotated();
         }
 
-        let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::default();
+        let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::default();
         for (file_id, edit) in self.edits {
             let uri = common::file_uri(self.context, file_id)?;
             changes.entry(uri).or_default().push(edit);
@@ -1074,17 +1074,18 @@ where
 
     fn finish_annotated(self) -> Result<Option<WorkspaceEdit>, AnalyzerError> {
         let annotation_id = "rename-conflict".to_string();
-        let mut documents: HashMap<Url, Vec<OneOf<TextEdit, AnnotatedTextEdit>>> =
-            HashMap::default();
+        let mut documents: HashMap<Uri, Vec<Edit>> = HashMap::default();
         for (file_id, edit) in self.edits {
             let uri = common::file_uri(self.context, file_id)?;
             let edit = AnnotatedTextEdit { text_edit: edit, annotation_id: annotation_id.clone() };
-            documents.entry(uri).or_default().push(OneOf::Right(edit));
+            documents.entry(uri).or_default().push(Edit::AnnotatedTextEdit(edit));
         }
 
-        let documents = documents.into_iter().map(|(uri, edits)| TextDocumentEdit {
-            text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
-            edits,
+        let documents = documents.into_iter().map(|(uri, edits)| {
+            let text_document_identifier = TextDocumentIdentifier { uri };
+            let text_document =
+                OptionalVersionedTextDocumentIdentifier { text_document_identifier, version: None };
+            DocumentChange::TextDocumentEdit(TextDocumentEdit { text_document, edits })
         });
         let documents = documents.collect();
 
@@ -1096,7 +1097,7 @@ where
         let change_annotations = HashMap::from([(annotation_id, annotation)]);
 
         Ok(Some(WorkspaceEdit {
-            document_changes: Some(DocumentChanges::Edits(documents)),
+            document_changes: Some(documents),
             change_annotations: Some(change_annotations),
             ..WorkspaceEdit::default()
         }))

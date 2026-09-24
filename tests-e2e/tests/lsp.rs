@@ -12,7 +12,8 @@ use lsp_server::{ErrorCode, Message, RequestId};
 use lsp_types::{
     ClientCapabilities, DocumentSymbolParams, InitializeParams, InitializeResult,
     PartialResultParams, ProgressToken, TextDocumentIdentifier, WorkDoneProgressCancelParams,
-    WorkDoneProgressCreateParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceSymbolParams,
+    WorkDoneProgressCreateParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceFolders,
+    WorkspaceFoldersInitializeParams, WorkspaceSymbolParams,
 };
 use regex::Regex;
 use serde::Serialize;
@@ -243,10 +244,14 @@ impl LanguageServer {
         let capabilities = serde_json::from_value::<ClientCapabilities>(capabilities).unwrap();
         let parameters = InitializeParams {
             capabilities,
-            workspace_folders: Some(vec![WorkspaceFolder {
-                uri: Url::from_directory_path(root).unwrap(),
-                name: "project".to_owned(),
-            }]),
+            workspace_folders_initialize_params: WorkspaceFoldersInitializeParams {
+                workspace_folders: Some(WorkspaceFolders::WorkspaceFolderList(vec![
+                    WorkspaceFolder {
+                        uri: Url::from_directory_path(root).unwrap(),
+                        name: "project".to_owned(),
+                    },
+                ])),
+            },
             ..InitializeParams::default()
         };
         let response =
@@ -811,7 +816,7 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
     let descendant_pid: i32 =
         fs::read_to_string(&descendant_pid_file).unwrap().trim().parse().unwrap();
 
-    for token in [ProgressToken::Number(99), ProgressToken::String("unknown".to_string())] {
+    for token in [ProgressToken::Int(99), ProgressToken::String("unknown".to_string())] {
         server.cancel_progress(token);
     }
     let request = server.request_async("workspace/symbol", json!({"query": "fromDisk"}));

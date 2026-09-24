@@ -19,7 +19,7 @@ use crate::{AnalyzerContext, AnalyzerError, common, locate};
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    uri: Url,
+    uri: Uri,
     position: Position,
 ) -> Result<Option<Vec<Location>>, AnalyzerError> {
     let current_file = {
@@ -258,7 +258,7 @@ fn references_binder(
                 } = expression_kind
                     && *candidate_id == binder_id
                 {
-                    let uri = Url::clone(&uri);
+                    let uri = Uri::clone(&uri);
                     let range = id_range(&positions, &parsed, &stabilized, expression_id)
                         .ok_or(AnalyzerError::NonFatal)?;
                     locations.push(Location { uri, range });
@@ -269,7 +269,7 @@ fn references_binder(
                 if let TermVariableResolution::Binder(resolution_id) = resolution
                     && resolution_id == binder_id
                 {
-                    let uri = Url::clone(&uri);
+                    let uri = Uri::clone(&uri);
                     let range = id_range(&positions, &parsed, &stabilized, expression_id)
                         .ok_or(AnalyzerError::NonFatal)?;
                     locations.push(Location { uri, range });
@@ -659,7 +659,7 @@ fn references_let(
         } = expression_kind
             && *candidate_id == let_id
         {
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let range = id_range(&positions, &parsed, &stabilized, expression_id)
                 .ok_or(AnalyzerError::NonFatal)?;
             locations.push(Location { uri, range });
@@ -670,7 +670,7 @@ fn references_let(
         if let TermVariableResolution::Let(resolution_id) = resolution
             && resolution_id == let_id
         {
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let range = id_range(&positions, &parsed, &stabilized, expression_id)
                 .ok_or(AnalyzerError::NonFatal)?;
             locations.push(Location { uri, range });
@@ -703,7 +703,7 @@ fn references_binder_pun(
         } = expression_kind
             && *candidate_id == pun_id
         {
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let range = id_range(&positions, &parsed, &stabilized, expression_id)
                 .ok_or(AnalyzerError::NonFatal)?;
             locations.push(Location { uri, range });
@@ -714,7 +714,7 @@ fn references_binder_pun(
         if let TermVariableResolution::RecordPun(resolution_id) = resolution
             && resolution_id == pun_id
         {
-            let uri = Url::clone(&uri);
+            let uri = Uri::clone(&uri);
             let range = id_range(&positions, &parsed, &stabilized, expression_id)
                 .ok_or(AnalyzerError::NonFatal)?;
             locations.push(Location { uri, range });

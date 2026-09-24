@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use lsp_server::{ErrorCode, Message, Notification, Request, RequestId, Response};
-use lsp_types::notification::{
-    self as notifications, Notification as _, PublishDiagnostics, ShowMessage,
-};
-use lsp_types::request::{RegisterCapability, Request as _, WorkspaceConfiguration};
 use lsp_types::{
-    CancelParams, ClientCapabilities, DidChangeConfigurationParams, MessageType, NumberOrString,
-    ShowMessageParams, WorkDoneProgressCancelParams, WorkspaceFolder,
+    CancelNotification, CancelParams, ClientCapabilities, ConfigurationRequest,
+    DidChangeConfigurationNotification, DidChangeConfigurationParams, ExitNotification, Id,
+    InitializedNotification, LspNotificationMethod, MessageType, Notification as _,
+    PublishDiagnosticsNotification, RegistrationRequest, Request as _, ShowMessageNotification,
+    ShowMessageParams, WorkDoneProgressCancelNotification, WorkDoneProgressCancelParams,
+    WorkspaceFolder,
 };
 use serde_json::{Value, json};
 use thiserror::Error;
@@ -238,10 +238,10 @@ impl Server {
 
     fn receive_notification(&mut self, notification: Notification) -> Option<Stop> {
         let Notification { method, params } = notification;
-        match method.as_str() {
-            notifications::Exit::METHOD => return Some(Stop::Exit),
+        match LspNotificationMethod::from(method.as_str()) {
+            ExitNotification::METHOD => return Some(Stop::Exit),
             // Requests may wait for answers in every lifecycle stage, including after shutdown.
-            notifications::Cancel::METHOD => {
+            CancelNotification::METHOD => {
                 self.cancel(params);
                 return None;
             }
@@ -257,9 +257,9 @@ impl Server {
             );
             return None;
         }
-        match method.as_str() {
-            notifications::Initialized::METHOD => self.initialized(),
-            notifications::DidChangeConfiguration::METHOD => {
+        match LspNotificationMethod::from(method.as_str()) {
+            InitializedNotification::METHOD => self.initialized(),
+            DidChangeConfigurationNotification::METHOD => {
                 // The payload is ignored: settings are always requested with
                 // `workspace/configuration`, but the parameters must still be well-formed.
                 if let Err(error) = serde_json::from_value::<DidChangeConfigurationParams>(params) {
@@ -267,7 +267,7 @@ impl Server {
                 }
                 self.request_settings();
             }
-            notifications::WorkDoneProgressCancel::METHOD => {
+            WorkDoneProgressCancelNotification::METHOD => {
                 let parameters =
                     match serde_json::from_value::<WorkDoneProgressCancelParams>(params) {
                         Ok(parameters) => parameters,
@@ -295,7 +295,8 @@ impl Server {
         self.workspace.send(OrderedMessage::Initialized);
         for (registration, parameters) in self.session.settings.registrations() {
             let purpose = OutgoingPurpose::Registration(registration);
-            self.editor.request(RegisterCapability::METHOD, to_value(parameters), purpose, None);
+            let method = RegistrationRequest::METHOD.as_str();
+            self.editor.request(method, to_value(parameters), purpose, None);
         }
         if self.session.settings.supports_workspace_configuration() {
             self.request_settings();
@@ -312,7 +313,7 @@ impl Server {
         let purpose = OutgoingPurpose::Configuration { generation };
         let deadline = Some(Instant::now() + CONFIGURATION_DEADLINE);
         self.editor.request(
-            WorkspaceConfiguration::METHOD,
+            ConfigurationRequest::METHOD.as_str(),
             to_value(parameters),
             purpose,
             deadline,
@@ -325,8 +326,8 @@ impl Server {
             return;
         };
         let id = match id {
-            NumberOrString::Number(id) => RequestId::from(id),
-            NumberOrString::String(id) => RequestId::from(id),
+            Id::Int(id) => RequestId::from(id),
+            Id::String(id) => RequestId::from(id),
         };
         let Some(request) = self.requests.cancel(&id) else {
             return;
@@ -401,7 +402,7 @@ impl Server {
                 if let Some(version) = version {
                     parameters["version"] = json!(version);
                 }
-                self.editor.notify(PublishDiagnostics::METHOD, parameters);
+                self.editor.notify(PublishDiagnosticsNotification::METHOD.as_str(), parameters);
             }
             WorkspaceEvent::PreparationStarted { generation, title, message } => {
                 self.session.progress.started(&mut self.editor, generation, title, message);
@@ -413,8 +414,8 @@ impl Server {
                 self.session.progress.ended(&self.editor, generation, message);
             }
             WorkspaceEvent::Error { message } => {
-                let parameters = ShowMessageParams { typ: MessageType::ERROR, message };
-                self.editor.notify(ShowMessage::METHOD, to_value(parameters));
+                let parameters = ShowMessageParams { kind: MessageType::Error, message };
+                self.editor.notify(ShowMessageNotification::METHOD.as_str(), to_value(parameters));
             }
         }
     }

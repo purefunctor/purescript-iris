@@ -20,7 +20,7 @@ use iris_lsp_server::{
     Answer, ControlMessage, OrderedMessage, Rejection, SettingsResponse, WorkspaceEvent,
     WorkspaceEventSender, WorkspaceFailure, WorkspaceReceivers,
 };
-use lsp_types::{InitializeParams, Url};
+use lsp_types::{InitializeParams, Uri, WorkspaceFolders};
 use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task;
@@ -280,9 +280,12 @@ impl Actor {
         })?;
         self.session.position_encoding = negotiate_position_encoding(&parameters);
         self.session.analyzer_capabilities = negotiate_analyzer_capabilities(&parameters);
-        let scope = parameters
-            .workspace_folders
-            .and_then(|folders| folders.first().map(|folder| Url::clone(&folder.uri)));
+        let scope = match parameters.workspace_folders_initialize_params.workspace_folders {
+            Some(WorkspaceFolders::WorkspaceFolderList(folders)) => {
+                folders.first().map(|folder| Uri::clone(&folder.uri))
+            }
+            Some(WorkspaceFolders::Null) | None => None,
+        };
         self.session.root =
             scope.and_then(|uri| uri.to_file_path().ok()).or_else(|| env::current_dir().ok());
         let result = initialize_result(

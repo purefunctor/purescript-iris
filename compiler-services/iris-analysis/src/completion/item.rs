@@ -53,7 +53,7 @@ impl CompletionItemSpec {
 
         let text_edit = self.range.map(|range| {
             let new_text = edit_text;
-            CompletionTextEdit::Edit(TextEdit { range, new_text })
+            CompletionItemTextEdit::TextEdit(TextEdit { range, new_text })
         });
 
         let data = serde_json::to_value(self.data)
