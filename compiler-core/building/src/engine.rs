@@ -122,6 +122,19 @@ where
     }
 }
 
+impl<K, V> Shards<K, V>
+where
+    K: Send + 'static,
+    V: Send + 'static,
+{
+    fn drop_in(&mut self, scope: &rayon::Scope<'_>) {
+        for shard in &mut self.inner {
+            let shard = std::mem::take(shard.get_mut());
+            scope.spawn(move |_| drop(shard));
+        }
+    }
+}
+
 #[derive(Default)]
 struct InputStorage {
     content: Shards<FileId, InputState<Arc<str>>>,
@@ -149,6 +162,49 @@ struct DerivedStorage {
     functional:
         Shards<FileId, DerivedState<functional::ModuleResult<Arc<functional::tree::Module>>>>,
     javascript: Shards<FileId, DerivedState<javascript::ModuleResult<Arc<javascript::Module>>>>,
+}
+
+impl Drop for DerivedStorage {
+    fn drop(&mut self) {
+        // Derived values are trees of many small allocations; releasing every
+        // module's values on one thread dominates teardown of a large build.
+        rayon::scope(|scope| {
+            let DerivedStorage {
+                foreign_module,
+                foreign_validation,
+                parsed,
+                stabilized,
+                indexed,
+                lowered,
+                grouped,
+                resolved,
+                exported,
+                bracketed,
+                sectioned,
+                checked_core,
+                checked,
+                documented,
+                functional,
+                javascript,
+            } = self;
+            foreign_module.drop_in(scope);
+            foreign_validation.drop_in(scope);
+            parsed.drop_in(scope);
+            stabilized.drop_in(scope);
+            indexed.drop_in(scope);
+            lowered.drop_in(scope);
+            grouped.drop_in(scope);
+            resolved.drop_in(scope);
+            exported.drop_in(scope);
+            bracketed.drop_in(scope);
+            sectioned.drop_in(scope);
+            checked_core.drop_in(scope);
+            checked.drop_in(scope);
+            documented.drop_in(scope);
+            functional.drop_in(scope);
+            javascript.drop_in(scope);
+        });
+    }
 }
 
 #[derive(Default)]
