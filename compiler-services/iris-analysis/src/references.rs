@@ -600,12 +600,10 @@ fn probe_workspace_imports(
 
         let unqualified = resolved.unqualified.values().flatten();
         let qualified = resolved.qualified.values().flatten();
-        let imports = unqualified.chain(qualified);
+        let mut imports = unqualified.chain(qualified);
 
-        for import in imports {
-            if check_import(import) {
-                probe.insert(workspace_file_id);
-            }
+        if imports.any(&check_import) {
+            probe.insert(workspace_file_id);
         }
     }
 

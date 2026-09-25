@@ -1179,15 +1179,17 @@ fn suggestions_candidates_qualified<T: SuggestionsHelper>(
     });
 
     for import_id in file_ids {
-        let module_name = module_name(context, import_id)?;
-        let resolved = context.language.queries().resolved(import_id)?;
+        let content = context.language.queries().content(import_id)?;
+        let (parsed, _) = context.language.queries().parsed(import_id)?;
 
-        if module_name.is_some_and(|module_name| {
+        if parsed.module_name(&content).is_some_and(|module_name| {
             let filter = PerfectSegmentFuzzy(&module_name);
             !filter.matches(prefix)
         }) {
             continue;
         }
+
+        let resolved = context.language.queries().resolved(import_id)?;
 
         let source = this.exports(&resolved).filter(|(name, _, _)| filter.matches(name));
 
