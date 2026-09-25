@@ -157,18 +157,22 @@ where
         }
         _ => {
             let mut items = items.iter().copied().peekable();
-            bracket_loop(context, item, &mut items, 0, None)
+            bracket_loop(context, item, &mut items, 0, None, &mut None)
         }
     }
 }
 
 /// Core pratt parsing loop for bracketing.
+///
+/// `peeked` holds the information of the next operator once resolved, as an
+/// operator that ends a recursive call is peeked again by its caller.
 fn bracket_loop<Id, Q>(
     context: &mut BracketingContext<'_, Q>,
     item: Option<Id>,
     items: &mut Peekable<impl Iterator<Item = OperatorPair<Id>>>,
     minimum_binding_power: u8,
     previous_operator: Option<OperatorInfo<Id::OperatorId>>,
+    peeked: &mut Option<OperatorInfo<Id::OperatorId>>,
 ) -> BracketingResult<Id>
 where
     Q: crate::ExternalQueries,
@@ -178,12 +182,16 @@ where
     let mut left = OperatorTree::Leaf(item);
 
     while let Some(OperatorPair { id, element }) = items.peek().copied() {
-        let id = id.ok_or(BracketingError::InvalidOperator)?;
-
-        let (associativity, precedence) =
-            operator_info(context, id).ok_or(BracketingError::FailedToResolve(id))?;
-
-        let operator = OperatorInfo { id, associativity, precedence };
+        let operator = match *peeked {
+            Some(operator) => operator,
+            None => {
+                let id = id.ok_or(BracketingError::InvalidOperator)?;
+                let (associativity, precedence) =
+                    operator_info(context, id).ok_or(BracketingError::FailedToResolve(id))?;
+                *peeked.insert(OperatorInfo { id, associativity, precedence })
+            }
+        };
+        let OperatorInfo { id, associativity, precedence } = operator;
 
         let (left_binding_power, right_binding_power) = binding_power(associativity, precedence);
         if left_binding_power < minimum_binding_power {
@@ -203,8 +211,10 @@ where
         }
 
         items.next();
+        *peeked = None;
 
-        let right = bracket_loop(context, element, items, right_binding_power, Some(operator))?;
+        let right =
+            bracket_loop(context, element, items, right_binding_power, Some(operator), peeked)?;
 
         left = OperatorTree::Branch(id, [left, right].into());
     }
