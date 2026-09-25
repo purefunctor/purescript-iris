@@ -62,10 +62,10 @@ pub mod support {
     pub fn child<N: AstNode>(node: &SyntaxNode) -> Option<N> {
         let mut child = node.first_child();
         while let Some(node) = child {
-            child = node.next_sibling();
-            if let Some(node) = N::cast(node) {
+            if let Some(node) = N::cast(node.clone()) {
                 return Some(node);
             }
+            child = node.next_sibling();
         }
         None
     }
