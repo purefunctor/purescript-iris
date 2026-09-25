@@ -280,9 +280,7 @@ where
         PatternKind::Constructor { constructor } => {
             algorithm_u_constructor(state, context, matrix, vector, constructor)
         }
-        PatternKind::Wildcard => {
-            algorithm_u_wildcard(state, context, matrix, vector, first_pattern.t)
-        }
+        PatternKind::Wildcard => algorithm_u_wildcard(state, context, matrix, vector),
     }
 }
 
@@ -329,12 +327,11 @@ fn algorithm_u_wildcard<Q>(
     context: &CheckContext<Q>,
     matrix: &PatternMatrix,
     vector: &[PatternId],
-    t: TypeId,
 ) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    let sigma = collect_sigma(state, context, matrix, t)?;
+    let sigma = collect_sigma(state, matrix);
     let complete = sigma_is_complete(context, &sigma)?;
 
     if complete {
@@ -517,7 +514,7 @@ fn algorithm_m_wildcard<Q>(
 where
     Q: ExternalQueries,
 {
-    let sigma = collect_sigma(state, context, matrix, t)?;
+    let sigma = collect_sigma(state, matrix);
     let complete = sigma_is_complete(context, &sigma)?;
     if complete {
         algorithm_m_wildcard_complete(state, context, matrix, vector, t, &sigma)
@@ -587,7 +584,10 @@ where
         return Ok(None);
     };
 
-    let first_column = if let Some(constructor) = sigma.missing.first() {
+    // Only the first missing constructor is reported, so the others are
+    // never instantiated.
+    let missing = first_missing_constructor(state, context, t, &sigma.constructors)?;
+    let first_column = if let Some(constructor) = missing {
         constructor.construct_missing_witness(state, t)
     } else {
         state.allocate_wildcard(t)
@@ -633,14 +633,13 @@ fn canonicalise_record_constructor(
             continue;
         };
 
-        let pattern = state.patterns[first].clone();
         if let PatternKind::Constructor {
             constructor: PatternConstructor::Record { labels, fields },
-        } = pattern.kind
+        } = &state.patterns[first].kind
         {
-            for (label, field) in iter::zip(labels, fields) {
-                if !canonical.iter().any(|(existing, _)| existing == &label) {
-                    canonical.push((label, field));
+            for (label, &field) in iter::zip(labels, fields) {
+                if !canonical.iter().any(|(existing, _)| existing == label) {
+                    canonical.push((label.clone(), field));
                 }
             }
         }
@@ -734,47 +733,32 @@ fn specialise_vector_into(
         unreachable!("invariant violated: specialise_vector processed empty row");
     };
 
-    // Clone to release any borrow on state.patterns, allowing mutable
-    // access later when allocating wildcard patterns for record padding.
-    let first_pattern = state.patterns[first_column_id].clone();
     let initial_length = specialised.len();
 
-    if let PatternKind::Wildcard = first_pattern.kind {
-        normalise_specialised_fields(state, expected, initial_length, specialised);
-        specialised.extend_from_slice(tail_columns);
-        return true;
+    match &state.patterns[first_column_id].kind {
+        PatternKind::Wildcard => {}
+        PatternKind::Constructor { constructor } => {
+            if !constructor.matches(expected) {
+                return false;
+            }
+
+            // Splat fields for constructors with arity
+            match constructor {
+                PatternConstructor::DataConstructor { fields, .. }
+                | PatternConstructor::Array { fields } => {
+                    specialised.extend_from_slice(fields);
+                }
+                PatternConstructor::Record { labels, fields } => {
+                    // Aligning record fields may allocate wildcard patterns,
+                    // so only records release the borrow on state.patterns.
+                    let (labels, fields) = (labels.clone(), fields.clone());
+                    specialise_record_fields_into(state, expected, &labels, &fields, specialised);
+                }
+                _ => {}
+            }
+        }
     }
 
-    let PatternKind::Constructor { constructor } = first_pattern.kind else {
-        normalise_specialised_fields(state, expected, initial_length, specialised);
-        specialised.extend_from_slice(tail_columns);
-        return true;
-    };
-
-    // Check if constructors match
-    if !constructor.matches(expected) {
-        return false;
-    }
-
-    // Splat fields for constructors with arity
-    match &constructor {
-        PatternConstructor::DataConstructor { fields, .. } => {
-            specialised.extend_from_slice(fields);
-        }
-        PatternConstructor::Record { labels: actual_labels, fields: actual_fields } => {
-            specialise_record_fields_into(
-                state,
-                expected,
-                actual_labels,
-                actual_fields,
-                specialised,
-            );
-        }
-        PatternConstructor::Array { fields } => {
-            specialised.extend_from_slice(fields);
-        }
-        _ => {}
-    }
     normalise_specialised_fields(state, expected, initial_length, specialised);
     specialised.extend_from_slice(tail_columns);
     true
@@ -899,7 +883,6 @@ impl ConstructorKey {
 #[derive(Clone, Debug)]
 struct Sigma {
     constructors: Vec<PatternConstructor>,
-    missing: Vec<MissingConstructor>,
 }
 
 #[derive(Clone, Debug)]
@@ -913,15 +896,7 @@ enum MissingConstructor {
 /// Returns a list of unique constructors seen in the first column, keeping one
 /// representative [`PatternConstructor`] per distinct constructor. Other patterns
 /// like wildcards, records, and arrays are ignored for now.
-fn collect_sigma<Q>(
-    state: &mut CheckState,
-    context: &CheckContext<Q>,
-    matrix: &PatternMatrix,
-    scrutinee_type: TypeId,
-) -> QueryResult<Sigma>
-where
-    Q: ExternalQueries,
-{
+fn collect_sigma(state: &CheckState, matrix: &PatternMatrix) -> Sigma {
     let mut seen = FxHashSet::default();
     let mut constructors = vec![];
 
@@ -929,11 +904,10 @@ where
         let [first_column, ..] = row[..] else {
             continue;
         };
-        let pattern = state.patterns[first_column].clone();
-        if let PatternKind::Constructor { constructor } = pattern.kind {
-            let key = ConstructorKey::from_pattern_constructor(&constructor);
+        if let PatternKind::Constructor { constructor } = &state.patterns[first_column].kind {
+            let key = ConstructorKey::from_pattern_constructor(constructor);
             if seen.insert(key) {
-                constructors.push(constructor);
+                constructors.push(constructor.clone());
             }
         }
     }
@@ -949,8 +923,7 @@ where
         constructors.insert(index, canonical);
     }
 
-    let missing = collect_missing_constructors(state, context, scrutinee_type, &constructors)?;
-    Ok(Sigma { constructors, missing })
+    Sigma { constructors }
 }
 
 /// Checks whether the set of constructors (sigma) is complete for the scrutinee type.
@@ -1016,17 +989,18 @@ where
     }
 }
 
-fn collect_missing_constructors<Q>(
+/// Finds the first constructor of the scrutinee type that is not in the sigma.
+fn first_missing_constructor<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     scrutinee_type: TypeId,
     constructors: &[PatternConstructor],
-) -> QueryResult<Vec<MissingConstructor>>
+) -> QueryResult<Option<MissingConstructor>>
 where
     Q: ExternalQueries,
 {
     let Some(first_constructor) = constructors.first() else {
-        return Ok(vec![]);
+        return Ok(None);
     };
 
     match first_constructor {
@@ -1034,7 +1008,7 @@ where
             let indexed = context.queries.indexed(*file_id)?;
 
             let Some(type_item_id) = indexed.constructor_type(*item_id) else {
-                return Ok(vec![]);
+                return Ok(None);
             };
 
             let sigma: FxHashSet<TermItemId> = constructors
@@ -1044,48 +1018,42 @@ where
                     _ => None,
                 })
                 .collect();
+
+            let mut data_constructors = indexed.data_constructors(type_item_id);
+            let Some(missing_item_id) = data_constructors.find(|item_id| !sigma.contains(item_id))
+            else {
+                return Ok(None);
+            };
+
             let arguments = extract_all_applications(state, context, scrutinee_type)?;
+            let fields =
+                constructor_field_types(state, context, *file_id, missing_item_id, &arguments)?;
 
-            let mut missing = vec![];
-            for missing_item_id in indexed.data_constructors(type_item_id) {
-                if !sigma.contains(&missing_item_id) {
-                    let fields = constructor_field_types(
-                        state,
-                        context,
-                        *file_id,
-                        missing_item_id,
-                        &arguments,
-                    )?;
-                    missing.push(MissingConstructor::DataConstructor {
-                        file_id: *file_id,
-                        item_id: missing_item_id,
-                        fields,
-                    });
-                }
-            }
-
-            Ok(missing)
+            Ok(Some(MissingConstructor::DataConstructor {
+                file_id: *file_id,
+                item_id: missing_item_id,
+                fields,
+            }))
         }
         // Arrays have infinite possible lengths, so we don't report specific missing values.
         // The algorithm will fall back to wildcard suggestion.
-        PatternConstructor::Array { .. } => Ok(vec![]),
+        PatternConstructor::Array { .. } => Ok(None),
         PatternConstructor::Boolean(_) => {
             // Check which boolean values are missing
             let has_true =
                 constructors.iter().any(|c| matches!(c, PatternConstructor::Boolean(true)));
             let has_false =
                 constructors.iter().any(|c| matches!(c, PatternConstructor::Boolean(false)));
-            let mut missing = vec![];
             if !has_true {
-                missing.push(MissingConstructor::Boolean(true));
+                Ok(Some(MissingConstructor::Boolean(true)))
+            } else if !has_false {
+                Ok(Some(MissingConstructor::Boolean(false)))
+            } else {
+                Ok(None)
             }
-            if !has_false {
-                missing.push(MissingConstructor::Boolean(false));
-            }
-            Ok(missing)
         }
         // Other literal constructors have infinite domains, so we don't report specific missing values
-        _ => Ok(vec![]),
+        _ => Ok(None),
     }
 }
 
