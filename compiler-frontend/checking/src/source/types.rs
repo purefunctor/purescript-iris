@@ -579,7 +579,7 @@ pub fn elaborate_kind<Q>(
 where
     Q: ExternalQueries,
 {
-    let unknown = context.unknown("invalid kind");
+    let unknown = || context.unknown("invalid kind");
     let id = normalise::expand(state, context, id)?;
 
     let kind = match *context.lookup_type(id) {
@@ -605,7 +605,7 @@ where
                     result_u
                 }
 
-                _ => unknown,
+                _ => unknown(),
             }
         }
 
@@ -619,7 +619,7 @@ where
                     let argument = normalise::normalise(state, context, argument);
                     SubstituteName::one(state, context, binder.name, argument, inner_kind)?
                 }
-                _ => unknown,
+                _ => unknown(),
             }
         }
 
@@ -657,8 +657,8 @@ where
 
         Type::Unification(unification_id) => state.unifications.get(unification_id).kind,
         Type::Rigid(_, _, kind) => kind,
-        Type::Free(_) => unknown,
-        Type::Unknown(_) => unknown,
+        Type::Free(_) => unknown(),
+        Type::Unknown(_) => unknown(),
     };
 
     Ok(kind)
