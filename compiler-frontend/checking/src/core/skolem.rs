@@ -592,11 +592,19 @@ fn inspect_type<Q>(
 ) where
     Q: ExternalQueries,
 {
+    // Unification variables are not looked through, so types without rigid
+    // variables cannot contain an escaped skolem.
+    let has_rigid = |type_id| checker.context.lookup_type_flags(type_id).has_rigid();
+
+    if !has_rigid(annotation) {
+        return;
+    }
+
     let mut pending = vec![annotation];
     let mut visited = FxHashSet::default();
 
     while let Some(type_id) = pending.pop() {
-        if !visited.insert(type_id) {
+        if !has_rigid(type_id) || !visited.insert(type_id) {
             continue;
         }
 

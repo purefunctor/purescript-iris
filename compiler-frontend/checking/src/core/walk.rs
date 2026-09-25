@@ -6,7 +6,7 @@ use building_types::QueryResult;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::{ForallBinder, Type, TypeId, normalise};
+use crate::core::{ForallBinder, Type, TypeFlags, TypeId, normalise};
 use crate::state::CheckState;
 
 pub enum WalkAction {
@@ -25,6 +25,14 @@ pub trait TypeWalker {
     ) -> QueryResult<WalkAction>;
 
     fn visit_binder(&mut self, _binder: &ForallBinder) {}
+
+    /// Whether the walker may be interested in a type with the given flags.
+    ///
+    /// Types for which this returns `false` are skipped along with their
+    /// children, without being visited.
+    fn may_visit(&self, _flags: TypeFlags) -> bool {
+        true
+    }
 }
 
 pub fn walk_type<Q, W>(
@@ -57,6 +65,10 @@ where
                 return Ok(ControlFlow::Break(()));
             }
         };
+    }
+
+    if !walker.may_visit(context.lookup_type_flags(id)) {
+        return Ok(ControlFlow::Continue(()));
     }
 
     let id = normalise::normalise(state, context, id);
