@@ -164,18 +164,11 @@ fn collect(
                 QualifiedClasses(p).collect_into(context, NoFilter, into)?;
             }
 
-            let query = format!("prefix:{p}");
-            let suggestions =
-                get_or_populate_suggestions(cache, &query, context, Some(p), NoFilter)?;
-
-            if context.collect_terms() && !context.has_qualified_import(p) {
-                items.extend(suggestions.qualified_terms.iter().cloned());
-            }
-            if context.collect_types() && !context.has_qualified_import(p) {
-                items.extend(suggestions.qualified_types.iter().cloned());
-            }
-            if context.collect_classes() && !context.has_qualified_import(p) {
-                items.extend(suggestions.qualified_classes.iter().cloned());
+            let namespaces = suggestion_namespaces(context);
+            if !namespaces.is_empty() && !context.has_qualified_import(p) {
+                let query = format!("prefix:{p}");
+                let suggestions = SuggestionSelection { prefix: Some(p), namespaces: &namespaces };
+                collect_suggestions(cache, &query, context, suggestions, NoFilter, into)?;
             }
         }
         CursorText::Name(n) => {
@@ -208,19 +201,11 @@ fn collect(
                 }
             }
 
-            let query = format!("name:{n}");
-            let suggestions =
-                get_or_populate_suggestions(cache, &query, context, None, StartsWith(n))?;
-
-            if context.collect_terms() {
-                items.extend(suggestions.terms.iter().cloned());
-            }
-
-            if context.collect_types() {
-                items.extend(suggestions.types.iter().cloned());
-            }
-            if context.collect_classes() {
-                items.extend(suggestions.classes.iter().cloned());
+            let namespaces = suggestion_namespaces(context);
+            if !namespaces.is_empty() {
+                let query = format!("name:{n}");
+                let suggestions = SuggestionSelection { prefix: None, namespaces: &namespaces };
+                collect_suggestions(cache, &query, context, suggestions, StartsWith(n), into)?;
             }
         }
         CursorText::Both(p, n) => {
@@ -242,19 +227,11 @@ fn collect(
                 QualifiedClasses(p).collect_into(context, FuzzyMatch(n), into)?;
             }
 
-            let query = format!("both:{t}");
-            let suggestions =
-                get_or_populate_suggestions(cache, &query, context, Some(p), FuzzyMatch(n))?;
-
-            if context.collect_terms() && !context.has_qualified_import(p) {
-                items.extend(suggestions.qualified_terms.iter().cloned());
-            }
-
-            if context.collect_types() && !context.has_qualified_import(p) {
-                items.extend(suggestions.qualified_types.iter().cloned());
-            }
-            if context.collect_classes() && !context.has_qualified_import(p) {
-                items.extend(suggestions.qualified_classes.iter().cloned());
+            let namespaces = suggestion_namespaces(context);
+            if !namespaces.is_empty() && !context.has_qualified_import(p) {
+                let query = format!("both:{t}");
+                let suggestions = SuggestionSelection { prefix: Some(p), namespaces: &namespaces };
+                collect_suggestions(cache, &query, context, suggestions, FuzzyMatch(n), into)?;
             }
         }
     }
@@ -262,34 +239,87 @@ fn collect(
     Ok(items)
 }
 
-fn get_or_populate_suggestions<F: Filter>(
+fn suggestion_namespaces(
+    context: &CompletionContext<impl crate::AnalyzerHost>,
+) -> Vec<ImportNamespace> {
+    let namespaces = [
+        (context.collect_terms(), ImportNamespace::Term),
+        (context.collect_types(), ImportNamespace::Type),
+        (context.collect_classes(), ImportNamespace::Class),
+    ];
+    let namespaces =
+        namespaces.into_iter().filter_map(|(wanted, namespace)| wanted.then_some(namespace));
+    namespaces.collect()
+}
+
+/// Selects which lists of a [`SuggestionsCacheEntry`] a completion request consumes.
+#[derive(Clone, Copy)]
+struct SuggestionSelection<'a> {
+    prefix: Option<&'a str>,
+    namespaces: &'a [ImportNamespace],
+}
+
+impl<'a> SuggestionSelection<'a> {
+    fn lists<'entry>(
+        self,
+        entry: &'entry SuggestionsCacheEntry,
+    ) -> impl Iterator<Item = (ImportNamespace, &'entry [CompletionItem])> + use<'a, 'entry> {
+        self.namespaces.iter().map(move |&namespace| {
+            let items = match (self.prefix, namespace) {
+                (None, ImportNamespace::Term) => &entry.terms,
+                (None, ImportNamespace::Type) => &entry.types,
+                (None, ImportNamespace::Class) => &entry.classes,
+                (Some(_), ImportNamespace::Term) => &entry.qualified_terms,
+                (Some(_), ImportNamespace::Type) => &entry.qualified_types,
+                (Some(_), ImportNamespace::Class) => &entry.qualified_classes,
+            };
+            (namespace, items.as_slice())
+        })
+    }
+}
+
+fn collect_suggestions<F: Filter>(
     cache: &mut SuggestionsCache,
     query: &str,
     context: &CompletionContext<impl crate::AnalyzerHost>,
-    prefix: Option<&str>,
+    suggestions: SuggestionSelection<'_>,
     filter: F,
-) -> Result<Arc<SuggestionsCacheEntry>, AnalyzerError> {
+    items: &mut Vec<CompletionItem>,
+) -> Result<(), AnalyzerError> {
     let query = query.to_lowercase();
+    let prefix = suggestions.prefix;
 
+    // An exact hit is not stored again, so only the consumed lists need filtering.
     if let Some(cached) = cache.get(&query) {
         tracing::debug!("Found exact match for '{query}'");
-        let filtered = filter_suggestions(cached, prefix, &filter, context);
-        return Ok(Arc::new(filtered));
+        for (namespace, cached) in suggestions.lists(cached) {
+            items.extend(collect_entries(cached, &filter, prefix, context, namespace));
+        }
+        return Ok(());
     }
 
-    if let Some(cached) = cache.get_ancestor_value(&query) {
+    let entry = if let Some(cached) = cache.get_ancestor_value(&query) {
         tracing::debug!("Found prefix match for '{query}'");
-        let filtered = filter_suggestions(cached, prefix, &filter, context);
+        filter_suggestions(cached, prefix, &filter, context)
+    } else {
+        tracing::debug!("Initialising cache for '{query}'");
+        populate_suggestions(context, prefix, filter)?
+    };
 
-        let key = query.to_string();
-        let value = Arc::new(filtered);
-        cache.insert(key, Arc::clone(&value));
-
-        return Ok(value);
+    for (_, entry) in suggestions.lists(&entry) {
+        items.extend(entry.iter().cloned());
     }
 
-    tracing::debug!("Initialising cache for '{query}'");
+    cache.insert(query, Arc::new(entry));
 
+    Ok(())
+}
+
+fn populate_suggestions<F: Filter>(
+    context: &CompletionContext<impl crate::AnalyzerHost>,
+    prefix: Option<&str>,
+    filter: F,
+) -> Result<SuggestionsCacheEntry, AnalyzerError> {
     let mut suggestions = SuggestionsCacheEntry::default();
 
     if let Some(prefix) = prefix {
@@ -314,11 +344,7 @@ fn get_or_populate_suggestions<F: Filter>(
         SuggestedClasses.collect_into(context, filter, &mut suggestions.classes)?;
     }
 
-    let key = query.to_string();
-    let value = Arc::new(suggestions);
-    cache.insert(key, Arc::clone(&value));
-
-    Ok(value)
+    Ok(suggestions)
 }
 
 fn filter_suggestions<F>(
