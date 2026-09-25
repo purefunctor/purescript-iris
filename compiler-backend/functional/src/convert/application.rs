@@ -650,9 +650,12 @@ where
         else {
             return Ok(false);
         };
-        if self.queries.module_file("Effect") != Some(instance_file)
-            && self.queries.module_file("Control.Monad.ST.Internal") != Some(instance_file)
-        {
+        let thunk_modules = self.thunk_modules.get_or_init(|| {
+            let effect = self.queries.module_file("Effect");
+            let state_thread = self.queries.module_file("Control.Monad.ST.Internal");
+            [effect, state_thread]
+        });
+        if !thunk_modules.contains(&Some(instance_file)) {
             return Ok(false);
         }
 
@@ -666,6 +669,10 @@ where
         if expected_class.is_some_and(|class| instance.resolution != class) {
             return Ok(false);
         }
+        let key = (instance_file, instance_id);
+        if let Some(&canonical) = self.canonical_thunk_instances.borrow().get(&key) {
+            return Ok(canonical);
+        }
 
         let indexed = self.indexed_module(instance_file)?;
         let canonical_instances = indexed.items.iter_instances().filter_map(|(_, candidate)| {
@@ -673,9 +680,13 @@ where
             (candidate_instance.resolution == instance.resolution).then_some(candidate.id)
         });
         let mut canonical_instances = canonical_instances.take(2);
-        let Some(canonical_instance) = canonical_instances.next() else {
-            return Ok(false);
+        let canonical = match canonical_instances.next() {
+            Some(canonical_instance) => {
+                canonical_instances.next().is_none() && instance_id == canonical_instance
+            }
+            None => false,
         };
-        Ok(canonical_instances.next().is_none() && instance_id == canonical_instance)
+        self.canonical_thunk_instances.borrow_mut().insert(key, canonical);
+        Ok(canonical)
     }
 }

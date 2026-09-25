@@ -18,6 +18,36 @@ use crate::tree::{
 
 use super::{Context, ConversionResult};
 
+/// Files of the virtual StyleX modules, which have no runtime representation.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct StyleXModules {
+    root: Option<FileId>,
+    when: Option<FileId>,
+    types: Option<FileId>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum StyleXModule {
+    Root,
+    When,
+    Types,
+}
+
+impl StyleXModules {
+    fn module(&self, file_id: FileId) -> Option<StyleXModule> {
+        let file_id = Some(file_id);
+        if file_id == self.root {
+            Some(StyleXModule::Root)
+        } else if file_id == self.when {
+            Some(StyleXModule::When)
+        } else if file_id == self.types {
+            Some(StyleXModule::Types)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StyleXStaticContext {
     None,
@@ -137,9 +167,11 @@ where
         file_id: FileId,
         term_id: TermItemId,
     ) -> ConversionResult<Option<ExpressionId>> {
-        let Some(StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call))) =
-            self.stylex_intrinsic_identity(file_id, term_id)?
-        else {
+        let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id)? else {
+            return Ok(None);
+        };
+        self.references_stylex_module = true;
+        let StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)) = intrinsic else {
             return Ok(None);
         };
         if let StyleXRootCall::DefineMarker | StyleXRootCall::DefaultMarker = call {
@@ -227,16 +259,17 @@ where
         file_id: FileId,
         term_id: TermItemId,
     ) -> QueryResult<Option<StyleXIntrinsic>> {
-        let module_name = self.source_module_name(file_id)?;
+        let Some(module) = self.stylex_modules().module(file_id) else {
+            return Ok(None);
+        };
         let indexed = self.indexed_module(file_id)?;
         let Some(name) = indexed.items[term_id].name.as_deref() else {
             return Ok(None);
         };
-        let intrinsic = match module_name.as_str() {
-            "Iris.StyleX" => stylex_root_intrinsic(name).map(StyleXIntrinsic::Root),
-            "Iris.StyleX.When" => stylex_when_intrinsic(name),
-            "Iris.StyleX.Types" => stylex_type_intrinsic(name).map(StyleXIntrinsic::Types),
-            _ => None,
+        let intrinsic = match module {
+            StyleXModule::Root => stylex_root_intrinsic(name).map(StyleXIntrinsic::Root),
+            StyleXModule::When => stylex_when_intrinsic(name),
+            StyleXModule::Types => stylex_type_intrinsic(name).map(StyleXIntrinsic::Types),
         };
         Ok(intrinsic)
     }
@@ -245,6 +278,10 @@ where
         &self,
         declarations: &[Declaration],
     ) -> ConversionResult<()> {
+        // StyleX intrinsics and expressions only arise from references to the virtual modules.
+        if !self.references_stylex_module && !self.module_is_virtual(self.file_id) {
+            return Ok(());
+        }
         for declaration in declarations {
             let DeclarationKind::Value(expression) = declaration.kind else { continue };
             self.validate_stylex_expression(
@@ -401,10 +438,16 @@ where
         })
     }
 
+    fn stylex_modules(&self) -> StyleXModules {
+        *self.stylex_modules.get_or_init(|| StyleXModules {
+            root: self.queries.module_file("Iris.StyleX"),
+            when: self.queries.module_file("Iris.StyleX.When"),
+            types: self.queries.module_file("Iris.StyleX.Types"),
+        })
+    }
+
     pub(super) fn module_is_virtual(&self, file_id: FileId) -> bool {
-        ["Iris.StyleX", "Iris.StyleX.When", "Iris.StyleX.Types"]
-            .into_iter()
-            .any(|module_name| self.queries.module_file(module_name) == Some(file_id))
+        self.stylex_modules().module(file_id).is_some()
     }
 
     pub(super) fn validate_runtime_reference(
