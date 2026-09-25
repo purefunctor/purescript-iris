@@ -309,53 +309,46 @@ pub struct IndexedPairs {
 
 impl IndexedPairs {
     pub fn derive_to_item(&self, id: DeriveId) -> Option<DeriveItemId> {
-        self.derive_to_item.iter().find_map(
-            move |(derive_id, item_id)| {
-                if *derive_id == id { Some(*item_id) } else { None }
-            },
-        )
+        lookup_pair(&self.derive_to_item, id)
     }
 
     pub fn instance_to_item(&self, id: InstanceId) -> Option<InstanceItemId> {
-        self.instance_to_item.iter().find_map(move |(instance_id, item_id)| {
-            if *instance_id == id { Some(*item_id) } else { None }
-        })
+        lookup_pair(&self.instance_to_item, id)
     }
 
     pub fn declaration_to_term(&self, id: DeclarationId) -> Option<TermItemId> {
-        self.declaration_to_term.iter().find_map(move |(declaration_id, term_id)| {
-            if *declaration_id == id { Some(*term_id) } else { None }
-        })
+        lookup_pair(&self.declaration_to_term, id)
     }
 
     pub fn declaration_to_type(&self, id: DeclarationId) -> Option<TypeItemId> {
-        self.declaration_to_type.iter().find_map(move |(declaration_id, type_id)| {
-            if *declaration_id == id { Some(*type_id) } else { None }
-        })
+        lookup_pair(&self.declaration_to_type, id)
     }
 
     pub fn declaration_to_instance(&self, id: DeclarationId) -> Option<InstanceItemId> {
-        self.declaration_to_instance.iter().find_map(move |(declaration_id, item_id)| {
-            if *declaration_id == id { Some(*item_id) } else { None }
-        })
+        lookup_pair(&self.declaration_to_instance, id)
     }
 
     pub fn declaration_to_derive(&self, id: DeclarationId) -> Option<DeriveItemId> {
-        self.declaration_to_derive.iter().find_map(move |(declaration_id, item_id)| {
-            if *declaration_id == id { Some(*item_id) } else { None }
-        })
+        lookup_pair(&self.declaration_to_derive, id)
     }
 
     pub fn constructor_to_term(&self, id: DataConstructorId) -> Option<TermItemId> {
-        self.constructor_to_term.iter().find_map(move |(constructor_id, term_id)| {
-            if *constructor_id == id { Some(*term_id) } else { None }
-        })
+        lookup_pair(&self.constructor_to_term, id)
     }
 
     pub fn class_member_to_term(&self, id: ClassMemberId) -> Option<TermItemId> {
-        self.class_member_to_term.iter().find_map(move |(class_member_id, term_id)| {
-            if *class_member_id == id { Some(*term_id) } else { None }
-        })
+        lookup_pair(&self.class_member_to_term, id)
+    }
+
+    fn has_keys_in_source_order(&self) -> bool {
+        is_sorted_by_key(&self.derive_to_item)
+            && is_sorted_by_key(&self.instance_to_item)
+            && is_sorted_by_key(&self.declaration_to_term)
+            && is_sorted_by_key(&self.declaration_to_type)
+            && is_sorted_by_key(&self.declaration_to_instance)
+            && is_sorted_by_key(&self.declaration_to_derive)
+            && is_sorted_by_key(&self.constructor_to_term)
+            && is_sorted_by_key(&self.class_member_to_term)
     }
 
     pub fn instance_chain_id(&self, id: InstanceId) -> Option<InstanceChainId> {
@@ -376,6 +369,17 @@ impl IndexedPairs {
     }
 }
 
+/// Returns the first value for the key, as instance chains pair one declaration with many items.
+fn lookup_pair<K: Ord + Copy, V: Copy>(pairs: &[(K, V)], id: K) -> Option<V> {
+    let index = pairs.partition_point(|(key, _)| *key < id);
+    pairs.get(index).and_then(|(key, value)| if *key == id { Some(*value) } else { None })
+}
+
+/// Pairs are pushed in source order and stabilized IDs are allocated in preorder.
+fn is_sorted_by_key<K: Ord, V>(pairs: &[(K, V)]) -> bool {
+    pairs.is_sorted_by_key(|(key, _)| key)
+}
+
 pub fn index_module(
     source: &str,
     cst: &cst::Module,
@@ -383,5 +387,9 @@ pub fn index_module(
 ) -> IndexedModule {
     let algorithm::State { kind, names, exports, items, imports, pairs, errors, .. } =
         algorithm::index_module(source, cst, stabilized);
+    debug_assert!(
+        pairs.has_keys_in_source_order(),
+        "invariant violated: pair keys are not in source order"
+    );
     IndexedModule { kind, names, exports, items, imports, pairs, errors }
 }
