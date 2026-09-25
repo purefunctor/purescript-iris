@@ -237,7 +237,10 @@ where
 }
 
 fn find_expected_field(expected_fields: &[RowField], label: &SmolStr) -> Option<TypeId> {
-    expected_fields.iter().find(|field| field.label == *label).map(|field| field.id)
+    // Row fields are stable-sorted by label, so the partition point is the
+    // first field with this label, which is the one that shadows duplicates.
+    let index = expected_fields.partition_point(|field| field.label < *label);
+    expected_fields.get(index).filter(|field| field.label == *label).map(|field| field.id)
 }
 
 fn expected_record_field(mode: RecordMode<'_>, label: &SmolStr) -> Option<TypeId> {
