@@ -174,10 +174,10 @@ fn binder_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let unknown = context.unknown("missing binder");
+    let unknown = || context.unknown("missing binder");
 
     let Some(kind) = context.lowered.tree.get_binder_kind(binder_id) else {
-        return Ok(allocate_checked_binder(state, binder_id, unknown, tree::BinderKind::Error));
+        return Ok(allocate_checked_binder(state, binder_id, unknown(), tree::BinderKind::Error));
     };
 
     let (binder_type, binder_kind) = match kind {
@@ -186,7 +186,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown(),
                     tree::BinderKind::Error,
                 ));
             };
@@ -194,7 +194,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown(),
                     tree::BinderKind::Error,
                 ));
             };
@@ -266,7 +266,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown(),
                     tree::BinderKind::Error,
                 ));
             };
@@ -322,7 +322,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown(),
                     tree::BinderKind::Error,
                 ));
             };
@@ -330,7 +330,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown(),
                     tree::BinderKind::Error,
                 ));
             };
@@ -445,7 +445,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown(),
                     tree::BinderKind::Error,
                 ));
             };
