@@ -8,7 +8,6 @@ use files::FileId;
 use indexing::TypeItemId;
 use interner::{Id, Interner};
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
@@ -39,11 +38,10 @@ impl CanonicalConstraint {
 /// Stable identifier for a [`CanonicalConstraint`].
 pub type CanonicalConstraintId = Id<CanonicalConstraint>;
 
-/// Interner and cache for [`CanonicalConstraint`].
+/// Interner for [`CanonicalConstraint`].
 #[derive(Default)]
 pub struct Canonicals {
     interner: Interner<CanonicalConstraint>,
-    cache: FxHashMap<TypeId, CanonicalConstraintId>,
 }
 
 impl Canonicals {
@@ -70,20 +68,6 @@ impl Canonicals {
         }
 
         constraint
-    }
-
-    pub fn associate(
-        &mut self,
-        constraint: TypeId,
-        canonical: CanonicalConstraint,
-    ) -> CanonicalConstraintId {
-        let id = self.intern(canonical);
-        self.cache.insert(constraint, id);
-        // TODO: This check was disabled as it does not consider normalisation.
-        // A future version of this check must ensure that normalisation is
-        // taken into account before checking that the cache is not overwritten.
-        // debug_assert!(previous.is_none(), "critical violation: canonical cache overwrite");
-        id
     }
 }
 
@@ -114,7 +98,7 @@ where
 
     let arguments = Arc::from(arguments); // TODO: extract_all_applications
     let canonical = CanonicalConstraint { file_id, type_id, arguments };
-    let canonical_id = state.canonicals.associate(id, canonical);
+    let canonical_id = state.canonicals.intern(canonical);
 
     Ok(Some(canonical_id))
 }
@@ -128,16 +112,36 @@ where
     Q: ExternalQueries,
 {
     let canonical = state.canonicals[id].clone();
-    let arguments = canonical.arguments.iter().map(|&argument| match argument {
-        ApplicationArgument::Kind(argument) => {
-            zonk::zonk(state, context, argument).map(ApplicationArgument::Kind)
-        }
-        ApplicationArgument::Type(argument) => {
-            zonk::zonk(state, context, argument).map(ApplicationArgument::Type)
-        }
-    });
 
-    let arguments = arguments.collect::<QueryResult<Arc<[_]>>>()?;
+    // Arguments are only copied once one of them changes, since most
+    // constraints are already zonked and would intern to the same id.
+    let mut zonked: Option<Vec<ApplicationArgument>> = None;
+    for (index, &argument) in canonical.arguments.iter().enumerate() {
+        let zonked_argument = match argument {
+            ApplicationArgument::Kind(argument) => {
+                ApplicationArgument::Kind(zonk::zonk(state, context, argument)?)
+            }
+            ApplicationArgument::Type(argument) => {
+                ApplicationArgument::Type(zonk::zonk(state, context, argument)?)
+            }
+        };
+        if zonked_argument != argument {
+            let output = zonked.get_or_insert_with(|| {
+                let mut output = Vec::with_capacity(canonical.arguments.len());
+                output.extend_from_slice(&canonical.arguments[..index]);
+                output
+            });
+            output.push(zonked_argument);
+        } else if let Some(output) = &mut zonked {
+            output.push(argument);
+        }
+    }
+
+    let Some(arguments) = zonked else {
+        return Ok(id);
+    };
+
+    let arguments = Arc::from(arguments);
     Ok(state.canonicals.intern(CanonicalConstraint { arguments, ..canonical }))
 }
 
