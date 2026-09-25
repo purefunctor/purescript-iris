@@ -161,6 +161,26 @@ where
     }
 }
 
+/// Expands synonym constructor applications at the head of a type.
+fn expand_head<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut id: TypeId,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
+    id = normalise(state, context, id);
+
+    safe_loop! {
+        let expanded = expand_synonym(state, context, id)?;
+        if expanded == id {
+            return Ok(id);
+        }
+        id = normalise(state, context, expanded);
+    }
+}
+
 fn expand_row_tail<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -201,7 +221,9 @@ where
             }
         };
 
-        let normalised_tail = expand(state, context, original_tail)?;
+        // The tail's own row tail is flattened by the next iteration, so
+        // expanding only its head keeps long chains off the call stack.
+        let normalised_tail = expand_head(state, context, original_tail)?;
 
         if original_tail == normalised_tail {
             if flattened_once {
