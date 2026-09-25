@@ -895,10 +895,10 @@ fn index_exports(state: &mut State, stabilized: &StabilizedModule, cst: &cst::Ex
         if let Some((id, implicit)) = types.get(name) {
             item.exported = true;
             if let Some(implicit) = implicit {
-                let constructors: Vec<_> = match &item.kind {
+                let constructors: &[TermItemId] = match &item.kind {
                     IndexedTypeItemKind::Data { constructors, .. }
-                    | IndexedTypeItemKind::Newtype { constructors, .. } => constructors.clone(),
-                    _ => vec![],
+                    | IndexedTypeItemKind::Newtype { constructors, .. } => constructors,
+                    _ => &[],
                 };
 
                 match implicit {
@@ -924,11 +924,11 @@ fn index_exports(state: &mut State, stabilized: &StabilizedModule, cst: &cst::Ex
                     }
                 }
             }
-            let members: Vec<_> = match &item.kind {
-                IndexedTypeItemKind::Class { members, .. } => members.clone(),
-                _ => vec![],
+            let members: &[TermItemId] = match &item.kind {
+                IndexedTypeItemKind::Class { members, .. } => members,
+                _ => &[],
             };
-            for term_id in members {
+            for &term_id in members {
                 state.items.terms[term_id].exported = true;
             }
         }
