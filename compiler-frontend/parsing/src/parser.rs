@@ -114,15 +114,17 @@ impl<'t> Parser<'t> {
         }
     }
 
-    /// Keeps the first of `rule` and `other` that parses without errors, or
-    /// the output of `rule` if neither does.
+    /// Prefers `rule` when it parses without errors, then `other`; if both
+    /// fail, keeps `rule`'s output and diagnostics for error recovery.
     ///
-    /// `prefix` must parse the tokens that `rule` begins with, such that errors
-    /// in `prefix` imply errors in `rule`. When `prefix` fails, `rule` is only
-    /// parsed if `other` also fails. Failed outputs are replayed rather than
-    /// parsed again, since a failure makes every enclosing alternative parse
-    /// the same tokens once per rule, which is exponential in nesting depth.
-    fn alternative(&mut self, prefix: Rule, rule: Rule, other: Rule) {
+    /// `prefix` must parse the leading tokens of `rule`, such that its failure
+    /// implies `rule` fails. This lets `other` run first when the prefix fails,
+    /// without losing `rule`'s diagnostics if `other` fails too. Failed
+    /// outputs are replayed after backtracking to avoid exponential reparsing
+    /// across nested choices. Replay is keyed by `rule` and token index, so
+    /// each `rule` must have a fixed `other`, and both must be deterministic
+    /// from that index.
+    fn prefer_with_prefix(&mut self, prefix: Rule, rule: Rule, other: Rule) {
         let key = (self.index, rule as usize);
         if let Some(failed) = self.failed_alternatives.remove(&key) {
             self.replay(&failed);

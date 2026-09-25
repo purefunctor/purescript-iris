@@ -310,7 +310,7 @@ fn do_statement(p: &mut Parser) {
     if p.at(SyntaxKind::LET) {
         do_statement_let(p);
     } else {
-        p.alternative(binders::binder_left_arrow, do_statement_bind, do_statement_discard);
+        p.prefer_with_prefix(binders::binder_left_arrow, do_statement_bind, do_statement_discard);
     }
 }
 

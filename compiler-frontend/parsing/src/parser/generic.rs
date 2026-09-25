@@ -127,7 +127,11 @@ const PATTERN_GUARD_RECOVERY: TokenSet =
     TokenSet::new(&[SyntaxKind::LAYOUT_SEPARATOR, SyntaxKind::LAYOUT_END]);
 
 fn pattern_guard(p: &mut Parser) {
-    p.alternative(binders::binder_left_arrow, pattern_guard_binder, pattern_guard_expression);
+    p.prefer_with_prefix(
+        binders::binder_left_arrow,
+        pattern_guard_binder,
+        pattern_guard_expression,
+    );
 }
 
 fn pattern_guard_binder(p: &mut Parser) {
