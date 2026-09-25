@@ -63,10 +63,8 @@ impl<'a> TypeEncoder<'a> {
         self.names.reset();
         let binders = self.encode_forall_binders(class.type_parameters.iter().copied())?;
 
-        let superclasses = class
-            .superclasses
-            .into_iter()
-            .map(|superclass| self.encode_type(superclass.constraint));
+        let superclasses = class.superclasses.iter();
+        let superclasses = superclasses.map(|superclass| self.encode_type(superclass.constraint));
         let superclasses = superclasses.collect::<Result<Vec<_>, Error>>()?;
 
         Ok((schema::TypeDeclaration { binders }, superclasses))
@@ -77,7 +75,7 @@ impl<'a> TypeEncoder<'a> {
         synonym: checking::core::CheckedSynonym,
     ) -> Result<schema::TypeSynonymEquation, Error> {
         self.names.reset();
-        let binders = self.encode_forall_binder_values(synonym.parameters)?;
+        let binders = self.encode_forall_binder_values(synonym.parameters.iter().copied())?;
         let expansion = self.encode_type(synonym.expansion)?;
         Ok(schema::TypeSynonymEquation { binders, expansion })
     }
