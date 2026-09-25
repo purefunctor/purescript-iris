@@ -9,6 +9,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::{SmolStr, format_smolstr};
 
 use crate::error::UnsupportedState;
+use crate::initializers::cyclic_initializers;
 use crate::optimize::{expression_globals, reachable_expressions};
 use crate::tree::{
     Binding, Declaration, DeclarationKind, Expression, ExpressionId, ExpressionKind, Global,
@@ -1043,66 +1044,40 @@ fn unsafe_local_instances(
         dependencies[position].dedup();
     }
 
-    let mut hazards = FxHashSet::default();
-    for (position, (_, recursive_group, _)) in values.iter().enumerate() {
-        let mut visited = FxHashSet::default();
-        if recursive_group.is_some()
-            || reaches_declaration(position, position, &dependencies, &mut visited)
-        {
-            hazards.insert(position);
-        }
-    }
-    if hazards.is_empty() {
+    // A hazard is a recursive initializer; an instance is unsafe when it can reach one.
+    let cyclic = cyclic_initializers(&dependencies);
+    let hazards = values
+        .iter()
+        .zip(cyclic)
+        .map(|((_, recursive_group, _), cyclic)| recursive_group.is_some() || cyclic);
+    let mut reaches_hazard = hazards.collect_vec();
+    let mut pending = reaches_hazard.iter().positions(|&hazard| hazard).collect_vec();
+    if pending.is_empty() {
         return FxHashSet::default();
     }
 
-    let mut unsafe_instances = FxHashSet::default();
-    for (position, (global, _, _)) in values.iter().enumerate() {
-        let GlobalId::Instance(identity) = global else {
-            continue;
-        };
-        let mut pending = vec![position];
-        let mut visited = FxHashSet::default();
-        let mut unsafe_instance = false;
-        while let Some(dependency) = pending.pop() {
-            if !visited.insert(dependency) {
-                continue;
-            }
-
-            if hazards.contains(&dependency) {
-                unsafe_instance = true;
-                break;
-            }
-
-            let next_dependencies = dependencies[dependency].iter().copied();
-            pending.extend(next_dependencies);
+    let mut dependents = vec![Vec::new(); values.len()];
+    for (position, position_dependencies) in dependencies.iter().enumerate() {
+        for &dependency in position_dependencies {
+            dependents[dependency].push(position);
         }
-
-        if unsafe_instance {
-            unsafe_instances.insert(*identity);
+    }
+    while let Some(position) = pending.pop() {
+        for &dependent in &dependents[position] {
+            if !reaches_hazard[dependent] {
+                reaches_hazard[dependent] = true;
+                pending.push(dependent);
+            }
         }
     }
 
-    unsafe_instances
-}
-
-fn reaches_declaration(
-    current: usize,
-    target: usize,
-    dependencies: &[Vec<usize>],
-    visited: &mut FxHashSet<usize>,
-) -> bool {
-    for &dependency in &dependencies[current] {
-        if dependency == target {
-            return true;
-        }
-        if visited.insert(dependency)
-            && reaches_declaration(dependency, target, dependencies, visited)
-        {
-            return true;
-        }
-    }
-    false
+    let unsafe_instances = values.iter().zip(reaches_hazard).filter_map(
+        |((global, _, _), reaches_hazard)| match global {
+            GlobalId::Instance(identity) if reaches_hazard => Some(*identity),
+            GlobalId::Instance(_) | GlobalId::Term(..) | GlobalId::Generated(..) => None,
+        },
+    );
+    unsafe_instances.collect()
 }
 
 fn uppercase_initial(name: &str) -> String {
@@ -1195,5 +1170,55 @@ mod tests {
         assert!(keys.is_closed(first_synthesized));
         assert!(first_synthesized == repeated_synthesized);
         assert!(first_synthesized != second_synthesized);
+    }
+
+    /// Builds an instance whose initializer depends on a chain of `length` generated values; the
+    /// last value depends on itself when `recursive_tail` is set.
+    fn instance_chain(length: u32, recursive_tail: bool) -> (Storage, Vec<Declaration>) {
+        let file_id = files::FileId::new(0);
+        let generated = |index| Global {
+            id: GlobalId::Generated(file_id, crate::tree::GeneratedGlobalId(index)),
+            item_name: SmolStr::new("value"),
+        };
+        let instance =
+            InstanceIdentity::Declared(file_id, indexing::InstanceId::new(NonZeroU32::MIN));
+        let mut storage = Storage::default();
+        let mut declarations = Vec::new();
+        for index in 0..=length {
+            let global = if index == 0 {
+                Global { id: GlobalId::Instance(instance), item_name: SmolStr::new("instance") }
+            } else {
+                generated(index)
+            };
+            let kind = if index < length {
+                ExpressionKind::Global { global: generated(index + 1) }
+            } else if recursive_tail {
+                ExpressionKind::Global { global: generated(index) }
+            } else {
+                ExpressionKind::TrivialEvidence
+            };
+            let expression = storage.allocate_expression(Expression { kind });
+            declarations.push(Declaration {
+                global,
+                exported: false,
+                recursive_group: None,
+                kind: DeclarationKind::Value(expression),
+            });
+        }
+        (storage, declarations)
+    }
+
+    #[test]
+    fn unsafe_instances_through_long_chains_do_not_use_the_call_stack() {
+        let thread = std::thread::Builder::new().stack_size(64 * 1024).spawn(|| {
+            let (storage, declarations) = instance_chain(10_000, true);
+            let unsafe_instances = unsafe_local_instances(&storage, &declarations);
+            assert_eq!(unsafe_instances.len(), 1);
+
+            let (storage, declarations) = instance_chain(10_000, false);
+            assert!(unsafe_local_instances(&storage, &declarations).is_empty());
+        });
+        let thread = thread.expect("failed to spawn small-stack thread");
+        thread.join().expect("test panicked on small-stack thread");
     }
 }
