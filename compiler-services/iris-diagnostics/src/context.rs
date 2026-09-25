@@ -53,21 +53,21 @@ fn first_significant_range(node: &SyntaxNode) -> Option<TextRange> {
 }
 
 fn last_significant_range(node: &SyntaxNode) -> Option<TextRange> {
-    let mut significant = None;
-    for child in node.children_with_tokens() {
+    let children: Vec<SyntaxElement> = node.children_with_tokens().collect();
+    for child in children.into_iter().rev() {
         if is_trivia(&child) {
             continue;
         }
         match child {
-            SyntaxElement::Token(token) => significant = Some(token.text_range()),
+            SyntaxElement::Token(token) => return Some(token.text_range()),
             SyntaxElement::Node(node) => {
                 if let Some(range) = last_significant_range(&node) {
-                    significant = Some(range);
+                    return Some(range);
                 }
             }
         }
     }
-    significant
+    None
 }
 
 fn significant_ranges(node: &SyntaxNode) -> Option<TextRange> {
