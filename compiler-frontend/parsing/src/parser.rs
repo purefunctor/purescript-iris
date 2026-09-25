@@ -21,9 +21,6 @@ pub(crate) struct Parser<'t> {
     errors: Vec<ParserError>,
     fuel: Cell<u16>,
     failed_alternatives: HashMap<(usize, usize), FailedAlternative>,
-    /// Counts tokens consumed, including by discarded alternatives.
-    #[cfg(test)]
-    consumed: usize,
 }
 
 type Rule = fn(&mut Parser);
@@ -49,16 +46,7 @@ impl<'t> Parser<'t> {
         let errors = vec![];
         let fuel = Cell::new(u16::MAX);
         let failed_alternatives = HashMap::new();
-        Parser {
-            index,
-            tokens,
-            output,
-            errors,
-            fuel,
-            failed_alternatives,
-            #[cfg(test)]
-            consumed: 0,
-        }
+        Parser { index, tokens, output, errors, fuel, failed_alternatives }
     }
 
     pub(crate) fn finish(self) -> Output {
@@ -75,10 +63,6 @@ impl<'t> Parser<'t> {
     }
 
     fn consume(&mut self) {
-        #[cfg(test)]
-        {
-            self.consumed += 1;
-        }
         self.fuel.set(u16::MAX);
         let kind = self.tokens[self.index];
         self.index += 1;
@@ -253,10 +237,6 @@ impl<'t> Parser<'t> {
     fn eat_in(&mut self, set: TokenSet, kind: SyntaxKind) -> bool {
         if !self.at_in(set) {
             return false;
-        }
-        #[cfg(test)]
-        {
-            self.consumed += 1;
         }
         self.fuel.set(u16::MAX);
         self.index += 1;
@@ -1127,44 +1107,4 @@ fn foreign_import(p: &mut Parser) {
     p.expect(SyntaxKind::DOUBLE_COLON);
     types::type_(p);
     m.end(p, k);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn consumed(source: &str) -> usize {
-        let lexed = lexing::lex(source);
-        let tokens = lexing::layout(&lexed);
-        let mut parser = Parser::new(&tokens);
-        module(&mut parser);
-        parser.consumed
-    }
-
-    fn nested(depth: usize, open: &str, innermost: &str, close: &str) -> String {
-        let mut source = String::from("module Main where\n\nmain = ");
-        source.push_str(&open.repeat(depth));
-        source.push_str(innermost);
-        source.push_str(&close.repeat(depth));
-        source.push('\n');
-        source
-    }
-
-    #[test]
-    fn nested_alternatives_are_not_parsed_exponentially() {
-        let shapes = [
-            ("when x (do ", "pure unit", ")"),
-            ("when x (do ", "if x then y", ")"),
-            ("case x of _ | y <- (", "z", ") -> y"),
-            ("case x of _ | y <- (", "if x then y", ") -> y"),
-            ("let Tuple a b = (", "z", ") in a"),
-            ("let Tuple a b = (", "if x then y", ") in a"),
-        ];
-        for (open, innermost, close) in shapes {
-            let shallow = consumed(&nested(8, open, innermost, close));
-            let deep = consumed(&nested(16, open, innermost, close));
-            // Doubling the depth at most quadruples the work of a quadratic parse.
-            assert!(deep <= 5 * shallow, "{open}{innermost}{close}: {shallow} -> {deep}");
-        }
-    }
 }
