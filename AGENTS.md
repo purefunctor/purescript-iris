@@ -24,6 +24,9 @@ PRs may be declined if these principles are not upheld.
 repository's tooling for command discovery. These instructions supply maintainer intent rather than
 a source-code map.
 
+For purs–Iris generated-JavaScript comparisons, use
+[the JavaScript output and differential-review guide](documentation/javascript-output.md).
+
 Apply workflows to the requested task, not as invitations to expand its scope. Explicit user
 instructions take precedence over repository skill guidelines. If an instruction blocks requested
 work, identify the exact instruction and the decision needed; continue independent authorized work.
