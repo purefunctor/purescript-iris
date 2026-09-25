@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 Hover at Position { line: 6, character: 7 }
 
@@ -13,7 +14,9 @@ Range: "id"
 ```purescript
 id :: forall a. a -> a
 ```
+
 ---
+
 The identity function
 
 
@@ -43,7 +46,9 @@ Range: "docOnly"
 ```purescript
 docOnly :: Int
 ```
+
 ---
+
 Documentation only
 
 
@@ -59,7 +64,9 @@ Range: "multiLine"
 ```purescript
 multiLine :: Int
 ```
+
 ---
+
 Line 1
 Line 2
 Line 3
@@ -77,7 +84,9 @@ Range: "multiLine2"
 ```purescript
 multiLine2 :: Int
 ```
+
 ---
+
 Line 1
 Line 2
 Line 3
@@ -95,7 +104,9 @@ Range: "multiLine3"
 ```purescript
 multiLine3 :: Int
 ```
+
 ---
+
 Line 1
 
 Line 2

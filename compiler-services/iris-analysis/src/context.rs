@@ -3,7 +3,7 @@ use std::sync::Arc;
 use building_types::QueryProxy;
 use checking::core::pretty::PrettyQueries;
 use files::FileId;
-use lsp_types::Uri;
+use lsp_types::{MarkupKind, Uri};
 
 use crate::position::PositionEncoding;
 
@@ -46,6 +46,7 @@ pub trait AnalyzerHost {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AnalyzerCapabilities {
     change_annotations: bool,
+    markdown_hover: bool,
 }
 
 impl AnalyzerCapabilities {
@@ -56,6 +57,15 @@ impl AnalyzerCapabilities {
 
     pub fn has_change_annotations(self) -> bool {
         self.change_annotations
+    }
+
+    pub fn with_markdown_hover(mut self) -> AnalyzerCapabilities {
+        self.markdown_hover = true;
+        self
+    }
+
+    pub fn hover_format(self) -> MarkupKind {
+        if self.markdown_hover { MarkupKind::Markdown } else { MarkupKind::PlainText }
     }
 }
 
