@@ -67,17 +67,6 @@ impl<'a> Tree<'a> {
         self.allocate(expression)
     }
 
-    pub(crate) fn expression_in<'b>(
-        &self,
-        expression: &ExpressionId,
-        allocator: &'b Allocator,
-    ) -> Expression<'b> {
-        let expression = self.expressions[Idx::from_raw(expression.0)]
-            .as_ref()
-            .expect("invariant violated: JavaScript expression was already consumed");
-        expression.clone_in(allocator)
-    }
-
     pub(crate) fn clear_call_purity(&mut self, expression: &ExpressionId) {
         let expression = self.expressions[Idx::from_raw(expression.0)]
             .as_mut()

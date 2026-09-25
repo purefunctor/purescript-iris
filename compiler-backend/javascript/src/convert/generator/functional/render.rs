@@ -172,16 +172,16 @@ struct GuardSequence<'a, 'd> {
     destination: Destination<'d>,
 }
 
-struct ModuleRenderer<'a, 'm, 't, 'd> {
+struct ModuleRenderer<'a, 'm, 't> {
     generator: &'a Generator<'m>,
     tree: &'a mut Tree<'t>,
-    writer: &'a mut Writer<'d>,
+    writer: &'a mut Writer<'t>,
 }
 
-struct FunctionRenderer<'a, 'm, 't, 'd> {
+struct FunctionRenderer<'a, 'm, 't> {
     generator: &'a Generator<'m>,
     tree: &'a mut Tree<'t>,
-    writer: &'a mut Writer<'d>,
+    writer: &'a mut Writer<'t>,
     context: &'a mut FunctionContext,
 }
 
@@ -411,17 +411,17 @@ impl<'m> Generator<'m> {
         ))
     }
 
-    fn renderer<'a, 't, 'd>(
+    fn renderer<'a, 't>(
         &'a self,
         tree: &'a mut Tree<'t>,
-        writer: &'a mut Writer<'d>,
+        writer: &'a mut Writer<'t>,
         context: &'a mut FunctionContext,
-    ) -> FunctionRenderer<'a, 'm, 't, 'd> {
+    ) -> FunctionRenderer<'a, 'm, 't> {
         FunctionRenderer { generator: self, tree, writer, context }
     }
 }
 
-fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
+fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     let ModuleRenderer { generator, writer, .. } = renderer;
     let mut files = generator
         .external_module_namespaces
@@ -487,7 +487,7 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
     }
 }
 
-fn render_constructors(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
+fn render_constructors(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     let ModuleRenderer { generator, tree, writer } = renderer;
     let mut rendered = false;
     for declaration in generator.module.declarations.iter() {
@@ -505,7 +505,7 @@ fn render_constructors(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
     }
 }
 
-fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) -> ModuleResult<()> {
+fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleResult<()> {
     let generator = renderer.generator;
     let mut rendered_groups = FxHashSet::default();
     for declaration in generator.module.declarations.iter() {
@@ -543,7 +543,7 @@ fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) -> Mod
 }
 
 fn render_global_tail_call_group(
-    renderer: &mut ModuleRenderer<'_, '_, '_, '_>,
+    renderer: &mut ModuleRenderer<'_, '_, '_>,
     group: &TailCallGroup,
 ) -> ModuleResult<()> {
     let generator = renderer.generator;
@@ -592,10 +592,10 @@ fn render_global_tail_call_group(
 }
 
 impl Generator<'_> {
-    fn render_tail_call_dispatcher(
+    fn render_tail_call_dispatcher<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         group: &TailCallGroup,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -619,7 +619,7 @@ impl Generator<'_> {
                 (state, name)
             });
             let cases = cases.collect_vec();
-            writer.switch(tree, current_state, &cases, |position, tree, writer| {
+            writer.switch(tree, current_state, cases, |position, tree, writer| {
                 self.render_tail_call_profile(tree, writer, &group.profiles[position], context)
             })
         })
@@ -641,20 +641,20 @@ impl Generator<'_> {
         }
     }
 
-    fn render_tail_call_profile(
+    fn render_tail_call_profile<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         profile: &TailCallProfile,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
         self.render_tail_call_parameters(tree, writer, profile, 0, context)
     }
 
-    fn render_tail_call_parameters(
+    fn render_tail_call_parameters<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         profile: &TailCallProfile,
         position: usize,
         context: &mut FunctionContext,
@@ -687,10 +687,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_global_tail_call_wrapper(
+    fn render_global_tail_call_wrapper<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         wrapper: TailCallWrapper<'_>,
         exported: bool,
         context: &mut FunctionContext,
@@ -724,10 +724,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_local_tail_call_wrapper(
+    fn render_local_tail_call_wrapper<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         wrapper: TailCallWrapper<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -760,10 +760,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_curried_tail_call_wrapper(
+    fn render_curried_tail_call_wrapper<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         wrapper: CurriedTailCallWrapper<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -786,10 +786,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_tail_call_wrapper_result(
+    fn render_tail_call_wrapper_result<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         wrapper: TailCallWrapperResult<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -821,10 +821,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_singleton_tail_call_loop(
+    fn render_singleton_tail_call_loop<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         group: &TailCallGroup,
         arguments: &[SmolStr],
         context: &mut FunctionContext,
@@ -845,10 +845,10 @@ impl Generator<'_> {
         result
     }
 
-    fn render_singleton_effect_dispatcher(
+    fn render_singleton_effect_dispatcher<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         group: &TailCallGroup,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -867,10 +867,10 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_tail_effect_loop(
+    fn render_tail_effect_loop<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         group: &TailCallGroup,
         initial_name: &str,
         context: &mut FunctionContext,
@@ -915,7 +915,7 @@ impl Generator<'_> {
 }
 
 fn render_named_function(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     name: &str,
     expression: FunctionalExpressionId,
     exported: bool,
@@ -977,10 +977,10 @@ impl Generator<'_> {
         }
     }
 
-    fn render_curried_parameter(
+    fn render_curried_parameter<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         parameter: CurriedParameter<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -1003,10 +1003,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_uncurried_parameters(
+    fn render_uncurried_parameters<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         parameters: UncurriedParameters<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -1028,7 +1028,7 @@ impl Generator<'_> {
     }
 }
 
-fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
+fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     let ModuleRenderer { generator, tree, writer } = renderer;
     let Some(foreign_import) = &generator.foreign_import else {
         return;
@@ -1051,7 +1051,7 @@ fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
     }
 }
 
-fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) -> ModuleResult<()> {
+fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleResult<()> {
     let generator = renderer.generator;
     let Some(runtime) = &generator.runtime_namespace else {
         return Ok(());
@@ -1066,8 +1066,8 @@ fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) -> Mo
         let name = renderer.tree.string(declaration.global.item_name.as_str());
         let runtime = renderer.tree.identifier(runtime);
         let binding = renderer.tree.member(runtime, "binding");
-        let binding = renderer.writer.expression(renderer.tree, binding);
-        let name = renderer.writer.expression(renderer.tree, name);
+        let binding = renderer.tree.expression(binding);
+        let name = renderer.tree.expression(name);
         let mut context = FunctionContext::new(&generator.reserved_module_names);
         renderer.writer.binding_call(
             BindingCallTarget::Constant(lazy_name),
@@ -1089,7 +1089,7 @@ fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) -> Mo
 }
 
 fn render_value_declarations(
-    renderer: &mut ModuleRenderer<'_, '_, '_, '_>,
+    renderer: &mut ModuleRenderer<'_, '_, '_>,
 ) -> ModuleResult<Vec<GlobalId>> {
     let generator = renderer.generator;
     let mut rendered = false;
@@ -1157,10 +1157,10 @@ fn render_value_declarations(
 }
 
 impl Generator<'_> {
-    fn render_expression(
+    fn render_expression<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -1243,10 +1243,10 @@ impl Generator<'_> {
         }
     }
 
-    fn render_destination(
+    fn render_destination<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         value: ExpressionId,
         destination: Destination<'_>,
     ) {
@@ -1274,10 +1274,10 @@ impl Generator<'_> {
         }
     }
 
-    fn render_effect_destination(
+    fn render_effect_destination<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -1294,10 +1294,10 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_effect_expression_destination(
+    fn render_effect_expression_destination<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         effect: &EffectExpression,
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -1347,10 +1347,10 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_tail_effect_thunk_destination(
+    fn render_tail_effect_thunk_destination<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -1363,10 +1363,10 @@ impl Generator<'_> {
         })
     }
 
-    fn render_tail_call(
+    fn render_tail_call<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         tail_call: tail_call::TailCall,
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -1419,10 +1419,10 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn expression_value(
+    fn expression_value<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         context: &mut FunctionContext,
     ) -> ModuleResult<ExpressionId> {
@@ -1430,10 +1430,10 @@ impl Generator<'_> {
         Ok(expression.value)
     }
 
-    fn rendered_expression(
+    fn rendered_expression<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         context: &mut FunctionContext,
     ) -> ModuleResult<RenderedExpression> {
@@ -1443,10 +1443,10 @@ impl Generator<'_> {
         self.render_non_inline_expression(tree, writer, expression, context)
     }
 
-    fn render_non_inline_expression(
+    fn render_non_inline_expression<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         context: &mut FunctionContext,
     ) -> ModuleResult<RenderedExpression> {
@@ -2060,10 +2060,10 @@ impl Generator<'_> {
         }
     }
 
-    fn render_abstraction_binding(
+    fn render_abstraction_binding<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         binding: AbstractionBinding<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -2116,7 +2116,7 @@ impl Generator<'_> {
 }
 
 fn render_let(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     recursive: bool,
     bindings: &[Binding],
 ) -> ModuleResult<()> {
@@ -2252,7 +2252,7 @@ fn render_let(
 }
 
 fn render_lazy_let(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     bindings: &[Binding],
 ) -> ModuleResult<()> {
     let FunctionRenderer { generator, tree, writer, context } = renderer;
@@ -2271,12 +2271,12 @@ fn render_lazy_let(
         context.bind_lazy(&binding.parameter, accessor.clone());
         writer.mutable(accessor);
     }
-    let runtime = tree.identifier(runtime);
-    let binding_function = tree.member(runtime, "binding");
     for (binding, accessor) in bindings.iter().zip(&accessors) {
+        let runtime = tree.identifier(runtime);
+        let binding_function = tree.member(runtime, "binding");
         let source_name = tree.string(binding.parameter.name.as_str());
-        let binding_function = writer.expression(tree, &binding_function);
-        let source_name = writer.expression(tree, source_name);
+        let binding_function = tree.expression(binding_function);
+        let source_name = tree.expression(source_name);
         writer.binding_call(
             BindingCallTarget::Assignment(accessor),
             binding_function,
@@ -2302,7 +2302,7 @@ fn render_lazy_let(
 }
 
 fn render_case(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     scrutinees: &[FunctionalExpressionId],
     alternatives: &[CaseAlternative],
     destination: Destination<'_>,
@@ -2360,10 +2360,10 @@ fn render_case(
 }
 
 impl Generator<'_> {
-    fn render_case_alternatives(
+    fn render_case_alternatives<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         scrutinees: &[ExpressionId],
         alternatives: &[CaseAlternative],
         destination: Destination<'_>,
@@ -2378,7 +2378,7 @@ impl Generator<'_> {
             let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
             if let Some(condition) = condition {
                 writer.if_block(tree, condition, |tree, writer| {
-                    self.render_pattern_bindings(tree, writer, &plan);
+                    self.render_pattern_bindings(tree, writer, plan.bindings);
                     self.render_case_alternative_expression(
                         tree,
                         writer,
@@ -2392,7 +2392,7 @@ impl Generator<'_> {
                 ExpressionKind::Guarded { .. }
             ) {
                 writer.block(|writer| {
-                    self.render_pattern_bindings(tree, writer, &plan);
+                    self.render_pattern_bindings(tree, writer, plan.bindings);
                     self.render_case_alternative_expression(
                         tree,
                         writer,
@@ -2402,7 +2402,7 @@ impl Generator<'_> {
                     )
                 })?;
             } else {
-                self.render_pattern_bindings(tree, writer, &plan);
+                self.render_pattern_bindings(tree, writer, plan.bindings);
                 self.render_expression(tree, writer, alternative.expression, destination, context)?;
                 return Ok(());
             }
@@ -2411,10 +2411,10 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_case_alternative_expression(
+    fn render_case_alternative_expression<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -2428,7 +2428,7 @@ impl Generator<'_> {
 }
 
 fn render_guarded(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     alternatives: &[GuardedAlternative],
     destination: Destination<'_>,
 ) -> ModuleResult<()> {
@@ -2483,10 +2483,10 @@ fn render_guarded(
 }
 
 impl Generator<'_> {
-    fn render_guard_alternatives(
+    fn render_guard_alternatives<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         alternatives: &[GuardedAlternative],
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -2507,10 +2507,10 @@ impl Generator<'_> {
         Ok(())
     }
 
-    fn render_guards(
+    fn render_guards<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         sequence: GuardSequence<'_, '_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
@@ -2538,7 +2538,7 @@ impl Generator<'_> {
                 let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
                 if let Some(condition) = condition {
                     writer.if_block(tree, condition, |tree, writer| {
-                        self.render_pattern_bindings(tree, writer, &plan);
+                        self.render_pattern_bindings(tree, writer, plan.bindings);
                         self.render_guards(
                             tree,
                             writer,
@@ -2552,7 +2552,7 @@ impl Generator<'_> {
                         )
                     })
                 } else {
-                    self.render_pattern_bindings(tree, writer, &plan);
+                    self.render_pattern_bindings(tree, writer, plan.bindings);
                     self.render_guards(
                         tree,
                         writer,
@@ -2564,13 +2564,13 @@ impl Generator<'_> {
         }
     }
 
-    fn render_pattern_scope(
+    fn render_pattern_scope<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         mut plan: PatternPlan,
         context: &mut FunctionContext,
-        render: impl FnOnce(&mut Tree, &mut Writer<'_>, &mut FunctionContext) -> ModuleResult<()>,
+        render: impl FnOnce(&mut Tree<'t>, &mut Writer<'t>, &mut FunctionContext) -> ModuleResult<()>,
     ) -> ModuleResult<()> {
         let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
         if let Some(condition) = condition {
@@ -2578,7 +2578,7 @@ impl Generator<'_> {
                 tree,
                 condition,
                 |tree, writer| {
-                    self.render_pattern_bindings(tree, writer, &plan);
+                    self.render_pattern_bindings(tree, writer, plan.bindings);
                     render(tree, writer, context)
                 },
                 |_, writer| {
@@ -2587,19 +2587,24 @@ impl Generator<'_> {
                 },
             )
         } else {
-            self.render_pattern_bindings(tree, writer, &plan);
+            self.render_pattern_bindings(tree, writer, plan.bindings);
             render(tree, writer, context)
         }
     }
 
-    fn render_pattern_bindings(&self, tree: &Tree, writer: &mut Writer<'_>, plan: &PatternPlan) {
-        for binding in &plan.bindings {
+    fn render_pattern_bindings<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        bindings: Vec<PatternBinding>,
+    ) {
+        for binding in bindings {
             match binding {
                 PatternBinding::Variable { name, value } => {
-                    writer.constant(tree, name, value, false);
+                    writer.constant(tree, &name, value, false);
                 }
                 PatternBinding::Constructor { names, value } => {
-                    writer.constant_object_pattern(tree, names, value);
+                    writer.constant_object_pattern(tree, &names, value);
                 }
             }
         }
@@ -2753,10 +2758,10 @@ impl Generator<'_> {
         context.allocate(preferred)
     }
 
-    fn materialize_pattern_value(
+    fn materialize_pattern_value<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         source: FunctionalExpressionId,
         value: RenderedExpression,
         context: &mut FunctionContext,
@@ -2777,10 +2782,10 @@ impl Generator<'_> {
         tree.identifier(name)
     }
 
-    fn materialize_rendered_expression(
+    fn materialize_rendered_expression<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expression: &mut RenderedExpression,
         preferred: &str,
         context: &mut FunctionContext,
@@ -2789,15 +2794,16 @@ impl Generator<'_> {
             return;
         }
         let name = context.allocate(preferred);
-        writer.constant(tree, &name, &expression.value, false);
-        expression.value = tree.identifier(name);
+        let identifier = tree.identifier(&name);
+        let value = std::mem::replace(&mut expression.value, identifier);
+        writer.constant(tree, &name, value, false);
         expression.pending_evaluation = false;
     }
 
-    fn materialize_rendered_expressions(
+    fn materialize_rendered_expressions<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         expressions: &mut [RenderedExpression],
         preferred: &str,
         context: &mut FunctionContext,
@@ -2807,10 +2813,10 @@ impl Generator<'_> {
         }
     }
 
-    fn materialize_value(
+    fn materialize_value<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         value: ExpressionId,
         preferred: &str,
         context: &mut FunctionContext,
@@ -2820,10 +2826,10 @@ impl Generator<'_> {
         tree.identifier(name)
     }
 
-    fn record_update_expression(
+    fn record_update_expression<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         record: FunctionalExpressionId,
         updates: &[RecordUpdate],
         context: &mut FunctionContext,
@@ -2833,10 +2839,10 @@ impl Generator<'_> {
         self.record_updates(tree, writer, record.value, record_is_reusable, updates, context)
     }
 
-    fn record_updates(
+    fn record_updates<'t>(
         &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         mut record: ExpressionId,
         record_is_reusable: bool,
         updates: &[RecordUpdate],
@@ -2893,7 +2899,7 @@ fn record_updates_reuse_source(updates: &[RecordUpdate]) -> bool {
 }
 
 fn effect_expression(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     effect: &EffectExpression,
 ) -> ModuleResult<ExpressionId> {
     let effect = capture_effect(renderer, effect)?;
@@ -2907,7 +2913,7 @@ fn effect_expression(
 }
 
 fn capture_effect(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     effect: &EffectExpression,
 ) -> ModuleResult<CapturedEffect> {
     match effect {
@@ -2935,7 +2941,7 @@ fn capture_effect(
 }
 
 fn capture_effect_action(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     expression: FunctionalExpressionId,
     preferred_name: &str,
 ) -> ModuleResult<CapturedEffectAction> {
@@ -2950,7 +2956,7 @@ fn capture_effect_action(
 }
 
 fn capture_effect_value(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     expression: FunctionalExpressionId,
     preferred_name: &str,
 ) -> ModuleResult<ExpressionId> {
@@ -2966,7 +2972,7 @@ fn capture_effect_value(
 }
 
 fn execute_effect(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     effect: CapturedEffect,
     destination: Destination<'_>,
 ) -> ModuleResult<()> {
@@ -3030,7 +3036,7 @@ fn execute_effect(
 }
 
 fn execute_effect_action_value(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     action: CapturedEffectAction,
     preferred_name: &str,
 ) -> ModuleResult<ExpressionId> {
@@ -3046,7 +3052,7 @@ fn execute_effect_action_value(
 }
 
 fn execute_effect_action(
-    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
     action: CapturedEffectAction,
     preferred_name: &str,
 ) -> ModuleResult<(ExpressionId, SmolStr)> {
@@ -3057,7 +3063,7 @@ fn execute_effect_action(
             renderer.writer.constant(renderer.tree, &name, value, false);
         }
         CapturedEffectAction::Effect(effect) => {
-            if let CapturedEffect::Pure { value } = effect.as_ref() {
+            if let CapturedEffect::Pure { value } = *effect {
                 renderer.writer.constant(renderer.tree, &name, value, false);
             } else {
                 renderer.writer.mutable(&name);
@@ -3157,7 +3163,7 @@ fn sorted_value_declarations<'m>(generator: &'m Generator<'_>) -> Vec<(&'m Decla
     ordered.into_iter().map(|position| (values[position], cyclic[position])).collect_vec()
 }
 
-fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_, '_>) {
+fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     let ModuleRenderer { generator, writer, .. } = renderer;
     let mut rendered = false;
     for declaration in generator.module.declarations.iter() {
