@@ -23,7 +23,7 @@ pub fn document_module(
 ) -> Arc<DocumentedModule> {
     let root = parsed.syntax_node();
 
-    let annotations = annotation::AnnotationIndex::new(source, &root);
+    let annotations = annotation::Annotations::new(source, &root);
     let documentation = annotation::module_documentation(source, parsed);
 
     let terms = indexed.items.iter_terms().map(|(id, item)| {
