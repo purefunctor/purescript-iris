@@ -8,6 +8,7 @@ use building_types::QueryResult;
 use itertools::Itertools;
 use lowering::GraphNode;
 use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 use smol_str::SmolStr;
 
 use crate::context::CheckContext;
@@ -109,48 +110,9 @@ where
             Ok((t, k))
         }
 
-        lowering::TypeKind::Arrow { argument, result } => {
-            let argument = if let Some(argument) = argument {
-                let (argument, _) = check_kind(state, context, *argument, context.prim.t)?;
-                argument
-            } else {
-                context.unknown("missing function argument")
-            };
-
-            let result = if let Some(result) = result {
-                let (result, _) = check_kind(state, context, *result, context.prim.t)?;
-                result
-            } else {
-                context.unknown("missing function result")
-            };
-
-            let t = context.intern_function(argument, result);
-            let k = context.prim.t;
-
-            Ok((t, k))
-        }
-
-        lowering::TypeKind::Constrained { constraint, constrained } => {
-            let constraint = if let Some(constraint) = constraint {
-                let (constraint, _) =
-                    check_kind(state, context, *constraint, context.prim.constraint)?;
-                constraint
-            } else {
-                context.unknown("missing constraint")
-            };
-
-            let constrained = if let Some(constrained) = constrained {
-                let (constrained, _) = infer_kind(state, context, *constrained)?;
-                constrained
-            } else {
-                context.unknown("missing constrained")
-            };
-
-            let t = context.intern_constrained(constraint, constrained);
-            let k = context.prim.t;
-
-            Ok((t, k))
-        }
+        lowering::TypeKind::Arrow { .. }
+        | lowering::TypeKind::Constrained { .. }
+        | lowering::TypeKind::Forall { .. } => infer_nested_kind(state, context, id),
 
         lowering::TypeKind::Constructor { resolution } => {
             let Some((file_id, type_id)) = *resolution else {
@@ -165,27 +127,6 @@ where
             let k = toolkit::lookup_file_type(state, context, file_id, type_id)?;
 
             Ok((t, k))
-        }
-
-        lowering::TypeKind::Forall { bindings, inner } => {
-            let binders = bindings
-                .iter()
-                .map(|binding| check_type_variable_binding(state, context, binding))
-                .collect::<QueryResult<Vec<_>>>()?;
-
-            let inner = if let Some(inner) = inner {
-                let (inner, _) = check_kind(state, context, *inner, context.prim.t)?;
-                inner
-            } else {
-                context.unknown("missing forall inner")
-            };
-
-            let t = binders.iter().rfold(inner, |inner, binder| {
-                let binder_id = context.intern_forall_binder(*binder);
-                context.intern_forall(binder_id, inner)
-            });
-
-            Ok((t, context.prim.t))
         }
 
         lowering::TypeKind::Hole => {
@@ -338,6 +279,162 @@ where
             }
         }
     }
+}
+
+/// A type whose right child is checked while walking a nested type.
+enum NestedKind {
+    Arrow { argument: TypeId, result: lowering::TypeId },
+    Constrained { constraint: TypeId, constrained: lowering::TypeId },
+    Forall { binders: Vec<ForallBinder>, inner: lowering::TypeId },
+}
+
+/// Infers the kind of arrow, constrained, and forall types.
+///
+/// These types nest to the right and can be arbitrarily long, such as the
+/// arrows in a signature with many arguments. Their right children are walked
+/// iteratively instead of through [`check_kind`] and [`infer_kind`], pushing
+/// the same error crumbs, then completed from the innermost child outward.
+fn infer_nested_kind<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut id: lowering::TypeId,
+) -> QueryResult<(TypeId, TypeId)>
+where
+    Q: ExternalQueries,
+{
+    let mut spine: SmallVec<[NestedKind; 4]> = SmallVec::new();
+
+    let mut inferred = loop {
+        let nested = match context.lowered.tree.get_type_kind(id) {
+            Some(lowering::TypeKind::Arrow { argument, result }) => {
+                let argument = if let Some(argument) = argument {
+                    let (argument, _) = check_kind(state, context, *argument, context.prim.t)?;
+                    argument
+                } else {
+                    context.unknown("missing function argument")
+                };
+
+                let Some(result) = *result else {
+                    let result = context.unknown("missing function result");
+                    break (context.intern_function(argument, result), context.prim.t);
+                };
+
+                state.crumbs.push(ErrorCrumb::CheckingKind(result));
+                state.crumbs.push(ErrorCrumb::InferringKind(result));
+                id = result;
+
+                NestedKind::Arrow { argument, result }
+            }
+
+            Some(lowering::TypeKind::Constrained { constraint, constrained }) => {
+                let constraint = if let Some(constraint) = constraint {
+                    let (constraint, _) =
+                        check_kind(state, context, *constraint, context.prim.constraint)?;
+                    constraint
+                } else {
+                    context.unknown("missing constraint")
+                };
+
+                let Some(constrained) = *constrained else {
+                    let constrained = context.unknown("missing constrained");
+                    break (context.intern_constrained(constraint, constrained), context.prim.t);
+                };
+
+                state.crumbs.push(ErrorCrumb::InferringKind(constrained));
+                id = constrained;
+
+                NestedKind::Constrained { constraint, constrained }
+            }
+
+            Some(lowering::TypeKind::Forall { bindings, inner }) => {
+                let binders = bindings
+                    .iter()
+                    .map(|binding| check_type_variable_binding(state, context, binding))
+                    .collect::<QueryResult<Vec<_>>>()?;
+
+                let Some(inner) = *inner else {
+                    let inner = context.unknown("missing forall inner");
+                    break (intern_foralls(context, &binders, inner), context.prim.t);
+                };
+
+                state.crumbs.push(ErrorCrumb::CheckingKind(inner));
+                state.crumbs.push(ErrorCrumb::InferringKind(inner));
+                id = inner;
+
+                NestedKind::Forall { binders, inner }
+            }
+
+            _ => break infer_kind_core(state, context, id)?,
+        };
+
+        spine.push(nested);
+    };
+
+    while let Some(nested) = spine.pop() {
+        inferred = match nested {
+            NestedKind::Arrow { argument, result } => {
+                let inferred = complete_infer_kind(state, result, inferred);
+                let (result, _) =
+                    complete_check_kind(state, context, result, inferred, context.prim.t)?;
+                (context.intern_function(argument, result), context.prim.t)
+            }
+
+            NestedKind::Constrained { constraint, constrained } => {
+                let (constrained, _) = complete_infer_kind(state, constrained, inferred);
+                (context.intern_constrained(constraint, constrained), context.prim.t)
+            }
+
+            NestedKind::Forall { binders, inner } => {
+                let inferred = complete_infer_kind(state, inner, inferred);
+                let (inner, _) =
+                    complete_check_kind(state, context, inner, inferred, context.prim.t)?;
+                (intern_foralls(context, &binders, inner), context.prim.t)
+            }
+        };
+    }
+
+    Ok(inferred)
+}
+
+/// Completes an [`infer_kind`] call whose crumb was pushed by [`infer_nested_kind`].
+fn complete_infer_kind(
+    state: &mut CheckState,
+    source_type: lowering::TypeId,
+    (inferred_type, inferred_kind): (TypeId, TypeId),
+) -> (TypeId, TypeId) {
+    state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
+    state.crumbs.pop();
+    (inferred_type, inferred_kind)
+}
+
+/// Completes a [`check_kind`] call whose crumb was pushed by [`infer_nested_kind`].
+fn complete_check_kind<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    source_type: lowering::TypeId,
+    (inferred_type, inferred_kind): (TypeId, TypeId),
+    expected_kind: TypeId,
+) -> QueryResult<(TypeId, TypeId)>
+where
+    Q: ExternalQueries,
+{
+    let (inferred_type, inferred_kind) =
+        instantiate_kind_applications(state, context, inferred_type, inferred_kind, expected_kind)?;
+    unification::subtype(state, context, inferred_kind, expected_kind)?;
+
+    state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
+    state.crumbs.pop();
+    Ok((inferred_type, inferred_kind))
+}
+
+fn intern_foralls<Q>(context: &CheckContext<Q>, binders: &[ForallBinder], inner: TypeId) -> TypeId
+where
+    Q: ExternalQueries,
+{
+    binders.iter().rfold(inner, |inner, binder| {
+        let binder_id = context.intern_forall_binder(*binder);
+        context.intern_forall(binder_id, inner)
+    })
 }
 
 fn type_hole_bindings<Q>(
