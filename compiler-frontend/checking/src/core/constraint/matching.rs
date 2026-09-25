@@ -30,24 +30,34 @@ pub enum MatchType {
 impl MatchType {
     pub fn combine(self, other: MatchType) -> MatchType {
         match (self, other) {
-            (MatchType::Match { bindings: left }, MatchType::Match { bindings: right }) => {
-                MatchType::Match { bindings: iter::chain(left, right).collect() }
+            (MatchType::Match { bindings: mut left }, MatchType::Match { bindings: right }) => {
+                left.extend(right);
+                MatchType::Match { bindings: left }
             }
 
             (MatchType::Apart, _) | (_, MatchType::Apart) => MatchType::Apart,
 
             (
-                MatchType::Stuck { stuck: left, skolem: left_skolem },
+                MatchType::Stuck { stuck: mut left, skolem: left_skolem },
                 MatchType::Stuck { stuck: right, skolem: right_skolem },
-            ) => MatchType::Stuck {
-                stuck: iter::chain(left, right).collect(),
-                skolem: left_skolem || right_skolem,
-            },
+            ) => {
+                left.extend(right);
+                MatchType::Stuck { stuck: left, skolem: left_skolem || right_skolem }
+            }
 
             (MatchType::Stuck { stuck, skolem }, _) | (_, MatchType::Stuck { stuck, skolem }) => {
                 MatchType::Stuck { stuck, skolem }
             }
         }
+    }
+
+    /// Combines with the result of `other`, which is not computed when this
+    /// result is already apart since combining with it would stay apart.
+    pub fn and_then(
+        self,
+        other: impl FnOnce() -> QueryResult<MatchType>,
+    ) -> QueryResult<MatchType> {
+        if self.is_apart() { Ok(MatchType::Apart) } else { Ok(self.combine(other()?)) }
     }
 
     pub fn is_match(&self) -> bool {
@@ -128,8 +138,8 @@ where
             Type::Application(right_function, right_argument),
         ) => {
             let function = types_match(state, context, pattern, *left_function, *right_function)?;
-            let argument = types_match(state, context, pattern, *left_argument, *right_argument)?;
-            Ok(function.combine(argument))
+            function
+                .and_then(|| types_match(state, context, pattern, *left_argument, *right_argument))
         }
 
         (Type::Application(_, _), Type::Function(right_argument, right_result)) => {
@@ -147,8 +157,8 @@ where
             Type::KindApplication(right_function, right_argument),
         ) => {
             let function = types_match(state, context, pattern, *left_function, *right_function)?;
-            let argument = types_match(state, context, pattern, *left_argument, *right_argument)?;
-            Ok(function.combine(argument))
+            function
+                .and_then(|| types_match(state, context, pattern, *left_argument, *right_argument))
         }
 
         (
@@ -156,8 +166,7 @@ where
             Type::Function(right_argument, right_result),
         ) => {
             let argument = types_match(state, context, pattern, *left_argument, *right_argument)?;
-            let result = types_match(state, context, pattern, *left_result, *right_result)?;
-            Ok(argument.combine(result))
+            argument.and_then(|| types_match(state, context, pattern, *left_result, *right_result))
         }
 
         (Type::Row(left), Type::Row(right)) => compare_row_types_with(
@@ -200,6 +209,9 @@ where
             itertools::EitherOrBoth::Both(left, right) => {
                 let field_result = compare(state, context, left.id, right.id)?;
                 row_result = row_result.combine(field_result);
+                if row_result.is_apart() {
+                    return Ok(MatchType::Apart);
+                }
             }
             itertools::EitherOrBoth::Right(right) => {
                 right_fields.push(right.clone());
@@ -342,8 +354,7 @@ where
             Type::Application(right_function, right_argument),
         ) => {
             let function = types_equal(state, context, *left_function, *right_function)?;
-            let argument = types_equal(state, context, *left_argument, *right_argument)?;
-            Ok(function.combine(argument))
+            function.and_then(|| types_equal(state, context, *left_argument, *right_argument))
         }
 
         (Type::Application(_, _), Type::Function(right_argument, right_result)) => {
@@ -361,8 +372,7 @@ where
             Type::KindApplication(right_function, right_argument),
         ) => {
             let function = types_equal(state, context, *left_function, *right_function)?;
-            let argument = types_equal(state, context, *left_argument, *right_argument)?;
-            Ok(function.combine(argument))
+            function.and_then(|| types_equal(state, context, *left_argument, *right_argument))
         }
 
         (
@@ -370,8 +380,7 @@ where
             Type::Function(right_argument, right_result),
         ) => {
             let argument = types_equal(state, context, *left_argument, *right_argument)?;
-            let result = types_equal(state, context, *left_result, *right_result)?;
-            Ok(argument.combine(result))
+            argument.and_then(|| types_equal(state, context, *left_result, *right_result))
         }
 
         (Type::Row(left), Type::Row(right)) => compare_row_types_with(
@@ -420,17 +429,23 @@ pub fn match_instance<Q>(
 where
     Q: ExternalQueries,
 {
+    let determined = get_all_determined(functional_dependencies);
     let mut arguments = vec![];
 
-    for (&wanted, &given) in iter::zip(wanted_arguments, given_arguments) {
-        arguments.push(types_match(state, context, patterns, wanted, given)?);
+    for (index, (&wanted, &given)) in iter::zip(wanted_arguments, given_arguments).enumerate() {
+        let argument = types_match(state, context, patterns, wanted, given)?;
+        // An apart argument that is not determined by functional dependencies
+        // is combined into the outcome whether or not the matches cover it.
+        if argument.is_apart() && !determined.contains(&index) {
+            return Ok(MatchType::Apart);
+        }
+        arguments.push(argument);
     }
 
     if !covers(functional_dependencies, &arguments)? {
         return Ok(combine_arguments(arguments));
     }
 
-    let determined = get_all_determined(functional_dependencies);
     let arguments = arguments.into_iter().enumerate().filter_map(|(index, argument)| {
         let non_determined = !determined.contains(&index);
         non_determined.then_some(argument)
@@ -872,8 +887,8 @@ where
         (
             Type::Application(left_function, left_argument),
             Type::Application(right_function, right_argument),
-        ) => Ok(types_apart(state, context, *left_function, *right_function, false)?
-            .combine(types_apart(state, context, *left_argument, *right_argument, false)?)),
+        ) => types_apart(state, context, *left_function, *right_function, false)?
+            .and_then(|| types_apart(state, context, *left_argument, *right_argument, false)),
 
         (Type::Application(_, _), Type::Function(right_argument, right_result)) => {
             let right = context.intern_function_application(*right_argument, *right_result);
@@ -888,14 +903,14 @@ where
         (
             Type::KindApplication(left_function, left_argument),
             Type::KindApplication(right_function, right_argument),
-        ) => Ok(types_apart(state, context, *left_function, *right_function, false)?
-            .combine(types_apart(state, context, *left_argument, *right_argument, true)?)),
+        ) => types_apart(state, context, *left_function, *right_function, false)?
+            .and_then(|| types_apart(state, context, *left_argument, *right_argument, true)),
 
         (
             Type::Function(left_argument, left_result),
             Type::Function(right_argument, right_result),
-        ) => Ok(types_apart(state, context, *left_argument, *right_argument, false)?
-            .combine(types_apart(state, context, *left_result, *right_result, false)?)),
+        ) => types_apart(state, context, *left_argument, *right_argument, false)?
+            .and_then(|| types_apart(state, context, *left_result, *right_result, false)),
 
         (Type::Row(left), Type::Row(right)) => compare_row_types_with(
             state,
