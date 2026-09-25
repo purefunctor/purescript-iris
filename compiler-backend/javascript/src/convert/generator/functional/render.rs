@@ -1,6 +1,5 @@
 //! Rendering functional trees as JavaScript modules.
 
-mod analysis;
 mod inline;
 mod structure;
 mod stylex;
@@ -10,6 +9,7 @@ mod tail_call;
 use std::sync::Arc;
 
 use files::{FileId, ForeignSourceKind};
+use functional::initializers::{cyclic_initializers, initializer_postorder};
 use functional::optimize::{for_each_expression_child, local_uses};
 use functional::tree::{
     Binding, CaseAlternative, Declaration, DeclarationKind, EffectExpression,
@@ -28,7 +28,6 @@ use crate::module::{Module, module_filename, runtime_filename};
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
 
-use self::analysis::{cyclic_initializers, initializer_postorder};
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
     collect_module_references, cyclic_instance_initializers, has_local_lazy_initializers,
