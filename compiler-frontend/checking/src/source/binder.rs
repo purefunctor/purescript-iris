@@ -655,26 +655,15 @@ fn check_record_binder<Q>(
 where
     Q: ExternalQueries,
 {
-    let pattern_items = collect_pattern_items(record);
-
     let expected_type = normalise::expand(state, context, expected_type)?;
 
-    let expected_row = if let Type::Application(function, _) = *context.lookup_type(expected_type) {
-        let function = normalise::expand(state, context, function)?;
-        if function == context.prim.record {
-            extract_expected_row(state, context, expected_type)?
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let Some(expected_row) = expected_row else {
+    let Some(expected_row) = extract_expected_row(state, context, expected_type)? else {
         let (result, fields) = infer_record_binder(state, context, binder_id, record)?;
         unification::unify(state, context, result, expected_type)?;
         return Ok((expected_type, fields));
     };
+
+    let pattern_items = collect_pattern_items(record);
 
     let mut extra_fields = vec![];
     let mut checked_fields = vec![];
