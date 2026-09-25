@@ -128,10 +128,10 @@ pub(super) fn constructor_expression(tree: &mut Tree, name: &str, arity: usize) 
     let arguments = (0..arity).map(|index| format_smolstr!("$value{index}")).collect_vec();
     let tag = tree.string(name);
     let mut properties = Vec::with_capacity(arguments.len() + 1);
-    properties.push(ObjectProperty::Field { name: "tag".to_owned(), value: tag });
+    properties.push(ObjectProperty::Field { name: SmolStr::new_static("tag"), value: tag });
     for (index, argument) in arguments.iter().enumerate() {
         let value = tree.identifier(argument);
-        properties.push(ObjectProperty::Field { name: format!("_{}", index + 1), value });
+        properties.push(ObjectProperty::Field { name: format_smolstr!("_{}", index + 1), value });
     }
     let mut expression = tree.object(properties);
     for argument in arguments.into_iter().rev() {
@@ -149,7 +149,7 @@ pub(super) fn synthesized_evidence_expression(
             let symbol = tree.string_utf16(symbol.as_utf16());
             let reflect = tree.arrow(vec![SmolStr::new_static("$proxy")], symbol);
             tree.object(vec![ObjectProperty::Field {
-                name: "reflectSymbol".to_owned(),
+                name: SmolStr::new_static("reflectSymbol"),
                 value: reflect,
             }])
         }
@@ -169,7 +169,7 @@ pub(super) fn synthesized_evidence_expression(
             };
             let reflect = tree.arrow(vec![SmolStr::new_static("$proxy")], value);
             tree.object(vec![ObjectProperty::Field {
-                name: "reflectType".to_owned(),
+                name: SmolStr::new_static("reflectType"),
                 value: reflect,
             }])
         }

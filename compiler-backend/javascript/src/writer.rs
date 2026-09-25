@@ -3,7 +3,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use itertools::Itertools;
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionBody, AssignmentTarget, BindingIdentifier, BindingPattern,
@@ -104,7 +103,6 @@ impl<'a> Writer<'a> {
                 &self.builder,
             )
         });
-        let parameters = parameters.collect_vec();
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         FormalParameters::boxed(
             SPAN,
@@ -662,7 +660,6 @@ impl<'a> Writer<'a> {
                 &self.builder,
             )
         });
-        let specifiers = specifiers.collect_vec();
         let specifiers = ArenaVec::from_iter_in(specifiers, &self.allocator);
         let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
         self.statements.push(Statement::new_export_from_declaration(

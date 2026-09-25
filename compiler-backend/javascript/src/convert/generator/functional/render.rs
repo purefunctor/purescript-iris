@@ -1495,7 +1495,7 @@ impl Generator<'_> {
                         }
                         self.render_non_inline_expression(tree, writer, field.expression, context)?
                     };
-                    rendered_fields.push((field.field.name.to_string(), value));
+                    rendered_fields.push((field.field.name.clone(), value));
                 }
                 let properties = rendered_fields
                     .into_iter()
@@ -1833,7 +1833,7 @@ impl Generator<'_> {
                         return Ok(None);
                     };
                     properties
-                        .push(ObjectProperty::Field { name: field.field.name.to_string(), value });
+                        .push(ObjectProperty::Field { name: field.field.name.clone(), value });
                 }
                 tree.object(properties)
             }
@@ -2871,7 +2871,7 @@ impl Generator<'_> {
                 RecordUpdate::Leaf { field, expression } => {
                     let value = self.rendered_expression(tree, writer, *expression, context)?;
                     properties.push(ObjectProperty::Field {
-                        name: field.name.to_string(),
+                        name: field.name.clone(),
                         value: value.value,
                     });
                 }
@@ -2884,7 +2884,7 @@ impl Generator<'_> {
                     let nested = tree.member(source, field.name.as_str());
                     let value =
                         self.record_updates(tree, writer, nested, true, updates, context)?;
-                    properties.push(ObjectProperty::Field { name: field.name.to_string(), value });
+                    properties.push(ObjectProperty::Field { name: field.name.clone(), value });
                 }
             }
         }
