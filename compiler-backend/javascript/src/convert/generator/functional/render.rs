@@ -277,7 +277,11 @@ impl<'m> Generator<'m> {
         }
 
         let external_references = collect_module_references(module);
-        let stylex_references = collect_stylex_references(module);
+        let mut expressions = module.storage.expressions();
+        let has_stylex =
+            expressions.any(|(_, expression)| matches!(expression.kind, ExpressionKind::StyleX(_)));
+        let stylex_references =
+            if has_stylex { collect_stylex_references(module) } else { Vec::new() };
         let stylex_reference_ids =
             stylex_references.iter().map(|global| global.id).collect::<FxHashSet<_>>();
         let mut external_named_imports = FxHashMap::default();
@@ -303,9 +307,6 @@ impl<'m> Generator<'m> {
                 .or_insert_with(|| allocator.allocate(dependency.module_name.replace('.', "_")));
         }
 
-        let mut expressions = module.storage.expressions();
-        let has_stylex =
-            expressions.any(|(_, expression)| matches!(expression.kind, ExpressionKind::StyleX(_)));
         let stylex_namespace = has_stylex.then(|| allocator.allocate("$stylex"));
 
         let has_foreign = module
