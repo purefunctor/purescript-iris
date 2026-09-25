@@ -14,32 +14,35 @@ pub(super) fn type_(p: &mut Parser) {
     }
 }
 
+/// Parses right-nested quantifier, arrow, and constraint spines with a loop,
+/// as their length is unbounded in source.
 fn type_1(p: &mut Parser) {
-    let mut m = p.start();
+    let spine_start = p.type_spine.len();
 
-    if p.eat(SyntaxKind::FORALL) {
-        type_variable_bindings(p);
-        p.expect(SyntaxKind::PERIOD);
-        type_1(p);
-        m.end(p, SyntaxKind::TypeForall);
-    } else {
-        type_2(p);
-        m.cancel(p);
+    loop {
+        let mut m = p.start();
+        if p.eat(SyntaxKind::FORALL) {
+            type_variable_bindings(p);
+            p.expect(SyntaxKind::PERIOD);
+            p.type_spine.push((m, SyntaxKind::TypeForall));
+            continue;
+        }
+
+        type_3(p);
+        if p.eat(SyntaxKind::RIGHT_ARROW) {
+            p.type_spine.push((m, SyntaxKind::TypeArrow));
+        } else if p.eat(SyntaxKind::RIGHT_THICK_ARROW) {
+            p.type_spine.push((m, SyntaxKind::TypeConstrained));
+        } else {
+            m.cancel(p);
+            break;
+        }
     }
-}
 
-fn type_2(p: &mut Parser) {
-    let mut m = p.start();
-
-    type_3(p);
-    if p.eat(SyntaxKind::RIGHT_ARROW) {
-        type_1(p);
-        m.end(p, SyntaxKind::TypeArrow);
-    } else if p.eat(SyntaxKind::RIGHT_THICK_ARROW) {
-        type_1(p);
-        m.end(p, SyntaxKind::TypeConstrained);
-    } else {
-        m.cancel(p);
+    while p.type_spine.len() > spine_start
+        && let Some((mut m, kind)) = p.type_spine.pop()
+    {
+        m.end(p, kind);
     }
 }
 
@@ -316,4 +319,29 @@ fn type_record(p: &mut Parser) {
 
     p.expect(SyntaxKind::RIGHT_CURLY);
     m.end(p, SyntaxKind::TypeRecord);
+}
+
+#[cfg(test)]
+mod tests {
+    /// Runs `test` on a thread whose stack is far too small for a recursive
+    /// parse of the spines below.
+    fn with_small_stack(test: impl FnOnce() + Send + 'static) {
+        let thread = std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(test)
+            .expect("failed to spawn small-stack thread");
+        thread.join().expect("test panicked on small-stack thread");
+    }
+
+    #[test]
+    fn long_type_spines_do_not_use_the_call_stack() {
+        with_small_stack(|| {
+            let spine = "forall a. Show a => a -> ".repeat(10_000);
+            let source = format!("module Main where\n\nvalue :: {spine}a\n");
+            let lexed = lexing::lex(&source);
+            let tokens = lexing::layout(&lexed);
+            let (_, errors) = crate::parse(&lexed, &tokens);
+            assert!(errors.is_empty());
+        });
+    }
 }

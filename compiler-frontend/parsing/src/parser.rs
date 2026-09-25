@@ -19,6 +19,9 @@ pub(crate) struct Parser<'t> {
     output: Vec<Event>,
     errors: Vec<ParserError>,
     fuel: Cell<u16>,
+    /// Open nodes of type spines, shared by nested types to avoid allocating
+    /// for each type.
+    type_spine: Vec<(NodeMarker, SyntaxKind)>,
 }
 
 type Rule = fn(&mut Parser);
@@ -29,7 +32,8 @@ impl<'t> Parser<'t> {
         let output = Vec::with_capacity(tokens.len());
         let errors = vec![];
         let fuel = Cell::new(u16::MAX);
-        Parser { index, tokens, output, errors, fuel }
+        let type_spine = vec![];
+        Parser { index, tokens, output, errors, fuel, type_spine }
     }
 
     pub(crate) fn finish(self) -> Output {
