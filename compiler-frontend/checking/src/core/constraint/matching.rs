@@ -527,6 +527,45 @@ where
     Ok(walker.blocking)
 }
 
+/// Whether a type contains an unsolved unification variable.
+pub fn is_blocked<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    struct HasBlocking {
+        blocked: bool,
+    }
+
+    impl TypeWalker for HasBlocking {
+        fn visit<Q: ExternalQueries>(
+            &mut self,
+            _state: &mut CheckState,
+            _context: &CheckContext<Q>,
+            _id: TypeId,
+            t: &Type,
+        ) -> QueryResult<WalkAction> {
+            if let Type::Unification(_) = t {
+                self.blocked = true;
+                Ok(WalkAction::Break)
+            } else {
+                Ok(WalkAction::Continue)
+            }
+        }
+
+        fn may_visit(&self, flags: TypeFlags) -> bool {
+            flags.has_unification()
+        }
+    }
+
+    let mut walker = HasBlocking { blocked: false };
+    walk_type(state, context, id, &mut walker)?;
+    Ok(walker.blocked)
+}
+
 pub fn blocking_constraint<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
