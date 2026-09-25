@@ -3223,173 +3223,87 @@ fn collect_expression_references(
     seen: &mut FxHashSet<GlobalId>,
     globals: &mut Vec<Global>,
 ) {
-    match &module.storage[expression].kind {
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
-        | ExpressionKind::Local { .. }
-        | ExpressionKind::SynthesizedEvidence { .. }
-        | ExpressionKind::TrivialEvidence => {}
-        ExpressionKind::Constructor { global } | ExpressionKind::Global { global } => {
-            if seen.insert(global.id) {
-                globals.push(global.clone());
-            }
+    for_each_referenced_global(module, expression, |global| {
+        if seen.insert(global.id) {
+            globals.push(global.clone());
         }
-        ExpressionKind::Array { elements } => {
-            for expression in elements.iter() {
-                collect_expression_references(module, *expression, seen, globals);
-            }
-        }
-        ExpressionKind::Record { fields } => {
-            for field in fields.iter() {
-                collect_expression_references(module, field.expression, seen, globals);
-            }
-        }
-        ExpressionKind::RecordUpdate { record, updates } => {
-            collect_expression_references(module, *record, seen, globals);
-            collect_update_references(module, updates, seen, globals);
-        }
-        ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
-            collect_expression_references(module, *record, seen, globals);
-        }
-        ExpressionKind::Binary { left, right, .. } => {
-            collect_expression_references(module, *left, seen, globals);
-            collect_expression_references(module, *right, seen, globals);
-        }
-        ExpressionKind::Abstraction { body, .. }
-        | ExpressionKind::UncurriedAbstraction { body, .. } => {
-            collect_expression_references(module, *body, seen, globals);
-        }
-        ExpressionKind::Application { function, arguments, .. }
-        | ExpressionKind::UncurriedApplication { function, arguments, .. } => {
-            collect_expression_references(module, *function, seen, globals);
-            for argument in arguments.iter() {
-                collect_expression_references(module, *argument, seen, globals);
-            }
-        }
-        kind @ ExpressionKind::StyleX(_) => {
-            for_each_expression_child(kind, |child| {
-                collect_expression_references(module, child, seen, globals);
-            });
-        }
-        ExpressionKind::IfThenElse { condition, then, else_ } => {
-            collect_expression_references(module, *condition, seen, globals);
-            collect_expression_references(module, *then, seen, globals);
-            collect_expression_references(module, *else_, seen, globals);
-        }
-        ExpressionKind::Case { scrutinees, alternatives } => {
-            for scrutinee in scrutinees.iter() {
-                collect_expression_references(module, *scrutinee, seen, globals);
-            }
-            for alternative in alternatives.iter() {
-                for pattern in alternative.patterns.iter() {
-                    collect_pattern_references(module, *pattern, seen, globals);
+    });
+}
+
+/// Visits every global referenced beneath `expression`, including constructor patterns and
+/// abstraction bodies, in source order.
+fn for_each_referenced_global<'m>(
+    module: &'m FunctionalModule,
+    expression: FunctionalExpressionId,
+    mut visit: impl FnMut(&'m Global),
+) {
+    enum Reference {
+        Expression(FunctionalExpressionId),
+        Pattern(PatternId),
+    }
+
+    let mut pending = vec![Reference::Expression(expression)];
+    while let Some(reference) = pending.pop() {
+        let children_start = pending.len();
+        match reference {
+            Reference::Pattern(pattern) => match &module.storage[pattern].kind {
+                PatternKind::Variable(_) | PatternKind::Wildcard | PatternKind::Literal(_) => {}
+                PatternKind::Named { pattern, .. } => pending.push(Reference::Pattern(*pattern)),
+                PatternKind::Array(patterns) => {
+                    pending.extend(patterns.iter().map(|pattern| Reference::Pattern(*pattern)));
                 }
-                collect_expression_references(module, alternative.expression, seen, globals);
-            }
-        }
-        ExpressionKind::Guarded { alternatives } => {
-            collect_guarded_references(module, alternatives, seen, globals);
-        }
-        ExpressionKind::Let { bindings, body, .. } => {
-            for binding in bindings.iter() {
-                collect_expression_references(module, binding.expression, seen, globals);
-            }
-            collect_expression_references(module, *body, seen, globals);
-        }
-        ExpressionKind::LetPattern { pattern, value, body } => {
-            collect_pattern_references(module, *pattern, seen, globals);
-            collect_expression_references(module, *value, seen, globals);
-            collect_expression_references(module, *body, seen, globals);
-        }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Pure(value) => {
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::Bind { action, body, .. } => {
-                collect_expression_references(module, *action, seen, globals);
-                collect_expression_references(module, *body, seen, globals);
-            }
-            EffectExpression::Map { function, action } => {
-                collect_expression_references(module, *function, seen, globals);
-                collect_expression_references(module, *action, seen, globals);
-            }
-            EffectExpression::Apply { function_action, argument_action } => {
-                collect_expression_references(module, *function_action, seen, globals);
-                collect_expression_references(module, *argument_action, seen, globals);
-            }
-        },
-    }
-}
-
-fn collect_update_references(
-    module: &FunctionalModule,
-    updates: &[RecordUpdate],
-    seen: &mut FxHashSet<GlobalId>,
-    globals: &mut Vec<Global>,
-) {
-    for update in updates {
-        match update {
-            RecordUpdate::Leaf { expression, .. } => {
-                collect_expression_references(module, *expression, seen, globals);
-            }
-            RecordUpdate::Branch { updates, .. } => {
-                collect_update_references(module, updates, seen, globals);
-            }
-        }
-    }
-}
-
-fn collect_pattern_references(
-    module: &FunctionalModule,
-    pattern: PatternId,
-    seen: &mut FxHashSet<GlobalId>,
-    globals: &mut Vec<Global>,
-) {
-    match &module.storage[pattern].kind {
-        PatternKind::Variable(_) | PatternKind::Wildcard | PatternKind::Literal(_) => {}
-        PatternKind::Named { pattern, .. } => {
-            collect_pattern_references(module, *pattern, seen, globals);
-        }
-        PatternKind::Array(patterns) => {
-            for pattern in patterns.iter() {
-                collect_pattern_references(module, *pattern, seen, globals);
-            }
-        }
-        PatternKind::Record(fields) => {
-            for field in fields.iter() {
-                collect_pattern_references(module, field.pattern, seen, globals);
-            }
-        }
-        PatternKind::Constructor { global, arguments } => {
-            if seen.insert(global.id) {
-                globals.push(global.clone());
-            }
-            for pattern in arguments.iter() {
-                collect_pattern_references(module, *pattern, seen, globals);
-            }
-        }
-    }
-}
-
-fn collect_guarded_references(
-    module: &FunctionalModule,
-    alternatives: &[GuardedAlternative],
-    seen: &mut FxHashSet<GlobalId>,
-    globals: &mut Vec<Global>,
-) {
-    for alternative in alternatives {
-        for guard in alternative.guards.iter() {
-            match guard {
-                Guard::Boolean(expression) => {
-                    collect_expression_references(module, *expression, seen, globals);
+                PatternKind::Record(fields) => {
+                    pending.extend(fields.iter().map(|field| Reference::Pattern(field.pattern)));
                 }
-                Guard::Pattern { expression, pattern } => {
-                    collect_expression_references(module, *expression, seen, globals);
-                    collect_pattern_references(module, *pattern, seen, globals);
+                PatternKind::Constructor { global, arguments } => {
+                    visit(global);
+                    pending.extend(arguments.iter().map(|pattern| Reference::Pattern(*pattern)));
+                }
+            },
+            Reference::Expression(expression) => {
+                let kind = &module.storage[expression].kind;
+                match kind {
+                    ExpressionKind::Constructor { global } | ExpressionKind::Global { global } => {
+                        visit(global);
+                    }
+                    ExpressionKind::Case { scrutinees, alternatives } => {
+                        let scrutinees = scrutinees.iter();
+                        pending
+                            .extend(scrutinees.map(|scrutinee| Reference::Expression(*scrutinee)));
+                        for alternative in alternatives.iter() {
+                            let patterns = alternative.patterns.iter();
+                            pending.extend(patterns.map(|pattern| Reference::Pattern(*pattern)));
+                            pending.push(Reference::Expression(alternative.expression));
+                        }
+                    }
+                    ExpressionKind::Guarded { alternatives } => {
+                        for alternative in alternatives.iter() {
+                            for guard in alternative.guards.iter() {
+                                match guard {
+                                    Guard::Boolean(expression) => {
+                                        pending.push(Reference::Expression(*expression));
+                                    }
+                                    Guard::Pattern { expression, pattern } => {
+                                        pending.push(Reference::Expression(*expression));
+                                        pending.push(Reference::Pattern(*pattern));
+                                    }
+                                }
+                            }
+                            pending.push(Reference::Expression(alternative.expression));
+                        }
+                    }
+                    ExpressionKind::LetPattern { pattern, value, body } => {
+                        pending.push(Reference::Pattern(*pattern));
+                        pending.push(Reference::Expression(*value));
+                        pending.push(Reference::Expression(*body));
+                    }
+                    _ => for_each_expression_child(kind, |child| {
+                        pending.push(Reference::Expression(child));
+                    }),
                 }
             }
         }
-        collect_expression_references(module, alternative.expression, seen, globals);
+        pending[children_start..].reverse();
     }
 }
 
@@ -3399,160 +3313,117 @@ fn collect_expression_globals(
     descend_abstractions: bool,
     globals: &mut FxHashSet<GlobalId>,
 ) {
-    match &module.storage[expression].kind {
-        ExpressionKind::Global { global } | ExpressionKind::Constructor { global } => {
-            globals.insert(global.id);
-        }
-        ExpressionKind::Abstraction { body, .. }
-        | ExpressionKind::UncurriedAbstraction { body, .. } => {
-            if descend_abstractions {
-                collect_expression_globals(module, *body, descend_abstractions, globals);
-            }
-        }
-        ExpressionKind::Let { recursive, bindings, body } => {
-            let lazy_values = *recursive
-                && !bindings
-                    .iter()
-                    .all(|binding| is_abstraction(&module.storage[binding.expression].kind));
-            if descend_abstractions || lazy_values {
-                for binding in bindings.iter() {
-                    collect_expression_globals(
-                        module,
-                        binding.expression,
-                        descend_abstractions,
-                        globals,
-                    );
-                }
-            } else if !*recursive {
-                for binding in bindings.iter() {
-                    collect_expression_globals(module, binding.expression, false, globals);
-                }
-            }
-            collect_expression_globals(module, *body, descend_abstractions, globals);
-        }
-        _ => collect_expression_children(module, expression, descend_abstractions, globals),
-    }
-}
-
-fn collect_expression_children(
-    module: &FunctionalModule,
-    expression: FunctionalExpressionId,
-    descend_abstractions: bool,
-    globals: &mut FxHashSet<GlobalId>,
-) {
     if descend_abstractions {
-        let mut seen = FxHashSet::default();
-        let mut references = vec![];
-        collect_expression_references(module, expression, &mut seen, &mut references);
-        globals.extend(references.into_iter().map(|global| global.id));
+        for_each_referenced_global(module, expression, |global| {
+            globals.insert(global.id);
+        });
         return;
     }
-    match &module.storage[expression].kind {
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
-        | ExpressionKind::Constructor { .. }
-        | ExpressionKind::Global { .. }
-        | ExpressionKind::Local { .. }
-        | ExpressionKind::SynthesizedEvidence { .. }
-        | ExpressionKind::TrivialEvidence => {}
-        ExpressionKind::Array { elements } => {
-            for expression in elements.iter() {
-                collect_expression_globals(module, *expression, false, globals);
+    let mut pending = vec![expression];
+    while let Some(expression) = pending.pop() {
+        // Visiting children left to right keeps the pending stack shallow on right-nested
+        // chains such as let bodies, whose continuation is the last child.
+        let children_start = pending.len();
+        let kind = &module.storage[expression].kind;
+        match kind {
+            ExpressionKind::Global { global } | ExpressionKind::Constructor { global } => {
+                globals.insert(global.id);
             }
-        }
-        ExpressionKind::Record { fields } => {
-            for field in fields.iter() {
-                collect_expression_globals(module, field.expression, false, globals);
-            }
-        }
-        ExpressionKind::RecordUpdate { record, updates } => {
-            collect_expression_globals(module, *record, false, globals);
-            collect_update_globals(module, updates, false, globals);
-        }
-        ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
-            collect_expression_globals(module, *record, false, globals);
-        }
-        ExpressionKind::Binary { left, right, .. } => {
-            collect_expression_globals(module, *left, false, globals);
-            collect_expression_globals(module, *right, false, globals);
-        }
-        ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. } => {}
-        ExpressionKind::Application { function, arguments, .. }
-        | ExpressionKind::UncurriedApplication { function, arguments, .. } => {
-            collect_expression_globals(module, *function, false, globals);
-            for argument in arguments.iter() {
-                collect_expression_globals(module, *argument, false, globals);
-            }
-        }
-        kind @ ExpressionKind::StyleX(_) => {
-            for_each_expression_child(kind, |child| {
-                collect_expression_globals(module, child, false, globals);
-            });
-        }
-        ExpressionKind::IfThenElse { condition, then, else_ } => {
-            collect_expression_globals(module, *condition, false, globals);
-            collect_expression_globals(module, *then, false, globals);
-            collect_expression_globals(module, *else_, false, globals);
-        }
-        ExpressionKind::Case { scrutinees, alternatives } => {
-            for expression in scrutinees.iter() {
-                collect_expression_globals(module, *expression, false, globals);
-            }
-            for alternative in alternatives.iter() {
-                collect_expression_globals(module, alternative.expression, false, globals);
-            }
-        }
-        ExpressionKind::Guarded { alternatives } => {
-            for alternative in alternatives.iter() {
-                for guard in alternative.guards.iter() {
-                    let expression = match guard {
-                        Guard::Boolean(expression) | Guard::Pattern { expression, .. } => {
-                            *expression
-                        }
-                    };
-                    collect_expression_globals(module, expression, false, globals);
+            ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. } => {}
+            ExpressionKind::Let { recursive, bindings, body } => {
+                let lazy_values = *recursive
+                    && !bindings
+                        .iter()
+                        .all(|binding| is_abstraction(&module.storage[binding.expression].kind));
+                if lazy_values || !*recursive {
+                    pending.extend(bindings.iter().map(|binding| binding.expression));
                 }
-                collect_expression_globals(module, alternative.expression, false, globals);
+                pending.push(*body);
             }
+            ExpressionKind::Effect { effect: EffectExpression::Bind { action, .. } } => {
+                pending.push(*action);
+            }
+            _ => for_each_expression_child(kind, |child| pending.push(child)),
         }
-        ExpressionKind::Let { .. } => unreachable!("let expressions are handled by the caller"),
-        ExpressionKind::LetPattern { value, body, .. } => {
-            collect_expression_globals(module, *value, false, globals);
-            collect_expression_globals(module, *body, false, globals);
-        }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Pure(value) => {
-                collect_expression_globals(module, *value, false, globals);
-            }
-            EffectExpression::Bind { action, .. } => {
-                collect_expression_globals(module, *action, false, globals);
-            }
-            EffectExpression::Map { function, action } => {
-                collect_expression_globals(module, *function, false, globals);
-                collect_expression_globals(module, *action, false, globals);
-            }
-            EffectExpression::Apply { function_action, argument_action } => {
-                collect_expression_globals(module, *function_action, false, globals);
-                collect_expression_globals(module, *argument_action, false, globals);
-            }
-        },
+        pending[children_start..].reverse();
     }
 }
 
-fn collect_update_globals(
-    module: &FunctionalModule,
-    updates: &[RecordUpdate],
-    descend_abstractions: bool,
-    globals: &mut FxHashSet<GlobalId>,
-) {
-    for update in updates {
-        match update {
-            RecordUpdate::Leaf { expression, .. } => {
-                collect_expression_globals(module, *expression, descend_abstractions, globals);
-            }
-            RecordUpdate::Branch { updates, .. } => {
-                collect_update_globals(module, updates, descend_abstractions, globals);
-            }
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use files::FileId;
+    use functional::tree::{
+        Binding, Expression, ExpressionId, ExpressionKind, GeneratedGlobalId, Global, GlobalId,
+        LocalId, Module, ModuleSurface, Parameter, Storage,
+    };
+    use rustc_hash::FxHashSet;
+    use smol_str::SmolStr;
+
+    use super::{collect_expression_globals, collect_expression_references};
+
+    /// Runs `test` on a thread whose stack is far too small for a recursive traversal of a long
+    /// chain, so recursion fails the test instead of passing on the generous default stack.
+    fn with_small_stack(test: impl FnOnce() + Send + 'static) {
+        let thread = std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(test)
+            .expect("failed to spawn small-stack thread");
+        thread.join().expect("test panicked on small-stack thread");
+    }
+
+    fn global(file: u32) -> Global {
+        let id = GlobalId::Generated(FileId::new(file), GeneratedGlobalId(0));
+        Global { id, item_name: SmolStr::new("value") }
+    }
+
+    fn module(storage: Storage) -> Module {
+        Module {
+            file_id: FileId::new(0),
+            name: SmolStr::new("Main"),
+            dependencies: Arc::from([]),
+            surface: ModuleSurface::default(),
+            declarations: Arc::from([]),
+            storage,
         }
+    }
+
+    /// Builds `let value = <local global> in ...` nested `length` times around an external global.
+    fn let_chain(storage: &mut Storage, length: u32) -> ExpressionId {
+        let mut body = storage
+            .allocate_expression(Expression { kind: ExpressionKind::Global { global: global(1) } });
+        for index in 0..length {
+            let expression = storage.allocate_expression(Expression {
+                kind: ExpressionKind::Global { global: global(0) },
+            });
+            let parameter = Parameter { id: LocalId(index), name: SmolStr::new("value") };
+            let bindings = Arc::from([Binding { parameter, expression, source_order: 0 }]);
+            body = storage.allocate_expression(Expression {
+                kind: ExpressionKind::Let { recursive: false, bindings, body },
+            });
+        }
+        body
+    }
+
+    #[test]
+    fn global_collection_does_not_use_the_call_stack() {
+        with_small_stack(|| {
+            let mut storage = Storage::default();
+            let expression = let_chain(&mut storage, 10_000);
+            let module = module(storage);
+
+            let mut seen = FxHashSet::default();
+            let mut references = Vec::new();
+            collect_expression_references(&module, expression, &mut seen, &mut references);
+            assert_eq!(references, vec![global(0), global(1)]);
+
+            let expected = FxHashSet::from_iter([global(0).id, global(1).id]);
+            for descend_abstractions in [false, true] {
+                let mut globals = FxHashSet::default();
+                collect_expression_globals(&module, expression, descend_abstractions, &mut globals);
+                assert_eq!(globals, expected);
+            }
+        });
     }
 }
