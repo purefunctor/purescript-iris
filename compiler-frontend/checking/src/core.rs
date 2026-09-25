@@ -314,6 +314,25 @@ impl TypeFlags {
         self.0 & (TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_NESTED_ROW) != 0
     }
 
+    /// Whether this type contains unification variables.
+    ///
+    /// Normalisation cannot introduce unification variables into a type
+    /// without any, since it only replaces solved unification variables
+    /// and merges row fields.
+    pub fn has_unification(self) -> bool {
+        self.0 & TypeFlags::HAS_UNIFICATION != 0
+    }
+
+    /// Whether this type contains rigid variables.
+    ///
+    /// Solutions of unification variables are not described by the flags,
+    /// so callers that look through them must also check [`has_unification`].
+    ///
+    /// [`has_unification`]: TypeFlags::has_unification
+    pub fn has_rigid(self) -> bool {
+        self.0 & TypeFlags::HAS_RIGID != 0
+    }
+
     /// Whether this type contains unification or rigid variables.
     pub fn has_variables(self) -> bool {
         self.0 & (TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_RIGID) != 0

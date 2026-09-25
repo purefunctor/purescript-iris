@@ -27,7 +27,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::context::CheckContext;
 use crate::core::constraint::{CanonicalConstraintId, ConstraintInScope, compiler, elaborate};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
-use crate::core::{ForallBinder, Name, Type, TypeId, normalise, zonk};
+use crate::core::{ForallBinder, Name, Type, TypeFlags, TypeId, normalise, zonk};
 use crate::evidence::{Evidence, EvidenceBinderId};
 use crate::state::{CheckState, UnificationEntry, UnificationState};
 use crate::{ExternalQueries, safe_loop};
@@ -54,6 +54,10 @@ where
     where
         Q: ExternalQueries,
     {
+        if !context.lookup_type_flags(id).has_unification() {
+            return Ok(());
+        }
+
         let id = normalise::normalise(state, context, id);
         let t = context.lookup_type(id);
 
@@ -578,6 +582,10 @@ impl TypeWalker for GeneraliseImplicit {
 
     fn visit_binder(&mut self, binder: &ForallBinder) {
         self.bound.insert(binder.name);
+    }
+
+    fn may_visit(&self, flags: TypeFlags) -> bool {
+        flags.has_variables()
     }
 }
 

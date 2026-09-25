@@ -14,8 +14,8 @@ use crate::core::fd::{
 use crate::core::substitute::SubstituteName;
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
-    ApplicationArgument, CheckedInstance, Name, RowField, RowTypeId, Type, TypeId, normalise,
-    toolkit,
+    ApplicationArgument, CheckedInstance, Name, RowField, RowTypeId, Type, TypeFlags, TypeId,
+    normalise, toolkit,
 };
 use crate::source::types;
 use crate::state::CheckState;
@@ -503,6 +503,10 @@ impl TypeWalker for CollectBlocking {
             self.blocking.push(*id);
         }
         Ok(WalkAction::Continue)
+    }
+
+    fn may_visit(&self, flags: TypeFlags) -> bool {
+        flags.has_unification()
     }
 }
 
