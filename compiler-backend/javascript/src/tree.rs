@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use la_arena::{Arena, Idx, RawIdx};
 use oxc_allocator::{Allocator, CloneIn, Vec as ArenaVec};
 use oxc_ast::ast::{
@@ -23,7 +22,7 @@ pub(crate) struct Tree<'a> {
 }
 
 pub(crate) enum ObjectProperty {
-    Field { name: String, value: ExpressionId },
+    Field { name: SmolStr, value: ExpressionId },
     Computed { key: ExpressionId, value: ExpressionId },
     Spread(ExpressionId),
 }
@@ -65,17 +64,6 @@ impl<'a> Tree<'a> {
             .expect("invariant violated: JavaScript expression was already consumed")
             .clone_in(self.allocator);
         self.allocate(expression)
-    }
-
-    pub(crate) fn expression_in<'b>(
-        &self,
-        expression: &ExpressionId,
-        allocator: &'b Allocator,
-    ) -> Expression<'b> {
-        let expression = self.expressions[Idx::from_raw(expression.0)]
-            .as_ref()
-            .expect("invariant violated: JavaScript expression was already consumed");
-        expression.clone_in(allocator)
     }
 
     pub(crate) fn clear_call_purity(&mut self, expression: &ExpressionId) {
@@ -163,17 +151,18 @@ impl<'a> Tree<'a> {
     }
 
     pub(crate) fn array(&mut self, elements: Vec<ExpressionId>) -> ExpressionId {
+        let allocator = self.allocator;
         let elements = elements.into_iter().map(|element| {
             let expression = self.expression(element);
             ArrayExpressionElement::from(expression)
         });
-        let elements = elements.collect_vec();
-        let elements = ArenaVec::from_iter_in(elements, &self.allocator);
+        let elements = ArenaVec::from_iter_in(elements, &allocator);
         let expression = Expression::new_array_expression(SPAN, elements, &self.builder);
         self.allocate(expression)
     }
 
     pub(crate) fn object(&mut self, properties: Vec<ObjectProperty>) -> ExpressionId {
+        let allocator = self.allocator;
         let properties = properties.into_iter().map(|property| match property {
             ObjectProperty::Field { name, value } => {
                 let value = self.expression(value);
@@ -208,8 +197,7 @@ impl<'a> Tree<'a> {
                 ObjectPropertyKind::new_spread_property(SPAN, self.expression(value), &self.builder)
             }
         });
-        let properties = properties.collect_vec();
-        let properties = ArenaVec::from_iter_in(properties, &self.allocator);
+        let properties = ArenaVec::from_iter_in(properties, &allocator);
         let expression = Expression::new_object_expression(SPAN, properties, &self.builder);
         self.allocate(expression)
     }
@@ -236,13 +224,13 @@ impl<'a> Tree<'a> {
         arguments: Vec<ExpressionId>,
         pure: bool,
     ) -> ExpressionId {
+        let allocator = self.allocator;
         let callee = self.expression(callee);
         let arguments = arguments.into_iter().map(|argument| {
             let expression = self.expression(argument);
             Argument::from(expression)
         });
-        let arguments = arguments.collect_vec();
-        let arguments = ArenaVec::from_iter_in(arguments, &self.allocator);
+        let arguments = ArenaVec::from_iter_in(arguments, &allocator);
         let expression = Expression::new_call_expression_with_pure(
             SPAN,
             callee,
@@ -343,7 +331,6 @@ impl<'a> Tree<'a> {
                 &self.builder,
             )
         });
-        let parameters = parameters.collect_vec();
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         let parameters = FormalParameters::boxed(
             SPAN,
