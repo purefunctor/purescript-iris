@@ -61,6 +61,19 @@ where
             return Ok(function);
         }
         let mut synthetic = synthetic || self.application_is_synthetic(function);
+        // Every known application is headed by a global or a constructor, so other heads skip
+        // collecting the spine.
+        let head = self.application_head(function);
+        if !matches!(
+            self.storage[head].kind,
+            ExpressionKind::Global { .. } | ExpressionKind::Constructor { .. }
+        ) {
+            return Ok(self.expression(ExpressionKind::Application {
+                function,
+                arguments: arguments.into(),
+                synthetic,
+            }));
+        }
         let (known_function, known_arguments) = self.application_spine(function, &arguments);
         if let ExpressionKind::Constructor { global } = &self.storage[known_function].kind {
             let global = global.clone();
@@ -399,6 +412,14 @@ where
         }))
     }
 
+    fn application_head(&self, mut function: ExpressionId) -> ExpressionId {
+        while let ExpressionKind::Application { function: inner, .. } = &self.storage[function].kind
+        {
+            function = *inner;
+        }
+        function
+    }
+
     fn application_spine(
         &self,
         mut function: ExpressionId,
@@ -540,15 +561,15 @@ where
             return Ok(None);
         };
         let GlobalId::Term(file_id, _) = global.id else { return Ok(None) };
-        if self.source_module_name(file_id)? != module_name {
-            return Ok(None);
-        }
         let Some(arity) = global.item_name.strip_prefix(item_prefix) else {
             return Ok(None);
         };
         let Ok(arity) = arity.parse::<usize>() else { return Ok(None) };
         let canonical_name = format_smolstr!("{item_prefix}{arity}");
-        Ok((arity <= 10 && global.item_name == canonical_name).then_some(arity))
+        if arity > 10 || global.item_name != canonical_name {
+            return Ok(None);
+        }
+        Ok((self.source_module_name(file_id)? == module_name).then_some(arity))
     }
 
     fn known_instance_member_arguments<'a>(
