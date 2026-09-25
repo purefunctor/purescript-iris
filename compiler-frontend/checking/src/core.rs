@@ -114,7 +114,7 @@ pub struct CheckedDataDeclaration {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckedSynonym {
     pub kind: TypeId,
-    pub parameters: Vec<ForallBinder>,
+    pub parameters: Arc<[ForallBinder]>,
     pub expansion: TypeId,
 }
 
@@ -153,11 +153,11 @@ pub struct CheckedClass {
     /// Canonical class head, e.g. `Eq a` or `Foo @k a`.
     pub canonical: TypeId,
     /// Superclass occurrences from the class declaration.
-    pub superclasses: Vec<CheckedSuperclass>,
+    pub superclasses: Arc<[CheckedSuperclass]>,
     /// Functional dependencies.
     pub functional_dependencies: Arc<[fd::Fd]>,
     /// Class members in declaration order.
-    pub members: Vec<CheckedClassMember>,
+    pub members: Arc<[CheckedClassMember]>,
 }
 
 /// Represents a checked instance declaration head.

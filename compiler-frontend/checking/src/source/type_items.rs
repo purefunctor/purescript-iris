@@ -754,7 +754,8 @@ where
             continue;
         };
         let synonym = zonk::zonk(state, context, synonym)?;
-        let synonym = CheckedSynonym { kind, parameters, expansion: synonym };
+        let synonym =
+            CheckedSynonym { kind, parameters: Arc::from(parameters), expansion: synonym };
         state.checked.synonyms.insert(item_id, synonym);
     }
     Ok(())
@@ -984,9 +985,9 @@ where
                 kind_binders: Arc::clone(&kind_binders),
                 type_parameters: Arc::clone(&type_parameters),
                 canonical,
-                superclasses,
+                superclasses: Arc::from(superclasses),
                 functional_dependencies,
-                members: checked_members,
+                members: Arc::from(checked_members),
             },
         );
 

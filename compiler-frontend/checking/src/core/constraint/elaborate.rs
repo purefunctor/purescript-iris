@@ -139,7 +139,7 @@ where
             continue;
         };
 
-        for crate::core::CheckedSuperclass { source_id, constraint } in class.superclasses {
+        for &crate::core::CheckedSuperclass { source_id, constraint } in class.superclasses.iter() {
             let child = SubstituteName::many(state, context, &substitutions, constraint)?;
             if let Some(child) = canonical::canonicalise(state, context, child)?
                 && seen.insert(child)

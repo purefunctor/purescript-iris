@@ -193,7 +193,7 @@ where
     let mut foldl_generated = false;
     let mut fold_map_generated = false;
     let mut members = Vec::with_capacity(class.members.len());
-    for class_member in &class.members {
+    for class_member in class.members.iter() {
         let resolution = (result.class_file, class_member.item_id);
         let member = if resolution == foldr {
             foldr_generated = true;

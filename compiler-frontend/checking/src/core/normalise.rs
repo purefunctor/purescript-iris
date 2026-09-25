@@ -318,7 +318,7 @@ where
     }
 
     // Create substitutions for type arguments.
-    for parameter in &checked_synonym.parameters {
+    for parameter in checked_synonym.parameters.iter() {
         let Some(ApplicationArgument::Type(argument)) = arguments.next() else {
             return Ok(id);
         };
