@@ -37,22 +37,26 @@ try {
     Write-Host "Downloading iris $Version for $Target"
     Invoke-WebRequest -Uri $ArchiveUrl -OutFile $Archive
 
-    $GitHubAttestationsAvailable = if (Get-Command gh -ErrorAction SilentlyContinue) {
-        & gh attestation verify --help 2>$null | Out-Null
-        $LASTEXITCODE -eq 0
+    if ($env:IRIS_SKIP_ATTESTATION -eq "1") {
+        Write-Warning "GitHub release attestation verification skipped (IRIS_SKIP_ATTESTATION=1)."
     } else {
-        $false
-    }
-
-    if ($GitHubAttestationsAvailable) {
-        Write-Host "Verifying GitHub release attestation"
-        & gh attestation verify $Archive --repo $Repository | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "GitHub release attestation verification failed"
+        $GitHubAttestationsAvailable = if (Get-Command gh -ErrorAction SilentlyContinue) {
+            & gh attestation verify --help 2>$null | Out-Null
+            $LASTEXITCODE -eq 0
+        } else {
+            $false
         }
-    } else {
-        Write-Warning "A GitHub CLI with attestation support is not installed; release provenance was not verified."
-        Write-Warning "Install or update gh from https://cli.github.com/ to verify future installations."
+
+        if ($GitHubAttestationsAvailable) {
+            Write-Host "Verifying GitHub release attestation"
+            & gh attestation verify $Archive --repo $Repository | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                throw "GitHub release attestation verification failed"
+            }
+        } else {
+            Write-Warning "A GitHub CLI with attestation support is not installed; release provenance was not verified."
+            Write-Warning "Install or update gh from https://cli.github.com/ to verify future installations."
+        }
     }
 
     Expand-Archive -LiteralPath $Archive -DestinationPath $TemporaryDirectory

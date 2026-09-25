@@ -199,7 +199,10 @@ The installers verify the release's GitHub build-provenance attestation when
 [GitHub CLI](https://cli.github.com/) is available. They display a warning and continue when it is not
 installed. These installers require v0.1.0 or later; to install v0.0.x, use the installer from that
 release's Git tag. Set `IRIS_VERSION` to a release tag or
-`IRIS_INSTALL_DIR` to an installation directory to override the defaults.
+`IRIS_INSTALL_DIR` to an installation directory to override the defaults. Set
+`IRIS_SKIP_ATTESTATION=1` to skip verification explicitly (for example, when `gh` is installed but
+cannot access attestations); this reduces provenance assurance and prints a warning. On PowerShell,
+set `$env:IRIS_SKIP_ATTESTATION = "1"` before running the installer.
 
 Successful builds of the `main` branch are published as GitHub prereleases tagged
 `v<version>-dev.<revision>`. Consumers testing against the canary channel should resolve the newest

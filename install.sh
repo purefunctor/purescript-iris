@@ -48,7 +48,9 @@ archive="$temporary_directory/$archive_name"
 printf 'Downloading %s %s for %s\n' "$binary" "$version" "$target"
 curl --proto '=https' --tlsv1.2 -LsSf --retry 3 --output "$archive" "$archive_url"
 
-if command -v gh >/dev/null 2>&1 && gh attestation verify --help >/dev/null 2>&1; then
+if [ "${IRIS_SKIP_ATTESTATION:-}" = 1 ]; then
+    printf '%s\n' 'warning: GitHub release attestation verification skipped (IRIS_SKIP_ATTESTATION=1).' >&2
+elif command -v gh >/dev/null 2>&1 && gh attestation verify --help >/dev/null 2>&1; then
     printf 'Verifying GitHub release attestation\n'
     gh attestation verify "$archive" --repo "$repository" >/dev/null || \
         fail "GitHub release attestation verification failed"
