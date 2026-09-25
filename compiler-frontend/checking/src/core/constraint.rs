@@ -17,12 +17,13 @@ pub use canonical::{CanonicalConstraint, CanonicalConstraintId, Canonicals};
 use itertools::Itertools;
 
 use std::collections::VecDeque;
+use std::collections::hash_map::Entry;
 use std::mem;
 use std::num::NonZeroU32;
 use std::rc::Rc;
 
 use building_types::QueryResult;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
@@ -362,7 +363,7 @@ where
 #[derive(Clone)]
 struct EvidenceInScope {
     constraints: Vec<(CanonicalConstraintId, EvidenceId)>,
-    seen: IndexSet<CanonicalConstraintId, FxBuildHasher>,
+    positions: FxHashMap<CanonicalConstraintId, usize>,
     evidence_scope: Option<NonZeroU32>,
 }
 
@@ -370,7 +371,7 @@ impl EvidenceInScope {
     fn new(root: ImplicationId) -> EvidenceInScope {
         let mut evidence = EvidenceInScope {
             constraints: vec![],
-            seen: IndexSet::default(),
+            positions: FxHashMap::default(),
             evidence_scope: None,
         };
         evidence.assign_scope(root);
@@ -391,17 +392,19 @@ impl EvidenceInScope {
     }
 
     fn insert(&mut self, constraint: CanonicalConstraintId, evidence: EvidenceId) {
-        if self.seen.insert(constraint) {
-            self.constraints.push((constraint, evidence));
-        } else if let Some((_, current)) =
-            self.constraints.iter_mut().find(|(given, _)| *given == constraint)
-        {
-            *current = evidence;
+        match self.positions.entry(constraint) {
+            Entry::Occupied(position) => {
+                self.constraints[*position.get()].1 = evidence;
+            }
+            Entry::Vacant(position) => {
+                position.insert(self.constraints.len());
+                self.constraints.push((constraint, evidence));
+            }
         }
     }
 
     fn contains(&self, constraint: CanonicalConstraintId) -> bool {
-        self.seen.contains(&constraint)
+        self.positions.contains_key(&constraint)
     }
 }
 
@@ -516,7 +519,8 @@ where
     let partial = canonical::canonicalise(state, context, context.prim.partial)?;
 
     let mut constraints = VecDeque::default();
-    let mut stack = vec![(root, EvidenceInScope::new(root))];
+    // Children share their parent's evidence until they introduce givens.
+    let mut stack = vec![(root, Rc::new(EvidenceInScope::new(root)))];
 
     while let Some((implication_id, mut evidence_in_scope)) = stack.pop() {
         let (given, wanted, children, patterns) = {
@@ -538,12 +542,12 @@ where
                 state.checked.evidence.bind_binder(evidence, canonical);
 
                 let proof = state.checked.evidence.allocate(Evidence::Given(evidence));
-                evidence_in_scope.insert(given, proof);
+                Rc::make_mut(&mut evidence_in_scope).insert(given, proof);
             }
         }
 
         if !introduced_binders.is_empty() {
-            evidence_in_scope.assign_scope(implication_id);
+            Rc::make_mut(&mut evidence_in_scope).assign_scope(implication_id);
         }
 
         let elide_missing_patterns =
@@ -601,10 +605,8 @@ where
             }
         }
 
-        let children = children
-            .into_iter()
-            .rev()
-            .map(|child| (child, EvidenceInScope::clone(&evidence_in_scope)));
+        let children =
+            children.into_iter().rev().map(|child| (child, Rc::clone(&evidence_in_scope)));
 
         stack.extend(children)
     }
