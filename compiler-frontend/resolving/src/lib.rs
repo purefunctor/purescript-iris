@@ -15,9 +15,10 @@ pub trait ExternalQueries:
 {
 }
 
+/// Class members are grouped by class, as lookups and copies are per class.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ResolvedClassMembers {
-    members: FxHashMap<(FileId, TypeItemId, SmolStr), (FileId, TermItemId)>,
+    members: FxHashMap<(FileId, TypeItemId), FxHashMap<SmolStr, (FileId, TermItemId)>>,
 }
 
 impl ResolvedClassMembers {
@@ -29,7 +30,8 @@ impl ResolvedClassMembers {
         member_file: FileId,
         term_id: TermItemId,
     ) {
-        self.members.insert((class_file, class_id, name), (member_file, term_id));
+        let members = self.members.entry((class_file, class_id)).or_default();
+        members.insert(name, (member_file, term_id));
     }
 
     pub fn lookup(
@@ -38,8 +40,7 @@ impl ResolvedClassMembers {
         class_id: TypeItemId,
         name: &str,
     ) -> Option<(FileId, TermItemId)> {
-        let key = &(class_file, class_id, SmolStr::new(name));
-        self.members.get(key).copied()
+        self.members.get(&(class_file, class_id))?.get(name).copied()
     }
 
     pub fn class_members(
@@ -47,16 +48,14 @@ impl ResolvedClassMembers {
         class_file: FileId,
         class_id: TypeItemId,
     ) -> impl Iterator<Item = (&SmolStr, FileId, TermItemId)> + '_ {
-        self.members
-            .iter()
-            .filter(move |((file_id, type_id, _), _)| {
-                *file_id == class_file && *type_id == class_id
-            })
-            .map(|((_, _, name), (file, id))| (name, *file, *id))
+        let members = self.members.get(&(class_file, class_id)).into_iter().flatten();
+        members.map(|(name, (file, id))| (name, *file, *id))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (TypeItemId, &SmolStr, FileId, TermItemId)> + '_ {
-        self.members.iter().map(|((_, class_id, name), (file, id))| (*class_id, name, *file, *id))
+        self.members.iter().flat_map(|((_, class_id), members)| {
+            members.iter().map(|(name, (file, id))| (*class_id, name, *file, *id))
+        })
     }
 }
 
