@@ -98,16 +98,19 @@ fn inline_bindings(
     body: ExpressionId,
     recursive_globals: &FxHashSet<GlobalId>,
 ) {
-    let mut bindings = bindings.to_vec();
-    while let Some(position) = bindings.iter().position(|binding| {
-        let uses = binding_uses(storage, &bindings, body, binding.parameter.id);
-        uses > 0
-            && (is_trivial_expression(storage, binding.expression, recursive_globals)
-                || uses == 1
-                    && is_simple_expression(storage, binding.expression, recursive_globals))
+    // Substitution only replaces locals with trivial or simple expressions, so a binding that is
+    // not simple on entry never becomes a candidate and its uses never need counting.
+    let bindings = bindings.iter().map(|binding| {
+        let candidate = is_simple_expression(storage, binding.expression, recursive_globals);
+        (Binding::clone(binding), candidate)
+    });
+    let mut bindings = bindings.collect::<Vec<_>>();
+    let mut inlined = false;
+    while let Some(position) = bindings.iter().position(|(binding, candidate)| {
+        *candidate && is_inlinable(storage, &bindings, body, binding, recursive_globals)
     }) {
-        let binding = bindings.remove(position);
-        for remaining in &bindings {
+        let (binding, _) = bindings.remove(position);
+        for (remaining, _) in &bindings {
             substitute_local(
                 storage,
                 remaining.expression,
@@ -116,15 +119,36 @@ fn inline_bindings(
             );
         }
         substitute_local(storage, body, binding.parameter.id, binding.expression);
+        inlined = true;
+    }
+    if !inlined {
+        return;
     }
 
     let replacement = if bindings.is_empty() {
         storage[body].kind.clone()
     } else {
-        ExpressionKind::Let { recursive: false, bindings: bindings.into(), body }
+        let bindings = bindings.into_iter().map(|(binding, _)| binding);
+        ExpressionKind::Let { recursive: false, bindings: bindings.collect(), body }
     };
     storage.replace_expression_kind(expression, replacement);
     fold_literal_negation(storage, expression);
+}
+
+fn is_inlinable(
+    storage: &Storage,
+    bindings: &[(Binding, bool)],
+    body: ExpressionId,
+    binding: &Binding,
+    recursive_globals: &FxHashSet<GlobalId>,
+) -> bool {
+    let roots = bindings.iter().map(|(binding, _)| binding.expression).chain([body]);
+    if is_trivial_expression(storage, binding.expression, recursive_globals) {
+        local_uses_up_to(storage, roots, binding.parameter.id, 1) > 0
+    } else {
+        is_simple_expression(storage, binding.expression, recursive_globals)
+            && local_uses_up_to(storage, roots, binding.parameter.id, 2) == 1
+    }
 }
 
 fn fold_literal_negation(storage: &mut Storage, expression: ExpressionId) -> bool {
@@ -170,28 +194,30 @@ fn negated_number(value: &str) -> SmolStr {
     }
 }
 
-fn binding_uses(
-    storage: &Storage,
-    bindings: &[Binding],
-    body: ExpressionId,
-    parameter: LocalId,
-) -> usize {
-    let binding_uses = bindings
-        .iter()
-        .map(|binding| local_uses(storage, binding.expression, parameter))
-        .sum::<usize>();
-    binding_uses + local_uses(storage, body, parameter)
+pub fn local_uses(storage: &Storage, expression: ExpressionId, parameter: LocalId) -> usize {
+    local_uses_up_to(storage, [expression], parameter, usize::MAX)
 }
 
-pub fn local_uses(storage: &Storage, expression: ExpressionId, parameter: LocalId) -> usize {
+/// Counts uses of `parameter` under `roots`, stopping once `limit` uses are found.
+pub fn local_uses_up_to(
+    storage: &Storage,
+    roots: impl IntoIterator<Item = ExpressionId>,
+    parameter: LocalId,
+    limit: usize,
+) -> usize {
     let mut uses = 0;
-    let mut pending = vec![expression];
+    let mut pending = roots.into_iter().collect::<Vec<_>>();
     while let Some(expression) = pending.pop() {
+        if uses >= limit {
+            break;
+        }
         let kind = &storage[expression].kind;
         if matches!(kind, ExpressionKind::Local { parameter: local } if local.id == parameter) {
             uses += 1;
             continue;
         }
+        // Visiting children left to right keeps the pending stack shallow on right-nested
+        // chains such as do blocks, whose continuation is the last child.
         let children_start = pending.len();
         for_each_expression_child(kind, |child| pending.push(child));
         pending[children_start..].reverse();
