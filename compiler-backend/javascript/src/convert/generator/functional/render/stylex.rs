@@ -6,6 +6,7 @@ use functional::tree::{
     DeclarationKind, ExpressionKind, Global, GlobalId, InstanceIdentity, Module,
 };
 use rustc_hash::FxHashSet;
+use smol_str::SmolStr;
 
 use crate::error::ModuleResult;
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree};
@@ -133,8 +134,10 @@ impl Generator<'_> {
                 let Some(default) = self.inline_expression(tree, *default, context)? else {
                     return Ok(None);
                 };
-                let mut properties =
-                    vec![ObjectProperty::Field { name: "default".to_owned(), value: default }];
+                let mut properties = vec![ObjectProperty::Field {
+                    name: SmolStr::new_static("default"),
+                    value: default,
+                }];
                 for case in cases.iter() {
                     let Some((key, value)) = self.inline_stylex_case(tree, case, context)? else {
                         return Ok(None);
@@ -182,8 +185,10 @@ impl Generator<'_> {
         context: &mut FunctionContext,
     ) -> ModuleResult<ExpressionId> {
         let default = self.rendered_expression(tree, writer, default, context)?;
-        let mut properties =
-            vec![ObjectProperty::Field { name: "default".to_owned(), value: default.value }];
+        let mut properties = vec![ObjectProperty::Field {
+            name: SmolStr::new_static("default"),
+            value: default.value,
+        }];
         for case in cases {
             let function = self.stylex_when_function(tree, case);
             let selector = self.rendered_expression(tree, writer, case.selector, context)?;
