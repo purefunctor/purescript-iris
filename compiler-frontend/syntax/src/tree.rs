@@ -156,11 +156,16 @@ impl SyntaxNode {
     }
 
     pub fn children(&self) -> SyntaxNodeChildren {
-        SyntaxNodeChildren(self.elements(false).into_iter())
+        SyntaxNodeChildren { owner: Arc::clone(&self.owner), next: self.first_element_id() }
     }
 
     pub fn children_with_tokens(&self) -> SyntaxElementChildren {
-        SyntaxElementChildren(self.elements(true).into_iter())
+        SyntaxElementChildren { owner: Arc::clone(&self.owner), next: self.first_element_id() }
+    }
+
+    fn first_element_id(&self) -> Option<PointerUsize> {
+        let tree = self.owner.tree.lock();
+        Some(tree.get(self.id)?.first()?.id())
     }
 
     pub(crate) fn token(&self, kind: SyntaxKind) -> Option<SyntaxToken> {
@@ -179,19 +184,6 @@ impl SyntaxNode {
             value.category == ElementCategory::Token && set.contains(value.kind)
         })?;
         Some(SyntaxToken { owner: Arc::clone(&self.owner), id: token.id() })
-    }
-
-    fn elements(&self, tokens: bool) -> Vec<SyntaxElement> {
-        let tree = self.owner.tree.lock();
-        tree.get(self.id)
-            .unwrap()
-            .children()
-            .filter_map(|node| {
-                let value = node.value();
-                (tokens || value.category == ElementCategory::Node)
-                    .then(|| element(&self.owner, node.id(), value))
-            })
-            .collect::<Vec<_>>()
     }
 
     pub fn first_child(&self) -> Option<SyntaxNode> {
@@ -345,23 +337,42 @@ impl From<SyntaxToken> for SyntaxElement {
     }
 }
 
-pub struct SyntaxNodeChildren(std::vec::IntoIter<SyntaxElement>);
+/// Iterates child nodes lazily, as most callers stop at the first match.
+pub struct SyntaxNodeChildren {
+    owner: Arc<TreeOwner>,
+    next: Option<PointerUsize>,
+}
 
 impl Iterator for SyntaxNodeChildren {
     type Item = SyntaxNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.find_map(SyntaxElement::into_node)
+        let tree = self.owner.tree.lock();
+        while let Some(id) = self.next {
+            let node = tree.get(id)?;
+            self.next = node.next().map(|node| node.id());
+            if node.value().category == ElementCategory::Node {
+                return Some(SyntaxNode { owner: Arc::clone(&self.owner), id });
+            }
+        }
+        None
     }
 }
 
-pub struct SyntaxElementChildren(std::vec::IntoIter<SyntaxElement>);
+/// Iterates child elements lazily, as most callers stop at the first match.
+pub struct SyntaxElementChildren {
+    owner: Arc<TreeOwner>,
+    next: Option<PointerUsize>,
+}
 
 impl Iterator for SyntaxElementChildren {
     type Item = SyntaxElement;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let tree = self.owner.tree.lock();
+        let node = tree.get(self.next?)?;
+        self.next = node.next().map(|node| node.id());
+        Some(element(&self.owner, node.id(), node.value()))
     }
 }
 
@@ -441,15 +452,12 @@ fn sibling(owner: &Arc<TreeOwner>, id: PointerUsize, next: bool) -> Option<Synta
 }
 
 fn node_sibling(node: &SyntaxNode, next: bool) -> Option<SyntaxNode> {
-    let mut element =
-        if next { node.next_sibling_or_token() } else { node.prev_sibling_or_token() };
+    let tree = node.owner.tree.lock();
+    let mut sibling = tree.get(node.id)?;
     loop {
-        match element? {
-            SyntaxElement::Node(node) => return Some(node),
-            SyntaxElement::Token(token) => {
-                element =
-                    if next { token.next_sibling_or_token() } else { token.prev_sibling_or_token() }
-            }
+        sibling = if next { sibling.next()? } else { sibling.prev()? };
+        if sibling.value().category == ElementCategory::Node {
+            return Some(SyntaxNode { owner: Arc::clone(&node.owner), id: sibling.id() });
         }
     }
 }
@@ -524,7 +532,8 @@ pub struct SyntaxNodePtr {
 
 impl SyntaxNodePtr {
     pub fn new(node: &SyntaxNode) -> SyntaxNodePtr {
-        SyntaxNodePtr { id: node.id, kind: node.kind(), range: node.text_range() }
+        let tree = node.owner.tree.lock();
+        SyntaxNodePtr::from_raw(&tree.get(node.id).unwrap())
     }
 
     fn from_raw(node: &syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>) -> SyntaxNodePtr {
