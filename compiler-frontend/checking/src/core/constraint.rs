@@ -14,7 +14,6 @@ pub mod instances;
 pub mod matching;
 
 pub use canonical::{CanonicalConstraint, CanonicalConstraintId, Canonicals};
-use itertools::Itertools;
 
 use std::collections::VecDeque;
 use std::mem;
@@ -146,27 +145,28 @@ where
         if let ApplicationArgument::Type(argument) = argument { Some(*argument) } else { None }
     });
 
-    let arguments = arguments.collect_vec();
-
     let mut known_positions = FxHashSet::default();
-    let mut blocking_by_position = vec![];
+    let mut position_count = 0;
 
-    for (position, &argument) in arguments.iter().enumerate() {
-        let blocking = matching::collect_blocking(state, context, &[argument])?;
-        if blocking.is_empty() {
+    for (position, argument) in arguments.enumerate() {
+        position_count += 1;
+        if !matching::is_blocked(state, context, argument)? {
             known_positions.insert(position);
         }
-        blocking_by_position.push(blocking);
     }
 
+    if known_positions.len() == position_count {
+        return Ok(false);
+    }
+
+    // Every position that is not known is blocked, so the constraint is
+    // improving when functional dependencies determine one of them.
     let closure = compute_closure(&functional_dependencies, &known_positions);
-    for position in closure.difference(&known_positions) {
-        if blocking_by_position.get(*position).is_some_and(|blocking| !blocking.is_empty()) {
-            return Ok(true);
-        }
-    }
+    let is_improving = closure
+        .iter()
+        .any(|position| *position < position_count && !known_positions.contains(position));
 
-    Ok(false)
+    Ok(is_improving)
 }
 
 fn wake_constraints(work: &mut Work, stuck: &mut Stuck, state: &mut CheckState) {
