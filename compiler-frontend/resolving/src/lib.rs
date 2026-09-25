@@ -71,12 +71,26 @@ pub struct ResolvedModule {
 }
 
 impl ResolvedModule {
-    fn visible_import_priority(kind: ImportKind) -> Option<u8> {
-        match kind {
-            ImportKind::Explicit => Some(0),
-            ImportKind::Implicit => Some(1),
-            ImportKind::Hidden => None,
+    /// Returns the first explicitly imported item, falling back to the first
+    /// implicitly imported item; hidden items are never visible.
+    fn lookup_visible<'a, ItemId, LookupFn>(
+        imports: impl IntoIterator<Item = &'a ResolvedImport>,
+        lookup: LookupFn,
+    ) -> Option<(FileId, ItemId)>
+    where
+        LookupFn: Fn(&ResolvedImport) -> Option<(FileId, ItemId, ImportKind)>,
+    {
+        let mut implicit = None;
+        for import in imports {
+            match lookup(import) {
+                Some((file_id, item_id, ImportKind::Explicit)) => return Some((file_id, item_id)),
+                Some((file_id, item_id, ImportKind::Implicit)) if implicit.is_none() => {
+                    implicit = Some((file_id, item_id));
+                }
+                _ => (),
+            }
         }
+        implicit
     }
 
     fn lookup_qualified<ItemId, LookupFn, DefaultFn>(
@@ -90,15 +104,7 @@ impl ResolvedModule {
         DefaultFn: FnOnce() -> Option<(FileId, ItemId)>,
     {
         if let Some(imports) = self.qualified.get(qualifier) {
-            let (_, file_id, item_id) = imports
-                .iter()
-                .filter_map(|import| {
-                    let (file_id, item_id, kind) = lookup(import)?;
-                    let priority = ResolvedModule::visible_import_priority(kind)?;
-                    Some((priority, file_id, item_id))
-                })
-                .min_by_key(|(priority, _, _)| *priority)?;
-            Some((file_id, item_id))
+            ResolvedModule::lookup_visible(imports, lookup)
         } else if qualifier == "Prim" {
             default()
         } else {
@@ -110,41 +116,20 @@ impl ResolvedModule {
     where
         LookupFn: Fn(&ResolvedImport) -> Option<(FileId, ItemId, ImportKind)>,
     {
-        let (_, file_id, item_id) = self
-            .unqualified
-            .values()
-            .flatten()
-            .filter_map(|import| {
-                let (file_id, item_id, kind) = lookup(import)?;
-                let priority = ResolvedModule::visible_import_priority(kind)?;
-                Some((priority, file_id, item_id))
-            })
-            .min_by_key(|(priority, _, _)| *priority)?;
-        Some((file_id, item_id))
+        ResolvedModule::lookup_visible(self.unqualified.values().flatten(), lookup)
     }
 
-    fn lookup_prim_import<ItemId, LookupFn, DefaultFn>(
+    /// Prim is implicitly imported unless the module imports it unqualified,
+    /// in which case [`ResolvedModule::lookup_unqualified`] has already
+    /// searched those imports.
+    fn lookup_implicit_prim<ItemId, DefaultFn>(
         &self,
-        lookup: LookupFn,
         default: DefaultFn,
     ) -> Option<(FileId, ItemId)>
     where
-        LookupFn: Fn(&ResolvedImport) -> Option<(FileId, ItemId, ImportKind)>,
         DefaultFn: FnOnce() -> Option<(FileId, ItemId)>,
     {
-        if let Some(prim) = self.unqualified.get("Prim") {
-            let (_, file_id, item_id) = prim
-                .iter()
-                .filter_map(|import| {
-                    let (file_id, item_id, kind) = lookup(import)?;
-                    let priority = ResolvedModule::visible_import_priority(kind)?;
-                    Some((priority, file_id, item_id))
-                })
-                .min_by_key(|(priority, _, _)| *priority)?;
-            Some((file_id, item_id))
-        } else {
-            default()
-        }
+        if self.unqualified.contains_key("Prim") { None } else { default() }
     }
 
     pub fn lookup_term(
@@ -162,7 +147,7 @@ impl ResolvedModule {
             let lookup_prim = || prim.exports.lookup_term(name);
             None.or_else(|| self.locals.lookup_term(name))
                 .or_else(|| self.lookup_unqualified(lookup_item))
-                .or_else(|| self.lookup_prim_import(lookup_item, lookup_prim))
+                .or_else(|| self.lookup_implicit_prim(lookup_prim))
         }
     }
 
@@ -181,7 +166,7 @@ impl ResolvedModule {
             let lookup_prim = || prim.exports.lookup_type(name);
             None.or_else(|| self.locals.lookup_type(name))
                 .or_else(|| self.lookup_unqualified(lookup_item))
-                .or_else(|| self.lookup_prim_import(lookup_item, lookup_prim))
+                .or_else(|| self.lookup_implicit_prim(lookup_prim))
         }
     }
 
@@ -200,7 +185,7 @@ impl ResolvedModule {
             let lookup_prim = || prim.exports.lookup_class(name);
             None.or_else(|| self.locals.lookup_class(name))
                 .or_else(|| self.lookup_unqualified(lookup_item))
-                .or_else(|| self.lookup_prim_import(lookup_item, lookup_prim))
+                .or_else(|| self.lookup_implicit_prim(lookup_prim))
         }
     }
 
@@ -239,30 +224,7 @@ impl ResolvedModule {
             }
         }
 
-        // If an unqualified Prim import exists, use its import list;
-        if let Some(prim_imports) = self.unqualified.get("Prim") {
-            for prim_import in prim_imports {
-                if prim_import.contains_term(file_id, item_id) {
-                    return true;
-                }
-            }
-        }
-
-        // if a qualified Prim import exists, use its import list;
-        if let Some(prim_imports) = self.qualified.get("Prim") {
-            for prim_import in prim_imports {
-                if prim_import.contains_term(file_id, item_id) {
-                    return true;
-                }
-            }
-        }
-
-        // if there are no Prim imports, use the export list.
-        if prim.exports.contains_term(file_id, item_id) {
-            return true;
-        }
-
-        false
+        prim.exports.contains_term(file_id, item_id)
     }
 }
 
