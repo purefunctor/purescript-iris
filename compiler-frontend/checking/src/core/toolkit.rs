@@ -635,7 +635,7 @@ where
                 && *unification == self.unification
             {
                 self.contains = true;
-                Ok(walk::WalkAction::Stop)
+                Ok(walk::WalkAction::Break)
             } else {
                 Ok(walk::WalkAction::Continue)
             }
@@ -673,7 +673,7 @@ where
                 && *name == self.name
             {
                 self.contains = true;
-                Ok(walk::WalkAction::Stop)
+                Ok(walk::WalkAction::Break)
             } else {
                 Ok(walk::WalkAction::Continue)
             }

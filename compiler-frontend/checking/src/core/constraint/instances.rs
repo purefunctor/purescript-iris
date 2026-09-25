@@ -504,7 +504,7 @@ impl TypeWalker for HasLabeledRole {
             let row = context.lookup_row_type(*row_id);
             if !row.fields.is_empty() {
                 self.contains = true;
-                return Ok(WalkAction::Stop);
+                return Ok(WalkAction::Break);
             }
         }
 
