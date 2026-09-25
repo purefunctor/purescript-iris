@@ -175,23 +175,21 @@ where
     let function_type = context.queries.intern_type(Type::Constructor(file_id, type_id));
     let (synonym_arguments, excess_arguments) = arguments.split_at(arity);
 
-    let ((mut synonym_type, mut synonym_kind), _) = application::infer_application_arguments(
+    let (mut synonym_type, mut synonym_kind) = application::infer_application_arguments(
         state,
         context,
         (function_type, kind),
         synonym_arguments,
         application::Options::SYNONYM,
-        application::Records::collect(),
     )?;
 
     if !excess_arguments.is_empty() {
-        ((synonym_type, synonym_kind), _) = application::infer_application_arguments(
+        (synonym_type, synonym_kind) = application::infer_application_arguments(
             state,
             context,
             (synonym_type, synonym_kind),
             excess_arguments,
             application::Options::SYNONYM,
-            application::Records::Ignore,
         )?;
     }
 
@@ -211,13 +209,12 @@ where
     let function_type = context.queries.intern_type(Type::Constructor(file_id, type_id));
     let arguments = arguments.iter().copied().map(application::Argument::Syntax).collect_vec();
 
-    let ((synonym_type, synonym_kind), _) = application::infer_application_arguments(
+    let (synonym_type, synonym_kind) = application::infer_application_arguments(
         state,
         context,
         (function_type, kind),
         &arguments,
         application::Options::SYNONYM,
-        application::Records::Ignore,
     )?;
 
     Ok((synonym_type, synonym_kind))

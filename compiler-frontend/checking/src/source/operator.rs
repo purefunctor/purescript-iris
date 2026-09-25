@@ -568,13 +568,12 @@ impl<Q: ExternalQueries> IsOperator<Q> for lowering::TypeId {
             application::Argument::Core(right_argument, right_kind),
         ];
 
-        let ((elaborated_type, _), _) = application::infer_application_arguments(
+        let (elaborated_type, _) = application::infer_application_arguments(
             state,
             context,
             function,
             &arguments,
             application::Options::OPERATOR,
-            application::Records::Ignore,
         )?;
 
         let result_kind = normalise::normalise(state, context, right.result_type);

@@ -505,13 +505,12 @@ pub fn infer_application_kind<Q>(
 where
     Q: ExternalQueries,
 {
-    let ((result_type, result_kind), _) = application::infer_application_kind(
+    let (result_type, result_kind) = application::infer_application_kind(
         state,
         context,
         (function_type, function_kind),
         application::Argument::Syntax(argument),
         application::Options::TYPES,
-        application::Records::Ignore,
     )?;
 
     Ok((result_type, result_kind))
