@@ -644,8 +644,8 @@ impl QueryEngine {
     ) -> QueryResult<Future<T>> {
         {
             let mut graph = self.control.global.graph.lock();
-            let stack = LocalState::stack(local);
             if !graph.add_edge(self.control.id, to_id) {
+                let stack = LocalState::stack(local);
                 return Err(QueryError::Cycle { stack });
             }
         }
