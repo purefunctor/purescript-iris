@@ -279,73 +279,60 @@ fn collect_tail_edges(
     targets: &FxHashMap<TailCallIdentity, (usize, usize, bool)>,
     edges: &mut Vec<TailEdge>,
 ) {
-    if let Some((identity, arguments, uncurried)) = application(module, expression)
-        && let Some(&(target, arity, target_uncurried)) = targets.get(&identity)
-        && arguments.len() == arity
-        && uncurried == target_uncurried
-    {
-        edges.push(TailEdge { source, target, position });
-        return;
-    }
+    let mut pending = vec![(expression, position)];
+    while let Some((expression, position)) = pending.pop() {
+        if let Some((identity, arguments, uncurried)) = application(module, expression)
+            && let Some(&(target, arity, target_uncurried)) = targets.get(&identity)
+            && arguments.len() == arity
+            && uncurried == target_uncurried
+        {
+            edges.push(TailEdge { source, target, position });
+            continue;
+        }
 
-    match &module.storage[expression].kind {
-        ExpressionKind::IfThenElse { then, else_, .. } => {
-            collect_tail_edges(module, *then, position, source, targets, edges);
-            collect_tail_edges(module, *else_, position, source, targets, edges);
-        }
-        ExpressionKind::Case { alternatives, .. } => {
-            for alternative in alternatives.iter() {
-                collect_tail_edges(
-                    module,
-                    alternative.expression,
-                    position,
-                    source,
-                    targets,
-                    edges,
-                );
+        match &module.storage[expression].kind {
+            ExpressionKind::IfThenElse { then, else_, .. } => {
+                pending.push((*else_, position));
+                pending.push((*then, position));
             }
-        }
-        ExpressionKind::Guarded { alternatives } => {
-            for alternative in alternatives.iter() {
-                collect_tail_edges(
-                    module,
-                    alternative.expression,
-                    position,
-                    source,
-                    targets,
-                    edges,
-                );
+            ExpressionKind::Case { alternatives, .. } => {
+                let alternatives = alternatives.iter().rev();
+                pending.extend(alternatives.map(|alternative| (alternative.expression, position)));
             }
-        }
-        ExpressionKind::Let { body, .. } | ExpressionKind::LetPattern { body, .. } => {
-            collect_tail_edges(module, *body, position, source, targets, edges);
-        }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Bind { body, .. } => {
-                collect_tail_edges(module, *body, TailPosition::Effect, source, targets, edges);
+            ExpressionKind::Guarded { alternatives } => {
+                let alternatives = alternatives.iter().rev();
+                pending.extend(alternatives.map(|alternative| (alternative.expression, position)));
             }
-            EffectExpression::Pure(_)
-            | EffectExpression::Map { .. }
-            | EffectExpression::Apply { .. } => {}
-        },
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
-        | ExpressionKind::Array { .. }
-        | ExpressionKind::Record { .. }
-        | ExpressionKind::RecordUpdate { .. }
-        | ExpressionKind::Project { .. }
-        | ExpressionKind::Unary { .. }
-        | ExpressionKind::Binary { .. }
-        | ExpressionKind::Constructor { .. }
-        | ExpressionKind::Global { .. }
-        | ExpressionKind::Local { .. }
-        | ExpressionKind::Abstraction { .. }
-        | ExpressionKind::UncurriedAbstraction { .. }
-        | ExpressionKind::Application { .. }
-        | ExpressionKind::UncurriedApplication { .. }
-        | ExpressionKind::StyleX(_)
-        | ExpressionKind::SynthesizedEvidence { .. }
-        | ExpressionKind::TrivialEvidence => {}
+            ExpressionKind::Let { body, .. } | ExpressionKind::LetPattern { body, .. } => {
+                pending.push((*body, position));
+            }
+            ExpressionKind::Effect { effect } => match effect {
+                EffectExpression::Bind { body, .. } => {
+                    pending.push((*body, TailPosition::Effect));
+                }
+                EffectExpression::Pure(_)
+                | EffectExpression::Map { .. }
+                | EffectExpression::Apply { .. } => {}
+            },
+            ExpressionKind::Error
+            | ExpressionKind::Literal { .. }
+            | ExpressionKind::Array { .. }
+            | ExpressionKind::Record { .. }
+            | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::Project { .. }
+            | ExpressionKind::Unary { .. }
+            | ExpressionKind::Binary { .. }
+            | ExpressionKind::Constructor { .. }
+            | ExpressionKind::Global { .. }
+            | ExpressionKind::Local { .. }
+            | ExpressionKind::Abstraction { .. }
+            | ExpressionKind::UncurriedAbstraction { .. }
+            | ExpressionKind::Application { .. }
+            | ExpressionKind::UncurriedApplication { .. }
+            | ExpressionKind::StyleX(_)
+            | ExpressionKind::SynthesizedEvidence { .. }
+            | ExpressionKind::TrivialEvidence => {}
+        }
     }
 }
 
@@ -401,5 +388,76 @@ fn function_identity(module: &Module, expression: ExpressionId) -> Option<TailCa
         ExpressionKind::Global { global } => Some(TailCallIdentity::Global(global.id)),
         ExpressionKind::Local { parameter } => Some(TailCallIdentity::Local(parameter.id)),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use files::FileId;
+    use functional::tree::{
+        EffectExpression, Expression, ExpressionKind, LocalId, Module, ModuleSurface, Parameter,
+        Storage,
+    };
+    use smol_str::SmolStr;
+
+    use super::{TailCallIdentity, TailCallProfile, tail_call_group};
+
+    /// Runs `test` on a thread whose stack is far too small for a recursive traversal of a long
+    /// chain, so recursion fails the test instead of passing on the generous default stack.
+    fn with_small_stack(test: impl FnOnce() + Send + 'static) {
+        let thread = std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(test)
+            .expect("failed to spawn small-stack thread");
+        thread.join().expect("test panicked on small-stack thread");
+    }
+
+    #[test]
+    fn tail_edges_beneath_long_effect_chains_do_not_use_the_call_stack() {
+        with_small_stack(|| {
+            let mut storage = Storage::default();
+            let function = Parameter { id: LocalId(0), name: SmolStr::new("loop") };
+            let callee = storage.allocate_expression(Expression {
+                kind: ExpressionKind::Local { parameter: Parameter::clone(&function) },
+            });
+            let mut body = storage.allocate_expression(Expression {
+                kind: ExpressionKind::Application {
+                    function: callee,
+                    arguments: Arc::from([]),
+                    synthetic: false,
+                },
+            });
+            for index in 1..10_000 {
+                let action = storage.allocate_expression(Expression {
+                    kind: ExpressionKind::Local { parameter: Parameter::clone(&function) },
+                });
+                let parameter = Parameter { id: LocalId(index), name: SmolStr::new("value") };
+                let effect = EffectExpression::Bind { action, parameter, body };
+                body = storage
+                    .allocate_expression(Expression { kind: ExpressionKind::Effect { effect } });
+            }
+            let module = Module {
+                file_id: FileId::new(0),
+                name: SmolStr::new("Main"),
+                dependencies: Arc::from([]),
+                surface: ModuleSurface::default(),
+                declarations: Arc::from([]),
+                storage,
+            };
+            let profile = TailCallProfile {
+                identity: TailCallIdentity::Local(function.id),
+                parameters: Vec::new(),
+                body,
+                uncurried: false,
+                effect_step: false,
+            };
+
+            let group = tail_call_group(&module, vec![profile], SmolStr::new("$tail"))
+                .expect("the effect chain ends in a tail call");
+
+            assert!(group.profiles[0].effect_step);
+        });
     }
 }
