@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Error! · [NotInScope] · Main.purs:7:14
   •
@@ -22,7 +23,7 @@ Error! · [NotInScope] · Main.purs:10:14
 Error! · [CannotUnify] · Main.purs:7:14
   •
   │
-  • Cannot unify '?[missing expression]' with 'Int'
+  • Cannot unify '?[missing variable resolution]' with 'Int'
   │
   │   deferred _ = missing
   │                ╰──────
@@ -31,7 +32,7 @@ Error! · [CannotUnify] · Main.purs:7:14
 Error! · [CannotUnify] · Main.purs:10:14
   •
   │
-  • Cannot unify '?[missing expression]' with 'Int'
+  • Cannot unify '?[missing variable resolution]' with 'Int'
   │
   │   nested _ _ = missing
   │                ╰──────

@@ -1,11 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 307
 ---
 Terms
-missingVariable :: ?[missing expression]
-missingConstructor :: ?[missing expression]
+missingVariable :: ?[missing variable resolution]
+missingConstructor :: ?[missing constructor resolution]
 missingOperator :: forall t0. t0
-missingNegate :: ?[missing expression]
+missingNegate :: ?[missing negate resolution]
 missingDo :: forall (t0 :: Prim.Type -> Prim.Type) t1. (t0 :: Prim.Type -> Prim.Type) t1
 missingDiscard :: forall (t0 :: Prim.Type -> Prim.Type) t1. (t0 :: Prim.Type -> Prim.Type) t1
 missingAdo :: forall (t0 :: Prim.Type -> Prim.Type) t1. (t0 :: Prim.Type -> Prim.Type) t1

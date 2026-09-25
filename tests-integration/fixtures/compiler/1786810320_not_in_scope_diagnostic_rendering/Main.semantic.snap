@@ -1,16 +1,17 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
-missingVariable :: ?[missing expression]
+missingVariable :: ?[missing variable resolution]
 missingVariable = <error>
 
-missingConstructor :: ?[missing expression]
+missingConstructor :: ?[missing constructor resolution]
 missingConstructor = <error>
 
 missingOperator :: forall t0. t0
 missingOperator = <error>
 
-missingNegate :: ?[missing expression]
+missingNegate :: ?[missing negate resolution]
 missingNegate = <error>
 
 missingDo :: forall t0 t1. t0 t1
