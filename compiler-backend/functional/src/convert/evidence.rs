@@ -601,7 +601,10 @@ where
         &mut self,
         declarations: &mut Vec<Declaration>,
     ) -> ConversionResult<()> {
-        let occurrences = std::mem::take(&mut self.evidence_hoisting.occurrences);
+        let mut occurrences = std::mem::take(&mut self.evidence_hoisting.occurrences);
+        // Reachability and deduplication only remove occurrences, so evidence recorded fewer
+        // than twice can never be shared and needs neither module-wide analysis.
+        occurrences.retain(|_, occurrences| occurrences.expressions.len() >= 2);
         if occurrences.is_empty() {
             return Ok(());
         }
@@ -611,7 +614,7 @@ where
             DeclarationKind::Constructor { .. } | DeclarationKind::Foreign => None,
         });
         let reachable = reachable_expressions(&self.storage, roots);
-        let unsafe_instances = unsafe_local_instances(&self.storage, declarations);
+        let mut unsafe_instances = None;
 
         let mut candidates = Vec::new();
         for (key, mut occurrences) in occurrences {
@@ -619,12 +622,15 @@ where
             occurrences
                 .expressions
                 .retain(|expression| reachable.contains(expression) && seen.insert(*expression));
+            if occurrences.expressions.len() < 2 {
+                continue;
+            }
 
             // Evidence construction is shareable by compiler contract, but forcing
             // a local recursive initializer during module initialization is not.
-            let repeated = occurrences.expressions.len() >= 2;
-            let safe = !key.contains_unsafe_instance(&self.evidence_keys, &unsafe_instances);
-            if !repeated || !safe {
+            let unsafe_instances = unsafe_instances
+                .get_or_insert_with(|| unsafe_local_instances(&self.storage, declarations));
+            if key.contains_unsafe_instance(&self.evidence_keys, unsafe_instances) {
                 continue;
             }
 
