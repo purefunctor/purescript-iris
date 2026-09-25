@@ -579,8 +579,10 @@ impl QueryEngine {
     }
 
     /// Verifies the given dependencies by executing them, returning the
-    /// timestamp of the most latest change.
-    fn verify_core(&self, dependencies: &[QueryKey]) -> QueryResult<usize> {
+    /// timestamp of the most latest change. Verification stops at the first
+    /// dependency that changed after `built`, since the query must be
+    /// recomputed regardless of the remaining dependencies.
+    fn verify_core(&self, dependencies: &[QueryKey], built: usize) -> QueryResult<usize> {
         let mut latest = 0;
 
         macro_rules! input_changed {
@@ -630,6 +632,10 @@ impl QueryEngine {
                 QueryKey::Documented(k) => derived_changed!(documented, k),
                 QueryKey::Functional(k) => derived_changed!(functional, k),
                 QueryKey::JavaScript(k) => derived_changed!(javascript, k),
+            }
+
+            if latest > built {
+                break;
             }
         }
 
@@ -749,7 +755,7 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
-                    let latest = self.verify_core(&dependencies)?;
+                    let latest = self.verify_core(&dependencies, trace.built)?;
 
                     // If the cached value was built more recently the the
                     // latest change, we can update its built timestamp to
@@ -2456,6 +2462,55 @@ mod tests {
             )
             .unwrap();
         assert_eq!(cached, parsed_b);
+    }
+
+    #[test]
+    fn test_verification_stops_at_first_changed_dependency() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let parent = files.insert("./src/Parent.purs", "module Parent where");
+        let child_a = files.insert("./src/ChildA.purs", "module ChildA where\n\nvalue = 1");
+        let child_b = files.insert("./src/ChildB.purs", "module ChildB where\n\nvalue = 2");
+        let child_c = files.insert("./src/ChildC.purs", "module ChildC where\n\nvalue = 3");
+        engine.set_content(child_a, files.content(child_a));
+        engine.set_content(child_b, files.content(child_b));
+        engine.set_content(child_c, files.content(child_c));
+
+        engine
+            .query(
+                QueryKey::Parsed(parent),
+                parent,
+                |derived| &derived.parsed,
+                |engine| {
+                    engine.parsed(child_a)?;
+                    engine.parsed(child_b)
+                },
+            )
+            .unwrap();
+
+        engine.set_content(child_a, "module ChildA where\n\nvalue = 4\nother = 5");
+        engine.set_content(child_b, "module ChildB where\n\nvalue = 6\nother = 7");
+        engine
+            .query(
+                QueryKey::Parsed(parent),
+                parent,
+                |derived| &derived.parsed,
+                |engine| engine.parsed(child_c),
+            )
+            .unwrap();
+
+        let revision = engine.control.global.revision.load(Ordering::Relaxed);
+        let verified = [child_a, child_b].into_iter().filter(|child| {
+            let shard = engine.derived.parsed.shard(child);
+            let guard = shard.read();
+            let Some(DerivedState::Computed { trace, .. }) = guard.get(child) else {
+                panic!("invariant violated: expected computed child query");
+            };
+            trace.built == revision
+        });
+        assert_eq!(verified.count(), 1, "verification should stop at the first changed dependency");
     }
 
     #[test]
