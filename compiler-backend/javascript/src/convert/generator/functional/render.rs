@@ -552,10 +552,11 @@ fn render_global_tail_call_group(
         let state_name = context.allocate("$state");
         let argument_names = (0..group.maximum_arity)
             .map(|position| context.allocate(format_smolstr!("$argument{position}")))
-            .collect_vec();
-        let tail_calls = TailCallContext::new(group, state_name.clone(), argument_names.clone());
+            .collect::<Arc<[_]>>();
+        let tail_calls =
+            TailCallContext::new(group, state_name.clone(), Arc::clone(&argument_names));
         let mut dispatcher_parameters = vec![state_name];
-        dispatcher_parameters.extend(argument_names);
+        dispatcher_parameters.extend(argument_names.iter().cloned());
         context.tail_calls = Some(tail_calls);
         renderer.writer.function(
             &group.dispatcher_name,
@@ -838,7 +839,7 @@ impl Generator<'_> {
             writer.mutable_value(tree, &name, value);
             argument_names.push(name);
         }
-        let tail_calls = TailCallContext::singleton(group, argument_names);
+        let tail_calls = TailCallContext::singleton(group, argument_names.into());
         let outer_tail_calls = context.tail_calls.replace(tail_calls);
         let result = self.render_tail_call_dispatcher(tree, writer, group, context);
         context.tail_calls = outer_tail_calls;
@@ -855,10 +856,11 @@ impl Generator<'_> {
         let state_name = context.allocate("$state");
         let argument_names = (0..group.maximum_arity)
             .map(|position| context.allocate(format_smolstr!("$argument{position}")))
-            .collect_vec();
-        let tail_calls = TailCallContext::new(group, state_name.clone(), argument_names.clone());
+            .collect::<Arc<[_]>>();
+        let tail_calls =
+            TailCallContext::new(group, state_name.clone(), Arc::clone(&argument_names));
         let mut dispatcher_parameters = vec![state_name];
-        dispatcher_parameters.extend(argument_names);
+        dispatcher_parameters.extend(argument_names.iter().cloned());
         let outer_tail_calls = context.tail_calls.replace(tail_calls);
         writer.constant_arrow(&group.dispatcher_name, dispatcher_parameters, |writer| {
             self.render_tail_call_dispatcher(tree, writer, group, context)
@@ -1377,7 +1379,7 @@ impl Generator<'_> {
             .as_ref()
             .expect("invariant violated: rendered tail call has no context");
         let state_name = tail_calls.state_name.clone();
-        let argument_names = tail_calls.argument_names.clone();
+        let argument_names = Arc::clone(&tail_calls.argument_names);
 
         if matches!(destination, Destination::EffectTailEffectReturn) {
             let marker = tree.boolean(true);
@@ -2152,11 +2154,11 @@ fn render_let(
                 let state_name = context.allocate("$state");
                 let argument_names = (0..group.maximum_arity)
                     .map(|position| context.allocate(format_smolstr!("$argument{position}")))
-                    .collect_vec();
+                    .collect::<Arc<[_]>>();
                 let tail_calls =
-                    TailCallContext::new(&group, state_name.clone(), argument_names.clone());
+                    TailCallContext::new(&group, state_name.clone(), Arc::clone(&argument_names));
                 let mut dispatcher_parameters = vec![state_name];
-                dispatcher_parameters.extend(argument_names);
+                dispatcher_parameters.extend(argument_names.iter().cloned());
                 let outer_tail_calls = context.tail_calls.replace(tail_calls);
                 writer.constant_arrow(&group.dispatcher_name, dispatcher_parameters, |writer| {
                     generator.render_tail_call_dispatcher(tree, writer, &group, context)
