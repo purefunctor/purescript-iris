@@ -53,10 +53,10 @@ fn global_file(id: GlobalId) -> files::FileId {
 }
 
 impl Generator<'_> {
-    pub(super) fn render_stylex_expression<'a, 't, 'd>(
+    pub(super) fn render_stylex_expression<'a, 't>(
         &self,
         tree: &'a mut Tree<'t>,
-        writer: &'a mut Writer<'d>,
+        writer: &'a mut Writer<'t>,
         stylex: &StyleXExpression,
         context: &'a mut FunctionContext,
     ) -> ModuleResult<RenderedExpression> {
@@ -173,10 +173,10 @@ impl Generator<'_> {
         tree.member(namespace, case.relation.name())
     }
 
-    fn render_stylex_conditional_value(
+    fn render_stylex_conditional_value<'t>(
         &self,
-        tree: &mut Tree<'_>,
-        writer: &mut Writer<'_>,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
         default: functional::tree::ExpressionId,
         cases: &[StyleXConditionalCase],
         context: &mut FunctionContext,
