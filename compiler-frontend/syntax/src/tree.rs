@@ -203,6 +203,12 @@ impl SyntaxNode {
         Some(SyntaxNode { owner: Arc::clone(&self.owner), id: child.id() })
     }
 
+    pub fn first_child_or_token(&self) -> Option<SyntaxElement> {
+        let tree = self.owner.tree.lock();
+        let child = tree.get(self.id)?.first()?;
+        Some(element(&self.owner, child.id(), child.value()))
+    }
+
     pub fn first_token(&self) -> Option<SyntaxToken> {
         let tree = self.owner.tree.lock();
         let node = tree.get(self.id)?;

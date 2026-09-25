@@ -1,7 +1,6 @@
-use rustc_hash::FxHashMap;
 use stabilizing::StabilizedModule;
 use syntax::ast::AstNode;
-use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxNodePtr, WalkEvent};
+use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxNodePtr};
 
 use indexing::{
     DataConstructorId, IndexedTermItem, IndexedTermItemKind, IndexedTypeItem, IndexedTypeItemKind,
@@ -9,40 +8,26 @@ use indexing::{
 use parsing::ParsedModule;
 use stabilizing::AstId;
 
-pub struct AnnotationIndex {
-    documentation: FxHashMap<SyntaxNodePtr, String>,
-    constructors: FxHashMap<SyntaxNodePtr, String>,
+/// Resolves documentation for item nodes on demand, as only item nodes can
+/// carry documentation that consumers observe.
+pub struct Annotations<'a> {
+    source: &'a str,
+    root: &'a SyntaxNode,
 }
 
-impl AnnotationIndex {
-    pub fn new(source: &str, root: &SyntaxNode) -> AnnotationIndex {
-        let mut documentation = FxHashMap::default();
-        let mut constructors = FxHashMap::default();
-
-        for event in root.preorder() {
-            let WalkEvent::Enter(node) = event else { continue };
-            let ptr = SyntaxNodePtr::new(&node);
-
-            if let Some(text) = first_child_documentation(source, &node) {
-                documentation.insert(ptr, text);
-            }
-
-            if matches!(node.kind(), SyntaxKind::DataConstructor)
-                && let Some(text) = data_constructor_documentation(source, &node)
-            {
-                constructors.insert(ptr, text);
-            }
-        }
-
-        AnnotationIndex { documentation, constructors }
+impl<'a> Annotations<'a> {
+    pub fn new(source: &'a str, root: &'a SyntaxNode) -> Annotations<'a> {
+        Annotations { source, root }
     }
 
-    fn documentation(&self, ptr: SyntaxNodePtr) -> &str {
-        self.documentation.get(&ptr).map(String::as_str).unwrap_or_default()
+    fn documentation(&self, ptr: SyntaxNodePtr) -> Option<String> {
+        let node = ptr.try_to_node(self.root)?;
+        first_child_documentation(self.source, &node)
     }
 
-    fn data_constructor_documentation(&self, ptr: SyntaxNodePtr) -> &str {
-        self.constructors.get(&ptr).map(String::as_str).unwrap_or_default()
+    fn data_constructor_documentation(&self, ptr: SyntaxNodePtr) -> Option<String> {
+        let node = ptr.try_to_node(self.root)?;
+        data_constructor_documentation(self.source, &node)
     }
 }
 
@@ -57,7 +42,7 @@ pub fn module_documentation(source: &str, parsed: &ParsedModule) -> String {
 
 pub fn term_documentation(
     stabilized: &StabilizedModule,
-    annotations: &AnnotationIndex,
+    annotations: &Annotations,
     item: &IndexedTermItem,
 ) -> String {
     match &item.kind {
@@ -82,7 +67,7 @@ pub fn term_documentation(
 
 pub fn instance_documentation(
     stabilized: &StabilizedModule,
-    annotations: &AnnotationIndex,
+    annotations: &Annotations,
     id: indexing::InstanceId,
 ) -> String {
     signature_equation_documentation(stabilized, annotations, &Some(id), &Some(id))
@@ -90,7 +75,7 @@ pub fn instance_documentation(
 
 pub fn derive_documentation(
     stabilized: &StabilizedModule,
-    annotations: &AnnotationIndex,
+    annotations: &Annotations,
     id: indexing::DeriveId,
 ) -> String {
     signature_equation_documentation(stabilized, annotations, &Some(id), &Some(id))
@@ -98,7 +83,7 @@ pub fn derive_documentation(
 
 pub fn type_documentation(
     stabilized: &StabilizedModule,
-    annotations: &AnnotationIndex,
+    annotations: &Annotations,
     item: &IndexedTypeItem,
 ) -> String {
     match &item.kind {
@@ -125,7 +110,7 @@ pub fn type_documentation(
 
 fn signature_equation_documentation<S, E>(
     stabilized: &StabilizedModule,
-    annotations: &AnnotationIndex,
+    annotations: &Annotations,
     signature: &Option<AstId<S>>,
     equation: &Option<AstId<E>>,
 ) -> String
@@ -135,17 +120,16 @@ where
 {
     if let Some(id) = signature
         && let Some(ptr) = stabilized.syntax_ptr(*id)
+        && let Some(documentation) = annotations.documentation(ptr)
+        && !documentation.is_empty()
     {
-        let documentation = annotations.documentation(ptr);
-        if !documentation.is_empty() {
-            return documentation.to_owned();
-        }
+        return documentation;
     }
 
     if let Some(id) = equation
         && let Some(ptr) = stabilized.syntax_ptr(*id)
     {
-        return annotations.documentation(ptr).to_owned();
+        return annotations.documentation(ptr).unwrap_or_default();
     }
 
     String::default()
@@ -153,12 +137,12 @@ where
 
 fn data_constructor_item_documentation(
     stabilized: &StabilizedModule,
-    annotations: &AnnotationIndex,
+    annotations: &Annotations,
     id: DataConstructorId,
 ) -> String {
     stabilized
         .syntax_ptr(id)
-        .map(|ptr| annotations.data_constructor_documentation(ptr).to_owned())
+        .and_then(|ptr| annotations.data_constructor_documentation(ptr))
         .unwrap_or_default()
 }
 
@@ -183,7 +167,7 @@ fn data_constructor_documentation(source: &str, node: &SyntaxNode) -> Option<Str
 }
 
 fn first_child_documentation(source: &str, node: &SyntaxNode) -> Option<String> {
-    let first_child = node.children_with_tokens().next()?;
+    let first_child = node.first_child_or_token()?;
     match first_child {
         SyntaxElement::Node(node) => annotation_documentation(source, &node),
         SyntaxElement::Token(_) => None,
@@ -270,7 +254,7 @@ value = 1
 
         let stabilized = stabilizing::stabilize_module(&root);
         let indexed = indexing::index_module(source, &cst, &stabilized);
-        let annotations = AnnotationIndex::new(source, &root);
+        let annotations = Annotations::new(source, &root);
 
         let id = indexed.names.terms.lookup("value").unwrap();
         let item = &indexed.items[id];
@@ -301,7 +285,7 @@ data Maybe a
 
         let stabilized = stabilizing::stabilize_module(&root);
         let indexed = indexing::index_module(source, &cst, &stabilized);
-        let annotations = AnnotationIndex::new(source, &root);
+        let annotations = Annotations::new(source, &root);
 
         let documentation = indexed.items.iter_terms().filter_map(|(_, item)| {
             if !matches!(item.kind, IndexedTermItemKind::Constructor { .. }) {
