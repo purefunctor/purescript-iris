@@ -401,35 +401,57 @@ impl Iterator for PreorderWithTokens {
     }
 }
 
+/// Collects enter and leave events with an explicit stack, as tree depth is
+/// unbounded in source.
 fn collect_events(
     owner: &Arc<TreeOwner>,
     node: syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>,
     out: &mut Vec<WalkEvent<SyntaxElement>>,
 ) {
-    let value = node.value();
-    let current = element(owner, node.id(), value);
+    let current = element(owner, node.id(), node.value());
     out.push(WalkEvent::Enter(current.clone()));
-    for child in node.children() {
-        collect_events(owner, child, out);
+    let mut stack = vec![(current, node.children())];
+
+    while let Some((_, children)) = stack.last_mut() {
+        if let Some(child) = children.next() {
+            let current = element(owner, child.id(), child.value());
+            out.push(WalkEvent::Enter(current.clone()));
+            stack.push((current, child.children()));
+        } else if let Some((current, _)) = stack.pop() {
+            out.push(WalkEvent::Leave(current));
+        }
     }
-    out.push(WalkEvent::Leave(current));
 }
 
+/// Collects enter and leave events for nodes with an explicit stack, as
+/// tree depth is unbounded in source.
 fn collect_node_events(
     owner: &Arc<TreeOwner>,
     node: syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>,
     out: &mut Vec<WalkEvent<SyntaxNode>>,
 ) {
-    let current = (node.value().category == ElementCategory::Node)
-        .then(|| SyntaxNode { owner: Arc::clone(owner), id: node.id() });
-    if let Some(current) = &current {
-        out.push(WalkEvent::Enter(current.clone()));
-    }
-    for child in node.children() {
-        collect_node_events(owner, child, out);
-    }
-    if let Some(current) = current {
-        out.push(WalkEvent::Leave(current));
+    let enter = |node: &syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>,
+                 out: &mut Vec<WalkEvent<SyntaxNode>>| {
+        let current = (node.value().category == ElementCategory::Node)
+            .then(|| SyntaxNode { owner: Arc::clone(owner), id: node.id() });
+        if let Some(current) = &current {
+            out.push(WalkEvent::Enter(current.clone()));
+        }
+        current
+    };
+
+    let current = enter(&node, out);
+    let mut stack = vec![(current, node.children())];
+
+    while let Some((_, children)) = stack.last_mut() {
+        if let Some(child) = children.next() {
+            let current = enter(&child, out);
+            stack.push((current, child.children()));
+        } else if let Some((current, _)) = stack.pop()
+            && let Some(current) = current
+        {
+            out.push(WalkEvent::Leave(current));
+        }
     }
 }
 
@@ -694,6 +716,27 @@ mod tests {
 
         assert!(root.first_child().is_none());
         assert_eq!(root.token(SyntaxKind::UPPER).unwrap().kind(), SyntaxKind::UPPER);
+    }
+
+    #[test]
+    fn deep_preorder_does_not_use_the_call_stack() {
+        const DEPTH: usize = 100_000;
+
+        let thread = std::thread::Builder::new().stack_size(64 * 1024).spawn(|| {
+            let mut builder = syntree::Builder::new();
+            for _ in 0..DEPTH {
+                builder.open(SyntaxValue::node(SyntaxKind::ExpressionParenthesized)).unwrap();
+            }
+            builder.token(SyntaxValue::token(SyntaxKind::LOWER), 1).unwrap();
+            for _ in 0..DEPTH {
+                builder.close().unwrap();
+            }
+            let root = SyntaxNode::new_root(TreeOwner::new(builder.build().unwrap()));
+
+            assert_eq!(root.preorder().count(), 2 * DEPTH);
+            assert_eq!(root.preorder_with_tokens().count(), 2 * DEPTH + 2);
+        });
+        thread.unwrap().join().expect("test panicked on small-stack thread");
     }
 
     #[test]
