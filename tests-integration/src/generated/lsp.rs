@@ -59,6 +59,7 @@ impl AnalyzerHost for IntegrationAnalyzerHost<'_> {
 enum CursorKind {
     GotoDefinition,
     Hover,
+    HoverPlainText,
     Completion,
     CompletionCached,
     References,
@@ -70,12 +71,13 @@ enum CursorKind {
 }
 
 impl CursorKind {
-    const CHARACTERS: &[char] = &['@', '$', '^', '~', '%', '/', '?', '!', '&', '.'];
+    const CHARACTERS: &[char] = &['@', '$', '*', '^', '~', '%', '/', '?', '!', '&', '.'];
 
     fn parse(text: &str) -> Option<CursorKind> {
         match text {
             "@" => Some(CursorKind::GotoDefinition),
             "$" => Some(CursorKind::Hover),
+            "*" => Some(CursorKind::HoverPlainText),
             "^" => Some(CursorKind::Completion),
             "~" => Some(CursorKind::CompletionCached),
             "%" => Some(CursorKind::References),
@@ -536,7 +538,10 @@ fn dispatch_cursor(
 ) {
     let encoding = PositionEncoding::Utf16;
     let host = IntegrationAnalyzerHost { queries: engine, files };
-    let capabilities = AnalyzerCapabilities::default().with_change_annotations();
+    let mut capabilities = AnalyzerCapabilities::default().with_change_annotations();
+    if matches!(cursor, CursorKind::Hover) {
+        capabilities = capabilities.with_markdown_hover();
+    }
     let context = analyzer::AnalyzerContext::new(&host, encoding, capabilities);
 
     match cursor {
@@ -559,7 +564,7 @@ fn dispatch_cursor(
                 writeln!(result, "<empty>").unwrap();
             }
         }
-        CursorKind::Hover => {
+        CursorKind::Hover | CursorKind::HoverPlainText => {
             let file_id = host.file_id(uri.as_str()).expect("hover URI references a loaded file");
             let content = engine.content(file_id).unwrap();
             let positions = analyzer::position::PositionConverter::new(&content, encoding);
@@ -581,29 +586,20 @@ fn dispatch_cursor(
                 }
 
                 match response.contents {
-                    Contents::MarkedString(marked) => {
-                        let marked = render_marked_string(marked);
-                        if marked.is_empty() {
-                            writeln!(result, "<empty>").unwrap();
-                        } else {
-                            writeln!(result, "{marked}").unwrap();
-                        }
-                    }
-                    Contents::MarkedStringList(marked) => {
-                        let marked = marked.into_iter().map(render_marked_string).join("\n");
-                        if marked.is_empty() {
-                            writeln!(result, "<empty>").unwrap();
-                        } else {
-                            writeln!(result, "{marked}").unwrap();
-                        }
-                    }
                     Contents::MarkupContent(markup) => {
+                        let expected = if matches!(cursor, CursorKind::Hover) {
+                            lsp_types::MarkupKind::Markdown
+                        } else {
+                            lsp_types::MarkupKind::PlainText
+                        };
+                        assert_eq!(markup.kind, expected);
                         if markup.value.is_empty() {
                             writeln!(result, "<empty>").unwrap();
                         } else {
                             writeln!(result, "{}", markup.value).unwrap();
                         }
                     }
+                    _ => panic!("hover must use MarkupContent"),
                 }
             } else {
                 writeln!(result, "<empty>").unwrap();
@@ -747,18 +743,6 @@ fn dispatch_cursor(
             } else {
                 writeln!(result, "<empty>").unwrap();
             }
-        }
-    }
-}
-
-// Hovers still use the `MarkedString` type that LSP 3.18 deprecates.
-#[allow(deprecated)]
-fn render_marked_string(marked: lsp_types::MarkedString) -> String {
-    use lsp_types::{MarkedString, MarkedStringWithLanguage};
-    match marked {
-        MarkedString::String(string) => string,
-        MarkedString::MarkedStringWithLanguage(MarkedStringWithLanguage { language, value }) => {
-            format!("```{language}\n{value}\n```")
         }
     }
 }

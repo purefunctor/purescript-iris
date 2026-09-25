@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 Hover at Position { line: 3, character: 20 }
 
@@ -13,7 +14,9 @@ Range: <none>
 ```purescript
 Effect :: Type -> Type
 ```
+
 ---
+
 A safe abstraction over side-effects
 
 
@@ -49,7 +52,9 @@ Range: <none>
 ```purescript
 effectEffectEffect :: Int
 ```
+
 ---
+
 An example value
 
 
@@ -71,3 +76,17 @@ effectEffectEffect = 123
 ```
 
 file:///tests-integration/fixtures/lsp/1758309780_locate_declaration/Main.purs @ 13:7..13:25
+
+
+HoverPlainText at Position { line: 13, character: 7 }
+
+```
+test = effectEffectEffect
+--     *
+```
+
+Range: "effectEffectEffect"
+
+effectEffectEffect :: Int
+
+An example value

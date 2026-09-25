@@ -12,3 +12,4 @@ effectEffectEffect = 123
 -- $ @ %
 
 test = effectEffectEffect
+--     *

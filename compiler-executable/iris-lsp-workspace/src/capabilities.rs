@@ -24,11 +24,21 @@ pub(crate) fn negotiate_analyzer_capabilities(
             && honors_rename_annotations
     });
 
+    let mut negotiated = AnalyzerCapabilities::default();
     if change_annotations {
-        AnalyzerCapabilities::default().with_change_annotations()
-    } else {
-        AnalyzerCapabilities::default()
+        negotiated = negotiated.with_change_annotations();
     }
+    let markdown_hover = parameters
+        .capabilities
+        .text_document
+        .as_ref()
+        .and_then(|text_document| text_document.hover.as_ref())
+        .and_then(|hover| hover.content_format.as_ref())
+        .is_some_and(|formats| formats.contains(&MarkupKind::Markdown));
+    if markdown_hover {
+        negotiated = negotiated.with_markdown_hover();
+    }
+    negotiated
 }
 
 pub(crate) fn negotiate_position_encoding(parameters: &InitializeParams) -> PositionEncoding {
@@ -119,7 +129,10 @@ fn legend(names: &[impl ToString]) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use lsp_types::{ClientCapabilities, GeneralClientCapabilities};
+    use lsp_types::{
+        ClientCapabilities, GeneralClientCapabilities, HoverClientCapabilities,
+        TextDocumentClientCapabilities,
+    };
 
     use super::*;
 
@@ -175,5 +188,40 @@ mod tests {
 
         let encoding = negotiate_position_encoding(&parameters);
         assert_eq!(encoding, PositionEncoding::Utf32);
+    }
+
+    #[test]
+    fn negotiates_hover_content_format() {
+        let mut parameters = InitializeParams::default();
+        assert_eq!(
+            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            MarkupKind::PlainText
+        );
+
+        parameters.capabilities.text_document = Some(TextDocumentClientCapabilities {
+            hover: Some(HoverClientCapabilities {
+                content_format: Some(vec![MarkupKind::PlainText]),
+                ..HoverClientCapabilities::default()
+            }),
+            ..TextDocumentClientCapabilities::default()
+        });
+        assert_eq!(
+            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            MarkupKind::PlainText
+        );
+
+        parameters
+            .capabilities
+            .text_document
+            .as_mut()
+            .unwrap()
+            .hover
+            .as_mut()
+            .unwrap()
+            .content_format = Some(vec![MarkupKind::PlainText, MarkupKind::Markdown]);
+        assert_eq!(
+            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            MarkupKind::Markdown
+        );
     }
 }
