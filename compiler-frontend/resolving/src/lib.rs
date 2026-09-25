@@ -224,30 +224,7 @@ impl ResolvedModule {
             }
         }
 
-        // If an unqualified Prim import exists, use its import list;
-        if let Some(prim_imports) = self.unqualified.get("Prim") {
-            for prim_import in prim_imports {
-                if prim_import.contains_term(file_id, item_id) {
-                    return true;
-                }
-            }
-        }
-
-        // if a qualified Prim import exists, use its import list;
-        if let Some(prim_imports) = self.qualified.get("Prim") {
-            for prim_import in prim_imports {
-                if prim_import.contains_term(file_id, item_id) {
-                    return true;
-                }
-            }
-        }
-
-        // if there are no Prim imports, use the export list.
-        if prim.exports.contains_term(file_id, item_id) {
-            return true;
-        }
-
-        false
+        prim.exports.contains_term(file_id, item_id)
     }
 }
 
