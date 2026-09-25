@@ -1,5 +1,6 @@
 //! Analysis and document handlers.
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use building::QueryError;
@@ -339,10 +340,11 @@ pub(crate) fn apply_content_changes(
     content_changes: &[ContentChange],
     position_encoding: PositionEncoding,
 ) -> Result<Arc<str>, DocumentError> {
-    let mut content = content.to_string();
+    // Full replacements discard the document, so copy text only once a range edits it.
+    let mut content = Cow::Borrowed(content);
     for content_change in content_changes {
         let Some(range) = content_change.range else {
-            content = String::clone(&content_change.text);
+            content = Cow::Borrowed(&content_change.text);
             continue;
         };
 
@@ -367,9 +369,9 @@ pub(crate) fn apply_content_changes(
             return Err(DocumentError::InvalidContentChange(Uri::clone(uri)));
         }
 
-        content.replace_range(start..end, &content_change.text);
+        content.to_mut().replace_range(start..end, &content_change.text);
     }
-    Ok(Arc::from(content))
+    Ok(Arc::from(content.as_ref()))
 }
 
 /// An analysis request with decoded parameters, ready to run on a snapshot.
