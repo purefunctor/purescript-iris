@@ -398,6 +398,9 @@ fn lower_expression_kind(
                         cst::DoStatement::DoStatementDiscard(_) if !is_final => has_discard = true,
                         _ => {}
                     }
+                    if has_bind && has_discard {
+                        break;
+                    }
                 }
 
                 (has_bind, has_discard)
@@ -450,6 +453,7 @@ fn lower_expression_kind(
                                 | cst::DoStatement::DoStatementDiscard(_)
                         )
                     })
+                    .take(2)
                     .count()
             });
 
@@ -1131,14 +1135,9 @@ fn lower_type_kind(
             TypeKind::String { kind, value }
         }
         cst::Type::TypeVariable(cst) => {
-            let name = cst.name_token().map(|cst| {
-                let text = cst.text(context.source);
-                SmolStr::from(text)
-            });
-            let resolution = cst.name_token().and_then(|cst| {
-                let text = cst.text(context.source);
-                state.resolve_type_variable(id, text)
-            });
+            let text = cst.name_token().map(|cst| cst.text(context.source));
+            let name = text.map(SmolStr::from);
+            let resolution = text.and_then(|text| state.resolve_type_variable(id, text));
             if resolution.is_none() {
                 let id = context.stabilized.lookup_cst(cst).expect_id();
                 state.errors.push(LoweringError::NotInScope(NotInScope::TypeVariable { id }));
