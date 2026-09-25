@@ -406,7 +406,8 @@ impl CheckState {
             return Ok(Some(variable));
         }
 
-        for renaming in Vec::clone(&self.bindings.renamings) {
+        for index in 0..self.bindings.renamings.len() {
+            let renaming = Arc::clone(&self.bindings.renamings[index]);
             variable.kind = renaming.substitute(self, context, variable.kind)?;
             if let Some((name, depth)) = renaming.replacement(variable.name) {
                 variable.name = name;
