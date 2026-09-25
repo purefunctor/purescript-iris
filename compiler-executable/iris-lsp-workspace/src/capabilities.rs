@@ -34,7 +34,12 @@ pub(crate) fn negotiate_analyzer_capabilities(
         .as_ref()
         .and_then(|text_document| text_document.hover.as_ref())
         .and_then(|hover| hover.content_format.as_ref())
-        .is_some_and(|formats| formats.contains(&MarkupKind::Markdown));
+        .and_then(|formats| {
+            formats
+                .iter()
+                .find(|format| matches!(format, MarkupKind::PlainText | MarkupKind::Markdown))
+        })
+        .is_some_and(|format| format == &MarkupKind::Markdown);
     if markdown_hover {
         negotiated = negotiated.with_markdown_hover();
     }
@@ -219,6 +224,20 @@ mod tests {
             .as_mut()
             .unwrap()
             .content_format = Some(vec![MarkupKind::PlainText, MarkupKind::Markdown]);
+        assert_eq!(
+            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            MarkupKind::PlainText
+        );
+
+        parameters
+            .capabilities
+            .text_document
+            .as_mut()
+            .unwrap()
+            .hover
+            .as_mut()
+            .unwrap()
+            .content_format = Some(vec![MarkupKind::Markdown, MarkupKind::PlainText]);
         assert_eq!(
             negotiate_analyzer_capabilities(&parameters).hover_format(),
             MarkupKind::Markdown

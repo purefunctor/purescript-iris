@@ -475,7 +475,15 @@ fn render_syntax(source: &str, range: TextRange) -> Option<String> {
 fn render_hover(format: &MarkupKind, code: Option<String>, annotation: Option<String>) -> Hover {
     let value = match format {
         MarkupKind::Markdown => {
-            let code = code.map(|value| format!("```purescript\n{value}\n```"));
+            let code = code.map(|value| {
+                let longest_run = value
+                    .split(|character| character != '`')
+                    .map(str::len)
+                    .max()
+                    .unwrap_or_default();
+                let fence = "`".repeat(longest_run.max(2) + 1);
+                format!("{fence}purescript\n{value}\n{fence}")
+            });
             [code, annotation].into_iter().flatten().collect::<Vec<_>>().join("\n\n---\n\n")
         }
         MarkupKind::PlainText | MarkupKind::Custom(_) => {
@@ -485,6 +493,20 @@ fn render_hover(format: &MarkupKind, code: Option<String>, annotation: Option<St
     Hover {
         contents: Contents::MarkupContent(MarkupContent { kind: format.clone(), value }),
         range: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn markdown_hover_keeps_source_backticks_inside_the_code_block() {
+        let source = "module Main {-\n```\n````\n-} where".to_string();
+        let hover = render_hover(&MarkupKind::Markdown, Some(source.clone()), None);
+        let Contents::MarkupContent(markup) = hover.contents else { panic!("expected markup") };
+        assert_eq!(markup.kind, MarkupKind::Markdown);
+        assert_eq!(markup.value, format!("`````purescript\n{source}\n`````"));
     }
 }
 
