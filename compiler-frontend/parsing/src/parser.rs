@@ -6,6 +6,7 @@ mod names;
 mod types;
 
 use std::cell::Cell;
+use std::collections::HashMap;
 
 #[cfg(debug_assertions)]
 use drop_bomb::DropBomb;
@@ -19,9 +20,24 @@ pub(crate) struct Parser<'t> {
     output: Vec<Event>,
     errors: Vec<ParserError>,
     fuel: Cell<u16>,
+    failed_alternatives: HashMap<(usize, usize), FailedAlternative>,
 }
 
 type Rule = fn(&mut Parser);
+
+struct Checkpoint {
+    index: usize,
+    output: usize,
+    errors: usize,
+}
+
+/// The output of an alternative that failed with errors, replayed when an
+/// enclosing alternative parses the same tokens again.
+struct FailedAlternative {
+    index: usize,
+    output: Box<[Event]>,
+    errors: Box<[ParserError]>,
+}
 
 impl<'t> Parser<'t> {
     pub(crate) fn new(tokens: &'t [SyntaxKind]) -> Parser<'t> {
@@ -29,7 +45,8 @@ impl<'t> Parser<'t> {
         let output = Vec::with_capacity(tokens.len());
         let errors = vec![];
         let fuel = Cell::new(u16::MAX);
-        Parser { index, tokens, output, errors, fuel }
+        let failed_alternatives = HashMap::new();
+        Parser { index, tokens, output, errors, fuel, failed_alternatives }
     }
 
     pub(crate) fn finish(self) -> Output {
@@ -81,34 +98,96 @@ impl<'t> Parser<'t> {
         }
     }
 
-    fn alternative(&mut self, rules: impl IntoIterator<Item = Rule>) {
-        let initial_index = self.index;
-        let initial_output = self.output.len();
-        let initial_errors = self.errors.len();
-        let mut rules = rules.into_iter();
-        let fallback = rules.next().expect("invariant violated: at least one branch");
-
-        fallback(self);
-        if self.errors.len() == initial_errors {
+    /// Prefers `rule` when it parses without errors, then `other`; if both
+    /// fail, keeps `rule`'s output and diagnostics for error recovery.
+    ///
+    /// `prefix` must parse the leading tokens of `rule`, such that its failure
+    /// implies `rule` fails. This lets `other` run first when the prefix fails,
+    /// without losing `rule`'s diagnostics if `other` fails too. Failed
+    /// outputs are replayed after backtracking to avoid exponential reparsing
+    /// across nested choices. Replay is keyed by `rule` and token index, so
+    /// each `rule` must have a fixed `other`, and both must be deterministic
+    /// from that index.
+    fn prefer_with_prefix(&mut self, prefix: Rule, rule: Rule, other: Rule) {
+        let key = (self.index, rule as usize);
+        if let Some(failed) = self.failed_alternatives.remove(&key) {
+            self.replay(&failed);
+            self.failed_alternatives.insert(key, failed);
             return;
         }
-        self.index = initial_index;
-        self.output.truncate(initial_output);
-        self.errors.truncate(initial_errors);
 
-        for rule in rules {
+        let checkpoint = self.checkpoint();
+        let failed = if self.speculate(prefix) {
             rule(self);
-
-            if self.errors.len() == initial_errors {
+            if self.succeeded_since(&checkpoint) {
                 return;
             }
+            let failed = self.failed_since(&checkpoint);
+            self.rewind(&checkpoint);
 
-            self.index = initial_index;
-            self.output.truncate(initial_output);
-            self.errors.truncate(initial_errors);
+            other(self);
+            if self.succeeded_since(&checkpoint) {
+                return;
+            }
+            self.rewind(&checkpoint);
+
+            self.replay(&failed);
+            failed
+        } else {
+            other(self);
+            if self.succeeded_since(&checkpoint) {
+                return;
+            }
+            self.rewind(&checkpoint);
+
+            rule(self);
+            debug_assert!(
+                !self.succeeded_since(&checkpoint),
+                "invariant violated: rule succeeded after its prefix failed"
+            );
+            self.failed_since(&checkpoint)
+        };
+
+        self.failed_alternatives.insert(key, failed);
+    }
+
+    /// Returns whether `rule` parses without errors, without consuming input.
+    fn speculate(&mut self, rule: Rule) -> bool {
+        let checkpoint = self.checkpoint();
+        rule(self);
+        let succeeded = self.succeeded_since(&checkpoint);
+        self.rewind(&checkpoint);
+        succeeded
+    }
+
+    fn checkpoint(&self) -> Checkpoint {
+        Checkpoint { index: self.index, output: self.output.len(), errors: self.errors.len() }
+    }
+
+    fn succeeded_since(&self, checkpoint: &Checkpoint) -> bool {
+        self.errors.len() == checkpoint.errors
+    }
+
+    fn failed_since(&self, checkpoint: &Checkpoint) -> FailedAlternative {
+        let index = self.index;
+        let output = self.output[checkpoint.output..].into();
+        let errors = self.errors[checkpoint.errors..].into();
+        FailedAlternative { index, output, errors }
+    }
+
+    fn replay(&mut self, failed: &FailedAlternative) {
+        if failed.index > self.index {
+            self.fuel.set(u16::MAX);
         }
+        self.index = failed.index;
+        self.output.extend_from_slice(&failed.output);
+        self.errors.extend_from_slice(&failed.errors);
+    }
 
-        fallback(self);
+    fn rewind(&mut self, checkpoint: &Checkpoint) {
+        self.index = checkpoint.index;
+        self.output.truncate(checkpoint.output);
+        self.errors.truncate(checkpoint.errors);
     }
 
     fn error(&mut self, message: &'static str) {

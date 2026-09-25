@@ -11,7 +11,7 @@ pub(crate) struct Output {
     pub(crate) errors: Vec<ParserError>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Event {
     Start { kind: SyntaxKind },
     Annotate,
@@ -21,7 +21,7 @@ pub(crate) enum Event {
     Finish,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum ParserError {
     Message(&'static str),
     Expected(SyntaxKind),

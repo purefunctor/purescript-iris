@@ -310,7 +310,7 @@ fn do_statement(p: &mut Parser) {
     if p.at(SyntaxKind::LET) {
         do_statement_let(p);
     } else {
-        p.alternative([do_statement_bind, do_statement_discard]);
+        p.prefer_with_prefix(binders::binder_left_arrow, do_statement_bind, do_statement_discard);
     }
 }
 
@@ -324,8 +324,7 @@ fn do_statement_let(p: &mut Parser) {
 
 fn do_statement_bind(p: &mut Parser) {
     let mut m = p.start();
-    binders::binder(p);
-    p.expect(SyntaxKind::LEFT_ARROW);
+    binders::binder_left_arrow(p);
     expression(p);
     m.end(p, SyntaxKind::DoStatementBind);
 }

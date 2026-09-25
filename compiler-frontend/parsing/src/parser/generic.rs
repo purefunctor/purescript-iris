@@ -29,15 +29,24 @@ const EQUATION_BINDERS_END: TokenSet = TokenSet::new(&[SyntaxKind::EQUAL, Syntax
 
 pub(super) fn signature_or_equation(p: &mut Parser, s: SyntaxKind, e: SyntaxKind) {
     let mut m = p.start();
-    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
-    if p.eat(SyntaxKind::DOUBLE_COLON) {
+    if signature_or_equation_head(p) {
         types::type_(p);
         m.end(p, s);
     } else {
-        function_binders(p, EQUATION_BINDERS_END);
         unconditional_or_conditionals(p, SyntaxKind::EQUAL);
         m.end(p, e);
     }
+}
+
+/// Parses the name and binders that begin [`signature_or_equation`],
+/// returning whether it continues as a signature.
+pub(super) fn signature_or_equation_head(p: &mut Parser) -> bool {
+    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    if p.eat(SyntaxKind::DOUBLE_COLON) {
+        return true;
+    }
+    function_binders(p, EQUATION_BINDERS_END);
+    false
 }
 
 const FUNCTION_BINDERS_RECOVERY: TokenSet =
@@ -118,13 +127,16 @@ const PATTERN_GUARD_RECOVERY: TokenSet =
     TokenSet::new(&[SyntaxKind::LAYOUT_SEPARATOR, SyntaxKind::LAYOUT_END]);
 
 fn pattern_guard(p: &mut Parser) {
-    p.alternative([pattern_guard_binder, pattern_guard_expression]);
+    p.prefer_with_prefix(
+        binders::binder_left_arrow,
+        pattern_guard_binder,
+        pattern_guard_expression,
+    );
 }
 
 fn pattern_guard_binder(p: &mut Parser) {
     let mut m = p.start();
-    binders::binder(p);
-    p.expect(SyntaxKind::LEFT_ARROW);
+    binders::binder_left_arrow(p);
     expressions::expression(p);
     m.end(p, SyntaxKind::PatternGuardBinder);
 }

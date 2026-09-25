@@ -2,6 +2,12 @@ use syntax::{SyntaxKind, TokenSet};
 
 use super::{NodeMarker, Parser, generic, names, types};
 
+/// Parses the `binder <-` prefix of binds in do statements and pattern guards.
+pub(super) fn binder_left_arrow(p: &mut Parser) {
+    binder(p);
+    p.expect(SyntaxKind::LEFT_ARROW);
+}
+
 pub(super) fn binder(p: &mut Parser) {
     let mut m = p.start();
 
