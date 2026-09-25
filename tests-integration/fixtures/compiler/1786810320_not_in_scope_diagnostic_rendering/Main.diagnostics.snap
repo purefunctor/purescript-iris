@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Error! · [NotInScope] · Main.purs:4:19
   •
@@ -184,7 +185,8 @@ Error! · [CannotUnify] · Main.purs:7:17
 Error! · [CannotUnify] · Main.purs:10:3
   •
   │
-  • Cannot unify '?[missing expression]' with '(t0 :: Type -> Type) ((t0 :: Type -> Type) t1)'
+  • Cannot unify '?[missing variable resolution]' with '(t0 :: Type -> Type) ((t0 :: Type -> Type)
+  │ t1)'
   │
   │     value <- absent
   │     ╰──────────────
@@ -193,7 +195,7 @@ Error! · [CannotUnify] · Main.purs:10:3
 Error! · [CannotUnify] · Main.purs:14:3
   •
   │
-  • Cannot unify '?[missing expression]' with '(t2 :: Type -> Type) ?24'
+  • Cannot unify '?[missing variable resolution]' with '(t2 :: Type -> Type) ?24'
   │
   │     absent
   │     ╰─────
@@ -202,7 +204,7 @@ Error! · [CannotUnify] · Main.purs:14:3
 Error! · [CannotUnify] · Main.purs:15:3
   •
   │
-  • Cannot unify '?[missing expression]' with '(t2 :: Type -> Type) t3'
+  • Cannot unify '?[missing variable resolution]' with '(t2 :: Type -> Type) t3'
   │
   │     absent
   │     ╰─────
@@ -211,7 +213,7 @@ Error! · [CannotUnify] · Main.purs:15:3
 Error! · [CannotUnify] · Main.purs:18:3
   •
   │
-  • Cannot unify '?[missing expression]' with '(t4 :: Type -> Type) t5'
+  • Cannot unify '?[missing variable resolution]' with '(t4 :: Type -> Type) t5'
   │
   │     value <- absent
   │     ╰──────────────
@@ -220,7 +222,7 @@ Error! · [CannotUnify] · Main.purs:18:3
 Error! · [CannotUnify] · Main.purs:19:3
   •
   │
-  • Cannot unify '?[missing expression]' with '(t4 :: Type -> Type) ?34'
+  • Cannot unify '?[missing variable resolution]' with '(t4 :: Type -> Type) ?34'
   │
   │     second <- absent
   │     ╰───────────────
@@ -238,7 +240,7 @@ Error! · [CannotUnify] · Main.purs:25:16
 Error! · [CannotUnify] · Main.purs:26:15
   •
   │
-  • Cannot unify '?[missing expression]' with '?[missing constructor]'
+  • Cannot unify '?[missing variable resolution]' with '?[missing constructor]'
   │
   │   missingType = absent
   │                 ╰─────

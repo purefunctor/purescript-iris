@@ -2,7 +2,7 @@ use building_types::QueryResult;
 
 use crate::context::CheckContext;
 use crate::core::substitute::SubstituteName;
-use crate::core::{ApplicationArgument, Type, TypeId, normalise, unification};
+use crate::core::{Type, TypeId, normalise, unification};
 use crate::error::ErrorKind;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
@@ -21,23 +21,6 @@ pub enum Argument {
 pub struct Options {
     pub message: &'static str,
     pub expand: bool,
-}
-
-pub enum Records {
-    Ignore,
-    Collect(Vec<ApplicationArgument>),
-}
-
-impl Records {
-    pub fn collect() -> Records {
-        Records::Collect(vec![])
-    }
-
-    fn push(&mut self, argument: ApplicationArgument) {
-        if let Records::Collect(recorded_arguments) = self {
-            recorded_arguments.push(argument);
-        }
-    }
 }
 
 impl Options {
@@ -68,8 +51,7 @@ pub fn infer_application_kind<Q>(
     (mut function_type, mut function_kind): FnTypeKind,
     argument: Argument,
     options: Options,
-    mut records: Records,
-) -> QueryResult<(FnTypeKind, Records)>
+) -> QueryResult<FnTypeKind>
 where
     Q: ExternalQueries,
 {
@@ -88,8 +70,7 @@ where
                 let result_type = context.intern_application(function_type, argument_type);
                 let result_kind = options.normalise(state, context, result_kind)?;
 
-                records.push(ApplicationArgument::Type(argument_type));
-                break Ok(((result_type, result_kind), records));
+                break Ok((result_type, result_kind));
             }
 
             Type::Unification(unification_id) => {
@@ -109,8 +90,7 @@ where
                 let result_type = context.intern_application(function_type, argument_type);
                 let result_kind = options.normalise(state, context, result_kind)?;
 
-                records.push(ApplicationArgument::Type(argument_type));
-                break Ok(((result_type, result_kind), records));
+                break Ok((result_type, result_kind));
             }
 
             Type::Forall(binder_id, inner_kind) => {
@@ -123,7 +103,6 @@ where
                 function_kind =
                     SubstituteName::one(state, context, binder.name, kind_argument, inner_kind)?;
 
-                records.push(ApplicationArgument::Kind(kind_argument));
             }
 
             _ => {
@@ -141,8 +120,7 @@ where
                     argument_type,
                 });
 
-                records.push(ApplicationArgument::Type(argument_type));
-                break Ok(((invalid_type, unknown_kind), records));
+                break Ok((invalid_type, unknown_kind));
             }
         }
     }
@@ -154,17 +132,15 @@ pub fn infer_application_arguments<Q>(
     mut function: FnTypeKind,
     arguments: &[Argument],
     options: Options,
-    mut records: Records,
-) -> QueryResult<(FnTypeKind, Records)>
+) -> QueryResult<FnTypeKind>
 where
     Q: ExternalQueries,
 {
     for &argument in arguments {
-        (function, records) =
-            infer_application_kind(state, context, function, argument, options, records)?;
+        function = infer_application_kind(state, context, function, argument, options)?;
     }
 
-    Ok((function, records))
+    Ok(function)
 }
 
 fn check_application_argument_kind<Q>(

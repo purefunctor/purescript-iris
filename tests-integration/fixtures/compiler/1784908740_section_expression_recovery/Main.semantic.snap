@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 identity :: forall a. a -> a
 identity = \value -> value
@@ -7,13 +8,13 @@ identity = \value -> value
 apply :: forall a b. (a -> b) -> a -> b
 apply = \function -> \argument -> function argument
 
-orphan :: ?[missing expression]
+orphan :: ?[missing section provenance]
 orphan = <error>
 
-orphanInLambda :: forall t0. t0 -> ?[missing expression]
+orphanInLambda :: forall t0. t0 -> ?[missing section provenance]
 orphanInLambda = \value -> <error>
 
-failedBody :: forall t0. (?[missing expression] -> t0) -> t0
+failedBody :: forall t0. (?[missing variable resolution] -> t0) -> t0
 failedBody = \v56 -> apply v56 <error>
 
 invalidExpected :: Prim.Int

@@ -14,7 +14,7 @@ use crate::core::substitute::{NameToType, SubstituteName};
 use crate::core::walk::{self, TypeWalker};
 use crate::core::{
     ApplicationArgument, CheckedClass, CheckedSynonym, ForallBinder, Name, Role, SmolStrId, Type,
-    TypeId, constraint, normalise, unification,
+    TypeFlags, TypeId, constraint, normalise, unification,
 };
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
@@ -635,10 +635,14 @@ where
                 && *unification == self.unification
             {
                 self.contains = true;
-                Ok(walk::WalkAction::Stop)
+                Ok(walk::WalkAction::Break)
             } else {
                 Ok(walk::WalkAction::Continue)
             }
+        }
+
+        fn may_visit(&self, flags: TypeFlags) -> bool {
+            flags.has_unification()
         }
     }
 
@@ -673,10 +677,16 @@ where
                 && *name == self.name
             {
                 self.contains = true;
-                Ok(walk::WalkAction::Stop)
+                Ok(walk::WalkAction::Break)
             } else {
                 Ok(walk::WalkAction::Continue)
             }
+        }
+
+        // Solved unification variables are walked through, and their
+        // solutions may contain the rigid variable.
+        fn may_visit(&self, flags: TypeFlags) -> bool {
+            flags.has_variables()
         }
     }
 

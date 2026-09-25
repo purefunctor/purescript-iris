@@ -7,7 +7,7 @@ use crate::context::CheckContext;
 use crate::core::{Type, TypeId, normalise, toolkit, unification};
 use crate::error::ErrorKind;
 use crate::source::types;
-use crate::source::types::application::{self, Argument, Options, Records};
+use crate::source::types::application::{self, Argument, Options};
 use crate::state::CheckState;
 
 use super::DeriveStrategy;
@@ -60,13 +60,12 @@ where
         (class, class_kind),
         |function, argument| {
             let argument_kind = types::elaborate_kind(state, context, argument)?;
-            let ((function, function_kind), _) = application::infer_application_kind(
+            let (function, function_kind) = application::infer_application_kind(
                 state,
                 context,
                 function,
                 Argument::Core(argument, argument_kind),
                 Options::TYPES,
-                Records::Ignore,
             )?;
             Ok((function, function_kind))
         },

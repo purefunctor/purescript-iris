@@ -44,14 +44,14 @@ where
     Q: ExternalQueries,
     E: IsOperator<Q>,
 {
-    let unknown = (E::unknown_elaborated(context), context.unknown("invalid operator chain"));
+    let unknown = || (E::unknown_elaborated(context), context.unknown("invalid operator chain"));
 
     let Some(operator_tree) = E::lookup_tree(context, id) else {
-        return Ok(unknown);
+        return Ok(unknown());
     };
 
     let Ok(operator_tree) = operator_tree else {
-        return Ok(unknown);
+        return Ok(unknown());
     };
 
     traverse_operator_tree(state, context, operator_tree, OperatorKindMode::Infer)
@@ -67,14 +67,14 @@ where
     Q: ExternalQueries,
     E: IsOperator<Q>,
 {
-    let unknown = (E::unknown_elaborated(context), expected_type);
+    let unknown = || (E::unknown_elaborated(context), expected_type);
 
     let Some(operator_tree) = E::lookup_tree(context, id) else {
-        return Ok(unknown);
+        return Ok(unknown());
     };
 
     let Ok(operator_tree) = operator_tree else {
-        return Ok(unknown);
+        return Ok(unknown());
     };
 
     traverse_operator_tree(state, context, operator_tree, OperatorKindMode::Check { expected_type })
@@ -114,14 +114,14 @@ where
     Q: ExternalQueries,
     E: IsOperator<Q>,
 {
-    let unknown_elaborated = E::unknown_elaborated(context);
+    let unknown_elaborated = || E::unknown_elaborated(context);
 
     match operator_tree {
         OperatorTree::Leaf(None) => match mode {
             OperatorKindMode::Infer => {
-                Ok((unknown_elaborated, context.unknown("missing operator leaf")))
+                Ok((unknown_elaborated(), context.unknown("missing operator leaf")))
             }
-            OperatorKindMode::Check { expected_type } => Ok((unknown_elaborated, expected_type)),
+            OperatorKindMode::Check { expected_type } => Ok((unknown_elaborated(), expected_type)),
         },
 
         OperatorTree::Leaf(Some(type_id)) => match mode {
@@ -139,10 +139,10 @@ where
             let Some((file_id, item_id)) = E::lookup_operator(context, *operator_id) else {
                 return match mode {
                     OperatorKindMode::Infer => {
-                        Ok((unknown_elaborated, context.unknown("missing operator resolution")))
+                        Ok((unknown_elaborated(), context.unknown("missing operator resolution")))
                     }
                     OperatorKindMode::Check { expected_type } => {
-                        Ok((unknown_elaborated, expected_type))
+                        Ok((unknown_elaborated(), expected_type))
                     }
                 };
             };
@@ -175,10 +175,13 @@ where
     Q: ExternalQueries,
     E: IsOperator<Q>,
 {
-    let unknown_elaborated = E::unknown_elaborated(context);
-    let unknown = match mode {
-        OperatorKindMode::Infer => (unknown_elaborated, context.unknown("invalid operator kind")),
-        OperatorKindMode::Check { expected_type } => (unknown_elaborated, expected_type),
+    let unknown = || match mode {
+        OperatorKindMode::Infer => {
+            (E::unknown_elaborated(context), context.unknown("invalid operator kind"))
+        }
+        OperatorKindMode::Check { expected_type } => {
+            (E::unknown_elaborated(context), expected_type)
+        }
     };
 
     let Some(terms::application::UnanchoredApplication {
@@ -187,7 +190,7 @@ where
         result: right_function_type,
     }) = terms::application::check_unanchored_application(state, context, operator_type)?
     else {
-        return Ok(unknown);
+        return Ok(unknown());
     };
 
     let Some(terms::application::UnanchoredApplication {
@@ -196,7 +199,7 @@ where
         result: result_type,
     }) = terms::application::check_unanchored_application(state, context, right_function_type)?
     else {
-        return Ok(unknown);
+        return Ok(unknown());
     };
 
     E::record_branch_types(state, operator_id, left_type, right_type, result_type);
@@ -565,13 +568,12 @@ impl<Q: ExternalQueries> IsOperator<Q> for lowering::TypeId {
             application::Argument::Core(right_argument, right_kind),
         ];
 
-        let ((elaborated_type, _), _) = application::infer_application_arguments(
+        let (elaborated_type, _) = application::infer_application_arguments(
             state,
             context,
             function,
             &arguments,
             application::Options::OPERATOR,
-            application::Records::Ignore,
         )?;
 
         let result_kind = normalise::normalise(state, context, right.result_type);

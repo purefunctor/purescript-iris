@@ -174,10 +174,15 @@ fn binder_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let unknown = context.unknown("missing binder");
+    let unknown = |message| context.unknown(message);
 
     let Some(kind) = context.lowered.tree.get_binder_kind(binder_id) else {
-        return Ok(allocate_checked_binder(state, binder_id, unknown, tree::BinderKind::Error));
+        return Ok(allocate_checked_binder(
+            state,
+            binder_id,
+            unknown("missing binder"),
+            tree::BinderKind::Error,
+        ));
     };
 
     let (binder_type, binder_kind) = match kind {
@@ -186,7 +191,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown("missing typed binder"),
                     tree::BinderKind::Error,
                 ));
             };
@@ -194,7 +199,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown("missing binder type annotation"),
                     tree::BinderKind::Error,
                 ));
             };
@@ -266,7 +271,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown("missing constructor resolution"),
                     tree::BinderKind::Error,
                 ));
             };
@@ -322,7 +327,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown("missing named binder name"),
                     tree::BinderKind::Error,
                 ));
             };
@@ -330,7 +335,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown("missing named binder"),
                     tree::BinderKind::Error,
                 ));
             };
@@ -445,7 +450,7 @@ where
                 return Ok(allocate_checked_binder(
                     state,
                     binder_id,
-                    unknown,
+                    unknown("missing parenthesized binder"),
                     tree::BinderKind::Error,
                 ));
             };
@@ -655,26 +660,15 @@ fn check_record_binder<Q>(
 where
     Q: ExternalQueries,
 {
-    let pattern_items = collect_pattern_items(record);
-
     let expected_type = normalise::expand(state, context, expected_type)?;
 
-    let expected_row = if let Type::Application(function, _) = *context.lookup_type(expected_type) {
-        let function = normalise::expand(state, context, function)?;
-        if function == context.prim.record {
-            extract_expected_row(state, context, expected_type)?
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let Some(expected_row) = expected_row else {
+    let Some(expected_row) = extract_expected_row(state, context, expected_type)? else {
         let (result, fields) = infer_record_binder(state, context, binder_id, record)?;
         unification::unify(state, context, result, expected_type)?;
         return Ok((expected_type, fields));
     };
+
+    let pattern_items = collect_pattern_items(record);
 
     let mut extra_fields = vec![];
     let mut checked_fields = vec![];

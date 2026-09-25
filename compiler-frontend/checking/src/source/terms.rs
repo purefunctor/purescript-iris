@@ -272,10 +272,10 @@ fn check_expression_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let unknown = context.unknown("missing expression");
+    let unknown = |message| context.unknown(message);
 
     let Some(kind) = context.lowered.tree.get_expression_kind(expression) else {
-        return Ok(allocate_error_expression(state, unknown));
+        return Ok(allocate_error_expression(state, unknown("missing expression")));
     };
 
     match kind {
@@ -298,7 +298,10 @@ where
         }
         lowering::ExpressionKind::Parenthesized { parenthesized } => {
             let Some(parenthesized) = parenthesized else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing parenthesized expression"),
+                ));
             };
             check_expression(state, context, *parenthesized, expected)
         }
@@ -381,19 +384,22 @@ fn infer_expression_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let unknown = context.unknown("missing expression");
+    let unknown = |message| context.unknown(message);
 
     let Some(kind) = context.lowered.tree.get_expression_kind(expression) else {
-        return Ok(allocate_error_expression(state, unknown));
+        return Ok(allocate_error_expression(state, unknown("missing expression")));
     };
 
     match kind {
         lowering::ExpressionKind::Typed { expression, type_ } => {
             let Some(e) = expression else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(state, unknown("missing typed expression")));
             };
             let Some(t) = type_ else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing expression type annotation"),
+                ));
             };
 
             let (t, _) = types::infer_kind(state, context, *t)?;
@@ -409,17 +415,17 @@ where
 
         lowering::ExpressionKind::InfixChain { head, tail } => {
             let Some(head) = *head else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(state, unknown("missing infix chain head")));
             };
             application::infer_infix_chain(state, context, head, tail)
         }
 
         lowering::ExpressionKind::Negate { negate, expression } => {
             let Some(negate) = negate else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(state, unknown("missing negate resolution")));
             };
             let Some(expression) = expression else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(state, unknown("missing negated expression")));
             };
 
             let negate_type = toolkit::lookup_term_variable(state, context, *negate)?;
@@ -429,7 +435,7 @@ where
             let Some(application::UnanchoredApplication { implicit, argument, result }) =
                 application::check_unanchored_application(state, context, negate_type)?
             else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(state, unknown("invalid negate function")));
             };
             let operand = check_expression(state, context, *expression, argument)?;
             Ok(application::materialize_application(state, negate, implicit, result, operand))
@@ -437,7 +443,10 @@ where
 
         lowering::ExpressionKind::Application { function, arguments } => {
             let Some(function) = function else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing application function"),
+                ));
             };
 
             let function = infer_expression(state, context, *function)?;
@@ -470,7 +479,10 @@ where
 
         lowering::ExpressionKind::Constructor { resolution } => {
             let Some((file_id, term_id)) = resolution else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing constructor resolution"),
+                ));
             };
             let type_id = toolkit::lookup_file_term(state, context, *file_id, *term_id)?;
             let kind = tree::ExpressionKind::Constructor { resolution: (*file_id, *term_id) };
@@ -479,7 +491,10 @@ where
 
         lowering::ExpressionKind::Variable { resolution } => {
             let Some(resolution) = *resolution else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing variable resolution"),
+                ));
             };
             let type_id = toolkit::lookup_term_variable(state, context, resolution)?;
             let resolution = tree::VariableResolution::Source(resolution);
@@ -489,7 +504,10 @@ where
 
         lowering::ExpressionKind::OperatorName { resolution } => {
             let Some((file_id, term_id)) = resolution else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing operator resolution"),
+                ));
             };
             let type_id = toolkit::lookup_file_term(state, context, *file_id, *term_id)?;
             let Some((target_file_id, target_term_id)) =
@@ -508,7 +526,9 @@ where
                     let kind = tree::ExpressionKind::Section { binder };
                     Ok(allocate_expression(state, type_id, kind))
                 }
-                (None, None) => Ok(allocate_error_expression(state, unknown)),
+                (None, None) => {
+                    Ok(allocate_error_expression(state, unknown("missing section provenance")))
+                }
                 _ => {
                     unreachable!("invariant violated: incomplete checked section provenance")
                 }
@@ -573,24 +593,36 @@ where
 
         lowering::ExpressionKind::Parenthesized { parenthesized } => {
             let Some(parenthesized) = parenthesized else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing parenthesized expression"),
+                ));
             };
             infer_expression(state, context, *parenthesized)
         }
 
         lowering::ExpressionKind::RecordAccess { record, labels } => {
             let Some(record) = *record else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing record access expression"),
+                ));
             };
             let Some(labels) = labels else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing record access label"),
+                ));
             };
             collections::infer_record_access(state, context, record, labels)
         }
 
         lowering::ExpressionKind::RecordUpdate { record, updates } => {
             let Some(record) = *record else {
-                return Ok(allocate_error_expression(state, unknown));
+                return Ok(allocate_error_expression(
+                    state,
+                    unknown("missing record update expression"),
+                ));
             };
             collections::infer_record_update(state, context, record, updates)
         }
