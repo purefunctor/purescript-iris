@@ -1165,16 +1165,15 @@ impl Generator<'_> {
         destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        if let Some(tail_call) = context
+        if matches!(
+            destination,
+            Destination::Return
+                | Destination::TailEffectThunkReturn
+                | Destination::EffectTailEffectReturn
+        ) && let Some(tail_call) = context
             .tail_calls
             .as_ref()
             .and_then(|tail_calls| tail_calls.call(self.module, expression))
-            && matches!(
-                destination,
-                Destination::Return
-                    | Destination::TailEffectThunkReturn
-                    | Destination::EffectTailEffectReturn
-            )
         {
             return self.render_tail_call(tree, writer, tail_call, destination, context);
         }
