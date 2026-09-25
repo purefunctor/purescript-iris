@@ -105,6 +105,11 @@ enum CapturedEffect {
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
 }
 
+struct EffectContinuation<'d> {
+    body: FunctionalExpressionId,
+    destination: Destination<'d>,
+}
+
 #[derive(Default)]
 struct PatternPlan {
     conditions: Vec<ExpressionId>,
@@ -1161,84 +1166,111 @@ impl Generator<'_> {
         &self,
         tree: &mut Tree,
         writer: &mut Writer<'_>,
-        expression: FunctionalExpressionId,
-        destination: Destination<'_>,
+        mut expression: FunctionalExpressionId,
+        mut destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        if let Some(tail_call) = context
-            .tail_calls
-            .as_ref()
-            .and_then(|tail_calls| tail_calls.call(self.module, expression))
-            && matches!(
-                destination,
-                Destination::Return
-                    | Destination::TailEffectThunkReturn
-                    | Destination::EffectTailEffectReturn
-            )
-        {
-            return self.render_tail_call(tree, writer, tail_call, destination, context);
-        }
-
-        match &self.module.storage[expression].kind {
-            ExpressionKind::Error => {
-                writer.throw_error(SOURCE_ERROR_MESSAGE);
-                Ok(())
-            }
-            ExpressionKind::IfThenElse { condition, then, else_ } => {
-                let condition = self.expression_value(tree, writer, *condition, context)?;
-                writer.if_else_with_state(
-                    tree,
-                    condition,
-                    context,
-                    |tree, writer, context| {
-                        self.render_expression(tree, writer, *then, destination, context)
-                    },
-                    |tree, writer, context| {
-                        self.render_expression(tree, writer, *else_, destination, context)
-                    },
+        // Let bodies and bind continuations are rendered by iterating, so long let chains and do
+        // blocks do not use a stack frame per statement.
+        loop {
+            if let Some(tail_call) = context
+                .tail_calls
+                .as_ref()
+                .and_then(|tail_calls| tail_calls.call(self.module, expression))
+                && matches!(
+                    destination,
+                    Destination::Return
+                        | Destination::TailEffectThunkReturn
+                        | Destination::EffectTailEffectReturn
                 )
+            {
+                return self.render_tail_call(tree, writer, tail_call, destination, context);
             }
-            ExpressionKind::Case { scrutinees, alternatives } => {
-                let mut renderer = self.renderer(tree, writer, context);
-                render_case(&mut renderer, scrutinees, alternatives, destination)
-            }
-            ExpressionKind::Guarded { alternatives } => {
-                let mut renderer = self.renderer(tree, writer, context);
-                render_guarded(&mut renderer, alternatives, destination)
-            }
-            ExpressionKind::Let { recursive, bindings, body } => {
-                let mut renderer = self.renderer(tree, writer, context);
-                render_let(&mut renderer, *recursive, bindings)?;
-                self.render_expression(tree, writer, *body, destination, context)
-            }
-            ExpressionKind::LetPattern { pattern, value, body } => {
-                let source = *value;
-                let value = self.rendered_expression(tree, writer, source, context)?;
-                let value = self.materialize_pattern_value(tree, writer, source, value, context);
-                let plan = self.pattern_plan(tree, *pattern, value, None, context)?;
-                self.render_pattern_scope(tree, writer, plan, context, |tree, writer, context| {
-                    self.render_expression(tree, writer, *body, destination, context)
-                })
-            }
-            ExpressionKind::Effect { effect } if !destination.is_effect() => self
-                .render_effect_expression_destination(tree, writer, effect, destination, context),
-            _ => {
-                if matches!(destination, Destination::TailEffectThunkReturn) {
-                    return self
-                        .render_tail_effect_thunk_destination(tree, writer, expression, context);
+
+            match &self.module.storage[expression].kind {
+                ExpressionKind::Error => {
+                    writer.throw_error(SOURCE_ERROR_MESSAGE);
+                    return Ok(());
                 }
-                if destination.is_effect() {
-                    return self.render_effect_destination(
+                ExpressionKind::IfThenElse { condition, then, else_ } => {
+                    let condition = self.expression_value(tree, writer, *condition, context)?;
+                    return writer.if_else_with_state(
+                        tree,
+                        condition,
+                        context,
+                        |tree, writer, context| {
+                            self.render_expression(tree, writer, *then, destination, context)
+                        },
+                        |tree, writer, context| {
+                            self.render_expression(tree, writer, *else_, destination, context)
+                        },
+                    );
+                }
+                ExpressionKind::Case { scrutinees, alternatives } => {
+                    let mut renderer = self.renderer(tree, writer, context);
+                    return render_case(&mut renderer, scrutinees, alternatives, destination);
+                }
+                ExpressionKind::Guarded { alternatives } => {
+                    let mut renderer = self.renderer(tree, writer, context);
+                    return render_guarded(&mut renderer, alternatives, destination);
+                }
+                ExpressionKind::Let { recursive, bindings, body } => {
+                    let mut renderer = self.renderer(tree, writer, context);
+                    render_let(&mut renderer, *recursive, bindings)?;
+                    expression = *body;
+                }
+                ExpressionKind::LetPattern { pattern, value, body } => {
+                    let source = *value;
+                    let value = self.rendered_expression(tree, writer, source, context)?;
+                    let value =
+                        self.materialize_pattern_value(tree, writer, source, value, context);
+                    let plan = self.pattern_plan(tree, *pattern, value, None, context)?;
+                    return self.render_pattern_scope(
                         tree,
                         writer,
-                        expression,
-                        destination.value(),
+                        plan,
+                        context,
+                        |tree, writer, context| {
+                            self.render_expression(tree, writer, *body, destination, context)
+                        },
+                    );
+                }
+                ExpressionKind::Effect { effect } if !destination.is_effect() => {
+                    return self.render_effect_expression_destination(
+                        tree,
+                        writer,
+                        effect,
+                        destination,
                         context,
                     );
                 }
-                let value = self.expression_value(tree, writer, expression, context)?;
-                self.render_destination(tree, writer, value, destination);
-                Ok(())
+                ExpressionKind::Effect { effect } => {
+                    let mut renderer = self.renderer(tree, writer, context);
+                    let effect = capture_effect(&mut renderer, effect)?;
+                    let continuation =
+                        execute_effect_step(&mut renderer, effect, destination.value())?;
+                    let Some(continuation) = continuation else {
+                        return Ok(());
+                    };
+                    expression = continuation.body;
+                    destination = continuation.destination;
+                }
+                _ => {
+                    if matches!(destination, Destination::TailEffectThunkReturn) {
+                        return self.render_tail_effect_thunk_destination(
+                            tree, writer, expression, context,
+                        );
+                    }
+                    if destination.is_effect() {
+                        let effect = self.expression_value(tree, writer, expression, context)?;
+                        let value = tree.call(effect, vec![]);
+                        self.render_destination(tree, writer, value, destination.value());
+                        return Ok(());
+                    }
+                    let value = self.expression_value(tree, writer, expression, context)?;
+                    self.render_destination(tree, writer, value, destination);
+                    return Ok(());
+                }
             }
         }
     }
@@ -1272,26 +1304,6 @@ impl Generator<'_> {
                 unreachable!("invariant violated: effect destination was not rendered directly")
             }
         }
-    }
-
-    fn render_effect_destination(
-        &self,
-        tree: &mut Tree,
-        writer: &mut Writer<'_>,
-        expression: FunctionalExpressionId,
-        destination: Destination<'_>,
-        context: &mut FunctionContext,
-    ) -> ModuleResult<()> {
-        if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
-            let mut renderer = self.renderer(tree, writer, context);
-            let effect = capture_effect(&mut renderer, effect)?;
-            return execute_effect(&mut renderer, effect, destination);
-        }
-
-        let effect = self.expression_value(tree, writer, expression, context)?;
-        let value = tree.call(effect, vec![]);
-        self.render_destination(tree, writer, value, destination);
-        Ok(())
     }
 
     fn render_effect_expression_destination(
@@ -2970,6 +2982,24 @@ fn execute_effect(
     effect: CapturedEffect,
     destination: Destination<'_>,
 ) -> ModuleResult<()> {
+    let Some(continuation) = execute_effect_step(renderer, effect, destination)? else {
+        return Ok(());
+    };
+    renderer.generator.render_expression(
+        renderer.tree,
+        renderer.writer,
+        continuation.body,
+        continuation.destination,
+        renderer.context,
+    )
+}
+
+/// Executes `effect` up to its bind body, which is returned for the caller to render.
+fn execute_effect_step<'d>(
+    renderer: &mut FunctionRenderer<'_, '_, '_, '_>,
+    effect: CapturedEffect,
+    destination: Destination<'d>,
+) -> ModuleResult<Option<EffectContinuation<'d>>> {
     match effect {
         CapturedEffect::Pure { value } => {
             renderer.generator.render_destination(
@@ -2978,7 +3008,7 @@ fn execute_effect(
                 value,
                 destination,
             );
-            Ok(())
+            Ok(None)
         }
         CapturedEffect::Bind { action, parameter, body } => {
             if let CapturedEffectAction::Effect(effect) = &action
@@ -2991,13 +3021,7 @@ fn execute_effect(
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
             }
-            renderer.generator.render_expression(
-                renderer.tree,
-                renderer.writer,
-                body,
-                destination.effect(),
-                renderer.context,
-            )
+            Ok(Some(EffectContinuation { body, destination: destination.effect() }))
         }
         CapturedEffect::Map { function, action } => {
             let value = execute_effect_action_value(renderer, action, "$value")?;
@@ -3008,7 +3032,7 @@ fn execute_effect(
                 result,
                 destination,
             );
-            Ok(())
+            Ok(None)
         }
         CapturedEffect::Apply { function_action, argument_action } => {
             let function = if matches!(&argument_action, CapturedEffectAction::Effect(_)) {
@@ -3024,7 +3048,7 @@ fn execute_effect(
                 result,
                 destination,
             );
-            Ok(())
+            Ok(None)
         }
     }
 }
@@ -3355,19 +3379,20 @@ mod tests {
 
     use files::FileId;
     use functional::tree::{
-        Binding, Expression, ExpressionId, ExpressionKind, GeneratedGlobalId, Global, GlobalId,
-        LocalId, Module, ModuleSurface, Parameter, Storage,
+        Binding, Declaration, DeclarationKind, EffectExpression, Expression, ExpressionId,
+        ExpressionKind, GeneratedGlobalId, Global, GlobalId, Literal, LocalId, Module,
+        ModuleSurface, Parameter, Storage,
     };
     use rustc_hash::FxHashSet;
     use smol_str::SmolStr;
 
-    use super::{collect_expression_globals, collect_expression_references};
+    use super::{Generator, collect_expression_globals, collect_expression_references};
 
-    /// Runs `test` on a thread whose stack is far too small for a recursive traversal of a long
-    /// chain, so recursion fails the test instead of passing on the generous default stack.
-    fn with_small_stack(test: impl FnOnce() + Send + 'static) {
+    /// Runs `test` on a thread whose stack is far too small for recursion over a long chain, so
+    /// recursion fails the test instead of passing on the generous default test stack.
+    fn with_stack(size: usize, test: impl FnOnce() + Send + 'static) {
         let thread = std::thread::Builder::new()
-            .stack_size(64 * 1024)
+            .stack_size(size)
             .spawn(test)
             .expect("failed to spawn small-stack thread");
         thread.join().expect("test panicked on small-stack thread");
@@ -3378,25 +3403,31 @@ mod tests {
         Global { id, item_name: SmolStr::new("value") }
     }
 
-    fn module(storage: Storage) -> Module {
+    fn module(storage: Storage, declarations: Vec<Declaration>) -> Module {
         Module {
             file_id: FileId::new(0),
             name: SmolStr::new("Main"),
             dependencies: Arc::from([]),
             surface: ModuleSurface::default(),
-            declarations: Arc::from([]),
+            declarations: Arc::from(declarations),
             storage,
         }
     }
 
-    /// Builds `let value = <local global> in ...` nested `length` times around an external global.
-    fn let_chain(storage: &mut Storage, length: u32) -> ExpressionId {
-        let mut body = storage
-            .allocate_expression(Expression { kind: ExpressionKind::Global { global: global(1) } });
+    fn global_expression(storage: &mut Storage, global: Global) -> ExpressionId {
+        storage.allocate_expression(Expression { kind: ExpressionKind::Global { global } })
+    }
+
+    /// Builds `let value = bound in ...` nested `length` times around `innermost`.
+    fn let_chain(
+        storage: &mut Storage,
+        length: u32,
+        bound: Global,
+        innermost: Global,
+    ) -> ExpressionId {
+        let mut body = global_expression(storage, innermost);
         for index in 0..length {
-            let expression = storage.allocate_expression(Expression {
-                kind: ExpressionKind::Global { global: global(0) },
-            });
+            let expression = global_expression(storage, Global::clone(&bound));
             let parameter = Parameter { id: LocalId(index), name: SmolStr::new("value") };
             let bindings = Arc::from([Binding { parameter, expression, source_order: 0 }]);
             body = storage.allocate_expression(Expression {
@@ -3406,12 +3437,39 @@ mod tests {
         body
     }
 
+    /// Builds a do block binding `action` `length` times before returning the last value.
+    fn effect_chain(storage: &mut Storage, length: u32, action: Global) -> ExpressionId {
+        let parameter = |index| Parameter { id: LocalId(index), name: SmolStr::new("value") };
+        let result = storage.allocate_expression(Expression {
+            kind: ExpressionKind::Local { parameter: parameter(length) },
+        });
+        let mut body = storage.allocate_expression(Expression {
+            kind: ExpressionKind::Effect { effect: EffectExpression::Pure(result) },
+        });
+        for index in (1..=length).rev() {
+            let action = global_expression(storage, Global::clone(&action));
+            let effect = EffectExpression::Bind { action, parameter: parameter(index), body };
+            body =
+                storage.allocate_expression(Expression { kind: ExpressionKind::Effect { effect } });
+        }
+        body
+    }
+
+    fn value_declaration(global: Global, expression: ExpressionId) -> Declaration {
+        Declaration {
+            global,
+            exported: false,
+            recursive_group: None,
+            kind: DeclarationKind::Value(expression),
+        }
+    }
+
     #[test]
     fn global_collection_does_not_use_the_call_stack() {
-        with_small_stack(|| {
+        with_stack(64 * 1024, || {
             let mut storage = Storage::default();
-            let expression = let_chain(&mut storage, 10_000);
-            let module = module(storage);
+            let expression = let_chain(&mut storage, 10_000, global(0), global(1));
+            let module = module(storage, vec![]);
 
             let mut seen = FxHashSet::default();
             let mut references = Vec::new();
@@ -3424,6 +3482,36 @@ mod tests {
                 collect_expression_globals(&module, expression, descend_abstractions, &mut globals);
                 assert_eq!(globals, expected);
             }
+        });
+    }
+
+    #[test]
+    fn long_let_chains_and_do_blocks_render_without_deep_recursion() {
+        with_stack(256 * 1024, || {
+            let action = global(0);
+            let mut storage = Storage::default();
+            let literal = storage.allocate_expression(Expression {
+                kind: ExpressionKind::Literal { literal: Literal::Integer(0) },
+            });
+            let effects = effect_chain(&mut storage, 10_000, Global::clone(&action));
+            let lets =
+                let_chain(&mut storage, 10_000, Global::clone(&action), Global::clone(&action));
+            let declaration = |index, expression| {
+                let id = GlobalId::Generated(FileId::new(0), GeneratedGlobalId(index));
+                let global = Global { id, item_name: SmolStr::new(format!("declaration{index}")) };
+                value_declaration(global, expression)
+            };
+            let declarations = vec![
+                value_declaration(action, literal),
+                declaration(1, effects),
+                declaration(2, lets),
+            ];
+            let module = module(storage, declarations);
+
+            let generated = Generator::new(&module, None).generate().expect("module renders");
+
+            assert!(generated.source().contains("const value$10000 = value();"));
+            assert!(generated.source().contains("return value$10000;"));
         });
     }
 }
