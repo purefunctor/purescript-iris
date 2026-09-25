@@ -168,9 +168,7 @@ impl BuildSession {
             }
             match path.extension().and_then(|extension| extension.to_str()) {
                 Some("purs") => {
-                    if self.source_paths.contains(path)
-                        || !self.source_globs.matches(path).is_empty()
-                    {
+                    if self.source_paths.contains(path) || self.source_globs.is_match(path) {
                         source_paths.insert(PathBuf::clone(path));
                     }
                 }
