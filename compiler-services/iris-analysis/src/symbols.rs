@@ -104,11 +104,11 @@ pub fn workspace(
 
     let symbols = if let Some(prefix_symbols) = cache.get_ancestor_value(&query) {
         tracing::debug!("Found prefix match for '{query}'");
-        let filtered_symbols = filter_symbols(prefix_symbols, &query);
-        if filtered_symbols.len() == prefix_symbols.len() {
+        let all_match = prefix_symbols.iter().all(|symbol| symbol_matches(symbol, &query));
+        if all_match {
             Arc::clone(prefix_symbols)
         } else {
-            Arc::new(filtered_symbols)
+            Arc::new(filter_symbols(prefix_symbols, &query))
         }
     } else {
         tracing::debug!("Initialising cache for '{query}'");
@@ -146,12 +146,12 @@ fn name_starts_with_folded(name: &str, folded_query: &str) -> bool {
     name.to_lowercase().starts_with(folded_query)
 }
 
+fn symbol_matches(symbol: &SymbolInformation, query: &str) -> bool {
+    name_starts_with_folded(&symbol.base_symbol_information.name, query)
+}
+
 fn filter_symbols(cached: &[SymbolInformation], query: &str) -> Vec<SymbolInformation> {
-    cached
-        .iter()
-        .filter(|symbol| name_starts_with_folded(&symbol.base_symbol_information.name, query))
-        .cloned()
-        .collect()
+    cached.iter().filter(|symbol| symbol_matches(symbol, query)).cloned().collect()
 }
 
 fn build_symbol_list(
@@ -162,46 +162,46 @@ fn build_symbol_list(
 
     for file_id in context.active_files() {
         let resolved = context.queries().resolved(file_id)?;
+
+        let matches = |name: &str| name_starts_with_folded(name, query);
+        let has_matches = resolved.locals.iter_terms().any(|(name, _, _)| matches(name))
+            || resolved.locals.iter_types().any(|(name, _, _)| matches(name))
+            || resolved.locals.iter_classes().any(|(name, _, _)| matches(name));
+        if !has_matches {
+            continue;
+        }
+
         let indexed = context.queries().indexed(file_id)?;
         let content = context.queries().content(file_id)?;
-        let mut positions = None;
+        let positions = PositionConverter::new(&content, context.position_encoding());
         let uri = common::file_uri(context, file_id)?;
 
         for (name, _, term_id) in resolved.locals.iter_terms() {
-            if !name_starts_with_folded(name, query) {
+            if !matches(name) {
                 continue;
             }
             let kind = term_symbol_kind(&indexed.items[term_id].kind);
             let uri = Uri::clone(&uri);
-            let positions = positions.get_or_insert_with(|| {
-                PositionConverter::new(&content, context.position_encoding())
-            });
-            let location = common::file_term_location(context, uri, file_id, positions, term_id)?;
+            let location = common::file_term_location(context, uri, file_id, &positions, term_id)?;
             symbols.push(symbol_information(name, kind, location));
         }
 
         for (name, _, type_id) in resolved.locals.iter_types() {
-            if !name_starts_with_folded(name, query) {
+            if !matches(name) {
                 continue;
             }
             let kind = type_symbol_kind(&indexed.items[type_id].kind);
             let uri = Uri::clone(&uri);
-            let positions = positions.get_or_insert_with(|| {
-                PositionConverter::new(&content, context.position_encoding())
-            });
-            let location = common::file_type_location(context, uri, file_id, positions, type_id)?;
+            let location = common::file_type_location(context, uri, file_id, &positions, type_id)?;
             symbols.push(symbol_information(name, kind, location));
         }
 
         for (name, _, type_id) in resolved.locals.iter_classes() {
-            if !name_starts_with_folded(name, query) {
+            if !matches(name) {
                 continue;
             }
             let uri = Uri::clone(&uri);
-            let positions = positions.get_or_insert_with(|| {
-                PositionConverter::new(&content, context.position_encoding())
-            });
-            let location = common::file_type_location(context, uri, file_id, positions, type_id)?;
+            let location = common::file_type_location(context, uri, file_id, &positions, type_id)?;
             symbols.push(symbol_information(name, SymbolKind::Interface, location));
         }
     }
