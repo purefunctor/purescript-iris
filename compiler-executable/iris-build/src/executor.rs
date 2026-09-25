@@ -29,8 +29,16 @@ where
     }
 
     fn execute_group<'scope>(&'scope self, scope: &rayon::Scope<'scope>, group_id: PackageGroupId) {
+        if self.failed.load(Ordering::Acquire) {
+            return;
+        }
         let group = self.plan.group(group_id);
         let result = group.packages.par_iter().try_for_each(|package_id| {
+            // Another group's failure aborts the build, so starting more packages is wasted work;
+            // skipped packages report success here and the failure check below stops the group.
+            if self.failed.load(Ordering::Acquire) {
+                return Ok(());
+            }
             execute_package(self.plan.package(*package_id), self.events, self.execute)
         });
         if let Err(package_error) = result {
