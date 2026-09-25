@@ -6,6 +6,7 @@ use indexing::{
     ImplicitItems, ImportId, ImportItemId, IndexedTermItemKind, IndexedTypeItemKind, TermItemId,
     TypeItemId, TypeSelection,
 };
+use itertools::Itertools;
 use lowering::{BinderId, LetBindingNameGroupId, RecordPunId, TypeVariableBindingId};
 use lsp_types::*;
 use stabilizing::AstId;
@@ -59,6 +60,8 @@ where
             .ok_or(AnalyzerError::NonFatal)?;
 
         let content = self.context.queries().content(file_id)?;
+        let positions =
+            position::PositionConverter::new(&content, self.context.position_encoding());
         let (parsed, _) = self.context.queries().parsed(file_id)?;
         let root = parsed.syntax_node();
 
@@ -79,7 +82,8 @@ where
                 continue;
             }
 
-            self.push_text_range_edit(file_id, module_name.syntax().text_range(), new_name)?;
+            let range = module_name.syntax().text_range();
+            self.push_text_range_edit(&positions, file_id, range, new_name)?;
         }
 
         let qualified_names = root.preorder().filter_map(|event| {
@@ -102,7 +106,7 @@ where
             }
 
             let new_name = format!("{new_name}.");
-            self.push_text_range_edit(file_id, token.text_range(), &new_name)?;
+            self.push_text_range_edit(&positions, file_id, token.text_range(), &new_name)?;
         }
 
         let exports = root.preorder().filter_map(|event| {
@@ -121,7 +125,8 @@ where
                 continue;
             }
 
-            self.push_text_range_edit(file_id, module_name.syntax().text_range(), new_name)?;
+            let range = module_name.syntax().text_range();
+            self.push_text_range_edit(&positions, file_id, range, new_name)?;
         }
 
         Ok(())
@@ -139,7 +144,11 @@ where
             .and_then(|header| header.name())
             .ok_or(AnalyzerError::NonFatal)?;
 
-        self.push_text_range_edit(target_file, module_name.syntax().text_range(), new_name)?;
+        let content = self.context.queries().content(target_file)?;
+        let positions =
+            position::PositionConverter::new(&content, self.context.position_encoding());
+        let range = module_name.syntax().text_range();
+        self.push_text_range_edit(&positions, target_file, range, new_name)?;
 
         for file_id in self.context.active_files() {
             if !self.context.is_editable(file_id) {
@@ -159,6 +168,9 @@ where
         target_file: FileId,
         new_name: &str,
     ) -> Result<(), AnalyzerError> {
+        let content = self.context.queries().content(file_id)?;
+        let encoding = self.context.position_encoding();
+        let mut positions = None;
         let (parsed, _) = self.context.queries().parsed(file_id)?;
         let root = parsed.syntax_node();
         let indexed = self.context.queries().indexed(file_id)?;
@@ -176,7 +188,10 @@ where
             let statement = ptr.try_to_node(&root).ok_or(AnalyzerError::NonFatal)?;
             let module_name = statement.module_name().ok_or(AnalyzerError::NonFatal)?;
 
-            self.push_text_range_edit(file_id, module_name.syntax().text_range(), new_name)?;
+            let positions = positions
+                .get_or_insert_with(|| position::PositionConverter::new(&content, encoding));
+            let range = module_name.syntax().text_range();
+            self.push_text_range_edit(positions, file_id, range, new_name)?;
         }
 
         Ok(())
@@ -189,6 +204,8 @@ where
         new_name: &str,
     ) -> Result<(), AnalyzerError> {
         let content = self.context.queries().content(file_id)?;
+        let encoding = self.context.position_encoding();
+        let mut positions = None;
         let (parsed, _) = self.context.queries().parsed(file_id)?;
         let root = parsed.syntax_node();
         let indexed = self.context.queries().indexed(file_id)?;
@@ -215,7 +232,10 @@ where
             };
             let module_name = export.module_name().ok_or(AnalyzerError::NonFatal)?;
 
-            self.push_text_range_edit(file_id, module_name.syntax().text_range(), new_name)?;
+            let positions = positions
+                .get_or_insert_with(|| position::PositionConverter::new(&content, encoding));
+            let range = module_name.syntax().text_range();
+            self.push_text_range_edit(positions, file_id, range, new_name)?;
         }
 
         Ok(())
@@ -501,7 +521,9 @@ where
             && record_field_can_collapse(&content, &field, &value)
         {
             let range = record_field_replacement_range(&field).ok_or(AnalyzerError::NonFatal)?;
-            return self.push_text_range_edit(file_id, range, new_name);
+            let positions =
+                position::PositionConverter::new(&content, self.context.position_encoding());
+            return self.push_text_range_edit(&positions, file_id, range, new_name);
         }
 
         self.push_name_edit(file_id, Some(binder_id), binder_name_range, new_name)
@@ -569,7 +591,9 @@ where
         let old_name = name.syntax().text(&content);
         let new_text = format!("{old_name}: {new_name}");
 
-        self.push_text_range_edit(file_id, name.syntax().text_range(), &new_text)
+        let positions =
+            position::PositionConverter::new(&content, self.context.position_encoding());
+        self.push_text_range_edit(&positions, file_id, name.syntax().text_range(), &new_text)
     }
 
     fn term_declaration_edits(
@@ -845,7 +869,7 @@ where
         let range =
             position::import_item_name_range(&positions, item).ok_or(AnalyzerError::NonFatal)?;
 
-        self.push_utf8_edit(file_id, range, new_name)
+        self.push_utf8_edit(&positions, file_id, range, new_name)
     }
 
     fn push_export_item_edit(
@@ -866,7 +890,7 @@ where
         let range =
             position::export_item_name_range(&positions, item).ok_or(AnalyzerError::NonFatal)?;
 
-        self.push_utf8_edit(file_id, range, new_name)
+        self.push_utf8_edit(&positions, file_id, range, new_name)
     }
 
     fn push_import_constructor_edit(
@@ -927,11 +951,7 @@ where
 
         for token in items.name_tokens() {
             if token.text(&content) == old_name {
-                let range = positions
-                    .text_range_to_utf8_range(token.text_range())
-                    .ok_or(AnalyzerError::NonFatal)?;
-
-                self.push_utf8_edit(file_id, range, new_name)?;
+                self.push_text_range_edit(&positions, file_id, token.text_range(), new_name)?;
             }
         }
 
@@ -945,29 +965,24 @@ where
 {
     fn push_text_range_edit(
         &mut self,
+        positions: &position::PositionConverter<'_>,
         file_id: FileId,
         range: TextRange,
         new_name: &str,
     ) -> Result<(), AnalyzerError> {
-        let content = self.context.queries().content(file_id)?;
-        let positions =
-            position::PositionConverter::new(&content, self.context.position_encoding());
-        let range = positions.text_range_to_utf8_range(range).ok_or(AnalyzerError::NonFatal)?;
-
-        self.push_utf8_edit(file_id, range, new_name)
+        let range = positions.text_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
+        self.push_protocol_edit(positions, file_id, range, new_name)
     }
 
     fn push_utf8_edit(
         &mut self,
+        positions: &position::PositionConverter<'_>,
         file_id: FileId,
         range: Utf8Range,
         new_name: &str,
     ) -> Result<(), AnalyzerError> {
-        let content = self.context.queries().content(file_id)?;
-        let positions =
-            position::PositionConverter::new(&content, self.context.position_encoding());
         let range = positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-        self.push_protocol_edit(file_id, range, new_name)
+        self.push_protocol_edit(positions, file_id, range, new_name)
     }
 
     fn push_name_edit<T>(
@@ -998,19 +1013,17 @@ where
         let ptr = stabilized.syntax_ptr(id).ok_or(AnalyzerError::NonFatal)?;
         let range = range(&positions, &root, &ptr).ok_or(AnalyzerError::NonFatal)?;
         let range = positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-        self.push_protocol_edit(file_id, range, new_name)
+        self.push_protocol_edit(&positions, file_id, range, new_name)
     }
 
     fn push_protocol_edit(
         &mut self,
+        positions: &position::PositionConverter<'_>,
         file_id: FileId,
         range: Range,
         new_name: &str,
     ) -> Result<(), AnalyzerError> {
-        let content = self.context.queries().content(file_id)?;
-        let positions =
-            position::PositionConverter::new(&content, self.context.position_encoding());
-        let new_name = self.new_name_text(&positions, range, new_name)?;
+        let new_name = self.new_name_text(positions, range, new_name)?;
         self.edits.push((file_id, TextEdit { range, new_text: new_name }));
         Ok(())
     }
@@ -1063,25 +1076,33 @@ where
             return self.finish_annotated();
         }
 
-        let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::default();
-        for (file_id, edit) in self.edits {
-            let uri = common::file_uri(self.context, file_id)?;
-            changes.entry(uri).or_default().push(edit);
-        }
+        let changes = self.edits_by_file()?;
+        let changes = changes.into_iter().collect();
 
         Ok(Some(WorkspaceEdit { changes: Some(changes), ..WorkspaceEdit::default() }))
     }
 
+    /// Groups edits by file, which [`RenameEdits::finish`] has already sorted them by.
+    fn edits_by_file(self) -> Result<Vec<(Uri, Vec<TextEdit>)>, AnalyzerError> {
+        let context = self.context;
+        let files = self.edits.into_iter().chunk_by(|(file_id, _)| *file_id);
+        let files = files.into_iter().map(|(file_id, edits)| {
+            let uri = common::file_uri(context, file_id)?;
+            Ok((uri, edits.map(|(_, edit)| edit).collect()))
+        });
+        files.collect()
+    }
+
     fn finish_annotated(self) -> Result<Option<WorkspaceEdit>, AnalyzerError> {
         let annotation_id = "rename-conflict".to_string();
-        let mut documents: HashMap<Uri, Vec<Edit>> = HashMap::default();
-        for (file_id, edit) in self.edits {
-            let uri = common::file_uri(self.context, file_id)?;
-            let edit = AnnotatedTextEdit { text_edit: edit, annotation_id: annotation_id.clone() };
-            documents.entry(uri).or_default().push(Edit::AnnotatedTextEdit(edit));
-        }
+        let documents = self.edits_by_file()?;
 
         let documents = documents.into_iter().map(|(uri, edits)| {
+            let edits = edits.into_iter().map(|edit| {
+                let annotation_id = annotation_id.clone();
+                Edit::AnnotatedTextEdit(AnnotatedTextEdit { text_edit: edit, annotation_id })
+            });
+            let edits = edits.collect();
             let text_document_identifier = TextDocumentIdentifier { uri };
             let text_document =
                 OptionalVersionedTextDocumentIdentifier { text_document_identifier, version: None };
