@@ -580,7 +580,7 @@ where
     };
 
     let mut checked_superclasses = Vec::with_capacity(class.superclasses.len());
-    for superclass in &class.superclasses {
+    for superclass in class.superclasses.iter() {
         let constraint =
             SubstituteName::many(state, context, &substitution, superclass.constraint)?;
         let evidence = state.push_wanted(constraint);

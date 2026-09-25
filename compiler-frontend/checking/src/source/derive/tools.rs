@@ -50,7 +50,7 @@ where
         bindings.insert(binder.name, argument);
     }
 
-    for superclass in superclasses {
+    for superclass in superclasses.iter() {
         let specialised = SubstituteName::many(state, context, &bindings, superclass.constraint)?;
         state.push_wanted(specialised);
     }

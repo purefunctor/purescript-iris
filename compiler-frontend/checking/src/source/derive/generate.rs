@@ -301,7 +301,7 @@ where
         return Ok(None);
     };
 
-    let [member] = class.members.as_slice() else {
+    let [member] = class.members[..] else {
         return Ok(None);
     };
 
