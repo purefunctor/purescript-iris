@@ -498,6 +498,13 @@ fn write_module(
 }
 
 fn write_if_changed(path: &Path, content: &[u8]) -> io::Result<()> {
+    // A size mismatch proves the output changed without reading it back.
+    match fs::metadata(path) {
+        Ok(metadata) if metadata.len() != content.len() as u64 => return fs::write(path, content),
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return fs::write(path, content),
+        Err(error) => return Err(error),
+    }
     match fs::read(path) {
         Ok(previous) if previous == content => Ok(()),
         Ok(_) => fs::write(path, content),
