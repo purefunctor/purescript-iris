@@ -7,7 +7,7 @@ use files::FileId;
 use lowering::{ExpressionId, TypeId};
 use lsp_types::*;
 
-use crate::position::PositionConverter;
+use crate::position::{PositionConverter, Utf8Position};
 use crate::{AnalyzerContext, AnalyzerError, locate};
 
 pub fn implementation(
@@ -26,10 +26,9 @@ pub fn implementation(
     let position =
         positions.protocol_position_to_utf8(range.start).ok_or(AnalyzerError::NonFatal)?;
 
-    let located = locate::locate(language.queries(), file, &positions, position)?;
     let kinds = RequestedCodeActionKinds { only: action_context.only.as_deref() };
     let request =
-        CodeActionRequest { language, uri: &uri, file, positions: &positions, kinds, located };
+        CodeActionRequest { language, uri: &uri, file, positions: &positions, kinds, position };
 
     let mut actions = vec![];
     holes::collect(&request, &mut actions)?;
@@ -44,7 +43,7 @@ pub struct CodeActionRequest<'request, 'language, Host> {
     pub file: FileId,
     pub positions: &'request PositionConverter<'request>,
     pub kinds: RequestedCodeActionKinds<'request>,
-    pub located: locate::Located,
+    pub position: Utf8Position,
 }
 
 #[derive(Clone, Copy)]

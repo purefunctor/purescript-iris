@@ -13,18 +13,21 @@ pub fn collect(
         return Ok(());
     }
 
-    let checked = request.language.queries().checked(request.file)?;
-    match &request.located {
+    let queries = request.language.queries();
+    let located = locate::locate(queries, request.file, request.positions, request.position)?;
+    match located {
         locate::Located::Expression(expression_id) => {
-            let Some(hole) = checked.lookup_term_hole(*expression_id) else { return Ok(()) };
+            let checked = queries.checked(request.file)?;
+            let Some(hole) = checked.lookup_term_hole(expression_id) else { return Ok(()) };
 
-            let range = expression_range(request, *expression_id)?;
+            let range = expression_range(request, expression_id)?;
             collect_binding_actions(request, range, &hole.bindings, actions);
         }
         locate::Located::Type(type_id) => {
-            let Some(hole) = checked.lookup_type_hole(*type_id) else { return Ok(()) };
+            let checked = queries.checked(request.file)?;
+            let Some(hole) = checked.lookup_type_hole(type_id) else { return Ok(()) };
 
-            let range = type_range(request, *type_id)?;
+            let range = type_range(request, type_id)?;
             collect_binding_actions(request, range, &hole.bindings, actions);
         }
         _ => (),
