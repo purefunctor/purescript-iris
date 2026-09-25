@@ -144,7 +144,8 @@ pub fn extract_integer<Q>(
 where
     Q: ExternalQueries,
 {
-    let id = recursively_normalise(state, context, id)?;
+    // Only the head is inspected, so expanding it is enough.
+    let id = normalise::expand(state, context, id)?;
     match *context.lookup_type(id) {
         Type::Integer(value) => Ok(Some(value)),
         _ => Ok(None),
@@ -159,7 +160,8 @@ pub fn extract_symbol<'q, Q>(
 where
     Q: ExternalQueries,
 {
-    let id = recursively_normalise(state, context, id)?;
+    // Only the head is inspected, so expanding it is enough.
+    let id = normalise::expand(state, context, id)?;
     if let Type::String(_, value) = context.lookup_type(id) { Ok(Some(value)) } else { Ok(None) }
 }
 
@@ -397,7 +399,7 @@ where
         let Some([value, _]) = canonical.expect_type_arguments::<2>() else {
             unreachable!("invariant violated: solved Reflectable constraint has invalid arguments");
         };
-        let value = recursively_normalise(state, context, value)?;
+        let value = normalise::expand(state, context, value)?;
         let reflected = if let Some(symbol) = extract_symbol(state, context, value)? {
             ReflectableEvidence::String(StringLiteral::clone(symbol))
         } else if let Some(integer) = extract_integer(state, context, value)? {
