@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: {| Main.Fields13 () } -> Prim.Int
+test = \record -> record.field

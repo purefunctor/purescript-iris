@@ -1,0 +1,38 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test :: {| Main.Fields13 () } -> Prim.Int
+
+Types
+Fields0 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields1 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields2 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields3 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields4 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields5 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields6 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields7 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields8 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields9 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields10 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields11 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields12 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+Fields13 :: Prim.Row Prim.Type -> Prim.Row Prim.Type
+
+Synonyms
+type Fields0 r = ( field :: Prim.Int | (r :: Prim.Row Prim.Type) )
+type Fields1 r = Main.Fields0 (Main.Fields0 (r :: Prim.Row Prim.Type))
+type Fields2 r = Main.Fields1 (Main.Fields1 (r :: Prim.Row Prim.Type))
+type Fields3 r = Main.Fields2 (Main.Fields2 (r :: Prim.Row Prim.Type))
+type Fields4 r = Main.Fields3 (Main.Fields3 (r :: Prim.Row Prim.Type))
+type Fields5 r = Main.Fields4 (Main.Fields4 (r :: Prim.Row Prim.Type))
+type Fields6 r = Main.Fields5 (Main.Fields5 (r :: Prim.Row Prim.Type))
+type Fields7 r = Main.Fields6 (Main.Fields6 (r :: Prim.Row Prim.Type))
+type Fields8 r = Main.Fields7 (Main.Fields7 (r :: Prim.Row Prim.Type))
+type Fields9 r = Main.Fields8 (Main.Fields8 (r :: Prim.Row Prim.Type))
+type Fields10 r = Main.Fields9 (Main.Fields9 (r :: Prim.Row Prim.Type))
+type Fields11 r = Main.Fields10 (Main.Fields10 (r :: Prim.Row Prim.Type))
+type Fields12 r = Main.Fields11 (Main.Fields11 (r :: Prim.Row Prim.Type))
+type Fields13 r = Main.Fields12 (Main.Fields12 (r :: Prim.Row Prim.Type))
