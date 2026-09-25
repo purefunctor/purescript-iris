@@ -6,8 +6,8 @@ use petgraph::algo::tarjan_scc;
 use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, StrExt};
 use stabilizing::ExpectId;
-use syntax::ast::AstNode;
-use syntax::{SyntaxKind, SyntaxNode, SyntaxToken, cst};
+use syntax::ast::{AstNode, support};
+use syntax::{SyntaxKind, SyntaxToken, cst};
 
 use crate::literal::{StringLiteral, decode_normal_string, decode_raw_string};
 use crate::*;
@@ -95,12 +95,6 @@ fn char_literal(text: &str) -> Option<char> {
         let character = characters.next()?;
         characters.next().is_none().then_some(character)
     }
-}
-
-fn child_token(node: &SyntaxNode, kind: SyntaxKind) -> Option<SyntaxToken> {
-    node.children_with_tokens()
-        .filter_map(|element| element.into_token())
-        .find(|token| token.kind() == kind)
 }
 
 pub(crate) fn lower_binder(state: &mut State, context: &Context, cst: &cst::Binder) -> BinderId {
@@ -531,27 +525,27 @@ fn lower_expression_kind(
         cst::Expression::ExpressionSection(_) => ExpressionKind::Section,
         cst::Expression::ExpressionHole(_) => ExpressionKind::Hole,
         cst::Expression::ExpressionString(cst) => {
-            let string = child_token(cst.syntax(), SyntaxKind::STRING);
-            let raw_string = child_token(cst.syntax(), SyntaxKind::RAW_STRING);
+            let string = support::token(cst.syntax(), SyntaxKind::STRING);
+            let raw_string = support::token(cst.syntax(), SyntaxKind::RAW_STRING);
             let source =
                 StringLiteralSource::Expression(context.stabilized.lookup_cst(cst).expect_id());
             let (kind, value) = string_literal(state, context.source, source, string, raw_string);
             ExpressionKind::String { kind, value }
         }
         cst::Expression::ExpressionChar(cst) => {
-            let value = child_token(cst.syntax(), SyntaxKind::CHAR)
+            let value = support::token(cst.syntax(), SyntaxKind::CHAR)
                 .and_then(|token| char_literal(token.text(context.source)));
             ExpressionKind::Char { value }
         }
         cst::Expression::ExpressionTrue(_) => ExpressionKind::Boolean { boolean: true },
         cst::Expression::ExpressionFalse(_) => ExpressionKind::Boolean { boolean: false },
         cst::Expression::ExpressionInteger(cst) => {
-            let value = child_token(cst.syntax(), SyntaxKind::INTEGER)
+            let value = support::token(cst.syntax(), SyntaxKind::INTEGER)
                 .and_then(|token| integer_literal(token.text(context.source), false));
             ExpressionKind::Integer { value }
         }
         cst::Expression::ExpressionNumber(cst) => {
-            let value = child_token(cst.syntax(), SyntaxKind::NUMBER)
+            let value = support::token(cst.syntax(), SyntaxKind::NUMBER)
                 .map(|token| number_literal(token.text(context.source)));
             ExpressionKind::Number { value }
         }
