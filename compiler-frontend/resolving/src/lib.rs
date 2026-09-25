@@ -8,6 +8,7 @@ use files::FileId;
 use indexing::{ImportId, ImportKind, IndexedModule, TermItemId, TypeItemId};
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
 pub trait ExternalQueries:
@@ -15,10 +16,13 @@ pub trait ExternalQueries:
 {
 }
 
-/// Class members are grouped by class, as lookups and copies are per class.
+type ClassMembers = FxHashMap<SmolStr, (FileId, TermItemId)>;
+
+/// Class members are grouped by class, as lookups and copies are per class;
+/// importing modules share the members of imported classes.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ResolvedClassMembers {
-    members: FxHashMap<(FileId, TypeItemId), FxHashMap<SmolStr, (FileId, TermItemId)>>,
+    members: FxHashMap<(FileId, TypeItemId), Arc<ClassMembers>>,
 }
 
 impl ResolvedClassMembers {
@@ -31,7 +35,28 @@ impl ResolvedClassMembers {
         term_id: TermItemId,
     ) {
         let members = self.members.entry((class_file, class_id)).or_default();
-        members.insert(name, (member_file, term_id));
+        Arc::make_mut(members).insert(name, (member_file, term_id));
+    }
+
+    fn insert_class(
+        &mut self,
+        class_file: FileId,
+        class_id: TypeItemId,
+        imported: &ResolvedClassMembers,
+    ) {
+        let Some(imported) = imported.members.get(&(class_file, class_id)) else { return };
+        match self.members.entry((class_file, class_id)) {
+            Entry::Vacant(entry) => {
+                entry.insert(Arc::clone(imported));
+            }
+            Entry::Occupied(mut entry) => {
+                if !Arc::ptr_eq(entry.get(), imported) {
+                    let members =
+                        imported.iter().map(|(name, &member)| (SmolStr::clone(name), member));
+                    Arc::make_mut(entry.get_mut()).extend(members);
+                }
+            }
+        }
     }
 
     pub fn lookup(
@@ -48,7 +73,11 @@ impl ResolvedClassMembers {
         class_file: FileId,
         class_id: TypeItemId,
     ) -> impl Iterator<Item = (&SmolStr, FileId, TermItemId)> + '_ {
-        let members = self.members.get(&(class_file, class_id)).into_iter().flatten();
+        let members = self
+            .members
+            .get(&(class_file, class_id))
+            .into_iter()
+            .flat_map(|members| members.iter());
         members.map(|(name, (file, id))| (name, *file, *id))
     }
 
