@@ -94,11 +94,12 @@ impl TailCallContext {
     }
 
     pub(super) fn call(&self, module: &Module, expression: ExpressionId) -> Option<TailCall> {
-        let (identity, arguments, uncurried) = application(module, expression)?;
-        let target = self.targets.get(&identity)?;
-        if target.uncurried != uncurried || target.arity != arguments.len() {
+        let head = application_head(module, expression)?;
+        let target = self.targets.get(&head.identity)?;
+        if target.uncurried != head.uncurried || target.arity != head.arity {
             return None;
         }
+        let arguments = application_arguments(module, expression);
         Some(TailCall { target: target.clone(), arguments })
     }
 }
@@ -279,10 +280,10 @@ fn collect_tail_edges(
     targets: &FxHashMap<TailCallIdentity, (usize, usize, bool)>,
     edges: &mut Vec<TailEdge>,
 ) {
-    if let Some((identity, arguments, uncurried)) = application(module, expression)
-        && let Some(&(target, arity, target_uncurried)) = targets.get(&identity)
-        && arguments.len() == arity
-        && uncurried == target_uncurried
+    if let Some(head) = application_head(module, expression)
+        && let Some(&(target, arity, uncurried)) = targets.get(&head.identity)
+        && head.arity == arity
+        && head.uncurried == uncurried
     {
         edges.push(TailEdge { source, target, position });
         return;
@@ -349,27 +350,29 @@ fn collect_tail_edges(
     }
 }
 
-fn application(
-    module: &Module,
-    expression: ExpressionId,
-) -> Option<(TailCallIdentity, Vec<ExpressionId>, bool)> {
+struct ApplicationHead {
+    identity: TailCallIdentity,
+    arity: usize,
+    uncurried: bool,
+}
+
+fn application_head(module: &Module, expression: ExpressionId) -> Option<ApplicationHead> {
     match &module.storage[expression].kind {
         ExpressionKind::Application { .. } => {
             let mut function = expression;
-            let mut groups = Vec::new();
+            let mut arity = 0;
             while let ExpressionKind::Application { function: inner, arguments, .. } =
                 &module.storage[function].kind
             {
-                groups.push(arguments.as_ref());
+                arity += arguments.len();
                 function = *inner;
             }
             let identity = function_identity(module, function)?;
-            let arguments = groups.into_iter().rev().flatten().copied().collect();
-            Some((identity, arguments, false))
+            Some(ApplicationHead { identity, arity, uncurried: false })
         }
         ExpressionKind::UncurriedApplication { function, arguments, .. } => {
             let identity = function_identity(module, *function)?;
-            Some((identity, arguments.to_vec(), true))
+            Some(ApplicationHead { identity, arity: arguments.len(), uncurried: true })
         }
         ExpressionKind::Error
         | ExpressionKind::Literal { .. }
@@ -394,6 +397,23 @@ fn application(
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => None,
     }
+}
+
+/// Collects the arguments of an application already recognised by [`application_head`].
+fn application_arguments(module: &Module, expression: ExpressionId) -> Vec<ExpressionId> {
+    if let ExpressionKind::UncurriedApplication { arguments, .. } = &module.storage[expression].kind
+    {
+        return arguments.to_vec();
+    }
+    let mut function = expression;
+    let mut groups = Vec::new();
+    while let ExpressionKind::Application { function: inner, arguments, .. } =
+        &module.storage[function].kind
+    {
+        groups.push(arguments.as_ref());
+        function = *inner;
+    }
+    groups.into_iter().rev().flatten().copied().collect()
 }
 
 fn function_identity(module: &Module, expression: ExpressionId) -> Option<TailCallIdentity> {
