@@ -1,3 +1,4 @@
+mod nominal;
 pub mod render;
 
 use std::fmt::Write;
@@ -105,6 +106,7 @@ enum Request {
     Diagnostics,
     SemanticTokens,
     WorkspaceSymbols(String),
+    Nominal(String),
 }
 
 const DIAGNOSTICS_DIRECTIVE: &str = "-- diagnostics";
@@ -157,6 +159,16 @@ fn extract_workspace_symbol_queries(content: &str) -> Vec<(usize, Request)> {
     queries
 }
 
+fn extract_nominal_queries(content: &str) -> Vec<(usize, Request)> {
+    let lines = content.match_indices(nominal::DIRECTIVE).filter_map(|(index, _)| {
+        let line = content[index..].lines().next()?;
+        let starts_line = index == 0 || content[..index].ends_with('\n');
+        let query = line.strip_prefix(nominal::DIRECTIVE)?.trim().to_string();
+        starts_line.then_some((index, Request::Nominal(query)))
+    });
+    lines.collect()
+}
+
 fn extract_semantic_tokens_requests(content: &str) -> Vec<(usize, Request)> {
     content
         .match_indices(SEMANTIC_TOKENS_DIRECTIVE)
@@ -176,6 +188,7 @@ fn extract_requests(content: &str) -> Vec<Request> {
     requests.extend(extract_diagnostics_requests(content));
     requests.extend(extract_semantic_tokens_requests(content));
     requests.extend(extract_workspace_symbol_queries(content));
+    requests.extend(extract_nominal_queries(content));
     requests.sort_by_key(|(index, _)| *index);
     requests.into_iter().map(|(_, request)| request).collect()
 }
@@ -233,6 +246,10 @@ pub fn report(engine: &QueryEngine, files: &Files, id: FileId) -> String {
             Request::WorkspaceSymbols(query) => {
                 writeln!(result, "WorkspaceSymbols query {query:?}\n").unwrap();
                 dispatch_workspace_symbols(&mut result, engine, files, &mut symbols_cache, query);
+            }
+            Request::Nominal(query) => {
+                writeln!(result, "Nominal {query}\n").unwrap();
+                nominal::dispatch(&mut result, engine, files, query);
             }
             Request::Diagnostics => {
                 writeln!(result, "Diagnostics\n").unwrap();

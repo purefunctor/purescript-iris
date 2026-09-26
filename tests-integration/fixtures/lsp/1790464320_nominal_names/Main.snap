@@ -1,0 +1,108 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Nominal signature Lib.increment
+
+increment :: Int -> Int
+documentation "Adds one."
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 3:0..4:23
+
+
+Nominal signature Lib.Box
+
+Box :: forall @a. a -> Box a
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 11:13..11:18
+Box :: Type -> Type
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 11:0..11:18
+
+
+Nominal signature Lib.<.>
+
+<.> :: Int -> Int -> Int
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 9:0..9:23
+
+
+Nominal signature Lib.(<.>)
+
+<.> :: Int -> Int -> Int
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 9:0..9:23
+
+
+Nominal signature ReExport.increment
+
+increment :: Int -> Int
+documentation "Adds one."
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 3:0..4:23
+
+
+Nominal signature Prim.Int
+
+Int :: Type
+defined at file:///temporary-directory/Prim.purs @ 17:0..18:8
+
+
+Nominal signature Broken.<+>
+
+<unchecked>
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Broken.purs @ 2:0..2:23
+
+
+Nominal signature Lib.longKinded
+
+longKinded ::
+  forall (f :: Type -> Type) a b.
+    (f :: Type -> Type) a ->
+    (f :: Type -> Type) b ->
+    (f :: Type -> Type) a ->
+    (f :: Type -> Type) b ->
+    (f :: Type -> Type) a ->
+    (f :: Type -> Type) b ->
+    (f :: Type -> Type) a ->
+    (f :: Type -> Type) a
+defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.purs @ 13:0..14:36
+
+
+Nominal signature Lib.missing
+
+<empty>
+
+
+Nominal signature Missing.thing
+
+<error> Missing.thing names no item of a loaded module
+
+
+Nominal references Lib.increment
+
+file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Main.purs @ 5:7..5:16
+file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Main.purs @ 5:23..5:32
+
+
+Nominal references Lib.Box
+
+file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Main.purs @ 7:9..7:12
+file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Main.purs @ 8:8..8:11
+
+
+Nominal dependents Lib
+
+Main
+ReExport
+App through Main
+
+
+Nominal search box
+
+0 Lib.Box :: forall @a. a -> Box a
+0 Lib.Box :: Type -> Type
+1 Main.boxed :: Box Int
+
+
+Nominal search long
+
+1 Lib.longKinded :: forall (f :: Type -> Type) a b. (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) a
+
+
+Nominal search icmt
+
+3 Lib.increment :: Int -> Int
