@@ -2,7 +2,7 @@
 //!
 //! Initializers are identified by their position in a dependency graph, where
 //! `dependencies[position]` lists the positions that `position` refers to.
-//! Both algorithms use explicit work stacks and run in `O(V + E)` time, so a
+//! These algorithms use explicit work stacks and run in `O(V + E)` time, so a
 //! module with a long chain of initializers neither exhausts the stack nor
 //! spends quadratic time identifying cycles.
 
@@ -40,15 +40,13 @@ pub fn initializer_postorder(dependencies: &[Vec<usize>]) -> Vec<usize> {
     ordered
 }
 
-/// Marks every initializer that participates in a cycle: each member of a
-/// multi-node cycle and each initializer that depends on itself. Acyclic
-/// initializers remain unmarked even when they depend on, or are depended
-/// upon by, a cycle.
+/// Groups mutually dependent initializers, with dependencies before dependents.
+/// The order within each strongly connected component is unspecified.
 ///
 /// This is Kosaraju's algorithm: a depth-first search over the transposed
 /// graph in reverse postorder visits exactly one strongly connected component
 /// at a time.
-pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
+pub fn initializer_components(dependencies: &[Vec<usize>]) -> Vec<Vec<usize>> {
     let mut dependents = vec![Vec::new(); dependencies.len()];
     for (position, position_dependencies) in dependencies.iter().enumerate() {
         for &dependency in position_dependencies {
@@ -56,9 +54,8 @@ pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
         }
     }
 
-    let mut cyclic = vec![false; dependencies.len()];
+    let mut components = Vec::new();
     let mut assigned = vec![false; dependencies.len()];
-    let mut component = Vec::new();
     let mut work_stack = Vec::new();
 
     for &root in initializer_postorder(dependencies).iter().rev() {
@@ -66,7 +63,7 @@ pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
             continue;
         }
         assigned[root] = true;
-        component.clear();
+        let mut component = Vec::new();
         work_stack.push(root);
 
         while let Some(position) = work_stack.pop() {
@@ -78,8 +75,21 @@ pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
                 }
             }
         }
+        components.push(component);
+    }
 
-        let depends_on_itself = || dependencies[root].contains(&root);
+    components.reverse();
+    components
+}
+
+/// Marks every initializer that participates in a cycle: each member of a
+/// multi-node cycle and each initializer that depends on itself. Acyclic
+/// initializers remain unmarked even when they depend on, or are depended
+/// upon by, a cycle.
+pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
+    let mut cyclic = vec![false; dependencies.len()];
+    for component in initializer_components(dependencies) {
+        let depends_on_itself = || dependencies[component[0]].contains(&component[0]);
         if component.len() > 1 || depends_on_itself() {
             for &position in &component {
                 cyclic[position] = true;
@@ -92,7 +102,7 @@ pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cyclic_initializers, initializer_postorder};
+    use super::{cyclic_initializers, initializer_components, initializer_postorder};
 
     /// Builds a graph where each initializer depends on the next one.
     fn chain(length: usize) -> Vec<Vec<usize>> {
@@ -119,6 +129,17 @@ mod tests {
         let dependencies = vec![vec![1, 2], vec![2], Vec::new(), vec![0]];
 
         assert_eq!(initializer_postorder(&dependencies), vec![2, 1, 0, 3]);
+    }
+
+    #[test]
+    fn components_define_external_dependencies_before_recursive_groups() {
+        let dependencies = vec![vec![1], vec![2], vec![1, 3], Vec::new(), vec![0]];
+        let mut components = initializer_components(&dependencies);
+        for component in &mut components {
+            component.sort_unstable();
+        }
+
+        assert_eq!(components, vec![vec![3], vec![1, 2], vec![0], vec![4]]);
     }
 
     #[test]

@@ -9,6 +9,7 @@ export function aliased(seed) {
 }
 export const constructEffect = $foreign["constructEffect"];
 export const mark = $foreign["mark"];
+export const deferredValue = mark("deferred-value")("deferred");
 export const deferredEffect = /* @__PURE__ */ (() => {
   const $action = constructEffect("deferred-action")("ignored");
   return () => {
@@ -16,4 +17,3 @@ export const deferredEffect = /* @__PURE__ */ (() => {
     return constructEffect("deferred-result")(deferredValue)();
   };
 })();
-export const deferredValue = mark("deferred-value")("deferred");

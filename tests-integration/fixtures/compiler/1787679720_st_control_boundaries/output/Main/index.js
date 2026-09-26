@@ -31,6 +31,7 @@ export function aliased(seed) {
 }
 export const constructST = $foreign["constructST"];
 export const mark = $foreign["mark"];
+export const deferredValue = mark("deferred-value")("deferred");
 export const deferredST = /* @__PURE__ */ (() => {
   const $action = constructST("deferred-action")("ignored");
   return () => {
@@ -38,4 +39,3 @@ export const deferredST = /* @__PURE__ */ (() => {
     return constructST("deferred-result")(deferredValue)();
   };
 })();
-export const deferredValue = mark("deferred-value")("deferred");

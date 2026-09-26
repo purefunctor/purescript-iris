@@ -18,7 +18,7 @@ const actual = {
 };
 
 const expected = {
-  startupTrace: ["construct:deferred-action", "mark:deferred-value"],
+  startupTrace: ["mark:deferred-value", "construct:deferred-action"],
   aliasedConstruction: ["construct:alias-first"],
   aliasedValue: "alias",
   aliasedTrace: [

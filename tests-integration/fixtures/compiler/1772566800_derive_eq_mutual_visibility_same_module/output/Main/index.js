@@ -7,6 +7,23 @@ export const Duration = ($value0) => ($value1) => ({
   _1: $value0,
   _2: $value1
 });
+export const eqDurationComponent = /* @__PURE__ */ (() => {
+  const $closure = (left) => {
+    return (right) => {
+      if (left === "Hours" && right === "Hours") {
+        return true;
+      }
+      if (left === "Minutes" && right === "Minutes") {
+        return true;
+      }
+      if (left === "Seconds" && right === "Seconds") {
+        return true;
+      }
+      return false;
+    };
+  };
+  return { eq: $closure };
+})();
 export const eqDuration = /* @__PURE__ */ (() => {
   const $closure = (left) => {
     return (right) => {
@@ -24,23 +41,6 @@ export const eqDuration = /* @__PURE__ */ (() => {
         }
       }
       throw new Error("Pattern match failure");
-    };
-  };
-  return { eq: $closure };
-})();
-export const eqDurationComponent = /* @__PURE__ */ (() => {
-  const $closure = (left) => {
-    return (right) => {
-      if (left === "Hours" && right === "Hours") {
-        return true;
-      }
-      if (left === "Minutes" && right === "Minutes") {
-        return true;
-      }
-      if (left === "Seconds" && right === "Seconds") {
-        return true;
-      }
-      return false;
     };
   };
   return { eq: $closure };

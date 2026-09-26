@@ -45,7 +45,7 @@ const actual = {
 };
 
 const expected = {
-  startupTrace: ["construct:deferred-action", "mark:deferred-value"],
+  startupTrace: ["mark:deferred-value", "construct:deferred-action"],
   branchedThenConstruction: ["construct:branch-action"],
   branchedThenValue: "then",
   branchedThenTrace: [

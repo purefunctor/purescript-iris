@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export constructor Parser/1
+
+@export bindFlipped = \callback%1 $parser%4@(Parser parser%2) ->
+  {
+    tag: "Parser",
+    _1:
+      \state%0 ->
+        case callback%1 (parser%2 state%0) of
+          Parser next%3 ->
+            next%3 state%0
+  }
+
+@export fail = \message%7 ->
+  bindFlipped (\$int%5@(_) -> { tag: "Parser", _1: \$int%6@(_) -> message%7 }) position
+
+@export plusParser = { empty: fail 7 }
+
+@export position = { tag: "Parser", _1: \state%8 -> state%8 }
+
+@export test = case plusParser.empty of
+  Parser parser%9 ->
+    parser%9 42
+
+@export recursive[6] conditional = choose false
+
+@export recursive[6] choose = \condition%10 ->
+  if condition%10 then conditional else 19

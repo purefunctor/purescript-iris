@@ -9,7 +9,9 @@ mod tail_call;
 use std::rc::Rc;
 
 use files::{FileId, ForeignSourceKind};
-use functional::initializers::{cyclic_initializers, initializer_postorder};
+use functional::initializers::{
+    cyclic_initializers, initializer_components, initializer_postorder,
+};
 use functional::optimize::{for_each_expression_child, local_uses};
 use functional::tree::{
     Binding, CaseAlternative, Declaration, DeclarationKind, EffectExpression,
@@ -3137,6 +3139,7 @@ fn sorted_value_declarations<'m>(generator: &'m Generator<'_>) -> Vec<(&'m Decla
         .map(|(position, declaration)| (declaration.global.id, position))
         .collect::<FxHashMap<_, _>>();
     let mut dependencies = vec![Vec::new(); values.len()];
+    let mut lexical_dependencies = vec![Vec::new(); values.len()];
     for (position, declaration) in values.iter().enumerate() {
         let DeclarationKind::Value(expression) = declaration.kind else {
             unreachable!("invariant violated: expected value declaration")
@@ -3157,11 +3160,33 @@ fn sorted_value_declarations<'m>(generator: &'m Generator<'_>) -> Vec<(&'m Decla
         }
         dependencies[position].sort_unstable();
         dependencies[position].dedup();
+
+        let mut globals = FxHashSet::default();
+        collect_expression_globals(generator.module, expression, true, &mut globals);
+        lexical_dependencies[position] =
+            globals.iter().filter_map(|global| positions.get(global).copied()).collect_vec();
+        lexical_dependencies[position].sort_unstable();
     }
 
     let cyclic = cyclic_initializers(&dependencies);
     let ordered = initializer_postorder(&dependencies);
-    ordered.into_iter().map(|position| (values[position], cyclic[position])).collect_vec()
+    let mut strict_positions = vec![0; values.len()];
+    for (rank, &position) in ordered.iter().enumerate() {
+        strict_positions[position] = rank;
+    }
+
+    // A hoisted function can read another group's values when an initializer calls it.
+    // Order lexical groups first, but preserve strict order within each group: delayed
+    // references establish group membership, not proof of an eager initializer cycle.
+    let mut components = initializer_components(&lexical_dependencies);
+    for component in &mut components {
+        component.sort_unstable_by_key(|&position| strict_positions[position]);
+    }
+    components
+        .into_iter()
+        .flatten()
+        .map(|position| (values[position], cyclic[position]))
+        .collect_vec()
 }
 
 fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
