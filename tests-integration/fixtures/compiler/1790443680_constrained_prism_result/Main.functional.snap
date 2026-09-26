@@ -2,13 +2,15 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 310
 ---
-@export test = \choicePDict%0 -> prism Just (maybe { tag: "Left", _1: "Nothing" } Right)
+@export test = \choicePDict%0 ->
+  prism Just (maybe { tag: "Left", _1: "Nothing" } Right) choicePDict%0
 
 @export test' = \choicePDict%1 ->
   prism Just (maybe { tag: "Left", _1: "Nothing" } Right) choicePDict%1
 
 @export test2 = \choicePDict%2 ->
   prism (const "Nothing") (maybe { tag: "Right", _1: unit } (const { tag: "Left", _1: "Nothing" }))
+    choicePDict%2
 
 @export results = [eqEitherArrayMaybeIntDictEq
     (matching (below traversableArray (test choiceMarket) choiceMarket)

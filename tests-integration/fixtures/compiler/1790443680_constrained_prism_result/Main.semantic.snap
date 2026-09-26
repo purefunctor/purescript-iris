@@ -3,7 +3,7 @@ source: tests-integration/src/fixtures.rs
 assertion_line: 309
 ---
 test :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
-test = \{choiceDict} -> apply (prism Just) (maybe (Left Nothing) Right)
+test = \{choiceDict} -> apply (prism Just) (maybe (Left Nothing) Right) {choiceDict}
 
 test' :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
 test' = \{choiceDict} -> prism Just (maybe (Left Nothing) Right) {choiceDict}
@@ -11,7 +11,7 @@ test' = \{choiceDict} -> prism Just (maybe (Left Nothing) Right) {choiceDict}
 test2 :: forall a b.
   Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) Data.Unit.Unit Data.Unit.Unit
 test2 = \{choiceDict} ->
-  apply (prism (const Nothing)) (maybe (Right unit) (apply const (Left Nothing)))
+  apply (prism (const Nothing)) (maybe (Right unit) (apply const (Left Nothing))) {choiceDict}
 
 results :: Prim.Array Prim.Boolean
 results =

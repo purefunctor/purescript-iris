@@ -8,10 +8,10 @@ import * as Data_Maybe from "../Data.Maybe/index.js";
 import * as Data_Traversable from "../Data.Traversable/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
 export function test(choicePDict) {
-  return Data_Lens_Prism.prism(Data_Maybe.Just)(Data_Maybe.maybe({
+  return /* @__PURE__ */ Data_Lens_Prism.prism(Data_Maybe.Just)(Data_Maybe.maybe({
     tag: "Left",
     _1: "Nothing"
-  })(Data_Either.Right));
+  })(Data_Either.Right))(choicePDict);
 }
 function test_(choicePDict) {
   return /* @__PURE__ */ Data_Lens_Prism.prism(Data_Maybe.Just)(Data_Maybe.maybe({
@@ -20,13 +20,13 @@ function test_(choicePDict) {
   })(Data_Either.Right))(choicePDict);
 }
 export function test2(choicePDict) {
-  return Data_Lens_Prism.prism(Data_Function.const("Nothing"))(Data_Maybe.maybe({
+  return /* @__PURE__ */ Data_Lens_Prism.prism(Data_Function.const("Nothing"))(Data_Maybe.maybe({
     tag: "Right",
     _1: Data_Unit.unit
   })(Data_Function.const({
     tag: "Left",
     _1: "Nothing"
-  })));
+  })))(choicePDict);
 }
 const eqMaybeEqIntDict = /* @__PURE__ */ Data_Maybe.eqMaybe(Data_Eq.eqInt);
 const eqArrayEqIntDict = /* @__PURE__ */ Data_Eq.eqArray(Data_Eq.eqInt);

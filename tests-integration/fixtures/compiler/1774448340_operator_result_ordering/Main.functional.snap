@@ -13,9 +13,10 @@ assertion_line: 310
 @export lens = \pack%10 unpack%9 ->
   \profunctorPDict%8 -> \pab%11 -> dimap profunctorPDict%8 unpack%9 pack%10 pab%11
 
-@export wrapped = \profunctorPDict%15 ->
-  apply (lens (\value%12 -> value%12))
-    (\section183%13 ->
-      case section183%13 of
-        a%14 ->
-          a%14)
+@export wrapped = \profunctorPDict%12 ->
+  apply (lens (\value%13 -> value%13))
+    (\section183%14 ->
+      case section183%14 of
+        a%15 ->
+          a%15)
+    profunctorPDict%12
