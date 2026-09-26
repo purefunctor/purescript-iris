@@ -267,6 +267,8 @@ pub enum QueryCommand {
     Dependents(QueryName),
     /// Print the instances of a class, or the instances whose head mentions a type.
     Instances(InstancesQuery),
+    /// Print the declarations whose names match a pattern, best matches first.
+    Search(SearchQuery),
     /// Print the diagnostics of one module, or of every module.
     Diagnostics(OptionalQueryName),
     /// Print the JavaScript generated for a module.
@@ -279,6 +281,14 @@ pub struct QueryName {
     /// Qualified name, such as Data.Maybe.fromMaybe or Data.Maybe.
     #[usage(value_name = "NAME")]
     name: String,
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct SearchQuery {
+    /// Part of a name, such as foldl or fromMay; letters may be skipped.
+    #[usage(value_name = "PATTERN")]
+    pattern: String,
 }
 
 #[derive(Debug, Args)]
@@ -352,6 +362,7 @@ impl QueryCommand {
                     Query::Instances { name, search: InstanceSearch::Type }
                 }
             },
+            QueryCommand::Search(SearchQuery { pattern }) => Query::Search { pattern },
             QueryCommand::Diagnostics(OptionalQueryName { name }) => Query::Diagnostics { name },
             QueryCommand::Javascript(QueryName { name }) => Query::Javascript { name },
         };
