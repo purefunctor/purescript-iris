@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+Parser :: (Prim.Int -> Prim.Int) -> Main.Parser
+bindFlipped :: (Prim.Int -> Main.Parser) -> Main.Parser -> Main.Parser
+fail :: Prim.Int -> Main.Parser
+plusParser :: { empty :: Main.Parser }
+position :: Main.Parser
+test :: Prim.Int
+conditional :: Prim.Int
+choose :: Prim.Boolean -> Prim.Int
+
+Types
+Parser :: Prim.Type
+
+Roles
+Parser = []
