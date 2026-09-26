@@ -160,6 +160,8 @@ impl<'a> Printer<'a, '_> {
             }
             ExpressionKind::Binary { operator, left, right } => {
                 let operator = match operator {
+                    BinaryOperator::BooleanAnd => "boolean.and",
+                    BinaryOperator::BooleanOr => "boolean.or",
                     BinaryOperator::IntegerAdd => "integer.add",
                     BinaryOperator::IntegerSubtract => "integer.subtract",
                     BinaryOperator::IntegerMultiply => "integer.multiply",

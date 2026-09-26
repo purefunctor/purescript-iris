@@ -8,12 +8,12 @@ export function booleanNot(value) {
 }
 export function booleanConj(left) {
   return (right) => {
-    return /* @__PURE__ */ heytingAlgebraBooleanDictConj(left)(right);
+    return left && right;
   };
 }
 export function booleanDisj(left) {
   return (right) => {
-    return /* @__PURE__ */ heytingAlgebraBooleanDictDisj(left)(right);
+    return left || right;
   };
 }
 export function genericConj(heytingAlgebraValueDict) {
@@ -21,79 +21,95 @@ export function genericConj(heytingAlgebraValueDict) {
 }
 export function conjOrder(left) {
   return (right) => {
-    return /* @__PURE__ */ heytingAlgebraBooleanDictConj(observe("left")(left))(observe("right")(right));
+    return observe("left")(left) && observe("right")(right);
   };
 }
 export function disjOrder(left) {
   return (right) => {
-    return /* @__PURE__ */ heytingAlgebraBooleanDictDisj(observe("left")(left))(observe("right")(right));
+    return observe("left")(left) || observe("right")(right);
   };
 }
 export function conjCase(left) {
   return (right) => {
-    const $function = heytingAlgebraBooleanDictConj(observe("left")(left));
     let $result;
-    const $scrutinee = observe("right")(right);
-    $case: {
-      if ($scrutinee === true) {
-        $result = true;
-        break $case;
+    if (observe("left")(left)) {
+      const $scrutinee = observe("right")(right);
+      $case: {
+        if ($scrutinee === true) {
+          $result = true;
+          break $case;
+        }
+        if ($scrutinee === false) {
+          $result = false;
+          break $case;
+        }
+        throw new Error("Pattern match failure");
       }
-      if ($scrutinee === false) {
-        $result = false;
-        break $case;
-      }
-      throw new Error("Pattern match failure");
+    } else {
+      $result = false;
     }
-    return /* @__PURE__ */ $function($result);
+    return $result;
   };
 }
 export function disjCase(left) {
   return (right) => {
-    const $function = heytingAlgebraBooleanDictDisj(observe("left")(left));
     let $result;
-    const $scrutinee = observe("right")(right);
-    $case: {
-      if ($scrutinee === true) {
-        $result = true;
-        break $case;
+    if (observe("left")(left)) {
+      $result = true;
+    } else {
+      const $scrutinee = observe("right")(right);
+      $case: {
+        if ($scrutinee === true) {
+          $result = true;
+          break $case;
+        }
+        if ($scrutinee === false) {
+          $result = false;
+          break $case;
+        }
+        throw new Error("Pattern match failure");
       }
-      if ($scrutinee === false) {
-        $result = false;
-        break $case;
-      }
-      throw new Error("Pattern match failure");
     }
-    return /* @__PURE__ */ $function($result);
+    return $result;
   };
 }
 export function conjFunctionOrder(left) {
   return (right) => {
     const $function = observe("function")((value) => value);
-    const $function$1 = heytingAlgebraBooleanDictConj(observe("left")(left));
     let $result;
-    const $scrutinee = observe("right")(right);
-    $case: {
-      if ($scrutinee === true) {
-        $result = true;
-        break $case;
+    if (observe("left")(left)) {
+      const $scrutinee = observe("right")(right);
+      $case: {
+        if ($scrutinee === true) {
+          $result = true;
+          break $case;
+        }
+        if ($scrutinee === false) {
+          $result = false;
+          break $case;
+        }
+        throw new Error("Pattern match failure");
       }
-      if ($scrutinee === false) {
-        $result = false;
-        break $case;
-      }
-      throw new Error("Pattern match failure");
+    } else {
+      $result = false;
     }
-    return $function(/* @__PURE__ */ $function$1($result));
+    return $function($result);
   };
 }
 export function conjPatternFunctionOrder(left) {
   return (right) => {
-    const $closure = ($record) => {
-      const value$1 = $record.value;
-      return value$1;
-    };
-    return observe("function")((value) => value)(/* @__PURE__ */ heytingAlgebraBooleanDictConj(observe("left")(left))($closure({ value: observe("right")(right) })));
+    const $function = observe("function")((value) => value);
+    let $result;
+    if (observe("left")(left)) {
+      const $closure = ($record) => {
+        const value$1 = $record.value;
+        return value$1;
+      };
+      $result = $closure({ value: observe("right")(right) });
+    } else {
+      $result = false;
+    }
+    return $function($result);
   };
 }
 export function integerAdd(left) {
@@ -138,9 +154,7 @@ export function lookalikeNegate(value) {
 }
 export const observe = $foreign["observe"];
 export const readTrace = $foreign["readTrace"];
-const heytingAlgebraBooleanDictConj = /* @__PURE__ */ Data_HeytingAlgebra.conj(Data_HeytingAlgebra.heytingAlgebraBoolean);
-const heytingAlgebraBooleanDictDisj = /* @__PURE__ */ Data_HeytingAlgebra.disj(Data_HeytingAlgebra.heytingAlgebraBoolean);
-export const partiallyAppliedConj = /* @__PURE__ */ heytingAlgebraBooleanDictConj(true);
+export const partiallyAppliedConj = /* @__PURE__ */ Data_HeytingAlgebra.conj(Data_HeytingAlgebra.heytingAlgebraBoolean)(true);
 export const integerNegateLiteral = -20 | 0;
 export const inlineIntegerNegateLiteral = -20 | 0;
 export const numberNegateLiteral = -20.5;

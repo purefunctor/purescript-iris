@@ -72,6 +72,10 @@ pub(super) fn binary_expression(
     right: ExpressionId,
 ) -> ExpressionId {
     match operator {
+        FunctionalBinaryOperator::BooleanAnd => {
+            tree.binary(BinaryOperator::LogicalAnd, left, right)
+        }
+        FunctionalBinaryOperator::BooleanOr => tree.binary(BinaryOperator::LogicalOr, left, right),
         FunctionalBinaryOperator::IntegerAdd => {
             integer_binary_expression(tree, BinaryOperator::Add, left, right)
         }

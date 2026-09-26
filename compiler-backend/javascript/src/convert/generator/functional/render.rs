@@ -12,10 +12,10 @@ use files::{FileId, ForeignSourceKind};
 use functional::initializers::{cyclic_initializers, initializer_postorder};
 use functional::optimize::{for_each_expression_child, local_uses};
 use functional::tree::{
-    Binding, CaseAlternative, Declaration, DeclarationKind, EffectExpression,
-    ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
-    GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Parameter,
-    PatternId, PatternKind, RecordUpdate,
+    BinaryOperator as FunctionalBinaryOperator, Binding, CaseAlternative, Declaration,
+    DeclarationKind, EffectExpression, ExpressionId as FunctionalExpressionId, ExpressionKind,
+    Global, GlobalId, Guard, GuardedAlternative, LocalId, Module as FunctionalModule,
+    ModuleDependency, Parameter, PatternId, PatternKind, RecordUpdate,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -1518,6 +1518,15 @@ impl Generator<'_> {
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Binary { operator, left, right } => {
+                if matches!(
+                    operator,
+                    FunctionalBinaryOperator::BooleanAnd | FunctionalBinaryOperator::BooleanOr
+                ) && !self.expression_can_inline(*right)
+                {
+                    return self.render_short_circuit_expression(
+                        tree, writer, *operator, *left, *right, context,
+                    );
+                }
                 let mut left = self.rendered_expression(tree, writer, *left, context)?;
                 let right =
                     if let Some(value) = self.try_inline_expression(tree, *right, context)? {
@@ -1681,6 +1690,37 @@ impl Generator<'_> {
         }
     }
 
+    fn render_short_circuit_expression<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        operator: FunctionalBinaryOperator,
+        left: FunctionalExpressionId,
+        right: FunctionalExpressionId,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<RenderedExpression> {
+        let condition = self.expression_value(tree, writer, left, context)?;
+        let name = context.allocate("$result");
+        writer.mutable(&name);
+        let evaluate_right =
+            |tree: &mut Tree<'t>, writer: &mut Writer<'t>, context: &mut FunctionContext| {
+                self.render_expression(tree, writer, right, Destination::Assign(&name), context)
+            };
+        let short_circuit =
+            |tree: &mut Tree<'t>, writer: &mut Writer<'t>, _: &mut FunctionContext| {
+                let value = tree.boolean(operator == FunctionalBinaryOperator::BooleanOr);
+                writer.assign(tree, &name, value);
+                Ok(())
+            };
+        if operator == FunctionalBinaryOperator::BooleanAnd {
+            writer.if_else_with_state(tree, condition, context, evaluate_right, short_circuit)?;
+        } else {
+            writer.if_else_with_state(tree, condition, context, short_circuit, evaluate_right)?;
+        }
+        let value = tree.identifier(name);
+        Ok(RenderedExpression { value, pending_evaluation: false })
+    }
+
     fn expression_rendering_is_eager(
         &self,
         expression: FunctionalExpressionId,
@@ -1711,9 +1751,16 @@ impl Generator<'_> {
             | ExpressionKind::Unary { value: record, .. } => {
                 self.expression_rendering_is_eager(*record, context)
             }
-            ExpressionKind::Binary { left, right, .. } => {
+            ExpressionKind::Binary { operator, left, right } => {
                 self.expression_rendering_is_eager(*left, context)
-                    || self.expression_rendering_is_eager(*right, context)
+                    || if matches!(
+                        operator,
+                        FunctionalBinaryOperator::BooleanAnd | FunctionalBinaryOperator::BooleanOr
+                    ) {
+                        !self.expression_can_inline(*right)
+                    } else {
+                        self.expression_rendering_is_eager(*right, context)
+                    }
             }
             ExpressionKind::Application { function, arguments, .. }
             | ExpressionKind::UncurriedApplication { function, arguments, .. } => {

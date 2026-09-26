@@ -210,6 +210,8 @@ pub enum UnaryOperator {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOperator {
+    BooleanAnd,
+    BooleanOr,
     IntegerAdd,
     IntegerSubtract,
     IntegerMultiply,

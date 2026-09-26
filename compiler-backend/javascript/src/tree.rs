@@ -38,6 +38,7 @@ pub(crate) enum BinaryOperator {
     StrictEqual,
     BitwiseOr,
     LogicalAnd,
+    LogicalOr,
     Add,
     Subtract,
     Multiply,
@@ -291,6 +292,9 @@ impl<'a> Tree<'a> {
     ) -> ExpressionId {
         let left = self.expression(left);
         let right = self.expression(right);
+        let binary = |left, operator, right| {
+            Expression::new_binary_expression(SPAN, left, operator, right, &self.builder)
+        };
         let expression = match operator {
             BinaryOperator::LogicalAnd => Expression::new_logical_expression(
                 SPAN,
@@ -299,17 +303,18 @@ impl<'a> Tree<'a> {
                 right,
                 &self.builder,
             ),
-            operator => {
-                let operator = match operator {
-                    BinaryOperator::StrictEqual => OxcBinaryOperator::StrictEquality,
-                    BinaryOperator::BitwiseOr => OxcBinaryOperator::BitwiseOR,
-                    BinaryOperator::Add => OxcBinaryOperator::Addition,
-                    BinaryOperator::Subtract => OxcBinaryOperator::Subtraction,
-                    BinaryOperator::Multiply => OxcBinaryOperator::Multiplication,
-                    BinaryOperator::LogicalAnd => unreachable!(),
-                };
-                Expression::new_binary_expression(SPAN, left, operator, right, &self.builder)
-            }
+            BinaryOperator::LogicalOr => Expression::new_logical_expression(
+                SPAN,
+                left,
+                LogicalOperator::Or,
+                right,
+                &self.builder,
+            ),
+            BinaryOperator::StrictEqual => binary(left, OxcBinaryOperator::StrictEquality, right),
+            BinaryOperator::BitwiseOr => binary(left, OxcBinaryOperator::BitwiseOR, right),
+            BinaryOperator::Add => binary(left, OxcBinaryOperator::Addition, right),
+            BinaryOperator::Subtract => binary(left, OxcBinaryOperator::Subtraction, right),
+            BinaryOperator::Multiply => binary(left, OxcBinaryOperator::Multiplication, right),
         };
         self.allocate(expression)
     }

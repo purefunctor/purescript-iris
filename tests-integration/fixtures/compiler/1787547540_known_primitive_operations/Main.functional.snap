@@ -8,50 +8,46 @@ assertion_line: 310
 
 @export booleanNot = \value%0 -> boolean.not value%0
 
-@export booleanConj = \left%1 right%2 -> heytingAlgebraBooleanDictConj left%1 right%2
+@export booleanConj = \left%1 right%2 -> boolean.and left%1 right%2
 
-@export booleanDisj = \left%3 right%4 -> heytingAlgebraBooleanDictDisj left%3 right%4
+@export booleanDisj = \left%3 right%4 -> boolean.or left%3 right%4
 
-@export partiallyAppliedConj = heytingAlgebraBooleanDictConj true
+@export partiallyAppliedConj = conj heytingAlgebraBoolean true
 
 @export genericConj = \heytingAlgebraValueDict%5 ->
   \left%6 right%7 -> conj heytingAlgebraValueDict%5 left%6 right%7
 
-@export conjOrder = \left%8 right%9 ->
-  heytingAlgebraBooleanDictConj (observe "left" left%8) (observe "right" right%9)
+@export conjOrder = \left%8 right%9 -> boolean.and (observe "left" left%8) (observe "right" right%9)
 
 @export disjOrder = \left%10 right%11 ->
-  heytingAlgebraBooleanDictDisj (observe "left" left%10) (observe "right" right%11)
+  boolean.or (observe "left" left%10) (observe "right" right%11)
 
 @export conjCase = \left%12 right%13 ->
-  heytingAlgebraBooleanDictConj (observe "left" left%12)
-    (case observe "right" right%13 of
-      true ->
-        true
-      false ->
-        false)
+  boolean.and (observe "left" left%12) (case observe "right" right%13 of
+    true ->
+      true
+    false ->
+      false)
 
 @export disjCase = \left%14 right%15 ->
-  heytingAlgebraBooleanDictDisj (observe "left" left%14)
-    (case observe "right" right%15 of
-      true ->
-        true
-      false ->
-        false)
+  boolean.or (observe "left" left%14) (case observe "right" right%15 of
+    true ->
+      true
+    false ->
+      false)
 
 @export conjFunctionOrder = \left%17 right%18 ->
   observe "function" (\value%16 -> value%16)
-    (heytingAlgebraBooleanDictConj (observe "left" left%17)
-      (case observe "right" right%18 of
-        true ->
-          true
-        false ->
-          false))
+    (boolean.and (observe "left" left%17) (case observe "right" right%18 of
+      true ->
+        true
+      false ->
+        false))
 
 @export conjPatternFunctionOrder = \left%20 right%23 ->
   observe "function" (\value%19 -> value%19)
-    (heytingAlgebraBooleanDictConj (observe "left" left%20)
-      ((\$record%22@({ value: value%21 }) -> value%21) { value: observe "right" right%23 }))
+    (boolean.and (observe "left" left%20) ((\$record%22@({ value: value%21 }) -> value%21)
+      { value: observe "right" right%23 }))
 
 @export integerAdd = \left%24 right%25 -> integer.add left%24 right%25
 
@@ -84,7 +80,3 @@ assertion_line: 310
 @export lookalikeAdd = \left%39 right%40 -> add semiringInt left%39 right%40
 
 @export lookalikeNegate = \value%41 -> negate value%41
-
-heytingAlgebraBooleanDictConj = conj heytingAlgebraBoolean
-
-heytingAlgebraBooleanDictDisj = disj heytingAlgebraBoolean
