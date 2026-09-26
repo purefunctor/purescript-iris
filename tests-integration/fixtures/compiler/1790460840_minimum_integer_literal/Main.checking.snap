@@ -6,6 +6,7 @@ Terms
 test :: Prim.Int
 test2 :: Prim.Int
 test3 :: Prim.Int
+test4 :: Prim.Int -> Prim.Boolean
 test5 :: Prim.Int
 test6 :: Prim.Int
 test7 :: Prim.Int

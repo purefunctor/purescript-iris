@@ -2,16 +2,23 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 310
 ---
-@export test = integer.negate (<error>)
+@export test = -2147483648
 
-@export test2 = integer.negate (<error>)
+@export test2 = -2147483648
 
-@export test3 = integer.negate (<error>)
+@export test3 = -2147483648
 
-@export test5 = integer.negate (integer.negate (<error>))
+@export test4 = \$int%0 ->
+  case $int%0 of
+    -2147483648 ->
+      true
+    _ ->
+      false
+
+@export test5 = -2147483648
 
 @export test6 = -2147483647
 
 @export test7 = 2147483647
 
-@export test8 = (\value%1 -> value%1) 42
+@export test8 = (\value%2 -> value%2) 42

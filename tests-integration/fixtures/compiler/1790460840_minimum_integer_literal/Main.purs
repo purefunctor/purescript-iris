@@ -11,6 +11,10 @@ test2 = -(0x80000000)
 test3 :: Int
 test3 = negate 2_147_483_648
 
+test4 :: Int -> Boolean
+test4 (-2147483648) = true
+test4 _ = false
+
 test5 :: Int
 test5 = -(-2147483648)
 

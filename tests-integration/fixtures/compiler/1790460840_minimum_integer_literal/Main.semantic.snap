@@ -3,16 +3,20 @@ source: tests-integration/src/fixtures.rs
 assertion_line: 309
 ---
 test :: Prim.Int
-test = negate {ringInt} <error>
+test = negate {ringInt} 2147483648
 
 test2 :: Prim.Int
-test2 = negate {ringInt} <error>
+test2 = negate {ringInt} 2147483648
 
 test3 :: Prim.Int
-test3 = negate {ringInt} <error>
+test3 = negate {ringInt} 2147483648
+
+test4 :: Prim.Int -> Prim.Boolean
+test4 = \(-2147483648) -> true
+test4 = \_ -> false
 
 test5 :: Prim.Int
-test5 = negate {ringInt} (negate {ringInt} <error>)
+test5 = negate {ringInt} (negate {ringInt} 2147483648)
 
 test6 :: Prim.Int
 test6 = negate {ringInt} 2147483647
