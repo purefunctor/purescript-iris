@@ -39,6 +39,8 @@ pub enum Query {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         namespace: Option<Namespace>,
     },
+    /// The instances of a class, or the instances whose head mentions a type.
+    Instances { name: String, search: InstanceSearch },
     /// The diagnostics of one module, or of every module.
     Diagnostics { name: Option<String> },
     /// The JavaScript generated for a module.
@@ -71,6 +73,16 @@ pub enum Namespace {
     /// Values, including functions, data constructors, and class members.
     Value,
     /// Types and classes.
+    Type,
+}
+
+/// Which instances an `instances` query finds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InstanceSearch {
+    /// The instances of the named class.
+    Class,
+    /// The instances whose head mentions the named type, whatever their class.
     Type,
 }
 

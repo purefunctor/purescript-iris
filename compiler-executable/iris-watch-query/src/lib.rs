@@ -92,6 +92,18 @@ pub struct LocationsAnswer {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InstancesAnswer {
+    pub instances: Vec<InstanceEntry>,
+}
+
+/// An instance's location and head, such as `forall a. Show a => Show (Array a)`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InstanceEntry {
+    pub location: String,
+    pub head: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiagnosticsAnswer {
     pub diagnostics: Vec<DiagnosticEntry>,
 }
@@ -144,6 +156,9 @@ pub fn answer(query: &Query, context: &QueryContext) -> Result<Value, QueryFailu
         Query::References { name, namespace } => {
             lookup::references(context, name, *namespace).map(|answer| to_value(&answer))
         }
+        Query::Instances { name, search } => {
+            lookup::instances(context, name, *search).map(|answer| to_value(&answer))
+        }
         Query::Diagnostics { name } => {
             lookup::diagnostics(context, name.as_deref()).map(|answer| to_value(&answer))
         }
@@ -188,6 +203,17 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
                 return Ok("No locations.".to_string());
             }
             locations.join("\n")
+        }
+        Query::Instances { .. } => {
+            let InstancesAnswer { instances } = serde_json::from_value(value)?;
+            if instances.is_empty() {
+                return Ok("No instances.".to_string());
+            }
+            let instances = instances.iter().map(|instance| {
+                let head = instance.head.as_deref().unwrap_or("<unchecked>");
+                format!("{}: instance {head}", instance.location)
+            });
+            instances.collect::<Vec<_>>().join("\n")
         }
         Query::Diagnostics { .. } => {
             let DiagnosticsAnswer { diagnostics } = serde_json::from_value(value)?;

@@ -3,7 +3,8 @@
 use building_types::QueryProxy;
 use checking::core::pretty::Pretty;
 use files::FileId;
-use indexing::{TermItemId, TypeItemId};
+use indexing::{IndexedTypeItemKind, InstanceSourceItemId, TermItemId, TypeItemId};
+use lowering::{LoweredModule, TypeId, TypeKind};
 use lsp_types::Location;
 
 use crate::extract::AnnotationSyntaxRange;
@@ -110,6 +111,129 @@ pub fn references(
         }
     };
     Ok(locations.unwrap_or_default())
+}
+
+/// An instance or derived instance and its head, such as `forall a. Show a => Show (Array a)`.
+pub struct FoundInstance {
+    pub location: Location,
+    pub head: Option<String>,
+}
+
+/// Which instances [`instances`] finds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InstanceSearch {
+    /// The instances of a class.
+    OfClass,
+    /// The instances whose head mentions a type, whatever their class.
+    MentioningType,
+}
+
+/// Whether the type item is a class rather than a data type, newtype, synonym, or foreign type.
+pub fn is_class(
+    engine: &impl AnalyzerQueries,
+    (file_id, type_id): (FileId, TypeItemId),
+) -> Result<bool, AnalyzerError> {
+    let indexed = engine.indexed(file_id)?;
+    Ok(matches!(indexed.items[type_id].kind, IndexedTypeItemKind::Class { .. }))
+}
+
+/// Every instance in the context's active files that `search` finds for `target`.
+pub fn instances(
+    context: &AnalyzerContext<impl crate::AnalyzerHost>,
+    target: (FileId, TypeItemId),
+    search: InstanceSearch,
+) -> Result<Vec<FoundInstance>, AnalyzerError> {
+    let engine = context.queries();
+    let mut found = Vec::new();
+    for file_id in context.active_files() {
+        let indexed = engine.indexed(file_id)?;
+        let lowered = engine.lowered(file_id)?;
+        let checked = engine.checked(file_id)?;
+        for &source in indexed.items.instance_sources() {
+            let (resolution, arguments, checked_instance) = match source {
+                InstanceSourceItemId::Instance(id) => {
+                    let Some(item) = lowered.tree.get_instance_item(id) else { continue };
+                    let checked_instance = checked.lookup_instance(indexed.items[id].id);
+                    (item.resolution, &item.arguments, checked_instance)
+                }
+                InstanceSourceItemId::Derive(id) => {
+                    let Some(item) = lowered.tree.get_derive_item(id) else { continue };
+                    let checked_instance = checked.lookup_derived_instance(indexed.items[id].id);
+                    (item.resolution, &item.arguments, checked_instance)
+                }
+            };
+            let matches = match search {
+                InstanceSearch::OfClass => resolution == Some(target),
+                InstanceSearch::MentioningType => {
+                    arguments.iter().any(|&argument| mentions(&lowered, argument, target))
+                }
+            };
+            if !matches {
+                continue;
+            }
+            let uri = common::file_uri(context, file_id)?;
+            let location = match source {
+                InstanceSourceItemId::Instance(id) => {
+                    common::file_instance_location(context, uri, file_id, id)?
+                }
+                InstanceSourceItemId::Derive(id) => {
+                    common::file_derive_location(context, uri, file_id, id)?
+                }
+            };
+            let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
+            let head =
+                checked_instance.map(|instance| pretty.render(instance.signature).to_string());
+            found.push(FoundInstance { location, head });
+        }
+    }
+    Ok(found)
+}
+
+/// Whether the type `type_id` refers to the type `target` anywhere within it.
+fn mentions(lowered: &LoweredModule, type_id: TypeId, target: (FileId, TypeItemId)) -> bool {
+    let Some(kind) = lowered.tree.get_type_kind(type_id) else { return false };
+    match kind {
+        TypeKind::Constructor { resolution } | TypeKind::Operator { resolution } => {
+            *resolution == Some(target)
+        }
+        TypeKind::ApplicationChain { function, arguments } => {
+            mentions_any(lowered, function.iter().chain(arguments.iter()).copied(), target)
+        }
+        TypeKind::Arrow { argument, result } => {
+            mentions_any(lowered, argument.iter().chain(result).copied(), target)
+        }
+        TypeKind::Constrained { constraint, constrained } => {
+            mentions_any(lowered, constraint.iter().chain(constrained).copied(), target)
+        }
+        TypeKind::Forall { inner, .. } => mentions_any(lowered, inner.iter().copied(), target),
+        TypeKind::Kinded { type_, kind } => {
+            mentions_any(lowered, type_.iter().chain(kind).copied(), target)
+        }
+        TypeKind::OperatorChain { head, tail } => {
+            let elements = tail.iter().filter_map(|pair| pair.element);
+            mentions_any(lowered, head.iter().copied().chain(elements), target)
+        }
+        TypeKind::Record { items, tail } | TypeKind::Row { items, tail } => {
+            let items = items.iter().filter_map(|item| item.type_);
+            mentions_any(lowered, items.chain(tail.iter().copied()), target)
+        }
+        TypeKind::Parenthesized { parenthesized } => {
+            mentions_any(lowered, parenthesized.iter().copied(), target)
+        }
+        TypeKind::Hole
+        | TypeKind::Integer { .. }
+        | TypeKind::String { .. }
+        | TypeKind::Variable { .. }
+        | TypeKind::Wildcard => false,
+    }
+}
+
+fn mentions_any(
+    lowered: &LoweredModule,
+    mut types: impl Iterator<Item = TypeId>,
+    target: (FileId, TypeItemId),
+) -> bool {
+    types.any(|type_id| mentions(lowered, type_id, target))
 }
 
 impl NamedItem {
