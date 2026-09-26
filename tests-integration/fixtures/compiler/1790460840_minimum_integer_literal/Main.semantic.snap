@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: Prim.Int
+test = negate {ringInt} <error>
+
+test2 :: Prim.Int
+test2 = negate {ringInt} <error>
+
+test3 :: Prim.Int
+test3 = negate {ringInt} <error>
+
+test5 :: Prim.Int
+test5 = negate {ringInt} (negate {ringInt} <error>)
+
+test6 :: Prim.Int
+test6 = negate {ringInt} 2147483647
+
+test7 :: Prim.Int
+test7 = 2147483647
+
+test8 :: Prim.Int
+test8 =
+  let
+    negate :: Prim.Int -> Prim.Int
+    negate = \value -> value
+  in
+    negate 42

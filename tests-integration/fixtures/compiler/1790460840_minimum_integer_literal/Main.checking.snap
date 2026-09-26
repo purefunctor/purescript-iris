@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test :: Prim.Int
+test2 :: Prim.Int
+test3 :: Prim.Int
+test5 :: Prim.Int
+test6 :: Prim.Int
+test7 :: Prim.Int
+test8 :: Prim.Int
+
+Types

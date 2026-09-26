@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export test = integer.negate (<error>)
+
+@export test2 = integer.negate (<error>)
+
+@export test3 = integer.negate (<error>)
+
+@export test5 = integer.negate (integer.negate (<error>))
+
+@export test6 = -2147483647
+
+@export test7 = 2147483647
+
+@export test8 = (\value%1 -> value%1) 42
