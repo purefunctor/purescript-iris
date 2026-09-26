@@ -24,13 +24,15 @@ foreign import main :: Effect Unit
     );
     workspace.write(
         "src/Configured.js",
-        "export const main = () => console.log(process.argv.slice(2).join(\",\"));\n",
+        r#"export const main = () => console.log(process.argv.slice(2).join(","));
+"#,
     );
 
     let output =
         workspace.command(&["run", "--output", "generated", "--quiet", "--", "first", "second"]);
     assert_success(&output);
-    assert_eq!(String::from_utf8_lossy(&output.stdout), "first,second\n");
+    assert!(output.stdout.ends_with(b"\n"));
+    insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"first,second");
     assert!(workspace.path().join("generated/Configured/index.js").is_file());
     workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
