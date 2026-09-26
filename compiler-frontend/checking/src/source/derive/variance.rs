@@ -190,7 +190,7 @@ where
     let (_, arguments) = toolkit::extract_all_applications(state, context, derived_type)?;
     let mut arguments = arguments.iter().copied();
     let mut current = constructor_t;
-    let mut names = vec![];
+    let mut names = Vec::new();
 
     loop {
         current = normalise::expand(state, context, current)?;

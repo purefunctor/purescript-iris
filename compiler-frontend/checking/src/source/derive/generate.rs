@@ -252,7 +252,7 @@ where
                     traversal,
                 )?
             }
-            DeriveDispatch::Newtype => Some(vec![]),
+            DeriveDispatch::Newtype => Some(Vec::new()),
             DeriveDispatch::Generic => {
                 generic::generate_generic_members(state, context, result, &freshened.arguments)?
             }

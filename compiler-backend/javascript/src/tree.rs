@@ -399,11 +399,11 @@ mod tests {
         let allocator = Allocator::default();
         let mut tree = Tree::new(&allocator);
         let function = tree.identifier("f");
-        let original = tree.pure_call(function, vec![]);
+        let original = tree.pure_call(function, Vec::new());
         let copy = tree.duplicate(&original);
 
         tree.clear_call_purity(&copy);
-        let outer = tree.call(copy, vec![]);
+        let outer = tree.call(copy, Vec::new());
 
         let Expression::CallExpression(original) = tree.expression(original) else {
             panic!("expected original call")

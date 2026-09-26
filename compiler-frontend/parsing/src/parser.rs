@@ -43,7 +43,7 @@ impl<'t> Parser<'t> {
     pub(crate) fn new(tokens: &'t [SyntaxKind]) -> Parser<'t> {
         let index = 0;
         let output = Vec::with_capacity(tokens.len());
-        let errors = vec![];
+        let errors = Vec::new();
         let fuel = Cell::new(u16::MAX);
         let failed_alternatives = HashMap::new();
         Parser { index, tokens, output, errors, fuel, failed_alternatives }

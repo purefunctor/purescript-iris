@@ -168,7 +168,7 @@ fn test_covering_sets_empty_determiner() {
 fn closure_decision_matches_covering_sets() {
     for argument_count in 0..=3 {
         let all_positions = FxHashSet::from_iter(0..argument_count);
-        let mut possible_dependencies = vec![];
+        let mut possible_dependencies = Vec::new();
 
         for determined in 0..argument_count {
             possible_dependencies.push(Fd::new([], [determined]));

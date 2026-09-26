@@ -122,9 +122,9 @@ where
                 | GuardedExpressionMode::Check { expected } => expected,
             };
 
-            let mut alternatives = vec![];
+            let mut alternatives = Vec::new();
             for pattern_guarded in pattern_guarded.iter() {
-                let mut pattern_guards = vec![];
+                let mut pattern_guards = Vec::new();
                 for pattern_guard in pattern_guarded.pattern_guards.iter() {
                     let pattern_guard = check_pattern_guard(state, context, pattern_guard)?;
                     pattern_guards.push(pattern_guard);

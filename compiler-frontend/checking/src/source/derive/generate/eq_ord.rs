@@ -105,7 +105,7 @@ where
         result.derive_id,
         (member.member.file_id, member.member.item_id),
         member.member.implementation_type,
-        vec![],
+        Vec::new(),
         body,
     );
     Ok(Some(member))
@@ -160,7 +160,7 @@ where
         result.derive_id,
         (member.member.file_id, member.member.item_id),
         member.member.implementation_type,
-        vec![],
+        Vec::new(),
         body,
     );
     Ok(Some(member))
@@ -249,7 +249,7 @@ where
     let mut builder = DerivedTreeBuilder::new(state, context, derive_id);
     let parameters = emit_parameters(&mut builder, &member);
 
-    let mut alternatives = vec![];
+    let mut alternatives = Vec::new();
     for constructor in &comparison_member.constructors {
         let Some(comparison) =
             emit_constructor_comparison(&mut builder, constructor, &member, operations)?
@@ -352,7 +352,7 @@ fn emit_ord_alternatives<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut alternatives = vec![];
+    let mut alternatives = Vec::new();
     let mut remaining = constructors;
     while let Some((constructor, later_constructors)) = remaining.split_first() {
         let Some(comparison) =
@@ -549,7 +549,7 @@ where
 {
     let mut result = emit_ordering_constant(builder, equal, result_type)?;
     for comparison in comparisons.into_iter().rev() {
-        let equal_pattern = builder.constructor_pattern("EQ", result_type, equal, vec![]);
+        let equal_pattern = builder.constructor_pattern("EQ", result_type, equal, Vec::new());
         let other = builder.variable_binder("ordering", result_type);
         let other_expression = builder.variable(other);
         let alternatives = vec![

@@ -30,7 +30,7 @@ pub fn implementation(
     let request =
         CodeActionRequest { language, uri: &uri, file, positions: &positions, kinds, position };
 
-    let mut actions = vec![];
+    let mut actions = Vec::new();
     holes::collect(&request, &mut actions)?;
 
     let has_actions = !actions.is_empty();

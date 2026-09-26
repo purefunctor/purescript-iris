@@ -71,14 +71,14 @@ where
         result.derive_id,
         (to.member.file_id, to.member.item_id),
         to.member.implementation_type,
-        vec![],
+        Vec::new(),
         to_body,
     );
     let from = generated_member(
         result.derive_id,
         (from.member.file_id, from.member.item_id),
         from.member.implementation_type,
-        vec![],
+        Vec::new(),
         from_body,
     );
     Ok(Some(vec![to, from]))
@@ -135,8 +135,8 @@ where
         }
         return Ok(Some(GenericRepresentation {
             derived_type: *derived_type,
-            suffix_types: vec![],
-            constructors: vec![],
+            suffix_types: Vec::new(),
+            constructors: Vec::new(),
         }));
     }
 
@@ -427,7 +427,7 @@ where
                 "noArguments",
                 representation_type,
                 known.no_arguments_value,
-                vec![],
+                Vec::new(),
             )))
         }
         ([_], [binder]) => {

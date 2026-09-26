@@ -93,8 +93,8 @@ pub fn infer_lambda<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut argument_types = vec![];
-    let mut checked_binders = vec![];
+    let mut argument_types = Vec::new();
+    let mut checked_binders = Vec::new();
 
     for &binder_id in binders.iter() {
         let argument_type = state.fresh_unification(context.queries, context.prim.t);
@@ -143,8 +143,8 @@ pub fn check_lambda<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
-    let mut checked_binders = vec![];
+    let mut arguments = Vec::new();
+    let mut checked_binders = Vec::new();
     let mut remaining = expected;
 
     for &binder_id in binders.iter() {
@@ -273,8 +273,8 @@ where
         CaseOfMode::Check { expected } => expected,
     };
 
-    let mut scrutinees = vec![];
-    let mut trunk_types = vec![];
+    let mut scrutinees = Vec::new();
+    let mut trunk_types = Vec::new();
     for &scrutinee_id in trunk.iter() {
         let scrutinee = super::infer_expression(state, context, scrutinee_id)?;
         let scrutinee = application::instantiate_expression(state, context, scrutinee)?;
@@ -284,9 +284,9 @@ where
 
     instantiate_trunk_types(state, context, &mut trunk_types, branches)?;
 
-    let mut alternatives = vec![];
+    let mut alternatives = Vec::new();
     for branch in branches.iter() {
-        let mut binders = vec![];
+        let mut binders = Vec::new();
         for (&binder_id, &trunk_type) in branch.binders.iter().zip(&trunk_types) {
             let checked_binder = binder::check_binder(state, context, binder_id, trunk_type)?;
             binders.push(checked_binder.binder);

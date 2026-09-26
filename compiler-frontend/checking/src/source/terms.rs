@@ -207,8 +207,8 @@ where
     Q: ExternalQueries,
 {
     let mut current = expected;
-    let mut parameters = vec![];
-    let mut binders = vec![];
+    let mut parameters = Vec::new();
+    let mut binders = Vec::new();
 
     for &section_id in sections {
         if !parameters.is_empty() {
@@ -638,7 +638,7 @@ where
     Q: ExternalQueries,
 {
     let mut seen = FxHashSet::default();
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     if let Some(scope_node) = context.lowered.nodes.expression_node(expression) {
         collect_graph_term_hole_bindings(state, context, scope_node, &mut seen, &mut result);

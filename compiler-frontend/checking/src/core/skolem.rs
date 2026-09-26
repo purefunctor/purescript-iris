@@ -168,7 +168,7 @@ where
         tasks,
         active: FxHashMap::default(),
         reported,
-        errors: vec![],
+        errors: Vec::new(),
         evidence_depth: 0,
     }
 }
@@ -696,7 +696,7 @@ fn leading_scopes<Q>(context: &CheckContext<Q>, mut type_id: TypeId) -> Vec<Skol
 where
     Q: ExternalQueries,
 {
-    let mut scopes = vec![];
+    let mut scopes = Vec::new();
     while let Type::Forall(binder, inner) = *context.lookup_type(type_id) {
         let binder = context.lookup_forall_binder(binder);
         let Some(scope) = binder.scope else { break };

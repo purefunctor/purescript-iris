@@ -42,7 +42,7 @@ where
     bindings.sort_by(|left, right| left.name.cmp(&right.name));
     let expected = toolkit::without_constraints(state, context, expected)?;
 
-    let mut relevant = vec![];
+    let mut relevant = Vec::new();
     for binding in &bindings {
         if binding_matches(state, context, binding.type_id, expected)? {
             relevant.push(HoleBinding::clone(binding));

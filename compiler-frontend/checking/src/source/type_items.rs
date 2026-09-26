@@ -196,8 +196,8 @@ fn partition_type_items<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut checked = vec![];
-    let mut skipped = vec![];
+    let mut checked = Vec::new();
+    let mut skipped = Vec::new();
 
     for &item_id in scc.as_slice() {
         if is_recursive_kind(context, item_id) {
@@ -381,7 +381,7 @@ fn check_type_variable_bindings<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut binders = vec![];
+    let mut binders = Vec::new();
 
     for (index, equation_binding) in bindings.iter().enumerate() {
         let signature_kind = signature.get(index).copied();
@@ -469,7 +469,7 @@ fn check_data_constructors<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut constructors = vec![];
+    let mut constructors = Vec::new();
 
     for constructor_id in context.indexed.data_constructors(item_id) {
         let Some(TermItemKind::Constructor { arguments }) =
@@ -478,7 +478,7 @@ where
             continue;
         };
 
-        let mut checked_arguments = vec![];
+        let mut checked_arguments = Vec::new();
         for &argument in arguments.iter() {
             state.with_error_crumb(ErrorCrumb::ConstructorArgument(argument), |state| {
                 let (checked_argument, _) =
@@ -556,7 +556,7 @@ where
         });
 
         let type_parameters = type_parameters.collect::<Arc<[_]>>();
-        let mut semantic_constructors = vec![];
+        let mut semantic_constructors = Vec::new();
 
         for (constructor_id, checked_arguments) in constructors {
             let mut result = type_reference;
@@ -781,7 +781,7 @@ where
         check_class_equation_infer(state, context, item_id, variables)?
     };
 
-    let mut superclasses = vec![];
+    let mut superclasses = Vec::new();
     for &source_id in constraints.iter() {
         let (constraint, _) =
             types::check_kind(state, context, source_id, context.prim.constraint)?;
@@ -845,7 +845,7 @@ fn check_class_members<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut members = vec![];
+    let mut members = Vec::new();
 
     for member_id in context.indexed.class_members(item_id) {
         let Some(TermItemKind::ClassMember { signature }) =

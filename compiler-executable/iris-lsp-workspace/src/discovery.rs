@@ -107,7 +107,7 @@ pub(crate) fn package_source_roots(
     let metadata = SourceMetadata::Package { editable: package.editable };
     let canonical_client_root = dunce::canonicalize(client_root).ok();
 
-    let mut roots = vec![];
+    let mut roots = Vec::new();
     for root in &package.roots {
         let root = workspace_root.join(root).absolutize()?.to_path_buf();
         roots.push(SourceRoot {

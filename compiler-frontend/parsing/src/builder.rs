@@ -53,7 +53,7 @@ impl<'l, 's> Builder<'l, 's> {
         let annotated = false;
         let qualified = false;
         let builder = SyntreeBuilder::new();
-        let errors = vec![];
+        let errors = Vec::new();
         Builder {
             lexed,
             index,

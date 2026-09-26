@@ -117,14 +117,14 @@ impl ReadyWorkspace {
         });
         let clear_diagnostics = clear_diagnostics.collect_vec();
         let collect_diagnostics = match trigger {
-            DiagnosticTrigger::None => vec![],
+            DiagnosticTrigger::None => Vec::new(),
             DiagnosticTrigger::AssociatedSource(uri) => {
                 let (_, unit) = source_unit_from_document_uri(&uri)
                     .expect("invariant violated: diagnostic trigger has an invalid document URI");
                 self.analysis.files.read().source_id(unit.source()).into_iter().collect_vec()
             }
             DiagnosticTrigger::AnalysisChange => match change.analysis() {
-                AnalysisInvalidation::None => vec![],
+                AnalysisInvalidation::None => Vec::new(),
                 AnalysisInvalidation::Sources(sources) => sources.iter().copied().collect_vec(),
                 AnalysisInvalidation::Workspace => {
                     let files = self.analysis.files.read();
@@ -143,7 +143,7 @@ impl ReadyWorkspace {
         let (_, unit) = source_unit_from_document_uri(uri)?;
         let files = self.analysis.files.read();
         let collect_diagnostics = files.source_id(unit.source()).into_iter().collect_vec();
-        Ok(WorkspaceEffects { clear_diagnostics: vec![], collect_diagnostics })
+        Ok(WorkspaceEffects { clear_diagnostics: Vec::new(), collect_diagnostics })
     }
 
     /// The metadata of a source: what it was loaded with, the package root containing it, or
@@ -191,7 +191,7 @@ impl ReadyWorkspace {
         &self,
         unit: &SourceUnitKey,
     ) -> Result<Vec<LifecycleEvent<i32, SourceMetadata>>, DocumentError> {
-        let mut events = vec![];
+        let mut events = Vec::new();
         for kind in ForeignSourceKind::ALL {
             let document =
                 building::lifecycle::DocumentKey::Foreign(SourceUnitKey::clone(unit), kind);

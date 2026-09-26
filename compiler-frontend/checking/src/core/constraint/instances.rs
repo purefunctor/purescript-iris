@@ -208,7 +208,7 @@ where
 
     // Preserve the complete candidate list used by overlap diagnostics. This
     // second pass only runs for an instance that will produce a diagnostic.
-    let mut matches = vec![];
+    let mut matches = Vec::new();
     'chain: for chain in search.chains() {
         for &candidate in chain {
             if is_chain_sibling(candidate, current_chain, origin) {
@@ -272,7 +272,7 @@ where
     let constraint = state.canonicals[constraint].clone(); // TODO: FIXME
 
     let mut files = FxHashSet::from_iter([constraint.file_id]);
-    let mut blocking = vec![];
+    let mut blocking = Vec::new();
     for &argument in constraint.arguments.iter() {
         let argument = match argument {
             ApplicationArgument::Kind(id) | ApplicationArgument::Type(id) => id,
@@ -280,7 +280,7 @@ where
         CollectFileReferences::collect(state, context, argument, &mut files, &mut blocking)?;
     }
 
-    let mut instances = vec![];
+    let mut instances = Vec::new();
 
     for file_id in files {
         if file_id == context.id {
@@ -303,7 +303,7 @@ where
 
             let checked = context.checked_dependency(file_id)?;
             let indexed = context.queries.indexed(file_id)?;
-            let mut candidates = vec![];
+            let mut candidates = Vec::new();
             collect_instances_from_checked(
                 &mut candidates,
                 file_id,

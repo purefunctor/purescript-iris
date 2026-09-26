@@ -237,7 +237,7 @@ impl ToDiagnostics for ForeignError {
             .next()
             .and_then(|pointer| context.span_from_syntax_ptr(&pointer))
         else {
-            return vec![];
+            return Vec::new();
         };
 
         let diagnostic = match self {
@@ -328,7 +328,7 @@ impl ToDiagnostics for LoweringError {
                     }
                 };
 
-                let Some(ptr) = ptr else { return vec![] };
+                let Some(ptr) = ptr else { return Vec::new() };
                 let span = match not_in_scope {
                     lowering::NotInScope::TypeClass { id } => {
                         context.stabilized.ast_ptr(*id).and_then(|ptr| {
@@ -337,7 +337,7 @@ impl ToDiagnostics for LoweringError {
                     }
                     _ => context.span_from_syntax_ptr(&ptr),
                 };
-                let Some(span) = span else { return vec![] };
+                let Some(span) = span else { return Vec::new() };
 
                 let message = if let Some(name) = name {
                     format!("'{name}' is not in scope")
@@ -357,8 +357,8 @@ impl ToDiagnostics for LoweringError {
                     lowering::StringLiteralSource::Binder(id) => context.stabilized.syntax_ptr(*id),
                     lowering::StringLiteralSource::Type(id) => context.stabilized.syntax_ptr(*id),
                 };
-                let Some(ptr) = ptr else { return vec![] };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return vec![] };
+                let Some(ptr) = ptr else { return Vec::new() };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
 
                 vec![Diagnostic::error(
                     "InvalidStringEscape",
@@ -412,7 +412,7 @@ where
 
     let spans = spans.collect_vec();
 
-    let Some(&primary) = spans.first() else { return vec![] };
+    let Some(&primary) = spans.first() else { return Vec::new() };
 
     let mut diagnostic = Diagnostic::error(code, message, primary, "lowering");
 
@@ -440,7 +440,7 @@ impl ToDiagnostics for ResolvingError {
                 };
                 let Some(span) = pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
                 else {
-                    return vec![];
+                    return Vec::new();
                 };
                 let (code, message, pointer) = match existing {
                     OrderedTermItemId::Term(id) => (
@@ -470,12 +470,10 @@ impl ToDiagnostics for ResolvingError {
             ResolvingError::TermExportConflict { .. }
             | ResolvingError::TypeExportConflict { .. }
             | ResolvingError::ExistingTerm { .. }
-            | ResolvingError::ExistingType { .. } => {
-                vec![]
-            }
+            | ResolvingError::ExistingType { .. } => Vec::new(),
 
             ResolvingError::InvalidImportStatement { id } => {
-                let Some(ptr) = context.stabilized.ast_ptr(*id) else { return vec![] };
+                let Some(ptr) = context.stabilized.ast_ptr(*id) else { return Vec::new() };
 
                 let message = {
                     let cst = ptr.to_node(context.root);
@@ -487,14 +485,14 @@ impl ToDiagnostics for ResolvingError {
                     format!("Cannot import module '{name}'")
                 };
 
-                let Some(span) = context.span_from_ast_ptr(&ptr) else { return vec![] };
+                let Some(span) = context.span_from_ast_ptr(&ptr) else { return Vec::new() };
 
                 vec![Diagnostic::error("InvalidImportStatement", message, span, "resolving")]
             }
 
             ResolvingError::InvalidImportItem { id } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return vec![] };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return vec![] };
+                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Vec::new() };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
 
                 let text = context.text_of(span).trim();
                 let message = format!("Cannot import item '{text}'");
@@ -512,8 +510,10 @@ impl ToDiagnostics for IndexingError {
     {
         match self {
             IndexingError::DuplicateImport { duplicate, existing } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*duplicate) else { return vec![] };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return vec![] };
+                let Some(ptr) = context.stabilized.syntax_ptr(*duplicate) else {
+                    return Vec::new();
+                };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
 
                 let text = context.text_of(span).trim();
                 let message = format!("Import list contains multiple references to '{text}'");
@@ -533,7 +533,7 @@ impl ToDiagnostics for IndexingError {
             | IndexingError::MismatchedItem { .. }
             | IndexingError::InvalidRole { .. }
             | IndexingError::InvalidExport { .. }
-            | IndexingError::DuplicateExport { .. } => vec![],
+            | IndexingError::DuplicateExport { .. } => Vec::new(),
         }
     }
 }

@@ -174,7 +174,7 @@ where
     };
 
     let mut current_id = id;
-    let mut row_fields = vec![];
+    let mut row_fields = Vec::new();
 
     // This flag tracks that we've flattened at least one row tail.
     // If we have, we will build a row from the collected fields;

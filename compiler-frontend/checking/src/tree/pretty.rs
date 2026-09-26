@@ -288,7 +288,7 @@ where
     }
 
     fn module(&mut self) -> QueryResult<Doc<'arena>> {
-        let mut declarations = vec![];
+        let mut declarations = Vec::new();
 
         for (type_id, IndexedTypeItem { name, .. }) in self.indexed.items.iter_types() {
             let Some(name) = name else { continue };
@@ -440,7 +440,7 @@ where
             }
         };
 
-        let mut parameter_names = vec![];
+        let mut parameter_names = Vec::new();
         for &parameter in data.parameters.iter() {
             let parameter = self.queries.lookup_forall_binder(parameter);
             let name = type_pretty.display_name(parameter.name);
@@ -634,7 +634,7 @@ where
             return Ok(signature.append(delegation));
         }
 
-        let mut fields = vec![];
+        let mut fields = Vec::new();
 
         let superclass_names = self.instance_superclass_field_names(instance)?;
         for (superclass, field_name) in instance.superclasses.iter().zip(superclass_names) {
@@ -780,7 +780,7 @@ where
         instance: &InstanceDeclaration,
         evidence_names: &mut EvidenceNames,
     ) -> QueryResult<(Doc<'arena>, Vec<(crate::TypeId, SmolStr)>)> {
-        let mut binders = vec![];
+        let mut binders = Vec::new();
         let mut current = type_id;
         while let Type::Forall(binder, inner) = *self.queries.lookup_type(current) {
             binders.push(binder);
@@ -802,7 +802,7 @@ where
             instance.rigid_parameters.iter().copied().zip(binder_names.iter().cloned());
         let rigid_names = rigid_names.collect::<Vec<_>>();
 
-        let mut lines = vec![];
+        let mut lines = Vec::new();
         if !binder_names.is_empty() {
             lines.push(format!("forall {}.", binder_names.join(" ")));
         }
@@ -843,7 +843,7 @@ where
             }
         }
 
-        let mut superclasses = vec![];
+        let mut superclasses = Vec::new();
         for superclass in instance.superclasses.iter() {
             let base = self.evidence_base_name(superclass.constraint)?;
             superclasses.push(field_names.allocate_display_name(base));
@@ -871,7 +871,7 @@ where
         base.push_str(characters.as_str());
 
         let mut current = type_id;
-        let mut arguments = vec![];
+        let mut arguments = Vec::new();
         loop {
             match *self.queries.lookup_type(current) {
                 Type::Forall(_, inner) | Type::Constrained(_, inner) | Type::Kinded(inner, _) => {
@@ -943,7 +943,7 @@ where
         evidence_names: &mut EvidenceNames,
         type_pretty: &mut TypePrettyState<'context, Q>,
     ) -> QueryResult<Option<Doc<'arena>>> {
-        let mut rendered_equations = vec![];
+        let mut rendered_equations = Vec::new();
         for equation in equations.iter() {
             let has_abstraction = !equation.binders.is_empty()
                 || declaration_abstractions.iter().any(|abstraction| {
@@ -974,7 +974,7 @@ where
                 (expression, None, false, false)
             };
 
-            let mut abstractions = vec![];
+            let mut abstractions = Vec::new();
             let mut binders = equation.binders.iter();
             for abstraction in declaration_abstractions {
                 match abstraction {
@@ -1086,7 +1086,7 @@ where
         evidence_names: &mut EvidenceNames,
         type_pretty: &mut TypePrettyState<'context, Q>,
     ) -> QueryResult<Doc<'arena>> {
-        let mut rendered = vec![];
+        let mut rendered = Vec::new();
         for chunk in bindings.chunks.iter() {
             match chunk {
                 LetBindingChunk::Pattern { binder, where_expression, .. } => {
@@ -1177,7 +1177,7 @@ where
             );
         }
 
-        let mut alternatives = vec![];
+        let mut alternatives = Vec::new();
         for alternative in guarded.alternatives.iter() {
             alternatives.push(self.guarded_alternative(
                 alternative,
@@ -1202,7 +1202,7 @@ where
         evidence_names: &mut EvidenceNames,
         type_pretty: &mut TypePrettyState<'context, Q>,
     ) -> QueryResult<Doc<'arena>> {
-        let mut pattern_guards = vec![];
+        let mut pattern_guards = Vec::new();
         for pattern_guard in alternative.pattern_guards.iter() {
             pattern_guards.push(self.pattern_guard(pattern_guard, evidence_names, type_pretty)?);
         }
@@ -1255,7 +1255,7 @@ where
         evidence_names: &mut EvidenceNames,
         type_pretty: &mut TypePrettyState<'context, Q>,
     ) -> QueryResult<Doc<'arena>> {
-        let mut rendered_scrutinees = vec![];
+        let mut rendered_scrutinees = Vec::new();
         for &scrutinee in scrutinees {
             rendered_scrutinees.push(self.expression(scrutinee, evidence_names, type_pretty)?);
         }
@@ -1270,7 +1270,7 @@ where
         };
         let header = self.arena.text("case ").append(scrutinees.group()).append(" of");
 
-        let mut rendered_alternatives = vec![];
+        let mut rendered_alternatives = Vec::new();
         for alternative in alternatives {
             rendered_alternatives.push(self.case_alternative(
                 alternative,
@@ -1296,7 +1296,7 @@ where
         evidence_names: &mut EvidenceNames,
         type_pretty: &mut TypePrettyState<'context, Q>,
     ) -> QueryResult<Doc<'arena>> {
-        let mut rendered_binders = vec![];
+        let mut rendered_binders = Vec::new();
         for &binder in alternative.binders.iter() {
             rendered_binders.push(self.binder(binder, type_pretty)?);
         }

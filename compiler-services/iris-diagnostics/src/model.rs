@@ -67,8 +67,8 @@ impl Diagnostic {
         source: &'static str,
     ) -> Diagnostic {
         let message = message.into();
-        let related = vec![];
-        let trivia = vec![];
+        let related = Vec::new();
+        let trivia = Vec::new();
         Diagnostic {
             severity: Severity::Error,
             code: DiagnosticCode::new(code),
@@ -88,8 +88,8 @@ impl Diagnostic {
         source: &'static str,
     ) -> Diagnostic {
         let message = message.into();
-        let related = vec![];
-        let trivia = vec![];
+        let related = Vec::new();
+        let trivia = Vec::new();
         Diagnostic {
             severity: Severity::Warning,
             code: DiagnosticCode::new(code),

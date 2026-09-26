@@ -225,8 +225,8 @@ impl LanguageServer {
         let mut arguments = arguments.to_vec();
         arguments.extend(["--lsp-log", "off"]);
         let client = Arc::new(ClientState {
-            progress_tokens: Mutex::new(vec![]),
-            unexpected_messages: Mutex::new(vec![]),
+            progress_tokens: Mutex::new(Vec::new()),
+            unexpected_messages: Mutex::new(Vec::new()),
         });
 
         let mut command = workspace.command_builder(directory, &arguments);
@@ -238,8 +238,14 @@ impl LanguageServer {
         let (notifications, messages) = mpsc::channel();
         let connection = Connection::start(stdin, stdout, Arc::clone(&client), notifications);
         // Constructed before initialization so that a failing assertion still stops the child.
-        let server =
-            LanguageServer { child, connection, stderr, messages, notifications: vec![], client };
+        let server = LanguageServer {
+            child,
+            connection,
+            stderr,
+            messages,
+            notifications: Vec::new(),
+            client,
+        };
 
         let capabilities = serde_json::from_value::<ClientCapabilities>(capabilities).unwrap();
         let parameters = InitializeParams {
@@ -648,7 +654,7 @@ impl Reader {
 
 /// Collects a child's standard error so that it can neither block the child nor be lost.
 fn drain(mut stderr: ChildStderr) -> Arc<Mutex<Vec<u8>>> {
-    let output = Arc::new(Mutex::new(vec![]));
+    let output = Arc::new(Mutex::new(Vec::new()));
     let collected = Arc::clone(&output);
     thread::spawn(move || {
         let mut buffer = [0; 4096];

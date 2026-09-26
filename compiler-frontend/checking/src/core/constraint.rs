@@ -53,7 +53,7 @@ pub struct Work {
 
 impl Work {
     fn new(unclassified: VecDeque<ConstraintInScope>) -> Work {
-        Work { unifications: vec![], unclassified, constraints: VecDeque::default() }
+        Work { unifications: Vec::new(), unclassified, constraints: VecDeque::default() }
     }
 
     fn extend_from_parts<Unifications, Constraints>(
@@ -218,7 +218,7 @@ where
     let mut work = Work::new(constraints);
     let mut stuck = Stuck::default();
     let mut skolem = Skolem::default();
-    let mut residuals = vec![];
+    let mut residuals = Vec::new();
 
     'work: loop {
         let mut has_unification = false;
@@ -369,7 +369,7 @@ struct EvidenceInScope {
 impl EvidenceInScope {
     fn new(root: ImplicationId) -> EvidenceInScope {
         let mut evidence = EvidenceInScope {
-            constraints: vec![],
+            constraints: Vec::new(),
             seen: IndexSet::default(),
             evidence_scope: None,
         };
@@ -529,7 +529,7 @@ where
             )
         };
 
-        let mut introduced_binders = vec![];
+        let mut introduced_binders = Vec::new();
         for GivenConstraint { constraint, evidence } in given {
             if let Some(given) = canonical::canonicalise(state, context, constraint)? {
                 introduced_binders.push((given, evidence));

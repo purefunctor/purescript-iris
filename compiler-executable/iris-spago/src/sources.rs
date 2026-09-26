@@ -68,7 +68,7 @@ impl ExtraPackage {
             ExtraPackage::Legacy(package) => {
                 package.dependencies.iter().map(|dependency| &dependency.name).collect()
             }
-            ExtraPackage::Registry(_) | ExtraPackage::Local(_) => vec![],
+            ExtraPackage::Registry(_) | ExtraPackage::Local(_) => Vec::new(),
         }
     }
 

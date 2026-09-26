@@ -84,7 +84,7 @@ impl Actor {
         );
         let settings = Settings::new();
         let state = WorkspaceState::Loading {
-            pending: vec![],
+            pending: Vec::new(),
             configuration: Arc::clone(&settings.default),
         };
         Actor::with_state(
@@ -117,7 +117,7 @@ impl Actor {
         let prim = MaterializedPrim::new()
             .expect("invariant violated: failed to materialize the Prim modules");
         let compilation = CompilationState::new(prim, SourceMetadata::Builtin);
-        let prepared = PreparedWorkspace { compilation, source_roots: vec![] };
+        let prepared = PreparedWorkspace { compilation, source_roots: Vec::new() };
         let workspace = ReadyWorkspace::new(prepared, Arc::clone(&settings.default));
         let state = WorkspaceState::Ready(Box::new(workspace));
         Actor::with_state(
@@ -174,7 +174,7 @@ impl Actor {
         );
         let settings = Settings::new();
         let state = WorkspaceState::Loading {
-            pending: vec![],
+            pending: Vec::new(),
             configuration: Arc::clone(&settings.default),
         };
         Actor::with_state(

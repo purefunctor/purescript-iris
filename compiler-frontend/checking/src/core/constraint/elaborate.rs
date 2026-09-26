@@ -114,7 +114,7 @@ fn superclass_edges<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut edges = vec![];
+    let mut edges = Vec::new();
     let mut pending = VecDeque::with_capacity(roots.len());
     let mut seen = FxHashSet::default();
 
@@ -333,7 +333,7 @@ where
     let left = substitute_type(state, context, substitution, left)?;
     let right = substitute_type(state, context, substitution, right)?;
 
-    let mut improvements = vec![];
+    let mut improvements = Vec::new();
     let mut seen = FxHashSet::default();
     improvements::collect_structural_improvements(
         state,

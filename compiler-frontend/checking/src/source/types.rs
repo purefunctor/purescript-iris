@@ -349,7 +349,7 @@ where
     Q: ExternalQueries,
 {
     let mut seen: FxHashSet<&SmolStr> = FxHashSet::default();
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     if let Some(scope_node) = context.lowered.nodes.type_node(source_type) {
         collect_graph_type_bindings(state, context, scope_node, &mut seen, &mut result);

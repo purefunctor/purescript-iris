@@ -67,7 +67,7 @@ pub struct Interner<T> {
 
 impl<T> Default for Interner<T> {
     fn default() -> Interner<T> {
-        let inner = vec![];
+        let inner = Vec::new();
         let table = HashTable::default();
         Interner { inner, table }
     }

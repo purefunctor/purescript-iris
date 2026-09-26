@@ -198,7 +198,7 @@ where
     // to unification variables. Let bindings are not checked here to
     // avoid premature solving of unification variables. Instead, they
     // are checked inline during the statement checking loop.
-    let mut steps = vec![];
+    let mut steps = Vec::new();
     for &statement_id in statement_id.iter() {
         let Some(statement) = context.lowered.tree.get_do_statement(statement_id) else {
             continue;
@@ -386,7 +386,7 @@ where
     // to the previous approach that emulated desugared checking.
 
     let mut continuations = continuation_types.iter().tuple_windows::<(_, _)>();
-    let mut checked_steps = vec![];
+    let mut checked_steps = Vec::new();
 
     for step in &steps {
         match step {
@@ -508,8 +508,13 @@ where
                 let lambda = super::allocate_expression(state, lambda_type, kind);
                 let function_type = context.intern_function(lambda_type, result);
                 let function = super::allocate_error_expression(state, function_type);
-                continuation =
-                    application::materialize_application(state, function, vec![], result, lambda);
+                continuation = application::materialize_application(
+                    state,
+                    function,
+                    Vec::new(),
+                    result,
+                    lambda,
+                );
             }
             CheckedDoStep::Let { bindings } => {
                 let kind =
@@ -583,5 +588,5 @@ fn invalid_do_application(
     let result = context.unknown("invalid function application");
     let function_type = context.intern_function(lambda_type, result);
     let function = super::allocate_error_expression(state, function_type);
-    CheckedDoApplication { function, implicit: vec![], result, lambda_type }
+    CheckedDoApplication { function, implicit: Vec::new(), result, lambda_type }
 }

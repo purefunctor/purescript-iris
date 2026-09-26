@@ -394,7 +394,7 @@ impl<'m> Generator<'m> {
         let dependencies = self.module.dependencies.iter().map(|dependency| dependency.file_id);
         let dependencies = dependencies.collect_vec();
         let diagnostics = if initializer_cycle.is_empty() {
-            vec![]
+            Vec::new()
         } else {
             vec![ModuleDiagnostic::InitializerCycle { declarations: initializer_cycle }]
         };
@@ -817,7 +817,7 @@ impl Generator<'_> {
 
         let initial_name = context.allocate("$initialStep");
         writer.constant(tree, &initial_name, initial, false);
-        writer.return_arrow(vec![], |writer| {
+        writer.return_arrow(Vec::new(), |writer| {
             self.render_tail_effect_loop(tree, writer, group, &initial_name, context)
         })
     }
@@ -889,7 +889,7 @@ impl Generator<'_> {
         let condition = tree.boolean(true);
         writer.while_loop(tree, condition, |tree, writer| {
             let step = tree.identifier(&step_name);
-            let result = tree.call(step, vec![]);
+            let result = tree.call(step, Vec::new());
             writer.constant(tree, &result_name, result, false);
             let result = tree.identifier(&result_name);
             let marker_index = tree.number("0");
@@ -1096,7 +1096,7 @@ fn render_value_declarations(
     let generator = renderer.generator;
     let mut rendered = false;
     let mut previous_was_generated = false;
-    let mut initializer_cycle = vec![];
+    let mut initializer_cycle = Vec::new();
     for (declaration, cyclic) in sorted_value_declarations(generator) {
         let DeclarationKind::Value(expression) = declaration.kind else {
             unreachable!("invariant violated: sorted JavaScript declaration is not a value")
@@ -1125,7 +1125,7 @@ fn render_value_declarations(
 
         if let Some(lazy_name) = generator.lazy_global_names.get(&declaration.global.id) {
             let lazy = renderer.tree.identifier(lazy_name);
-            let value = renderer.tree.call(lazy, vec![]);
+            let value = renderer.tree.call(lazy, Vec::new());
             renderer.writer.constant(renderer.tree, name, value, exported);
             rendered = true;
             previous_was_generated = generated;
@@ -1290,7 +1290,7 @@ impl Generator<'_> {
         }
 
         let effect = self.expression_value(tree, writer, expression, context)?;
-        let value = tree.call(effect, vec![]);
+        let value = tree.call(effect, Vec::new());
         self.render_destination(tree, writer, value, destination);
         Ok(())
     }
@@ -1307,28 +1307,28 @@ impl Generator<'_> {
         let effect = capture_effect(&mut renderer, effect)?;
         let break_label = match destination {
             Destination::Return => {
-                writer.return_arrow(vec![], |writer| {
+                writer.return_arrow(Vec::new(), |writer| {
                     let mut renderer = self.renderer(tree, writer, context);
                     execute_effect(&mut renderer, effect, Destination::Return)
                 })?;
                 None
             }
             Destination::TailEffectThunkReturn => {
-                writer.return_arrow(vec![], |writer| {
+                writer.return_arrow(Vec::new(), |writer| {
                     let mut renderer = self.renderer(tree, writer, context);
                     execute_effect(&mut renderer, effect, Destination::TailEffectReturn)
                 })?;
                 None
             }
             Destination::Assign(name) => {
-                writer.assign_arrow(name, vec![], |writer| {
+                writer.assign_arrow(name, Vec::new(), |writer| {
                     let mut renderer = self.renderer(tree, writer, context);
                     execute_effect(&mut renderer, effect, Destination::Return)
                 })?;
                 None
             }
             Destination::AssignAndBreak { name, label } => {
-                writer.assign_arrow(name, vec![], |writer| {
+                writer.assign_arrow(name, Vec::new(), |writer| {
                     let mut renderer = self.renderer(tree, writer, context);
                     execute_effect(&mut renderer, effect, Destination::Return)
                 })?;
@@ -1357,8 +1357,8 @@ impl Generator<'_> {
     ) -> ModuleResult<()> {
         let mut renderer = self.renderer(tree, writer, context);
         let effect = capture_effect_value(&mut renderer, expression, "$effect")?;
-        writer.return_arrow(vec![], |writer| {
-            let value = tree.call(effect, vec![]);
+        writer.return_arrow(Vec::new(), |writer| {
+            let value = tree.call(effect, Vec::new());
             self.render_destination(tree, writer, value, Destination::TailEffectReturn);
             Ok(())
         })
@@ -1562,9 +1562,9 @@ impl Generator<'_> {
                 }
                 if arguments.is_empty() {
                     let value = if *synthetic {
-                        tree.pure_call(function.value, vec![])
+                        tree.pure_call(function.value, Vec::new())
                     } else {
-                        tree.call(function.value, vec![])
+                        tree.call(function.value, Vec::new())
                     };
                     return Ok(RenderedExpression { value, pending_evaluation: true });
                 }
@@ -1923,7 +1923,7 @@ impl Generator<'_> {
             ExpressionKind::SynthesizedEvidence { evidence } => {
                 synthesized_evidence_expression(tree, evidence)
             }
-            ExpressionKind::TrivialEvidence => tree.object(vec![]),
+            ExpressionKind::TrivialEvidence => tree.object(Vec::new()),
             ExpressionKind::Error
             | ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::IfThenElse { .. }
@@ -2029,7 +2029,7 @@ impl Generator<'_> {
         if uncurried {
             body = tree.arrow(arguments, body);
         } else if arguments.is_empty() {
-            body = tree.arrow(vec![], body);
+            body = tree.arrow(Vec::new(), body);
         } else {
             for argument in arguments.into_iter().rev() {
                 body = tree.arrow(vec![argument], body);
@@ -2092,7 +2092,7 @@ impl Generator<'_> {
             })
         } else {
             let (argument, parameter) = self.first_argument(parameters, context);
-            let arguments = if parameter.is_some() { vec![argument.clone()] } else { vec![] };
+            let arguments = if parameter.is_some() { vec![argument.clone()] } else { Vec::new() };
             writer.constant_arrow(name, arguments, |writer| {
                 if let Some(parameter) = parameter {
                     self.render_curried_parameter(
@@ -2295,7 +2295,7 @@ fn render_lazy_let(
     }
     for ((binding, name), accessor) in bindings.iter().zip(&names).zip(&accessors) {
         let accessor_expression = tree.identifier(accessor);
-        let value = tree.call(accessor_expression, vec![]);
+        let value = tree.call(accessor_expression, Vec::new());
         writer.constant(tree, name, value, false);
         context.bind_direct(&binding.parameter, name.clone());
     }
@@ -2906,7 +2906,7 @@ fn effect_expression(
     let effect = capture_effect(renderer, effect)?;
     let FunctionRenderer { generator, tree, writer, context } = renderer;
     let effect_name = context.allocate("$effect");
-    writer.constant_arrow(&effect_name, vec![], |writer| {
+    writer.constant_arrow(&effect_name, Vec::new(), |writer| {
         let mut renderer = generator.renderer(tree, writer, context);
         execute_effect(&mut renderer, effect, Destination::Return)
     })?;
@@ -3042,7 +3042,7 @@ fn execute_effect_action_value(
     preferred_name: &str,
 ) -> ModuleResult<ExpressionId> {
     match action {
-        CapturedEffectAction::Expression(action) => Ok(renderer.tree.call(action, vec![])),
+        CapturedEffectAction::Expression(action) => Ok(renderer.tree.call(action, Vec::new())),
         CapturedEffectAction::Effect(effect) => {
             let name = renderer.context.allocate(preferred_name);
             renderer.writer.mutable(&name);
@@ -3060,7 +3060,7 @@ fn execute_effect_action(
     let name = renderer.context.allocate(preferred_name);
     match action {
         CapturedEffectAction::Expression(action) => {
-            let value = renderer.tree.call(action, vec![]);
+            let value = renderer.tree.call(action, Vec::new());
             renderer.writer.constant(renderer.tree, &name, value, false);
         }
         CapturedEffectAction::Effect(effect) => {
@@ -3086,7 +3086,7 @@ fn local_expression(
         Some(LocalBinding::Inline(expression)) => Ok(tree.duplicate(expression)),
         Some(LocalBinding::Lazy(name)) => {
             let accessor = tree.identifier(name);
-            Ok(tree.call(accessor, vec![]))
+            Ok(tree.call(accessor, Vec::new()))
         }
         None => Err(generator
             .unsupported(UnsupportedState::MissingLocal { name: parameter.name.to_string() })),
@@ -3099,7 +3099,7 @@ impl Generator<'_> {
         if file_id == self.module.file_id {
             if let Some(lazy_name) = self.lazy_global_names.get(&global.id) {
                 let lazy = tree.identifier(lazy_name);
-                return Ok(tree.call(lazy, vec![]));
+                return Ok(tree.call(lazy, Vec::new()));
             }
             let name = self.global_names.get(&global.id).ok_or_else(|| {
                 self.unsupported(UnsupportedState::MissingGlobal {
@@ -3449,7 +3449,7 @@ fn collect_expression_children(
 ) {
     if descend_abstractions {
         let mut seen = FxHashSet::default();
-        let mut references = vec![];
+        let mut references = Vec::new();
         collect_expression_references(module, expression, &mut seen, &mut references);
         globals.extend(references.into_iter().map(|global| global.id));
         return;

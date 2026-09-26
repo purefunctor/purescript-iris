@@ -87,8 +87,8 @@ fn partition_union_output(
         *right_labels.entry(label).or_insert(0usize) += 1;
     }
 
-    let mut left_fields = vec![];
-    let mut right_fields = vec![];
+    let mut left_fields = Vec::new();
+    let mut right_fields = Vec::new();
 
     // Union is left-biased, so when solving `Union left right output` from a closed
     // `right` and `output`, the right-hand fields are taken from the end of output.
@@ -240,7 +240,7 @@ where
             Ok(Some(MatchInstance::from_unifications(vec![(row, result)])))
         }
         (Some(label_value), _, Some(row_row)) => {
-            let mut remaining = vec![];
+            let mut remaining = Vec::new();
             let mut found_type = None;
 
             for field in row_row.fields().iter() {
@@ -340,7 +340,7 @@ where
     };
 
     let mut seen = FxHashSet::default();
-    let mut fields = vec![];
+    let mut fields = Vec::new();
 
     for field in original_row.fields().iter() {
         if seen.insert(field.label.clone()) {

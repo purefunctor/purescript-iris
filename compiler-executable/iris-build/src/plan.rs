@@ -163,7 +163,7 @@ fn contract_dependencies(
     retained: &HashSet<SmolStr>,
     packages_by_name: &HashMap<&str, &PackageInput>,
 ) -> Vec<SmolStr> {
-    let mut dependencies = vec![];
+    let mut dependencies = Vec::new();
     let mut visited = HashSet::new();
     let pending = package.dependencies.iter().rev().map(SmolStr::as_str);
     let mut pending = pending.collect_vec();
@@ -222,7 +222,7 @@ fn package_groups(package_dependencies: &[Vec<PackageId>]) -> Vec<PackageGroup> 
         dependencies.collect_vec()
     });
     let dependencies = dependencies.collect_vec();
-    let mut dependents = vec![vec![]; grouped_packages.len()];
+    let mut dependents = vec![Vec::new(); grouped_packages.len()];
     for (group_index, group_dependencies) in dependencies.iter().enumerate() {
         for dependency in group_dependencies {
             dependents[dependency.0].push(PackageGroupId(group_index));

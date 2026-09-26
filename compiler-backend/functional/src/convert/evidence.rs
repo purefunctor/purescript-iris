@@ -89,7 +89,7 @@ impl EvidenceKeys {
         }
 
         let mut steps = vec![EvidenceKeyStep::Enter(root)];
-        let mut results = vec![];
+        let mut results = Vec::new();
         let mut visiting = FxHashSet::default();
 
         while let Some(step) = steps.pop() {
@@ -361,7 +361,7 @@ pub(super) fn evidence_variable(
     constraint: Option<checking::TypeId>,
 ) -> ConversionResult<ExpressionId> {
     let mut steps = vec![EvidenceConversionStep::Variable { variable, constraint }];
-    let mut expressions = vec![];
+    let mut expressions = Vec::new();
     let mut lowering = FxHashSet::default();
     let mut occurrence = EvidenceOccurrence::default();
 
@@ -895,7 +895,7 @@ where
 
     fn evidence_parameter_name(&self, constraint: checking::TypeId) -> QueryResult<SmolStr> {
         let mut current = constraint;
-        let mut arguments = vec![];
+        let mut arguments = Vec::new();
         loop {
             match *self.queries.lookup_type(current) {
                 checking::Type::Application(function, argument) => {

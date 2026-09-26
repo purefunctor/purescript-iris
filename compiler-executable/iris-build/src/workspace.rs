@@ -146,7 +146,7 @@ fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, 
     let mut manifests = manifests.process_results(|entries| entries.collect_vec())?;
     manifests.sort_by_key(|path| path.components().count());
 
-    let mut nested_workspaces = vec![];
+    let mut nested_workspaces = Vec::new();
     let mut packages = BTreeMap::new();
     for path in manifests {
         let package_root =

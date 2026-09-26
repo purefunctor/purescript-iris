@@ -80,7 +80,7 @@ impl<'s> LexedBuilder<'s> {
         let capacity = source.len() / 4;
         let kinds = Vec::with_capacity(capacity);
         let infos = Vec::with_capacity(capacity);
-        let errors = vec![];
+        let errors = Vec::new();
         LexedBuilder { source, kinds, infos, errors }
     }
 

@@ -249,7 +249,7 @@ fn render_true_color_with_palette(
     );
     let previous = Buffer::empty(buffer.area);
     let changes = previous.diff(&buffer);
-    let mut output = vec![];
+    let mut output = Vec::new();
     ratatui::crossterm::style::force_color_output(true);
     CrosstermBackend::new(&mut output).draw(changes.into_iter()).unwrap();
     String::from_utf8(output).unwrap()

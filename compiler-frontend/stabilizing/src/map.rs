@@ -16,7 +16,7 @@ pub struct StabilizedModule {
 
 impl Default for StabilizedModule {
     fn default() -> StabilizedModule {
-        let arena = vec![];
+        let arena = Vec::new();
         let table = HashTable::default();
         StabilizedModule { arena, table }
     }

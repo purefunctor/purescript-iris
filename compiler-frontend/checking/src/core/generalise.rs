@@ -138,11 +138,11 @@ where
     collect_unification_into(&mut graph, state, context, id)?;
 
     if graph.node_count() == 0 {
-        return Ok(vec![]);
+        return Ok(Vec::new());
     }
 
     let Ok(unsolved) = algo::toposort(&graph, None) else {
-        return Ok(vec![]);
+        return Ok(Vec::new());
     };
 
     Ok(unsolved)
@@ -201,7 +201,7 @@ where
     Q: ExternalQueries,
 {
     if unsolved.is_empty() {
-        return Ok(GeneralisedType { type_id: id, parameters: vec![] });
+        return Ok(GeneralisedType { type_id: id, parameters: Vec::new() });
     }
 
     let mut quantified = id;
@@ -295,7 +295,7 @@ where
     Q: ExternalQueries,
 {
     if residuals.is_empty() {
-        return Ok(ConstrainedByResiduals { type_id: unconstrained, constraints: vec![] });
+        return Ok(ConstrainedByResiduals { type_id: unconstrained, constraints: Vec::new() });
     }
 
     for residual in residuals.iter_mut() {
@@ -326,7 +326,7 @@ fn prune_partial<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut residuals = vec![];
+    let mut residuals = Vec::new();
     let mut partial: Option<ConstraintInScope> = None;
 
     for constraint in pending {
@@ -357,7 +357,7 @@ fn prune_unsatisfied<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut residuals = vec![];
+    let mut residuals = Vec::new();
 
     for constraint in constraints {
         let canonical = state.canonicals.type_id(context, constraint.key.wanted);
@@ -451,7 +451,7 @@ fn finalise_generalised_constraints<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut generalisable = vec![];
+    let mut generalisable = Vec::new();
 
     for constraint in constraints {
         if compiler::is_fail_constraint(state, context, constraint.key.wanted) {
@@ -464,8 +464,8 @@ where
     let MinimisedBySuperclasses { retained, dropped } =
         minimise_by_superclasses(state, context, generalisable)?;
 
-    let mut evidences = vec![];
-    let mut generalised = vec![];
+    let mut evidences = Vec::new();
+    let mut generalised = Vec::new();
     for constraint in &retained {
         let ConstraintInScope { key, evidence } = constraint;
         let canonical = state.canonicals.type_id(context, key.wanted);
@@ -606,7 +606,7 @@ where
 
     let depth = state.depth.increment();
 
-    let mut binders = vec![];
+    let mut binders = Vec::new();
     for implicit_unification in implicits_unifications {
         match implicit_unification {
             ImplicitOrUnification::Implicit(name, kind) => {

@@ -149,7 +149,7 @@ fn extract_all_applications<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
     safe_loop! {
         applied_type = normalise::expand(state, context, applied_type)?;
         match *context.lookup_type(applied_type) {

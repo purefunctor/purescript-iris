@@ -122,7 +122,7 @@ impl Session {
         self.result(id).await;
         let receiver = self.editor.receiver.clone();
         let messages = tokio::task::spawn_blocking(move || {
-            let mut messages = vec![];
+            let mut messages = Vec::new();
             while let Ok(message) = receiver.recv_timeout(Duration::from_millis(300)) {
                 messages.push(message);
             }

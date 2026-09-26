@@ -102,7 +102,7 @@ fn lower_array_binder<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut fields = vec![];
+    let mut fields = Vec::new();
     for &element in array {
         fields.push(convert_binder(state, context, element)?);
     }
@@ -227,7 +227,7 @@ where
         return Ok(state.allocate_wildcard(t));
     };
 
-    let mut fields = vec![];
+    let mut fields = Vec::new();
     for &argument in arguments.iter() {
         fields.push(convert_binder(state, context, argument)?);
     }
@@ -350,7 +350,7 @@ fn extract_type_application<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
 
     safe_loop! {
         type_id = normalise::expand(state, context, type_id)?;

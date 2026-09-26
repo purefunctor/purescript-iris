@@ -14,7 +14,7 @@
 pub fn initializer_postorder(dependencies: &[Vec<usize>]) -> Vec<usize> {
     let mut visited = vec![false; dependencies.len()];
     let mut ordered = Vec::with_capacity(dependencies.len());
-    let mut work_stack = vec![];
+    let mut work_stack = Vec::new();
 
     for root in 0..dependencies.len() {
         if visited[root] {
@@ -49,7 +49,7 @@ pub fn initializer_postorder(dependencies: &[Vec<usize>]) -> Vec<usize> {
 /// graph in reverse postorder visits exactly one strongly connected component
 /// at a time.
 pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
-    let mut dependents = vec![vec![]; dependencies.len()];
+    let mut dependents = vec![Vec::new(); dependencies.len()];
     for (position, position_dependencies) in dependencies.iter().enumerate() {
         for &dependency in position_dependencies {
             dependents[dependency].push(position);
@@ -58,8 +58,8 @@ pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
 
     let mut cyclic = vec![false; dependencies.len()];
     let mut assigned = vec![false; dependencies.len()];
-    let mut component = vec![];
-    let mut work_stack = vec![];
+    let mut component = Vec::new();
+    let mut work_stack = Vec::new();
 
     for &root in initializer_postorder(dependencies).iter().rev() {
         if assigned[root] {
@@ -96,7 +96,7 @@ mod tests {
 
     /// Builds a graph where each initializer depends on the next one.
     fn chain(length: usize) -> Vec<Vec<usize>> {
-        let mut dependencies = vec![vec![]; length];
+        let mut dependencies = vec![Vec::new(); length];
         for position in 1..length {
             dependencies[position - 1].push(position);
         }
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn postorder_defines_dependencies_first() {
-        let dependencies = vec![vec![1, 2], vec![2], vec![], vec![0]];
+        let dependencies = vec![vec![1, 2], vec![2], Vec::new(), vec![0]];
 
         assert_eq!(initializer_postorder(&dependencies), vec![2, 1, 0, 3]);
     }
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn self_edges_mark_a_single_initializer() {
-        let dependencies = vec![vec![0], vec![], vec![1]];
+        let dependencies = vec![vec![0], Vec::new(), vec![1]];
 
         assert_eq!(cyclic_initializers(&dependencies), vec![true, false, false]);
     }
@@ -158,14 +158,14 @@ mod tests {
     #[test]
     fn acyclic_initializers_connected_to_cycles_are_not_marked() {
         // 0 depends on the cycle {1, 2}, and the cycle depends on 3.
-        let dependencies = vec![vec![1], vec![2], vec![1, 3], vec![]];
+        let dependencies = vec![vec![1], vec![2], vec![1, 3], Vec::new()];
 
         assert_eq!(cyclic_initializers(&dependencies), vec![false, true, true, false]);
     }
 
     #[test]
     fn acyclic_graphs_have_no_cyclic_initializers() {
-        let dependencies = vec![vec![1, 2], vec![2], vec![], vec![0]];
+        let dependencies = vec![vec![1, 2], vec![2], Vec::new(), vec![0]];
 
         assert_eq!(cyclic_initializers(&dependencies), vec![false; 4]);
     }

@@ -153,7 +153,7 @@ where
         engine: &QueryEngine,
         events: impl IntoIterator<Item = LifecycleEvent<Version, Metadata>>,
     ) -> LifecycleChange {
-        let mut pending = vec![];
+        let mut pending = Vec::new();
         let mut change = LifecycleChange::default();
         for event in events {
             // Updating or removing a source must observe earlier registrations,

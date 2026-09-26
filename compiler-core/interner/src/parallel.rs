@@ -239,11 +239,11 @@ mod tests {
 
         let interner: Arc<Interner<String>> = Arc::new(Interner::default());
 
-        let mut handles = vec![];
+        let mut handles = Vec::new();
         for thread_id in 0..128 {
             let interner = Arc::clone(&interner);
             handles.push(thread::spawn(move || {
-                let mut interned = vec![];
+                let mut interned = Vec::new();
                 for i in 0..1000 {
                     interned.push(interner.intern(format!("k{}", i % 100)));
                 }

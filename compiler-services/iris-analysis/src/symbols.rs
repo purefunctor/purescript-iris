@@ -49,7 +49,7 @@ pub fn document(
     let content = engine.content(current_file)?;
     let positions = PositionConverter::new(&content, context.position_encoding());
 
-    let mut symbols = vec![];
+    let mut symbols = Vec::new();
 
     for (name, file_id, term_id) in resolved.locals.iter_terms() {
         if file_id != current_file {
@@ -158,7 +158,7 @@ fn build_symbol_list(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     query: &str,
 ) -> Result<Vec<SymbolInformation>, AnalyzerError> {
-    let mut symbols = vec![];
+    let mut symbols = Vec::new();
 
     for file_id in context.active_files() {
         let resolved = context.queries().resolved(file_id)?;

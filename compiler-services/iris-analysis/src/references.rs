@@ -117,7 +117,7 @@ fn references_module_name(
         candidates_by_file.entry(file_id).or_default().push((position, import_id));
     }
 
-    let mut locations = vec![];
+    let mut locations = Vec::new();
     for (candidate_id, import_ids) in candidates_by_file {
         let uri = common::file_uri(context, candidate_id)?;
 
@@ -250,7 +250,7 @@ fn references_binder(
             references_file_term(context, current_file, *f_id, *t_id)
         }
         lowering::BinderKind::Named { .. } | lowering::BinderKind::Variable { .. } => {
-            let mut locations = vec![];
+            let mut locations = Vec::new();
 
             for (expression_id, expression_kind) in lowered.tree.iter_expression() {
                 if let ExpressionKind::Variable {
@@ -354,7 +354,7 @@ fn references_type_variable(
     let stabilized = context.queries().stabilized(current_file)?;
     let lowered = context.queries().lowered(current_file)?;
 
-    let mut locations = vec![];
+    let mut locations = Vec::new();
     for (type_id, kind) in lowered.tree.iter_type() {
         let TypeKind::Variable {
             resolution: Some(TypeVariableResolution::Forall(candidate_id)),
@@ -399,7 +399,7 @@ fn references_file_term(
     let engine = context.queries();
     let candidates = probe_term_references(context, current_file, file_id, term_id)?;
 
-    let mut locations = vec![];
+    let mut locations = Vec::new();
     for candidate_id in candidates {
         let uri = common::file_uri(context, candidate_id)?;
 
@@ -488,7 +488,7 @@ fn references_file_type(
     let engine = context.queries();
     let candidates = probe_type_references(context, current_file, file_id, type_id)?;
 
-    let mut locations = vec![];
+    let mut locations = Vec::new();
     for candidate_id in candidates {
         let uri = common::file_uri(context, candidate_id)?;
 
@@ -648,7 +648,7 @@ fn references_let(
     let stabilized = engine.stabilized(current_file)?;
     let lowered = engine.lowered(current_file)?;
 
-    let mut locations = vec![];
+    let mut locations = Vec::new();
 
     for (expression_id, expression_kind) in lowered.tree.iter_expression() {
         if let ExpressionKind::Variable {
@@ -693,7 +693,7 @@ fn references_binder_pun(
     let stabilized = engine.stabilized(current_file)?;
     let lowered = engine.lowered(current_file)?;
 
-    let mut locations = vec![];
+    let mut locations = Vec::new();
 
     for (expression_id, expression_kind) in lowered.tree.iter_expression() {
         if let ExpressionKind::Variable {

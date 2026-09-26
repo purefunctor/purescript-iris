@@ -162,7 +162,7 @@ pub fn value_equation_ranges(
         return None;
     };
 
-    let mut ranges = vec![];
+    let mut ranges = Vec::new();
 
     if let Some(sig_id) = signature
         && let Some(ptr) = stabilized.ast_ptr(*sig_id)

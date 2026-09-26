@@ -126,7 +126,7 @@ fn prim_workspace() -> PreparedWorkspace {
     let prim = MaterializedPrim::new().unwrap();
     PreparedWorkspace {
         compilation: CompilationState::new(prim, SourceMetadata::Builtin),
-        source_roots: vec![],
+        source_roots: Vec::new(),
     }
 }
 
@@ -347,7 +347,7 @@ async fn requests_never_answer_from_state_sent_after_them() {
     let harness = WorkspaceHarness::builtin(2).await;
     let uri = harness.uri("Main.purs");
     harness.open(&uri, 0, &module("Main", "value0"));
-    let mut requests = vec![];
+    let mut requests = Vec::new();
     for version in 1..=20 {
         requests.push((version - 1, harness.document_symbols(&uri)));
         harness.change(&uri, version, &module("Main", &format!("value{version}")));
@@ -1053,8 +1053,8 @@ fn package_roots_include_canonical_symlink_aliases() {
     symlink(&package_directory, &linked_directory).unwrap();
     let package = iris_build::DiscoveredPackage {
         name: "linked-package".into(),
-        files: vec![],
-        dependencies: vec![],
+        files: Vec::new(),
+        dependencies: Vec::new(),
         editable: true,
         roots: vec![PathBuf::from("linked-package")],
     };

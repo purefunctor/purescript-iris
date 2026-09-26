@@ -308,7 +308,7 @@ where
 
             state.with_source_type_renaming(&renaming, |state| {
                 debug_assert_eq!(instance_constraints.len(), instance.constraints.len());
-                let mut instance_evidences = vec![];
+                let mut instance_evidences = Vec::new();
                 for (&constraint, &signature_constraint) in
                     std::iter::zip(&instance_constraints, &instance.constraints)
                 {
@@ -328,7 +328,7 @@ where
                     &instance_arguments,
                 )?;
 
-                let mut checked_members = vec![];
+                let mut checked_members = Vec::new();
                 for member in members {
                     let checked_member = state.with_implication(|state| {
                         check_instance_member_group(
@@ -571,12 +571,12 @@ where
     Q: ExternalQueries,
 {
     let Some(class) = toolkit::lookup_file_class(state, context, class_file, class_id)? else {
-        return Ok(vec![]);
+        return Ok(Vec::new());
     };
     let Some(substitution) =
         constraint::elaborate::superclass_substitutions(context, &class, instance_arguments)?
     else {
-        return Ok(vec![]);
+        return Ok(Vec::new());
     };
 
     let mut checked_superclasses = Vec::with_capacity(class.superclasses.len());
@@ -886,7 +886,7 @@ where
         inferred_constraints: bool,
     }
 
-    let mut pending = vec![];
+    let mut pending = Vec::new();
 
     for &item_id in items {
         let Some(marker) = state.checked.term_item_types.get(&item_id).copied() else {
@@ -921,7 +921,7 @@ where
                 let abstractions = abstractions.collect();
                 (constrained.type_id, abstractions, equations, inferred_constraints)
             }
-            None => (marker, vec![], vec![], false),
+            None => (marker, Vec::new(), Vec::new(), false),
         };
 
         let marker = zonk::zonk(state, context, marker)?;
