@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export constructor Just/1
 
@@ -7,7 +8,8 @@ source: tests-integration/src/fixtures.rs
 
 @export test = \partialDict%1 ->
   \section15%0 ->
-    (case section15%0 of
-      Just _ ->
-        1)
+    (\partialDict%2 ->
+      case section15%0 of
+        Just _ ->
+          1)
       partialDict%1

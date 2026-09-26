@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data BinaryType :: Prim.Type
+data BinaryType
+  | Blob :: Main.BinaryType
+  | ArrayBuffer :: Main.BinaryType
+
+test :: Effect.Effect Prim.String -> Effect.Effect Main.BinaryType
+test = \source ->
+  unsafePartial \{partialDict} ->
+    mapFlipped {functorEffect} source \v48 ->
+      (\{partialDict1} ->
+        case v48 of
+          "blob" -> Blob
+          "arraybuffer" -> ArrayBuffer) {partialDict}
+
+test' :: Prim.Partial => Prim.String -> Main.BinaryType
+test' = \{partialDict} -> \value ->
+  case value of
+    "blob" -> Blob
+    "arraybuffer" -> ArrayBuffer
+
+test2 :: Prim.Partial => Main.BinaryType -> Prim.Int
+test2 = \{partialDict} -> \Blob -> 17
+
+test3 :: Prim.String -> Main.BinaryType
+test3 = \value -> unsafePartial \{partialDict} -> test' {partialDict} value
+
+test4 :: Main.BinaryType -> Prim.Int
+test4 = \value -> unsafePartial \{partialDict} -> test2 {partialDict} value
+
+test5 :: Effect.Effect Main.BinaryType -> Effect.Effect Prim.Int
+test5 = \source -> unsafePartial \{partialDict} -> mapFlipped {functorEffect} source \Blob -> 17
+
+test6 :: Main.BinaryType -> Prim.Int
+test6 = \value ->
+  unsafePartial \{partialDict} -> (\{partialDict1} -> \Blob -> 23) {partialDict} value

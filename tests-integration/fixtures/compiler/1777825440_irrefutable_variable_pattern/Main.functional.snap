@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export variable = \section16%0 ->
   case section16%0 of
@@ -16,11 +17,12 @@ source: tests-integration/src/fixtures.rs
       | _ <- arrayLength xs%6 -> 0
 
 @export refutable = \section82%7 ->
-  (case section82%7 of
-    [x%8] ->
-      x%8
-    xs%9 ->
-      | [y%10] <- xs%9 -> y%10)
+  (\partialDict%8 ->
+    case section82%7 of
+      [x%9] ->
+        x%9
+      xs%10 ->
+        | [y%11] <- xs%10 -> y%11)
     (<error>)
 
 @export foreign arrayLength
