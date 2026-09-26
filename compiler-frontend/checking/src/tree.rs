@@ -355,7 +355,7 @@ pub enum ExpressionKind {
     String { kind: lowering::StringKind, value: lowering::StringLiteral },
     Char { value: char },
     Boolean { value: bool },
-    Integer { value: i32 },
+    Integer { value: i64 },
     Number { value: SmolStr },
     Array { elements: Arc<[ExpressionId]> },
     Record { fields: Arc<[RecordExpressionField]> },

@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [JavaScriptCodegen] · Given.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Given'.
+  │
+  │ The integer literal '2147483648' is outside the signed 32-bit range (-2147483648 to 2147483647).
+  │
+  │   module Given where
+  │   ╰─────────────────
+  •
+
+Error! · [JavaScriptCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The integer literal '2147483648' is outside the signed 32-bit range (-2147483648 to 2147483647).
+  │
+  │   module Main where
+  │   ╰────────────────
+  •
+
+Error! · [JavaScriptCodegen] · Negative.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Negative'.
+  │
+  │ The integer literal '2147483649' is outside the signed 32-bit range (-2147483648 to 2147483647).
+  │
+  │   module Negative where
+  │   ╰────────────────────
+  •
+
+Error! · [JavaScriptCodegen] · Rebound.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Rebound'.
+  │
+  │ The integer literal '2147483648' is outside the signed 32-bit range (-2147483648 to 2147483647).
+  │
+  │   module Rebound where
+  │   ╰───────────────────
+  •

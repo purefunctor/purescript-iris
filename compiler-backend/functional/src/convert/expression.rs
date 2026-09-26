@@ -217,7 +217,7 @@ pub(super) fn convert_pattern(
             return convert_pattern(context, *binder);
         }
         checking_tree::BinderKind::Integer { value } => {
-            PatternKind::Literal(Literal::Integer(*value))
+            PatternKind::Literal(Literal::Integer(i64::from(*value)))
         }
         checking_tree::BinderKind::Number { negative, value } => {
             let value = if *negative { format_smolstr!("-{value}") } else { value.clone() };

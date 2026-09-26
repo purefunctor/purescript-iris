@@ -148,7 +148,13 @@ fn folded_negation(
         (
             UnaryOperator::IntegerNegate,
             ExpressionKind::Literal { literal: Literal::Integer(value) },
-        ) => Some(Literal::Integer(value.wrapping_neg())),
+        ) => {
+            let value = match i32::try_from(*value) {
+                Ok(value) => value.wrapping_neg(),
+                Err(_) => i32::try_from(value.checked_neg()?).ok()?,
+            };
+            Some(Literal::Integer(i64::from(value)))
+        }
         (
             UnaryOperator::NumberNegate,
             ExpressionKind::Literal { literal: Literal::Number(value) },

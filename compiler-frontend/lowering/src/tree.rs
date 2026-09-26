@@ -154,8 +154,10 @@ pub enum ExpressionKind {
     Boolean {
         boolean: bool,
     },
+    // Preserve the positive magnitude of -2147483648 until resolved negation
+    // can be folded. JavaScript emission checks the final signed 32-bit range.
     Integer {
-        value: Option<i32>,
+        value: Option<i64>,
     },
     Number {
         value: Option<SmolStr>,

@@ -185,6 +185,9 @@ impl ToDiagnostics for JavaScriptModuleError {
                     JavaScriptUnsupportedState::InvalidNumber { value } => format!(
                         "The number literal '{value}' cannot be represented as a finite JavaScript number."
                     ),
+                    JavaScriptUnsupportedState::InvalidInteger { value } => format!(
+                        "The integer literal '{value}' is outside the signed 32-bit range (-2147483648 to 2147483647)."
+                    ),
                     JavaScriptUnsupportedState::MissingGlobal { .. } =>
                         "The compiler could not find a JavaScript declaration for a referenced value.\n\nThis is an unsupported internal compiler state.".to_owned(),
                     JavaScriptUnsupportedState::MissingLocal { .. } =>
