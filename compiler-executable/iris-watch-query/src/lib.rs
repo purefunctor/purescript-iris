@@ -96,7 +96,8 @@ pub struct DependentsAnswer {
     pub dependents: Vec<Dependent>,
 }
 
-/// A module that imports the queried module, or imports it `through` another dependent.
+/// A module that imports the queried module directly, or through `through`, the module it imports
+/// on the way.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Dependent {
     pub module: String,

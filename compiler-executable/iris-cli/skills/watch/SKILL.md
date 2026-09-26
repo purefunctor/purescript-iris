@@ -49,7 +49,7 @@ Always run it after writing files and before other queries, so answers reflect y
 | `iris watch query module Data.Maybe` | Every export of a module with signatures and documentation |
 | `iris watch query definition Data.Maybe.Maybe` | `path:line:column` of the declaration |
 | `iris watch query references Data.Maybe.fromMaybe` | `path:line:column` of every use |
-| `iris watch query dependents Data.Maybe` | Every module that imports a module, directly or through another module |
+| `iris watch query dependents Data.Maybe` | Every module that imports a module; an indirect one names the module it imports on the way |
 | `iris watch query instances class Data.Show.Show` | `path:line:column` and head of every instance of a class |
 | `iris watch query instances type Data.Maybe.Maybe` | `path:line:column` and head of every instance whose head mentions a type, whatever its class |
 | `iris watch query search foldl` | Qualified names and signatures of declarations whose names match, best first |

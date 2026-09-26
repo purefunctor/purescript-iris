@@ -88,6 +88,7 @@ $ iris watch query instances class Shapes.Shape
 $ iris watch query dependents Shapes
 [0] src/Main.purs: Main
 src/App.purs: App (through Main)
+src/Root.purs: Root (through App)
 
 $ iris watch query search siz
 [0] Shapes.Size :: Int -> Size

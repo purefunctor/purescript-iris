@@ -487,6 +487,16 @@ app = main
 "#,
     );
     workspace.write(
+        "src/Root.purs",
+        r#"module Root where
+
+import App (app)
+
+root :: Int
+root = app
+"#,
+    );
+    workspace.write(
         "src/Empty.purs",
         r#"module Empty where
 "#,

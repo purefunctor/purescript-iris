@@ -279,7 +279,8 @@ fn mentions_any(
     types.any(|type_id| mentions(lowered, type_id, target))
 }
 
-/// A module in `files` that imports the queried module, directly or through `through`.
+/// A module in `files` that imports the queried module, directly or through `through`, the
+/// module it imports on the way.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Dependent {
     pub file_id: FileId,
@@ -287,8 +288,8 @@ pub struct Dependent {
 }
 
 /// The modules in `files` that import `target`, directly or through other modules, closest first.
-/// A module that imports `target` through others is reported through the direct importer of
-/// `target` that it reaches first.
+/// A module that imports `target` through others is reported through a module it imports itself,
+/// so the report can be checked against its import list.
 pub fn dependents(
     engine: &impl AnalyzerQueries,
     files: impl Iterator<Item = FileId>,
@@ -306,14 +307,14 @@ pub fn dependents(
 
     let mut dependents = Vec::new();
     let mut visited = BTreeSet::from([target]);
-    let mut pending = VecDeque::from([(target, None)]);
-    while let Some((file_id, through)) = pending.pop_front() {
+    let mut pending = VecDeque::from([target]);
+    while let Some(file_id) = pending.pop_front() {
+        let through = (file_id != target).then_some(file_id);
         for &importer in importers.get(&file_id).into_iter().flatten() {
-            if !visited.insert(importer) {
-                continue;
+            if visited.insert(importer) {
+                dependents.push(Dependent { file_id: importer, through });
+                pending.push_back(importer);
             }
-            dependents.push(Dependent { file_id: importer, through });
-            pending.push_back((importer, Some(through.unwrap_or(importer))));
         }
     }
     Ok(dependents)
