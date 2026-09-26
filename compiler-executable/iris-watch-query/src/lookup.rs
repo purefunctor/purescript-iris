@@ -1,5 +1,6 @@
 //! The queries themselves, over a snapshot of the engine.
 
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::path::Path;
 
@@ -14,9 +15,9 @@ use lsp_types::{Location, Uri};
 use url::Url;
 
 use crate::{
-    BuildState, Declaration, DeclarationsAnswer, DiagnosticEntry, DiagnosticSeverity,
-    DiagnosticsAnswer, InstanceEntry, InstancesAnswer, JavascriptAnswer, LocationsAnswer,
-    QueryContext, QueryFailure,
+    BuildState, Declaration, DeclarationsAnswer, Dependent, DependentsAnswer, DiagnosticEntry,
+    DiagnosticSeverity, DiagnosticsAnswer, InstanceEntry, InstancesAnswer, JavascriptAnswer,
+    LocationsAnswer, QueryContext, QueryFailure,
 };
 
 pub(crate) fn signature(
@@ -94,6 +95,49 @@ pub(crate) fn references(
     positions.dedup();
     let locations = positions.iter().map(SourcePosition::to_string).collect();
     Ok(LocationsAnswer { locations })
+}
+
+pub(crate) fn dependents(
+    context: &QueryContext,
+    name: &str,
+) -> Result<DependentsAnswer, QueryFailure> {
+    let target = module_file(context, name)?;
+    let mut importers = BTreeMap::<FileId, Vec<FileId>>::new();
+    for &file_id in context.files.keys() {
+        let resolved = context.engine.resolved(file_id)?;
+        let imports = resolved.unqualified.values().chain(resolved.qualified.values());
+        let imported = imports.flatten().map(|import| import.file).collect::<BTreeSet<_>>();
+        for imported in imported {
+            importers.entry(imported).or_default().push(file_id);
+        }
+    }
+
+    // Breadth first, so each dependent is reported through the closest module that imports the
+    // queried one.
+    let mut dependents = Vec::new();
+    let mut visited = BTreeSet::from([target]);
+    let mut pending = VecDeque::from([(target, None)]);
+    while let Some((file_id, through)) = pending.pop_front() {
+        for &importer in importers.get(&file_id).into_iter().flatten() {
+            if !visited.insert(importer) {
+                continue;
+            }
+            let module = module_name(context, importer)?;
+            let path = display_path(context, importer);
+            let dependent = Dependent {
+                module: String::clone(&module),
+                path,
+                through: Option::clone(&through),
+            };
+            dependents.push(dependent);
+            pending.push_back((importer, Some(Option::clone(&through).unwrap_or(module))));
+        }
+    }
+    dependents.sort_by(|left, right| {
+        let left = (left.through.is_some(), &left.module);
+        left.cmp(&(right.through.is_some(), &right.module))
+    });
+    Ok(DependentsAnswer { dependents })
 }
 
 pub(crate) fn instances(
@@ -251,6 +295,13 @@ fn module_file(context: &QueryContext, name: &str) -> Result<FileId, QueryFailur
         .engine
         .module_file(name)
         .ok_or_else(|| QueryFailure::Failed(format!("no loaded module is named {name}")))
+}
+
+fn module_name(context: &QueryContext, file_id: FileId) -> Result<String, QueryFailure> {
+    let content = context.engine.content(file_id)?;
+    let (parsed, _) = context.engine.parsed(file_id)?;
+    let name = parsed.module_name(&content).map(|name| name.to_string());
+    Ok(name.unwrap_or_else(|| display_path(context, file_id)))
 }
 
 /// A location as `path:line:column`, counted from 1, which orders by line and column numerically

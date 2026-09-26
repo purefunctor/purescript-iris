@@ -92,6 +92,19 @@ pub struct LocationsAnswer {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DependentsAnswer {
+    pub dependents: Vec<Dependent>,
+}
+
+/// A module that imports the queried module, or imports it `through` another dependent.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Dependent {
+    pub module: String,
+    pub path: String,
+    pub through: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InstancesAnswer {
     pub instances: Vec<InstanceEntry>,
 }
@@ -156,6 +169,9 @@ pub fn answer(query: &Query, context: &QueryContext) -> Result<Value, QueryFailu
         Query::References { name, namespace } => {
             lookup::references(context, name, *namespace).map(|answer| to_value(&answer))
         }
+        Query::Dependents { name } => {
+            lookup::dependents(context, name).map(|answer| to_value(&answer))
+        }
         Query::Instances { name, search } => {
             lookup::instances(context, name, *search).map(|answer| to_value(&answer))
         }
@@ -203,6 +219,21 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
                 return Ok("No locations.".to_string());
             }
             locations.join("\n")
+        }
+        Query::Dependents { .. } => {
+            let DependentsAnswer { dependents } = serde_json::from_value(value)?;
+            if dependents.is_empty() {
+                return Ok("No dependents.".to_string());
+            }
+            let dependents = dependents.iter().map(|dependent| {
+                let Dependent { module, path, through } = dependent;
+                if let Some(through) = through {
+                    format!("{path}: {module} (through {through})")
+                } else {
+                    format!("{path}: {module}")
+                }
+            });
+            dependents.collect::<Vec<_>>().join("\n")
         }
         Query::Instances { .. } => {
             let InstancesAnswer { instances } = serde_json::from_value(value)?;

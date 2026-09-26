@@ -9,6 +9,7 @@ Usage: iris watch query [-o --output <DIR>] [--json] <SUBCOMMAND>
 
 Commands:
   definition   Print where a value, type, or class is declared.
+  dependents   Print the modules that import a module, directly or through other modules.
   diagnostics  Print the diagnostics of one module, or of every module.
   instances    Print the instances of a class, or the instances whose head mentions a type.
   javascript   Print the JavaScript generated for a module.

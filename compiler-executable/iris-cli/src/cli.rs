@@ -263,6 +263,8 @@ pub enum QueryCommand {
     Definition(ItemQuery),
     /// Print where a value, type, or class is used.
     References(ItemQuery),
+    /// Print the modules that import a module, directly or through other modules.
+    Dependents(QueryName),
     /// Print the instances of a class, or the instances whose head mentions a type.
     Instances(InstancesQuery),
     /// Print the diagnostics of one module, or of every module.
@@ -341,6 +343,7 @@ impl QueryCommand {
                 let (name, namespace) = item.into_parts()?;
                 Query::References { name, namespace }
             }
+            QueryCommand::Dependents(QueryName { name }) => Query::Dependents { name },
             QueryCommand::Instances(InstancesQuery { search }) => match search {
                 InstancesCommand::Class(QueryName { name }) => {
                     Query::Instances { name, search: InstanceSearch::Class }

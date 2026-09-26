@@ -39,6 +39,8 @@ pub enum Query {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         namespace: Option<Namespace>,
     },
+    /// The modules that import a module, directly or through other modules.
+    Dependents { name: String },
     /// The instances of a class, or the instances whose head mentions a type.
     Instances { name: String, search: InstanceSearch },
     /// The diagnostics of one module, or of every module.
