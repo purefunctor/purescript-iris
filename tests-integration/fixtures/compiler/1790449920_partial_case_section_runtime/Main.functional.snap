@@ -1,0 +1,40 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export constructor Blob/0
+
+@export constructor ArrayBuffer/0
+
+@export test = \source%1 ->
+  unsafePartial
+    (\partialDict%0 ->
+      mapFlipped functorEffect source%1
+        (\section48%2 ->
+          (case section48%2 of
+            "blob" ->
+              "Blob"
+            "arraybuffer" ->
+              "ArrayBuffer")
+            partialDict%0))
+
+@export test' = \partialDict%4 ->
+  \value%3 ->
+    case value%3 of
+      "blob" ->
+        "Blob"
+      "arraybuffer" ->
+        "ArrayBuffer"
+
+@export test2 = \partialDict%6 -> \$binaryType%5@(Blob) -> 17
+
+@export test3 = \value%8 -> unsafePartial (\partialDict%7 -> test' partialDict%7 value%8)
+
+@export test4 = \value%10 -> unsafePartial (\partialDict%9 -> test2 partialDict%9 value%10)
+
+@export test5 = \source%12 ->
+  unsafePartial
+    (\partialDict%11 -> mapFlipped functorEffect source%12 (\$binaryType%13@(Blob) -> 17))
+
+@export test6 = \value%16 ->
+  unsafePartial (\partialDict%14 -> (\$binaryType%15@(Blob) -> 23) partialDict%14 value%16)
