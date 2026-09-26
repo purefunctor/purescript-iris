@@ -1,4 +1,4 @@
-//! Dependency ordering and cycle detection for JavaScript initializers.
+//! Dependency ordering and cycle detection for module initializers.
 //!
 //! Initializers are identified by their position in a dependency graph, where
 //! `dependencies[position]` lists the positions that `position` refers to.
@@ -11,7 +11,7 @@
 ///
 /// Emitting initializers in this order guarantees that an acyclic initializer
 /// is defined after everything it depends on.
-pub(super) fn initializer_postorder(dependencies: &[Vec<usize>]) -> Vec<usize> {
+pub fn initializer_postorder(dependencies: &[Vec<usize>]) -> Vec<usize> {
     let mut visited = vec![false; dependencies.len()];
     let mut ordered = Vec::with_capacity(dependencies.len());
     let mut work_stack = vec![];
@@ -48,7 +48,7 @@ pub(super) fn initializer_postorder(dependencies: &[Vec<usize>]) -> Vec<usize> {
 /// This is Kosaraju's algorithm: a depth-first search over the transposed
 /// graph in reverse postorder visits exactly one strongly connected component
 /// at a time.
-pub(super) fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
+pub fn cyclic_initializers(dependencies: &[Vec<usize>]) -> Vec<bool> {
     let mut dependents = vec![vec![]; dependencies.len()];
     for (position, position_dependencies) in dependencies.iter().enumerate() {
         for &dependency in position_dependencies {

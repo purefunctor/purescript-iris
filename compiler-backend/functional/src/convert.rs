@@ -6,7 +6,7 @@ mod evidence;
 mod expression;
 mod stylex;
 
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::sync::Arc;
 
 use building_types::{QueryError, QueryResult};
@@ -30,6 +30,7 @@ use crate::tree::{
 
 use self::declaration::{derive_declaration, instance_declaration, term_declaration};
 use self::evidence::{EvidenceHoisting, EvidenceKeys, EvidenceScope};
+use self::stylex::StyleXModules;
 
 type ConversionResult<T> = Result<T, ConversionError>;
 
@@ -85,6 +86,12 @@ struct Context<'c, Q> {
     record_pun_names: FxHashMap<lowering::RecordPunId, SmolStr>,
     dependencies: FxHashMap<FileId, Dependency>,
     indexed_dependencies: RefCell<FxHashMap<FileId, Arc<indexing::IndexedModule>>>,
+    stylex_modules: OnceCell<StyleXModules>,
+    /// Whether a term of a virtual StyleX module was referenced, the only source of StyleX
+    /// intrinsics and expressions.
+    references_stylex_module: bool,
+    thunk_modules: OnceCell<[Option<FileId>; 2]>,
+    canonical_thunk_instances: RefCell<FxHashMap<(FileId, indexing::InstanceId), bool>>,
 
     parameters: FxHashMap<BindingSource, Parameter>,
     next_local: u32,
@@ -145,6 +152,10 @@ where
             record_pun_names,
             dependencies: FxHashMap::default(),
             indexed_dependencies: RefCell::default(),
+            stylex_modules: OnceCell::new(),
+            references_stylex_module: false,
+            thunk_modules: OnceCell::new(),
+            canonical_thunk_instances: RefCell::default(),
 
             parameters: FxHashMap::default(),
             next_local: 0,
@@ -662,10 +673,11 @@ where
         file_id: FileId,
         indexed: Option<Arc<indexing::IndexedModule>>,
     ) -> QueryResult<()> {
-        if file_id == self.file_id
-            || self.module_is_virtual(file_id)
-            || self.dependencies.contains_key(&file_id)
-        {
+        if file_id == self.file_id || self.dependencies.contains_key(&file_id) {
+            return Ok(());
+        }
+        if self.module_is_virtual(file_id) {
+            self.references_stylex_module = true;
             return Ok(());
         }
         let module_name = self.source_module_name(file_id)?;

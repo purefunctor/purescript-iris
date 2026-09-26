@@ -1,10 +1,10 @@
 //! Module-level references and lazy binding requirements.
 
+use functional::initializers::cyclic_initializers;
 use functional::tree::{DeclarationKind, ExpressionKind, Global, GlobalId, Module};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::analysis::cyclic_initializers;
 use super::{
     collect_expression_globals, collect_expression_references, global_file, is_abstraction,
 };
