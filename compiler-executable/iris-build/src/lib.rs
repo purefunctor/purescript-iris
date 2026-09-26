@@ -15,8 +15,10 @@ pub use workspace::{Workspace, WorkspaceError};
 
 pub use project::{
     BuildConfig, BuildError, ExecutionError, InitializedProject, PreparedProject, ProjectConfig,
-    ProjectError, RunConfig, TestConfig, build, initialize_project, prepare_project, run, test,
+    ProjectError, RunConfig, TestConfig, build, initialize_project, prepare_project,
+    resolve_output, run, test,
 };
 pub use session::{
     BuildSession, BuildSessionConfig, InputChange, InputChanges, RebuildOutcome, SessionError,
+    SessionSnapshot, SourceFile, SourceKind,
 };
