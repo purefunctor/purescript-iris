@@ -7,11 +7,11 @@ fn creates_a_spago_project_with_the_latest_supported_package_set() {
     let workspace = TestWorkspace::empty();
     let output = workspace.command(&["new", "--name", "example"]);
     assert_success(&output);
-    assert_eq!(
-        String::from_utf8_lossy(&output.stdout),
-        "Created package `example` with package set 81.1.0.\n\
-         Run `iris build` to get started.\n"
-    );
+    assert!(output.stdout.ends_with(b"\n"));
+    insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"
+    Created package `example` with package set 81.1.0.
+    Run `iris build` to get started.
+    ");
     assert!(output.stderr.is_empty());
     workspace
         .assert_spago_calls("", &[&["registry", "package-sets", "--latest", "--json", "--quiet"]]);

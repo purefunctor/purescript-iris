@@ -62,20 +62,25 @@ fn prints_version_to_stdout() {
 #[test]
 fn rejects_unpromoted_commands() {
     let workspace = TestWorkspace::empty();
-    for command in ["compile", "docs"] {
+    for (name, command) in [("rejects_compile", "compile"), ("rejects_docs", "docs")] {
         let output = workspace.command(&[command]);
         assert_eq!(output.status.code(), Some(2), "{command} was accepted");
         assert!(output.stdout.is_empty(), "{command} wrote stdout");
+        snapshot_output(name, &output);
     }
 }
 
 #[test]
 fn rejects_removed_lsp_configuration_options() {
     let workspace = TestWorkspace::empty();
-    for arguments in [["lsp", "--config", "{}"], ["lsp", "--config-file", "iris.json"]] {
+    for (name, arguments) in [
+        ("rejects_lsp_config", ["lsp", "--config", "{}"]),
+        ("rejects_lsp_config_file", ["lsp", "--config-file", "iris.json"]),
+    ] {
         let output = workspace.command(&arguments);
         assert_eq!(output.status.code(), Some(2), "{arguments:?} was accepted");
         assert!(output.stdout.is_empty(), "{arguments:?} wrote stdout");
+        snapshot_output(name, &output);
     }
 }
 

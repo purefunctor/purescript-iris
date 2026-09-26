@@ -26,12 +26,14 @@ foreign import main :: Effect Unit
     );
     workspace.write(
         "test/Application/Test.js",
-        "export const main = () => console.log(`tests ran: ${process.argv.slice(2).join(\",\")}`);\n",
+        r#"export const main = () => console.log(`tests ran: ${process.argv.slice(2).join(",")}`);
+"#,
     );
 
     let output = workspace.command(&["test", "--quiet"]);
     assert_success(&output);
-    assert_eq!(String::from_utf8_lossy(&output.stdout), "tests ran: from-manifest\n");
+    assert!(output.stdout.ends_with(b"\n"));
+    insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"tests ran: from-manifest");
     workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 

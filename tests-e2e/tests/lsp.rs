@@ -134,11 +134,14 @@ fn snapshot_normalization_preserves_path_boundaries_and_platform_status_details(
     normalize_workspace_paths(&mut value, &[r"C:\workspace".to_string()]);
     normalize_process_status(&mut value);
 
-    assert_eq!(value[0], "[WORKSPACE]/src/Main.purs");
-    assert_eq!(value[1], r"C:\workspace-other\src\Main.purs");
-    assert_eq!(value[2], "exit code: 7");
-    assert_eq!(value[3], "exit code: 9");
-    assert_eq!(value[4], "signal: 15");
+    let lines = value.as_array().unwrap().iter().map(|value| value.as_str().unwrap());
+    insta::assert_snapshot!(lines.collect::<Vec<_>>().join("\n"), @r"
+    [WORKSPACE]/src/Main.purs
+    C:\workspace-other\src\Main.purs
+    exit code: 7
+    exit code: 9
+    signal: 15
+    ");
 }
 
 #[cfg(unix)]
@@ -160,7 +163,11 @@ fn snapshot_normalization_includes_a_canonical_symlinked_temp_ancestor() {
     let prefixes = workspace_prefixes(&workspace);
     normalize_workspace_paths(&mut value, &prefixes);
 
-    assert_eq!(value, json!(["[WORKSPACE]/src/Main.purs", "[WORKSPACE]/src/Main.purs"]));
+    let lines = value.as_array().unwrap().iter().map(|value| value.as_str().unwrap());
+    insta::assert_snapshot!(lines.collect::<Vec<_>>().join("\n"), @"
+    [WORKSPACE]/src/Main.purs
+    [WORKSPACE]/src/Main.purs
+    ");
 }
 
 struct ClientState {
