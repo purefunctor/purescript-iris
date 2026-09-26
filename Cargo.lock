@@ -1799,6 +1799,7 @@ dependencies = [
  "iris-lsp",
  "iris-package",
  "iris-watch",
+ "iris-watch-server",
  "itertools 0.15.0",
  "mimalloc",
  "tracing",
@@ -1954,10 +1955,13 @@ version = "0.1.0"
 dependencies = [
  "iris-build",
  "iris-progress",
+ "iris-watch-query",
+ "iris-watch-server",
  "itertools 0.15.0",
  "jiff",
  "notify",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 

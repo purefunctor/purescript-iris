@@ -236,6 +236,7 @@ impl WatchOptions {
                 quiet: self.quiet,
                 color: use_color(self.color),
                 diagnostics: !self.no_diagnostics,
+                version: crate::VERSION.to_string(),
             },
         }
     }

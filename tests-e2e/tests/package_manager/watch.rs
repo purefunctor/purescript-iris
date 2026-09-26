@@ -427,3 +427,35 @@ fn spawn_reader(
         }
     })
 }
+
+#[cfg(unix)]
+#[test]
+fn removes_the_socket_file_when_terminated() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+    let socket_file = workspace.path().join("output/.iris-watch");
+    assert!(socket_file.is_file());
+
+    let terminate = std::process::Command::new("kill")
+        .args(["-TERM", &watch.child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(terminate.success());
+    assert_eq!(watch.child.wait().unwrap().code(), Some(143));
+    assert!(!socket_file.exists());
+}
