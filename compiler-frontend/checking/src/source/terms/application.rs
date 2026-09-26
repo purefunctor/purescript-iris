@@ -205,7 +205,7 @@ where
     Q: ExternalQueries,
 {
     let mut function = function;
-    let mut implicit = vec![];
+    let mut implicit = Vec::new();
     safe_loop! {
         match analyse_callable_head(state, context, function)? {
             CallableAnalysis::Forall { binder, body } => {

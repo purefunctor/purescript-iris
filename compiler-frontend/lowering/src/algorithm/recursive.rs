@@ -694,7 +694,7 @@ fn lower_bindings(
         cst::LetBinding::LetBindingEquation(_) => Chunk::Equation,
     });
 
-    let mut result = vec![];
+    let mut result = Vec::new();
     for (kind, children) in chunks.into_iter() {
         match kind {
             Chunk::Pattern => {
@@ -754,11 +754,11 @@ fn lower_equation_chunk(
         }),
     });
 
-    let mut pending = vec![];
+    let mut pending = Vec::new();
 
     for (name, mut children) in children.into_iter() {
         let mut signature = None;
-        let mut equations = vec![];
+        let mut equations = Vec::new();
 
         if let Some(cst) = children.next() {
             match cst {
@@ -790,7 +790,7 @@ fn lower_equation_chunk(
     }
 
     let mut let_bound = FxHashMap::default();
-    let mut groups = vec![];
+    let mut groups = Vec::new();
 
     for PendingLetBinding { name, signature, equations } in pending {
         let group = LetBindingNameGroup { name: name.clone(), signature, equations };

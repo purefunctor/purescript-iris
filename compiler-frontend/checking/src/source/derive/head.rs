@@ -24,7 +24,7 @@ pub fn check_derive_declarations<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut results = vec![];
+    let mut results = Vec::new();
 
     for &item_id in &context.grouped.derive_items {
         let Some(item) = context.lowered.tree.get_derive_item(item_id) else { continue };

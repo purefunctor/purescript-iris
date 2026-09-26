@@ -241,7 +241,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                     kind: IndexedTypeItemKind::Class {
                         signature: Some(id),
                         declaration: None,
-                        members: vec![],
+                        members: Vec::new(),
                     },
                     exported: false,
                 },
@@ -268,7 +268,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                     kind: IndexedTypeItemKind::Class {
                         signature: None,
                         declaration: Some(id),
-                        members: vec![],
+                        members: Vec::new(),
                     },
                     exported: false,
                 },
@@ -318,7 +318,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                         signature: Some(id),
                         equation: None,
                         role: None,
-                        constructors: vec![],
+                        constructors: Vec::new(),
                     },
                     exported: false,
                 },
@@ -346,7 +346,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                         signature: None,
                         equation: Some(id),
                         role: None,
-                        constructors: vec![],
+                        constructors: Vec::new(),
                     },
                     exported: false,
                 },
@@ -387,7 +387,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                         signature: Some(id),
                         equation: None,
                         role: None,
-                        constructors: vec![],
+                        constructors: Vec::new(),
                     },
                     exported: false,
                 },
@@ -415,7 +415,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                         signature: None,
                         equation: Some(id),
                         role: None,
-                        constructors: vec![],
+                        constructors: Vec::new(),
                     },
                     exported: false,
                 },
@@ -460,7 +460,7 @@ fn index_value_signature(
     let name = name_from_token(state.source, cst.name_token());
 
     let Some((active_id, active)) = state.open_term_group(&name) else {
-        let kind = IndexedTermItemKind::Value { signature: Some(id), equations: vec![] };
+        let kind = IndexedTermItemKind::Value { signature: Some(id), equations: Vec::new() };
         return state.alloc_term(IndexedTermItem { name, kind, exported: false });
     };
 

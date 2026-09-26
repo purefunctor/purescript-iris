@@ -240,7 +240,7 @@ impl Editor {
         assert!(!self.unclaimed.iter().any(&check), "unexpected {description}");
         let receiver = self.connection.receiver.clone();
         let messages = tokio::task::spawn_blocking(move || {
-            let mut messages = vec![];
+            let mut messages = Vec::new();
             while let Ok(message) = receiver.recv_timeout(Duration::from_millis(200)) {
                 messages.push(message);
             }
@@ -504,7 +504,7 @@ async fn requests_and_notifications_reach_the_workspace_actor_in_order() {
     harness.editor.request(2, "workspace/symbol", json!({"order": 4}));
     harness.editor.notify("custom/unknownNotification", json!({"order": 5}));
 
-    let mut order = vec![];
+    let mut order = Vec::new();
     for _ in 0..5 {
         match harness.workspace.ordered().await {
             OrderedMessage::Notification { method, params } => order.push((method, params)),
@@ -676,12 +676,15 @@ async fn requests_after_shutdown_can_still_be_cancelled() {
 #[tokio::test]
 async fn registrations_follow_the_client_capabilities() {
     let cases = [
-        (json!({}), vec![]),
+        (json!({}), Vec::new()),
         (
             json!({"workspace": {"didChangeWatchedFiles": {"dynamicRegistration": true}}}),
             vec!["workspace/didChangeWatchedFiles"],
         ),
-        (json!({"workspace": {"didChangeConfiguration": {"dynamicRegistration": true}}}), vec![]),
+        (
+            json!({"workspace": {"didChangeConfiguration": {"dynamicRegistration": true}}}),
+            Vec::new(),
+        ),
         (
             json!({"workspace": {
                 "configuration": true,
@@ -700,7 +703,7 @@ async fn registrations_follow_the_client_capabilities() {
     ];
     for (capabilities, expected) in cases {
         let mut harness = ServerHarness::running_with(json!({"capabilities": capabilities})).await;
-        let mut methods = vec![];
+        let mut methods = Vec::new();
         for _ in 0..expected.len() {
             let request = harness.editor.server_request("client/registerCapability").await;
             let registration = &request.params["registrations"][0];

@@ -37,7 +37,7 @@ where
     pub(super) fn new(
         context: &'edits AnalyzerContext<'language, Host>,
     ) -> RenameEdits<'edits, 'language, Host> {
-        RenameEdits { context, edits: vec![] }
+        RenameEdits { context, edits: Vec::new() }
     }
 }
 

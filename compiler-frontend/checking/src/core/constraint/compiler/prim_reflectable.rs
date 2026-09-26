@@ -38,7 +38,7 @@ where
         || v == context.prim_ordering.gt
     {
         let Some(expected) = context.known_reflectable.ordering else {
-            return Ok(Some(MatchInstance::Stuck { stuck: vec![], skolem: false }));
+            return Ok(Some(MatchInstance::Stuck { stuck: Vec::new(), skolem: false }));
         };
         return Ok(Some(match_expected(state, context, t, expected)?));
     }

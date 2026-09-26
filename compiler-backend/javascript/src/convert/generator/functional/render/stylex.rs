@@ -80,13 +80,13 @@ impl Generator<'_> {
                 } else {
                     let name = context.allocate("$stylexConditional");
                     let outer_tail_calls = context.tail_calls.take();
-                    let result = writer.constant_arrow(&name, vec![], |writer| {
+                    let result = writer.constant_arrow(&name, Vec::new(), |writer| {
                         self.render_expression(tree, writer, *style, Destination::Return, context)
                     });
                     context.tail_calls = outer_tail_calls;
                     result?;
                     let function = tree.identifier(name);
-                    tree.call(function, vec![])
+                    tree.call(function, Vec::new())
                 };
                 tree.binary(BinaryOperator::LogicalAnd, condition.value, style)
             }

@@ -54,7 +54,7 @@ pub fn extract_type_application<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
 
     safe_loop! {
         id = normalise::expand(state, context, id)?;
@@ -82,7 +82,7 @@ pub fn extract_all_applications<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
 
     safe_loop! {
         id = normalise::expand(state, context, id)?;
@@ -320,7 +320,7 @@ pub fn inspect_quantified<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut binders = vec![];
+    let mut binders = Vec::new();
     let mut current = id;
 
     safe_loop! {
@@ -357,7 +357,7 @@ pub fn inspect_function_with<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
     let mut current = id;
 
     safe_loop! {
@@ -412,7 +412,7 @@ where
     let depth = state.depth;
 
     let mut substitution = FxHashMap::default();
-    let mut freshened = vec![];
+    let mut freshened = Vec::new();
 
     for binder in &binders {
         let kind = SubstituteName::many(state, context, &substitution, binder.kind)?;
@@ -444,7 +444,7 @@ where
     let InspectQuantified { binders, quantified } = inspect_quantified(state, context, canonical)?;
 
     let mut current = quantified;
-    let mut constraints = vec![];
+    let mut constraints = Vec::new();
 
     safe_loop! {
         current = normalise::expand(state, context, current)?;
@@ -868,7 +868,7 @@ where
 
     let mut current = constructor_type;
     let mut arguments = arguments.iter().copied();
-    let mut rigids = vec![];
+    let mut rigids = Vec::new();
 
     safe_loop! {
         current = normalise::expand(state, context, current)?;

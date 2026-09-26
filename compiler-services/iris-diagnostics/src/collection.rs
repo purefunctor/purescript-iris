@@ -75,7 +75,7 @@ where
         &checked,
     );
 
-    let mut diagnostics = vec![];
+    let mut diagnostics = Vec::new();
     for error in &indexed.errors {
         diagnostics.extend(error.to_diagnostics(&context));
     }

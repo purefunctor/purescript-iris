@@ -156,11 +156,11 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
         discovered.insert(SmolStr::clone(&name), resolved);
     }
 
-    let mut source_globs = vec![];
+    let mut source_globs = Vec::new();
     let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
     let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
     for resolved in discovered.values() {
-        let mut package_globs = vec![];
+        let mut package_globs = Vec::new();
         for directory in &resolved.source_directories {
             let relative = directory.strip_prefix(&workspace.root).unwrap_or(directory);
             package_globs.push(relative.join(iris_spago::PURS_GLOB));

@@ -102,9 +102,9 @@ pub(super) fn curried_call_expression(
 ) -> ExpressionId {
     if arguments.is_empty() {
         return if synthetic {
-            tree.pure_call(function, vec![])
+            tree.pure_call(function, Vec::new())
         } else {
-            tree.call(function, vec![])
+            tree.call(function, Vec::new())
         };
     }
     let arguments = arguments.into_iter();

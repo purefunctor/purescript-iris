@@ -122,7 +122,7 @@ where
 }
 
 fn flatten_dependencies(entries: Vec<DependencyEntry>) -> Vec<Dependency> {
-    let mut dependencies = vec![];
+    let mut dependencies = Vec::new();
     for entry in entries {
         match entry {
             DependencyEntry::Name(name) => dependencies.push(Dependency { name, constraint: None }),

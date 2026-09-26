@@ -212,7 +212,7 @@ where
             return Ok(None);
         };
 
-        let mut labels = vec![];
+        let mut labels = Vec::new();
         loop {
             let checking::Type::Row(row_id) = *self.queries.lookup_type(row_type) else {
                 return Ok(None);

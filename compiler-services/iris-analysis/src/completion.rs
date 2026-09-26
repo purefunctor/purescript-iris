@@ -110,7 +110,7 @@ fn collect(
     context: &CompletionContext<impl crate::AnalyzerHost>,
     cache: &mut SuggestionsCache,
 ) -> Result<Vec<CompletionItem>, AnalyzerError> {
-    let mut items = vec![];
+    let mut items = Vec::new();
     let into = &mut items;
 
     if context.collect_import_classes() {

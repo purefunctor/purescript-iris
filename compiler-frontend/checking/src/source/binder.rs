@@ -277,7 +277,7 @@ where
             };
 
             let mut constructor_t = toolkit::lookup_file_term(state, context, *file_id, *term_id)?;
-            let mut checked_arguments = vec![];
+            let mut checked_arguments = Vec::new();
 
             let inferred_type = if arguments.is_empty() {
                 constructor_t = toolkit::instantiate_unifications(state, context, constructor_t)?;
@@ -401,7 +401,7 @@ where
 
         lowering::BinderKind::Array { array } => {
             let element_type = state.fresh_unification(context.queries, context.prim.t);
-            let mut elements = vec![];
+            let mut elements = Vec::new();
 
             for binder in array.iter() {
                 let binder = infer_binder(state, context, *binder)?;
@@ -534,7 +534,7 @@ enum PatternItem {
 }
 
 fn collect_pattern_items(record: &[lowering::BinderRecordItem]) -> Vec<(SmolStr, PatternItem)> {
-    let mut items = vec![];
+    let mut items = Vec::new();
     for field in record {
         match field {
             lowering::BinderRecordItem::RecordField { name, value } => {
@@ -593,8 +593,8 @@ fn infer_record_binder<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut fields = vec![];
-    let mut checked_fields = vec![];
+    let mut fields = Vec::new();
+    let mut checked_fields = Vec::new();
 
     for field in record {
         match field {
@@ -670,8 +670,8 @@ where
 
     let pattern_items = collect_pattern_items(record);
 
-    let mut extra_fields = vec![];
-    let mut checked_fields = vec![];
+    let mut extra_fields = Vec::new();
+    let mut checked_fields = Vec::new();
 
     let patterns = pattern_items.iter();
     let expected = expected_row.fields.iter();

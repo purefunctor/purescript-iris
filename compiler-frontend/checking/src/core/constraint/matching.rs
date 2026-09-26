@@ -95,7 +95,7 @@ where
 
         (Type::Unification(left), Type::Unification(right)) => {
             if left == right {
-                Ok(MatchType::Match { bindings: vec![] })
+                Ok(MatchType::Match { bindings: Vec::new() })
             } else {
                 Ok(MatchType::Stuck { stuck: vec![*left, *right], skolem: false })
             }
@@ -104,7 +104,7 @@ where
         (Type::Rigid(left, _, _), Type::Rigid(right, _, _))
             if !pattern.contains(left) && !pattern.contains(right) && left == right =>
         {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (_, Type::Rigid(right, _, _)) if pattern.contains(right) => {
@@ -116,21 +116,21 @@ where
         }
 
         (Type::Rigid(name, _, _), _) | (_, Type::Rigid(name, _, _)) if !pattern.contains(name) => {
-            Ok(MatchType::Stuck { stuck: vec![], skolem: true })
+            Ok(MatchType::Stuck { stuck: Vec::new(), skolem: true })
         }
 
         (Type::Constructor(left_file, left_item), Type::Constructor(right_file, right_item))
             if (left_file, left_item) == (right_file, right_item) =>
         {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (Type::String(_, left), Type::String(_, right)) if left == right => {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (Type::Integer(left), Type::Integer(right)) if left == right => {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (
@@ -195,9 +195,9 @@ where
     let left = context.lookup_row_type(left);
     let right = context.lookup_row_type(right);
 
-    let mut row_result = MatchType::Match { bindings: vec![] };
-    let mut left_fields = vec![];
-    let mut right_fields = vec![];
+    let mut row_result = MatchType::Match { bindings: Vec::new() };
+    let mut left_fields = Vec::new();
+    let mut right_fields = Vec::new();
 
     for field in itertools::merge_join_by(left.fields.iter(), right.fields.iter(), |left, right| {
         left.label.cmp(&right.label)
@@ -259,7 +259,7 @@ where
             && right_row.fields.is_empty()
             && right_row.tail.is_none()
         {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         } else {
             Ok(MatchType::Apart)
         }
@@ -289,7 +289,7 @@ where
 
         (Type::Unification(left), Type::Unification(right)) => {
             if left == right {
-                Ok(MatchType::Match { bindings: vec![] })
+                Ok(MatchType::Match { bindings: Vec::new() })
             } else {
                 Ok(MatchType::Stuck { stuck: vec![*left, *right], skolem: false })
             }
@@ -297,9 +297,9 @@ where
 
         (Type::Rigid(left, _, _), Type::Rigid(right, _, _)) => {
             if left == right {
-                Ok(MatchType::Match { bindings: vec![] })
+                Ok(MatchType::Match { bindings: Vec::new() })
             } else {
-                Ok(MatchType::Stuck { stuck: vec![], skolem: true })
+                Ok(MatchType::Stuck { stuck: Vec::new(), skolem: true })
             }
         }
 
@@ -323,7 +323,7 @@ where
             if toolkit::contains_rigid(state, context, right, *left)? {
                 Ok(MatchType::Apart)
             } else {
-                Ok(MatchType::Stuck { stuck: vec![], skolem: true })
+                Ok(MatchType::Stuck { stuck: Vec::new(), skolem: true })
             }
         }
 
@@ -331,22 +331,22 @@ where
             if toolkit::contains_rigid(state, context, left, *right)? {
                 Ok(MatchType::Apart)
             } else {
-                Ok(MatchType::Stuck { stuck: vec![], skolem: true })
+                Ok(MatchType::Stuck { stuck: Vec::new(), skolem: true })
             }
         }
 
         (Type::Constructor(left_file, left_item), Type::Constructor(right_file, right_item))
             if (left_file, left_item) == (right_file, right_item) =>
         {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (Type::String(_, left), Type::String(_, right)) if left == right => {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (Type::Integer(left), Type::Integer(right)) if left == right => {
-            Ok(MatchType::Match { bindings: vec![] })
+            Ok(MatchType::Match { bindings: Vec::new() })
         }
 
         (
@@ -430,7 +430,7 @@ where
     Q: ExternalQueries,
 {
     let determined = get_all_determined(functional_dependencies);
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
 
     for (index, (&wanted, &given)) in iter::zip(wanted_arguments, given_arguments).enumerate() {
         let argument = types_match(state, context, patterns, wanted, given)?;
@@ -460,7 +460,7 @@ where
 }
 
 fn combine_arguments(arguments: impl IntoIterator<Item = MatchType>) -> MatchType {
-    let seed = MatchType::Match { bindings: vec![] };
+    let seed = MatchType::Match { bindings: Vec::new() };
     arguments.into_iter().fold(seed, MatchType::combine)
 }
 
@@ -483,15 +483,15 @@ pub enum MatchInstance {
 
 impl MatchInstance {
     pub fn empty() -> MatchInstance {
-        MatchInstance::Match { unifications: vec![], constraints: vec![] }
+        MatchInstance::Match { unifications: Vec::new(), constraints: Vec::new() }
     }
 
     pub fn from_unifications(unifications: Vec<(TypeId, TypeId)>) -> MatchInstance {
-        MatchInstance::Match { unifications, constraints: vec![] }
+        MatchInstance::Match { unifications, constraints: Vec::new() }
     }
 
     pub fn from_constraints(constraints: Vec<CanonicalConstraintId>) -> MatchInstance {
-        MatchInstance::Match { unifications: vec![], constraints }
+        MatchInstance::Match { unifications: Vec::new(), constraints }
     }
 
     pub fn from_parts(
@@ -533,7 +533,7 @@ pub fn collect_blocking<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut walker = CollectBlocking { blocking: vec![] };
+    let mut walker = CollectBlocking { blocking: Vec::new() };
 
     for &id in id {
         walk_type(state, context, id, &mut walker)?;
@@ -653,7 +653,7 @@ where
     )? {
         MatchType::Match { .. } => {
             let unifications = iter::zip(wanted_arguments, provided_arguments).collect_vec();
-            Ok(MatchInstance::Match { unifications, constraints: vec![] })
+            Ok(MatchInstance::Match { unifications, constraints: Vec::new() })
         }
         MatchType::Apart => Ok(MatchInstance::Apart),
         MatchType::Stuck { stuck, skolem } => Ok(MatchInstance::Stuck { stuck, skolem }),
@@ -715,7 +715,7 @@ where
                 substitution.insert(binder.name, binder_type);
             }
 
-            let mut unifications = vec![];
+            let mut unifications = Vec::new();
             for binder in &declared.binders {
                 if !matched_names.contains(&binder.name) {
                     continue;
@@ -733,7 +733,7 @@ where
                 unifications.push((wanted, declared));
             }
 
-            let mut constraints = vec![];
+            let mut constraints = Vec::new();
             for constraint in declared.constraints {
                 let constraint = SubstituteName::many(state, context, &substitution, constraint)?;
                 if let Some(constraint) = canonical::canonicalise(state, context, constraint)? {
@@ -860,29 +860,35 @@ where
         }
 
         (Type::Rigid(_, _, _), Type::Rigid(_, _, _))
-        | (Type::Unification(_), Type::Unification(_)) => Ok(MatchType::Match { bindings: vec![] }),
+        | (Type::Unification(_), Type::Unification(_)) => {
+            Ok(MatchType::Match { bindings: Vec::new() })
+        }
 
         (Type::Rigid(_, _, _) | Type::Unification(_), _)
         | (_, Type::Rigid(_, _, _) | Type::Unification(_)) => Ok(if comparing_kind_argument {
             MatchType::Apart
         } else {
-            MatchType::Match { bindings: vec![] }
+            MatchType::Match { bindings: Vec::new() }
         }),
 
         (Type::Constructor(left_file, left_item), Type::Constructor(right_file, right_item)) => {
             Ok(if (left_file, left_item) != (right_file, right_item) {
                 MatchType::Apart
             } else {
-                MatchType::Match { bindings: vec![] }
+                MatchType::Match { bindings: Vec::new() }
             })
         }
 
-        (Type::String(_, left), Type::String(_, right)) => {
-            Ok(if left != right { MatchType::Apart } else { MatchType::Match { bindings: vec![] } })
-        }
-        (Type::Integer(left), Type::Integer(right)) => {
-            Ok(if left != right { MatchType::Apart } else { MatchType::Match { bindings: vec![] } })
-        }
+        (Type::String(_, left), Type::String(_, right)) => Ok(if left != right {
+            MatchType::Apart
+        } else {
+            MatchType::Match { bindings: Vec::new() }
+        }),
+        (Type::Integer(left), Type::Integer(right)) => Ok(if left != right {
+            MatchType::Apart
+        } else {
+            MatchType::Match { bindings: Vec::new() }
+        }),
 
         (
             Type::Application(left_function, left_argument),

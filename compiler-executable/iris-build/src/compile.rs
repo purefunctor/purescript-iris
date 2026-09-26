@@ -168,7 +168,7 @@ where
     let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
     let source_units = source_paths.par_iter().map(|path| read_source_unit(path));
     let source_units = source_units.collect::<Result<Vec<_>, _>>()?;
-    let mut observations = vec![];
+    let mut observations = Vec::new();
     for (path, source_unit) in source_paths.iter().zip(&source_units) {
         let metadata = source_metadata(path);
         observations.extend(source_unit.observations(metadata));
@@ -200,9 +200,9 @@ where
     let (diagnostics, has_errors, failure) = match execution {
         Ok(()) => match collect_diagnostics(&compilation, &sources) {
             Ok((diagnostics, has_errors)) => (diagnostics, has_errors, None),
-            Err(error) => (vec![], true, Some(error)),
+            Err(error) => (Vec::new(), true, Some(error)),
         },
-        Err(error) => (vec![], true, Some(error)),
+        Err(error) => (Vec::new(), true, Some(error)),
     };
     let report =
         InitialBuildReport { sources, diagnostics, has_errors, no_inputs, failure, duration };
@@ -421,7 +421,7 @@ fn collect_modules(
 ) -> Result<Vec<Arc<javascript::Module>>, CompileError> {
     let mut pending = sources.to_vec();
     let mut visited = HashSet::new();
-    let mut modules = vec![];
+    let mut modules = Vec::new();
     while !pending.is_empty() {
         let frontier = pending.drain(..).filter(|file_id| visited.insert(*file_id));
         let frontier = frontier.collect_vec();
@@ -481,7 +481,7 @@ fn write_module(
     )
     .and_then(|_| write_if_changed(&output_path, module.source().as_bytes()));
     if let Err(error) = result {
-        return ModuleWrite { outputs: vec![], result: Err(error.into()) };
+        return ModuleWrite { outputs: Vec::new(), result: Err(error.into()) };
     }
     let mut outputs = vec![output_path];
     if let Some(kind) = module.foreign_kind() {

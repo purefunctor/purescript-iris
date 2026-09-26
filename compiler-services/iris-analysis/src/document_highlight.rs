@@ -52,7 +52,7 @@ pub fn implementation(
         }
         locate::Located::InstanceItem(item_id) => {
             let indexed = context.queries().indexed(current_file)?;
-            let mut highlights = vec![];
+            let mut highlights = Vec::new();
             push_name_highlight(
                 context,
                 current_file,
@@ -64,7 +64,7 @@ pub fn implementation(
         }
         locate::Located::DeriveItem(item_id) => {
             let indexed = context.queries().indexed(current_file)?;
-            let mut highlights = vec![];
+            let mut highlights = Vec::new();
             push_name_highlight(
                 context,
                 current_file,
@@ -245,7 +245,7 @@ fn highlight_binder(
     let root = parsed.syntax_node();
     let ptr = stabilized.syntax_ptr(binder_id).ok_or(AnalyzerError::NonFatal)?;
 
-    let mut highlights: Vec<DocumentHighlight> = vec![];
+    let mut highlights: Vec<DocumentHighlight> = Vec::new();
 
     highlights.extend(
         binder_name_range(&content, &root, &ptr)
@@ -341,7 +341,7 @@ fn highlight_type_variable(
     let stabilized = context.queries().stabilized(current_file)?;
     let lowered = context.queries().lowered(current_file)?;
 
-    let mut highlights = vec![];
+    let mut highlights = Vec::new();
     push_name_highlight(
         context,
         current_file,
@@ -386,7 +386,7 @@ fn highlight_file_term(
     let indexed = context.queries().indexed(current_file)?;
     let resolved = context.queries().resolved(current_file)?;
 
-    let mut highlights = vec![];
+    let mut highlights = Vec::new();
 
     for (expression_id, expression_kind) in lowered.tree.iter_expression() {
         if let ExpressionKind::Constructor { resolution: Some((f_id, t_id)) }
@@ -494,7 +494,7 @@ fn highlight_file_type(
     let indexed = context.queries().indexed(current_file)?;
     let resolved = context.queries().resolved(current_file)?;
 
-    let mut highlights = vec![];
+    let mut highlights = Vec::new();
 
     for (ty_id, ty_kind) in lowered.tree.iter_type() {
         if let TypeKind::Constructor { resolution: Some((f_id, t_id)) }
@@ -604,7 +604,7 @@ fn highlight_let(
     let root = parsed.syntax_node();
     let binding = lowered.tree.get_let_binding_group(let_binding_id);
 
-    let mut highlights: Vec<DocumentHighlight> = vec![];
+    let mut highlights: Vec<DocumentHighlight> = Vec::new();
 
     if let Some(signature) = binding.signature {
         let ptr = stabilized.syntax_ptr(signature).ok_or(AnalyzerError::NonFatal)?;
@@ -661,7 +661,7 @@ fn highlight_binder_pun(
     let stabilized = context.queries().stabilized(current_file)?;
     let lowered = context.queries().lowered(current_file)?;
 
-    let mut highlights = vec![];
+    let mut highlights = Vec::new();
 
     highlights.extend(
         highlight_id_range(&content, &parsed, &stabilized, pun_id)
@@ -726,7 +726,7 @@ fn term_item_highlights(
 ) -> Result<Option<Vec<DocumentHighlight>>, AnalyzerError> {
     let indexed = context.queries().indexed(current_file)?;
 
-    let mut highlights = vec![];
+    let mut highlights = Vec::new();
 
     macro_rules! push_name_highlights {
         ($range:expr; $($id:expr),+ $(,)?) => {
@@ -774,7 +774,7 @@ fn type_item_highlights(
 ) -> Result<Option<Vec<DocumentHighlight>>, AnalyzerError> {
     let indexed = context.queries().indexed(current_file)?;
 
-    let mut highlights = vec![];
+    let mut highlights = Vec::new();
 
     macro_rules! push_name_highlights {
         ($range:expr; $($id:expr),+ $(,)?) => {

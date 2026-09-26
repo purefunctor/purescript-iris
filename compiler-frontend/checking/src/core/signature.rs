@@ -69,7 +69,7 @@ pub fn decompose_signature<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut abstractions = vec![];
+    let mut abstractions = Vec::new();
     let mut argument_count = 0;
 
     safe_loop! {
@@ -153,7 +153,7 @@ where
 
     let mut argument_count = expected as usize;
     let mut result = signature.result;
-    let mut abstractions = vec![];
+    let mut abstractions = Vec::new();
     for abstraction in signature.abstractions.into_iter().rev() {
         if let DecomposedAbstraction::Argument { argument } = abstraction {
             argument_count -= 1;
@@ -182,7 +182,7 @@ where
     let signature = skolemise_decomposed_signature(state, context, signature)?;
     let mut argument_count = signature.arguments().count();
     let mut result = signature.result;
-    let mut abstractions = vec![];
+    let mut abstractions = Vec::new();
 
     // Skolemise the whole spine to preserve hidden forall scopes, but leave
     // evidence beyond unapplied arguments in the result. With `f = g`, the

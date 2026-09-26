@@ -114,7 +114,7 @@ fn source_files_for(names: &HashSet<String>) -> Vec<PathBuf> {
 fn cache_source_files_for(names: Option<&HashSet<String>>) -> Vec<PathBuf> {
     let sources = default_cache_dir().join("sources");
 
-    let mut source_files = vec![];
+    let mut source_files = Vec::new();
     let package_entries = match fs::read_dir(&sources) {
         Ok(entries) => entries,
         Err(_) => return source_files,
@@ -169,7 +169,7 @@ pub fn build_warmed_engine(sources: &[(String, String)]) -> WarmedEngine {
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
 
-    let mut candidates = vec![];
+    let mut candidates = Vec::new();
     for (uri, content) in sources {
         let file_id = files.insert(uri.as_str(), content.as_str());
         engine.set_content(file_id, content.as_str());

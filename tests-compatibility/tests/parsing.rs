@@ -115,7 +115,7 @@ fn test_index_package_set() {
 
 #[test]
 fn test_cst_id_package_set() {
-    let mut results = vec![];
+    let mut results = Vec::new();
 
     for file in all_source_files() {
         let Ok(source) = fs::read_to_string(&file) else {
@@ -148,7 +148,7 @@ fn test_parallel_parse_package_set() {
     let mut files = Files::default();
     prim::configure(&mut engine, &mut files);
 
-    let mut source = vec![];
+    let mut source = Vec::new();
     for path in all_source_files() {
         let content = std::fs::read_to_string(&path).unwrap();
         let url = url::Url::from_file_path(path).unwrap();

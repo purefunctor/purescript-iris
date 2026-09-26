@@ -174,7 +174,7 @@ where
 
     let message = match render_doc(state, context, doc) {
         Ok(Some(message)) => message,
-        Ok(None) => return Ok(Some(CompilerMatch::Stuck { stuck: vec![], skolem: false })),
+        Ok(None) => return Ok(Some(CompilerMatch::Stuck { stuck: Vec::new(), skolem: false })),
         Err(RenderStuck::Blocked(u)) => {
             return Ok(Some(CompilerMatch::Stuck { stuck: vec![u], skolem: false }));
         }
@@ -198,7 +198,7 @@ where
 
     let message = match render_doc(state, context, doc) {
         Ok(Some(message)) => message,
-        Ok(None) => return Ok(Some(CompilerMatch::Stuck { stuck: vec![], skolem: false })),
+        Ok(None) => return Ok(Some(CompilerMatch::Stuck { stuck: Vec::new(), skolem: false })),
         Err(RenderStuck::Blocked(u)) => {
             return Ok(Some(CompilerMatch::Stuck { stuck: vec![u], skolem: false }));
         }

@@ -907,9 +907,9 @@ fn lower_instance_statements(
 
     let mut in_scope: IndexMap<_, _, FxBuildHasher> = IndexMap::default();
     for (name, mut children) in children.into_iter() {
-        let mut statements = vec![];
+        let mut statements = Vec::new();
         let mut signature = None;
-        let mut equations = vec![];
+        let mut equations = Vec::new();
 
         if let Some(statement) = children.next() {
             let id = context.stabilized.lookup_cst(&statement).expect_id();

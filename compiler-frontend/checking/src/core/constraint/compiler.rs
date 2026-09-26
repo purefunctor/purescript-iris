@@ -54,7 +54,7 @@ impl CompilerMatch {
     }
 
     fn resolved(resolution: CompilerResolution) -> CompilerMatch {
-        CompilerMatch::Match { unifications: vec![], constraints: vec![], resolution }
+        CompilerMatch::Match { unifications: Vec::new(), constraints: Vec::new(), resolution }
     }
 }
 

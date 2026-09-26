@@ -180,7 +180,7 @@ struct PatternMatrix {
 
 impl PatternMatrix {
     fn new(columns: usize) -> PatternMatrix {
-        PatternMatrix { cells: vec![], rows: 0, columns }
+        PatternMatrix { cells: Vec::new(), rows: 0, columns }
     }
 
     fn with_capacity(columns: usize, rows: usize) -> PatternMatrix {
@@ -534,7 +534,7 @@ fn algorithm_m_wildcard_complete<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut all_witnesses = vec![];
+    let mut all_witnesses = Vec::new();
 
     for constructor in &sigma.constructors {
         let arity = constructor.arity();
@@ -898,7 +898,7 @@ enum MissingConstructor {
 /// like wildcards, records, and arrays are ignored for now.
 fn collect_sigma(state: &CheckState, matrix: &PatternMatrix) -> Sigma {
     let mut seen = FxHashSet::default();
-    let mut constructors = vec![];
+    let mut constructors = Vec::new();
 
     for row in matrix {
         let [first_column, ..] = row[..] else {
@@ -1098,7 +1098,7 @@ fn extract_all_applications<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut arguments = vec![];
+    let mut arguments = Vec::new();
     let mut current_id = applied_type;
 
     safe_loop! {
@@ -1196,7 +1196,7 @@ where
     Q: ExternalQueries,
 {
     if pattern_types.is_empty() {
-        return Ok(ExhaustivenessReport { missing: None, redundant: vec![] });
+        return Ok(ExhaustivenessReport { missing: None, redundant: Vec::new() });
     }
 
     let unconditional =
@@ -1217,7 +1217,7 @@ where
     Q: ExternalQueries,
 {
     if pattern_types.is_empty() {
-        return Ok(ExhaustivenessReport { missing: None, redundant: vec![] });
+        return Ok(ExhaustivenessReport { missing: None, redundant: Vec::new() });
     }
 
     let unconditional = collect_unconditional_rows(
@@ -1241,7 +1241,7 @@ where
     Q: ExternalQueries,
 {
     if pattern_types.is_empty() {
-        return Ok(ExhaustivenessReport { missing: None, redundant: vec![] });
+        return Ok(ExhaustivenessReport { missing: None, redundant: Vec::new() });
     }
 
     let unconditional = collect_unconditional_rows(
@@ -1348,7 +1348,7 @@ where
             }
         }
 
-        let mut pattern_row = vec![];
+        let mut pattern_row = Vec::new();
         for &binder_id in binders {
             pattern_row.push(convert::convert_binder(state, context, binder_id)?);
         }
@@ -1373,7 +1373,7 @@ fn check_exhaustiveness_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut redundant = vec![];
+    let mut redundant = Vec::new();
     let mut matrix = PatternMatrix::new(unconditional.columns);
     for vector in &unconditional {
         let useful = algorithm_u(state, context, &matrix, vector)?;

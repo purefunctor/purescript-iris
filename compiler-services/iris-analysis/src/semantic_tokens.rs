@@ -70,7 +70,7 @@ pub fn implementation(
     let (parsed, _) = context.queries().parsed(current_file)?;
     let root = parsed.syntax_node();
     let positions = PositionConverter::new(&content, context.position_encoding());
-    let mut data = vec![];
+    let mut data = Vec::new();
     let mut previous = lsp_types::Position::new(0, 0);
 
     for event in root.preorder_with_tokens() {

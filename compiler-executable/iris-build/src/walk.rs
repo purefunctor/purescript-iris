@@ -27,7 +27,7 @@ pub fn walk_filtered(
     includes: impl IntoIterator<Item = impl AsRef<Path>>,
     excludes: impl IntoIterator<Item = impl AsRef<Path>>,
 ) -> Result<Walk, Error> {
-    let mut files = vec![];
+    let mut files = Vec::new();
 
     let mut roots: BTreeMap<PathBuf, GlobSetBuilder> = BTreeMap::default();
     let mut globs = GlobSetBuilder::new();

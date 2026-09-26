@@ -132,7 +132,7 @@ impl Preparation {
         background: mpsc::UnboundedSender<Background>,
         prepare: Prepare,
     ) -> Preparation {
-        let inner = Inner { state: PreparationState::NotStarted, root: None, retired: vec![] };
+        let inner = Inner { state: PreparationState::NotStarted, root: None, retired: Vec::new() };
         Preparation { inner: Mutex::new(inner), events, background, prepare }
     }
 
@@ -411,9 +411,9 @@ where
     R: AsyncRead + Unpin,
 {
     let Some(mut pipe) = pipe else {
-        return Ok(vec![]);
+        return Ok(Vec::new());
     };
-    let mut output = vec![];
+    let mut output = Vec::new();
     pipe.read_to_end(&mut output).await?;
     Ok(output)
 }

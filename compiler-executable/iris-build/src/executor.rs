@@ -151,12 +151,12 @@ mod tests {
             PackageInput {
                 name: SmolStr::new("root"),
                 source_identities: vec![PathBuf::from("root")],
-                dependencies: vec![],
+                dependencies: Vec::new(),
             },
             PackageInput {
                 name: SmolStr::new("independent"),
                 source_identities: vec![PathBuf::from("independent")],
-                dependencies: vec![],
+                dependencies: Vec::new(),
             },
             PackageInput {
                 name: SmolStr::new("dependent"),
@@ -173,7 +173,7 @@ mod tests {
         let events = RecordedBuildEvents::default();
         let root_completed = AtomicBool::new(false);
         let independent_completed = AtomicBool::new(false);
-        let executed = Mutex::new(vec![]);
+        let executed = Mutex::new(Vec::new());
 
         execute_parallel(&plan, &events, &|package| {
             if package.name == "dependent" {
@@ -216,7 +216,7 @@ mod tests {
         let plan = plan();
         let recorded_events = RecordedBuildEvents::default();
         let events: &dyn BuildEventSink = &recorded_events;
-        let executed = Mutex::new(vec![]);
+        let executed = Mutex::new(Vec::new());
 
         execute_serial(&plan, events, &|package| {
             executed.lock().unwrap().push(SmolStr::clone(&package.name));

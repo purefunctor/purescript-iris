@@ -113,7 +113,7 @@ const WORKSPACE_SYMBOLS_DIRECTIVE: &str = "-- #";
 
 fn extract_cursors(content: &str) -> Vec<(usize, Request)> {
     let line_index = LineIndex::new(content);
-    let mut cursors = vec![];
+    let mut cursors = Vec::new();
 
     for (index, text) in content.match_indices(CursorKind::valid) {
         let line_col = line_index.line_col(TextSize::new(index as u32));
@@ -135,7 +135,7 @@ fn extract_cursors(content: &str) -> Vec<(usize, Request)> {
 
 fn extract_workspace_symbol_queries(content: &str) -> Vec<(usize, Request)> {
     let line_index = LineIndex::new(content);
-    let mut queries = vec![];
+    let mut queries = Vec::new();
 
     for (index, _) in content.match_indices(WORKSPACE_SYMBOLS_DIRECTIVE) {
         let line_col = line_index.line_col(TextSize::new(index as u32));
@@ -366,7 +366,7 @@ fn render_text_edit(edit: TextEdit) -> String {
 }
 
 fn render_workspace_edit(edit: WorkspaceEdit) -> Vec<String> {
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     if let Some(changes) = edit.changes {
         for edits in changes.into_values() {
@@ -498,7 +498,7 @@ fn apply_text_edits(content: &str, edits: Vec<TextEdit>, encoding: PositionEncod
 }
 
 fn render_code_action_response(response: Vec<CodeActionResponse>) -> String {
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     for action in response {
         match action {
@@ -608,7 +608,7 @@ fn dispatch_cursor(
         CursorKind::CodeAction => {
             let range = Range::new(position, position);
             let action_context = CodeActionContext {
-                diagnostics: vec![],
+                diagnostics: Vec::new(),
                 only: Some(vec![CodeActionKind::QuickFix]),
                 trigger_kind: Some(CodeActionTriggerKind::Invoked),
             };

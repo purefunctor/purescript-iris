@@ -132,7 +132,7 @@ fn did_open(
     let uri = &parameters.text_document.uri;
     let (document, unit) = source_unit_from_document_uri(uri)?;
 
-    let mut events = vec![];
+    let mut events = Vec::new();
     match document {
         DocumentKind::Foreign(kind) => {
             events.push(LifecycleEvent::Foreign {
@@ -215,7 +215,7 @@ fn did_close(
     let uri = parameters.text_document.uri;
     let (document, unit) = source_unit_from_document_uri(&uri)?;
     let disk = observe_disk(&uri);
-    let mut events = vec![];
+    let mut events = Vec::new();
     match document {
         DocumentKind::Foreign(kind) => {
             events.push(LifecycleEvent::Foreign {
@@ -275,7 +275,7 @@ fn did_change_watched_files(
         }
     }
 
-    let mut events = vec![];
+    let mut events = Vec::new();
     let mut observed_foreign = FxHashSet::default();
     for unit in source_units {
         let document = DocumentKey::Source(SourceUnitKey::clone(&unit));

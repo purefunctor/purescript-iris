@@ -43,7 +43,7 @@ pub fn sectioned(lowered: &LoweredModule) -> Sectioned {
     let mut expressions = FxHashMap::default();
 
     for (id, kind) in lowered.tree.iter_expression() {
-        let mut sections = vec![];
+        let mut sections = Vec::new();
 
         visit_sections(kind, |child_id| {
             if let Some(ExpressionKind::Section) = lowered.tree.get_expression_kind(child_id) {

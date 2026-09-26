@@ -95,7 +95,7 @@ where
     // to unification variables. Let bindings are not checked here to
     // avoid premature solving of unification variables. Instead, they
     // are checked inline during the statement checking loop.
-    let mut steps = vec![];
+    let mut steps = Vec::new();
     let mut has_missing_action = false;
     for &statement_id in statement_ids.iter() {
         let Some(statement) = context.lowered.tree.get_do_statement(statement_id) else {
@@ -168,7 +168,7 @@ where
     //   pure_type  := a -> f a
     //   expression := t
     if binder_types.is_empty() {
-        let mut checked_lets = vec![];
+        let mut checked_lets = Vec::new();
         for step in &steps {
             if let AdoStep::Let { statement, statements } = step {
                 let bindings = state
@@ -256,8 +256,8 @@ where
     };
 
     let mut continuation_type = None;
-    let mut checked_actions = vec![];
-    let mut checked_lets = vec![];
+    let mut checked_actions = Vec::new();
+    let mut checked_lets = Vec::new();
 
     for step in &steps {
         match step {

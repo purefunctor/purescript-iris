@@ -199,8 +199,8 @@ where
     debug_assert_eq!(roles.len(), left_arguments.len(), "critical failure: mismatched lengths");
     debug_assert_eq!(roles.len(), right_arguments.len(), "critical failure: mismatched lengths");
 
-    let mut unifications = vec![];
-    let mut constraints = vec![];
+    let mut unifications = Vec::new();
+    let mut constraints = Vec::new();
 
     for (role, &left_argument, &right_argument) in izip!(&*roles, &left_arguments, &right_arguments)
     {
@@ -246,7 +246,7 @@ where
         return Ok(None);
     };
 
-    let mut constraints = vec![];
+    let mut constraints = Vec::new();
 
     let left_constraint = make_coercible_constraint(state, context, left_argument, right_argument)?;
     if let Some(canonical_id) = canonical::canonicalise(state, context, left_constraint)? {
@@ -308,7 +308,7 @@ where
         return Ok(Some(MatchInstance::Apart));
     }
 
-    let mut constraints = vec![];
+    let mut constraints = Vec::new();
 
     for (left_field, right_field) in izip!(left_row.fields.iter(), right_row.fields.iter()) {
         if left_field.label != right_field.label {

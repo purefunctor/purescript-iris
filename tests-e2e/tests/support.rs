@@ -14,7 +14,10 @@ pub struct TestWorkspace {
 
 impl TestWorkspace {
     pub fn empty() -> TestWorkspace {
-        TestWorkspace { temporary: tempfile::tempdir().unwrap(), environment: RefCell::new(vec![]) }
+        TestWorkspace {
+            temporary: tempfile::tempdir().unwrap(),
+            environment: RefCell::new(Vec::new()),
+        }
     }
 
     pub fn path(&self) -> &Path {
@@ -39,7 +42,7 @@ impl TestWorkspace {
     }
 
     pub fn summary(&self) -> String {
-        let mut files = vec![];
+        let mut files = Vec::new();
         collect_files(self.path(), &mut files);
         files.sort();
 
@@ -103,7 +106,7 @@ impl TestWorkspace {
             Err(error) => panic!("failed to read Spago call log: {error}"),
         };
         let expected_directory = fs::canonicalize(self.path().join(directory)).unwrap();
-        let mut actual_arguments = vec![];
+        let mut actual_arguments = Vec::new();
         for line in source.lines() {
             let mut fields = line.split('\t');
             let actual_directory = fields.next().unwrap();

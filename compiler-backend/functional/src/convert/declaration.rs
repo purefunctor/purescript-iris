@@ -241,9 +241,9 @@ fn declaration_abstraction(
     let groups = runtime_abstractions.chunk_by(|abstraction| {
         matches!(abstraction, checking_tree::DeclarationAbstraction::Evidence { .. })
     });
-    let mut parameter_groups = vec![];
+    let mut parameter_groups = Vec::new();
     for (_, group) in &groups {
-        let mut parameters = vec![];
+        let mut parameters = Vec::new();
         for abstraction in group {
             match abstraction {
                 checking_tree::DeclarationAbstraction::Evidence { binder, .. } => {

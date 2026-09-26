@@ -147,10 +147,10 @@ where
     let right_row = context.lookup_row_type(right_row_id);
 
     let mut left_index = 0;
-    let mut left_only = vec![];
+    let mut left_only = Vec::new();
 
     let mut right_index = 0;
-    let mut right_only = vec![];
+    let mut right_only = Vec::new();
 
     let left_fields = &left_row.fields;
     let right_fields = &right_row.fields;

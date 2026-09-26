@@ -164,7 +164,7 @@ fn array_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut elements = vec![];
+    let mut elements = Vec::new();
 
     for expression in array {
         let checked = match mode {
@@ -318,8 +318,8 @@ fn record_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut fields = vec![];
-    let mut checked_fields = vec![];
+    let mut fields = Vec::new();
+    let mut checked_fields = Vec::new();
     let mut complete = true;
 
     for field in record.iter() {
@@ -422,9 +422,9 @@ fn infer_record_updates<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut input_fields = vec![];
-    let mut output_fields = vec![];
-    let mut checked_updates = vec![];
+    let mut input_fields = Vec::new();
+    let mut output_fields = Vec::new();
+    let mut checked_updates = Vec::new();
 
     for update in updates {
         match update {

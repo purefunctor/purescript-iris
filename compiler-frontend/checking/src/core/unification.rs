@@ -121,7 +121,7 @@ pub fn subtype_with_applications<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut applications = vec![];
+    let mut applications = Vec::new();
     subtype_with_applications_core(state, context, t1, t2, &mut applications)?;
     Ok(applications)
 }
@@ -780,7 +780,7 @@ where
     }
 
     let depth = state.unifications.get(id).depth;
-    let names = vec![];
+    let names = Vec::new();
 
     let mut promote = PromotionState { id, depth, names };
     check(&mut promote, state, context, solution)
@@ -910,8 +910,8 @@ where
     Q: ExternalQueries,
     F: FnMut(&mut CheckState, &CheckContext<Q>, TypeId, TypeId) -> QueryResult<bool>,
 {
-    let mut extras_left = vec![];
-    let mut extras_right = vec![];
+    let mut extras_left = Vec::new();
+    let mut extras_right = Vec::new();
     let mut ok = true;
 
     let t1_fields = t1_row.fields.iter();

@@ -71,7 +71,7 @@ impl Settings {
 
     /// The dynamic registrations to request on `initialized`, in order.
     pub(crate) fn registrations(&self) -> Vec<(Registration, RegistrationParams)> {
-        let mut registrations = vec![];
+        let mut registrations = Vec::new();
         if self.capabilities.watched_files_registration {
             registrations.push((Registration::WatchedFiles, watched_files_registration()));
         }

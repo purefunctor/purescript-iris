@@ -300,7 +300,7 @@ impl<'a> ModuleEncoder<'a> {
         let Some(lowering::TypeItemKind::Class { declaration: Some(class), .. }) =
             self.lowered.tree.get_type_item_kind(type_id)
         else {
-            return vec![];
+            return Vec::new();
         };
 
         let dependency_names = |positions: &[u8]| {
@@ -386,7 +386,7 @@ impl<'a> ModuleEncoder<'a> {
                             self.encode_functional_dependencies(type_id, &declaration);
                         (Some(declaration), superclasses, functional_dependencies)
                     } else {
-                        (None, vec![], vec![])
+                        (None, Vec::new(), Vec::new())
                     };
 
                 let members = self.encode_term_items(members.iter().copied())?;
@@ -419,7 +419,7 @@ pub fn render_package_manifest(
     engine: &QueryEngine,
     package: &PackageInput<'_>,
 ) -> Result<schema::Package, Error> {
-    let mut modules = vec![];
+    let mut modules = Vec::new();
     for &id in package.modules {
         if let Some(name) = module_name(engine, id)? {
             modules.push(name);
@@ -447,8 +447,8 @@ pub fn render_module(
     let Some(name) = name else { return Ok(None) };
     let documentation = optional_string(&encoder.documented.documentation);
 
-    let mut terms = vec![];
-    let mut types = vec![];
+    let mut terms = Vec::new();
+    let mut types = Vec::new();
 
     let mut nested_terms = NestedTerms::new();
     let mut nested_instances = NestedInstances::new();

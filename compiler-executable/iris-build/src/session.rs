@@ -361,7 +361,7 @@ fn observe_source_unit(
     let current_source = compilation.source_content(unit.source())?;
     let current_foreign =
         ForeignSourceKind::ALL.map(|kind| compilation.foreign_content(unit.foreign_for(kind)));
-    let mut inputs = vec![];
+    let mut inputs = Vec::new();
     if previous_source != current_source || previous_foreign != current_foreign {
         let module_name = compilation.module_name(unit.source())?.or(previous_name);
         inputs.push(InputChange { source_path: source_path.to_path_buf(), module_name });
@@ -383,7 +383,7 @@ fn observe_foreign(
     }
     let current_foreign =
         ForeignSourceKind::ALL.map(|kind| compilation.foreign_content(unit.foreign_for(kind)));
-    let mut inputs = vec![];
+    let mut inputs = Vec::new();
     if previous_foreign != current_foreign {
         let module_name = compilation.module_name(unit.source())?;
         inputs.push(InputChange { source_path: source_path.to_path_buf(), module_name });
