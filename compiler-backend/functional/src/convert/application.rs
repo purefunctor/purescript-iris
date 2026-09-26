@@ -215,6 +215,20 @@ where
                 value: *value,
             }));
         }
+        for (member, operator) in
+            [("conj", BinaryOperator::BooleanAnd), ("disj", BinaryOperator::BooleanOr)]
+        {
+            if let Some([left, right]) = self.known_instance_member_arguments(
+                function,
+                arguments,
+                "Data.HeytingAlgebra",
+                member,
+                "Data.HeytingAlgebra",
+                "heytingAlgebraBoolean",
+            )? {
+                return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
+            }
+        }
         if self.known_term(function, "Data.Ring", "negate")?
             && let [dictionary, value] = arguments
         {

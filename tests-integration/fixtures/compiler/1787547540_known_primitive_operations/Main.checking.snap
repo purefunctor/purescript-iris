@@ -1,10 +1,21 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 307
 ---
 Terms
 observe :: forall value. Prim.String -> value -> value
 readTrace :: Prim.Boolean -> Prim.Array Prim.String
 booleanNot :: Prim.Boolean -> Prim.Boolean
+booleanConj :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+booleanDisj :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+partiallyAppliedConj :: Prim.Boolean -> Prim.Boolean
+genericConj :: forall value. Data.HeytingAlgebra.HeytingAlgebra value => value -> value -> value
+conjOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+disjOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjCase :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+disjCase :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjFunctionOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjPatternFunctionOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
 integerAdd :: Prim.Int -> Prim.Int -> Prim.Int
 inlineIntegerAdd :: Prim.Int -> Prim.Int -> Prim.Int
 integerSubtract :: Prim.Int -> Prim.Int -> Prim.Int
