@@ -21,6 +21,7 @@ iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-lsp = { version = "0.1.0", path = "../iris-lsp" }
 iris-package = { version = "0.1.0", path = "../iris-package" }
 iris-watch = { version = "0.1.0", path = "../iris-watch" }
+iris-watch-server = { version = "0.1.0", path = "../iris-watch-server" }
 itertools = "0.15.0"
 mimalloc = "0.1.52"
 tracing = "0.1.44"

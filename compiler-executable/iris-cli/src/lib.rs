@@ -1,6 +1,8 @@
 mod cli;
 mod logging;
 
+use iris_watch_server::discovery::OutputLock;
+
 pub(crate) const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
 pub(crate) const VERSION: &str = env!("IRIS_VERSION");
 
@@ -38,6 +40,17 @@ pub fn run() -> i32 {
         },
         cli::Command::Watch(options) => {
             let config = options.into_config();
+            // Locking before Spago runs stops a second watcher before it fetches and builds.
+            let lock = iris_build::resolve_output(config.project.output.as_deref())
+                .map_err(|error| error.to_string())
+                .and_then(|output| OutputLock::acquire(&output).map_err(|error| error.to_string()));
+            let lock = match lock {
+                Ok(lock) => lock,
+                Err(error) => {
+                    eprintln!("{error}");
+                    return 1;
+                }
+            };
             let project = match iris_build::prepare_project(config.project) {
                 Ok(project) => project,
                 Err(error) => {
@@ -45,11 +58,13 @@ pub fn run() -> i32 {
                     return 1;
                 }
             };
-            if let Err(error) = iris_watch::watch(project, config.watch) {
-                eprintln!("{error}");
-                return 1;
+            match iris_watch::watch(project, lock, config.watch) {
+                Ok(status) => status,
+                Err(error) => {
+                    eprintln!("{error}");
+                    1
+                }
             }
-            0
         }
         cli::Command::Lsp(options) => {
             if let Err(error) = logging::start(options.into_config()) {
