@@ -72,16 +72,27 @@ mod platform {
     }
 
     impl Endpoint {
+        /// Creates the socket's directory in the configured temporary directory, or in `/tmp`
+        /// when that one is unusable or so deep that the socket path would be too long, as on
+        /// some macOS systems.
         pub fn create() -> io::Result<Endpoint> {
-            // macOS's temporary directory is long enough that a deep one may not fit.
+            let mut failure =
+                io::Error::other("no temporary directory gives a short enough socket path");
             for base in [env::temp_dir(), PathBuf::from("/tmp")] {
-                let directory = tempfile::Builder::new().prefix("iris-watch-").tempdir_in(base)?;
+                let created = tempfile::Builder::new().prefix("iris-watch-").tempdir_in(base);
+                let directory = match created {
+                    Ok(directory) => directory,
+                    Err(error) => {
+                        failure = error;
+                        continue;
+                    }
+                };
                 let name = directory.path().join("socket").to_string_lossy().into_owned();
                 if name.len() <= MAXIMUM_SOCKET_PATH {
                     return Ok(Endpoint { _directory: directory, name });
                 }
             }
-            Err(io::Error::other("no temporary directory gives a short enough socket path"))
+            Err(failure)
         }
 
         pub fn name(&self) -> &str {
