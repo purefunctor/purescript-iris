@@ -390,7 +390,7 @@ where
     positions.utf8_range_to_protocol(range)
 }
 
-fn references_file_term(
+pub(crate) fn references_file_term(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     current_file: FileId,
     file_id: FileId,
@@ -479,7 +479,7 @@ fn references_file_term(
     Ok(Some(locations))
 }
 
-fn references_file_type(
+pub(crate) fn references_file_type(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     current_file: FileId,
     file_id: FileId,

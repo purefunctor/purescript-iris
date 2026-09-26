@@ -9,6 +9,7 @@ pub mod error;
 pub mod extract;
 pub mod hover;
 pub mod locate;
+pub mod nominal;
 pub mod position;
 pub mod references;
 pub mod rename;
