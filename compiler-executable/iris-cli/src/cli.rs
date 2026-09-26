@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
 use iris_package::{AddConfig, NewConfig};
+use iris_watch_server::protocol::{Namespace, Query};
 use itertools::Itertools;
 use tracing::level_filters::LevelFilter;
 use usage::{Args, Subcommands, ValueEnum};
@@ -222,9 +223,139 @@ pub struct WatchOptions {
     /// Suppress compiler warnings and errors without hiding watch summaries.
     #[usage(long)]
     no_diagnostics: bool,
+
+    #[usage(subcommand)]
+    command: Option<WatchCommand>,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum WatchCommand {
+    /// Ask a running `iris watch` about the project.
+    Query(QueryOptions),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct QueryOptions {
+    /// Output directory of the watcher. Defaults to output in the workspace root.
+    #[usage(short, long, value_name = "DIR")]
+    pub output: Option<PathBuf>,
+
+    /// Print the watcher's response as JSON.
+    #[usage(long)]
+    pub json: bool,
+
+    #[usage(subcommand)]
+    pub query: QueryCommand,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum QueryCommand {
+    /// Rescan sources, rebuild if anything changed, and report the build outcome.
+    Wait {},
+    /// Print the signature of a value, or the kind of a type or class.
+    Signature(ItemQuery),
+    /// Print a module's exports with their signatures and documentation.
+    Module(QueryName),
+    /// Print where a value, type, or class is declared.
+    Definition(ItemQuery),
+    /// Print where a value, type, or class is used.
+    References(ItemQuery),
+    /// Print the diagnostics of one module, or of every module.
+    Diagnostics(OptionalQueryName),
+    /// Print the JavaScript generated for a module.
+    Javascript(QueryName),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct QueryName {
+    /// Qualified name, such as Data.Maybe.fromMaybe or Data.Maybe.
+    #[usage(value_name = "NAME")]
+    name: String,
+}
+
+/// A query about an item, answered for both the value and the type or class with that name
+/// unless a namespace subcommand selects one.
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct ItemQuery {
+    /// Qualified name, such as Data.Maybe.fromMaybe or Data.Maybe.Maybe.
+    #[usage(value_name = "NAME")]
+    name: Option<String>,
+
+    #[usage(subcommand)]
+    namespace: Option<NamespaceCommand>,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum NamespaceCommand {
+    /// Only the value with this name, such as a function or a data constructor.
+    Value(QueryName),
+    /// Only the type or class with this name.
+    Type(QueryName),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct OptionalQueryName {
+    /// Module name, such as Data.Maybe.
+    #[usage(value_name = "MODULE")]
+    name: Option<String>,
+}
+
+impl QueryCommand {
+    /// The query the watcher receives, or why the arguments do not form one.
+    pub fn into_query(self) -> Result<Query, String> {
+        let query = match self {
+            QueryCommand::Wait {} => Query::Wait,
+            QueryCommand::Signature(item) => {
+                let (name, namespace) = item.into_parts()?;
+                Query::Signature { name, namespace }
+            }
+            QueryCommand::Module(QueryName { name }) => Query::Module { name },
+            QueryCommand::Definition(item) => {
+                let (name, namespace) = item.into_parts()?;
+                Query::Definition { name, namespace }
+            }
+            QueryCommand::References(item) => {
+                let (name, namespace) = item.into_parts()?;
+                Query::References { name, namespace }
+            }
+            QueryCommand::Diagnostics(OptionalQueryName { name }) => Query::Diagnostics { name },
+            QueryCommand::Javascript(QueryName { name }) => Query::Javascript { name },
+        };
+        Ok(query)
+    }
+}
+
+impl ItemQuery {
+    fn into_parts(self) -> Result<(String, Option<Namespace>), String> {
+        match (self.name, self.namespace) {
+            (Some(name), None) => Ok((name, None)),
+            (None, Some(NamespaceCommand::Value(QueryName { name }))) => {
+                Ok((name, Some(Namespace::Value)))
+            }
+            (None, Some(NamespaceCommand::Type(QueryName { name }))) => {
+                Ok((name, Some(Namespace::Type)))
+            }
+            (None, None) => Err("expected a qualified name, or `value` or `type` and one".into()),
+            (Some(name), Some(_)) => {
+                Err(format!("`{name}` must come after the namespace, not before it"))
+            }
+        }
+    }
 }
 
 impl WatchOptions {
+    /// Takes `iris watch query`'s options. A query without its own `--output` reads the one given
+    /// to `iris watch`, so a watcher's command line still finds it with `query` appended.
+    pub fn take_query(&mut self) -> Option<QueryOptions> {
+        let Some(WatchCommand::Query(mut query)) = self.command.take() else { return None };
+        query.output = query.output.or_else(|| self.output.take());
+        Some(query)
+    }
+
     pub fn into_config(self) -> WatchConfig {
         WatchConfig {
             project: ProjectConfig {
