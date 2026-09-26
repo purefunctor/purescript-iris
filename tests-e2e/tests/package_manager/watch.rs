@@ -513,6 +513,8 @@ app = main
         "instances type Shapes.Shape",
         "instances class Shapes.Shape",
         "dependents Shapes",
+        "search siz",
+        "search sqr",
     ] {
         transcript.push_str(&run_query(&workspace, query));
     }

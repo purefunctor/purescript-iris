@@ -1,6 +1,6 @@
 ---
 name: watch
-description: Ask a running `iris watch` about a PureScript project with `iris watch query`: signatures, module exports, definitions, references, instances, dependent modules, diagnostics, and generated JavaScript, addressed by qualified name. Use when working in a project built with Iris, after editing PureScript files, or instead of reading dependency sources to learn an API.
+description: Ask a running `iris watch` about a PureScript project with `iris watch query`: signatures, module exports, definitions, references, instances, dependent modules, name search, diagnostics, and generated JavaScript, addressed by qualified name. Use when working in a project built with Iris, after editing PureScript files, or instead of reading dependency sources to learn an API.
 ---
 
 # Querying `iris watch`
@@ -52,9 +52,13 @@ Always run it after writing files and before other queries, so answers reflect y
 | `iris watch query dependents Data.Maybe` | Every module that imports a module, directly or through another module |
 | `iris watch query instances class Data.Show.Show` | `path:line:column` and head of every instance of a class |
 | `iris watch query instances type Data.Maybe.Maybe` | `path:line:column` and head of every instance whose head mentions a type, whatever its class |
+| `iris watch query search foldl` | Qualified names and signatures of declarations whose names match, best first |
 | `iris watch query diagnostics [Main]` | Errors and warnings of every module, or of one module |
 | `iris watch query javascript Main` | The JavaScript written to `output/` for a module |
 
+- Use `search` when you do not know which module declares something; it matches whole names,
+  then prefixes, then substrings, then letters in order (`fromMay` finds `fromMaybe`), ignoring
+  case, and lists the best 50.
 - Names are fully qualified: the module, a dot, then the item. Operators may be written with or
   without parentheses: `Data.Function.(<<<)`.
 - A name that is both a type and a value, such as a constructor named after its type, answers both.

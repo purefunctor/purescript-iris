@@ -89,6 +89,15 @@ $ iris watch query dependents Shapes
 [0] src/Main.purs: Main
 src/App.purs: App (through Main)
 
+$ iris watch query search siz
+[0] Shapes.Size :: Int -> Size
+Shapes.Size :: Type
+Shapes.size :: Shape -> Int
+
+$ iris watch query search sqr
+[0] Main.square :: Int
+Shapes.Square :: Int -> Shape
+
 $ iris watch query wait
 [0] Build has diagnostics; see `iris watch query diagnostics`.
 

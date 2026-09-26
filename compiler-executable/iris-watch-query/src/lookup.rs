@@ -17,7 +17,7 @@ use url::Url;
 use crate::{
     BuildState, Declaration, DeclarationsAnswer, Dependent, DependentsAnswer, DiagnosticEntry,
     DiagnosticSeverity, DiagnosticsAnswer, InstanceEntry, InstancesAnswer, JavascriptAnswer,
-    LocationsAnswer, QueryContext, QueryFailure,
+    LocationsAnswer, QueryContext, QueryFailure, SearchAnswer, SearchResult,
 };
 
 pub(crate) fn signature(
@@ -178,6 +178,61 @@ pub(crate) fn instances(
         .into_iter()
         .map(|(position, head)| InstanceEntry { location: position.to_string(), head });
     Ok(InstancesAnswer { instances: instances.collect() })
+}
+
+/// How many results `search` answers with signatures; the rest are only counted.
+const SEARCH_RESULTS: usize = 50;
+
+pub(crate) fn search(context: &QueryContext, pattern: &str) -> Result<SearchAnswer, QueryFailure> {
+    let pattern = pattern.to_lowercase();
+    let mut candidates = Vec::new();
+    for &file_id in context.files.keys() {
+        let resolved = context.engine.resolved(file_id)?;
+        let locals = &resolved.locals;
+        let terms = locals
+            .iter_terms()
+            .map(|(name, file_id, term_id)| (name, NamedItem::Term(file_id, term_id)));
+        let types = locals.iter_types().chain(locals.iter_classes());
+        let types = types.map(|(name, file_id, type_id)| (name, NamedItem::Type(file_id, type_id)));
+        let mut module = None;
+        for (name, item) in terms.chain(types) {
+            let Some(rank) = search_rank(name, &pattern) else { continue };
+            let module = match &module {
+                Some(module) => module,
+                None => module.insert(module_name(context, file_id)?),
+            };
+            candidates.push((rank, format!("{module}.{name}"), item));
+        }
+    }
+    candidates.sort_by(|(left_rank, left_name, _), (right_rank, right_name, _)| {
+        let left = (left_rank, left_name.len(), left_name);
+        left.cmp(&(right_rank, right_name.len(), right_name))
+    });
+    let matches = candidates.len();
+    candidates.truncate(SEARCH_RESULTS);
+    let results = candidates.into_iter().map(|(_, name, item)| {
+        let signature = declaration(context, item)?.map(|declaration| declaration.signature);
+        Ok::<_, QueryFailure>(SearchResult { name, signature })
+    });
+    let results = results.collect::<Result<Vec<_>, _>>()?;
+    Ok(SearchAnswer { results, matches })
+}
+
+/// How well `name` matches the lowercase `pattern`, lower being better: the whole name, a prefix,
+/// a substring, then the pattern's characters in order anywhere in the name.
+fn search_rank(name: &str, pattern: &str) -> Option<u8> {
+    let name = name.to_lowercase();
+    if name == pattern {
+        Some(0)
+    } else if name.starts_with(pattern) {
+        Some(1)
+    } else if name.contains(pattern) {
+        Some(2)
+    } else {
+        let mut characters = name.chars();
+        let subsequence = pattern.chars().all(|wanted| characters.any(|found| found == wanted));
+        subsequence.then_some(3)
+    }
 }
 
 pub(crate) fn diagnostics(

@@ -43,6 +43,8 @@ pub enum Query {
     Dependents { name: String },
     /// The instances of a class, or the instances whose head mentions a type.
     Instances { name: String, search: InstanceSearch },
+    /// Declarations whose names match `pattern`, best matches first.
+    Search { pattern: String },
     /// The diagnostics of one module, or of every module.
     Diagnostics { name: Option<String> },
     /// The JavaScript generated for a module.

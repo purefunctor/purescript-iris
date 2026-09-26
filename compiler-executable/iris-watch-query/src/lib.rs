@@ -117,6 +117,20 @@ pub struct InstanceEntry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchAnswer {
+    pub results: Vec<SearchResult>,
+    /// How many declarations matched, including those left out of `results`.
+    pub matches: usize,
+}
+
+/// A matching declaration's qualified name and, if it was checked, its signature.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub name: String,
+    pub signature: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiagnosticsAnswer {
     pub diagnostics: Vec<DiagnosticEntry>,
 }
@@ -174,6 +188,9 @@ pub fn answer(query: &Query, context: &QueryContext) -> Result<Value, QueryFailu
         }
         Query::Instances { name, search } => {
             lookup::instances(context, name, *search).map(|answer| to_value(&answer))
+        }
+        Query::Search { pattern } => {
+            lookup::search(context, pattern).map(|answer| to_value(&answer))
         }
         Query::Diagnostics { name } => {
             lookup::diagnostics(context, name.as_deref()).map(|answer| to_value(&answer))
@@ -245,6 +262,29 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
                 format!("{}: instance {head}", instance.location)
             });
             instances.collect::<Vec<_>>().join("\n")
+        }
+        Query::Search { .. } => {
+            let SearchAnswer { results, matches } = serde_json::from_value(value)?;
+            if results.is_empty() {
+                return Ok("No matches.".to_string());
+            }
+            let results = results.iter().map(|result| {
+                // A signature starts with the unqualified name, which the qualified one replaces.
+                let signature = result.signature.as_deref().and_then(|signature| {
+                    signature.split_once(" :: ").map(|(_, signature)| signature)
+                });
+                if let Some(signature) = signature {
+                    format!("{} :: {signature}", result.name)
+                } else {
+                    String::clone(&result.name)
+                }
+            });
+            let mut lines = results.collect::<Vec<_>>();
+            if matches > lines.len() {
+                let more = matches - lines.len();
+                lines.push(format!("... and {more} more matches; search for a longer name"));
+            }
+            lines.join("\n")
         }
         Query::Diagnostics { .. } => {
             let DiagnosticsAnswer { diagnostics } = serde_json::from_value(value)?;
