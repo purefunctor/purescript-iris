@@ -25,6 +25,7 @@ lens = \pack -> \unpack -> \{profunctorDict} -> \pab -> dimap {profunctorDict} u
 
 wrapped :: forall a. Main.Lens (Main.Wrap a) a
 wrapped = \{profunctorDict} ->
-  apply (lens Wrap) \v183 ->
-    case v183 of
-      (Wrap a) -> a
+  apply (lens Wrap)
+    (\v183 ->
+      case v183 of
+        (Wrap a) -> a) {profunctorDict}

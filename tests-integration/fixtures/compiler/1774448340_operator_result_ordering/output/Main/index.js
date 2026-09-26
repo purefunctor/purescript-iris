@@ -19,6 +19,6 @@ export function wrapped(profunctorPDict) {
     const a = section183;
     return a;
   };
-  return apply(lens((value) => value))($closure);
+  return /* @__PURE__ */ apply(lens((value) => value))($closure)(profunctorPDict);
 }
 export const profunctorFn = { dimap: (ab) => (cd) => (bc) => (a) => cd(bc(ab(a))) };

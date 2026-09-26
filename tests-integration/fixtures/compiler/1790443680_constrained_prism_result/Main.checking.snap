@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
+test' :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
+test2 ::
+  forall a b.
+    Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) Data.Unit.Unit Data.Unit.Unit
+results :: Prim.Array Prim.Boolean
+
+Types

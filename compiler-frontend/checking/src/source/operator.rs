@@ -230,13 +230,6 @@ where
         check_left_right(state)?
     };
 
-    if let OperatorKindMode::Check { expected_type } = mode {
-        // Peel constraints from the expected type as givens,
-        // so operator result constraints can be discharged.
-        let expected_type = toolkit::collect_givens(state, context, expected_type)?;
-        let _ = unification::subtype(state, context, result_type, expected_type)?;
-    }
-
     let branch = OperatorBranch {
         operator_id,
         operator: (operator, operator_type),
@@ -251,7 +244,13 @@ where
             result_type,
         },
     };
-    E::build(state, context, branch)
+    match mode {
+        OperatorKindMode::Infer => E::build(state, context, branch),
+        OperatorKindMode::Check { expected_type } => {
+            let expected_type = toolkit::collect_givens(state, context, expected_type)?;
+            E::check_result(state, context, branch, expected_type)
+        }
+    }
 }
 
 pub trait IsOperator<Q: ExternalQueries>: IsElement {
@@ -289,6 +288,16 @@ pub trait IsOperator<Q: ExternalQueries>: IsElement {
         id: Self,
         expected: TypeId,
     ) -> QueryResult<(Self::Elaborated, TypeId)>;
+
+    fn check_result(
+        state: &mut CheckState,
+        context: &CheckContext<Q>,
+        branch: OperatorBranch<Self::OperatorId, Self::ItemId, Self::Elaborated>,
+        expected: TypeId,
+    ) -> QueryResult<(Self::Elaborated, TypeId)> {
+        unification::subtype(state, context, branch.right.result_type, expected)?;
+        Self::build(state, context, branch)
+    }
 
     fn check_expected_subtree<F>(
         state: &mut CheckState,
@@ -372,6 +381,21 @@ impl<Q: ExternalQueries> IsOperator<Q> for lowering::ExpressionId {
         expected: TypeId,
     ) -> QueryResult<(Self::Elaborated, TypeId)> {
         let checked = terms::check_expression(state, context, id, expected)?;
+        Ok((Some(checked), checked.type_id))
+    }
+
+    fn check_result(
+        state: &mut CheckState,
+        context: &CheckContext<Q>,
+        branch: OperatorBranch<Self::OperatorId, Self::ItemId, Self::Elaborated>,
+        expected: TypeId,
+    ) -> QueryResult<(Self::Elaborated, TypeId)> {
+        let (elaborated, inferred) = Self::build(state, context, branch)?;
+        let Some(expression) = elaborated else {
+            unification::subtype(state, context, inferred, expected)?;
+            return Ok((None, inferred));
+        };
+        let checked = terms::application::subtype_expression(state, context, expression, expected)?;
         Ok((Some(checked), checked.type_id))
     }
 
