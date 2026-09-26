@@ -37,6 +37,8 @@ pub enum Command {
     Watch(WatchOptions),
     /// Run the language server over standard input and output.
     Lsp(LspOptions),
+    /// Print agent skills for using Iris, which match this version.
+    Skills(SkillsOptions),
     /// Build and run a Spago package with Node.js.
     Run {
         #[usage(flatten)]
@@ -371,6 +373,29 @@ impl WatchOptions {
             },
         }
     }
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct SkillsOptions {
+    #[usage(subcommand)]
+    pub command: Option<SkillsCommand>,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum SkillsCommand {
+    /// List the skills with their descriptions. This is the default.
+    List {},
+    /// Print a skill.
+    Get(SkillName),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct SkillName {
+    /// Skill name, as listed by `iris skills list`.
+    #[usage(value_name = "NAME")]
+    pub name: String,
 }
 
 #[derive(Debug, Args)]
