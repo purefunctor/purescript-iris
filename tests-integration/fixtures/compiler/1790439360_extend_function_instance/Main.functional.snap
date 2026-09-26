@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export test = extendFunctionStringDictExtend (\f%0 -> <error>)
+  (\s%1 -> semigroupStringDictAppend s%1 "!")
+  "A"
+
+@export test' = extendFunctionStringDictExtend (\f%2 -> <error>)
+  (\s%3 -> semigroupStringDictAppend s%3 "!")
+  "A"
+
+extendFunctionStringDict = extendFn semigroupString
+
+semigroupStringDictAppend = append semigroupString
+
+extendFunctionStringDictExtend = extend extendFunctionStringDict

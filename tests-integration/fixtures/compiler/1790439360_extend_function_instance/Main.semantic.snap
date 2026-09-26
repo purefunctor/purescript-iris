@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: Prim.String
+test =
+  extend {extendFn {semigroupString}} (\f -> <error>) (\s -> append {semigroupString} s "!") "A"
+
+test' :: ?[invalid function application]
+test' =
+  extend {extendFn {semigroupString}} (\f -> <error>) (\s -> append {semigroupString} s "!") "A"
