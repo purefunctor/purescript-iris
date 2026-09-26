@@ -10,7 +10,9 @@ $ iris watch query signature Shapes.Square
 [0] Square :: Int -> Shape
 
 $ iris watch query module Shapes
-[0] -- | A shape with a size.
+[0] Area :: Type -> Constraint
+
+-- | A shape with a size.
 Shape :: Type
 
 Size :: Type
@@ -20,6 +22,8 @@ Circle :: Int -> Shape
 Size :: Int -> Size
 
 Square :: Int -> Shape
+
+area :: forall @a. Area a => a -> Int
 
 -- | The size of a shape.
 size :: Shape -> Int
@@ -34,6 +38,7 @@ $ iris watch query references Shapes.size
 [0] src/Main.purs:6:8
 src/Main.purs:9:10
 src/Main.purs:12:10
+src/Shapes.purs:17:16
 
 $ iris watch query javascript Main
 [0] import * as Shapes from "../Shapes/index.js";
@@ -70,6 +75,15 @@ $ iris watch query definition type Shapes.Size
 
 $ iris watch query signature type Shapes.size
 [1] module Shapes has no type or class named `size`
+
+$ iris watch query instances class Shapes.Area
+[0] src/Shapes.purs:16:1: instance Area Shape
+
+$ iris watch query instances type Shapes.Shape
+[0] src/Shapes.purs:16:1: instance Area Shape
+
+$ iris watch query instances class Shapes.Shape
+[1] `Shapes.Shape` is not a class; see `instances type Shapes.Shape`
 
 $ iris watch query wait
 [0] Build has diagnostics; see `iris watch query diagnostics`.

@@ -1,6 +1,6 @@
 ---
 name: watch
-description: Ask a running `iris watch` about a PureScript project with `iris watch query`: signatures, module exports, definitions, references, diagnostics, and generated JavaScript, addressed by qualified name. Use when working in a project built with Iris, after editing PureScript files, or instead of reading dependency sources to learn an API.
+description: Ask a running `iris watch` about a PureScript project with `iris watch query`: signatures, module exports, definitions, references, instances, diagnostics, and generated JavaScript, addressed by qualified name. Use when working in a project built with Iris, after editing PureScript files, or instead of reading dependency sources to learn an API.
 ---
 
 # Querying `iris watch`
@@ -49,6 +49,8 @@ Always run it after writing files and before other queries, so answers reflect y
 | `iris watch query module Data.Maybe` | Every export of a module with signatures and documentation |
 | `iris watch query definition Data.Maybe.Maybe` | `path:line:column` of the declaration |
 | `iris watch query references Data.Maybe.fromMaybe` | `path:line:column` of every use |
+| `iris watch query instances class Data.Show.Show` | `path:line:column` and head of every instance of a class |
+| `iris watch query instances type Data.Maybe.Maybe` | `path:line:column` and head of every instance whose head mentions a type, whatever its class |
 | `iris watch query diagnostics [Main]` | Errors and warnings of every module, or of one module |
 | `iris watch query javascript Main` | The JavaScript written to `output/` for a module |
 

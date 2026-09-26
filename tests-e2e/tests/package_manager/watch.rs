@@ -452,6 +452,12 @@ size (Square side) = side
 size (Circle radius) = radius
 
 newtype Size = Size Int
+
+class Area a where
+  area :: a -> Int
+
+instance Area Shape where
+  area shape = size shape
 "#,
     );
     workspace.write(
@@ -493,6 +499,9 @@ square = size (Square 3)
         "signature value Shapes.Size",
         "definition type Shapes.Size",
         "signature type Shapes.size",
+        "instances class Shapes.Area",
+        "instances type Shapes.Shape",
+        "instances class Shapes.Shape",
     ] {
         transcript.push_str(&run_query(&workspace, query));
     }

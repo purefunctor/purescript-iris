@@ -9,13 +9,14 @@ use iris_analysis::position::PositionEncoding;
 use iris_analysis::{AnalyzerCapabilities, AnalyzerContext, AnalyzerError, AnalyzerHost};
 use iris_build::SourceKind;
 use iris_diagnostics::Severity;
-use iris_watch_server::protocol::Namespace;
+use iris_watch_server::protocol::{InstanceSearch, Namespace};
 use lsp_types::{Location, Uri};
 use url::Url;
 
 use crate::{
     BuildState, Declaration, DeclarationsAnswer, DiagnosticEntry, DiagnosticSeverity,
-    DiagnosticsAnswer, JavascriptAnswer, LocationsAnswer, QueryContext, QueryFailure,
+    DiagnosticsAnswer, InstanceEntry, InstancesAnswer, JavascriptAnswer, LocationsAnswer,
+    QueryContext, QueryFailure,
 };
 
 pub(crate) fn signature(
@@ -93,6 +94,46 @@ pub(crate) fn references(
     positions.dedup();
     let locations = positions.iter().map(SourcePosition::to_string).collect();
     Ok(LocationsAnswer { locations })
+}
+
+pub(crate) fn instances(
+    context: &QueryContext,
+    name: &str,
+    search: InstanceSearch,
+) -> Result<InstancesAnswer, QueryFailure> {
+    let items = named_items(context, name, Some(Namespace::Type))?;
+    let Some(&NamedItem::Type(file_id, type_id)) = items.first() else {
+        unreachable!("invariant violated: the type namespace holds only types and classes");
+    };
+    let target = (file_id, type_id);
+    match (search, nominal::is_class(&context.engine, target)?) {
+        (InstanceSearch::Class, false) => {
+            let message = format!("`{name}` is not a class; see `instances type {name}`");
+            return Err(QueryFailure::Failed(message));
+        }
+        (InstanceSearch::Type, true) => {
+            let message = format!("`{name}` is a class; see `instances class {name}`");
+            return Err(QueryFailure::Failed(message));
+        }
+        (InstanceSearch::Class, true) | (InstanceSearch::Type, false) => {}
+    }
+    let search = match search {
+        InstanceSearch::Class => nominal::InstanceSearch::OfClass,
+        InstanceSearch::Type => nominal::InstanceSearch::MentioningType,
+    };
+    let host = WatchHost { context };
+    let analyzer =
+        AnalyzerContext::new(&host, PositionEncoding::Utf32, AnalyzerCapabilities::default());
+    let found = nominal::instances(&analyzer, target, search)?;
+    let positioned = found
+        .into_iter()
+        .map(|instance| (source_position(context, &instance.location), instance.head));
+    let mut positioned = positioned.collect::<Vec<_>>();
+    positioned.sort_by(|(left, _), (right, _)| left.cmp(right));
+    let instances = positioned
+        .into_iter()
+        .map(|(position, head)| InstanceEntry { location: position.to_string(), head });
+    Ok(InstancesAnswer { instances: instances.collect() })
 }
 
 pub(crate) fn diagnostics(

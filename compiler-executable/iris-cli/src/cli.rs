@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
 use iris_package::{AddConfig, NewConfig};
-use iris_watch_server::protocol::{Namespace, Query};
+use iris_watch_server::protocol::{InstanceSearch, Namespace, Query};
 use itertools::Itertools;
 use tracing::level_filters::LevelFilter;
 use usage::{Args, Subcommands, ValueEnum};
@@ -263,6 +263,8 @@ pub enum QueryCommand {
     Definition(ItemQuery),
     /// Print where a value, type, or class is used.
     References(ItemQuery),
+    /// Print the instances of a class, or the instances whose head mentions a type.
+    Instances(InstancesQuery),
     /// Print the diagnostics of one module, or of every module.
     Diagnostics(OptionalQueryName),
     /// Print the JavaScript generated for a module.
@@ -275,6 +277,21 @@ pub struct QueryName {
     /// Qualified name, such as Data.Maybe.fromMaybe or Data.Maybe.
     #[usage(value_name = "NAME")]
     name: String,
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct InstancesQuery {
+    #[usage(subcommand)]
+    search: InstancesCommand,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum InstancesCommand {
+    /// The instances of a class.
+    Class(QueryName),
+    /// The instances whose head mentions a type, whatever their class.
+    Type(QueryName),
 }
 
 /// A query about an item, answered for both the value and the type or class with that name
@@ -324,6 +341,14 @@ impl QueryCommand {
                 let (name, namespace) = item.into_parts()?;
                 Query::References { name, namespace }
             }
+            QueryCommand::Instances(InstancesQuery { search }) => match search {
+                InstancesCommand::Class(QueryName { name }) => {
+                    Query::Instances { name, search: InstanceSearch::Class }
+                }
+                InstancesCommand::Type(QueryName { name }) => {
+                    Query::Instances { name, search: InstanceSearch::Type }
+                }
+            },
             QueryCommand::Diagnostics(OptionalQueryName { name }) => Query::Diagnostics { name },
             QueryCommand::Javascript(QueryName { name }) => Query::Javascript { name },
         };
