@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export foreign observe
 
@@ -7,34 +8,83 @@ source: tests-integration/src/fixtures.rs
 
 @export booleanNot = \value%0 -> boolean.not value%0
 
-@export integerAdd = \left%1 right%2 -> integer.add left%1 right%2
+@export booleanConj = \left%1 right%2 -> heytingAlgebraBooleanDictConj left%1 right%2
 
-@export inlineIntegerAdd = \left%4 right%5 -> integer.add left%4 right%5
+@export booleanDisj = \left%3 right%4 -> heytingAlgebraBooleanDictDisj left%3 right%4
 
-@export integerSubtract = \left%6 right%7 -> integer.subtract left%6 right%7
+@export partiallyAppliedConj = heytingAlgebraBooleanDictConj true
 
-@export integerMultiply = \left%8 right%9 -> integer.multiply left%8 right%9
+@export genericConj = \heytingAlgebraValueDict%5 ->
+  \left%6 right%7 -> conj heytingAlgebraValueDict%5 left%6 right%7
 
-@export integerNegate = \value%10 -> integer.negate value%10
+@export conjOrder = \left%8 right%9 ->
+  heytingAlgebraBooleanDictConj (observe "left" left%8) (observe "right" right%9)
+
+@export disjOrder = \left%10 right%11 ->
+  heytingAlgebraBooleanDictDisj (observe "left" left%10) (observe "right" right%11)
+
+@export conjCase = \left%12 right%13 ->
+  heytingAlgebraBooleanDictConj (observe "left" left%12)
+    (case observe "right" right%13 of
+      true ->
+        true
+      false ->
+        false)
+
+@export disjCase = \left%14 right%15 ->
+  heytingAlgebraBooleanDictDisj (observe "left" left%14)
+    (case observe "right" right%15 of
+      true ->
+        true
+      false ->
+        false)
+
+@export conjFunctionOrder = \left%17 right%18 ->
+  observe "function" (\value%16 -> value%16)
+    (heytingAlgebraBooleanDictConj (observe "left" left%17)
+      (case observe "right" right%18 of
+        true ->
+          true
+        false ->
+          false))
+
+@export conjPatternFunctionOrder = \left%20 right%23 ->
+  observe "function" (\value%19 -> value%19)
+    (heytingAlgebraBooleanDictConj (observe "left" left%20)
+      ((\$record%22@({ value: value%21 }) -> value%21) { value: observe "right" right%23 }))
+
+@export integerAdd = \left%24 right%25 -> integer.add left%24 right%25
+
+@export inlineIntegerAdd = \left%27 right%28 -> integer.add left%27 right%28
+
+@export integerSubtract = \left%29 right%30 -> integer.subtract left%29 right%30
+
+@export integerMultiply = \left%31 right%32 -> integer.multiply left%31 right%32
+
+@export integerNegate = \value%33 -> integer.negate value%33
 
 @export integerNegateLiteral = -20
 
 @export inlineIntegerNegateLiteral = -20
 
-@export numberNegate = \value%12 -> number.negate value%12
+@export numberNegate = \value%35 -> number.negate value%35
 
 @export numberNegateLiteral = -20.5
 
 @export numberNegateZero = 0.0
 
-@export genericNegate = \ringValueDict%13 -> \value%14 -> negate ringValueDict%13 value%14
+@export genericNegate = \ringValueDict%36 -> \value%37 -> negate ringValueDict%36 value%37
 
 @export partiallyAppliedNegate = negate ringInt
 
-@export integerAddOrder = \$boolean%15@(_) -> integer.add (observe "left" 20) (observe "right" 22)
+@export integerAddOrder = \$boolean%38@(_) -> integer.add (observe "left" 20) (observe "right" 22)
 
 @export partiallyAppliedAdd = add semiringInt 1
 
-@export lookalikeAdd = \left%16 right%17 -> add semiringInt left%16 right%17
+@export lookalikeAdd = \left%39 right%40 -> add semiringInt left%39 right%40
 
-@export lookalikeNegate = \value%18 -> negate value%18
+@export lookalikeNegate = \value%41 -> negate value%41
+
+heytingAlgebraBooleanDictConj = conj heytingAlgebraBoolean
+
+heytingAlgebraBooleanDictDisj = disj heytingAlgebraBoolean

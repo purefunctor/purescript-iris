@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 foreign import observe :: forall value. Prim.String -> value -> value
 
@@ -7,6 +8,51 @@ foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
 
 booleanNot :: Prim.Boolean -> Prim.Boolean
 booleanNot = \value -> not {heytingAlgebraBoolean} value
+
+booleanConj :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+booleanConj = \left -> \right -> conj {heytingAlgebraBoolean} left right
+
+booleanDisj :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+booleanDisj = \left -> \right -> disj {heytingAlgebraBoolean} left right
+
+partiallyAppliedConj :: Prim.Boolean -> Prim.Boolean
+partiallyAppliedConj = conj {heytingAlgebraBoolean} true
+
+genericConj :: forall value. Data.HeytingAlgebra.HeytingAlgebra value => value -> value -> value
+genericConj = \{heytingAlgebraDict} -> \left -> \right -> conj {heytingAlgebraDict} left right
+
+conjOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjOrder = \left -> \right ->
+  conj {heytingAlgebraBoolean} (observe "left" left) (observe "right" right)
+
+disjOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+disjOrder = \left -> \right ->
+  disj {heytingAlgebraBoolean} (observe "left" left) (observe "right" right)
+
+conjCase :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjCase = \left -> \right ->
+  conj {heytingAlgebraBoolean} (observe "left" left) case observe "right" right of
+    true -> true
+    false -> false
+
+disjCase :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+disjCase = \left -> \right ->
+  disj {heytingAlgebraBoolean} (observe "left" left) case observe "right" right of
+    true -> true
+    false -> false
+
+conjFunctionOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjFunctionOrder = \left -> \right ->
+  observe "function" (\value -> value)
+    (conj {heytingAlgebraBoolean} (observe "left" left) case observe "right" right of
+      true -> true
+      false -> false)
+
+conjPatternFunctionOrder :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+conjPatternFunctionOrder = \left -> \right ->
+  observe "function" (\value -> value)
+    (conj {heytingAlgebraBoolean} (observe "left" left)
+      ((\{ value } -> value) { value: observe "right" right }))
 
 integerAdd :: Prim.Int -> Prim.Int -> Prim.Int
 integerAdd = \left -> \right -> add {semiringInt} left right
