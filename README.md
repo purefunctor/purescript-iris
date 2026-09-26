@@ -1,5 +1,9 @@
-<h1 align="center">iris</h1>
+<h1 align="center"><img src=".github/assets/iris-readme-banner.webp" alt="Iris" width="1200"></h1>
 <p align="center">a language implementation for PureScript</p>
+
+> [!WARNING]
+> **Iris is alpha software.** Documentation is sparse, and behavior will change. Expect rough edges
+> and breaking changes as the compiler and language server evolve.
 
 ---
 
