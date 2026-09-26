@@ -4,6 +4,6 @@ assertion_line: 307
 ---
 Terms
 test :: Prim.String
-test' :: ?[invalid function application]
+test' :: Prim.String
 
 Types

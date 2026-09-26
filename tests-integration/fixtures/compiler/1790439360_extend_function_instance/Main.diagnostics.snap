@@ -2,38 +2,4 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 308
 ---
-Error! · [CannotUnify] · Main.purs:7:29
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   test = Extend.extend (\f -> f "B") (\s -> s <> "!") "A"
-  │                               ╰────
-  •
 
-Error! · [CannotUnify] · Main.purs:7:8
-  •
-  │
-  • Cannot unify '?[invalid function application]' with 'String'
-  │
-  │   test = Extend.extend (\f -> f "B") (\s -> s <> "!") "A"
-  │          ╰───────────────────────────────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:9:30
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   test' = Extend.extend (\f -> f "B") (\s -> s <> "!") "A"
-  │                                ╰────
-  •
-
-Error! · [CannotUnify] · Main.purs:9:9
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   test' = Extend.extend (\f -> f "B") (\s -> s <> "!") "A"
-  │           ╰───────────────────────────────────────────────
-  •

@@ -74,6 +74,14 @@ where
         Type::Application(function_argument, result) => {
             let function_argument = normalise::expand(state, context, function_argument)?;
 
+            if let Type::Unification(unification_id) = *context.lookup_type(function_argument) {
+                let argument = state.fresh_unification(context.queries, context.prim.t);
+                let partial = context.intern_application(context.prim.function, argument);
+                unification::solve(state, context, function_argument, unification_id, partial)?;
+
+                return Ok(CallableAnalysis::Function { argument, result });
+            }
+
             let Type::Application(constructor, argument) = *context.lookup_type(function_argument)
             else {
                 return Ok(CallableAnalysis::NotCallable);
