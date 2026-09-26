@@ -1,7 +1,7 @@
 //! Implements searching for instance chains.
 
 use std::collections::hash_map::Entry;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use building_types::QueryResult;
 use files::FileId;
@@ -156,11 +156,11 @@ where
         return Ok(None);
     };
     let (file_id, type_id) = instance.resolution;
-    let arguments: Arc<[ApplicationArgument]> = Arc::from(arguments);
+    let arguments: Rc<[ApplicationArgument]> = Rc::from(arguments);
     let wanted = state.canonicals.intern(CanonicalConstraint {
         file_id,
         type_id,
-        arguments: Arc::clone(&arguments),
+        arguments: Rc::clone(&arguments),
     });
     let left_arguments = constraint::matching::type_arguments(&arguments);
 

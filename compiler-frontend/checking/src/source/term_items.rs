@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -521,7 +522,7 @@ fn record_instance_member(
 pub(crate) struct FreshenedInstanceRigids {
     pub(crate) constraints: Vec<TypeId>,
     pub(crate) arguments: Vec<ApplicationArgument>,
-    pub(crate) renaming: Arc<RigidRenaming>,
+    pub(crate) renaming: Rc<RigidRenaming>,
     pub(crate) rigids: Vec<TypeId>,
 }
 
@@ -556,7 +557,7 @@ where
         .map(|&argument| substitute_kind_or_type(state, context, &renaming, argument))
         .collect::<QueryResult<Vec<_>>>()?;
 
-    let renaming = Arc::new(renaming);
+    let renaming = Rc::new(renaming);
     Ok(FreshenedInstanceRigids { constraints, arguments, renaming, rigids })
 }
 

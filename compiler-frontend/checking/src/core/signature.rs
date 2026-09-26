@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use building_types::QueryResult;
 use lowering::TypeVariableBinding;
@@ -40,7 +40,7 @@ pub enum SkolemisedAbstraction {
 }
 
 pub struct SkolemisedSignature {
-    pub renaming: Arc<RigidRenaming>,
+    pub renaming: Rc<RigidRenaming>,
     pub abstractions: Vec<SkolemisedAbstraction>,
     pub result: TypeId,
 }
@@ -278,7 +278,7 @@ where
     }
 
     let result = renaming.substitute(state, context, signature.result)?;
-    let renaming = Arc::new(renaming);
+    let renaming = Rc::new(renaming);
 
     Ok(SkolemisedSignature { renaming, abstractions, result })
 }

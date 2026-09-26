@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 use std::iter;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::{SmolStr, format_smolstr};
 
 #[derive(Debug, Default)]
 pub(super) struct NameAllocator {
-    reserved: Arc<FxHashSet<SmolStr>>,
+    reserved: Rc<FxHashSet<SmolStr>>,
     names: FxHashSet<SmolStr>,
     /// The next suffix to probe for each normalized preferred name.
     ///
@@ -18,7 +18,7 @@ pub(super) struct NameAllocator {
 }
 
 impl NameAllocator {
-    pub(super) fn with_reserved(reserved: Arc<FxHashSet<SmolStr>>) -> NameAllocator {
+    pub(super) fn with_reserved(reserved: Rc<FxHashSet<SmolStr>>) -> NameAllocator {
         NameAllocator { reserved, names: FxHashSet::default(), next_suffixes: FxHashMap::default() }
     }
 
@@ -148,15 +148,15 @@ fn identifier_is_reserved(identifier: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::rc::Rc;
 
     use rustc_hash::FxHashSet;
     use smol_str::{SmolStr, format_smolstr};
 
     use super::{NameAllocator, identifier_is_binding};
 
-    fn reserved(names: &[&str]) -> Arc<FxHashSet<SmolStr>> {
-        Arc::new(names.iter().map(SmolStr::new).collect())
+    fn reserved(names: &[&str]) -> Rc<FxHashSet<SmolStr>> {
+        Rc::new(names.iter().map(SmolStr::new).collect())
     }
 
     #[test]

@@ -6,7 +6,7 @@ mod stylex;
 mod syntax;
 mod tail_call;
 
-use std::sync::Arc;
+use std::rc::Rc;
 
 use files::{FileId, ForeignSourceKind};
 use functional::initializers::{cyclic_initializers, initializer_postorder};
@@ -58,7 +58,7 @@ pub(crate) struct Generator<'m> {
     lazy_global_names: FxHashMap<GlobalId, SmolStr>,
     global_tail_call_groups: Vec<TailCallGroup>,
     global_tail_call_group_positions: FxHashMap<GlobalId, usize>,
-    reserved_module_names: Arc<FxHashSet<SmolStr>>,
+    reserved_module_names: Rc<FxHashSet<SmolStr>>,
 }
 
 struct ForeignImport {
@@ -185,9 +185,9 @@ struct FunctionRenderer<'a, 'm, 't> {
 }
 
 impl FunctionContext {
-    fn new(reserved: &Arc<FxHashSet<SmolStr>>) -> FunctionContext {
+    fn new(reserved: &Rc<FxHashSet<SmolStr>>) -> FunctionContext {
         FunctionContext {
-            allocator: NameAllocator::with_reserved(Arc::clone(reserved)),
+            allocator: NameAllocator::with_reserved(Rc::clone(reserved)),
             locals: FxHashMap::default(),
             tail_calls: None,
         }
@@ -355,7 +355,7 @@ impl<'m> Generator<'m> {
             global_tail_call_groups.push(group);
         }
         let reserved_module_names = allocator.allocated_names().cloned().collect();
-        let reserved_module_names = Arc::new(reserved_module_names);
+        let reserved_module_names = Rc::new(reserved_module_names);
 
         Generator {
             module,
@@ -552,9 +552,9 @@ fn render_global_tail_call_group(
         let state_name = context.allocate("$state");
         let argument_names = (0..group.maximum_arity)
             .map(|position| context.allocate(format_smolstr!("$argument{position}")))
-            .collect::<Arc<[_]>>();
+            .collect::<Rc<[_]>>();
         let tail_calls =
-            TailCallContext::new(group, state_name.clone(), Arc::clone(&argument_names));
+            TailCallContext::new(group, state_name.clone(), Rc::clone(&argument_names));
         let mut dispatcher_parameters = vec![state_name];
         dispatcher_parameters.extend(argument_names.iter().cloned());
         context.tail_calls = Some(tail_calls);
@@ -856,9 +856,9 @@ impl Generator<'_> {
         let state_name = context.allocate("$state");
         let argument_names = (0..group.maximum_arity)
             .map(|position| context.allocate(format_smolstr!("$argument{position}")))
-            .collect::<Arc<[_]>>();
+            .collect::<Rc<[_]>>();
         let tail_calls =
-            TailCallContext::new(group, state_name.clone(), Arc::clone(&argument_names));
+            TailCallContext::new(group, state_name.clone(), Rc::clone(&argument_names));
         let mut dispatcher_parameters = vec![state_name];
         dispatcher_parameters.extend(argument_names.iter().cloned());
         let outer_tail_calls = context.tail_calls.replace(tail_calls);
@@ -1378,7 +1378,7 @@ impl Generator<'_> {
             .as_ref()
             .expect("invariant violated: rendered tail call has no context");
         let state_name = tail_calls.state_name.clone();
-        let argument_names = Arc::clone(&tail_calls.argument_names);
+        let argument_names = Rc::clone(&tail_calls.argument_names);
 
         if matches!(destination, Destination::EffectTailEffectReturn) {
             let marker = tree.boolean(true);
@@ -2153,9 +2153,9 @@ fn render_let(
                 let state_name = context.allocate("$state");
                 let argument_names = (0..group.maximum_arity)
                     .map(|position| context.allocate(format_smolstr!("$argument{position}")))
-                    .collect::<Arc<[_]>>();
+                    .collect::<Rc<[_]>>();
                 let tail_calls =
-                    TailCallContext::new(&group, state_name.clone(), Arc::clone(&argument_names));
+                    TailCallContext::new(&group, state_name.clone(), Rc::clone(&argument_names));
                 let mut dispatcher_parameters = vec![state_name];
                 dispatcher_parameters.extend(argument_names.iter().cloned());
                 let outer_tail_calls = context.tail_calls.replace(tail_calls);

@@ -1,6 +1,6 @@
 //! Tail-recursive function groups eligible for loop rendering.
 
-use std::sync::Arc;
+use std::rc::Rc;
 
 use functional::tree::{
     EffectExpression, ExpressionId, ExpressionKind, GlobalId, LocalId, Module, PatternId,
@@ -46,7 +46,7 @@ pub(super) struct TailCall {
 #[derive(Clone)]
 pub(super) struct TailCallContext {
     pub(super) state_name: Option<SmolStr>,
-    pub(super) argument_names: Arc<[SmolStr]>,
+    pub(super) argument_names: Rc<[SmolStr]>,
     targets: FxHashMap<TailCallIdentity, TailCallTarget>,
 }
 
@@ -66,7 +66,7 @@ impl TailCallContext {
     pub(super) fn new(
         group: &TailCallGroup,
         state_name: SmolStr,
-        argument_names: Arc<[SmolStr]>,
+        argument_names: Rc<[SmolStr]>,
     ) -> TailCallContext {
         let targets = group.profiles.iter().enumerate().map(|(state, profile)| {
             let target = TailCallTarget {
@@ -82,7 +82,7 @@ impl TailCallContext {
 
     pub(super) fn singleton(
         group: &TailCallGroup,
-        argument_names: Arc<[SmolStr]>,
+        argument_names: Rc<[SmolStr]>,
     ) -> TailCallContext {
         assert!(group.is_singleton(), "invariant violated: inline tail-call group is mutual");
         let profile = &group.profiles[0];

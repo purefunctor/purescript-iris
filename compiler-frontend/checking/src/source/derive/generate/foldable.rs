@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use building_types::QueryResult;
 use itertools::{Itertools, izip};
@@ -57,7 +57,7 @@ impl Mappings<ElaboratedExpression> {
 
 struct DecodedFoldMember {
     member: ResolvedMember,
-    renaming: Arc<RigidRenaming>,
+    renaming: Rc<RigidRenaming>,
     abstractions: Vec<signature::SkolemisedAbstraction>,
     implementation_type: TypeId,
     function_type: TypeId,

@@ -1,7 +1,7 @@
 //! Implements canonicalisation for constraints.
 
 use std::ops::Index;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use building_types::QueryResult;
 use files::FileId;
@@ -21,7 +21,7 @@ use crate::{ExternalQueries, safe_loop};
 pub struct CanonicalConstraint {
     pub file_id: FileId,
     pub type_id: TypeItemId,
-    pub arguments: Arc<[ApplicationArgument]>,
+    pub arguments: Rc<[ApplicationArgument]>,
 }
 
 impl CanonicalConstraint {
@@ -112,7 +112,7 @@ where
         return Ok(None);
     };
 
-    let arguments = Arc::from(arguments); // TODO: extract_all_applications
+    let arguments = Rc::from(arguments); // TODO: extract_all_applications
     let canonical = CanonicalConstraint { file_id, type_id, arguments };
     let canonical_id = state.canonicals.associate(id, canonical);
 
@@ -137,7 +137,7 @@ where
         }
     });
 
-    let arguments = arguments.collect::<QueryResult<Arc<[_]>>>()?;
+    let arguments = arguments.collect::<QueryResult<Rc<[_]>>>()?;
     Ok(state.canonicals.intern(CanonicalConstraint { arguments, ..canonical }))
 }
 
@@ -164,7 +164,7 @@ where
         }
     });
 
-    let arguments = arguments.collect::<QueryResult<Arc<[_]>>>()?;
+    let arguments = arguments.collect::<QueryResult<Rc<[_]>>>()?;
     Ok(state.canonicals.intern(CanonicalConstraint { arguments, ..canonical }))
 }
 
