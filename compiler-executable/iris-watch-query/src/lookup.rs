@@ -1,11 +1,10 @@
 //! The queries themselves, over a snapshot of the engine.
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::path::Path;
 
 use files::FileId;
-use iris_analysis::nominal::{self, NamedItem};
+use iris_analysis::nominal::{self, NamedItem, QualifiedName};
 use iris_analysis::position::PositionEncoding;
 use iris_analysis::{AnalyzerCapabilities, AnalyzerContext, AnalyzerError, AnalyzerHost};
 use iris_build::SourceKind;
@@ -96,37 +95,14 @@ pub(crate) fn dependents(
     name: &str,
 ) -> Result<DependentsAnswer, QueryFailure> {
     let target = module_file(context, name)?;
-    let mut importers = BTreeMap::<FileId, Vec<FileId>>::new();
-    for &file_id in context.files.keys() {
-        let resolved = context.engine.resolved(file_id)?;
-        let imports = resolved.unqualified.values().chain(resolved.qualified.values());
-        let imported = imports.flatten().map(|import| import.file).collect::<BTreeSet<_>>();
-        for imported in imported {
-            importers.entry(imported).or_default().push(file_id);
-        }
-    }
-
-    // Breadth first, so each dependent is reported through the closest module that imports the
-    // queried one.
-    let mut dependents = Vec::new();
-    let mut visited = BTreeSet::from([target]);
-    let mut pending = VecDeque::from([(target, None)]);
-    while let Some((file_id, through)) = pending.pop_front() {
-        for &importer in importers.get(&file_id).into_iter().flatten() {
-            if !visited.insert(importer) {
-                continue;
-            }
-            let module = module_name(context, importer)?;
-            let path = display_path(context, importer);
-            let dependent = Dependent {
-                module: String::clone(&module),
-                path,
-                through: Option::clone(&through),
-            };
-            dependents.push(dependent);
-            pending.push_back((importer, Some(Option::clone(&through).unwrap_or(module))));
-        }
-    }
+    let found = nominal::dependents(&context.engine, context.files.keys().copied(), target)?;
+    let dependents = found.into_iter().map(|dependent| {
+        let through = dependent.through.map(|through| module_name(context, through)).transpose()?;
+        let module = module_name(context, dependent.file_id)?;
+        let path = display_path(context, dependent.file_id);
+        Ok::<_, QueryFailure>(Dependent { module, path, through })
+    });
+    let mut dependents = dependents.collect::<Result<Vec<_>, _>>()?;
     dependents.sort_by(|left, right| {
         let left = (left.through.is_some(), &left.module);
         left.cmp(&(right.through.is_some(), &right.module))
@@ -178,55 +154,15 @@ pub(crate) fn instances(
 const SEARCH_RESULTS: usize = 50;
 
 pub(crate) fn search(context: &QueryContext, pattern: &str) -> Result<SearchAnswer, QueryFailure> {
-    let pattern = pattern.to_lowercase();
-    let mut candidates = Vec::new();
-    for &file_id in context.files.keys() {
-        let resolved = context.engine.resolved(file_id)?;
-        let locals = &resolved.locals;
-        let terms = locals
-            .iter_terms()
-            .map(|(name, file_id, term_id)| (name, NamedItem::Term(file_id, term_id)));
-        let types = locals.iter_types().chain(locals.iter_classes());
-        let types = types.map(|(name, file_id, type_id)| (name, NamedItem::Type(file_id, type_id)));
-        let mut module = None;
-        for (name, item) in terms.chain(types) {
-            let Some(rank) = search_rank(name, &pattern) else { continue };
-            let module = match &module {
-                Some(module) => module,
-                None => module.insert(module_name(context, file_id)?),
-            };
-            candidates.push((rank, format!("{module}.{name}"), item));
-        }
-    }
-    candidates.sort_by(|(left_rank, left_name, _), (right_rank, right_name, _)| {
-        let left = (left_rank, left_name.len(), left_name);
-        left.cmp(&(right_rank, right_name.len(), right_name))
-    });
-    let matches = candidates.len();
-    candidates.truncate(SEARCH_RESULTS);
-    let results = candidates.into_iter().map(|(_, name, item)| {
-        let signature = nominal::signature(&context.engine, item)?;
+    let found = nominal::search(&context.engine, context.files.keys().copied(), pattern)?;
+    let matches = found.len();
+    let results = found.into_iter().take(SEARCH_RESULTS).map(|found| {
+        let signature = nominal::signature(&context.engine, found.item)?;
+        let name = format!("{}.{}", found.module, found.name);
         Ok::<_, QueryFailure>(SearchResult { name, signature })
     });
     let results = results.collect::<Result<Vec<_>, _>>()?;
     Ok(SearchAnswer { results, matches })
-}
-
-/// How well `name` matches the lowercase `pattern`, lower being better: the whole name, a prefix,
-/// a substring, then the pattern's characters in order anywhere in the name.
-fn search_rank(name: &str, pattern: &str) -> Option<u8> {
-    let name = name.to_lowercase();
-    if name == pattern {
-        Some(0)
-    } else if name.starts_with(pattern) {
-        Some(1)
-    } else if name.contains(pattern) {
-        Some(2)
-    } else {
-        let mut characters = name.chars();
-        let subsequence = pattern.chars().all(|wanted| characters.any(|found| found == wanted));
-        subsequence.then_some(3)
-    }
 }
 
 pub(crate) fn diagnostics(
@@ -303,36 +239,28 @@ fn named_items(
     name: &str,
     namespace: Option<Namespace>,
 ) -> Result<Vec<NamedItem>, QueryFailure> {
-    let unknown = || {
-        QueryFailure::Failed(format!("`{name}` is not a qualified name of a loaded module's item"))
+    let Some(qualified) = nominal::split_qualified_name(&context.engine, name) else {
+        let message = format!("`{name}` is not a qualified name of a loaded module's item");
+        return Err(QueryFailure::Failed(message));
     };
-    // Operators may contain dots, so the module is the longest prefix that names one.
-    let splits = name.match_indices('.').map(|(index, _)| index).collect::<Vec<_>>();
-    for index in splits.into_iter().rev() {
-        let (module, item) = (&name[..index], &name[index + 1..]);
-        let Some(file_id) = context.engine.module_file(module) else { continue };
-        let item = item.strip_prefix('(').and_then(|item| item.strip_suffix(')')).unwrap_or(item);
-        let items = nominal::lookup(&context.engine, file_id, item)?;
-        let items = items.into_iter().filter(|named| match (namespace, named) {
-            (None, _) => true,
-            (Some(Namespace::Value), NamedItem::Term(..)) => true,
-            (Some(Namespace::Type), NamedItem::Type(..)) => true,
-            (Some(_), _) => false,
-        });
-        let items = items.collect::<Vec<_>>();
-        if items.is_empty() {
-            let kind = match namespace {
-                None => "item",
-                Some(Namespace::Value) => "value",
-                Some(Namespace::Type) => "type or class",
-            };
-            return Err(QueryFailure::Failed(format!(
-                "module {module} has no {kind} named `{item}`"
-            )));
-        }
-        return Ok(items);
+    let items = nominal::lookup(&context.engine, qualified.module_file, qualified.item)?;
+    let items = items.into_iter().filter(|named| match (namespace, named) {
+        (None, _) => true,
+        (Some(Namespace::Value), NamedItem::Term(..)) => true,
+        (Some(Namespace::Type), NamedItem::Type(..)) => true,
+        (Some(_), _) => false,
+    });
+    let items = items.collect::<Vec<_>>();
+    if items.is_empty() {
+        let kind = match namespace {
+            None => "item",
+            Some(Namespace::Value) => "value",
+            Some(Namespace::Type) => "type or class",
+        };
+        let QualifiedName { module, item, .. } = qualified;
+        return Err(QueryFailure::Failed(format!("module {module} has no {kind} named `{item}`")));
     }
-    Err(unknown())
+    Ok(items)
 }
 
 fn module_file(context: &QueryContext, name: &str) -> Result<FileId, QueryFailure> {
@@ -343,9 +271,7 @@ fn module_file(context: &QueryContext, name: &str) -> Result<FileId, QueryFailur
 }
 
 fn module_name(context: &QueryContext, file_id: FileId) -> Result<String, QueryFailure> {
-    let content = context.engine.content(file_id)?;
-    let (parsed, _) = context.engine.parsed(file_id)?;
-    let name = parsed.module_name(&content).map(|name| name.to_string());
+    let name = nominal::module_name(&context.engine, file_id)?;
     Ok(name.unwrap_or_else(|| display_path(context, file_id)))
 }
 

@@ -1,5 +1,7 @@
 //! Analysis of items addressed by module and name rather than by a position in a file.
 
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+
 use building_types::QueryProxy;
 use checking::core::pretty::Pretty;
 use files::FileId;
@@ -17,6 +19,40 @@ use crate::{AnalyzerContext, AnalyzerError, AnalyzerQueries, common, references}
 pub enum NamedItem {
     Term(FileId, TermItemId),
     Type(FileId, TypeItemId),
+}
+
+/// A qualified name split into the module that declares an item and the item's own name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct QualifiedName<'a> {
+    pub module: &'a str,
+    pub module_file: FileId,
+    pub item: &'a str,
+}
+
+/// Splits a qualified name such as `Data.Maybe.fromMaybe` into its module and item. Operators may
+/// contain dots, so the module is the longest prefix that names a loaded module. An operator may
+/// be written in parentheses, such as `Data.Function.(<<<)`.
+pub fn split_qualified_name<'a>(
+    engine: &impl AnalyzerQueries,
+    name: &'a str,
+) -> Option<QualifiedName<'a>> {
+    let splits = name.match_indices('.').map(|(index, _)| index).collect::<Vec<_>>();
+    splits.into_iter().rev().find_map(|index| {
+        let (module, item) = (&name[..index], &name[index + 1..]);
+        let module_file = engine.module_file(module)?;
+        let item = item.strip_prefix('(').and_then(|item| item.strip_suffix(')')).unwrap_or(item);
+        Some(QualifiedName { module, module_file, item })
+    })
+}
+
+/// The name in the module header of `file_id`, if it has one.
+pub fn module_name(
+    engine: &impl AnalyzerQueries,
+    file_id: FileId,
+) -> Result<Option<String>, AnalyzerError> {
+    let content = engine.content(file_id)?;
+    let (parsed, _) = engine.parsed(file_id)?;
+    Ok(parsed.module_name(&content).map(|name| name.to_string()))
 }
 
 /// The items `name` denotes in the module `file_id`: the value and the type or class with that
@@ -241,6 +277,113 @@ fn mentions_any(
     target: (FileId, TypeItemId),
 ) -> bool {
     types.any(|type_id| mentions(lowered, type_id, target))
+}
+
+/// A module in `files` that imports the queried module, directly or through `through`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Dependent {
+    pub file_id: FileId,
+    pub through: Option<FileId>,
+}
+
+/// The modules in `files` that import `target`, directly or through other modules, closest first.
+/// A module that imports `target` through others is reported through the direct importer of
+/// `target` that it reaches first.
+pub fn dependents(
+    engine: &impl AnalyzerQueries,
+    files: impl Iterator<Item = FileId>,
+    target: FileId,
+) -> Result<Vec<Dependent>, AnalyzerError> {
+    let mut importers = BTreeMap::<FileId, Vec<FileId>>::new();
+    for file_id in files {
+        let resolved = engine.resolved(file_id)?;
+        let imports = resolved.unqualified.values().chain(resolved.qualified.values());
+        let imported = imports.flatten().map(|import| import.file).collect::<BTreeSet<_>>();
+        for imported in imported {
+            importers.entry(imported).or_default().push(file_id);
+        }
+    }
+
+    let mut dependents = Vec::new();
+    let mut visited = BTreeSet::from([target]);
+    let mut pending = VecDeque::from([(target, None)]);
+    while let Some((file_id, through)) = pending.pop_front() {
+        for &importer in importers.get(&file_id).into_iter().flatten() {
+            if !visited.insert(importer) {
+                continue;
+            }
+            dependents.push(Dependent { file_id: importer, through });
+            pending.push_back((importer, Some(through.unwrap_or(importer))));
+        }
+    }
+    Ok(dependents)
+}
+
+/// A declaration whose name matches a search pattern.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SearchMatch {
+    /// How well the name matches, lower being better; see [`search`].
+    pub rank: u8,
+    pub module: String,
+    pub name: String,
+    pub item: NamedItem,
+}
+
+/// The declarations in `files` whose names match `pattern`, ignoring case, best first: the whole
+/// name, then a prefix, then a substring, then the pattern's characters in order anywhere in the
+/// name. Ties go to the shorter qualified name, then alphabetical order.
+pub fn search(
+    engine: &impl AnalyzerQueries,
+    files: impl Iterator<Item = FileId>,
+    pattern: &str,
+) -> Result<Vec<SearchMatch>, AnalyzerError> {
+    let pattern = pattern.to_lowercase();
+    let mut matches = Vec::new();
+    for file_id in files {
+        let resolved = engine.resolved(file_id)?;
+        let locals = &resolved.locals;
+        let terms = locals
+            .iter_terms()
+            .map(|(name, file_id, term_id)| (name, NamedItem::Term(file_id, term_id)));
+        let types = locals.iter_types().chain(locals.iter_classes());
+        let types = types.map(|(name, file_id, type_id)| (name, NamedItem::Type(file_id, type_id)));
+        let found = terms
+            .chain(types)
+            .filter_map(|(name, item)| search_rank(name, &pattern).map(|rank| (rank, name, item)));
+        let found = found.collect::<Vec<_>>();
+        if found.is_empty() {
+            continue;
+        }
+        let module = module_name(engine, file_id)?.unwrap_or_default();
+        let found = found.into_iter().map(|(rank, name, item)| SearchMatch {
+            rank,
+            module: String::clone(&module),
+            name: name.to_string(),
+            item,
+        });
+        matches.extend(found);
+    }
+    matches.sort_by(|left, right| {
+        let length = |search: &SearchMatch| search.module.len() + search.name.len();
+        let left_key = (left.rank, length(left), &left.module, &left.name);
+        left_key.cmp(&(right.rank, length(right), &right.module, &right.name))
+    });
+    Ok(matches)
+}
+
+fn search_rank(name: &str, pattern: &str) -> Option<u8> {
+    let name = name.to_lowercase();
+    if name == pattern {
+        Some(0)
+    } else if name.starts_with(pattern) {
+        Some(1)
+    } else if name.contains(pattern) {
+        Some(2)
+    } else {
+        let mut characters = name.chars();
+        let subsequence = pattern.chars().all(|wanted| characters.any(|found| found == wanted));
+        subsequence.then_some(3)
+    }
 }
 
 impl NamedItem {
