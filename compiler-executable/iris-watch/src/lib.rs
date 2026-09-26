@@ -1,25 +1,31 @@
-use std::collections::BTreeSet;
-use std::io;
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
-use std::time::{Duration, Instant};
+//! `iris watch`: rebuild when inputs change, and answer queries about the project through a local
+//! socket.
+//!
+//! The socket is bound and named in the socket file before the initial build, so a client that
+//! connects early waits for the build rather than finding no watcher. The build actor handles
+//! filesystem events and requests; `iris-watch-server` owns the socket and its clients.
 
-use iris_build::{
-    BuildSession, BuildSessionConfig, InputChange, InputChanges, PreparedProject, ProjectError,
-    RebuildOutcome, SessionError, initialize_project,
-};
-use iris_progress::{WatchOutcome, WatchSummary, render_watch_summary};
-use itertools::Itertools;
-use notify::event::{CreateKind, ModifyKind, RemoveKind};
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+mod actor;
+mod filesystem;
+mod report;
+mod signals;
+
+use std::{env, io, process};
+
+use iris_build::{PreparedProject, ProjectError, SessionError};
+use iris_watch_server::discovery::{Discovery, DiscoveryError, OutputLock};
+use iris_watch_server::transport::{Endpoint, Listener};
 use thiserror::Error;
+use tokio::sync::mpsc;
 
-const DEBOUNCE_DURATION: Duration = Duration::from_millis(100);
+use crate::actor::BuildActor;
 
 pub struct WatchConfig {
     pub quiet: bool,
     pub color: bool,
     pub diagnostics: bool,
+    /// The Iris version the socket file reports.
+    pub version: String,
 }
 
 #[derive(Debug, Error)]
@@ -35,228 +41,71 @@ enum WatchFailure {
         #[from]
         source: ProjectError,
     },
+    #[error(transparent)]
+    Discovery(#[from] DiscoveryError),
+    #[error("failed to create the query socket: {0}")]
+    Socket(io::Error),
 }
 
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub struct WatchError(WatchFailure);
 
-pub fn watch(project: PreparedProject, config: WatchConfig) -> Result<(), WatchError> {
-    watch_project(project, config).map_err(WatchError)
+/// Watches `project`, whose output directory `lock` holds, until a termination signal arrives.
+/// Returns the exit status of a process killed by that signal.
+pub fn watch(
+    project: PreparedProject,
+    lock: OutputLock,
+    config: WatchConfig,
+) -> Result<i32, WatchError> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|error| WatchError(WatchFailure::Io(error)))?;
+    let result = runtime.block_on(serve(project, &lock, config));
+    // A rebuild may still be running on a blocking thread; its result is no longer needed.
+    runtime.shutdown_background();
+    result.map_err(WatchError)
 }
 
-fn watch_project(project: PreparedProject, config: WatchConfig) -> Result<(), WatchFailure> {
-    let root = project.root_directory().to_path_buf();
-    let source_roots = project.source_roots()?;
-    let (sender, receiver) = mpsc::channel();
-    let mut watcher = RecommendedWatcher::new(sender, notify::Config::default())?;
-    for root in &source_roots {
-        let root = persistent_watch_root(root);
-        watcher.watch(&root, RecursiveMode::Recursive)?;
+async fn serve(
+    project: PreparedProject,
+    lock: &OutputLock,
+    config: WatchConfig,
+) -> Result<i32, WatchFailure> {
+    let endpoint = Endpoint::create().map_err(WatchFailure::Socket)?;
+    let listener = Listener::bind(&endpoint).map_err(WatchFailure::Socket)?;
+    let published = lock.publish(&Discovery {
+        socket: endpoint.name().to_string(),
+        pid: process::id(),
+        version: String::clone(&config.version),
+        executable: env::current_exe().ok(),
+    })?;
+
+    if !config.quiet {
+        println!("Answering queries: see `iris watch query --help` or `iris skills get watch`");
     }
 
-    let initial_started = Instant::now();
-    let project = initialize_project(project)?;
-    let mut session = BuildSession::new(
-        project,
-        BuildSessionConfig { color: config.color, diagnostics: config.diagnostics },
-    )?;
-
-    let initial_inputs = session.take_initial_inputs();
-    let changes = session.rescan()?;
-    report_warnings(&changes);
-    let mut pending_inputs =
-        if changes.inputs.is_empty() { initial_inputs } else { changes.inputs };
-    let mut pending_rebuild =
-        !rebuild_and_report(&mut session, &config, &root, &pending_inputs, true, initial_started);
-
-    let mut needs_rescan = false;
-    loop {
-        let batch = receive_batch(&receiver)?;
-        if batch.paths.is_empty() && !batch.rescan {
-            continue;
+    let (requests, receiver) = mpsc::unbounded_channel();
+    tokio::spawn(iris_watch_server::serve(listener, requests));
+    let status = tokio::select! {
+        biased;
+        status = signals::terminated() => status?,
+        result = run_build(project, config, receiver) => {
+            result?;
+            unreachable!("invariant violated: the build actor stopped while the server was running")
         }
-        let changes = if needs_rescan || batch.rescan {
-            session.rescan()
-        } else {
-            session.synchronize_paths(&batch.paths)
-        };
-        let changes = match changes {
-            Ok(changes) => {
-                needs_rescan = false;
-                changes
-            }
-            Err(error) => {
-                needs_rescan = true;
-                pending_rebuild = true;
-                report_operational_failure(
-                    &config,
-                    &root,
-                    &pending_inputs,
-                    false,
-                    Duration::ZERO,
-                    error,
-                );
-                continue;
-            }
-        };
-        report_warnings(&changes);
-        if !changes.is_empty() {
-            pending_inputs = changes.inputs;
-            pending_rebuild = true;
-        }
-        if !pending_rebuild {
-            continue;
-        }
-        pending_rebuild = !rebuild_and_report(
-            &mut session,
-            &config,
-            &root,
-            &pending_inputs,
-            false,
-            Instant::now(),
-        );
-    }
+    };
+    drop(published);
+    drop(endpoint);
+    Ok(status)
 }
 
-fn rebuild_and_report(
-    session: &mut BuildSession,
-    config: &WatchConfig,
-    root: &Path,
-    inputs: &[InputChange],
-    initial: bool,
-    started: Instant,
-) -> bool {
-    match session.rebuild() {
-        Ok(outcome) => {
-            let outcome = match outcome {
-                RebuildOutcome::Succeeded => WatchOutcome::Succeeded,
-                RebuildOutcome::Diagnostics => WatchOutcome::Diagnostics,
-                RebuildOutcome::NoInputs => WatchOutcome::Waiting,
-            };
-            report_summary(config, root, inputs, initial, started.elapsed(), outcome);
-            true
-        }
-        Err(error) => {
-            report_operational_failure(config, root, inputs, initial, started.elapsed(), error);
-            false
-        }
-    }
-}
-
-fn report_operational_failure(
-    config: &WatchConfig,
-    root: &Path,
-    inputs: &[InputChange],
-    initial: bool,
-    duration: Duration,
-    error: SessionError,
-) {
-    tracing::error!(?error, "Watch compilation failed");
-    eprintln!("Watch build failed: {error}");
-    report_summary(config, root, inputs, initial, duration, WatchOutcome::Failed);
-}
-
-fn report_warnings(changes: &InputChanges) {
-    for warning in &changes.warnings {
-        tracing::warn!("{warning}");
-        eprintln!("Watch warning: {warning}");
-    }
-}
-
-fn report_summary(
-    config: &WatchConfig,
-    root: &Path,
-    inputs: &[InputChange],
-    initial: bool,
-    duration: Duration,
-    outcome: WatchOutcome,
-) {
-    if config.quiet {
-        return;
-    }
-    let changed_inputs = inputs.iter().map(|input| input_label(input, root));
-    let mut changed_inputs = changed_inputs.collect_vec();
-    changed_inputs.sort();
-    let timestamp = jiff::Zoned::now().strftime("%H:%M:%S").to_string();
-    println!(
-        "{}",
-        render_watch_summary(
-            WatchSummary {
-                timestamp: &timestamp,
-                initial,
-                changed_inputs: &changed_inputs,
-                duration,
-                outcome,
-            },
-            config.color,
-        )
-    );
-}
-
-fn input_label(input: &InputChange, root: &Path) -> String {
-    input.module_name.clone().unwrap_or_else(|| {
-        input.source_path.strip_prefix(root).unwrap_or(&input.source_path).display().to_string()
-    })
-}
-
-struct EventBatch {
-    paths: Vec<PathBuf>,
-    rescan: bool,
-}
-
-fn receive_batch(receiver: &Receiver<notify::Result<Event>>) -> Result<EventBatch, WatchFailure> {
-    let first = receiver.recv().map_err(|error| {
-        io::Error::new(io::ErrorKind::BrokenPipe, format!("watch channel closed: {error}"))
-    })??;
-    let deadline = Instant::now() + DEBOUNCE_DURATION;
-    let mut events = vec![first];
-    while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
-        match receiver.recv_timeout(remaining) {
-            Ok(event) => events.push(event?),
-            Err(RecvTimeoutError::Timeout) => break,
-            Err(RecvTimeoutError::Disconnected) => {
-                return Err(
-                    io::Error::new(io::ErrorKind::BrokenPipe, "watch channel closed").into()
-                );
-            }
-        }
-    }
-
-    let mut paths = BTreeSet::new();
-    let mut rescan = false;
-    for event in events {
-        if matches!(event.kind, EventKind::Access(_)) {
-            continue;
-        }
-        rescan |= event.need_rescan() || requires_rescan(event.kind);
-        paths.extend(event.paths);
-    }
-    Ok(EventBatch { paths: paths.into_iter().collect_vec(), rescan })
-}
-
-fn requires_rescan(kind: EventKind) -> bool {
-    matches!(
-        kind,
-        EventKind::Create(CreateKind::Folder)
-            | EventKind::Modify(ModifyKind::Name(_))
-            | EventKind::Remove(RemoveKind::Folder)
-            | EventKind::Any
-            | EventKind::Other
-    )
-}
-
-fn persistent_watch_root(root: &Path) -> PathBuf {
-    let mut candidate = root.parent().unwrap_or(root);
-    while !candidate.exists() {
-        let Some(parent) = candidate.parent() else {
-            break;
-        };
-        candidate = parent;
-    }
-    if candidate.is_file() {
-        candidate.parent().unwrap_or(candidate).to_path_buf()
-    } else {
-        candidate.to_path_buf()
-    }
+async fn run_build(
+    project: PreparedProject,
+    config: WatchConfig,
+    requests: mpsc::UnboundedReceiver<iris_watch_server::QueryRequest>,
+) -> Result<(), WatchFailure> {
+    let actor = BuildActor::start(project, config).await?;
+    actor.run(requests).await
 }

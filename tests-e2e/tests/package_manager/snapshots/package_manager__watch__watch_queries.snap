@@ -1,0 +1,108 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+expression: transcript
+---
+$ iris watch query signature Shapes.size
+[0] -- | The size of a shape.
+size :: Shape -> Int
+
+$ iris watch query signature Shapes.Square
+[0] Square :: Int -> Shape
+
+$ iris watch query module Shapes
+[0] Area :: Type -> Constraint
+
+-- | A shape with a size.
+Shape :: Type
+
+Size :: Type
+
+Circle :: Int -> Shape
+
+Size :: Int -> Size
+
+Square :: Int -> Shape
+
+area :: forall @a. Area a => a -> Int
+
+-- | The size of a shape.
+size :: Shape -> Int
+
+$ iris watch query module Empty
+[0] No exports.
+
+$ iris watch query definition Shapes.size
+[0] src/Shapes.purs:7:1
+
+$ iris watch query references Shapes.size
+[0] src/Main.purs:6:8
+src/Main.purs:9:10
+src/Main.purs:12:10
+src/Shapes.purs:17:16
+
+$ iris watch query javascript Main
+[0] import * as Shapes from "../Shapes/index.js";
+export const main = Shapes.size({
+  tag: "Square",
+  _1: 2 | 0
+});
+export const circle = Shapes.size({
+  tag: "Circle",
+  _1: 1 | 0
+});
+export const square = Shapes.size({
+  tag: "Square",
+  _1: 3 | 0
+});
+
+
+$ iris watch query diagnostics
+[0] No diagnostics.
+
+$ iris watch query signature Shapes.missing
+[1] module Shapes has no item named `missing`
+
+$ iris watch query signature Shapes.Size
+[0] Size :: Int -> Size
+
+Size :: Type
+
+$ iris watch query signature value Shapes.Size
+[0] Size :: Int -> Size
+
+$ iris watch query definition type Shapes.Size
+[0] src/Shapes.purs:11:1
+
+$ iris watch query signature type Shapes.size
+[1] module Shapes has no type or class named `size`
+
+$ iris watch query instances class Shapes.Area
+[0] src/Shapes.purs:16:1: instance Area Shape
+
+$ iris watch query instances type Shapes.Shape
+[0] src/Shapes.purs:16:1: instance Area Shape
+
+$ iris watch query instances class Shapes.Shape
+[1] `Shapes.Shape` is not a class; see `instances type Shapes.Shape`
+
+$ iris watch query dependents Shapes
+[0] src/Main.purs: Main
+src/App.purs: App (through Main)
+
+$ iris watch query search siz
+[0] Shapes.Size :: Int -> Size
+Shapes.Size :: Type
+Shapes.size :: Shape -> Int
+
+$ iris watch query search sqr
+[0] Main.square :: Int
+Shapes.Square :: Int -> Shape
+
+$ iris watch query wait
+[0] Build has diagnostics; see `iris watch query diagnostics`.
+
+$ iris watch query diagnostics Main
+[0] src/Main.purs:4:8: error[CannotUnify]: Cannot unify 'String' with 'Int'
+
+$ iris watch query javascript Main
+[1] the latest rebuild did not write output/ because some module has errors; see `iris watch query wait`

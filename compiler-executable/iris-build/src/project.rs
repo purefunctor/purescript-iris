@@ -139,6 +139,11 @@ pub fn prepare_project(config: ProjectConfig) -> Result<PreparedProject, Project
     prepare_project_inner(config).map_err(ProjectError)
 }
 
+/// Resolves the output directory the way [`prepare_project`] does, without running Spago.
+pub fn resolve_output(output: Option<&Path>) -> Result<PathBuf, ProjectError> {
+    resolve_output_inner(output).map_err(ProjectError)
+}
+
 pub fn initialize_project(project: PreparedProject) -> Result<InitializedProject, ProjectError> {
     initialize_project_inner(project).map_err(ProjectError)
 }
@@ -273,6 +278,12 @@ fn prepare_project_inner(config: ProjectConfig) -> Result<PreparedProject, Proje
     let workspace = Workspace::discover(&current_directory, config.package.as_deref())?;
     let output = project_output(&workspace.root, config.output.as_deref())?;
     prepare_workspace(&workspace, &current_directory, config.quiet, output)
+}
+
+fn resolve_output_inner(output: Option<&Path>) -> Result<PathBuf, ProjectFailure> {
+    let current_directory = env::current_dir().map_err(ProjectFailure::CurrentDirectory)?;
+    let workspace = Workspace::discover(&current_directory, None)?;
+    project_output(&workspace.root, output)
 }
 
 fn prepare_workspace(

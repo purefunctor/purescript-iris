@@ -1,0 +1,20 @@
+[package]
+name = "iris-watch-query"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license.workspace = true
+description = "Name-based queries about a project that `iris watch` keeps compiled."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+building = { version = "0.1.0", path = "../../compiler-core/building" }
+files = { version = "0.1.0", path = "../../compiler-core/files" }
+iris-analysis = { version = "0.1.0", path = "../../compiler-services/iris-analysis" }
+iris-build = { version = "0.1.0", path = "../iris-build" }
+iris-diagnostics = { version = "0.1.0", path = "../../compiler-services/iris-diagnostics" }
+iris-watch-server = { version = "0.1.0", path = "../iris-watch-server" }
+lsp-types.workspace = true
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+url = "2.5.8"
