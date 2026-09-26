@@ -534,7 +534,15 @@ main :: Int
 main = "oops"
 "#,
     );
-    for query in ["wait", "diagnostics Main", "javascript Main"] {
+    // An operator whose target does not resolve is left unchecked, and is still listed.
+    workspace.write(
+        "src/Broken.purs",
+        r#"module Broken where
+
+infixl 6 missing as <+>
+"#,
+    );
+    for query in ["wait", "diagnostics Main", "javascript Main", "module Broken"] {
         transcript.push_str(&run_query(&workspace, query));
     }
     insta::assert_snapshot!("watch_queries", transcript);

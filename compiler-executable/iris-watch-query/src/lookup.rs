@@ -28,12 +28,6 @@ pub(crate) fn signature(
     let items = named_items(context, name, namespace)?;
     let declarations = items.into_iter().map(|item| declaration(context, item));
     let declarations = declarations.collect::<Result<Vec<_>, _>>()?;
-    let declarations = declarations.into_iter().flatten().collect::<Vec<_>>();
-    if declarations.is_empty() {
-        let message =
-            format!("`{name}` has no checked signature; see `iris watch query diagnostics`");
-        return Err(QueryFailure::Failed(message));
-    }
     Ok(DeclarationsAnswer { declarations })
 }
 
@@ -57,7 +51,7 @@ pub(crate) fn module(
     terms.sort_by_key(|(name, _)| *name);
     let declarations = items.into_iter().chain(terms).map(|(_, item)| declaration(context, item));
     let declarations = declarations.collect::<Result<Vec<_>, _>>()?;
-    Ok(DeclarationsAnswer { declarations: declarations.into_iter().flatten().collect() })
+    Ok(DeclarationsAnswer { declarations })
 }
 
 pub(crate) fn definition(
@@ -211,7 +205,7 @@ pub(crate) fn search(context: &QueryContext, pattern: &str) -> Result<SearchAnsw
     let matches = candidates.len();
     candidates.truncate(SEARCH_RESULTS);
     let results = candidates.into_iter().map(|(_, name, item)| {
-        let signature = declaration(context, item)?.map(|declaration| declaration.signature);
+        let signature = nominal::signature(&context.engine, item)?;
         Ok::<_, QueryFailure>(SearchResult { name, signature })
     });
     let results = results.collect::<Result<Vec<_>, _>>()?;
@@ -291,19 +285,15 @@ pub(crate) fn javascript(
     }
 }
 
-fn declaration(
-    context: &QueryContext,
-    item: NamedItem,
-) -> Result<Option<Declaration>, QueryFailure> {
-    let signature = match nominal::signature(&context.engine, item) {
-        Ok(signature) => signature,
-        // Items without a checked signature, such as those in modules that failed to check,
-        // are left out rather than failing the whole answer.
-        Err(AnalyzerError::NonFatal) => return Ok(None),
-        Err(error) => return Err(QueryFailure::from(error)),
+/// The item's signature and documentation. An item checking rejected is still listed, marked
+/// unchecked, so that an answer never looks complete when it is not.
+fn declaration(context: &QueryContext, item: NamedItem) -> Result<Declaration, QueryFailure> {
+    let signature = match nominal::signature(&context.engine, item)? {
+        Some(signature) => signature,
+        None => format!("{} :: <unchecked>", nominal::name(&context.engine, item)?),
     };
     let documentation = nominal::documentation(&context.engine, item)?;
-    Ok(Some(Declaration { signature, documentation }))
+    Ok(Declaration { signature, documentation })
 }
 
 /// The value and the type or class that a qualified name such as `Data.Maybe.Maybe` denotes, or

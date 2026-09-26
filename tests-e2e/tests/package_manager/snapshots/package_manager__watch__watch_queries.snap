@@ -106,3 +106,6 @@ $ iris watch query diagnostics Main
 
 $ iris watch query javascript Main
 [1] the latest rebuild did not write output/ because some module has errors; see `iris watch query wait`
+
+$ iris watch query module Broken
+[0] <+> :: <unchecked>

@@ -40,25 +40,32 @@ pub fn lookup(
     Ok(term.into_iter().chain(type_item).collect())
 }
 
-/// The item's name with its type, or with its kind for a type or class, as PureScript.
-pub fn signature(engine: &impl AnalyzerQueries, item: NamedItem) -> Result<String, AnalyzerError> {
-    let file_id = item.file_id();
-    let indexed = engine.indexed(file_id)?;
-    let checked = engine.checked(file_id)?;
-    let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    let (name, signature) = match item {
-        NamedItem::Term(_, term_id) => {
-            let signature = checked.lookup_term_item_type(term_id);
-            (&indexed.items[term_id].name, signature)
-        }
-        NamedItem::Type(_, type_id) => {
-            let signature = checked.lookup_type_item_kind(type_id);
-            (&indexed.items[type_id].name, signature)
-        }
+/// The item's name as declared.
+pub fn name(engine: &impl AnalyzerQueries, item: NamedItem) -> Result<String, AnalyzerError> {
+    let indexed = engine.indexed(item.file_id())?;
+    let name = match item {
+        NamedItem::Term(_, term_id) => &indexed.items[term_id].name,
+        NamedItem::Type(_, type_id) => &indexed.items[type_id].name,
     };
-    let name = name.as_deref().unwrap_or("<unknown>");
-    let signature = signature.ok_or(AnalyzerError::NonFatal)?;
-    Ok(pretty.render_signature(name, signature).to_string())
+    Ok(name.as_deref().unwrap_or("<unknown>").to_string())
+}
+
+/// The item's name with its type, or with its kind for a type or class, as PureScript. Checking
+/// records no type only for items it rejected with an error, such as an operator whose target
+/// does not resolve; those have no signature.
+pub fn signature(
+    engine: &impl AnalyzerQueries,
+    item: NamedItem,
+) -> Result<Option<String>, AnalyzerError> {
+    let checked = engine.checked(item.file_id())?;
+    let signature = match item {
+        NamedItem::Term(_, term_id) => checked.lookup_term_item_type(term_id),
+        NamedItem::Type(_, type_id) => checked.lookup_type_item_kind(type_id),
+    };
+    let Some(signature) = signature else { return Ok(None) };
+    let name = name(engine, item)?;
+    let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
+    Ok(Some(pretty.render_signature(&name, signature).to_string()))
 }
 
 /// The documentation comment written above the item, if any.
