@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export test = \choicePDict%0 -> prism Just (maybe { tag: "Left", _1: "Nothing" } Right)
+
+@export test' = \choicePDict%1 ->
+  prism Just (maybe { tag: "Left", _1: "Nothing" } Right) choicePDict%1
+
+@export test2 = \choicePDict%2 ->
+  prism (const "Nothing") (maybe { tag: "Right", _1: unit } (const { tag: "Left", _1: "Nothing" }))
+
+@export results = [eqEitherArrayMaybeIntDictEq
+    (matching (below traversableArray (test choiceMarket) choiceMarket)
+      [{ tag: "Just", _1: 3 }, { tag: "Just", _1: 8 }])
+    { tag: "Right", _1: [3, 8] },
+  eqEitherArrayMaybeIntDictEq
+    (matching (below traversableArray (test' choiceMarket) choiceMarket)
+      [{ tag: "Just", _1: 3 }, { tag: "Just", _1: 8 }])
+    { tag: "Right", _1: [3, 8] },
+  eqEitherArrayMaybeIntDictEq
+    (matching (below traversableArray (_Just choiceMarket) choiceMarket)
+      [{ tag: "Just", _1: 3 }, { tag: "Just", _1: 8 }])
+    { tag: "Right", _1: [3, 8] },
+  eqEitherArrayMaybeIntDictEq
+    (matching (below traversableArray (test choiceMarket) choiceMarket)
+      [{ tag: "Just", _1: 3 }, "Nothing"])
+    { tag: "Left", _1: [{ tag: "Just", _1: 3 }, "Nothing"] },
+  eqEitherMaybeIntUnitDictEq (matching (test2 choiceMarket) "Nothing") { tag: "Right", _1: unit },
+  eqEitherMaybeIntUnitDictEq (matching (test2 choiceMarket) { tag: "Just", _1: 8 })
+    { tag: "Left", _1: "Nothing" },
+  eqEitherMaybeIntUnitDictEq (matching (_Nothing choiceMarket) "Nothing") { tag: "Right", _1: unit }
+]
+
+eqMaybeEqIntDict = eqMaybe eqInt
+
+eqArrayEqIntDict = eqArray eqInt
+
+eqArrayEqMaybeEqIntDict = eqArray eqMaybeEqIntDict
+
+eqEitherMaybeIntUnitDict = eqEither eqMaybeEqIntDict eqUnit
+
+eqEitherArrayMaybeIntDict = eqEither eqArrayEqMaybeEqIntDict eqArrayEqIntDict
+
+eqEitherMaybeIntUnitDictEq = eq eqEitherMaybeIntUnitDict
+
+eqEitherArrayMaybeIntDictEq = eq eqEitherArrayMaybeIntDict

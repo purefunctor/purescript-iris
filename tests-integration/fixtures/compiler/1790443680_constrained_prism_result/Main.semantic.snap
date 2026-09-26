@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
+test = \{choiceDict} -> apply (prism Just) (maybe (Left Nothing) Right)
+
+test' :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
+test' = \{choiceDict} -> prism Just (maybe (Left Nothing) Right) {choiceDict}
+
+test2 :: forall a b.
+  Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) Data.Unit.Unit Data.Unit.Unit
+test2 = \{choiceDict} ->
+  apply (prism (const Nothing)) (maybe (Right unit) (apply const (Left Nothing)))
+
+results :: Prim.Array Prim.Boolean
+results =
+  [eq {eqEither {eqArray {eqMaybe {eqInt}}} {eqArray {eqInt}}}
+    (matching (below {traversableArray} (test {choiceMarket}) {choiceMarket}) [Just 3, Just 8])
+    (Right [3, 8]), eq {eqEither {eqArray {eqMaybe {eqInt}}} {eqArray {eqInt}}}
+    (matching (below {traversableArray} (test' {choiceMarket}) {choiceMarket}) [Just 3, Just 8])
+    (Right [3, 8]), eq {eqEither {eqArray {eqMaybe {eqInt}}} {eqArray {eqInt}}}
+    (matching (below {traversableArray} (_Just {choiceMarket}) {choiceMarket}) [Just 3, Just 8])
+    (Right [3, 8]), eq {eqEither {eqArray {eqMaybe {eqInt}}} {eqArray {eqInt}}}
+    (matching (below {traversableArray} (test {choiceMarket}) {choiceMarket}) [Just 3, Nothing])
+    (Left [Just 3, Nothing]), eq {eqEither {eqMaybe {eqInt}} {eqUnit}}
+    (matching (test2 {choiceMarket}) Nothing)
+    (Right unit), eq {eqEither {eqMaybe {eqInt}} {eqUnit}}
+    (matching (test2 {choiceMarket}) (Just 8))
+    (Left Nothing), eq {eqEither {eqMaybe {eqInt}} {eqUnit}}
+    (matching (_Nothing {choiceMarket}) Nothing)
+    (Right unit)]
