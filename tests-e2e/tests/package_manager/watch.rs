@@ -477,6 +477,16 @@ square = size (Square 3)
 "#,
     );
     workspace.write(
+        "src/App.purs",
+        r#"module App where
+
+import Main (main)
+
+app :: Int
+app = main
+"#,
+    );
+    workspace.write(
         "src/Empty.purs",
         r#"module Empty where
 "#,
@@ -502,6 +512,7 @@ square = size (Square 3)
         "instances class Shapes.Area",
         "instances type Shapes.Shape",
         "instances class Shapes.Shape",
+        "dependents Shapes",
     ] {
         transcript.push_str(&run_query(&workspace, query));
     }

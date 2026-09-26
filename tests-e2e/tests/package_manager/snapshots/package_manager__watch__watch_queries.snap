@@ -85,6 +85,10 @@ $ iris watch query instances type Shapes.Shape
 $ iris watch query instances class Shapes.Shape
 [1] `Shapes.Shape` is not a class; see `instances type Shapes.Shape`
 
+$ iris watch query dependents Shapes
+[0] src/Main.purs: Main
+src/App.purs: App (through Main)
+
 $ iris watch query wait
 [0] Build has diagnostics; see `iris watch query diagnostics`.
 
