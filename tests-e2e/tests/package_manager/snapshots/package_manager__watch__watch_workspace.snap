@@ -1,5 +1,6 @@
 ---
 source: tests-e2e/tests/package_manager/watch.rs
 ---
+Answering queries: see `iris watch query --help` or `iris skills get watch`
 [TIME] Build succeeded in [DURATION]
           Loaded 2 inputs: Application, Library

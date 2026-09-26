@@ -82,6 +82,10 @@ async fn serve(
         executable: env::current_exe().ok(),
     })?;
 
+    if !config.quiet {
+        println!("Answering queries: see `iris watch query --help` or `iris skills get watch`");
+    }
+
     let (requests, receiver) = mpsc::unbounded_channel();
     tokio::spawn(iris_watch_server::serve(listener, requests));
     let status = tokio::select! {

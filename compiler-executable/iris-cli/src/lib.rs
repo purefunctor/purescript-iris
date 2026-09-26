@@ -1,5 +1,6 @@
 mod cli;
 mod logging;
+mod skills;
 
 use iris_watch_server::client::{self, ClientError};
 use iris_watch_server::discovery::OutputLock;
@@ -71,6 +72,25 @@ pub fn run() -> i32 {
                 }
             }
         }
+        cli::Command::Skills(options) => match options.command {
+            None | Some(cli::SkillsCommand::List {}) => {
+                for skill in skills::SKILLS {
+                    println!("{}\t{}", skill.name, skill.description());
+                }
+                0
+            }
+            Some(cli::SkillsCommand::Get(cli::SkillName { name })) => {
+                if let Some(skill) = skills::Skill::find(&name) {
+                    print!("{}", skill.content());
+                    0
+                } else {
+                    let available = skills::SKILLS.iter().map(|skill| skill.name);
+                    let available = available.collect::<Vec<_>>().join(", ");
+                    eprintln!("no skill is named `{name}`; available skills: {available}");
+                    1
+                }
+            }
+        },
         cli::Command::Lsp(options) => {
             if let Err(error) = logging::start(options.into_config()) {
                 eprintln!("error: failed to start logging: {error}");
