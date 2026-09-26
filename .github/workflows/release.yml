@@ -77,3 +77,73 @@ jobs:
     uses: ./.github/workflows/installers.yml
     with:
       version: ${{ github.ref_name }}
+
+  propose-next-version:
+    name: Propose next development version
+    needs: test-installers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Determine next version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Not a stable release tag: $RELEASE_TAG; skipping version proposal."
+            exit 0
+          fi
+
+          released_version=${RELEASE_TAG#v}
+          current_version=$(cargo metadata --format-version 1 --no-deps |
+            jq -r '.packages[] | select(.name == "iris-cli") | .version')
+          if [[ "$current_version" != "$released_version" ]]; then
+            echo "main is already at $current_version; not proposing a bump from $released_version."
+            exit 0
+          fi
+
+          next_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((10#${BASH_REMATCH[3]} + 1))"
+          echo "next=$next_version" >> "$GITHUB_OUTPUT"
+
+      - name: Install cargo-edit
+        if: steps.version.outputs.next != ''
+        uses: taiki-e/install-action@v2.87.1
+        with:
+          tool: cargo-edit@0.13.13
+
+      - name: Open version proposal
+        if: steps.version.outputs.next != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          NEXT_VERSION: ${{ steps.version.outputs.next }}
+        run: |
+          branch="prepare-next-$RELEASE_TAG"
+          if [[ $(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" \
+            --state all --json number --jq 'length') != 0 ]]; then
+            echo "A version proposal for $RELEASE_TAG already exists."
+            exit 0
+          fi
+
+          if ! git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            git switch -c "$branch"
+            cargo set-version --package iris-cli "$NEXT_VERSION"
+            git add compiler-executable/iris-cli/Cargo.toml Cargo.lock
+            git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Prepare $NEXT_VERSION development version"
+            gh auth setup-git
+            git push origin "$branch"
+          fi
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+            --title "[meta] Prepare $NEXT_VERSION development version" \
+            --body "After $RELEASE_TAG, propose $NEXT_VERSION as the base for future canary tags. This is a patch-version candidate; change it to a minor or major version if that better reflects the next release. Merge before relying on the new canary prefix."
