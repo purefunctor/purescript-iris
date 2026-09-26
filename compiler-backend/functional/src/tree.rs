@@ -163,7 +163,7 @@ pub enum Literal {
     String(lowering::StringLiteral),
     Char(char),
     Boolean(bool),
-    Integer(i32),
+    Integer(i64),
     Number(SmolStr),
 }
 

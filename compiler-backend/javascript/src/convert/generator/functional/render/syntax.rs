@@ -20,7 +20,13 @@ pub(super) fn literal_expression(
         Literal::String(value) => Ok(tree.string_utf16(value.as_utf16())),
         Literal::Char(value) => Ok(tree.string(value.to_string())),
         Literal::Boolean(value) => Ok(tree.boolean(*value)),
-        Literal::Integer(value) => Ok(integer_expression(tree, *value)),
+        Literal::Integer(value) => {
+            let integer = i32::try_from(*value).map_err(|_| ModuleError::Unsupported {
+                file_id,
+                state: UnsupportedState::InvalidInteger { value: *value },
+            })?;
+            Ok(integer_expression(tree, integer))
+        }
         Literal::Number(value) => {
             let number = value.parse::<f64>().map_err(|_| ModuleError::Unsupported {
                 file_id,

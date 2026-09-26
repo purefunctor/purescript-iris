@@ -57,10 +57,10 @@ fn string_literal(
     }
 }
 
-fn integer_literal(text: &str, negative: bool) -> Option<i32> {
+fn integer_literal(text: &str, negative: bool) -> Option<i64> {
     let integer = if let Some(hex) = text.strip_prefix("0x") {
         let clean = hex.replace_smolstr("_", "");
-        i32::from_str_radix(&clean, 16).ok()?
+        i64::from_str_radix(&clean, 16).ok()?
     } else {
         let clean = text.replace_smolstr("_", "");
         clean.parse().ok()?
@@ -132,6 +132,7 @@ fn lower_binder_kind(
         cst::Binder::BinderInteger(cst) => {
             let value = cst.integer_token().and_then(|token| {
                 integer_literal(token.text(context.source), cst.minus_token().is_some())
+                    .and_then(|value| i32::try_from(value).ok())
             });
             BinderKind::Integer { value }
         }
@@ -1060,6 +1061,7 @@ fn lower_type_kind(
         cst::Type::TypeInteger(cst) => {
             let value = cst.integer_token().and_then(|token| {
                 integer_literal(token.text(context.source), cst.minus_token().is_some())
+                    .and_then(|value| i32::try_from(value).ok())
             });
             TypeKind::Integer { value }
         }
