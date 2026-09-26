@@ -1,13 +1,10 @@
 //! Package source discovery from manifests and fetched checkouts.
 //!
-//! After `spago fetch` populates `.spago`, every dependency's sources live at
-//! a location determined by its declaration: local packages at their declared
-//! paths, git packages under `.spago/p/<name>/<ref>`, and registry packages
-//! under `.spago/p/<name>-<version>`. Discovery walks the dependency closure
+//! After `spago fetch` populates `.spago`, the lockfile records each external
+//! package's location and dependencies. Discovery walks the dependency closure
 //! from the selected workspace packages and synthesizes the `src` and `test`
-//! globs Spago itself reads. The resolved package identities come from the
-//! lockfile written by `spago fetch`; source layout and dependencies come from
-//! the package manifests rather than duplicating Spago's source model.
+//! globs Spago itself reads. Workspace package dependencies come from their
+//! manifests; external package dependencies come from Spago's resolution.
 
 use std::collections::{BTreeMap, VecDeque};
 use std::path::{Component, Path, PathBuf};
@@ -23,20 +20,6 @@ use super::workspace::Workspace;
 
 #[derive(Debug, Error)]
 pub enum PackagesError {
-    #[error(transparent)]
-    Manifest(#[from] iris_spago::ManifestError),
-    #[error("failed to read registry manifest {path}: {source}")]
-    ReadRegistryManifest {
-        path: PathBuf,
-        #[source]
-        source: io::Error,
-    },
-    #[error("failed to parse registry manifest {path}: {source}")]
-    ParseRegistryManifest {
-        path: PathBuf,
-        #[source]
-        source: serde_json::Error,
-    },
     #[error("failed to read Spago resolution {path}: {source}")]
     ReadResolution {
         path: PathBuf,
@@ -49,23 +32,14 @@ pub enum PackagesError {
         #[source]
         source: serde_json::Error,
     },
-    #[error("local package '{name}' has no package section in {path}")]
-    MissingPackageSection { name: SmolStr, path: PathBuf },
     #[error(
-        "Spago resolution contains no selected version for registry package '{name}'; run `spago fetch` to update spago.lock"
+        "Spago resolution contains no entry for package '{name}'; run `spago fetch` to update spago.lock"
     )]
-    MissingRegistryResolution { name: SmolStr },
-    #[error(
-        "fetched registry package '{name}' has manifest identity {actual_name}@{actual_version}, expected {name}@{expected_version}"
-    )]
-    RegistryIdentity {
-        name: SmolStr,
-        expected_version: SmolStr,
-        actual_name: SmolStr,
-        actual_version: SmolStr,
-    },
+    MissingPackageResolution { name: SmolStr },
     #[error("no fetched sources for package '{name}'; run `spago fetch` to download dependencies")]
     UnfetchedPackage { name: SmolStr },
+    #[error("local package '{name}' has no directory at {path}")]
+    MissingLocalPackage { name: SmolStr, path: PathBuf },
     #[error("git package '{name}' has unsafe subdirectory {subdirectory}")]
     UnsafeGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
     #[error("git package '{name}' subdirectory {subdirectory} resolves outside its checkout")]
@@ -114,9 +88,9 @@ struct Resolution {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum ResolvedDependency {
-    Git { rev: SmolStr },
-    Local {},
-    Registry { version: SmolStr },
+    Git { rev: SmolStr, subdir: Option<PathBuf>, dependencies: Vec<SmolStr> },
+    Local { path: PathBuf, dependencies: Vec<SmolStr> },
+    Registry { version: SmolStr, dependencies: Vec<SmolStr> },
 }
 
 /// Discovers the dependency closure of the selected workspace packages.
@@ -129,9 +103,6 @@ enum ResolvedDependency {
 /// present; missing resolution or fetched sources are reported as errors so
 /// that consumers never analyze a partially installed project.
 pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, PackagesError> {
-    let root_manifest = iris_spago::read_manifest(&workspace.root.join(iris_spago::MANIFEST_FILE))?;
-    let extra_packages =
-        root_manifest.workspace.map(|workspace| workspace.extra_packages).unwrap_or_default();
     let resolution = read_resolution(&workspace.root)?;
 
     let mut discovered = BTreeMap::new();
@@ -145,13 +116,8 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
         if discovered.contains_key(&name) {
             continue;
         }
-        let resolved = resolve_package(
-            workspace,
-            &extra_packages,
-            resolution.as_ref(),
-            &name,
-            include_test_dependencies,
-        )?;
+        let resolved =
+            resolve_package(workspace, resolution.as_ref(), &name, include_test_dependencies)?;
         queue.extend(resolved.dependencies.iter().cloned().map(|name| (name, false)));
         discovered.insert(SmolStr::clone(&name), resolved);
     }
@@ -206,7 +172,6 @@ struct ResolvedPackage {
 
 fn resolve_package(
     workspace: &Workspace,
-    extra_packages: &BTreeMap<SmolStr, iris_spago::ExtraPackage>,
     resolution: Option<&Resolution>,
     name: &SmolStr,
     include_test_dependencies: bool,
@@ -228,85 +193,41 @@ fn resolve_package(
             name: SmolStr::clone(name),
         });
     }
-    if let Some(extra) = extra_packages.get(name) {
-        return resolve_extra_package(workspace, resolution, name, extra);
-    }
-    let version = resolved_registry_version(resolution, name)?;
-    resolve_registry_package(workspace, name, version)
-}
-
-fn resolve_extra_package(
-    workspace: &Workspace,
-    resolution: Option<&Resolution>,
-    name: &SmolStr,
-    extra: &iris_spago::ExtraPackage,
-) -> Result<ResolvedPackage, PackagesError> {
-    match extra {
-        iris_spago::ExtraPackage::Registry(version) => {
-            resolve_registry_package(workspace, name, version)
-        }
-        iris_spago::ExtraPackage::Git(package) => {
-            let reference = resolved_git_reference(resolution, name).unwrap_or(&package.reference);
-            let checkout = git_checkout_location(workspace, name, reference)?;
-            let location = git_package_location(name, &checkout, package.subdir.as_deref())?;
+    let locked = resolution
+        .and_then(|resolution| resolution.packages.get(name))
+        .ok_or_else(|| PackagesError::MissingPackageResolution { name: SmolStr::clone(name) })?;
+    match locked {
+        ResolvedDependency::Git { rev, subdir, dependencies } => {
+            let checkout = git_checkout_location(workspace, name, rev)?;
+            let location = git_package_location(name, &checkout, subdir.as_deref())?;
             let source_directories = vec![location.join(iris_spago::SRC_DIRECTORY)];
-            let dependencies = if let Some(dependencies) = &package.dependencies {
-                dependencies.iter().map(|dependency| SmolStr::clone(&dependency.name)).collect_vec()
-            } else {
-                let manifest_path = location.join(iris_spago::MANIFEST_FILE);
-                let manifest = iris_spago::read_manifest(&manifest_path)?;
-                let Some(package_manifest) = manifest.package else {
-                    return Err(PackagesError::MissingPackageSection {
-                        name: SmolStr::clone(name),
-                        path: manifest_path,
-                    });
-                };
-                package_manifest.core_dependency_names().cloned().collect_vec()
-            };
             Ok(ResolvedPackage {
                 relative: relative_location(&workspace.root, &location),
                 source_directories,
-                dependencies,
+                dependencies: Vec::clone(dependencies),
                 editable: false,
                 name: SmolStr::clone(name),
             })
         }
-        iris_spago::ExtraPackage::Local(package) => {
-            let location = workspace.root.join(&package.path);
-            let manifest_path = location.join(iris_spago::MANIFEST_FILE);
-            let manifest = iris_spago::read_manifest(&manifest_path)?;
-            let Some(package_manifest) = manifest.package else {
-                return Err(PackagesError::MissingPackageSection {
+        ResolvedDependency::Local { path, dependencies } => {
+            let location = workspace.root.join(path);
+            if !location.is_dir() {
+                return Err(PackagesError::MissingLocalPackage {
                     name: SmolStr::clone(name),
-                    path: manifest_path,
+                    path: location,
                 });
-            };
-            let dependencies = package_manifest.core_dependency_names().cloned().collect_vec();
+            }
             let source_directories = vec![location.join(iris_spago::SRC_DIRECTORY)];
             Ok(ResolvedPackage {
-                relative: PathBuf::clone(&package.path),
+                relative: relative_location(&workspace.root, &location),
                 source_directories,
-                dependencies,
+                dependencies: Vec::clone(dependencies),
                 editable: true,
                 name: SmolStr::clone(name),
             })
         }
-        iris_spago::ExtraPackage::Legacy(package) => {
-            let reference = resolved_git_reference(resolution, name).unwrap_or(&package.version);
-            let location = git_checkout_location(workspace, name, reference)?;
-            let source_directories = vec![location.join(iris_spago::SRC_DIRECTORY)];
-            let dependencies = package
-                .dependencies
-                .iter()
-                .map(|dependency| SmolStr::clone(&dependency.name))
-                .collect_vec();
-            Ok(ResolvedPackage {
-                relative: relative_location(&workspace.root, &location),
-                source_directories,
-                dependencies,
-                editable: false,
-                name: SmolStr::clone(name),
-            })
+        ResolvedDependency::Registry { version, dependencies } => {
+            resolve_registry_package(workspace, name, version, dependencies)
         }
     }
 }
@@ -315,6 +236,7 @@ fn resolve_registry_package(
     workspace: &Workspace,
     name: &SmolStr,
     version: &SmolStr,
+    dependencies: &[SmolStr],
 ) -> Result<ResolvedPackage, PackagesError> {
     let packages_directory = workspace.root.join(".spago").join("p");
     let location = packages_directory.join(format!("{name}-{version}"));
@@ -322,28 +244,11 @@ fn resolve_registry_package(
         return Err(PackagesError::UnfetchedPackage { name: SmolStr::clone(name) });
     }
 
-    let manifest_path = location.join("purs.json");
-    let contents = fs::read_to_string(&manifest_path).map_err(|source| {
-        PackagesError::ReadRegistryManifest { path: PathBuf::clone(&manifest_path), source }
-    })?;
-    let manifest: iris_spago::RegistryManifest =
-        iris_spago::parse_registry_manifest(&contents).map_err(|source| {
-            PackagesError::ParseRegistryManifest { path: PathBuf::clone(&manifest_path), source }
-        })?;
-    if manifest.name != *name || manifest.version != *version {
-        return Err(PackagesError::RegistryIdentity {
-            name: SmolStr::clone(name),
-            expected_version: SmolStr::clone(version),
-            actual_name: manifest.name,
-            actual_version: manifest.version,
-        });
-    }
-    let dependencies = manifest.dependency_names().cloned().collect_vec();
     let source_directories = vec![location.join(iris_spago::SRC_DIRECTORY)];
     Ok(ResolvedPackage {
         relative: relative_location(&workspace.root, &location),
         source_directories,
-        dependencies,
+        dependencies: dependencies.to_vec(),
         editable: false,
         name: SmolStr::clone(name),
     })
@@ -375,28 +280,6 @@ fn read_resolution(root: &Path) -> Result<Option<Resolution>, PackagesError> {
     let resolution = serde_json::from_str(&contents)
         .map_err(|source| PackagesError::ParseResolution { path, source })?;
     Ok(Some(resolution))
-}
-
-fn resolved_registry_version<'a>(
-    resolution: Option<&'a Resolution>,
-    name: &SmolStr,
-) -> Result<&'a SmolStr, PackagesError> {
-    let Some(ResolvedDependency::Registry { version }) =
-        resolution.and_then(|resolution| resolution.packages.get(name))
-    else {
-        return Err(PackagesError::MissingRegistryResolution { name: SmolStr::clone(name) });
-    };
-    Ok(version)
-}
-
-fn resolved_git_reference<'a>(
-    resolution: Option<&'a Resolution>,
-    name: &SmolStr,
-) -> Option<&'a SmolStr> {
-    let ResolvedDependency::Git { rev } = resolution?.packages.get(name)? else {
-        return None;
-    };
-    Some(rev)
 }
 
 fn git_package_location(

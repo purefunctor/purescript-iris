@@ -10,18 +10,8 @@ fn write_file(path: &Path, contents: &str) {
     fs::write(path, contents).unwrap();
 }
 
-fn write_registry(root: &Path, name: &str, version: &str, dependencies: &str, module: &str) {
+fn write_registry(root: &Path, name: &str, version: &str, module: &str) {
     let directory = root.join(format!(".spago/p/{name}-{version}"));
-    write_file(
-        &directory.join("purs.json"),
-        &format!(
-            r#"{{
-  "name": "{name}",
-  "version": "{version}",
-  "dependencies": {dependencies}
-}}"#,
-        ),
-    );
     write_file(
         &directory.join(format!("src/{module}")),
         r#"module Test where
@@ -72,16 +62,17 @@ workspace: {}
         r#"module Test.Main where
 "#,
     );
-    write_registry(root, "foo", "1.0.0", r#"{"bar": ">=1.0.0 <2.0.0"}"#, "Foo.purs");
-    write_registry(root, "foo", "2.0.0", r#"{"bar": ">=1.0.0 <2.0.0"}"#, "Foo.purs");
-    write_registry(root, "foo-bar", "9.0.0", r#"{}"#, "FooBar.purs");
-    write_registry(root, "bar", "1.2.3", r#"{}"#, "Bar.purs");
+    write_registry(root, "foo", "1.0.0", "Foo.purs");
+    write_registry(root, "foo", "2.0.0", "Foo.purs");
+    write_registry(root, "foo-bar", "9.0.0", "FooBar.purs");
+    write_registry(root, "bar", "1.2.3", "Bar.purs");
     write_file(
         &root.join("spago.lock"),
         r#"{
   "packages": {
-    "foo": {"type": "registry", "version": "1.0.0"},
-    "bar": {"type": "registry", "version": "1.2.3"}
+    "foo": {"type": "registry", "version": "1.0.0", "dependencies": ["bar"]},
+    "bar": {"type": "registry", "version": "1.2.3", "dependencies": []},
+    "unfetched": {"type": "registry", "version": "3.0.0", "dependencies": []}
   }
 }"#,
     );
@@ -98,7 +89,7 @@ workspace: {}
         [".spago/p/foo-1.0.0/src/Foo.purs"]
     );
     assert_eq!(package(&discovered, "foo").roots, [PathBuf::from(".spago/p/foo-1.0.0")]);
-    assert_eq!(package(&discovered, "foo").dependencies[0], "bar");
+    assert_eq!(package(&discovered, "foo").dependencies, ["bar"]);
 }
 
 #[cfg(unix)]
@@ -230,14 +221,7 @@ workspace:
         r#"module Fakelib where
 "#,
     );
-    write_registry(root, "prelude", "6.0.0", r#"{}"#, "Prelude.purs");
-    write_file(
-        &root.join("vendor/locallib/spago.yaml"),
-        r#"package:
-  name: locallib
-  dependencies: []
-"#,
-    );
+    write_registry(root, "prelude", "6.0.0", "Prelude.purs");
     write_file(
         &root.join("vendor/locallib/src/Locallib.purs"),
         r#"module Locallib where
@@ -245,7 +229,11 @@ workspace:
     );
     write_file(
         &root.join("spago.lock"),
-        r#"{"packages":{"prelude":{"type":"registry","version":"6.0.0"}}}"#,
+        r#"{"packages":{
+  "fakelib":{"type":"git","rev":"feature_Name/test:one","dependencies":["prelude"]},
+  "locallib":{"type":"local","path":"vendor/locallib","dependencies":[]},
+  "prelude":{"type":"registry","version":"6.0.0","dependencies":[]}
+}}"#,
     );
 
     let discovered = discover_packages(&workspace(root, None)).unwrap();
@@ -258,7 +246,7 @@ workspace:
 }
 
 #[test]
-fn local_extra_packages_use_only_library_dependencies() {
+fn local_extra_packages_use_locked_dependencies() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
     write_file(
@@ -278,25 +266,28 @@ workspace:
 "#,
     );
     write_file(
-        &root.join("vendor/locallib/spago.yaml"),
-        r#"package:
-  name: locallib
-  dependencies: []
-  test:
-    main: Test.Main
-    dependencies: [spec]
-"#,
-    );
-    write_file(
-        &root.join("vendor/locallib/src/Locallib.purs"),
+        &root.join("vendor/lockedlib/src/Locallib.purs"),
         r#"module Locallib where
 "#,
+    );
+    write_registry(root, "prelude", "6.0.0", "Prelude.purs");
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{
+  "locallib":{"type":"local","path":"vendor/lockedlib","dependencies":["prelude"]},
+  "prelude":{"type":"registry","version":"6.0.0","dependencies":[]}
+}}"#,
     );
 
     let discovered = discover_packages(&workspace(root, None)).unwrap();
 
-    assert!(package(&discovered, "locallib").dependencies.is_empty());
-    assert!(discovered.packages.iter().all(|package| package.name != "spec"));
+    assert_eq!(package(&discovered, "locallib").dependencies, ["prelude"]);
+    assert_eq!(
+        relative_files(root, package(&discovered, "locallib")),
+        ["vendor/lockedlib/src/Locallib.purs"]
+    );
+    assert!(package(&discovered, "locallib").editable);
+    assert!(discovered.packages.iter().any(|package| package.name == "prelude"));
 }
 
 #[test]
@@ -332,6 +323,10 @@ workspace:
         &root.join(".spago/p/fakelib/abc123/src/Fakelib.purs"),
         r#"module Fakelib where
 "#,
+    );
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{"fakelib":{"type":"git","rev":"abc123","dependencies":[]}}}"#,
     );
 
     let discovered = discover_packages(&workspace(root, None)).unwrap();
@@ -382,12 +377,12 @@ workspace:
         r#"module Stale where
 "#,
     );
-    write_registry(root, "prelude", "6.0.0", r#"{}"#, "Prelude.purs");
+    write_registry(root, "prelude", "6.0.0", "Prelude.purs");
     write_file(
         &root.join("spago.lock"),
         r#"{"packages":{
-  "fakelib":{"type":"git","rev":"deadbee"},
-  "prelude":{"type":"registry","version":"6.0.0"}
+  "fakelib":{"type":"git","rev":"deadbee","subdir":"packages/fakelib","dependencies":["prelude"]},
+  "prelude":{"type":"registry","version":"6.0.0","dependencies":[]}
 }}"#,
     );
 
@@ -463,6 +458,16 @@ workspace:
         r#"module Uppercase where
 "#,
     );
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{
+  "decimal-ref":{"type":"git","rev":"release²","dependencies":[]},
+  "derived-case-ref":{"type":"git","rev":"ʰⅠ","dependencies":[]},
+  "fallback-case-ref":{"type":"git","rev":"ϒ","dependencies":[]},
+  "future-case-ref":{"type":"git","rev":"𐕰","dependencies":[]},
+  "uppercase-ref":{"type":"git","rev":"İ","dependencies":[]}
+}}"#,
+    );
 
     let discovered = discover_packages(&workspace(root, None)).unwrap();
 
@@ -517,6 +522,12 @@ workspace:
         r#"module Fakelib where
 "#,
     );
+    write_file(
+        &root.join("spago.lock"),
+        &format!(
+            r#"{{"packages":{{"fakelib":{{"type":"git","rev":"abc123","subdir":"{subdir}","dependencies":[]}}}}}}"#
+        ),
+    );
     discover_packages(&workspace(root, None)).unwrap_err()
 }
 
@@ -559,6 +570,10 @@ workspace:
     );
     fs::create_dir_all(root.join(".spago/p/fakelib/abc123")).unwrap();
     symlink(outside.path(), root.join(".spago/p/fakelib/abc123/package")).unwrap();
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{"fakelib":{"type":"git","rev":"abc123","subdir":"package","dependencies":[]}}}"#,
+    );
     let error = discover_packages(&workspace(root, None)).unwrap_err();
     assert!(matches!(error, PackagesError::EscapedGitSubdirectory { .. }));
 }
@@ -590,12 +605,12 @@ workspace:
         r#"module Legacy where
 "#,
     );
-    write_registry(root, "prelude", "6.0.0", r#"{}"#, "Prelude.purs");
+    write_registry(root, "prelude", "6.0.0", "Prelude.purs");
     write_file(
         &root.join("spago.lock"),
         r#"{"packages":{
-  "legacy":{"type":"git","rev":"deadbee"},
-  "prelude":{"type":"registry","version":"6.0.0"}
+  "legacy":{"type":"git","rev":"deadbee","dependencies":["prelude"]},
+  "prelude":{"type":"registry","version":"6.0.0","dependencies":[]}
 }}"#,
     );
 
@@ -627,7 +642,7 @@ workspace: {}
     );
     write_file(
         &root.join("spago.lock"),
-        r#"{"packages":{"missing":{"type":"registry","version":"1.0.0"}}}"#,
+        r#"{"packages":{"missing":{"type":"registry","version":"1.0.0","dependencies":[]}}}"#,
     );
     assert!(matches!(
         discover_packages(&workspace(root, None)).unwrap_err(),
@@ -645,6 +660,10 @@ workspace:
       path: .
 "#,
     );
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{"selfish":{"type":"local","path":".","dependencies":[]}}}"#,
+    );
     assert!(matches!(
         discover_packages(&workspace(root, None)).unwrap_err(),
         PackagesError::ConflictingSource { .. }
@@ -652,7 +671,7 @@ workspace:
 }
 
 #[test]
-fn reports_registry_manifest_identity_mismatch() {
+fn requires_locked_package_dependencies() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path();
     write_file(
@@ -668,18 +687,61 @@ workspace: {}
         r#"module Main where
 "#,
     );
-    write_registry(root, "foo", "1.0.0", r#"{}"#, "Foo.purs");
-    write_file(
-        &root.join(".spago/p/foo-1.0.0/purs.json"),
-        r#"{"name":"other","version":"1.0.0","dependencies":{}}"#,
-    );
+    write_registry(root, "foo", "1.0.0", "Foo.purs");
     write_file(
         &root.join("spago.lock"),
         r#"{"packages":{"foo":{"type":"registry","version":"1.0.0"}}}"#,
     );
     assert!(matches!(
         discover_packages(&workspace(root, None)).unwrap_err(),
-        PackagesError::RegistryIdentity { .. }
+        PackagesError::ParseResolution { .. }
+    ));
+}
+
+#[test]
+fn resolves_git_packages_from_the_lock_without_extra_package_declarations() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        "package:\n  name: application\n  dependencies: [gitlib]\nworkspace: {}\n",
+    );
+    write_file(&root.join("src/Main.purs"), "module Main where\n");
+    write_file(&root.join(".spago/p/gitlib/deadbee/src/Gitlib.purs"), "module Gitlib where\n");
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{"gitlib":{"type":"git","rev":"deadbee","dependencies":[]}}}"#,
+    );
+
+    let discovered = discover_packages(&workspace(root, None)).unwrap();
+    assert_eq!(
+        relative_files(root, package(&discovered, "gitlib")),
+        [".spago/p/gitlib/deadbee/src/Gitlib.purs"]
+    );
+}
+
+#[test]
+fn reports_missing_locked_dependencies_and_local_roots() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    write_file(
+        &root.join("spago.yaml"),
+        "package:\n  name: application\n  dependencies: [locallib]\nworkspace: {}\n",
+    );
+    write_file(&root.join("src/Main.purs"), "module Main where\n");
+    write_file(
+        &root.join("spago.lock"),
+        r#"{"packages":{"locallib":{"type":"local","path":"vendor/locallib","dependencies":["missing"]}}}"#,
+    );
+    assert!(matches!(
+        discover_packages(&workspace(root, None)).unwrap_err(),
+        PackagesError::MissingLocalPackage { .. }
+    ));
+
+    write_file(&root.join("vendor/locallib/src/Locallib.purs"), "module Locallib where\n");
+    assert!(matches!(
+        discover_packages(&workspace(root, None)).unwrap_err(),
+        PackagesError::MissingPackageResolution { name } if name == "missing"
     ));
 }
 

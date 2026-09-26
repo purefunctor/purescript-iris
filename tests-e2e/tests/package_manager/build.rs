@@ -80,10 +80,6 @@ import Prelude
 value = unit
 "#,
     );
-    workspace.write(
-        ".spago/p/prelude-999.0.0/purs.json",
-        r#"{"name":"prelude","version":"999.0.0","dependencies":{}}"#,
-    );
     workspace.write(".spago/p/prelude-999.0.0/src/Stale.purs", "module Stale where\n");
 
     let output = workspace.command(&["build", "--quiet"]);
