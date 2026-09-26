@@ -1,6 +1,7 @@
 //! Implements the algorithm's core state structures.
 
 use std::mem;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -111,7 +112,7 @@ impl Unifications {
 #[derive(Default)]
 pub struct Bindings {
     variables: FxHashMap<SourceTypeVariableKey, SourceTypeVariable>,
-    renamings: Vec<Arc<RigidRenaming>>,
+    renamings: Vec<Rc<RigidRenaming>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -419,10 +420,10 @@ impl CheckState {
 
     pub fn with_source_type_renaming<T>(
         &mut self,
-        renaming: &Arc<RigidRenaming>,
+        renaming: &Rc<RigidRenaming>,
         f: impl FnOnce(&mut CheckState) -> QueryResult<T>,
     ) -> QueryResult<T> {
-        self.bindings.renamings.push(Arc::clone(renaming));
+        self.bindings.renamings.push(Rc::clone(renaming));
         let result = f(self);
         self.bindings.renamings.pop();
 
