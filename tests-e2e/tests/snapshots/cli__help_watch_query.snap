@@ -1,0 +1,24 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 0
+--- stdout
+Ask a running `iris watch` about the project.
+
+Usage: iris watch query [-o --output <DIR>] [--json] <SUBCOMMAND>
+
+Commands:
+  definition   Print where a value, type, or class is declared.
+  diagnostics  Print the diagnostics of one module, or of every module.
+  javascript   Print the JavaScript generated for a module.
+  module       Print a module's exports with their signatures and documentation.
+  references   Print where a value, type, or class is used.
+  signature    Print the signature of a value, or the kind of a type or class.
+  wait         Rescan sources, rebuild if anything changed, and report the build outcome.
+  help         Print this message or the help of the given subcommand(s)
+
+Flags:
+  -o, --output <DIR>  Output directory of the watcher. Defaults to output in the workspace root.
+      --json          Print the watcher's response as JSON.
+  -h, --help          Print help
+--- stderr

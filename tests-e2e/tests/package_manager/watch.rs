@@ -428,6 +428,132 @@ fn spawn_reader(
     })
 }
 
+#[test]
+fn answers_queries_from_the_running_watcher() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Shapes.purs",
+        r#"module Shapes where
+
+-- | A shape with a size.
+data Shape = Square Int | Circle Int
+
+-- | The size of a shape.
+size :: Shape -> Int
+size (Square side) = side
+size (Circle radius) = radius
+
+newtype Size = Size Int
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Shapes (Shape(..), size)
+
+main :: Int
+main = size (Square 2)
+
+circle :: Int
+circle = size (Circle 1)
+
+square :: Int
+square = size (Square 3)
+"#,
+    );
+    workspace.write(
+        "src/Empty.purs",
+        r#"module Empty where
+"#,
+    );
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+
+    let mut transcript = String::new();
+    for query in [
+        "signature Shapes.size",
+        "signature Shapes.Square",
+        "module Shapes",
+        "module Empty",
+        "definition Shapes.size",
+        "references Shapes.size",
+        "javascript Main",
+        "diagnostics",
+        "signature Shapes.missing",
+        "signature Shapes.Size",
+        "signature value Shapes.Size",
+        "definition type Shapes.Size",
+        "signature type Shapes.size",
+    ] {
+        transcript.push_str(&run_query(&workspace, query));
+    }
+    // Built-in modules are materialized files, as in the language server, so their
+    // declarations have locations an agent can read.
+    let definition = workspace.command(&["watch", "query", "definition", "Prim.Int"]);
+    let location = String::from_utf8_lossy(&definition.stdout);
+    let path = location.trim_end().rsplitn(3, ':').nth(2).unwrap();
+    assert!(std::fs::read_to_string(path).unwrap().contains("Int"), "{location}");
+
+    // A query sent right after an edit must not answer from the build before it.
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+main :: Int
+main = "oops"
+"#,
+    );
+    for query in ["wait", "diagnostics Main", "javascript Main"] {
+        transcript.push_str(&run_query(&workspace, query));
+    }
+    insta::assert_snapshot!("watch_queries", transcript);
+}
+
+#[test]
+fn refuses_a_second_watcher_and_recovers_after_a_crash() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+
+    let mut first = WatchProcess::new(workspace.spawn(&["watch"]));
+    first.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+    let second = workspace.command(&["watch"]);
+    assert_eq!(second.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&second.stderr).contains("is already writing to"));
+
+    first.stop();
+    let orphaned = workspace.command(&["watch", "query", "wait"]);
+    assert_eq!(orphaned.status.code(), Some(4), "{orphaned:?}");
+
+    let mut restarted = WatchProcess::new(workspace.spawn(&["watch"]));
+    restarted.wait_for("compilation after restart", |stdout, _| stdout.contains("Build succeeded"));
+    let expected = r#"$ iris watch query wait
+[0] Build succeeded.
+
+"#;
+    assert_eq!(run_query(&workspace, "wait"), expected);
+}
+
 #[cfg(unix)]
 #[test]
 fn removes_the_socket_file_when_terminated() {
@@ -458,4 +584,44 @@ package:
     assert!(terminate.success());
     assert_eq!(watch.child.wait().unwrap().code(), Some(143));
     assert!(!socket_file.exists());
+}
+
+#[test]
+fn queries_a_watcher_with_a_custom_output_directory() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch", "--output", "generated"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+    let from_watch_flags = workspace.command(&["watch", "--output", "generated", "query", "wait"]);
+    assert_eq!(String::from_utf8_lossy(&from_watch_flags.stdout), "Build succeeded.\n");
+    let from_query_flags = workspace.command(&["watch", "query", "--output", "generated", "wait"]);
+    assert_eq!(String::from_utf8_lossy(&from_query_flags.stdout), "Build succeeded.\n");
+    let default_output = workspace.command(&["watch", "query", "wait"]);
+    assert_eq!(default_output.status.code(), Some(4));
+}
+
+/// Runs `iris watch query` and records the command, its exit status, and its output.
+fn run_query(workspace: &TestWorkspace, query: &str) -> String {
+    let mut arguments = vec!["watch", "query"];
+    arguments.extend(query.split(' '));
+    let output = workspace.command(&arguments);
+    let status = output.status.code().map_or_else(|| "signal".to_string(), |code| code.to_string());
+    format!(
+        "$ iris watch query {query}\n[{status}] {}{}\n",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
 }
