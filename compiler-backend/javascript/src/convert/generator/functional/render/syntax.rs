@@ -21,9 +21,9 @@ pub(super) fn literal_expression(
         Literal::Char(value) => Ok(tree.string(value.to_string())),
         Literal::Boolean(value) => Ok(tree.boolean(*value)),
         Literal::Integer(value) => {
-            let integer = i32::try_from(*value).map_err(|_| ModuleError::Unsupported {
-                file_id,
-                state: UnsupportedState::InvalidInteger { value: *value },
+            let integer = i32::try_from(*value).map_err(|_| {
+                let state = UnsupportedState::InvalidInteger { value: *value };
+                ModuleError::Unsupported { file_id, state }
             })?;
             Ok(integer_expression(tree, integer))
         }
