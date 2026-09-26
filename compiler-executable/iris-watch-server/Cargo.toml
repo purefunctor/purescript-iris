@@ -1,0 +1,18 @@
+[package]
+name = "iris-watch-server"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin Garcia <git@purefunctor.me>"]
+license.workspace = true
+description = "The local socket, discovery, and protocol behind Iris watch queries."
+repository = "https://github.com/purefunctor/purescript-iris"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["io-util", "net", "rt", "sync", "time"] }
+tracing = "0.1.44"
+
+[target.'cfg(unix)'.dependencies]
+tempfile = "3.27.0"
