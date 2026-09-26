@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data Parser :: Prim.Type
+data Parser
+  | Parser :: (Prim.Int -> Prim.Int) -> Main.Parser
+
+bindFlipped :: (Prim.Int -> Main.Parser) -> Main.Parser -> Main.Parser
+bindFlipped = \callback -> \(Parser parser) ->
+  Parser \state ->
+    case callback (parser state) of
+      (Parser next) -> next state
+
+fail :: Prim.Int -> Main.Parser
+fail = \message -> bindFlipped (\_ -> Parser \_ -> message) position
+
+plusParser :: { empty :: Main.Parser }
+plusParser = { empty: fail 7 }
+
+position :: Main.Parser
+position = Parser \state -> state
+
+test :: Prim.Int
+test =
+  case plusParser.empty of
+    (Parser parser) -> parser 42
+
+conditional :: Prim.Int
+conditional = choose false
+
+choose :: Prim.Boolean -> Prim.Int
+choose = \condition ->
+  if condition then conditional else 19

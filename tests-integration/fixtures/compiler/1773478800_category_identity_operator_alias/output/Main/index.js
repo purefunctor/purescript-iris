@@ -7,9 +7,9 @@ export function identity(dictionary) {
 export function test(x) {
   return /* @__PURE__ */ categoryFunctionDictIdentity(categoryFunctionDictIdentity)(x);
 }
+export const semigroupoidFn = { compose: (f) => (g) => (x) => f(g(x)) };
 export const categoryFn = {
   Semigroupoid0: () => semigroupoidFn,
   identity: (x) => x
 };
 const categoryFunctionDictIdentity = /* @__PURE__ */ identity(categoryFn);
-export const semigroupoidFn = { compose: (f) => (g) => (x) => f(g(x)) };
