@@ -6,19 +6,16 @@ export const ArrayBuffer = "ArrayBuffer";
 export function test(source) {
   const $closure = (partialDict) => {
     const $closure$1 = (section48) => {
-      let $result;
-      $case: {
+      const $closure$2 = (partialDict$1) => {
         if (section48 === "blob") {
-          $result = "Blob";
-          break $case;
+          return "Blob";
         }
         if (section48 === "arraybuffer") {
-          $result = "ArrayBuffer";
-          break $case;
+          return "ArrayBuffer";
         }
         throw new Error("Pattern match failure");
-      }
-      return /* @__PURE__ */ $result(partialDict);
+      };
+      return /* @__PURE__ */ $closure$2(partialDict);
     };
     return /* @__PURE__ */ Data_Functor.mapFlipped(Effect.functorEffect)(source)($closure$1);
   };
@@ -67,12 +64,15 @@ export function test5(source) {
 }
 export function test6(value) {
   const $closure = (partialDict) => {
-    const $closure$1 = ($binaryType) => {
-      if ($binaryType === "Blob") {
-        return 23 | 0;
-      } else {
-        throw new Error("Pattern match failure");
-      }
+    const $closure$1 = (partialDict$1) => {
+      const $closure$2 = ($binaryType) => {
+        if ($binaryType === "Blob") {
+          return 23 | 0;
+        } else {
+          throw new Error("Pattern match failure");
+        }
+      };
+      return $closure$2;
     };
     return /* @__PURE__ */ $closure$1(partialDict)(value);
   };

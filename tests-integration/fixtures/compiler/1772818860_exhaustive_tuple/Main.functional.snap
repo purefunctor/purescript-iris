@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export constructor Tuple/2
 
@@ -20,44 +21,48 @@ source: tests-integration/src/fixtures.rs
 
 @export incomplete1 = \partialDict%2 ->
   \section68%1 ->
-    (case section68%1 of
-      Tuple (Just _) Nothing ->
-        2
-      Tuple Nothing (Just _) ->
-        3
-      Tuple Nothing Nothing ->
-        4)
+    (\partialDict%3 ->
+      case section68%1 of
+        Tuple (Just _) Nothing ->
+          2
+        Tuple Nothing (Just _) ->
+          3
+        Tuple Nothing Nothing ->
+          4)
       partialDict%2
 
-@export incomplete2 = \partialDict%4 ->
-  \section103%3 ->
-    (case section103%3 of
-      Tuple (Just _) (Just _) ->
-        1
-      Tuple Nothing (Just _) ->
-        3
-      Tuple Nothing Nothing ->
-        4)
-      partialDict%4
+@export incomplete2 = \partialDict%5 ->
+  \section103%4 ->
+    (\partialDict%6 ->
+      case section103%4 of
+        Tuple (Just _) (Just _) ->
+          1
+        Tuple Nothing (Just _) ->
+          3
+        Tuple Nothing Nothing ->
+          4)
+      partialDict%5
 
-@export incomplete3 = \partialDict%6 ->
-  \section140%5 ->
-    (case section140%5 of
-      Tuple (Just _) (Just _) ->
-        1
-      Tuple (Just _) Nothing ->
-        2
-      Tuple Nothing Nothing ->
-        4)
-      partialDict%6
-
-@export incomplete4 = \partialDict%8 ->
-  \section177%7 ->
-    (case section177%7 of
-      Tuple (Just _) (Just _) ->
-        1
-      Tuple (Just _) Nothing ->
-        2
-      Tuple Nothing (Just _) ->
-        3)
+@export incomplete3 = \partialDict%8 ->
+  \section140%7 ->
+    (\partialDict%9 ->
+      case section140%7 of
+        Tuple (Just _) (Just _) ->
+          1
+        Tuple (Just _) Nothing ->
+          2
+        Tuple Nothing Nothing ->
+          4)
       partialDict%8
+
+@export incomplete4 = \partialDict%11 ->
+  \section177%10 ->
+    (\partialDict%12 ->
+      case section177%10 of
+        Tuple (Just _) (Just _) ->
+          1
+        Tuple (Just _) Nothing ->
+          2
+        Tuple Nothing (Just _) ->
+          3)
+      partialDict%11

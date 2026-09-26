@@ -127,6 +127,9 @@ where
 
     if has_missing {
         let type_id = context.intern_constrained(context.prim.partial, function_type);
+        let expression = state.allocate_expression(function_type, kind);
+        let binder = state.checked.evidence.fresh_binder(context.prim.partial);
+        let kind = tree::ExpressionKind::EvidenceAbstraction { binder, expression };
         Ok(super::allocate_expression(state, type_id, kind))
     } else {
         Ok(super::allocate_expression(state, function_type, kind))
@@ -324,6 +327,9 @@ where
     if has_missing {
         if let CaseOfMode::Infer = mode {
             let result_type = context.intern_constrained(context.prim.partial, expected);
+            let expression = state.allocate_expression(expected, kind);
+            let binder = state.checked.evidence.fresh_binder(context.prim.partial);
+            let kind = tree::ExpressionKind::EvidenceAbstraction { binder, expression };
             Ok(super::allocate_expression(state, result_type, kind))
         } else {
             state.push_wanted(context.prim.partial);

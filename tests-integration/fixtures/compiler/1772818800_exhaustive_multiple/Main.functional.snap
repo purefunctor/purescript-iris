@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export constructor Just/1
 
@@ -18,44 +19,48 @@ source: tests-integration/src/fixtures.rs
 
 @export incomplete1 = \partialDict%4 ->
   \section55%2 section56%3 ->
-    (case section55%2, section56%3 of
-      Just _, Nothing ->
-        2
-      Nothing, Just _ ->
-        3
-      Nothing, Nothing ->
-        4)
+    (\partialDict%5 ->
+      case section55%2, section56%3 of
+        Just _, Nothing ->
+          2
+        Nothing, Just _ ->
+          3
+        Nothing, Nothing ->
+          4)
       partialDict%4
 
-@export incomplete2 = \partialDict%7 ->
-  \section86%5 section87%6 ->
-    (case section86%5, section87%6 of
-      Just _, Just _ ->
-        1
-      Nothing, Just _ ->
-        3
-      Nothing, Nothing ->
-        4)
-      partialDict%7
+@export incomplete2 = \partialDict%8 ->
+  \section86%6 section87%7 ->
+    (\partialDict%9 ->
+      case section86%6, section87%7 of
+        Just _, Just _ ->
+          1
+        Nothing, Just _ ->
+          3
+        Nothing, Nothing ->
+          4)
+      partialDict%8
 
-@export incomplete3 = \partialDict%10 ->
-  \section118%8 section119%9 ->
-    (case section118%8, section119%9 of
-      Just _, Just _ ->
-        1
-      Just _, Nothing ->
-        2
-      Nothing, Nothing ->
-        4)
-      partialDict%10
+@export incomplete3 = \partialDict%12 ->
+  \section118%10 section119%11 ->
+    (\partialDict%13 ->
+      case section118%10, section119%11 of
+        Just _, Just _ ->
+          1
+        Just _, Nothing ->
+          2
+        Nothing, Nothing ->
+          4)
+      partialDict%12
 
-@export incomplete4 = \partialDict%13 ->
-  \section150%11 section151%12 ->
-    (case section150%11, section151%12 of
-      Just _, Just _ ->
-        1
-      Just _, Nothing ->
-        2
-      Nothing, Just _ ->
-        3)
-      partialDict%13
+@export incomplete4 = \partialDict%16 ->
+  \section150%14 section151%15 ->
+    (\partialDict%17 ->
+      case section150%14, section151%15 of
+        Just _, Just _ ->
+          1
+        Just _, Nothing ->
+          2
+        Nothing, Just _ ->
+          3)
+      partialDict%16

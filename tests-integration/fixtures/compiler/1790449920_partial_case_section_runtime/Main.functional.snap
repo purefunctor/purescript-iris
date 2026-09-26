@@ -11,30 +11,32 @@ assertion_line: 310
     (\partialDict%0 ->
       mapFlipped functorEffect source%1
         (\section48%2 ->
-          (case section48%2 of
-            "blob" ->
-              "Blob"
-            "arraybuffer" ->
-              "ArrayBuffer")
+          (\partialDict%3 ->
+            case section48%2 of
+              "blob" ->
+                "Blob"
+              "arraybuffer" ->
+                "ArrayBuffer")
             partialDict%0))
 
-@export test' = \partialDict%4 ->
-  \value%3 ->
-    case value%3 of
+@export test' = \partialDict%5 ->
+  \value%4 ->
+    case value%4 of
       "blob" ->
         "Blob"
       "arraybuffer" ->
         "ArrayBuffer"
 
-@export test2 = \partialDict%6 -> \$binaryType%5@(Blob) -> 17
+@export test2 = \partialDict%7 -> \$binaryType%6@(Blob) -> 17
 
-@export test3 = \value%8 -> unsafePartial (\partialDict%7 -> test' partialDict%7 value%8)
+@export test3 = \value%9 -> unsafePartial (\partialDict%8 -> test' partialDict%8 value%9)
 
-@export test4 = \value%10 -> unsafePartial (\partialDict%9 -> test2 partialDict%9 value%10)
+@export test4 = \value%11 -> unsafePartial (\partialDict%10 -> test2 partialDict%10 value%11)
 
-@export test5 = \source%12 ->
+@export test5 = \source%13 ->
   unsafePartial
-    (\partialDict%11 -> mapFlipped functorEffect source%12 (\$binaryType%13@(Blob) -> 17))
+    (\partialDict%12 -> mapFlipped functorEffect source%13 (\$binaryType%14@(Blob) -> 17))
 
-@export test6 = \value%16 ->
-  unsafePartial (\partialDict%14 -> (\$binaryType%15@(Blob) -> 23) partialDict%14 value%16)
+@export test6 = \value%18 ->
+  unsafePartial
+    (\partialDict%15 -> (\partialDict%16 -> \$binaryType%17@(Blob) -> 23) partialDict%15 value%18)

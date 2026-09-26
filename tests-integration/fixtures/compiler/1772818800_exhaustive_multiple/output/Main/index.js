@@ -23,23 +23,19 @@ export function complete(section15) {
 export function incomplete1(partialDict) {
   const $closure = (section55) => {
     return (section56) => {
-      let $result;
-      $case: {
+      const $closure$1 = (partialDict$1) => {
         if (section55.tag === "Just" && section56 === "Nothing") {
-          $result = 2 | 0;
-          break $case;
+          return 2 | 0;
         }
         if (section55 === "Nothing" && section56.tag === "Just") {
-          $result = 3 | 0;
-          break $case;
+          return 3 | 0;
         }
         if (section55 === "Nothing" && section56 === "Nothing") {
-          $result = 4 | 0;
-          break $case;
+          return 4 | 0;
         }
         throw new Error("Pattern match failure");
-      }
-      return /* @__PURE__ */ $result(partialDict);
+      };
+      return /* @__PURE__ */ $closure$1(partialDict);
     };
   };
   return $closure;
@@ -47,23 +43,19 @@ export function incomplete1(partialDict) {
 export function incomplete2(partialDict) {
   const $closure = (section86) => {
     return (section87) => {
-      let $result;
-      $case: {
+      const $closure$1 = (partialDict$1) => {
         if (section86.tag === "Just" && section87.tag === "Just") {
-          $result = 1 | 0;
-          break $case;
+          return 1 | 0;
         }
         if (section86 === "Nothing" && section87.tag === "Just") {
-          $result = 3 | 0;
-          break $case;
+          return 3 | 0;
         }
         if (section86 === "Nothing" && section87 === "Nothing") {
-          $result = 4 | 0;
-          break $case;
+          return 4 | 0;
         }
         throw new Error("Pattern match failure");
-      }
-      return /* @__PURE__ */ $result(partialDict);
+      };
+      return /* @__PURE__ */ $closure$1(partialDict);
     };
   };
   return $closure;
@@ -71,23 +63,19 @@ export function incomplete2(partialDict) {
 export function incomplete3(partialDict) {
   const $closure = (section118) => {
     return (section119) => {
-      let $result;
-      $case: {
+      const $closure$1 = (partialDict$1) => {
         if (section118.tag === "Just" && section119.tag === "Just") {
-          $result = 1 | 0;
-          break $case;
+          return 1 | 0;
         }
         if (section118.tag === "Just" && section119 === "Nothing") {
-          $result = 2 | 0;
-          break $case;
+          return 2 | 0;
         }
         if (section118 === "Nothing" && section119 === "Nothing") {
-          $result = 4 | 0;
-          break $case;
+          return 4 | 0;
         }
         throw new Error("Pattern match failure");
-      }
-      return /* @__PURE__ */ $result(partialDict);
+      };
+      return /* @__PURE__ */ $closure$1(partialDict);
     };
   };
   return $closure;
@@ -95,23 +83,19 @@ export function incomplete3(partialDict) {
 export function incomplete4(partialDict) {
   const $closure = (section150) => {
     return (section151) => {
-      let $result;
-      $case: {
+      const $closure$1 = (partialDict$1) => {
         if (section150.tag === "Just" && section151.tag === "Just") {
-          $result = 1 | 0;
-          break $case;
+          return 1 | 0;
         }
         if (section150.tag === "Just" && section151 === "Nothing") {
-          $result = 2 | 0;
-          break $case;
+          return 2 | 0;
         }
         if (section150 === "Nothing" && section151.tag === "Just") {
-          $result = 3 | 0;
-          break $case;
+          return 3 | 0;
         }
         throw new Error("Pattern match failure");
-      }
-      return /* @__PURE__ */ $result(partialDict);
+      };
+      return /* @__PURE__ */ $closure$1(partialDict);
     };
   };
   return $closure;
