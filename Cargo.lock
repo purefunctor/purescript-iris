@@ -1962,6 +1962,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-watch-query"
+version = "0.1.0"
+dependencies = [
+ "building",
+ "files",
+ "gen-lsp-types",
+ "iris-analysis",
+ "iris-build",
+ "iris-diagnostics",
+ "iris-watch-server",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "iris-watch-server"
 version = "0.1.0"
 dependencies = [
