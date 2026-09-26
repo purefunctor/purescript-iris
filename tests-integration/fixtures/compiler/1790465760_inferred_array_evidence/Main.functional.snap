@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export constructor Chosen/1
+
+@export constructor Other/0
+
+@export test = \partialDict%5 ->
+  [\partialDict%0 -> \$choice%2@(Chosen value%1) -> value%1,
+    \partialDict%3 -> \$choice%4@(Chosen _) -> 23]
+
+@export test' = \partialDict%9 ->
+  [\$choice%7@(Chosen value%6) -> value%6, \$choice%8@(Chosen _) -> 23]
+
+@export extract = \dictionary%10 -> dictionary%10.extract
+
+@export instance extractChoice = {
+  extract:
+    \$choice%11 ->
+      case $choice%11 of
+        Chosen value%12 ->
+          value%12
+        Other ->
+          41
+}
+
+@export test2 = \partialDict%15 -> [extract, \partialDict%13 -> \$choice%14@(Chosen _) -> 29]
