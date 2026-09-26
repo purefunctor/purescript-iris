@@ -157,8 +157,8 @@ pub(crate) fn search(context: &QueryContext, pattern: &str) -> Result<SearchAnsw
     let found = nominal::search(&context.engine, context.files.keys().copied(), pattern)?;
     let matches = found.len();
     let results = found.into_iter().take(SEARCH_RESULTS).map(|found| {
-        let signature = nominal::signature(&context.engine, found.item)?;
         let name = format!("{}.{}", found.module, found.name);
+        let signature = nominal::signature_on_one_line(&context.engine, found.item, &name)?;
         Ok::<_, QueryFailure>(SearchResult { name, signature })
     });
     let results = results.collect::<Result<Vec<_>, _>>()?;

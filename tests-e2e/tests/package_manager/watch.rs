@@ -496,6 +496,19 @@ root :: Int
 root = app
 "#,
     );
+    // Signatures longer than a line, with and without a kinded binder, which search must still
+    // show on one line under the qualified name.
+    workspace.write(
+        "src/Long.purs",
+        r#"module Long where
+
+longKinded :: forall (f :: Type -> Type) a b. f a -> f b -> f a -> f b -> f a -> f b -> f a -> f a
+longKinded x _ _ _ _ _ _ = x
+
+longPlain :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
+longPlain x _ _ _ _ _ _ _ _ _ _ = x
+"#,
+    );
     workspace.write(
         "src/Empty.purs",
         r#"module Empty where
@@ -525,6 +538,7 @@ root = app
         "dependents Shapes",
         "search siz",
         "search sqr",
+        "search long",
     ] {
         transcript.push_str(&run_query(&workspace, query));
     }

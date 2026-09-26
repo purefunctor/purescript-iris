@@ -124,7 +124,8 @@ pub struct SearchAnswer {
     pub matches: usize,
 }
 
-/// A matching declaration's qualified name and, if it was checked, its signature.
+/// A matching declaration's qualified name and, if it was checked, its signature under that name
+/// on one line.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SearchResult {
     pub name: String,
@@ -270,15 +271,8 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
                 return Ok("No matches.".to_string());
             }
             let results = results.iter().map(|result| {
-                // A signature starts with the unqualified name, which the qualified one replaces.
-                let signature = result.signature.as_deref().and_then(|signature| {
-                    signature.split_once(" :: ").map(|(_, signature)| signature)
-                });
-                if let Some(signature) = signature {
-                    format!("{} :: {signature}", result.name)
-                } else {
-                    String::clone(&result.name)
-                }
+                let signature = result.signature.as_deref();
+                signature.map_or_else(|| format!("{} :: <unchecked>", result.name), str::to_string)
             });
             let mut lines = results.collect::<Vec<_>>();
             if matches > lines.len() {

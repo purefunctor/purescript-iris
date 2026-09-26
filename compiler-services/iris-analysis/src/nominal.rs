@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use building_types::QueryProxy;
-use checking::core::pretty::Pretty;
+use checking::core::pretty::{Pretty, PrettyConfig};
 use files::FileId;
 use indexing::{IndexedTypeItemKind, InstanceSourceItemId, TermItemId, TypeItemId};
 use lowering::{LoweredModule, TypeId, TypeKind};
@@ -93,15 +93,34 @@ pub fn signature(
     engine: &impl AnalyzerQueries,
     item: NamedItem,
 ) -> Result<Option<String>, AnalyzerError> {
+    let name = name(engine, item)?;
+    render_signature(engine, item, &name, PRETTY_CONFIG)
+}
+
+/// Like [`signature`], but under `name`, such as a qualified name, and never wrapped, so that it
+/// fits on one line of a list.
+pub fn signature_on_one_line(
+    engine: &impl AnalyzerQueries,
+    item: NamedItem,
+    name: &str,
+) -> Result<Option<String>, AnalyzerError> {
+    render_signature(engine, item, name, PRETTY_CONFIG.width(usize::MAX))
+}
+
+fn render_signature(
+    engine: &impl AnalyzerQueries,
+    item: NamedItem,
+    name: &str,
+    config: PrettyConfig,
+) -> Result<Option<String>, AnalyzerError> {
     let checked = engine.checked(item.file_id())?;
     let signature = match item {
         NamedItem::Term(_, term_id) => checked.lookup_term_item_type(term_id),
         NamedItem::Type(_, type_id) => checked.lookup_type_item_kind(type_id),
     };
     let Some(signature) = signature else { return Ok(None) };
-    let name = name(engine, item)?;
-    let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Ok(Some(pretty.render_signature(&name, signature).to_string()))
+    let pretty = Pretty::with_config(engine, &checked, config);
+    Ok(Some(pretty.render_signature(name, signature).to_string()))
 }
 
 /// The documentation comment written above the item, if any.
