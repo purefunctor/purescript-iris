@@ -2,38 +2,38 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 308
 ---
-Warning! · [CustomWarning] · Main.purs:13:1
+Warning! · [CustomWarning] · Main.purs:14:14
   •
   │
   • warned was used
   │
-  │   test :: Pair Int Int
-  │   ╰───────────────────
+  │   test = Pair (warned 1) (warned 2)
+  │                ╰───────
   •
 
-Warning! · [CustomWarning] · Main.purs:13:1
+Warning! · [CustomWarning] · Main.purs:14:25
   •
   │
   • warned was used
   │
-  │   test :: Pair Int Int
-  │   ╰───────────────────
+  │   test = Pair (warned 1) (warned 2)
+  │                           ╰───────
   •
 
-Warning! · [CustomWarning] · Main.purs:24:1
+Warning! · [CustomWarning] · Main.purs:25:9
   •
   │
   • Legacy is deprecated
   │
-  │   test2 :: Int
-  │   ╰───────────
+  │   test2 = describe Legacy
+  │           ╰──────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:48:1
+Warning! · [CustomWarning] · Main.purs:49:18
   •
   │
   • Resolved to Int
   │
-  │   test3 :: Int
-  │   ╰───────────
+  │   test3 = consume (warnResolved lookup)
+  │                    ╰──────────────────
   •
