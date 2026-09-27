@@ -40,6 +40,7 @@ pub trait TypeFold {
     }
 }
 
+#[inline]
 pub fn fold_type<Q, F>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -54,7 +55,24 @@ where
     if !folder.may_change(flags) {
         return Ok(id);
     }
+    fold_type_core(state, context, id, t, flags, folder)
+}
 
+// Most children cannot change, so keeping the fold out of line lets each
+// recursive call site inline the flag check without paying for a call.
+#[inline(never)]
+fn fold_type_core<'q, Q, F>(
+    state: &mut CheckState,
+    context: &CheckContext<'q, Q>,
+    id: TypeId,
+    t: &'q Type,
+    flags: TypeFlags,
+    folder: &mut F,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+    F: TypeFold,
+{
     let (mut id, mut t) = normalise::normalise_looked_up(state, context, id, t, flags);
 
     let t = safe_loop! {
