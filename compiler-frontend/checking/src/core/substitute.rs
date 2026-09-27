@@ -68,6 +68,7 @@ pub struct SubstituteName<'a> {
 
 enum NameBindings<'a> {
     One(Name, TypeId),
+    Few(&'a [(Name, TypeId)]),
     Many(&'a NameToType),
 }
 
@@ -83,6 +84,23 @@ impl SubstituteName<'_> {
         Q: ExternalQueries,
     {
         let bindings = NameBindings::One(name, replacement);
+        fold_type(state, context, in_type, &mut SubstituteName { bindings })
+    }
+
+    /// Substitutes a small number of bindings, such as those introduced by
+    /// instantiating a quantifier chain, where scanning is cheaper than hashing.
+    ///
+    /// Later bindings take precedence, matching insertion into [`NameToType`].
+    pub fn few<Q>(
+        state: &mut CheckState,
+        context: &CheckContext<Q>,
+        bindings: &[(Name, TypeId)],
+        in_type: TypeId,
+    ) -> QueryResult<TypeId>
+    where
+        Q: ExternalQueries,
+    {
+        let bindings = NameBindings::Few(bindings);
         fold_type(state, context, in_type, &mut SubstituteName { bindings })
     }
 
@@ -119,6 +137,11 @@ impl TypeFold for SubstituteName<'_> {
             let replacement = match self.bindings {
                 NameBindings::One(original, replacement) if original == *name => Some(replacement),
                 NameBindings::One(_, _) => None,
+                NameBindings::Few(bindings) => {
+                    bindings.iter().rev().find_map(|&(original, replacement)| {
+                        (original == *name).then_some(replacement)
+                    })
+                }
                 NameBindings::Many(bindings) => bindings.get(name).copied(),
             };
             if let Some(replacement) = replacement {

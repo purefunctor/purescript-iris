@@ -5,8 +5,8 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 
 use crate::context::CheckContext;
-use crate::core::substitute::{NameToType, SubstituteName};
-use crate::core::{ApplicationArgument, Type, TypeFlags, TypeId, toolkit};
+use crate::core::substitute::SubstituteName;
+use crate::core::{ApplicationArgument, Name, Type, TypeFlags, TypeId, toolkit};
 use crate::state::{CheckState, UnificationState};
 use crate::{ExternalQueries, safe_loop};
 
@@ -366,7 +366,7 @@ where
         return Ok(id);
     };
 
-    let mut bindings = NameToType::default();
+    let mut bindings: SmallVec<[(Name, TypeId); 4]> = SmallVec::new();
     let mut kind = checked_synonym.kind;
     arguments.reverse();
     let mut arguments = arguments.into_iter();
@@ -399,7 +399,7 @@ where
         };
 
         let binder = context.lookup_forall_binder(binder_id);
-        bindings.insert(binder.name, argument);
+        bindings.push((binder.name, argument));
 
         kind = inner;
     }
@@ -409,14 +409,14 @@ where
         let Some(ApplicationArgument::Type(argument)) = arguments.next() else {
             return Ok(id);
         };
-        bindings.insert(parameter.name, argument);
+        bindings.push((parameter.name, argument));
     }
 
     // Apply the substitutions if there are any.
     let mut substituted = if bindings.is_empty() {
         checked_synonym.expansion
     } else {
-        SubstituteName::many(state, context, &bindings, checked_synonym.expansion)?
+        SubstituteName::few(state, context, &bindings, checked_synonym.expansion)?
     };
 
     // Reconstruct applications from remaining oversaturated arguments.

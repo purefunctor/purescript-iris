@@ -1,8 +1,9 @@
 use building_types::QueryResult;
+use smallvec::SmallVec;
 
 use crate::context::CheckContext;
-use crate::core::substitute::{NameToType, SubstituteName};
-use crate::core::{ForallBinder, Type, TypeId, normalise, unification};
+use crate::core::substitute::SubstituteName;
+use crate::core::{ForallBinder, Name, Type, TypeId, normalise, unification};
 use crate::error::ErrorKind;
 use crate::evidence::EvidenceVarId;
 use crate::source::types;
@@ -128,8 +129,8 @@ where
     let binder_kind = normalise::expand(state, context, binder.kind)?;
     let argument = state.fresh_unification(context.queries, binder_kind);
 
-    let mut bindings = NameToType::default();
-    bindings.insert(binder.name, argument);
+    let mut bindings: SmallVec<[(Name, TypeId); 4]> = SmallVec::new();
+    bindings.push((binder.name, argument));
 
     safe_loop! {
         let expanded = normalise::expand(state, context, body)?;
@@ -140,14 +141,14 @@ where
         if binder.visible {
             break;
         }
-        let binder_kind = SubstituteName::many(state, context, &bindings, binder.kind)?;
+        let binder_kind = SubstituteName::few(state, context, &bindings, binder.kind)?;
         let binder_kind = normalise::expand(state, context, binder_kind)?;
         let argument = state.fresh_unification(context.queries, binder_kind);
-        bindings.insert(binder.name, argument);
+        bindings.push((binder.name, argument));
         body = inner;
     }
 
-    SubstituteName::many(state, context, &bindings, body)
+    SubstituteName::few(state, context, &bindings, body)
 }
 
 pub fn instantiate_expression<Q>(
