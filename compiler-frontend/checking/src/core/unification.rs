@@ -661,7 +661,7 @@ where
     }
 
     let unification_kind = state.unifications.get(id).kind;
-    let solution_kind = types::elaborate_kind(state, context, solution)?;
+    let solution_kind = types::elaborate_expanded_kind(state, context, solution)?;
     unify(state, context, unification_kind, solution_kind)?;
 
     state.unifications.solve(id, solution);

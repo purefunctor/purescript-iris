@@ -578,8 +578,22 @@ pub fn elaborate_kind<Q>(
 where
     Q: ExternalQueries,
 {
-    let unknown = || context.unknown("invalid kind");
     let id = normalise::expand(state, context, id)?;
+    elaborate_expanded_kind(state, context, id)
+}
+
+/// Like [`elaborate_kind`], for a type that is already [expanded].
+///
+/// [expanded]: normalise::expand
+pub fn elaborate_expanded_kind<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
+    let unknown = || context.unknown("invalid kind");
 
     let kind = match *context.lookup_type(id) {
         Type::Application(function, _) => {
