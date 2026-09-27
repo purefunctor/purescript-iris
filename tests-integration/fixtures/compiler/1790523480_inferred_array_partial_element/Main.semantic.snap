@@ -8,4 +8,4 @@ data Choice
   | Other :: Main.Choice
 
 fs :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
-fs = \{partialDict} -> [\{partialDict1} -> \(Chosen value) -> value]
+fs = \{partialDict} -> [(\{partialDict1} -> \(Chosen value) -> value) {partialDict}]

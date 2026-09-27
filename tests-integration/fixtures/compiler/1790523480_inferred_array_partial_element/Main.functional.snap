@@ -6,4 +6,5 @@ assertion_line: 310
 
 @export constructor Other/0
 
-@export fs = \partialDict%3 -> [\partialDict%0 -> \$choice%2@(Chosen value%1) -> value%1]
+@export fs = \partialDict%0 ->
+  [(\partialDict%1 -> \$choice%3@(Chosen value%2) -> value%2) partialDict%0]
