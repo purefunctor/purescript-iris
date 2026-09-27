@@ -71,7 +71,7 @@ where
         let item = context.lowered.tree.get_term_item_kind(term_id);
         matches!(item, Some(lowering::TermItemKind::Constructor { .. }))
     } else {
-        let lowered = context.queries.lowered(file_id)?;
+        let lowered = context.lowered_dependency(file_id)?;
         let item = lowered.tree.get_term_item_kind(term_id);
         matches!(item, Some(lowering::TermItemKind::Constructor { .. }))
     };

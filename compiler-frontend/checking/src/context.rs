@@ -2,7 +2,7 @@
 //!
 //! See documentation for [`CheckContext`] for more information.
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -48,8 +48,49 @@ where
     pub(crate) instance_positions: FxHashMap<InstanceCandidateOrigin, usize>,
     pub(crate) dependency_instance_candidates:
         RefCell<FxHashMap<(FileId, FileId, TypeItemId), Vec<InstanceCandidate>>>,
-    checked_dependencies: RefCell<FxHashMap<FileId, Arc<CheckedModule>>>,
-    checked_synonyms: RefCell<FxHashMap<(FileId, TypeItemId), Option<CheckedSynonym>>>,
+    checked_dependencies: DependencyTable<Arc<CheckedModule>>,
+    lowered_dependencies: DependencyTable<Arc<LoweredModule>>,
+}
+
+/// Query results memoised per dependency, indexed by [`FileId`].
+///
+/// File IDs are allocated densely, so indexing avoids hashing on lookups
+/// that happen for most references to dependency items.
+struct DependencyTable<T> {
+    entries: RefCell<Vec<Option<T>>>,
+}
+
+impl<T> Default for DependencyTable<T> {
+    fn default() -> DependencyTable<T> {
+        DependencyTable { entries: RefCell::default() }
+    }
+}
+
+impl<T: Clone> DependencyTable<T> {
+    fn get(&self, file_id: FileId) -> Option<Ref<'_, T>> {
+        let index = file_id.into_raw() as usize;
+        let entries = self.entries.borrow();
+        Ref::filter_map(entries, |entries| entries.get(index)?.as_ref()).ok()
+    }
+
+    fn get_or_query(
+        &self,
+        file_id: FileId,
+        query: impl FnOnce(FileId) -> QueryResult<T>,
+    ) -> QueryResult<T> {
+        if let Some(entry) = self.get(file_id) {
+            return Ok(T::clone(&entry));
+        }
+
+        let entry = query(file_id)?;
+        let index = file_id.into_raw() as usize;
+        let mut entries = self.entries.borrow_mut();
+        if entries.len() <= index {
+            entries.resize(index + 1, None);
+        }
+        entries[index] = Some(T::clone(&entry));
+        Ok(entry)
+    }
 }
 
 impl<'q, Q> Deref for CheckContext<'q, Q>
@@ -103,22 +144,20 @@ where
             resolved,
             instance_positions,
             dependency_instance_candidates: RefCell::default(),
-            checked_dependencies: RefCell::default(),
-            checked_synonyms: RefCell::default(),
+            checked_dependencies: DependencyTable::default(),
+            lowered_dependencies: DependencyTable::default(),
         })
     }
 
     pub(crate) fn checked_dependency(&self, file_id: FileId) -> QueryResult<Arc<CheckedModule>> {
         debug_assert_ne!(file_id, self.id);
 
-        let checked = self.checked_dependencies.borrow().get(&file_id).cloned();
-        if let Some(checked) = checked {
-            return Ok(checked);
-        }
+        self.checked_dependencies.get_or_query(file_id, |file_id| self.queries.checked(file_id))
+    }
 
-        let checked = self.queries.checked(file_id)?;
-        self.checked_dependencies.borrow_mut().insert(file_id, Arc::clone(&checked));
-        Ok(checked)
+    pub(crate) fn lowered_dependency(&self, file_id: FileId) -> QueryResult<Arc<LoweredModule>> {
+        debug_assert_ne!(file_id, self.id);
+        self.lowered_dependencies.get_or_query(file_id, |file_id| self.queries.lowered(file_id))
     }
 
     pub(crate) fn checked_synonym_dependency(
@@ -133,16 +172,12 @@ where
             return Ok(None);
         }
 
-        let key = (file_id, type_id);
-        let checked_synonym = self.checked_synonyms.borrow().get(&key).cloned();
-        if let Some(checked_synonym) = checked_synonym {
-            return Ok(checked_synonym);
+        if let Some(checked) = self.checked_dependencies.get(file_id) {
+            return Ok(checked.lookup_synonym(type_id));
         }
 
         let checked = self.checked_dependency(file_id)?;
-        let checked_synonym = checked.lookup_synonym(type_id);
-        self.checked_synonyms.borrow_mut().insert(key, checked_synonym.clone());
-        Ok(checked_synonym)
+        Ok(checked.lookup_synonym(type_id))
     }
 }
 

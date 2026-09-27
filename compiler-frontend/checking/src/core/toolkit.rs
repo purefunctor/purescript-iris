@@ -285,7 +285,7 @@ where
     if file_id == context.id {
         Ok(resolve(&context.lowered))
     } else {
-        let lowered = context.queries.lowered(file_id)?;
+        let lowered = context.lowered_dependency(file_id)?;
         Ok(resolve(&lowered))
     }
 }
