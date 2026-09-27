@@ -203,9 +203,7 @@ where
     if !matches!(t, Type::Unification(_)) && !may_expand(t) {
         return Ok(id);
     }
-    if !flags.has_unification()
-        && let Some(expanded) = state.lookup_recent_expansion(id)
-    {
+    if let Some(expanded) = state.lookup_recent_expansion(id) {
         return Ok(expanded);
     }
     expand_looked_up(state, context, id, t, flags)
@@ -395,6 +393,7 @@ where
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
     let mut head_id = id;
     let mut head = t;
+    let mut normalised_spine = false;
     safe_loop! {
         let (function, argument) = match *head {
             Type::Application(function, argument) => {
@@ -408,19 +407,31 @@ where
         arguments.push(argument);
         let (function_t, flags) = context.lookup_type_with_flags(function);
         (head_id, head) = normalise_looked_up(state, context, function, function_t, flags);
+        normalised_spine |= head_id != function;
     }
 
     let Type::Constructor(file_id, type_id) = *head else {
         return Ok(id);
     };
 
-    if state.is_known_not_synonym(head_id) {
-        return Ok(id);
-    }
+    let checked_synonym = if state.is_known_not_synonym(head_id) {
+        None
+    } else {
+        let checked_synonym = toolkit::lookup_file_synonym(state, context, file_id, type_id)?;
+        if checked_synonym.is_none() {
+            state.insert_known_not_synonym(head_id);
+        }
+        checked_synonym
+    };
 
-    let checked_synonym = toolkit::lookup_file_synonym(state, context, file_id, type_id)?;
     let Some(checked_synonym) = checked_synonym else {
-        state.insert_known_not_synonym(head_id);
+        // Reaching the head without normalising means the spine has no
+        // unification variable in function position, so this application
+        // expands to itself whatever its arguments are solved to, for as long
+        // as its head is not a synonym.
+        if !normalised_spine {
+            state.insert_recent_expansion(id, id);
+        }
         return Ok(id);
     };
 

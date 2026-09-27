@@ -209,8 +209,12 @@ impl ExpansionCache {
         Some(expanded)
     }
 
-    fn insert(&mut self, id: TypeId, expanded: TypeId) {
+    fn insert_recent(&mut self, id: TypeId, expanded: TypeId) {
         self.recent[ExpansionCache::slot(id)] = Some((id, expanded));
+    }
+
+    fn insert(&mut self, id: TypeId, expanded: TypeId) {
+        self.insert_recent(id, expanded);
         self.all.insert(id, expanded);
     }
 
@@ -325,9 +329,18 @@ impl CheckState {
 
     /// Looks up a memoised synonym expansion among those used most recently,
     /// which is cheap enough to try before any other expansion work.
+    ///
+    /// Unlike the complete cache, recent expansions may include types with
+    /// unification variables whose expansion cannot depend on their solutions.
     #[inline]
     pub(crate) fn lookup_recent_expansion(&self, id: TypeId) -> Option<TypeId> {
         self.expansion_cache.lookup_recent(id)
+    }
+
+    /// Records a synonym expansion that depends solely on the synonyms in
+    /// scope, among recent expansions only.
+    pub(crate) fn insert_recent_expansion(&mut self, id: TypeId, expanded: TypeId) {
+        self.expansion_cache.insert_recent(id, expanded);
     }
 
     pub(crate) fn insert_expansion_cache(&mut self, id: TypeId, result: TypeId) {
