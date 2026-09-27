@@ -734,6 +734,11 @@ where
     Q: ExternalQueries,
 {
     let (checked_kind, _) = types::check_kind(state, context, signature, context.prim.t)?;
+    // Kind checking leaves solved unification variables in the signature,
+    // such as the kinds of its type variables. Zonking once here spares every
+    // use of the item from looking through them, and lets instantiation treat
+    // the signature as a closed type.
+    let checked_kind = zonk::zonk(state, context, checked_kind)?;
     state.checked.term_item_types.insert(item_id, checked_kind);
     Ok(checked_kind)
 }
