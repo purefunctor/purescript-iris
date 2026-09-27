@@ -160,6 +160,14 @@ impl CheckedModule {
 }
 
 impl CheckedNodeTypes {
+    /// Checking records a type for nearly every lowered type, expression,
+    /// and binder, so reserving for them up front avoids repeated rehashing.
+    pub(crate) fn reserve_lowered(&mut self, lowered: &lowering::LoweredTree) {
+        self.type_kinds.reserve(lowered.iter_type().len());
+        self.expressions.reserve(lowered.iter_expression().len());
+        self.binders.reserve(lowered.iter_binder().len());
+    }
+
     pub fn lookup_expression(&self, id: lowering::ExpressionId) -> Option<TypeId> {
         self.expressions.get(&id).copied()
     }
@@ -224,6 +232,7 @@ fn check_source(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<
     let mut state = state::CheckState::new(file_id);
     let context = context::CheckContext::new(queries, file_id)?;
 
+    state.reserve_lowered(&context.lowered.tree);
     source::check_type_items(&mut state, &context)?;
     source::check_term_items(&mut state, &context)?;
     state.with_zonk_cache(|state| {

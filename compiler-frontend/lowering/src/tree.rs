@@ -470,15 +470,17 @@ pub struct LoweredTree {
 }
 
 impl LoweredTree {
-    pub fn iter_binder(&self) -> impl Iterator<Item = (BinderId, &BinderKind)> {
+    pub fn iter_binder(&self) -> impl ExactSizeIterator<Item = (BinderId, &BinderKind)> {
         self.binders.iter().map(|(k, v)| (*k, v))
     }
 
-    pub fn iter_expression(&self) -> impl Iterator<Item = (ExpressionId, &ExpressionKind)> {
+    pub fn iter_expression(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (ExpressionId, &ExpressionKind)> {
         self.expressions.iter().map(|(k, v)| (*k, v))
     }
 
-    pub fn iter_type(&self) -> impl Iterator<Item = (TypeId, &TypeKind)> {
+    pub fn iter_type(&self) -> impl ExactSizeIterator<Item = (TypeId, &TypeKind)> {
         self.types.iter().map(|(k, v)| (*k, v))
     }
 

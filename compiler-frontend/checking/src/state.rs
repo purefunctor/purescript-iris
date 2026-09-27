@@ -207,6 +207,14 @@ impl CheckState {
         }
     }
 
+    /// Reserves for the types recorded against lowered nodes and for the
+    /// judgments retained for lowered expressions, which checking produces
+    /// for nearly every node, to avoid repeated rehashing.
+    pub(crate) fn reserve_lowered(&mut self, lowered: &lowering::LoweredTree) {
+        self.checked.node_types.reserve_lowered(lowered);
+        self.judgments.reserve(lowered.iter_expression().len());
+    }
+
     /// Enables subtree memoization while preventing new unification solutions.
     ///
     /// Existing solutions may still be path-compressed.
