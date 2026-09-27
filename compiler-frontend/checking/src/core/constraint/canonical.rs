@@ -112,7 +112,7 @@ where
         return Ok(None);
     };
 
-    let arguments = Rc::from(arguments); // TODO: extract_all_applications
+    let arguments = Rc::from(arguments.as_slice()); // TODO: extract_all_applications
     let canonical = CanonicalConstraint { file_id, type_id, arguments };
     let canonical_id = state.canonicals.associate(id, canonical);
 

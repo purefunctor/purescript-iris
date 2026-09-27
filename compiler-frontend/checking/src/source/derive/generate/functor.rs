@@ -106,11 +106,11 @@ impl DecodedTraversalMember {
             data_file,
             source: InstantiatedDataType {
                 type_id: source_type,
-                constructor_arguments: source_arguments,
+                constructor_arguments: source_arguments.into_vec(),
             },
             target: InstantiatedDataType {
                 type_id: result,
-                constructor_arguments: target_arguments,
+                constructor_arguments: target_arguments.into_vec(),
             },
         }))
     }

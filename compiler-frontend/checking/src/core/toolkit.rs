@@ -8,6 +8,7 @@ use indexing::{TermItemId, TypeItemId};
 use lowering::{TermItemKind, TypeItemKind};
 
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
@@ -78,11 +79,11 @@ pub fn extract_all_applications<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     mut id: TypeId,
-) -> QueryResult<(TypeId, Vec<ApplicationArgument>)>
+) -> QueryResult<(TypeId, SmallVec<[ApplicationArgument; 4]>)>
 where
     Q: ExternalQueries,
 {
-    let mut arguments = Vec::new();
+    let mut arguments = SmallVec::new();
 
     safe_loop! {
         id = normalise::expand(state, context, id)?;

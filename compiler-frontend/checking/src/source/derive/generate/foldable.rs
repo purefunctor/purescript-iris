@@ -145,7 +145,7 @@ impl DecodedFoldMember {
             data_file,
             source: InstantiatedDataType {
                 type_id: source_type,
-                constructor_arguments: source_arguments,
+                constructor_arguments: source_arguments.into_vec(),
             },
             result_type: result,
         }))
