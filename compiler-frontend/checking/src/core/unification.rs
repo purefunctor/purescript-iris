@@ -146,7 +146,7 @@ where
     match (context.lookup_type(t1), context.lookup_type(t2)) {
         // The inferred expression remains polymorphic at this boundary, so
         // ordinary subtyping handles it without collecting applications.
-        (_, Type::Forall(_, _)) => subtype(state, context, t1, t2),
+        (_, Type::Forall(_, _)) => subtype_expanded::<Elaborating, Q>(state, context, t1, t2),
         (Type::Forall(binder_id, inner), _) => {
             let binder = context.lookup_forall_binder(*binder_id);
             let argument = state.fresh_unification(context.queries, binder.kind);
@@ -163,7 +163,7 @@ where
             });
             subtype_with_applications_core(state, context, *result, t2, applications)
         }
-        (_, _) => subtype(state, context, t1, t2),
+        (_, _) => subtype_expanded::<Elaborating, Q>(state, context, t1, t2),
     }
 }
 
@@ -180,6 +180,22 @@ where
     let t1 = normalise::expand(state, context, t1)?;
     let t2 = normalise::expand(state, context, t2)?;
 
+    subtype_expanded::<P, Q>(state, context, t1, t2)
+}
+
+/// Checks subtyping between two types that are already [expanded].
+///
+/// [expanded]: normalise::expand
+fn subtype_expanded<P, Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    t1: TypeId,
+    t2: TypeId,
+) -> QueryResult<bool>
+where
+    P: SubtypePolicy<Q>,
+    Q: ExternalQueries,
+{
     if t1 == t2 {
         return Ok(true);
     }
@@ -309,7 +325,8 @@ where
             }
         }
 
-        (_, _) => unify(state, context, t1, t2),
+        // Both types were expanded above and nothing was solved since.
+        (_, _) => unify_expanded(state, context, t1, t2),
     }
 }
 
@@ -344,6 +361,24 @@ where
     let t1 = normalise::expand(state, context, t1)?;
     let t2 = normalise::expand(state, context, t2)?;
 
+    unify_expanded(state, context, t1, t2)
+}
+
+/// Unifies two types that are already [expanded].
+///
+/// Expansion is idempotent until a unification variable is solved, so callers
+/// that have just expanded both types use this to avoid expanding them again.
+///
+/// [expanded]: normalise::expand
+fn unify_expanded<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    t1: TypeId,
+    t2: TypeId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
     if t1 == t2 {
         return Ok(true);
     }
@@ -355,8 +390,8 @@ where
         // PureScript has an impredicative type system i.e. unification
         // variables can be solved to Type::Forall. These rules must
         // be placed before the one-sided Type::Forall skolemisation.
-        (Type::Unification(id), _) => return solve(state, context, t1, *id, t2),
-        (_, Type::Unification(id)) => return solve(state, context, t2, *id, t1),
+        (Type::Unification(id), _) => return solve_expanded(state, context, t1, *id, t2),
+        (_, Type::Unification(id)) => return solve_expanded(state, context, t2, *id, t1),
 
         (
             Type::Application(t1_function, t1_argument),
@@ -599,7 +634,22 @@ where
     Q: ExternalQueries,
 {
     let solution = normalise::expand(state, context, solution)?;
+    solve_expanded(state, context, unification, id, solution)
+}
 
+/// Solves a unification variable to an already [expanded] type.
+///
+/// [expanded]: normalise::expand
+fn solve_expanded<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    unification: TypeId,
+    id: u32,
+    solution: TypeId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
     match promote_type(state, context, id, solution)? {
         PromoteResult::Ok => {}
         PromoteResult::OccursCheck | PromoteResult::SkolemEscape => {
