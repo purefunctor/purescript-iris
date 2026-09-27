@@ -127,9 +127,9 @@ where
     if normalised == id { (id, t) } else { (normalised, context.lookup_type(normalised)) }
 }
 
-// Most types cannot normalise, so keeping the reduction loop out of line lets
-// callers inline the flag check without carrying the loop's stack frame.
-#[inline(never)]
+// Most heads settle after a single lookup of the unification state, which is
+// cheap enough to inline into callers; longer reductions stay out of line.
+#[inline]
 pub(crate) fn normalise_head<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
