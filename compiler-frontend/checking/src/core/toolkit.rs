@@ -869,6 +869,7 @@ where
 
     let mut current = constructor_type;
     let mut arguments = arguments.iter().copied();
+    let mut bindings: SmallVec<[(Name, TypeId); 4]> = SmallVec::new();
     let mut rigids = Vec::new();
 
     safe_loop! {
@@ -878,27 +879,33 @@ where
         };
 
         let binder = context.lookup_forall_binder(binder_id);
-        let replacement = arguments
-            .next()
-            .map(|argument| match argument {
-                ApplicationArgument::Kind(argument) | ApplicationArgument::Type(argument) => {
-                    argument
-                }
-            })
-            .unwrap_or_else(|| {
+        let replacement = match arguments.next() {
+            Some(ApplicationArgument::Kind(argument) | ApplicationArgument::Type(argument)) => {
+                argument
+            }
+            None => {
+                let kind = SubstituteName::few(state, context, &bindings, binder.kind)?;
                 let text = state.checked.lookup_name(binder.name);
-                let rigid = state.fresh_rigid_named(context.queries, binder.kind, text);
+                let rigid = state.fresh_rigid_named(context.queries, kind, text);
                 rigids.push(rigid);
                 rigid
-            });
+            }
+        };
 
-        current = SubstituteName::one(state, context, binder.name, replacement, inner)?;
+        bindings.push((binder.name, replacement));
+        current = inner;
     }
 
     current = normalise::normalise(state, context, current);
 
     let InspectFunction { arguments, .. } = inspect_function(state, context, current)?;
     let [inner] = arguments[..] else { return Ok(None) };
+
+    // A data constructor's type ends in its type constructor applied to its
+    // quantified variables, so the shape inspected above does not depend on
+    // the bindings. Only the field type is needed, so it is substituted alone
+    // rather than rebuilding the whole constructor type once per binder.
+    let inner = SubstituteName::few(state, context, &bindings, inner)?;
 
     Ok(Some(NewtypeInner { inner, rigids }))
 }
