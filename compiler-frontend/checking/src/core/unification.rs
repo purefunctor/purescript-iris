@@ -735,6 +735,24 @@ where
         }
 
         let id = normalise::expand(state, context, id)?;
+        check_expanded(promote, state, context, id)
+    }
+
+    fn check_expanded<Q>(
+        promote: &mut PromotionState,
+        state: &mut CheckState,
+        context: &CheckContext<Q>,
+        id: TypeId,
+    ) -> QueryResult<PromoteResult>
+    where
+        Q: ExternalQueries,
+    {
+        // Without unification or rigid variables, no case below can fail
+        // or promote anything.
+        if !context.lookup_type_flags(id).has_variables() {
+            return Ok(PromoteResult::Ok);
+        }
+
         let t = context.lookup_type(id);
 
         match t {
@@ -832,8 +850,9 @@ where
     let depth = state.unifications.get(id).depth;
     let names = Vec::new();
 
+    // Solutions are expanded before they are promoted.
     let mut promote = PromotionState { id, depth, names };
-    check(&mut promote, state, context, solution)
+    check_expanded(&mut promote, state, context, solution)
 }
 
 /// Unification on row types.
