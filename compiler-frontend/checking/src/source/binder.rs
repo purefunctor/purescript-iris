@@ -277,7 +277,7 @@ where
             };
 
             let mut constructor_t = toolkit::lookup_file_term(state, context, *file_id, *term_id)?;
-            let mut checked_arguments = Vec::new();
+            let mut checked_arguments = Vec::with_capacity(arguments.len());
 
             let inferred_type = if arguments.is_empty() {
                 constructor_t = toolkit::instantiate_unifications(state, context, constructor_t)?;
@@ -401,7 +401,7 @@ where
 
         lowering::BinderKind::Array { array } => {
             let element_type = state.fresh_unification(context.queries, context.prim.t);
-            let mut elements = Vec::new();
+            let mut elements = Vec::with_capacity(array.len());
 
             for binder in array.iter() {
                 let binder = infer_binder(state, context, *binder)?;

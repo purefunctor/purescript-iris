@@ -109,11 +109,11 @@ where
     let minimum_equation_arity =
         equations.iter().map(|equation| equation.binders.len()).min().unwrap_or(0);
     let result_type = state.fresh_unification(context.queries, context.prim.t);
-    let mut elaborated_equations = Vec::new();
+    let mut elaborated_equations = Vec::with_capacity(equations.len());
 
     for equation in equations {
-        let mut inferred_argument_types = Vec::new();
-        let mut elaborated_binders = Vec::new();
+        let mut inferred_argument_types = Vec::with_capacity(equation.binders.len());
+        let mut elaborated_binders = Vec::with_capacity(equation.binders.len());
         for &binder_id in equation.binders.iter() {
             let binder = binder::infer_binder(state, context, binder_id)?;
             inferred_argument_types.push(binder.type_id);
@@ -176,7 +176,7 @@ where
     Q: ExternalQueries,
 {
     let expected_arity = signature.arguments.len();
-    let mut elaborated_equations = Vec::new();
+    let mut elaborated_equations = Vec::with_capacity(equations.len());
 
     for equation in equations {
         let equation_arity = equation.binders.len();
@@ -192,7 +192,7 @@ where
             });
         }
 
-        let mut elaborated_binders = Vec::new();
+        let mut elaborated_binders = Vec::with_capacity(equation_arity);
         for (position, &binder_id) in equation.binders.iter().enumerate() {
             let binder = if let Some(&argument_type) = arguments.get(position) {
                 binder::check_argument_binder(state, context, binder_id, argument_type)?
