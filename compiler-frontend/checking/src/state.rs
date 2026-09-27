@@ -172,6 +172,8 @@ impl Bindings {
 struct ExpansionCache {
     recent: Box<[Option<(TypeId, TypeId)>]>,
     all: FxHashMap<TypeId, TypeId>,
+    /// A direct-mapped table of constructors recently found not to be synonyms.
+    constructors: Box<[Option<TypeId>]>,
 }
 
 impl ExpansionCache {
@@ -179,7 +181,8 @@ impl ExpansionCache {
 
     fn new() -> ExpansionCache {
         let recent = vec![None; 1 << ExpansionCache::RECENT_BITS].into_boxed_slice();
-        ExpansionCache { recent, all: FxHashMap::default() }
+        let constructors = vec![None; 1 << ExpansionCache::RECENT_BITS].into_boxed_slice();
+        ExpansionCache { recent, all: FxHashMap::default(), constructors }
     }
 
     #[inline]
@@ -206,9 +209,19 @@ impl ExpansionCache {
         self.all.insert(id, expanded);
     }
 
+    #[inline]
+    fn is_not_synonym(&self, constructor: TypeId) -> bool {
+        self.constructors[ExpansionCache::slot(constructor)] == Some(constructor)
+    }
+
+    fn insert_not_synonym(&mut self, constructor: TypeId) {
+        self.constructors[ExpansionCache::slot(constructor)] = Some(constructor);
+    }
+
     fn clear(&mut self) {
         self.recent.fill(None);
         self.all.clear();
+        self.constructors.fill(None);
     }
 }
 
@@ -328,6 +341,20 @@ impl CheckState {
         result: Option<Rc<InstanceInfo>>,
     ) {
         self.instance_info_cache.insert(key, result);
+    }
+
+    /// Whether a [`Type::Constructor`] was recently found not to be a synonym.
+    ///
+    /// Whether a constructor names a synonym only changes when a synonym of
+    /// the current module is checked, which [`CheckState::insert_synonym`]
+    /// invalidates.
+    #[inline]
+    pub(crate) fn is_known_not_synonym(&self, constructor: TypeId) -> bool {
+        self.expansion_cache.is_not_synonym(constructor)
+    }
+
+    pub(crate) fn insert_known_not_synonym(&mut self, constructor: TypeId) {
+        self.expansion_cache.insert_not_synonym(constructor);
     }
 
     /// Looks up or builds the [`SubstitutionTemplate`] for a type that

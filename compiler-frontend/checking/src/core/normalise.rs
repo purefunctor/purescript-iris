@@ -388,6 +388,7 @@ where
     // along the spine. Most application heads are not synonyms, in which case
     // the collected spine is discarded without further work.
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
+    let mut head_id = id;
     let mut head = t;
     safe_loop! {
         let (function, argument) = match *head {
@@ -401,15 +402,20 @@ where
         };
         arguments.push(argument);
         let (function_t, flags) = context.lookup_type_with_flags(function);
-        (_, head) = normalise_looked_up(state, context, function, function_t, flags);
+        (head_id, head) = normalise_looked_up(state, context, function, function_t, flags);
     }
 
     let Type::Constructor(file_id, type_id) = *head else {
         return Ok(id);
     };
 
+    if state.is_known_not_synonym(head_id) {
+        return Ok(id);
+    }
+
     let checked_synonym = toolkit::lookup_file_synonym(state, context, file_id, type_id)?;
     let Some(checked_synonym) = checked_synonym else {
+        state.insert_known_not_synonym(head_id);
         return Ok(id);
     };
 
