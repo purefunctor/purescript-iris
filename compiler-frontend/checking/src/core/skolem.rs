@@ -1,6 +1,7 @@
 //! Checks that each skolem introduced by an expected forall appears only in
 //! judgments structurally dominated by that forall's typed expression.
 
+use std::mem;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -57,6 +58,14 @@ where
     reported: FxHashSet<SkolemScope>,
     errors: Vec<CheckingError>,
     evidence_depth: u32,
+    // Reused across inspections to avoid reallocating their traversal state.
+    inspection: TypeInspection,
+}
+
+#[derive(Default)]
+struct TypeInspection {
+    pending: Vec<TypeId>,
+    visited: FxHashSet<TypeId>,
 }
 
 pub fn check<Q>(state: &mut CheckState, context: &CheckContext<Q>)
@@ -170,6 +179,7 @@ where
         reported,
         errors: Vec::new(),
         evidence_depth: 0,
+        inspection: TypeInspection::default(),
     }
 }
 
@@ -600,8 +610,8 @@ fn inspect_type<Q>(
         return;
     }
 
-    let mut pending = vec![annotation];
-    let mut visited = FxHashSet::default();
+    let TypeInspection { mut pending, mut visited } = mem::take(&mut checker.inspection);
+    pending.push(annotation);
 
     while let Some(type_id) = pending.pop() {
         if !has_rigid(type_id) || !visited.insert(type_id) {
@@ -648,6 +658,9 @@ fn inspect_type<Q>(
             | Type::Unknown(_) => {}
         }
     }
+
+    visited.clear();
+    checker.inspection = TypeInspection { pending, visited };
 }
 
 fn collect_errors<'c, Q>(
