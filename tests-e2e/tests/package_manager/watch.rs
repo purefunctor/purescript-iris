@@ -554,8 +554,12 @@ longPlain x _ _ _ _ _ _ _ _ _ _ = x
         "src/Main.purs",
         r#"module Main where
 
+import Shapes (size, size)
+
 main :: Int
 main = "oops"
+
+foreign import missing :: Int
 "#,
     );
     // An operator whose target does not resolve is left unchecked, and is still listed.

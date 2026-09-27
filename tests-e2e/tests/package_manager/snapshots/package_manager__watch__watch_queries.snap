@@ -107,7 +107,9 @@ $ iris watch query wait
 [0] Build has diagnostics; see `iris watch query diagnostics`.
 
 $ iris watch query diagnostics Main
-[0] src/Main.purs:4:8: error[CannotUnify]: Cannot unify 'String' with 'Int'
+[0] src/Main.purs:3:22: warning[DuplicateImport]: Import list contains multiple references to 'size'
+src/Main.purs:6:8: error[CannotUnify]: Cannot unify 'String' with 'Int'
+src/Main.purs:8:1: error[MissingFFIModule]: No JavaScript FFI module was found for foreign import 'missing'
 
 $ iris watch query javascript Main
 [1] the latest rebuild did not write output/ because some module has errors; see `iris watch query wait`

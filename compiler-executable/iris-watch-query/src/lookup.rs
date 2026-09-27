@@ -182,7 +182,12 @@ pub(crate) fn diagnostics(
     for collection in collections {
         let content = context.engine.content(collection.file_id)?;
         let path = display_path(context, collection.file_id);
-        for diagnostic in collection.diagnostics() {
+        let entries = collection
+            .checking_diagnostics()
+            .iter()
+            .chain(collection.foreign_diagnostics())
+            .chain(collection.backend_diagnostics());
+        for diagnostic in entries {
             let (line, column) = line_column(&content, diagnostic.span.start as usize);
             let severity = match diagnostic.severity {
                 Severity::Error => DiagnosticSeverity::Error,
