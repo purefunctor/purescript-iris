@@ -123,6 +123,7 @@ impl TypeFold for SubstituteName<'_> {
         flags.may_substitute()
     }
 
+    #[inline]
     fn transform<Q>(
         &mut self,
         _state: &mut CheckState,

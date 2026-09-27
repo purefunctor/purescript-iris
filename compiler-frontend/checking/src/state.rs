@@ -218,6 +218,7 @@ impl CheckState {
         result
     }
 
+    #[inline]
     pub(crate) fn lookup_zonk_cache(&self, id: TypeId) -> Option<TypeId> {
         self.zonk_cache.as_ref().and_then(|cache| cache.get(&id)).copied()
     }
@@ -233,6 +234,7 @@ impl CheckState {
     /// Only types without unification variables, whose expansions also have
     /// none, are memoised; their expansion depends solely on the synonyms in
     /// scope, which [`CheckState::insert_synonym`] invalidates.
+    #[inline]
     pub(crate) fn lookup_expansion_cache(&self, id: TypeId) -> Option<TypeId> {
         self.expansion_cache.get(&id).copied()
     }

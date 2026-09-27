@@ -23,6 +23,7 @@ impl TypeFold for Zonk {
         flags.may_zonk()
     }
 
+    #[inline]
     fn transform<Q>(
         &mut self,
         state: &mut CheckState,
@@ -37,6 +38,7 @@ impl TypeFold for Zonk {
         Ok(cached.map_or(FoldAction::Continue, FoldAction::Replace))
     }
 
+    #[inline]
     fn complete<Q>(
         &mut self,
         state: &mut CheckState,
