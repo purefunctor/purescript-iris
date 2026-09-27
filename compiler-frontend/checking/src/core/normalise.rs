@@ -192,14 +192,14 @@ where
     // Unification variables may be solved between calls, so only expansions
     // that neither start from nor lead to one are stable enough to memoise.
     if flags.has_unification() {
-        return expand_uncached(state, context, id);
+        return expand_uncached(state, context, id, t, flags);
     }
 
     if let Some(expanded) = state.lookup_expansion_cache(id) {
         return Ok(expanded);
     }
 
-    let expanded = expand_uncached(state, context, id)?;
+    let expanded = expand_uncached(state, context, id, t, flags)?;
     if !context.lookup_type_flags(expanded).has_unification() {
         state.insert_expansion_cache(id, expanded);
     }
@@ -207,32 +207,34 @@ where
     Ok(expanded)
 }
 
-fn expand_uncached<Q>(
+fn expand_uncached<'q, Q>(
     state: &mut CheckState,
-    context: &CheckContext<Q>,
-    mut id: TypeId,
+    context: &CheckContext<'q, Q>,
+    id: TypeId,
+    t: &'q Type,
+    flags: TypeFlags,
 ) -> QueryResult<TypeId>
 where
     Q: ExternalQueries,
 {
     // Keeping the reduction head normalised avoids repeating the same
     // unification pruning while discovering synonym application spines.
-    id = normalise(state, context, id);
+    let (mut id, mut t) = normalise_looked_up(state, context, id, t, flags);
 
     safe_loop! {
-        let t = context.lookup_type(id);
         if !may_expand(t) {
             return Ok(id);
         }
         let expanded = if let Type::Row(_) = t {
             expand_row_tail(state, context, id)?
         } else {
-            expand_synonym(state, context, id)?
+            expand_synonym(state, context, id, t)?
         };
         if expanded == id {
             return Ok(id);
         }
-        id = normalise(state, context, expanded);
+        let (expanded_t, flags) = context.lookup_type_with_flags(expanded);
+        (id, t) = normalise_looked_up(state, context, expanded, expanded_t, flags);
     }
 }
 
@@ -329,10 +331,11 @@ where
 ///
 /// The `Identity Array` and `Identity Tuple` will be expanded to reveal
 /// `Array` and `Tuple` which are applied to their respective arguments.
-fn expand_synonym<Q>(
+fn expand_synonym<'q, Q>(
     state: &mut CheckState,
-    context: &CheckContext<Q>,
+    context: &CheckContext<'q, Q>,
     id: TypeId,
+    t: &'q Type,
 ) -> QueryResult<TypeId>
 where
     Q: ExternalQueries,
@@ -341,24 +344,24 @@ where
     // along the spine. Most application heads are not synonyms, in which case
     // the collected spine is discarded without further work.
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
-    let mut current = id;
+    let mut head = t;
     safe_loop! {
-        match *context.lookup_type(current) {
+        let (function, argument) = match *head {
             Type::Application(function, argument) => {
-                arguments.push(ApplicationArgument::Type(argument));
-                current = normalise(state, context, function);
+                (function, ApplicationArgument::Type(argument))
             }
             Type::KindApplication(function, argument) => {
-                arguments.push(ApplicationArgument::Kind(argument));
-                current = normalise(state, context, function);
+                (function, ApplicationArgument::Kind(argument))
             }
             _ => break,
-        }
+        };
+        arguments.push(argument);
+        let (function_t, flags) = context.lookup_type_with_flags(function);
+        (_, head) = normalise_looked_up(state, context, function, function_t, flags);
     }
 
-    let (file_id, type_id) = match *context.lookup_type(current) {
-        Type::Constructor(file_id, type_id) => (file_id, type_id),
-        _ => return Ok(id),
+    let Type::Constructor(file_id, type_id) = *head else {
+        return Ok(id);
     };
 
     let checked_synonym = toolkit::lookup_file_synonym(state, context, file_id, type_id)?;
