@@ -50,7 +50,16 @@ fn check_kind_core<Q>(
 where
     Q: ExternalQueries,
 {
-    let (inferred_type, inferred_kind) = infer_kind(state, context, source_type)?;
+    // The kind recorded by check_kind supersedes the inferred kind, and
+    // nothing reads the recorded kind in between, so it is recorded once.
+    let (inferred_type, inferred_kind) = infer_kind_unrecorded(state, context, source_type)?;
+
+    // An inferred kind identical to the expected kind is its own subtype and
+    // has no foralls left to instantiate against a monomorphic expectation.
+    if inferred_kind == expected_kind {
+        return Ok((inferred_type, inferred_kind));
+    }
+
     let (inferred_type, inferred_kind) =
         instantiate_kind_applications(state, context, inferred_type, inferred_kind, expected_kind)?;
 
@@ -66,10 +75,21 @@ pub fn infer_kind<Q>(
 where
     Q: ExternalQueries,
 {
+    let (inferred_type, inferred_kind) = infer_kind_unrecorded(state, context, source_type)?;
+    state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
+    Ok((inferred_type, inferred_kind))
+}
+
+fn infer_kind_unrecorded<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    source_type: lowering::TypeId,
+) -> QueryResult<(TypeId, TypeId)>
+where
+    Q: ExternalQueries,
+{
     state.with_error_crumb(ErrorCrumb::InferringKind(source_type), |state| {
-        let (inferred_type, inferred_kind) = infer_kind_core(state, context, source_type)?;
-        state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
-        Ok((inferred_type, inferred_kind))
+        infer_kind_core(state, context, source_type)
     })
 }
 
