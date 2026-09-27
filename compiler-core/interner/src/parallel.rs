@@ -173,6 +173,17 @@ where
         None
     }
 
+    /// Returns both the value and metadata of `id` from a single arena lookup.
+    pub fn value_with_metadata(&self, Id { id, .. }: Id<T>) -> (&T, M) {
+        let index = id.get() - 1;
+        let index = index as usize;
+        if let Some((value, metadata)) = self.arena.get(index) {
+            (value, *metadata)
+        } else {
+            unreachable!("invariant violated: {} is not a valid index", id)
+        }
+    }
+
     pub fn metadata(&self, Id { id, .. }: Id<T>) -> M {
         let index = id.get() - 1;
         let index = index as usize;

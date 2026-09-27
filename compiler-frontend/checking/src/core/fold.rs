@@ -50,22 +50,23 @@ where
     Q: ExternalQueries,
     F: TypeFold,
 {
-    if !folder.may_change(context.lookup_type_flags(id)) {
+    let (t, flags) = context.lookup_type_with_flags(id);
+    if !folder.may_change(flags) {
         return Ok(id);
     }
 
-    let mut id = normalise::normalise(state, context, id);
+    let (mut id, mut t) = normalise::normalise_looked_up(state, context, id, t, flags);
 
     let t = safe_loop! {
-        let t = context.lookup_type(id);
         match folder.transform(state, context, id, t)? {
             FoldAction::Replace(id) => return Ok(id),
             FoldAction::ReplaceThen(then_id) => {
                 let then_id = normalise::normalise(state, context, then_id);
                 if then_id == id {
-                    break context.lookup_type(id);
+                    break t;
                 }
                 id = then_id;
+                t = context.lookup_type(id);
                 continue;
             }
             FoldAction::Continue => {

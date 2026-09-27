@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
-use crate::core::{ApplicationArgument, Type, TypeId, toolkit};
+use crate::core::{ApplicationArgument, Type, TypeFlags, TypeId, toolkit};
 use crate::state::{CheckState, UnificationState};
 use crate::{ExternalQueries, safe_loop};
 
@@ -105,6 +105,28 @@ where
     normalise_head(state, context, id)
 }
 
+/// Normalises a [`Type`] head that was already looked up with its flags.
+///
+/// Traversals inspect [`TypeFlags`] before normalising, so this reuses that
+/// lookup and only looks up the [`Type`] again when normalisation changed it.
+#[inline]
+pub fn normalise_looked_up<'q, Q>(
+    state: &mut CheckState,
+    context: &CheckContext<'q, Q>,
+    id: TypeId,
+    t: &'q Type,
+    flags: TypeFlags,
+) -> (TypeId, &'q Type)
+where
+    Q: ExternalQueries,
+{
+    if !flags.may_normalise() {
+        return (id, t);
+    }
+    let normalised = normalise_head(state, context, id);
+    if normalised == id { (id, t) } else { (normalised, context.lookup_type(normalised)) }
+}
+
 // Most types cannot normalise, so keeping the reduction loop out of line lets
 // callers inline the flag check without carrying the loop's stack frame.
 #[inline(never)]
@@ -148,14 +170,14 @@ where
 {
     // Normalisation only rewrites unification variable and row heads, so any
     // other head that cannot expand is already final without memoisation.
-    let t = context.lookup_type(id);
+    let (t, flags) = context.lookup_type_with_flags(id);
     if !matches!(t, Type::Unification(_)) && !may_expand(t) {
         return Ok(id);
     }
 
     // Unification variables may be solved between calls, so only expansions
     // that neither start from nor lead to one are stable enough to memoise.
-    if context.lookup_type_flags(id).has_unification() {
+    if flags.has_unification() {
         return expand_uncached(state, context, id);
     }
 

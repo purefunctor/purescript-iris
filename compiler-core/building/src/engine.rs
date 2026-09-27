@@ -1412,6 +1412,14 @@ impl checking::ExternalQueries for QueryEngine {
         self.interned.checking.lookup_type_flags(id)
     }
 
+    #[inline]
+    fn lookup_type_with_flags(
+        &self,
+        id: checking::TypeId,
+    ) -> (&checking::Type, checking::core::TypeFlags) {
+        self.interned.checking.lookup_type_with_flags(id)
+    }
+
     fn intern_forall_binder(
         &self,
         binder: checking::core::ForallBinder,

@@ -67,12 +67,12 @@ where
         };
     }
 
-    if !walker.may_visit(context.lookup_type_flags(id)) {
+    let (t, flags) = context.lookup_type_with_flags(id);
+    if !walker.may_visit(flags) {
         return Ok(ControlFlow::Continue(()));
     }
 
-    let id = normalise::normalise(state, context, id);
-    let t = context.lookup_type(id);
+    let (id, t) = normalise::normalise_looked_up(state, context, id, t, flags);
 
     if let WalkAction::Break = walker.visit(state, context, id, t)? {
         return Ok(ControlFlow::Break(()));

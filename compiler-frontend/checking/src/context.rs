@@ -336,6 +336,12 @@ where
         self.queries.lookup_type_flags(id)
     }
 
+    /// Looks up the [`Type`] and [`TypeFlags`] for the given [`TypeId`]
+    /// together, which is cheaper than looking them up separately.
+    pub fn lookup_type_with_flags(&self, id: TypeId) -> (&'q Type, TypeFlags) {
+        self.queries.lookup_type_with_flags(id)
+    }
+
     /// Looks up the [`ForallBinder`] for the given [`ForallBinderId`].
     pub fn lookup_forall_binder(&self, id: ForallBinderId) -> ForallBinder {
         self.queries.lookup_forall_binder(id)

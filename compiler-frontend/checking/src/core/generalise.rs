@@ -54,12 +54,12 @@ where
     where
         Q: ExternalQueries,
     {
-        if !context.lookup_type_flags(id).has_unification() {
+        let (t, flags) = context.lookup_type_with_flags(id);
+        if !flags.has_unification() {
             return Ok(());
         }
 
-        let id = normalise::normalise(state, context, id);
-        let t = context.lookup_type(id);
+        let (_, t) = normalise::normalise_looked_up(state, context, id, t, flags);
 
         match *t {
             Type::Application(function, argument) | Type::KindApplication(function, argument) => {

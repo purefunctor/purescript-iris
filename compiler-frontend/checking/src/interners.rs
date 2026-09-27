@@ -26,6 +26,11 @@ impl CoreInterners {
         self.types.metadata(id)
     }
 
+    #[inline]
+    pub fn lookup_type_with_flags(&self, id: TypeId) -> (&Type, TypeFlags) {
+        self.types.value_with_metadata(id)
+    }
+
     fn type_flags(&self, t: &Type) -> TypeFlags {
         let transitive = |id: TypeId| self.types.metadata(id).transitive();
         let bits = match *t {
