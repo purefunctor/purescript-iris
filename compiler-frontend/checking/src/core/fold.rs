@@ -40,7 +40,7 @@ pub trait TypeFold {
     }
 }
 
-#[inline]
+#[inline(always)]
 pub fn fold_type<Q, F>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
