@@ -66,6 +66,12 @@ where
 struct TypeInspection {
     pending: Vec<TypeId>,
     visited: FxHashSet<TypeId>,
+    /// Inspected types without a rigid variable from an expected skolem scope.
+    ///
+    /// Inspecting such a type cannot report an error whichever scopes are
+    /// active, and the expected scopes are fixed while auditing, so it is
+    /// not inspected again.
+    unscoped: FxHashSet<TypeId>,
 }
 
 pub fn check<Q>(state: &mut CheckState, context: &CheckContext<Q>)
@@ -602,16 +608,24 @@ fn inspect_type<Q>(
 ) where
     Q: ExternalQueries,
 {
+    // Discovery marks every scope it finds as reported and discards errors,
+    // so inspecting types while discovering could never report anything.
+    if checker.discovering {
+        return;
+    }
+
     // Unification variables are not looked through, so types without rigid
     // variables cannot contain an escaped skolem.
     let has_rigid = |type_id| checker.context.lookup_type_flags(type_id).has_rigid();
 
-    if !has_rigid(annotation) {
+    if !has_rigid(annotation) || checker.inspection.unscoped.contains(&annotation) {
         return;
     }
 
-    let TypeInspection { mut pending, mut visited } = mem::take(&mut checker.inspection);
+    let TypeInspection { mut pending, mut visited, mut unscoped } =
+        mem::take(&mut checker.inspection);
     pending.push(annotation);
+    let mut scoped = false;
 
     while let Some(type_id) = pending.pop() {
         if !has_rigid(type_id) || !visited.insert(type_id) {
@@ -641,12 +655,13 @@ fn inspect_type<Q>(
             Type::Rigid(name, _, kind) => {
                 if let Some(scope) = name.scope
                     && checker.expected_skolems.contains(&scope)
-                    && !checker.active.contains_key(&scope)
-                    && checker.reported.insert(scope)
                 {
-                    let skolem = type_id;
-                    let kind = ErrorKind::EscapedSkolem { skolem, type_id: annotation };
-                    checker.errors.push(CheckingError { kind, crumbs: Arc::from([crumb]) });
+                    scoped = true;
+                    if !checker.active.contains_key(&scope) && checker.reported.insert(scope) {
+                        let skolem = type_id;
+                        let kind = ErrorKind::EscapedSkolem { skolem, type_id: annotation };
+                        checker.errors.push(CheckingError { kind, crumbs: Arc::from([crumb]) });
+                    }
                 }
                 pending.push(kind);
             }
@@ -659,8 +674,12 @@ fn inspect_type<Q>(
         }
     }
 
+    if !scoped {
+        unscoped.insert(annotation);
+    }
+
     visited.clear();
-    checker.inspection = TypeInspection { pending, visited };
+    checker.inspection = TypeInspection { pending, visited, unscoped };
 }
 
 fn collect_errors<'c, Q>(
