@@ -665,6 +665,14 @@ package:
     assert_eq!(String::from_utf8_lossy(&from_query_flags.stdout), "Build succeeded.\n");
     let default_output = workspace.command(&["watch", "query", "wait"]);
     assert_eq!(default_output.status.code(), Some(4));
+
+    workspace.write("spago.yaml", "workspace: [\n");
+    let absolute_output = workspace.path().join("generated");
+    for output in ["../generated", absolute_output.to_str().unwrap()] {
+        let answer = workspace.command_in("src", &["watch", "query", "--output", output, "wait"]);
+        assert_eq!(answer.status.code(), Some(0), "{answer:?}");
+        assert_eq!(String::from_utf8_lossy(&answer.stdout), "Build succeeded.\n");
+    }
 }
 
 /// Runs `iris watch query` and records the command, its exit status, and its output.

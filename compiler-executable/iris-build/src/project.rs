@@ -282,6 +282,9 @@ fn prepare_project_inner(config: ProjectConfig) -> Result<PreparedProject, Proje
 
 fn resolve_output_inner(output: Option<&Path>) -> Result<PathBuf, ProjectFailure> {
     let current_directory = env::current_dir().map_err(ProjectFailure::CurrentDirectory)?;
+    if output.is_some() {
+        return project_output(&current_directory, output);
+    }
     let workspace = Workspace::discover(&current_directory, None)?;
     project_output(&workspace.root, output)
 }
