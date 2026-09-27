@@ -755,7 +755,7 @@ where
         };
         let synonym = zonk::zonk(state, context, synonym)?;
         let synonym = CheckedSynonym { kind, parameters, expansion: synonym };
-        state.checked.synonyms.insert(item_id, synonym);
+        state.insert_synonym(item_id, synonym);
     }
     Ok(())
 }

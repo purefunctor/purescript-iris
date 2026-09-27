@@ -137,6 +137,32 @@ where
 pub fn expand<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
+    // Unification variables may be solved between calls, so only expansions
+    // that neither start from nor lead to one are stable enough to memoise.
+    if context.lookup_type_flags(id).has_unification() {
+        return expand_uncached(state, context, id);
+    }
+
+    if let Some(expanded) = state.lookup_expansion_cache(id) {
+        return Ok(expanded);
+    }
+
+    let expanded = expand_uncached(state, context, id)?;
+    if !context.lookup_type_flags(expanded).has_unification() {
+        state.insert_expansion_cache(id, expanded);
+    }
+
+    Ok(expanded)
+}
+
+fn expand_uncached<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
     mut id: TypeId,
 ) -> QueryResult<TypeId>
 where

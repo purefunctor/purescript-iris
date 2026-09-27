@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use building_types::QueryResult;
 use files::FileId;
+use indexing::TypeItemId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
@@ -14,7 +15,7 @@ use crate::core::exhaustive::{
     ExhaustivenessReport, Pattern, PatternConstructor, PatternId, PatternInterner, PatternKind,
 };
 use crate::core::substitute::RigidRenaming;
-use crate::core::{Depth, Name, SkolemScope, SmolStrId, Type, TypeId, constraint};
+use crate::core::{CheckedSynonym, Depth, Name, SkolemScope, SmolStrId, Type, TypeId, constraint};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{EvidenceBinderId, EvidenceVarId};
 use crate::implication::{GivenConstraint, Implications, Patterns, WantedConstraint};
@@ -168,6 +169,7 @@ pub struct CheckState {
     pub patterns: PatternInterner,
 
     zonk_cache: Option<FxHashMap<TypeId, TypeId>>,
+    expansion_cache: FxHashMap<TypeId, TypeId>,
     pub(crate) judgments: FxHashSet<tree::ExpressionId>,
 
     pub unifications: Unifications,
@@ -189,6 +191,7 @@ impl CheckState {
             bindings: Default::default(),
             patterns: Default::default(),
             zonk_cache: None,
+            expansion_cache: Default::default(),
             judgments: Default::default(),
             unifications: Default::default(),
             implications: Default::default(),
@@ -223,6 +226,28 @@ impl CheckState {
         if let Some(cache) = &mut self.zonk_cache {
             cache.insert(id, result);
         }
+    }
+
+    /// Looks up a memoised synonym expansion.
+    ///
+    /// Only types without unification variables, whose expansions also have
+    /// none, are memoised; their expansion depends solely on the synonyms in
+    /// scope, which [`CheckState::insert_synonym`] invalidates.
+    pub(crate) fn lookup_expansion_cache(&self, id: TypeId) -> Option<TypeId> {
+        self.expansion_cache.get(&id).copied()
+    }
+
+    pub(crate) fn insert_expansion_cache(&mut self, id: TypeId, result: TypeId) {
+        self.expansion_cache.insert(id, result);
+    }
+
+    /// Records a checked synonym declared in the current module.
+    ///
+    /// Types referencing the synonym may have been memoised as unexpandable
+    /// before it was checked, so memoised expansions are discarded.
+    pub(crate) fn insert_synonym(&mut self, item_id: TypeItemId, synonym: CheckedSynonym) {
+        self.checked.synonyms.insert(item_id, synonym);
+        self.expansion_cache.clear();
     }
 
     pub fn with_depth<T>(&mut self, f: impl FnOnce(&mut CheckState) -> T) -> T {
