@@ -88,13 +88,7 @@ pub struct InstanceChains {
 
 impl InstanceChains {
     fn new(mut candidates: Vec<InstanceCandidate>, blocking: Vec<u32>) -> InstanceChains {
-        candidates.sort_by_key(|candidate| {
-            (
-                candidate.chain,
-                candidate.position,
-                candidate.chain.is_none().then_some(candidate.instance.signature),
-            )
-        });
+        sort_candidates(&mut candidates);
         InstanceChains { candidates, blocking }
     }
 
@@ -291,6 +285,17 @@ where
     Ok(arguments.as_deref())
 }
 
+/// Orders candidates so that each instance chain is contiguous and in declaration order.
+fn sort_candidates(candidates: &mut [InstanceCandidate]) {
+    candidates.sort_by_key(|candidate| {
+        (
+            candidate.chain,
+            candidate.position,
+            candidate.chain.is_none().then_some(candidate.instance.signature),
+        )
+    });
+}
+
 /// Collects [`InstanceCandidate`]s for a given constraint.
 pub fn collect_instance_chains<Q>(
     state: &mut CheckState,
@@ -343,6 +348,9 @@ where
                 constraint.file_id,
                 constraint.type_id,
             );
+            // The stable sort in [`InstanceChains::new`] merges presorted runs
+            // cheaply, and sorting each run first cannot change its result.
+            sort_candidates(&mut candidates);
             instances.extend_from_slice(&candidates);
             context.dependency_instance_candidates.borrow_mut().insert(key, candidates);
         }
