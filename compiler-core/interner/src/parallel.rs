@@ -132,24 +132,25 @@ where
     }
 
     /// Returns both the value and metadata of `id` from a single arena lookup.
-    pub fn value_with_metadata(&self, Id { id, .. }: Id<T>) -> (&T, M) {
-        let index = id.get() - 1;
-        let index = index as usize;
-        if let Some((value, metadata)) = self.arena.get(index) {
-            (value, *metadata)
-        } else {
-            unreachable!("invariant violated: {} is not a valid index", id)
-        }
+    #[inline]
+    pub fn value_with_metadata(&self, id: Id<T>) -> (&T, M) {
+        let (value, metadata) = self.entry(id);
+        (value, *metadata)
     }
 
-    pub fn metadata(&self, Id { id, .. }: Id<T>) -> M {
+    #[inline]
+    pub fn metadata(&self, id: Id<T>) -> M {
+        let (_, metadata) = self.entry(id);
+        *metadata
+    }
+
+    #[inline]
+    fn entry(&self, Id { id, .. }: Id<T>) -> &(T, M) {
         let index = id.get() - 1;
-        let index = index as usize;
-        if let Some((_, metadata)) = self.arena.get(index) {
-            *metadata
-        } else {
-            unreachable!("invariant violated: {} is not a valid index", id)
-        }
+        let Some(entry) = self.arena.get(index as usize) else {
+            invalid_id(id);
+        };
+        entry
     }
 }
 
@@ -297,15 +298,18 @@ where
 {
     type Output = T;
 
-    fn index(&self, Id { id, .. }: Id<T>) -> &T {
-        let index = id.get() - 1;
-        let index = index as usize;
-        if let Some((value, _)) = self.arena.get(index) {
-            value
-        } else {
-            unreachable!("invariant violated: {} is not a valid index", id)
-        }
+    #[inline]
+    fn index(&self, id: Id<T>) -> &T {
+        let (value, _) = self.entry(id);
+        value
     }
+}
+
+// Keeping the panic out of line keeps it from bloating every inlined lookup.
+#[cold]
+#[inline(never)]
+fn invalid_id(id: NonZeroU32) -> ! {
+    unreachable!("invariant violated: {id} is not a valid index");
 }
 
 fn shard_index(hash: u64) -> usize {
