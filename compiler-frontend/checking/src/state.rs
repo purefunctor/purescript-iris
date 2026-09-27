@@ -1,6 +1,7 @@
 //! Implements the algorithm's core state structures.
 
 use std::collections::hash_map::Entry;
+use std::hash::BuildHasher;
 use std::mem;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -8,7 +9,7 @@ use std::sync::Arc;
 use building_types::QueryResult;
 use files::FileId;
 use indexing::TypeItemId;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::constraint::instances::InstanceInfoKey;
@@ -163,6 +164,54 @@ impl Bindings {
     }
 }
 
+/// Memoised synonym expansions, see [`CheckState::lookup_expansion_cache`].
+///
+/// The same few types are expanded over and over while checking, so a small
+/// direct-mapped table of recent expansions answers most lookups without
+/// probing the map of every memoised expansion.
+struct ExpansionCache {
+    recent: Box<[Option<(TypeId, TypeId)>]>,
+    all: FxHashMap<TypeId, TypeId>,
+}
+
+impl ExpansionCache {
+    const RECENT_BITS: u32 = 10;
+
+    fn new() -> ExpansionCache {
+        let recent = vec![None; 1 << ExpansionCache::RECENT_BITS].into_boxed_slice();
+        ExpansionCache { recent, all: FxHashMap::default() }
+    }
+
+    #[inline]
+    fn slot(id: TypeId) -> usize {
+        let hash = FxBuildHasher.hash_one(id);
+        (hash >> (u64::BITS - ExpansionCache::RECENT_BITS)) as usize
+    }
+
+    #[inline]
+    fn lookup(&mut self, id: TypeId) -> Option<TypeId> {
+        let slot = ExpansionCache::slot(id);
+        if let Some((recent, expanded)) = self.recent[slot]
+            && recent == id
+        {
+            return Some(expanded);
+        }
+        let expanded = *self.all.get(&id)?;
+        self.recent[slot] = Some((id, expanded));
+        Some(expanded)
+    }
+
+    fn insert(&mut self, id: TypeId, expanded: TypeId) {
+        self.recent[ExpansionCache::slot(id)] = Some((id, expanded));
+        self.all.insert(id, expanded);
+    }
+
+    fn clear(&mut self) {
+        self.recent.fill(None);
+        self.all.clear();
+    }
+}
+
 /// The core state structure threaded through the algorithm.
 pub struct CheckState {
     pub checked: CheckedModule,
@@ -172,9 +221,9 @@ pub struct CheckState {
     pub patterns: PatternInterner,
 
     zonk_cache: Option<FxHashMap<TypeId, TypeId>>,
-    expansion_cache: FxHashMap<TypeId, TypeId>,
     instance_info_cache: FxHashMap<InstanceInfoKey, Option<Rc<InstanceInfo>>>,
     kind_cache: Option<FxHashMap<TypeId, TypeId>>,
+    expansion_cache: ExpansionCache,
     substitution_templates: FxHashMap<TypeId, SubstitutionTemplateEntry>,
     pub(crate) judgments: FxHashSet<tree::ExpressionId>,
 
@@ -197,9 +246,9 @@ impl CheckState {
             bindings: Default::default(),
             patterns: Default::default(),
             zonk_cache: None,
-            expansion_cache: Default::default(),
             instance_info_cache: Default::default(),
             kind_cache: None,
+            expansion_cache: ExpansionCache::new(),
             substitution_templates: Default::default(),
             judgments: Default::default(),
             unifications: Default::default(),
@@ -252,8 +301,8 @@ impl CheckState {
     /// none, are memoised; their expansion depends solely on the synonyms in
     /// scope, which [`CheckState::insert_synonym`] invalidates.
     #[inline]
-    pub(crate) fn lookup_expansion_cache(&self, id: TypeId) -> Option<TypeId> {
-        self.expansion_cache.get(&id).copied()
+    pub(crate) fn lookup_expansion_cache(&mut self, id: TypeId) -> Option<TypeId> {
+        self.expansion_cache.lookup(id)
     }
 
     pub(crate) fn insert_expansion_cache(&mut self, id: TypeId, result: TypeId) {
