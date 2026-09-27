@@ -178,6 +178,7 @@ where
 /// This function also applies normalisation using [`normalise`],
 /// and should be used in checking rules where synonyms must be
 /// transparent and inspected.
+#[inline]
 pub fn expand<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -192,7 +193,22 @@ where
     if !matches!(t, Type::Unification(_)) && !may_expand(t) {
         return Ok(id);
     }
+    expand_looked_up(state, context, id, t, flags)
+}
 
+// Many expanded types have heads that cannot expand, so keeping the rest out
+// of line lets callers inline that check without paying for a call.
+#[inline(never)]
+fn expand_looked_up<'q, Q>(
+    state: &mut CheckState,
+    context: &CheckContext<'q, Q>,
+    id: TypeId,
+    t: &'q Type,
+    flags: TypeFlags,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
     // Unification variables may be solved between calls, so only expansions
     // that neither start from nor lead to one are stable enough to memoise.
     if flags.has_unification() {
