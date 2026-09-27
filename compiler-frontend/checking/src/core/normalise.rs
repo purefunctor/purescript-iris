@@ -146,6 +146,13 @@ pub fn expand<Q>(
 where
     Q: ExternalQueries,
 {
+    // Normalisation only rewrites unification variable and row heads, so any
+    // other head that cannot expand is already final without memoisation.
+    let t = context.lookup_type(id);
+    if !matches!(t, Type::Unification(_)) && !may_expand(t) {
+        return Ok(id);
+    }
+
     // Unification variables may be solved between calls, so only expansions
     // that neither start from nor lead to one are stable enough to memoise.
     if context.lookup_type_flags(id).has_unification() {
@@ -177,18 +184,32 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
-        let expanded = expand_synonym(state, context, id)?;
-        if expanded != id {
-            id = normalise(state, context, expanded);
-            continue;
+        let t = context.lookup_type(id);
+        if !may_expand(t) {
+            return Ok(id);
         }
-
-        let expanded = expand_row_tail(state, context, id)?;
+        let expanded = if let Type::Row(_) = t {
+            expand_row_tail(state, context, id)?
+        } else {
+            expand_synonym(state, context, id)?
+        };
         if expanded == id {
             return Ok(id);
         }
         id = normalise(state, context, expanded);
     }
+}
+
+/// Whether [`expand`] may rewrite a normalised type with this head.
+///
+/// Synonyms are only reachable through a constructor, possibly applied, and
+/// rows may have tails that expand into further rows; every other head, such
+/// as an unsolved unification variable, is final.
+fn may_expand(t: &Type) -> bool {
+    matches!(
+        t,
+        Type::Application(..) | Type::KindApplication(..) | Type::Constructor(..) | Type::Row(_)
+    )
 }
 
 fn expand_row_tail<Q>(
