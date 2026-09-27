@@ -122,8 +122,12 @@ where
         }
     };
 
+    // Most chains are a single solved unification that already points at the
+    // normal form; only longer chains benefit from rewriting their solutions.
     for unification_id in reduction.compression {
-        state.unifications.solve(unification_id, id);
+        if state.unifications.get(unification_id).state != UnificationState::Solved(id) {
+            state.unifications.solve(unification_id, id);
+        }
     }
 
     id
