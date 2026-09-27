@@ -103,8 +103,8 @@ impl LocalDeclaration {
         equation_source: lowering::LetBindingEquationId,
         guarded_expression: GuardedExpression,
     ) -> LocalDeclaration {
-        let equation = Equation::local(equation_source, [].into(), guarded_expression);
-        LocalDeclaration::new(source, type_id, [].into(), [equation].into())
+        let equation = Equation::local(equation_source, Arc::default(), guarded_expression);
+        LocalDeclaration::new(source, type_id, Arc::default(), [equation].into())
     }
 }
 
@@ -293,7 +293,8 @@ pub enum LetBindingChunk {
 
 impl GuardedExpression {
     pub fn unconditional(where_expression: WhereExpression) -> GuardedExpression {
-        let alternative = GuardedAlternative { pattern_guards: Arc::from([]), where_expression };
+        // The default empty slice shares a static allocation.
+        let alternative = GuardedAlternative { pattern_guards: Arc::default(), where_expression };
         GuardedExpression { alternatives: Arc::from([alternative]) }
     }
 }
