@@ -72,18 +72,30 @@ impl Canonicals {
         constraint
     }
 
-    pub fn associate(
+    /// Looks up the memoised canonical form of a constraint type.
+    ///
+    /// Only constraint types without unification variables are memoised; their
+    /// canonical form depends solely on the synonyms in scope, which
+    /// [`CheckState::insert_synonym`] invalidates through [`Canonicals::clear_cache`].
+    ///
+    /// [`CheckState::insert_synonym`]: crate::state::CheckState::insert_synonym
+    fn lookup(&self, constraint: TypeId) -> Option<CanonicalConstraintId> {
+        self.cache.get(&constraint).copied()
+    }
+
+    fn associate(
         &mut self,
         constraint: TypeId,
         canonical: CanonicalConstraint,
     ) -> CanonicalConstraintId {
         let id = self.intern(canonical);
-        self.cache.insert(constraint, id);
-        // TODO: This check was disabled as it does not consider normalisation.
-        // A future version of this check must ensure that normalisation is
-        // taken into account before checking that the cache is not overwritten.
-        // debug_assert!(previous.is_none(), "critical violation: canonical cache overwrite");
+        let previous = self.cache.insert(constraint, id);
+        debug_assert!(previous.is_none(), "critical violation: canonical cache overwrite");
         id
+    }
+
+    pub(crate) fn clear_cache(&mut self) {
+        self.cache.clear();
     }
 }
 
@@ -104,6 +116,13 @@ pub fn canonicalise<Q>(
 where
     Q: ExternalQueries,
 {
+    // Canonicalisation looks through solved unification variables, so only
+    // constraint types without any have a canonical form stable enough to memoise.
+    let is_stable = !context.lookup_type_flags(id).has_unification();
+    if is_stable && let Some(canonical_id) = state.canonicals.lookup(id) {
+        return Ok(Some(canonical_id));
+    }
+
     let (class, arguments) = toolkit::extract_all_applications(state, context, id)?;
 
     let class = normalise::expand(state, context, class)?;
@@ -114,7 +133,11 @@ where
 
     let arguments = Rc::from(arguments.as_slice()); // TODO: extract_all_applications
     let canonical = CanonicalConstraint { file_id, type_id, arguments };
-    let canonical_id = state.canonicals.associate(id, canonical);
+    let canonical_id = if is_stable {
+        state.canonicals.associate(id, canonical)
+    } else {
+        state.canonicals.intern(canonical)
+    };
 
     Ok(Some(canonical_id))
 }

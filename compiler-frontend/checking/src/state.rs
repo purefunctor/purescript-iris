@@ -271,11 +271,13 @@ impl CheckState {
     /// Records a checked synonym declared in the current module.
     ///
     /// Types referencing the synonym may have been memoised as unexpandable
-    /// before it was checked, so memoised expansions are discarded.
+    /// before it was checked, so memoised expansions, instance signature
+    /// decompositions, and canonical constraints are discarded.
     pub(crate) fn insert_synonym(&mut self, item_id: TypeItemId, synonym: CheckedSynonym) {
         self.checked.synonyms.insert(item_id, synonym);
         self.expansion_cache.clear();
         self.instance_info_cache.clear();
+        self.canonicals.clear_cache();
     }
 
     pub fn with_depth<T>(&mut self, f: impl FnOnce(&mut CheckState) -> T) -> T {
