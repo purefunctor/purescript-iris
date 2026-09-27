@@ -133,7 +133,7 @@ where
 pub(crate) fn normalise_head<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    mut id: TypeId,
+    id: TypeId,
 ) -> TypeId
 where
     Q: ExternalQueries,
@@ -152,6 +152,16 @@ where
         }
     }
 
+    reduce_head(state, context, id)
+}
+
+// Chains of solutions and nested rows are rare, so keeping their reduction
+// loop separate keeps the common case above free of its stack frame.
+#[inline(never)]
+fn reduce_head<Q>(state: &mut CheckState, context: &CheckContext<Q>, mut id: TypeId) -> TypeId
+where
+    Q: ExternalQueries,
+{
     let mut reduction = ReductionContext::new(state, context);
 
     let id = safe_loop! {
