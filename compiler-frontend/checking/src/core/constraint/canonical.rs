@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
-use crate::core::{ApplicationArgument, Type, TypeId, normalise, toolkit, zonk};
+use crate::core::{ApplicationArgument, Type, TypeId, toolkit, zonk};
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
@@ -123,9 +123,8 @@ where
         return Ok(Some(canonical_id));
     }
 
+    // The head is already expanded by extracting the applications.
     let (class, arguments) = toolkit::extract_all_applications(state, context, id)?;
-
-    let class = normalise::expand(state, context, class)?;
 
     let Type::Constructor(file_id, type_id) = *context.lookup_type(class) else {
         return Ok(None);
