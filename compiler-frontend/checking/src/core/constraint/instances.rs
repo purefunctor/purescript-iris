@@ -23,6 +23,39 @@ use crate::{CheckedModule, ExternalQueries};
 
 pub type InstanceChainKey = (FileId, InstanceChainId);
 
+/// An instance signature and the class it is expected to resolve to.
+pub type InstanceInfoKey = (TypeId, (FileId, TypeItemId));
+
+/// Decomposes an instance signature with [`toolkit::instance_info`].
+///
+/// The solver decomposes the same candidate signatures for every constraint
+/// on their class, so decompositions are memoised in [`CheckState`] for any
+/// signature without unification variables, whose decomposition cannot
+/// change as unification variables are solved.
+pub fn instance_info<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    signature: TypeId,
+    resolution: (FileId, TypeItemId),
+) -> QueryResult<Option<Rc<toolkit::InstanceInfo>>>
+where
+    Q: ExternalQueries,
+{
+    if context.lookup_type_flags(signature).has_unification() {
+        let info = toolkit::instance_info(state, context, signature, resolution)?;
+        return Ok(info.map(Rc::new));
+    }
+
+    let key = (signature, resolution);
+    if let Some(info) = state.lookup_instance_info_cache(key) {
+        return Ok(info);
+    }
+
+    let info = toolkit::instance_info(state, context, signature, resolution)?.map(Rc::new);
+    state.insert_instance_info_cache(key, info.clone());
+    Ok(info)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InstanceCandidateOrigin {
     Instance(FileId, InstanceId),
@@ -150,13 +183,11 @@ where
     // An instance head is the dual of a constraint; we synthesise it here to reuse
     // [`collect_instance_chains`]'s file-scoped enumeration, which scopes modules
     // by walking the head's type constructors, not by matching against candidates.
-    let Some(toolkit::InstanceInfo { arguments, .. }) =
-        toolkit::instance_info(state, context, instance.signature, instance.resolution)?
-    else {
+    let Some(info) = instance_info(state, context, instance.signature, instance.resolution)? else {
         return Ok(None);
     };
     let (file_id, type_id) = instance.resolution;
-    let arguments: Rc<[ApplicationArgument]> = Rc::from(arguments);
+    let arguments: Rc<[ApplicationArgument]> = Rc::from(info.arguments.as_slice());
     let wanted = state.canonicals.intern(CanonicalConstraint {
         file_id,
         type_id,
@@ -248,7 +279,7 @@ where
     let arguments = match cache.entry(candidate.origin) {
         Entry::Occupied(entry) => entry.into_mut(),
         Entry::Vacant(entry) => {
-            let info = toolkit::instance_info(
+            let info = instance_info(
                 state,
                 context,
                 candidate.instance.signature,

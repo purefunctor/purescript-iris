@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::constraint::instances::InstanceCandidate;
+use crate::core::constraint::instances::{self, InstanceCandidate};
 use crate::core::constraint::{CanonicalConstraintId, canonical};
 use crate::core::fd::{
     Fd, compute_closure, get_all_determined, get_functional_dependencies, positions_cover_all,
@@ -669,7 +669,7 @@ pub fn match_declared<Q>(
 where
     Q: ExternalQueries,
 {
-    let Some(declared) = toolkit::instance_info(
+    let Some(declared) = instances::instance_info(
         state,
         context,
         candidate.instance.matchable,
@@ -734,7 +734,7 @@ where
             }
 
             let mut constraints = Vec::new();
-            for constraint in declared.constraints {
+            for &constraint in &declared.constraints {
                 let constraint = SubstituteName::many(state, context, &substitution, constraint)?;
                 if let Some(constraint) = canonical::canonicalise(state, context, constraint)? {
                     constraints.push(constraint);

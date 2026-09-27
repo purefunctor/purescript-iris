@@ -10,11 +10,13 @@ use indexing::TypeItemId;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
+use crate::core::constraint::instances::InstanceInfoKey;
 use crate::core::constraint::{CanonicalConstraintId, Canonicals, ConstraintInScope};
 use crate::core::exhaustive::{
     ExhaustivenessReport, Pattern, PatternConstructor, PatternId, PatternInterner, PatternKind,
 };
 use crate::core::substitute::RigidRenaming;
+use crate::core::toolkit::InstanceInfo;
 use crate::core::{CheckedSynonym, Depth, Name, SkolemScope, SmolStrId, Type, TypeId, constraint};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{EvidenceBinderId, EvidenceVarId};
@@ -170,6 +172,7 @@ pub struct CheckState {
 
     zonk_cache: Option<FxHashMap<TypeId, TypeId>>,
     expansion_cache: FxHashMap<TypeId, TypeId>,
+    instance_info_cache: FxHashMap<InstanceInfoKey, Option<Rc<InstanceInfo>>>,
     pub(crate) judgments: FxHashSet<tree::ExpressionId>,
 
     pub unifications: Unifications,
@@ -192,6 +195,7 @@ impl CheckState {
             patterns: Default::default(),
             zonk_cache: None,
             expansion_cache: Default::default(),
+            instance_info_cache: Default::default(),
             judgments: Default::default(),
             unifications: Default::default(),
             implications: Default::default(),
@@ -243,6 +247,27 @@ impl CheckState {
         self.expansion_cache.insert(id, result);
     }
 
+    /// Looks up a memoised decomposition of an instance signature.
+    ///
+    /// Like expansions, only signatures without unification variables are
+    /// memoised; their decomposition depends solely on the synonyms in scope,
+    /// which [`CheckState::insert_synonym`] invalidates.
+    #[inline]
+    pub(crate) fn lookup_instance_info_cache(
+        &self,
+        key: InstanceInfoKey,
+    ) -> Option<Option<Rc<InstanceInfo>>> {
+        self.instance_info_cache.get(&key).cloned()
+    }
+
+    pub(crate) fn insert_instance_info_cache(
+        &mut self,
+        key: InstanceInfoKey,
+        result: Option<Rc<InstanceInfo>>,
+    ) {
+        self.instance_info_cache.insert(key, result);
+    }
+
     /// Records a checked synonym declared in the current module.
     ///
     /// Types referencing the synonym may have been memoised as unexpandable
@@ -250,6 +275,7 @@ impl CheckState {
     pub(crate) fn insert_synonym(&mut self, item_id: TypeItemId, synonym: CheckedSynonym) {
         self.checked.synonyms.insert(item_id, synonym);
         self.expansion_cache.clear();
+        self.instance_info_cache.clear();
     }
 
     pub fn with_depth<T>(&mut self, f: impl FnOnce(&mut CheckState) -> T) -> T {
