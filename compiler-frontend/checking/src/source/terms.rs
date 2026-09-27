@@ -113,7 +113,6 @@ fn check_expression_quiet<Q>(
 where
     Q: ExternalQueries,
 {
-    let expected = normalise::normalise(state, context, expected);
     check_expected_expression(state, context, expected, |state, expected| {
         if let Some(section_result) = context.sectioned.expressions.get(&expression) {
             check_sectioned_expression(state, context, expression, section_result, expected)
@@ -132,7 +131,6 @@ pub(super) fn check_elaborated_expression<Q>(
 where
     Q: ExternalQueries,
 {
-    let expected = normalise::normalise(state, context, expected);
     let checked = check_expected_expression(state, context, expected, |state, expected| {
         check_elaborated_expression_quiet(state, context, inferred, expected)
     })?;
