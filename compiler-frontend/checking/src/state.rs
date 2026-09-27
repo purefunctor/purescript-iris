@@ -1,5 +1,6 @@
 //! Implements the algorithm's core state structures.
 
+use std::collections::hash_map::Entry;
 use std::mem;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -15,7 +16,7 @@ use crate::core::constraint::{CanonicalConstraintId, Canonicals, ConstraintInSco
 use crate::core::exhaustive::{
     ExhaustivenessReport, Pattern, PatternConstructor, PatternId, PatternInterner, PatternKind,
 };
-use crate::core::substitute::RigidRenaming;
+use crate::core::substitute::{RigidRenaming, SubstitutionTemplate, SubstitutionTemplateEntry};
 use crate::core::toolkit::InstanceInfo;
 use crate::core::{CheckedSynonym, Depth, Name, SkolemScope, SmolStrId, Type, TypeId, constraint};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
@@ -174,6 +175,7 @@ pub struct CheckState {
     expansion_cache: FxHashMap<TypeId, TypeId>,
     instance_info_cache: FxHashMap<InstanceInfoKey, Option<Rc<InstanceInfo>>>,
     kind_cache: Option<FxHashMap<TypeId, TypeId>>,
+    substitution_templates: FxHashMap<TypeId, SubstitutionTemplateEntry>,
     pub(crate) judgments: FxHashSet<tree::ExpressionId>,
 
     pub unifications: Unifications,
@@ -198,6 +200,7 @@ impl CheckState {
             expansion_cache: Default::default(),
             instance_info_cache: Default::default(),
             kind_cache: None,
+            substitution_templates: Default::default(),
             judgments: Default::default(),
             unifications: Default::default(),
             implications: Default::default(),
@@ -276,6 +279,40 @@ impl CheckState {
         result: Option<Rc<InstanceInfo>>,
     ) {
         self.instance_info_cache.insert(key, result);
+    }
+
+    /// Looks up or builds the [`SubstitutionTemplate`] for a type that
+    /// zonking cannot change, which depends only on the immutable interned
+    /// structure of that type.
+    ///
+    /// Many types are substituted into only once, such as those already
+    /// produced by an earlier substitution, so templates are only built
+    /// once a type is substituted into for the second time.
+    pub(crate) fn substitution_template<Q>(
+        &mut self,
+        context: &CheckContext<Q>,
+        id: TypeId,
+    ) -> Option<&SubstitutionTemplate>
+    where
+        Q: ExternalQueries,
+    {
+        let entry = match self.substitution_templates.entry(id) {
+            Entry::Vacant(entry) => {
+                entry.insert(SubstitutionTemplateEntry::Seen);
+                return None;
+            }
+            Entry::Occupied(entry) => entry.into_mut(),
+        };
+        if let SubstitutionTemplateEntry::Seen = entry {
+            *entry = match SubstitutionTemplate::build(context, id) {
+                Some(template) => SubstitutionTemplateEntry::Built(template),
+                None => SubstitutionTemplateEntry::Unsupported,
+            };
+        }
+        match entry {
+            SubstitutionTemplateEntry::Built(template) => Some(template),
+            SubstitutionTemplateEntry::Seen | SubstitutionTemplateEntry::Unsupported => None,
+        }
     }
 
     /// Records a checked synonym declared in the current module.
