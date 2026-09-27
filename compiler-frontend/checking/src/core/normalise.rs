@@ -219,6 +219,20 @@ fn expand_looked_up<'q, Q>(
 where
     Q: ExternalQueries,
 {
+    // Most unification variable heads are unsolved, or solved to a type that
+    // can neither normalise nor expand, which is then already the result.
+    if let Type::Unification(unification_id) = *t {
+        match state.unifications.get(unification_id).state {
+            UnificationState::Unsolved => return Ok(id),
+            UnificationState::Solved(solution_id) => {
+                let (solution_t, solution_flags) = context.lookup_type_with_flags(solution_id);
+                if !solution_flags.may_normalise() && !may_expand(solution_t) {
+                    return Ok(solution_id);
+                }
+            }
+        }
+    }
+
     // Unification variables may be solved between calls, so only expansions
     // that neither start from nor lead to one are stable enough to memoise.
     if flags.has_unification() {
