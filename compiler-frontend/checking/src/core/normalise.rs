@@ -203,6 +203,11 @@ where
     if !matches!(t, Type::Unification(_)) && !may_expand(t) {
         return Ok(id);
     }
+    if !flags.has_unification()
+        && let Some(expanded) = state.lookup_recent_expansion(id)
+    {
+        return Ok(expanded);
+    }
     expand_looked_up(state, context, id, t, flags)
 }
 

@@ -192,15 +192,20 @@ impl ExpansionCache {
     }
 
     #[inline]
+    fn lookup_recent(&self, id: TypeId) -> Option<TypeId> {
+        match self.recent[ExpansionCache::slot(id)] {
+            Some((recent, expanded)) if recent == id => Some(expanded),
+            _ => None,
+        }
+    }
+
+    #[inline]
     fn lookup(&mut self, id: TypeId) -> Option<TypeId> {
-        let slot = ExpansionCache::slot(id);
-        if let Some((recent, expanded)) = self.recent[slot]
-            && recent == id
-        {
+        if let Some(expanded) = self.lookup_recent(id) {
             return Some(expanded);
         }
         let expanded = *self.all.get(&id)?;
-        self.recent[slot] = Some((id, expanded));
+        self.recent[ExpansionCache::slot(id)] = Some((id, expanded));
         Some(expanded)
     }
 
@@ -316,6 +321,13 @@ impl CheckState {
     #[inline]
     pub(crate) fn lookup_expansion_cache(&mut self, id: TypeId) -> Option<TypeId> {
         self.expansion_cache.lookup(id)
+    }
+
+    /// Looks up a memoised synonym expansion among those used most recently,
+    /// which is cheap enough to try before any other expansion work.
+    #[inline]
+    pub(crate) fn lookup_recent_expansion(&self, id: TypeId) -> Option<TypeId> {
+        self.expansion_cache.lookup_recent(id)
     }
 
     pub(crate) fn insert_expansion_cache(&mut self, id: TypeId, result: TypeId) {
