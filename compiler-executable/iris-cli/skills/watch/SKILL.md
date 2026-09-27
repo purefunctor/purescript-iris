@@ -1,6 +1,6 @@
 ---
 name: watch
-description: Ask a running `iris watch` about a PureScript project with `iris watch query`: signatures, module exports, definitions, references, instances, dependent modules, name search, diagnostics, and generated JavaScript, addressed by qualified name. Use when working in a project built with Iris, after editing PureScript files, or instead of reading dependency sources to learn an API.
+description: Ask a running `iris watch` about a PureScript project with `iris watch query` for signatures, module exports, definitions, references, instances, dependent modules, name search, diagnostics, and generated JavaScript, addressed by qualified name. Use when working in a project built with Iris, after editing PureScript files, or instead of reading dependency sources to learn an API.
 ---
 
 # Querying `iris watch`
