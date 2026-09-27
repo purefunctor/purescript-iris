@@ -105,7 +105,6 @@ impl BuildActor {
         loop {
             let deadline = self.batch.as_ref().map(|batch| batch.deadline);
             tokio::select! {
-                biased;
                 Some(event) = self.filesystem.recv() => self.add_event(event)?,
                 () = sleep_until(deadline.unwrap_or_else(Instant::now)), if deadline.is_some() => {
                     self.synchronize(false).await?;
@@ -142,7 +141,10 @@ impl BuildActor {
     /// `everything`, every source glob is walked again, which also finds changes whose events
     /// have not arrived yet.
     async fn synchronize(&mut self, everything: bool) -> Result<(), WatchFailure> {
-        while let Ok(event) = self.filesystem.try_recv() {
+        // New arrivals belong to the next batch, so continuous events cannot hold up a query.
+        let pending = self.filesystem.len();
+        for _ in 0..pending {
+            let Ok(event) = self.filesystem.try_recv() else { break };
             self.add_event(event)?;
         }
         let batch = self.batch.take();
