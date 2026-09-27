@@ -598,6 +598,29 @@ pub fn elaborate_kind<Q>(
 where
     Q: ExternalQueries,
 {
+    // Kinds involving unification variables change as they are solved, and
+    // elaborating them may solve unification variables or create fresh ones.
+    let memoisable = !context.lookup_type_flags(id).has_unification();
+    if memoisable && let Some(kind) = state.lookup_kind_cache(id) {
+        return Ok(kind);
+    }
+
+    let kind = elaborate_kind_core(state, context, id)?;
+    if memoisable && !context.lookup_type_flags(kind).has_unification() {
+        state.insert_kind_cache(id, kind);
+    }
+
+    Ok(kind)
+}
+
+fn elaborate_kind_core<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
     let id = normalise::expand(state, context, id)?;
     elaborate_expanded_kind(state, context, id)
 }

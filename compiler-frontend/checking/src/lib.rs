@@ -234,6 +234,7 @@ fn check_source(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<
 
     state.reserve_lowered(&context.lowered.tree);
     source::check_type_items(&mut state, &context)?;
+    state.enable_kind_cache();
     source::check_term_items(&mut state, &context)?;
     state.with_zonk_cache(|state| {
         core::zonk::zonk_nodes(state, &context)?;

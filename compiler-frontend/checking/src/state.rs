@@ -173,6 +173,7 @@ pub struct CheckState {
     zonk_cache: Option<FxHashMap<TypeId, TypeId>>,
     expansion_cache: FxHashMap<TypeId, TypeId>,
     instance_info_cache: FxHashMap<InstanceInfoKey, Option<Rc<InstanceInfo>>>,
+    kind_cache: Option<FxHashMap<TypeId, TypeId>>,
     pub(crate) judgments: FxHashSet<tree::ExpressionId>,
 
     pub unifications: Unifications,
@@ -196,6 +197,7 @@ impl CheckState {
             zonk_cache: None,
             expansion_cache: Default::default(),
             instance_info_cache: Default::default(),
+            kind_cache: None,
             judgments: Default::default(),
             unifications: Default::default(),
             implications: Default::default(),
@@ -282,10 +284,34 @@ impl CheckState {
     /// before it was checked, so memoised expansions, instance signature
     /// decompositions, and canonical constraints are discarded.
     pub(crate) fn insert_synonym(&mut self, item_id: TypeItemId, synonym: CheckedSynonym) {
+        assert!(self.kind_cache.is_none(), "invariant violated: synonym inserted after kind cache");
         self.checked.synonyms.insert(item_id, synonym);
         self.expansion_cache.clear();
         self.instance_info_cache.clear();
         self.canonicals.clear_cache();
+    }
+
+    /// Enables memoisation of the kinds elaborated for types without
+    /// unification variables.
+    ///
+    /// Such a kind depends only on the synonyms and the kinds of the type
+    /// items in scope. Both are registered progressively while checking the
+    /// current module's type items and are final afterwards, so the cache
+    /// must only be enabled once type items are checked.
+    pub(crate) fn enable_kind_cache(&mut self) {
+        assert!(self.kind_cache.is_none(), "invariant violated: kind cache enabled twice");
+        self.kind_cache = Some(FxHashMap::default());
+    }
+
+    #[inline]
+    pub(crate) fn lookup_kind_cache(&self, id: TypeId) -> Option<TypeId> {
+        self.kind_cache.as_ref().and_then(|cache| cache.get(&id)).copied()
+    }
+
+    pub(crate) fn insert_kind_cache(&mut self, id: TypeId, kind: TypeId) {
+        if let Some(cache) = &mut self.kind_cache {
+            cache.insert(id, kind);
+        }
     }
 
     pub fn with_depth<T>(&mut self, f: impl FnOnce(&mut CheckState) -> T) -> T {
