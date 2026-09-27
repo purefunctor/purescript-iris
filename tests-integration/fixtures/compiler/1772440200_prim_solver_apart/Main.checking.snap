@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 307
 ---
 Terms
 invalidAdd :: Prim.Int.Add 2 3 10 => Type.Proxy.Proxy @Prim.Int 10
@@ -12,6 +13,10 @@ forceSolve ::
   { invalidAdd :: Type.Proxy.Proxy @Prim.Int 10
   , invalidAppend :: Type.Proxy.Proxy @Prim.Symbol "xyz"
   , invalidCompare :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+  , invalidCons :: Type.Proxy.Proxy @Prim.Symbol "world"
+  }
+forceSolveChecked ::
+  { invalidCompare :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
   , invalidCons :: Type.Proxy.Proxy @Prim.Symbol "world"
   }
 

@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export invalidAdd = \addDict%0 -> "Proxy"
 
@@ -13,5 +14,10 @@ source: tests-integration/src/fixtures.rs
   invalidAdd: invalidAdd (<error>),
   invalidCompare: invalidCompare (<error>),
   invalidAppend: invalidAppend (<error>),
+  invalidCons: invalidCons (<error>)
+}
+
+@export forceSolveChecked = {
+  invalidCompare: invalidCompare (<error>),
   invalidCons: invalidCons (<error>)
 }

@@ -37,3 +37,21 @@ Error! · [NoInstanceFound] · Main.purs:21:3
   │     { invalidAdd
   │     ╰───────────
   •
+
+Error! · [NoInstanceFound] · Main.purs:29:3
+  •
+  │
+  • No instance found for: Compare 5 1 LT
+  │
+  │     { invalidCompare
+  │     ╰───────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:29:3
+  •
+  │
+  • No instance found for: Cons "hello" "world" "helloworld"
+  │
+  │     { invalidCompare
+  │     ╰───────────────
+  •

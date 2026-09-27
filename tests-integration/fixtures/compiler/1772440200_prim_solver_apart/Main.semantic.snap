@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 invalidAdd :: Prim.Int.Add 2 3 10 => Type.Proxy.Proxy @Prim.Int 10
 invalidAdd = \{addDict} -> Proxy
@@ -20,3 +21,8 @@ forceSolve :: { invalidAdd :: Type.Proxy.Proxy @Prim.Int 10
 }
 forceSolve =
   { invalidAdd: invalidAdd {error}, invalidCompare: invalidCompare {error}, invalidAppend: invalidAppend {error}, invalidCons: invalidCons {error} }
+
+forceSolveChecked :: { invalidCompare :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+, invalidCons :: Type.Proxy.Proxy @Prim.Symbol "world"
+}
+forceSolveChecked = { invalidCompare: invalidCompare {error}, invalidCons: invalidCons {error} }
