@@ -134,6 +134,20 @@ fn normalise_head<Q>(state: &mut CheckState, context: &CheckContext<Q>, mut id: 
 where
     Q: ExternalQueries,
 {
+    // Most heads are a unification variable that is either unsolved or solved
+    // to a type that cannot normalise further, which needs no compression.
+    if let Type::Unification(unification_id) = *context.lookup_type(id) {
+        match state.unifications.get(unification_id).state {
+            UnificationState::Unsolved => return id,
+            UnificationState::Solved(solution_id)
+                if !context.lookup_type_flags(solution_id).may_normalise() =>
+            {
+                return solution_id;
+            }
+            UnificationState::Solved(_) => {}
+        }
+    }
+
     let mut reduction = ReductionContext::new(state, context);
 
     let id = safe_loop! {
