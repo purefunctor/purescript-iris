@@ -465,6 +465,12 @@ fn combine_arguments(arguments: impl IntoIterator<Item = MatchType>) -> MatchTyp
 }
 
 fn covers(fd: &[Fd], types: &[MatchType]) -> QueryResult<bool> {
+    // Without functional dependencies, the closure of the matched positions
+    // is exactly those positions, so they cover only when every argument matched.
+    if fd.is_empty() {
+        return Ok(types.iter().all(MatchType::is_match));
+    }
+
     let match_indices: FxHashSet<_> = types
         .iter()
         .enumerate()
@@ -794,6 +800,18 @@ fn instances_overlap<Q>(
 where
     Q: ExternalQueries,
 {
+    // Without functional dependencies, the closure of the non-apart positions
+    // is exactly those positions, so the heads overlap only when no argument
+    // is apart; this compares the same arguments without the position sets.
+    if functional_dependencies.is_empty() {
+        for (&left, &right) in iter::zip(left_arguments, right_arguments) {
+            if types_apart(state, context, left, right, false)?.is_apart() {
+                return Ok(false);
+            }
+        }
+        return Ok(true);
+    }
+
     let all_positions = FxHashSet::from_iter(0..left_arguments.len());
     let mut known_non_apart = FxHashSet::default();
     let mut possibly_non_apart = all_positions.clone();
