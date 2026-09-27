@@ -22,6 +22,7 @@ pub enum ErrorCrumb {
 
     InferringExpression(lowering::ExpressionId),
     CheckingExpression(lowering::ExpressionId),
+    RecordPun(lowering::RecordPunId),
 
     InferringDoBind(lowering::DoStatementId),
     InferringDoDiscard(lowering::DoStatementId),

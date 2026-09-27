@@ -29,11 +29,11 @@ Error! · [CannotUnify] · Main.purs:15:1
   │   ╰───────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:16:3
+Error! · [NoInstanceFound] · Main.purs:18:5
   •
   │
   • No instance found for: Lacks @Type "b" ( a :: Int, b :: String )
   │
-  │     { unionTypeMismatch
-  │     ╰──────────────────
+  │     , lacksPresent
+  │       ╰───────────
   •

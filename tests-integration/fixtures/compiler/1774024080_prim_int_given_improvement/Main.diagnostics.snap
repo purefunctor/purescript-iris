@@ -2,11 +2,11 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:13:3
+Error! · [NoInstanceFound] · Main.purs:14:5
   •
   │
   • No instance found for: Add 1 2 4
   │
-  │     { addChain
-  │     ╰─────────
+  │     , addContradiction
+  │       ╰───────────────
   •

@@ -2,56 +2,56 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:21:3
+Error! · [NoInstanceFound] · Main.purs:21:5
   •
   │
   • No instance found for: Add 2 3 10
   │
   │     { invalidAdd
-  │     ╰───────────
+  │       ╰─────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:21:3
+Error! · [NoInstanceFound] · Main.purs:22:5
   •
   │
   • No instance found for: Compare 5 1 LT
   │
-  │     { invalidAdd
-  │     ╰───────────
+  │     , invalidCompare
+  │       ╰─────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:21:3
+Error! · [NoInstanceFound] · Main.purs:23:5
   •
   │
   • No instance found for: Append "hello" "world" "xyz"
   │
-  │     { invalidAdd
-  │     ╰───────────
+  │     , invalidAppend
+  │       ╰────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:21:3
+Error! · [NoInstanceFound] · Main.purs:24:5
   •
   │
   • No instance found for: Cons "hello" "world" "helloworld"
   │
-  │     { invalidAdd
-  │     ╰───────────
+  │     , invalidCons
+  │       ╰──────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:29:3
+Error! · [NoInstanceFound] · Main.purs:29:5
   •
   │
   • No instance found for: Compare 5 1 LT
   │
   │     { invalidCompare
-  │     ╰───────────────
+  │       ╰─────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:29:3
+Error! · [NoInstanceFound] · Main.purs:30:5
   •
   │
   • No instance found for: Cons "hello" "world" "helloworld"
   │
-  │     { invalidCompare
-  │     ╰───────────────
+  │     , invalidCons
+  │       ╰──────────
   •

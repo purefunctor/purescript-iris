@@ -194,6 +194,7 @@ where
             ErrorCrumb::InferringExpression(id) | ErrorCrumb::CheckingExpression(id) => {
                 self.stabilized.syntax_ptr(*id)?
             }
+            ErrorCrumb::RecordPun(id) => self.stabilized.syntax_ptr(*id)?,
             ErrorCrumb::TermDeclaration(id) => {
                 self.indexed.term_item_ptr(self.stabilized, *id).next()?
             }
