@@ -5,15 +5,13 @@ export const Just = ($value0) => ({
 export const Nothing = "Nothing";
 export function test(partialDict) {
   const $closure = (section15) => {
-    let $result;
-    $case: {
+    const $closure$1 = (partialDict$1) => {
       if (section15.tag === "Just") {
-        $result = 1 | 0;
-        break $case;
+        return 1 | 0;
       }
       throw new Error("Pattern match failure");
-    }
-    return /* @__PURE__ */ $result(partialDict);
+    };
+    return /* @__PURE__ */ $closure$1(partialDict);
   };
   return $closure;
 }

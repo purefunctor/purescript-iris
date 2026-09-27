@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 data Tuple :: Prim.Type -> Prim.Type -> Prim.Type
 data Tuple @a @b
@@ -21,31 +22,35 @@ complete = \v21 ->
 incomplete1 :: forall t0 t1. Prim.Partial => Main.Tuple (Main.Maybe t0) (Main.Maybe t1) -> Prim.Int
 incomplete1 = \{partialDict} ->
   \v68 ->
-    (case v68 of
-      (Tuple (Just _) Nothing) -> 2
-      (Tuple Nothing (Just _)) -> 3
-      (Tuple Nothing Nothing) -> 4) {partialDict}
+    (\{partialDict1} ->
+      case v68 of
+        (Tuple (Just _) Nothing) -> 2
+        (Tuple Nothing (Just _)) -> 3
+        (Tuple Nothing Nothing) -> 4) {partialDict}
 
 incomplete2 :: forall t0 t1. Prim.Partial => Main.Tuple (Main.Maybe t0) (Main.Maybe t1) -> Prim.Int
 incomplete2 = \{partialDict} ->
   \v103 ->
-    (case v103 of
-      (Tuple (Just _) (Just _)) -> 1
-      (Tuple Nothing (Just _)) -> 3
-      (Tuple Nothing Nothing) -> 4) {partialDict}
+    (\{partialDict1} ->
+      case v103 of
+        (Tuple (Just _) (Just _)) -> 1
+        (Tuple Nothing (Just _)) -> 3
+        (Tuple Nothing Nothing) -> 4) {partialDict}
 
 incomplete3 :: forall t0 t1. Prim.Partial => Main.Tuple (Main.Maybe t0) (Main.Maybe t1) -> Prim.Int
 incomplete3 = \{partialDict} ->
   \v140 ->
-    (case v140 of
-      (Tuple (Just _) (Just _)) -> 1
-      (Tuple (Just _) Nothing) -> 2
-      (Tuple Nothing Nothing) -> 4) {partialDict}
+    (\{partialDict1} ->
+      case v140 of
+        (Tuple (Just _) (Just _)) -> 1
+        (Tuple (Just _) Nothing) -> 2
+        (Tuple Nothing Nothing) -> 4) {partialDict}
 
 incomplete4 :: forall t0 t1. Prim.Partial => Main.Tuple (Main.Maybe t0) (Main.Maybe t1) -> Prim.Int
 incomplete4 = \{partialDict} ->
   \v177 ->
-    (case v177 of
-      (Tuple (Just _) (Just _)) -> 1
-      (Tuple (Just _) Nothing) -> 2
-      (Tuple Nothing (Just _)) -> 3) {partialDict}
+    (\{partialDict1} ->
+      case v177 of
+        (Tuple (Just _) (Just _)) -> 1
+        (Tuple (Just _) Nothing) -> 2
+        (Tuple Nothing (Just _)) -> 3) {partialDict}

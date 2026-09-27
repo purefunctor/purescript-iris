@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Warning! · [MissingPatterns] · Main.purs:15:15
+  •
+  │
+  • Pattern match is not exhaustive. Missing: _
+  │
+  │   test' value = case value of
+  │                 ╰────────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:19:9
+  •
+  │
+  • Pattern match is not exhaustive. Missing: ArrayBuffer
+  │
+  │   test2 = \Blob -> 17
+  │           ╰──────────
+  •

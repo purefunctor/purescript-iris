@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 variable :: Prim.Array Prim.Int -> Prim.Int
 variable = \v16 ->
@@ -17,9 +18,10 @@ wildcard = \v49 ->
 
 refutable :: Prim.Array Prim.Int -> Prim.Int
 refutable = \v82 ->
-  (case v82 of
-    [x] -> x
-    xs
-      | [y] <- xs -> y) {error}
+  (\{partialDict} ->
+    case v82 of
+      [x] -> x
+      xs
+        | [y] <- xs -> y) {error}
 
 foreign import arrayLength :: forall a. Prim.Array a -> Prim.Int

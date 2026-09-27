@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+Blob :: Main.BinaryType
+ArrayBuffer :: Main.BinaryType
+test :: Effect.Effect Prim.String -> Effect.Effect Main.BinaryType
+test' :: Prim.Partial => Prim.String -> Main.BinaryType
+test2 :: Prim.Partial => Main.BinaryType -> Prim.Int
+test3 :: Prim.String -> Main.BinaryType
+test4 :: Main.BinaryType -> Prim.Int
+test5 :: Effect.Effect Main.BinaryType -> Effect.Effect Prim.Int
+test6 :: Main.BinaryType -> Prim.Int
+
+Types
+BinaryType :: Prim.Type
+
+Roles
+BinaryType = []

@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 data Maybe :: Prim.Type -> Prim.Type
 data Maybe @a
@@ -17,31 +18,35 @@ complete = \v15 v16 ->
 incomplete1 :: forall t0 t1. Prim.Partial => Main.Maybe t0 -> Main.Maybe t1 -> Prim.Int
 incomplete1 = \{partialDict} ->
   \v55 v56 ->
-    (case v55, v56 of
-      (Just _), Nothing -> 2
-      Nothing, (Just _) -> 3
-      Nothing, Nothing -> 4) {partialDict}
+    (\{partialDict1} ->
+      case v55, v56 of
+        (Just _), Nothing -> 2
+        Nothing, (Just _) -> 3
+        Nothing, Nothing -> 4) {partialDict}
 
 incomplete2 :: forall t0 t1. Prim.Partial => Main.Maybe t0 -> Main.Maybe t1 -> Prim.Int
 incomplete2 = \{partialDict} ->
   \v86 v87 ->
-    (case v86, v87 of
-      (Just _), (Just _) -> 1
-      Nothing, (Just _) -> 3
-      Nothing, Nothing -> 4) {partialDict}
+    (\{partialDict1} ->
+      case v86, v87 of
+        (Just _), (Just _) -> 1
+        Nothing, (Just _) -> 3
+        Nothing, Nothing -> 4) {partialDict}
 
 incomplete3 :: forall t0 t1. Prim.Partial => Main.Maybe t0 -> Main.Maybe t1 -> Prim.Int
 incomplete3 = \{partialDict} ->
   \v118 v119 ->
-    (case v118, v119 of
-      (Just _), (Just _) -> 1
-      (Just _), Nothing -> 2
-      Nothing, Nothing -> 4) {partialDict}
+    (\{partialDict1} ->
+      case v118, v119 of
+        (Just _), (Just _) -> 1
+        (Just _), Nothing -> 2
+        Nothing, Nothing -> 4) {partialDict}
 
 incomplete4 :: forall t0 t1. Prim.Partial => Main.Maybe t0 -> Main.Maybe t1 -> Prim.Int
 incomplete4 = \{partialDict} ->
   \v150 v151 ->
-    (case v150, v151 of
-      (Just _), (Just _) -> 1
-      (Just _), Nothing -> 2
-      Nothing, (Just _) -> 3) {partialDict}
+    (\{partialDict1} ->
+      case v150, v151 of
+        (Just _), (Just _) -> 1
+        (Just _), Nothing -> 2
+        Nothing, (Just _) -> 3) {partialDict}

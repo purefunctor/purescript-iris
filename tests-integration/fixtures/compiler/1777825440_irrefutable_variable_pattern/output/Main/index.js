@@ -25,25 +25,22 @@ export function wildcard(section49) {
   throw new Error("Pattern match failure");
 }
 export function refutable(section82) {
-  let $result;
-  $case: {
+  const $closure = (partialDict) => {
     if (Array.isArray(section82) && section82.length === 1) {
       const x = section82[0];
-      $result = x;
-      break $case;
+      return x;
     }
     {
       const xs = section82;
       if (Array.isArray(xs) && xs.length === 1) {
         const y = xs[0];
-        $result = y;
-        break $case;
+        return y;
       }
     }
     throw new Error("Pattern match failure");
-  }
-  let $result$1;
+  };
+  let $result;
   throw new Error("Generated code reached a source error");
-  return /* @__PURE__ */ $result($result$1);
+  return /* @__PURE__ */ $closure($result);
 }
 export const arrayLength = $foreign["arrayLength"];

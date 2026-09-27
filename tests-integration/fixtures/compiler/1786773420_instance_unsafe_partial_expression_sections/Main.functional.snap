@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 310
 ---
 @export constructor Sentence/1
 
@@ -13,54 +14,56 @@ source: tests-integration/src/fixtures.rs
 
 @export instance contentOverloadString = {
   fromContent:
-    \composeArgument%7 ->
+    \composeArgument%8 ->
       unsafePartial
         ((\section54%3 ->
           \partialDict%4 ->
-            (case section54%3 of
-              Sentence content%5 ->
-                content%5)
+            (\partialDict%5 ->
+              case section54%3 of
+                Sentence content%6 ->
+                  content%6)
               partialDict%4)
-          composeArgument%7),
+          composeArgument%8),
   fromContentPartialLambda:
     unsafePartial
-      (\partialDict%8 ->
-        \content%9 ->
-          case content%9 of
-            Sentence value%10 ->
-              value%10),
+      (\partialDict%9 ->
+        \content%10 ->
+          case content%10 of
+            Sentence value%11 ->
+              value%11),
   fromContentLambdaPartial:
-    \content%11 ->
+    \content%12 ->
       unsafePartial
-        (\partialDict%12 ->
-          case content%11 of
-            Sentence value%13 ->
-              value%13)
+        (\partialDict%13 ->
+          case content%12 of
+            Sentence value%14 ->
+              value%14)
 }
 
 @export instance contentOverloadArrayString = {
   fromContent:
-    \composeArgument%18 ->
+    \composeArgument%20 ->
       unsafePartial
-        ((\section120%14 ->
-          \partialDict%15 ->
-            (case section120%14 of
-              Paragraph content%16 ->
-                content%16)
-              partialDict%15)
-          composeArgument%18),
+        ((\section120%15 ->
+          \partialDict%16 ->
+            (\partialDict%17 ->
+              case section120%15 of
+                Paragraph content%18 ->
+                  content%18)
+              partialDict%16)
+          composeArgument%20),
   fromContentPartialLambda:
     unsafePartial
-      (\partialDict%19 ->
-        \content%20 ->
-          case content%20 of
-            Paragraph value%21 ->
-              value%21),
-  fromContentLambdaPartial:
-    \content%22 ->
-      unsafePartial
-        (\partialDict%23 ->
+      (\partialDict%21 ->
+        \content%22 ->
           case content%22 of
-            Paragraph value%24 ->
-              value%24)
+            Paragraph value%23 ->
+              value%23),
+  fromContentLambdaPartial:
+    \content%24 ->
+      unsafePartial
+        (\partialDict%25 ->
+          case content%24 of
+            Paragraph value%26 ->
+              value%26)
 }

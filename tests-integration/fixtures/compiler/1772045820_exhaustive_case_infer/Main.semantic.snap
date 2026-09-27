@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 data Maybe :: Prim.Type -> Prim.Type
 data Maybe @a
@@ -9,5 +10,6 @@ data Maybe @a
 test :: forall t0. Prim.Partial => Main.Maybe t0 -> Prim.Int
 test = \{partialDict} ->
   \v15 ->
-    (case v15 of
-      (Just _) -> 1) {partialDict}
+    (\{partialDict1} ->
+      case v15 of
+        (Just _) -> 1) {partialDict}

@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 data Content :: Prim.Type
 data Content
@@ -17,8 +18,9 @@ dictionary contentOverloadString :: Main.ContentOverload Prim.String where
   fromContent =
     compose {semigroupoidFn} unsafePartial \v54 ->
       \{partialDict} ->
-        (case v54 of
-          (Sentence content) -> content) {partialDict}
+        (\{partialDict1} ->
+          case v54 of
+            (Sentence content) -> content) {partialDict}
   fromContentPartialLambda :: Main.Content -> Prim.String
   fromContentPartialLambda =
     unsafePartial \{partialDict} ->
@@ -36,8 +38,9 @@ dictionary contentOverloadArrayString :: Main.ContentOverload (Prim.Array Prim.S
   fromContent =
     compose {semigroupoidFn} unsafePartial \v120 ->
       \{partialDict} ->
-        (case v120 of
-          (Paragraph content) -> content) {partialDict}
+        (\{partialDict1} ->
+          case v120 of
+            (Paragraph content) -> content) {partialDict}
   fromContentPartialLambda :: Main.Content -> Prim.Array Prim.String
   fromContentPartialLambda =
     unsafePartial \{partialDict} ->
