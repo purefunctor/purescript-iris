@@ -1,18 +1,11 @@
 //! The newline-delimited JSON that clients and the watcher exchange.
 //!
-//! Each line is one JSON object. A request carries a client-chosen `id`, the `query`'s name, and
-//! the query's parameters as further fields; its response repeats the `id`. The shape is
-//! maintained within Iris and may change between releases.
+//! Each connection carries one query line and one response line, then closes. The connection
+//! associates the answer with its query; no request ID is needed. The shape is maintained within
+//! Iris and may change between releases.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Request {
-    pub id: Value,
-    #[serde(flatten)]
-    pub query: Query,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "query", rename_all = "lowercase")]
@@ -52,15 +45,8 @@ pub enum Query {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Response {
-    pub id: Value,
-    #[serde(flatten)]
-    pub body: ResponseBody,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
-pub enum ResponseBody {
+pub enum Response {
     /// The answer, computed from build `generation`.
     Result { generation: u64, value: Value },
     /// A change to the watcher's inputs was applied while the query ran. Retry.

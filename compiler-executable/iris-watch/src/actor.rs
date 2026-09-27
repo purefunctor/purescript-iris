@@ -19,7 +19,7 @@ use iris_build::{
 use iris_progress::WatchOutcome;
 use iris_watch_query::{BuildState, QueryContext, QueryFailure, WaitAnswer};
 use iris_watch_server::QueryRequest;
-use iris_watch_server::protocol::{Query, ResponseBody};
+use iris_watch_server::protocol::{Query, Response};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 use tokio::task;
@@ -116,8 +116,8 @@ impl BuildActor {
                         self.synchronize(true).await?;
                         let answer = WaitAnswer { build: BuildState::clone(&self.build) };
                         let value = iris_watch_query::to_value(&answer);
-                        let body = ResponseBody::Result { generation: self.generation, value };
-                        let _ = request.reply.send(body);
+                        let response = Response::Result { generation: self.generation, value };
+                        let _ = request.reply.send(response);
                     } else {
                         self.synchronize(false).await?;
                         self.dispatch(request);
@@ -236,12 +236,12 @@ impl BuildActor {
             // The snapshot must be dropped before answering, so that a change the client makes
             // next is not kept waiting for it.
             drop(context);
-            let body = match answer {
-                Ok(value) => ResponseBody::Result { generation, value },
-                Err(QueryFailure::Cancelled) => ResponseBody::Cancelled,
-                Err(QueryFailure::Failed(message)) => ResponseBody::Error { message },
+            let response = match answer {
+                Ok(value) => Response::Result { generation, value },
+                Err(QueryFailure::Cancelled) => Response::Cancelled,
+                Err(QueryFailure::Failed(message)) => Response::Error { message },
             };
-            let _ = reply.send(body);
+            let _ = reply.send(response);
         });
     }
 

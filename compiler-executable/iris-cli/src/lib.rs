@@ -4,7 +4,7 @@ mod skills;
 
 use iris_watch_server::client::{self, ClientError};
 use iris_watch_server::discovery::OutputLock;
-use iris_watch_server::protocol::ResponseBody;
+use iris_watch_server::protocol::Response;
 
 pub(crate) const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
 pub(crate) const VERSION: &str = env!("IRIS_VERSION");
@@ -168,8 +168,8 @@ fn query(options: cli::QueryOptions) -> i32 {
     if options.json {
         println!("{}", response.to_line().trim_end());
     }
-    match response.body {
-        ResponseBody::Result { value, .. } => {
+    match response {
+        Response::Result { value, .. } => {
             if options.json {
                 return 0;
             }
@@ -184,13 +184,13 @@ fn query(options: cli::QueryOptions) -> i32 {
                 }
             }
         }
-        ResponseBody::Error { message } => {
+        Response::Error { message } => {
             if !options.json {
                 eprintln!("{message}");
             }
             1
         }
-        ResponseBody::Cancelled => {
+        Response::Cancelled => {
             unreachable!("invariant violated: cancelled queries are sent again")
         }
     }

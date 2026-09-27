@@ -1,19 +1,18 @@
 //! Accepting clients and forwarding their requests to the watcher.
 //!
-//! Each connection has a task that reads request lines and a task that writes responses, so a
-//! client can send several requests and receive each response as soon as it is ready.
+//! Each connection has one task that reads a query, waits for its answer, writes it, and closes.
+//! Other connections can submit queries while that task waits.
 
-use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
-use crate::protocol::{Query, Request, Response, ResponseBody};
+use crate::protocol::{Query, Response};
 use crate::transport::{BoxedConnection, Listener};
 
 /// A request, forwarded to the watcher with the channel for its response.
 pub struct QueryRequest {
     pub query: Query,
-    pub reply: oneshot::Sender<ResponseBody>,
+    pub reply: oneshot::Sender<Response>,
 }
 
 /// Accepts clients on `listener` until the watcher stops receiving requests.
@@ -35,45 +34,27 @@ async fn serve_connection(
     connection: BoxedConnection,
     requests: mpsc::UnboundedSender<QueryRequest>,
 ) {
-    let (reader, mut writer) = tokio::io::split(connection);
-    let (responses, mut queued) = mpsc::unbounded_channel::<Response>();
-    tokio::spawn(async move {
-        while let Some(response) = queued.recv().await {
-            let line = response.to_line();
-            if writer.write_all(line.as_bytes()).await.is_err() || writer.flush().await.is_err() {
+    let mut connection = BufReader::new(connection);
+    let mut line = String::new();
+    match connection.read_line(&mut line).await {
+        Ok(0) | Err(_) => return,
+        Ok(_) => {}
+    }
+    let response = match serde_json::from_str(&line) {
+        Ok(query) => {
+            let (reply, answer) = oneshot::channel();
+            if requests.send(QueryRequest { query, reply }).is_err() {
                 return;
             }
-        }
-    });
-
-    let mut lines = BufReader::new(reader).lines();
-    while let Ok(Some(line)) = lines.next_line().await {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let Request { id, query } = match serde_json::from_str(&line) {
-            Ok(request) => request,
-            Err(error) => {
-                let id = serde_json::from_str::<Value>(&line)
-                    .ok()
-                    .and_then(|mut value| value.get_mut("id").map(Value::take))
-                    .unwrap_or(Value::Null);
-                let message = format!("invalid request: {error}");
-                let _ = responses.send(Response { id, body: ResponseBody::Error { message } });
-                continue;
-            }
-        };
-        let (reply, answer) = oneshot::channel();
-        if requests.send(QueryRequest { query, reply }).is_err() {
-            return;
-        }
-        let responses = mpsc::UnboundedSender::clone(&responses);
-        tokio::spawn(async move {
-            let body = answer.await.unwrap_or_else(|_| {
+            answer.await.unwrap_or_else(|_| {
                 let message = "the watcher failed to answer; see its output".to_string();
-                ResponseBody::Error { message }
-            });
-            let _ = responses.send(Response { id, body });
-        });
+                Response::Error { message }
+            })
+        }
+        Err(error) => Response::Error { message: format!("invalid request: {error}") },
+    };
+    let mut connection = connection.into_inner();
+    if connection.write_all(response.to_line().as_bytes()).await.is_ok() {
+        let _ = connection.shutdown().await;
     }
 }
