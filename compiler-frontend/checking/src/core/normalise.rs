@@ -223,14 +223,18 @@ where
     Q: ExternalQueries,
 {
     // Most unification variable heads are unsolved, or solved to a type that
-    // can neither normalise nor expand, which is then already the result.
+    // cannot normalise further, whose expansion is then also the expansion of
+    // the variable and may already be memoised.
     if let Type::Unification(unification_id) = *t {
         match state.unifications.get(unification_id).state {
             UnificationState::Unsolved => return Ok(id),
             UnificationState::Solved(solution_id) => {
                 let (solution_t, solution_flags) = context.lookup_type_with_flags(solution_id);
-                if !solution_flags.may_normalise() && !may_expand(solution_t) {
-                    return Ok(solution_id);
+                if !solution_flags.may_normalise() {
+                    if !may_expand(solution_t) {
+                        return Ok(solution_id);
+                    }
+                    return expand(state, context, solution_id);
                 }
             }
         }
