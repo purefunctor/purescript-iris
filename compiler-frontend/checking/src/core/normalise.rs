@@ -130,7 +130,11 @@ where
 // Most types cannot normalise, so keeping the reduction loop out of line lets
 // callers inline the flag check without carrying the loop's stack frame.
 #[inline(never)]
-fn normalise_head<Q>(state: &mut CheckState, context: &CheckContext<Q>, mut id: TypeId) -> TypeId
+pub(crate) fn normalise_head<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut id: TypeId,
+) -> TypeId
 where
     Q: ExternalQueries,
 {

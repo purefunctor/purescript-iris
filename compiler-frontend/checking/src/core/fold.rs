@@ -73,7 +73,19 @@ where
     Q: ExternalQueries,
     F: TypeFold,
 {
-    let (mut id, mut t) = normalise::normalise_looked_up(state, context, id, t, flags);
+    let (mut id, mut t) = (id, t);
+    if flags.may_normalise() {
+        let normalised = normalise::normalise_head(state, context, id);
+        if normalised != id {
+            // A solved unification variable often resolves to a type that the
+            // folder cannot change, such as a closed type during zonking.
+            let (normalised_t, normalised_flags) = context.lookup_type_with_flags(normalised);
+            if !folder.may_change(normalised_flags) {
+                return Ok(normalised);
+            }
+            (id, t) = (normalised, normalised_t);
+        }
+    }
 
     let t = safe_loop! {
         match folder.transform(state, context, id, t)? {

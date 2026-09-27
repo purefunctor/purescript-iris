@@ -29,11 +29,17 @@ impl TypeFold for Zonk {
         state: &mut CheckState,
         _context: &CheckContext<Q>,
         id: TypeId,
-        _t: &Type,
+        t: &Type,
     ) -> QueryResult<FoldAction>
     where
         Q: ExternalQueries,
     {
+        // Folds normalise before transforming, so a unification variable here
+        // is unsolved and already final; memoising it would cost more than
+        // folding it again.
+        if let Type::Unification(_) = t {
+            return Ok(FoldAction::Replace(id));
+        }
         let cached = state.lookup_zonk_cache(id);
         Ok(cached.map_or(FoldAction::Continue, FoldAction::Replace))
     }
