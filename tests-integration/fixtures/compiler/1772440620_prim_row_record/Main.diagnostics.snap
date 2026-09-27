@@ -1,14 +1,15 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:10:1
+Error! · [NoInstanceFound] · Main.purs:11:14
   •
   │
   • No instance found for: Union @Type (r :: Row Type) ( b :: String ) ( b :: String | (r :: Row
   │ Type) )
   │
-  │   addField :: forall r. { a :: Int | r } -> { a :: Int, b :: String | r }
-  │   ╰──────────────────────────────────────────────────────────────────────
+  │   addField x = union x { b: "hi" }
+  │                ╰──────────────────
   •
 
 Error! · [MissingFFIModule] · Main.purs:5:1

@@ -15,7 +15,7 @@ use crate::core::{
     ApplicationArgument, CheckedInstance, Type, TypeId, constraint, exhaustive, generalise,
     normalise, signature, toolkit, unification, zonk,
 };
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, SuperclassId};
 use crate::source::terms::equations;
 use crate::source::{derive, types};
@@ -968,10 +968,11 @@ where
         }
         for error in errors.unsatisfied {
             state.checked.evidence.mark_error(error.evidence.wanted);
-            state.with_error_crumb(ErrorCrumb::TermDeclaration(item_id), |state| {
-                let attached = state.canonical_errors.remove(&error.key.wanted);
-                attached.into_iter().flatten().for_each(|error| state.insert_error(error));
-            });
+            let attached = state.canonical_errors.remove(&error.key.wanted);
+            for kind in attached.into_iter().flatten() {
+                let crumbs = Arc::clone(&error.evidence.crumbs);
+                state.checked.errors.push(CheckingError { kind, crumbs });
+            }
 
             let given = error
                 .key
@@ -981,9 +982,9 @@ where
                 .collect::<Arc<[_]>>();
 
             let constraint = state.canonicals.type_id(context, error.key.wanted);
-            state.with_error_crumb(ErrorCrumb::TermDeclaration(item_id), |state| {
-                state.insert_error(ErrorKind::NoInstanceFound { given, constraint });
-            });
+            let kind = ErrorKind::NoInstanceFound { given, constraint };
+            let crumbs = error.evidence.crumbs;
+            state.checked.errors.push(CheckingError { kind, crumbs });
         }
     }
 

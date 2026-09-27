@@ -5,6 +5,7 @@ use smol_str::SmolStr;
 
 use crate::context::CheckContext;
 use crate::core::{RowField, Type, TypeId, normalise, toolkit, unification};
+use crate::error::ErrorCrumb;
 use crate::state::CheckState;
 use crate::{ExternalQueries, tree};
 
@@ -336,7 +337,9 @@ where
                     complete = false;
                     continue;
                 };
-                elaborate_record_pun(state, context, *id, name, *resolution, mode)?
+                state.with_error_crumb(ErrorCrumb::RecordPun(*id), |state| {
+                    elaborate_record_pun(state, context, *id, name, *resolution, mode)
+                })?
             }
         };
 

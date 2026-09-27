@@ -1,75 +1,76 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Warning! · [CustomWarning] · Main.purs:11:1
+Warning! · [CustomWarning] · Main.purs:12:16
   •
   │
   • This function is deprecated
   │
-  │   useWarnBasic :: Int
-  │   ╰──────────────────
+  │   useWarnBasic = warnBasic 42
+  │                  ╰───────────
   •
 
-Warning! · [CustomWarning] · Main.purs:17:1
+Warning! · [CustomWarning] · Main.purs:18:17
   •
   │
   • Left Right
   │
-  │   useWarnBeside :: Int
-  │   ╰───────────────────
+  │   useWarnBeside = warnBeside 42
+  │                   ╰────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:23:1
+Warning! · [CustomWarning] · Main.purs:24:16
   •
   │
   • Line 1
   │ Line 2
   │
-  │   useWarnAbove :: Int
-  │   ╰──────────────────
+  │   useWarnAbove = warnAbove 42
+  │                  ╰───────────
   •
 
-Warning! · [CustomWarning] · Main.purs:29:1
+Warning! · [CustomWarning] · Main.purs:30:16
   •
   │
   • Got type: Int
   │
-  │   useWarnQuote :: Proxy Int
-  │   ╰────────────────────────
+  │   useWarnQuote = warnQuote Proxy
+  │                  ╰──────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:35:1
+Warning! · [CustomWarning] · Main.purs:36:21
   •
   │
   • Label: myField
   │
-  │   useWarnQuoteLabel :: Int
-  │   ╰───────────────────────
+  │   useWarnQuoteLabel = warnQuoteLabel 42
+  │                       ╰────────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:41:1
+Warning! · [CustomWarning] · Main.purs:42:27
   •
   │
   • Label: "h e l l o"
   │
-  │   useWarnQuoteLabelSpaces :: Int
-  │   ╰─────────────────────────────
+  │   useWarnQuoteLabelSpaces = warnQuoteLabelSpaces 42
+  │                             ╰──────────────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:47:1
+Warning! · [CustomWarning] · Main.purs:48:26
   •
   │
   • Label: "hel\"lo"
   │
-  │   useWarnQuoteLabelQuote :: Int
-  │   ╰────────────────────────────
+  │   useWarnQuoteLabelQuote = warnQuoteLabelQuote 42
+  │                            ╰─────────────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:53:1
+Warning! · [CustomWarning] · Main.purs:54:24
   •
   │
   • Label: """raw\nstring"""
   │
-  │   useWarnQuoteLabelRaw :: Int
-  │   ╰──────────────────────────
+  │   useWarnQuoteLabelRaw = warnQuoteLabelRaw 42
+  │                          ╰───────────────────
   •

@@ -1,38 +1,39 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [CoercibleConstructorNotInScope] · Main.purs:7:1
+Error! · [CoercibleConstructorNotInScope] · Main.purs:8:16
   •
   │
   • Constructor not in scope for Coercible
   │
-  │   coerceHidden :: Int -> HiddenAge
-  │   ╰───────────────────────────────
+  │   coerceHidden = coerce
+  │                  ╰─────
   •
 
-Error! · [NoInstanceFound] · Main.purs:7:1
+Error! · [NoInstanceFound] · Main.purs:8:16
   •
   │
   • No instance found for: Coercible @Type Int HiddenAge
   │
-  │   coerceHidden :: Int -> HiddenAge
-  │   ╰───────────────────────────────
+  │   coerceHidden = coerce
+  │                  ╰─────
   •
 
-Error! · [CoercibleConstructorNotInScope] · Main.purs:10:1
+Error! · [CoercibleConstructorNotInScope] · Main.purs:11:19
   •
   │
   • Constructor not in scope for Coercible
   │
-  │   coerceQualified :: Int -> L.HiddenAge
-  │   ╰────────────────────────────────────
+  │   coerceQualified = coerce
+  │                     ╰─────
   •
 
-Error! · [NoInstanceFound] · Main.purs:10:1
+Error! · [NoInstanceFound] · Main.purs:11:19
   •
   │
   • No instance found for: Coercible @Type Int HiddenAge
   │
-  │   coerceQualified :: Int -> L.HiddenAge
-  │   ╰────────────────────────────────────
+  │   coerceQualified = coerce
+  │                     ╰─────
   •

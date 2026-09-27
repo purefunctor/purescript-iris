@@ -1,13 +1,14 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [CustomFailure] · Main.purs:8:1
+Error! · [CustomFailure] · Main.purs:8:31
   •
   │
   • failure was demanded
   │
   │   test = if true then test else guardedFailure
-  │   ╰───────────────────────────────────────────
+  │                                 ╰─────────────
   •
 
 Error! · [JavaScriptInitializerCycle] · Main.purs:8:1

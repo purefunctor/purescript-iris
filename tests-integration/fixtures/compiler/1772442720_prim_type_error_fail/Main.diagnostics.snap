@@ -1,21 +1,22 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [CustomFailure] · Main.purs:11:1
+Error! · [CustomFailure] · Main.purs:12:16
   •
   │
   • This operation is not allowed
   │
-  │   useFailBasic :: Int
-  │   ╰──────────────────
+  │   useFailBasic = failBasic 42
+  │                  ╰───────────
   •
 
-Error! · [CustomFailure] · Main.purs:17:1
+Error! · [CustomFailure] · Main.purs:18:18
   •
   │
   • Error:
   │ Type String
   │
-  │   useFailComplex :: Proxy String
-  │   ╰─────────────────────────────
+  │   useFailComplex = failComplex Proxy
+  │                    ╰────────────────
   •

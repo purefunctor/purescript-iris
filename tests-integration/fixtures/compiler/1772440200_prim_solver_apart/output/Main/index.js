@@ -29,3 +29,14 @@ export const forceSolve = (() => {
     invalidCons: /* @__PURE__ */ invalidCons($result$3)
   };
 })();
+export const forceSolveChecked = (() => {
+  let $result;
+  throw new Error("Generated code reached a source error");
+  const $field = /* @__PURE__ */ invalidCompare($result);
+  let $result$1;
+  throw new Error("Generated code reached a source error");
+  return {
+    invalidCompare: $field,
+    invalidCons: /* @__PURE__ */ invalidCons($result$1)
+  };
+})();

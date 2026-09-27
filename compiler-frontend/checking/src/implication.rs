@@ -25,10 +25,11 @@ pub struct GivenConstraint {
     pub evidence: EvidenceBinderId,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct WantedConstraint {
     pub constraint: TypeId,
     pub evidence: EvidenceVarId,
+    pub crumbs: Arc<[ErrorCrumb]>,
 }
 
 /// A node in the implication tree.

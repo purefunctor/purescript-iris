@@ -1,13 +1,14 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:16:1
+Error! · [NoInstanceFound] · Main.purs:17:29
   •
   │
   • No instance found for: First @Type Int
   │
-  │   test :: Int
-  │   ╰──────────
+  │   test = constrainedValue <+> needsFirst
+  │                               ╰─────────
   •
 
 Error! · [MissingFFIModule] · Main.purs:5:1

@@ -1,0 +1,49 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+Proxy :: forall k (@a :: k). Main.Proxy @k (a :: k)
+Pair :: forall @a @b. a -> b -> Main.Pair a b
+warned :: forall a. Prim.TypeError.Warn (Prim.TypeError.Text "warned was used") => a -> a
+test :: Main.Pair Prim.Int Prim.Int
+describe :: forall @a. Main.Describe a => a -> Prim.Int
+Legacy :: Main.Legacy
+test2 :: Prim.Int
+Key :: Main.Key
+lookup :: forall b. Main.Lookup (Main.Proxy @Prim.Type Main.Key) b => Main.Proxy @Prim.Type b
+warnResolved ::
+  forall t0 (b :: t0).
+    Prim.TypeError.Warn
+      (Prim.TypeError.Beside
+        (Prim.TypeError.Text "Resolved to ")
+        (Prim.TypeError.Quote @t0 (b :: t0))) =>
+    Main.Proxy @t0 (b :: t0) -> Main.Proxy @t0 (b :: t0)
+consume :: forall t0 (a :: t0). Main.Proxy @t0 (a :: t0) -> Prim.Int
+test3 :: Prim.Int
+
+Types
+Proxy :: forall k. k -> Prim.Type
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+Describe :: Prim.Type -> Prim.Constraint
+Legacy :: Prim.Type
+Key :: Prim.Type
+Resolve :: Prim.Type -> Prim.Type -> Prim.Constraint
+Lookup :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type). Main.Describe a
+  describe :: forall @a. Main.Describe a => a -> Prim.Int
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Resolve a b
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Lookup a b
+
+Instances
+instance Prim.TypeError.Warn (Prim.TypeError.Text "Legacy is deprecated") => Main.Describe Main.Legacy
+instance Main.Resolve Main.Key Prim.Int
+instance forall k v. Main.Resolve k v => Main.Lookup (Main.Proxy @Prim.Type k) v
+
+Roles
+Proxy = [Phantom]
+Pair = [Representational, Representational]
+Legacy = []
+Key = []

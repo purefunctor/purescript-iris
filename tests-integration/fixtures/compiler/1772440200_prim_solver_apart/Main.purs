@@ -23,3 +23,9 @@ forceSolve =
   , invalidAppend
   , invalidCons
   }
+
+forceSolveChecked :: { invalidCompare :: Proxy LT, invalidCons :: Proxy "world" }
+forceSolveChecked =
+  { invalidCompare
+  , invalidCons
+  }

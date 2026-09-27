@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Error! · [CannotUnify] · Main.purs:14:1
   •
@@ -57,29 +58,29 @@ Error! · [CannotUnify] · Main.purs:17:1
   │   ╰─────────────────────────────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:20:1
+Error! · [NoInstanceFound] · Main.purs:20:45
   •
   │
   • No instance found for: NumberValue Boolean
   │
   │   invalidInteger = StyleX.defineVars { value: Types.integer true }
-  │   ╰───────────────────────────────────────────────────────────────
+  │                                               ╰─────────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:22:1
+Error! · [NoInstanceFound] · Main.purs:22:44
   •
   │
   • No instance found for: NumberValue String
   │
   │   invalidNumber = StyleX.defineVars { value: Types.number "1" }
-  │   ╰────────────────────────────────────────────────────────────
+  │                                              ╰───────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:24:1
+Error! · [NoInstanceFound] · Main.purs:24:43
   •
   │
   • No instance found for: StringValue Int
   │
   │   invalidColor = StyleX.defineVars { value: Types.color 42 }
-  │   ╰─────────────────────────────────────────────────────────
+  │                                             ╰─────────────
   •

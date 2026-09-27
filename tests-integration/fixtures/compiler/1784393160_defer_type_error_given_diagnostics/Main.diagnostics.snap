@@ -1,20 +1,21 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [CustomFailure] · Main.purs:14:1
+Error! · [CustomFailure] · Main.purs:15:14
   •
   │
   • failure was demanded
   │
-  │   useFailure :: Int
-  │   ╰────────────────
+  │   useFailure = guardedFailure
+  │                ╰─────────────
   •
 
-Warning! · [CustomWarning] · Main.purs:20:1
+Warning! · [CustomWarning] · Main.purs:21:14
   •
   │
   • warning was demanded
   │
-  │   useWarning :: Int
-  │   ╰────────────────
+  │   useWarning = guardedWarning
+  │                ╰─────────────
   •

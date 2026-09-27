@@ -1,13 +1,14 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:44:1
+Error! · [NoInstanceFound] · Main.purs:46:3
   •
   │
   • No instance found for: Discard (m :: Type -> Type)
   │
-  │   testDoDiscard :: forall m. Monad m => m Int
-  │   ╰──────────────────────────────────────────
+  │     pure "ignored"
+  │     ╰─────────────
   • while
   │
   │   Monad (m :: Type -> Type) is in scope

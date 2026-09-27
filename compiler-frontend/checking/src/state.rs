@@ -295,7 +295,12 @@ impl CheckState {
 
     pub fn push_wanted(&mut self, constraint: TypeId) -> EvidenceVarId {
         let evidence = self.checked.evidence.fresh_variable();
-        self.implications.current_mut().wanted.push_back(WantedConstraint { constraint, evidence });
+        let crumbs = self.crumbs.iter().copied().collect();
+        self.implications.current_mut().wanted.push_back(WantedConstraint {
+            constraint,
+            evidence,
+            crumbs,
+        });
         evidence
     }
 

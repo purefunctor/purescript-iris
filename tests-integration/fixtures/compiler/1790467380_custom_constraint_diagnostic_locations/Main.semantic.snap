@@ -1,0 +1,67 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data Proxy :: forall k. k -> Prim.Type
+data Proxy @a
+  | Proxy :: Main.Proxy a
+
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+interface Describe :: Prim.Type -> Prim.Constraint
+interface Describe a where
+  describe :: a -> Prim.Int
+
+data Legacy :: Prim.Type
+data Legacy
+  | Legacy :: Main.Legacy
+
+data Key :: Prim.Type
+data Key
+  | Key :: Main.Key
+
+interface Resolve :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Resolve a b where
+
+interface Lookup :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Lookup a b where
+
+warned :: forall a. Prim.TypeError.Warn (Prim.TypeError.Text "warned was used") => a -> a
+warned = \{warnDict} -> \x -> x
+
+test :: Main.Pair Prim.Int Prim.Int
+test = Pair (warned {trivial} 1) (warned {trivial} 2)
+
+dictionary describeLegacy ::
+  { warnDict :: Prim.TypeError.Warn (Prim.TypeError.Text "Legacy is deprecated") } =>
+  Main.Describe Main.Legacy
+  where
+  describe :: Main.Legacy -> Prim.Int
+  describe = \_ -> 0
+
+test2 :: Prim.Int
+test2 = describe {describeLegacy {trivial}} Legacy
+
+dictionary resolveKeyInt :: Main.Resolve Main.Key Prim.Int
+
+dictionary lookupProxyType ::
+  forall k v.
+  { resolveDict :: Main.Resolve k v } =>
+  Main.Lookup (Main.Proxy @Prim.Type k) v
+
+lookup :: forall b. Main.Lookup (Main.Proxy @Prim.Type Main.Key) b => Main.Proxy @Prim.Type b
+lookup = \{lookupDict} -> Proxy
+
+warnResolved :: forall t0 b.
+  Prim.TypeError.Warn
+    (Prim.TypeError.Beside (Prim.TypeError.Text "Resolved to ") (Prim.TypeError.Quote @t0 b)) =>
+  Main.Proxy @t0 b -> Main.Proxy @t0 b
+warnResolved = \{warnDict} -> \p -> p
+
+consume :: forall t0 a. Main.Proxy @t0 a -> Prim.Int
+consume = \_ -> 0
+
+test3 :: Prim.Int
+test3 = consume (warnResolved {trivial} (lookup {lookupProxyType {resolveKeyInt}}))

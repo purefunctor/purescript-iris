@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data Box :: Prim.Type -> Prim.Type
+data Box @a
+  | Box :: a -> Main.Box a
+
+interface Combine :: Prim.Type -> Prim.Constraint
+interface Combine a where
+  combine :: a -> a -> a
+
+test :: Prim.String
+test = add {error} "left" "right"
+
+test' :: Prim.String
+test' = add {error} "left" "right"
+
+test2 :: forall a. a -> a
+test2 = \value -> add {error} value value
+
+test2' :: forall t0. Data.Semiring.Semiring t0 => t0 -> t0
+test2' = \{semiringDict} -> \value -> add {semiringDict} value value
+
+test3 :: forall a. Data.Semiring.Semiring a => a -> a
+test3 = \{semiringDict} -> \value -> add {semiringDict} value value
+
+dictionary combineBox ::
+  forall a.
+  { semiringDict :: Data.Semiring.Semiring a } =>
+  Main.Combine (Main.Box a)
+  where
+  combine :: Main.Box a -> Main.Box a -> Main.Box a
+  combine = \(Box left) -> \(Box right) -> Box (add {semiringDict} left right)
+
+test4 :: Main.Box Prim.String
+test4 = combine {combineBox {error}} (Box "left") (Box "right")

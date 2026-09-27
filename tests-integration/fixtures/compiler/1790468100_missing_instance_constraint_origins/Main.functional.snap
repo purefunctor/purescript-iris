@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export test = add (<error>) "left" "right"
+
+@export test' = add (<error>) "left" "right"
+
+@export test2 = \value%0 -> add (<error>) value%0 value%0
+
+@export test2' = \semiringDict%1 -> \value%2 -> add semiringDict%1 value%2 value%2
+
+@export test3 = \semiringADict%3 -> \value%4 -> add semiringADict%3 value%4 value%4
+
+@export constructor Box/1
+
+@export combine = \dictionary%5 -> dictionary%5.combine
+
+@export instance combineBox = \semiringADict%6 ->
+  {
+    combine:
+      \$box%9@(Box left%7) $box%10@(Box right%8) ->
+        { tag: "Box", _1: add semiringADict%6 left%7 right%8 }
+  }
+
+@export test4 = combine (combineBox (<error>)) { tag: "Box", _1: "left" }
+  { tag: "Box", _1: "right" }

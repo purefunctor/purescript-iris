@@ -1,38 +1,39 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:17:1
+Error! · [NoInstanceFound] · Main.purs:18:21
   •
   │
   • No instance found for: IsEq x Unit Output
   │
-  │   testSkolemRight :: forall x. x -> Output
-  │   ╰───────────────────────────────────────
+  │   testSkolemRight x = isEq x Unit
+  │                       ╰──────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:20:1
+Error! · [NoInstanceFound] · Main.purs:21:20
   •
   │
   • No instance found for: IsEq Unit x1 Output
   │
-  │   testSkolemLeft :: forall x. x -> Output
-  │   ╰──────────────────────────────────────
+  │   testSkolemLeft x = isEq Unit x
+  │                      ╰──────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:23:1
+Error! · [NoInstanceFound] · Main.purs:24:22
   •
   │
   • No instance found for: IsEq y x2 Output
   │
-  │   testSkolemIsEq :: forall x y. x -> y -> Output
-  │   ╰─────────────────────────────────────────────
+  │   testSkolemIsEq x y = isEq y x
+  │                        ╰───────
   •
 
-Error! · [NoInstanceFound] · Main.purs:44:1
+Error! · [NoInstanceFound] · Main.purs:45:20
   •
   │
   • No instance found for: RowSame @Type { params :: Unit | ?47 } { query :: Unit | ?50 }
   │
-  │   testOpenRowsNoFd :: Unit
-  │   ╰───────────────────────
+  │   testOpenRowsNoFd = rowSame @{ params :: Unit | _ } @{ query :: Unit | _ }
+  │                      ╰─────────────────────────────────────────────────────
   •

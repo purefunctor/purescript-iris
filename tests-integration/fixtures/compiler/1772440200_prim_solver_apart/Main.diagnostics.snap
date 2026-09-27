@@ -1,38 +1,57 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:20:1
+Error! · [NoInstanceFound] · Main.purs:21:5
   •
   │
   • No instance found for: Add 2 3 10
   │
-  │   forceSolve =
-  │   ╰───────────
+  │     { invalidAdd
+  │       ╰─────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:20:1
+Error! · [NoInstanceFound] · Main.purs:22:5
   •
   │
   • No instance found for: Compare 5 1 LT
   │
-  │   forceSolve =
-  │   ╰───────────
+  │     , invalidCompare
+  │       ╰─────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:20:1
+Error! · [NoInstanceFound] · Main.purs:23:5
   •
   │
   • No instance found for: Append "hello" "world" "xyz"
   │
-  │   forceSolve =
-  │   ╰───────────
+  │     , invalidAppend
+  │       ╰────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:20:1
+Error! · [NoInstanceFound] · Main.purs:24:5
   •
   │
   • No instance found for: Cons "hello" "world" "helloworld"
   │
-  │   forceSolve =
-  │   ╰───────────
+  │     , invalidCons
+  │       ╰──────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:29:5
+  •
+  │
+  • No instance found for: Compare 5 1 LT
+  │
+  │     { invalidCompare
+  │       ╰─────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:30:5
+  •
+  │
+  • No instance found for: Cons "hello" "world" "helloworld"
+  │
+  │     , invalidCons
+  │       ╰──────────
   •
