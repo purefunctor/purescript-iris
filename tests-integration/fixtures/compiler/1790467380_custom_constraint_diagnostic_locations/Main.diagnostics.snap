@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Warning! · [CustomWarning] · Main.purs:13:1
+  •
+  │
+  • warned was used
+  │
+  │   test :: Pair Int Int
+  │   ╰───────────────────
+  •
+
+Warning! · [CustomWarning] · Main.purs:13:1
+  •
+  │
+  • warned was used
+  │
+  │   test :: Pair Int Int
+  │   ╰───────────────────
+  •
+
+Warning! · [CustomWarning] · Main.purs:24:1
+  •
+  │
+  • Legacy is deprecated
+  │
+  │   test2 :: Int
+  │   ╰───────────
+  •
+
+Warning! · [CustomWarning] · Main.purs:48:1
+  •
+  │
+  • Resolved to Int
+  │
+  │   test3 :: Int
+  │   ╰───────────
+  •

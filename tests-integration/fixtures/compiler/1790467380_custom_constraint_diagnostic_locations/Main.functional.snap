@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export constructor Proxy/0
+
+@export constructor Pair/2
+
+@export warned = \warnTextDict%1 -> \x%0 -> x%0
+
+@export test = { tag: "Pair", _1: warned <trivial evidence> 1, _2: warned <trivial evidence> 2 }
+
+@export describe = \dictionary%2 -> dictionary%2.describe
+
+@export constructor Legacy/0
+
+@export instance describeLegacy = \warnTextDict%3 -> { describe: \$legacy%4@(_) -> 0 }
+
+@export test2 = describe (describeLegacy <trivial evidence>) "Legacy"
+
+@export constructor Key/0
+
+@export instance resolveKeyInt = {  }
+
+@export instance lookupProxyType = \resolveKVDict%5 -> {  }
+
+@export lookup = \lookupProxyKeyBDict%6 -> "Proxy"
+
+@export warnResolved = \warnBesideTextQuoteBDict%8 -> \p%7 -> p%7
+
+@export consume = \$proxy%9@(_) -> 0
+
+@export test3 = consume (warnResolved <trivial evidence> (lookup (lookupProxyType resolveKeyInt)))
