@@ -188,7 +188,7 @@ where
 /// This function also applies normalisation using [`normalise`],
 /// and should be used in checking rules where synonyms must be
 /// transparent and inspected.
-#[inline]
+#[inline(always)]
 pub fn expand<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
