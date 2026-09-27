@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::num::NonZeroU32;
 use std::{any, fmt, ops};
 
+use hashbrown::hash_table::Entry;
 use hashbrown::{Equivalent, HashTable};
 use rustc_hash::FxBuildHasher;
 
@@ -62,7 +63,9 @@ impl<T> Hash for Id<T> {
 #[derive(Debug)]
 pub struct Interner<T> {
     inner: Vec<T>,
-    table: HashTable<NonZeroU32>,
+    // Storing each value's hash beside its index lets the table grow without
+    // rehashing values, and skips comparing values whose hashes differ.
+    table: HashTable<(u64, NonZeroU32)>,
 }
 
 impl<T> Default for Interner<T> {
@@ -85,18 +88,25 @@ impl<T: Eq + Hash> Interner<T> {
     pub fn intern(&mut self, value: T) -> Id<T> {
         let hash = FxBuildHasher.hash_one(&value);
 
-        let existing =
-            self.table.find(hash, |&id| arena_equivalent(&self.inner, id, &value)).copied();
+        let entry = self.table.entry(
+            hash,
+            |&(entry_hash, id)| entry_hash == hash && arena_equivalent(&self.inner, id, &value),
+            |&(entry_hash, _)| entry_hash,
+        );
 
-        let id = existing.unwrap_or_else(|| {
-            self.inner.push(value);
-            let index = self.inner.len();
-            // SAFETY: Vec::push ensures that the subsequent Vec::len
-            // returns a non-zero value to be used as a 1-based index.
-            let id = unsafe { NonZeroU32::new_unchecked(index as u32) };
-            self.table.insert_unique(hash, id, |&id| arena_hasher(&self.inner, id));
-            id
-        });
+        let vacant = match entry {
+            Entry::Occupied(occupied) => {
+                let &(_, id) = occupied.get();
+                return Id::new(id);
+            }
+            Entry::Vacant(vacant) => vacant,
+        };
+
+        self.inner.push(value);
+        let Some(id) = u32::try_from(self.inner.len()).ok().and_then(NonZeroU32::new) else {
+            panic!("interner exceeded {} values", u32::MAX);
+        };
+        vacant.insert((hash, id));
 
         Id::new(id)
     }
@@ -106,13 +116,15 @@ impl<T: Eq + Hash> Interner<T> {
         Q: ?Sized + Hash + Equivalent<T>,
     {
         let hash = FxBuildHasher.hash_one(value);
-        let id = self.table.find(hash, |&id| arena_equivalent(&self.inner, id, value))?;
-        Some(Id::new(*id))
+        let &(_, id) = self.table.find(hash, |&(entry_hash, id)| {
+            entry_hash == hash && arena_equivalent(&self.inner, id, value)
+        })?;
+        Some(Id::new(id))
     }
 
     pub fn shrink_to_fit(&mut self) {
         self.inner.shrink_to_fit();
-        self.table.shrink_to_fit(|&id| arena_hasher(&self.inner, id));
+        self.table.shrink_to_fit(|&(hash, _)| hash);
     }
 }
 
@@ -130,14 +142,6 @@ impl<T> ops::Index<Id<T>> for Interner<T> {
 fn arena_index<T>(arena: &[T], id: NonZeroU32) -> Option<&T> {
     let index = id.get() as usize;
     arena.get(index - 1)
-}
-
-#[inline]
-fn arena_hasher<T: Hash>(arena: &[T], id: NonZeroU32) -> u64 {
-    let inner = arena_index(arena, id).unwrap_or_else(|| {
-        unreachable!("invariant violated: {id} is not a valid index");
-    });
-    FxBuildHasher.hash_one(inner)
 }
 
 #[inline]
