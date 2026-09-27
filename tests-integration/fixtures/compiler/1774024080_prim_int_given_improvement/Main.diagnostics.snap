@@ -1,11 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:12:1
+Error! · [NoInstanceFound] · Main.purs:13:3
   •
   │
   • No instance found for: Add 1 2 4
   │
-  │   forceSolve =
-  │   ╰───────────
+  │     { addChain
+  │     ╰─────────
   •

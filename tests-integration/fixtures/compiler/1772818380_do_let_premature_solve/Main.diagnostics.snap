@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Error! · [CannotUnify] · Main.purs:27:15
   •
@@ -10,13 +11,13 @@ Error! · [CannotUnify] · Main.purs:27:15
   │                 ╰──
   •
 
-Error! · [NoInstanceFound] · Main.purs:24:1
+Error! · [NoInstanceFound] · Main.purs:27:11
   •
   │
   • No instance found for: Semiring String
   │
-  │   test :: Effect Unit
-  │   ╰──────────────────
+  │     let f = a + 123
+  │             ╰──────
   •
 
 Error! · [MissingFFIModule] · Main.purs:6:1

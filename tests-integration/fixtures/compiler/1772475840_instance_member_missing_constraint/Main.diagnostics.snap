@@ -1,11 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:9:1
+Error! · [NoInstanceFound] · Main.purs:11:18
   •
   │
   • No instance found for: Show a
   │
-  │   instance Show (Box a) where
-  │   ╰──────────────────────────
+  │     show (Box x) = show x
+  │                    ╰─────
   •

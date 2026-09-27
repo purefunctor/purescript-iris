@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Warning! · [MissingPatterns] · Main.purs:14:13
   •
@@ -10,13 +11,13 @@ Warning! · [MissingPatterns] · Main.purs:14:13
   │               ╰────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:13:1
+Error! · [NoInstanceFound] · Main.purs:14:13
   •
   │
   • No instance found for: Partial
   │
-  │   refutable :: Array Int -> Int
-  │   ╰────────────────────────────
+  │   refutable = case _ of
+  │               ╰────────
   •
 
 Error! · [MissingFFIModule] · Main.purs:18:1

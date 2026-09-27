@@ -1,13 +1,14 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:6:1
+Error! · [NoInstanceFound] · Main.purs:13:7
   •
   │
   • No instance found for: Given Int
   │
-  │   testGiven :: forall a. Given a => a -> a
-  │   ╰───────────────────────────────────────
+  │     c = consume 42
+  │         ╰─────────
   • while
   │
   │   Given a is in scope

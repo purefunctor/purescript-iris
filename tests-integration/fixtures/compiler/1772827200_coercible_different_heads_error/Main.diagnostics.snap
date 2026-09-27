@@ -1,11 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:8:1
+Error! · [NoInstanceFound] · Main.purs:9:19
   •
   │
   • No instance found for: Coercible @Type (Maybe Int) (Either Int String)
   │
-  │   coerceDifferent :: Maybe Int -> Either Int String
-  │   ╰────────────────────────────────────────────────
+  │   coerceDifferent = coerce
+  │                     ╰─────
   •

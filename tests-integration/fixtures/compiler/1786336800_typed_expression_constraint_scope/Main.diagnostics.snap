@@ -1,11 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:7:1
+Error! · [NoInstanceFound] · Main.purs:8:9
   •
   │
   • No instance found for: Value Int
   │
-  │   test :: Int
-  │   ╰──────────
+  │   test = (value :: Value Int => Int)
+  │           ╰────────────────────────
   •

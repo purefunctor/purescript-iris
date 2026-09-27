@@ -2,38 +2,38 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 308
 ---
-Error! · [NoInstanceFound] · Main.purs:5:1
+Error! · [NoInstanceFound] · Main.purs:6:8
   •
   │
   • No instance found for: Semiring String
   │
-  │   test :: String
-  │   ╰─────────────
+  │   test = add "left" "right"
+  │          ╰─────────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:8:1
+Error! · [NoInstanceFound] · Main.purs:8:9
   •
   │
   • No instance found for: Semiring String
   │
   │   test' = add "left" "right"
-  │   ╰─────────────────────────
+  │           ╰─────────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:10:1
+Error! · [NoInstanceFound] · Main.purs:11:15
   •
   │
   • No instance found for: Semiring a
   │
-  │   test2 :: forall a. a -> a
-  │   ╰────────────────────────
+  │   test2 value = add value value
+  │                 ╰──────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:26:1
+Error! · [NoInstanceFound] · Main.purs:27:9
   •
   │
   • No instance found for: Semiring String
   │
-  │   test4 :: Box String
-  │   ╰──────────────────
+  │   test4 = combine (Box "left") (Box "right")
+  │           ╰─────────────────────────────────
   •

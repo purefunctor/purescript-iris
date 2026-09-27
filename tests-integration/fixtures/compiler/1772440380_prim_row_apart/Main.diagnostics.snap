@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Error! · [CannotUnify] · Main.purs:15:1
   •
@@ -28,11 +29,11 @@ Error! · [CannotUnify] · Main.purs:15:1
   │   ╰───────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:15:1
+Error! · [NoInstanceFound] · Main.purs:16:3
   •
   │
   • No instance found for: Lacks @Type "b" ( a :: Int, b :: String )
   │
-  │   forceSolve =
-  │   ╰───────────
+  │     { unionTypeMismatch
+  │     ╰──────────────────
   •
