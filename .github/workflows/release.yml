@@ -61,6 +61,7 @@ jobs:
           include: README.md,LICENSE,ACKNOWLEDGEMENTS.md,THIRDPARTY.toml
           leading-dir: true
           locked: true
+          profile: dist
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
 

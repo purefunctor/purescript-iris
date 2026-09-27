@@ -143,6 +143,7 @@ jobs:
           include: README.md,LICENSE,ACKNOWLEDGEMENTS.md,THIRDPARTY.toml
           leading-dir: true
           locked: true
+          profile: dist
           ref: refs/tags/${{ needs.prepare.outputs.tag }}
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}

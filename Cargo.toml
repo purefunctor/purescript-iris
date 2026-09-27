@@ -28,3 +28,10 @@ lsp-types = { package = "gen-lsp-types", version = "=0.11.0", features = ["url"]
 
 [profile.dev.package.insta]
 opt-level = 3
+
+# Distributed binaries trade longer builds for whole-program optimisation;
+# local release builds keep the faster default settings.
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
