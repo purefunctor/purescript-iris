@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test :: Prim.String
+test' :: Prim.String
+test2 :: forall a. a -> a
+test2' :: forall t0. Data.Semiring.Semiring t0 => t0 -> t0
+test3 :: forall a. Data.Semiring.Semiring a => a -> a
+Box :: forall @a. a -> Main.Box a
+combine :: forall @a. Main.Combine a => a -> a -> a
+test4 :: Main.Box Prim.String
+
+Types
+Box :: Prim.Type -> Prim.Type
+Combine :: Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type). Main.Combine a
+  combine :: forall @a. Main.Combine a => a -> a -> a
+
+Instances
+instance forall a. Data.Semiring.Semiring a => Main.Combine (Main.Box a)
+
+Roles
+Box = [Representational]
