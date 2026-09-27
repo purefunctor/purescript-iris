@@ -128,6 +128,11 @@ where
     ) -> QueryResult<Option<CheckedSynonym>> {
         debug_assert_ne!(file_id, self.id);
 
+        // Prim declares no synonyms, and its constructors head most types.
+        if file_id == self.prim.prim_id {
+            return Ok(None);
+        }
+
         let key = (file_id, type_id);
         let checked_synonym = self.checked_synonyms.borrow().get(&key).cloned();
         if let Some(checked_synonym) = checked_synonym {
