@@ -534,8 +534,12 @@ where
             if let Some(given) = canonical::canonicalise(state, context, constraint)? {
                 introduced_binders.push((given, evidence));
 
-                let canonical = state.canonicals.type_id(context, given);
-                state.checked.evidence.bind_binder(evidence, canonical);
+                // With wanted constraints, binders are bound to their
+                // elaborated constraints below instead.
+                if wanted.is_empty() {
+                    let canonical = state.canonicals.type_id(context, given);
+                    state.checked.evidence.bind_binder(evidence, canonical);
+                }
 
                 let proof = state.checked.evidence.allocate(Evidence::Given(evidence));
                 evidence_in_scope.insert(given, proof);
