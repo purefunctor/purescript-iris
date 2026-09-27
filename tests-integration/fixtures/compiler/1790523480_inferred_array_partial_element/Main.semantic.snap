@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data Choice :: Prim.Type
+data Choice
+  | Chosen :: Prim.Int -> Main.Choice
+  | Other :: Main.Choice
+
+fs :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+fs = \{partialDict} -> [\{partialDict1} -> \(Chosen value) -> value]

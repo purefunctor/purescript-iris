@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Warning! · [MissingPatterns] · Main.purs:5:7
+  •
+  │
+  • Pattern match is not exhaustive. Missing: Other
+  │
+  │   fs = [\(Chosen value) -> value]
+  │         ╰───────────────────────
+  •

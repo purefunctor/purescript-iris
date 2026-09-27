@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export constructor Chosen/1
+
+@export constructor Other/0
+
+@export fs = \partialDict%3 -> [\partialDict%0 -> \$choice%2@(Chosen value%1) -> value%1]
