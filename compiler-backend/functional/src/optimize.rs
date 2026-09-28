@@ -167,9 +167,6 @@ fn folded_negation(
 }
 
 fn negated_number(value: &str) -> SmolStr {
-    if value.parse::<f64>().ok() == Some(0.0) {
-        return SmolStr::new("0.0");
-    }
     match value.strip_prefix('-') {
         Some(value) => SmolStr::new(value),
         None => format_smolstr!("-{value}"),

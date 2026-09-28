@@ -136,7 +136,7 @@ export function integerNegate(value) {
   return -value | 0;
 }
 export function numberNegate(value) {
-  return 0 - value;
+  return -value;
 }
 export function genericNegate(ringValueDict) {
   return (value) => /* @__PURE__ */ Data_Ring.negate(ringValueDict)(value);
@@ -158,6 +158,8 @@ export const partiallyAppliedConj = /* @__PURE__ */ Data_HeytingAlgebra.conj(Dat
 export const integerNegateLiteral = -20 | 0;
 export const inlineIntegerNegateLiteral = -20 | 0;
 export const numberNegateLiteral = -20.5;
-export const numberNegateZero = 0;
+export const numberNegateZero = -0;
+export const numberNegateNegativeZero = 0;
+export const syntacticNegativeZero = -0;
 export const partiallyAppliedNegate = /* @__PURE__ */ Data_Ring.negate(Data_Ring.ringInt);
 export const partiallyAppliedAdd = /* @__PURE__ */ Data_Semiring.add(Data_Semiring.semiringInt)(1 | 0);
