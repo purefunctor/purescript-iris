@@ -32,6 +32,15 @@ that future Iris backends will use them. Iris JavaScript targets ES2022 and Node
   32-bit integers with bitwise operations. `Number` uses JavaScript numbers;
   `String` and `Char` use JavaScript strings; `Boolean` uses JavaScript booleans.
   Do not read a `| 0` as a different source-level numeric type.
+- Recognized canonical Prelude `Data.Ring.negate` on `Number` emits unary
+  JavaScript `-`, matching purs and purescript-backend-optimizer. Literal
+  folding preserves the sign change: negating positive zero yields negative
+  zero, and negating negative zero yields positive zero. Source `-0.0` resolves
+  through `negate` and evaluates to negative zero; `1.0 / (-0.0)` is
+  `-Infinity` (see [issue #614](https://github.com/purefunctor/purescript-iris/issues/614)).
+  This optimization is distinct from evaluating Prelude's generic definition
+  `zero - value`: `0.0 - 0.0` is positive zero. Generic or custom `Ring`
+  dictionaries retain their own `negate` behavior.
 
 ### Functions, dictionaries, and effects
 

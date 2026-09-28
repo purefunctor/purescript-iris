@@ -94,6 +94,12 @@ numberNegateLiteral = negate {ringNumber} 20.5
 numberNegateZero :: Prim.Number
 numberNegateZero = negate {ringNumber} 0.0
 
+numberNegateNegativeZero :: Prim.Number
+numberNegateNegativeZero = negate {ringNumber} (negate {ringNumber} 0.0)
+
+syntacticNegativeZero :: Prim.Number
+syntacticNegativeZero = negate {ringNumber} 0.0
+
 genericNegate :: forall value. Data.Ring.Ring value => value -> value
 genericNegate = \{ringDict} -> \value -> negate {ringDict} value
 

@@ -204,7 +204,6 @@ pub enum ExpressionKind {
 pub enum UnaryOperator {
     BooleanNot,
     IntegerNegate,
-    /// Prelude's `negate` computes `0.0 - value`, preserving positive zero.
     NumberNegate,
 }
 

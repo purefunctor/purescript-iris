@@ -26,6 +26,8 @@ inlineIntegerNegateLiteral :: Prim.Int
 numberNegate :: Prim.Number -> Prim.Number
 numberNegateLiteral :: Prim.Number
 numberNegateZero :: Prim.Number
+numberNegateNegativeZero :: Prim.Number
+syntacticNegativeZero :: Prim.Number
 genericNegate :: forall value. Data.Ring.Ring value => value -> value
 partiallyAppliedNegate :: Prim.Int -> Prim.Int
 integerAddOrder :: Prim.Boolean -> Prim.Int

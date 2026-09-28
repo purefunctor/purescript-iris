@@ -67,7 +67,11 @@ assertion_line: 310
 
 @export numberNegateLiteral = -20.5
 
-@export numberNegateZero = 0.0
+@export numberNegateZero = -0.0
+
+@export numberNegateNegativeZero = 0.0
+
+@export syntacticNegativeZero = -0.0
 
 @export genericNegate = \ringValueDict%36 -> \value%37 -> negate ringValueDict%36 value%37
 

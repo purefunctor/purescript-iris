@@ -86,6 +86,12 @@ numberNegateLiteral = Ring.negate 20.5
 numberNegateZero :: Number
 numberNegateZero = Ring.negate 0.0
 
+numberNegateNegativeZero :: Number
+numberNegateNegativeZero = Ring.negate (-0.0)
+
+syntacticNegativeZero :: Number
+syntacticNegativeZero = -0.0
+
 genericNegate :: forall value. Ring.Ring value => value -> value
 genericNegate value = Ring.negate value
 
