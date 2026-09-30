@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 Nominal signature Lib.increment
 
@@ -89,6 +90,7 @@ Nominal dependents Lib
 Main
 ReExport
 App through Main
+Root through App
 
 
 Nominal search box
@@ -100,6 +102,7 @@ Nominal search box
 
 Nominal search long
 
+1 Lib.longPlain :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
 1 Lib.longKinded :: forall (f :: Type -> Type) a b. (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) a
 
 

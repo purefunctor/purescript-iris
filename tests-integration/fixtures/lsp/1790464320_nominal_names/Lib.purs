@@ -13,3 +13,6 @@ data Box a = Box a
 
 longKinded :: forall (f :: Type -> Type) a b. f a -> f b -> f a -> f b -> f a -> f b -> f a -> f a
 longKinded value _ _ _ _ _ _ = value
+
+longPlain :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
+longPlain value _ _ _ _ _ _ _ _ _ _ = value

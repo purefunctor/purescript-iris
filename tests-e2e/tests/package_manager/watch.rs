@@ -487,29 +487,6 @@ app = main
 "#,
     );
     workspace.write(
-        "src/Root.purs",
-        r#"module Root where
-
-import App (app)
-
-root :: Int
-root = app
-"#,
-    );
-    // Signatures longer than a line, with and without a kinded binder, which search must still
-    // show on one line under the qualified name.
-    workspace.write(
-        "src/Long.purs",
-        r#"module Long where
-
-longKinded :: forall (f :: Type -> Type) a b. f a -> f b -> f a -> f b -> f a -> f b -> f a -> f a
-longKinded x _ _ _ _ _ _ = x
-
-longPlain :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
-longPlain x _ _ _ _ _ _ _ _ _ _ = x
-"#,
-    );
-    workspace.write(
         "src/Empty.purs",
         r#"module Empty where
 "#,
@@ -537,11 +514,22 @@ longPlain x _ _ _ _ _ _ _ _ _ _ = x
         "instances class Shapes.Shape",
         "dependents Shapes",
         "search siz",
-        "search sqr",
-        "search long",
     ] {
         transcript.push_str(&run_query(&workspace, query));
     }
+    let signature = workspace.command(&["watch", "query", "--json", "signature", "Shapes.size"]);
+    assert_eq!(signature.status.code(), Some(0), "{signature:?}");
+    let response: serde_json::Value = serde_json::from_slice(&signature.stdout).unwrap();
+    assert_eq!(response["kind"], "result");
+    assert_eq!(
+        response["value"],
+        serde_json::json!({
+            "declarations": [{
+                "signature": "size :: Shape -> Int",
+                "documentation": "The size of a shape.",
+            }],
+        })
+    );
     // Built-in modules are materialized files, as in the language server, so their
     // declarations have locations an agent can read.
     let definition = workspace.command(&["watch", "query", "definition", "Prim.Int"]);

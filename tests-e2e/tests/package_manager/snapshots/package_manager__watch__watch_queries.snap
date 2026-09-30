@@ -88,20 +88,11 @@ $ iris watch query instances class Shapes.Shape
 $ iris watch query dependents Shapes
 [0] src/Main.purs: Main
 src/App.purs: App (through Main)
-src/Root.purs: Root (through App)
 
 $ iris watch query search siz
 [0] Shapes.Size :: Int -> Size
 Shapes.Size :: Type
 Shapes.size :: Shape -> Int
-
-$ iris watch query search sqr
-[0] Main.square :: Int
-Shapes.Square :: Int -> Shape
-
-$ iris watch query search long
-[0] Long.longPlain :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int
-Long.longKinded :: forall (f :: Type -> Type) a b. (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) b -> (f :: Type -> Type) a -> (f :: Type -> Type) a
 
 $ iris watch query wait
 [0] Build has diagnostics; see `iris watch query diagnostics`.
