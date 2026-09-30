@@ -250,6 +250,16 @@ impl SyntaxNode {
         PreorderWithTokens(events.into_iter())
     }
 
+    pub fn tokens(&self) -> SyntaxTokens {
+        let tree = self.owner.tree.lock();
+        let root = tree.get(self.id).unwrap();
+        let tokens = root.walk().inside().filter_map(|node| {
+            (node.value().category == ElementCategory::Token).then_some(node.id())
+        });
+        let tokens = tokens.collect::<Vec<_>>().into_iter();
+        SyntaxTokens { owner: Arc::clone(&self.owner), tokens }
+    }
+
     pub fn token_at_offset(&self, offset: TextSize) -> TokenAtOffset<SyntaxToken> {
         token_at_offset(self, offset)
     }
@@ -415,6 +425,20 @@ impl Iterator for PreorderWithTokens {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+}
+
+pub struct SyntaxTokens {
+    owner: Arc<TreeOwner>,
+    tokens: std::vec::IntoIter<PointerUsize>,
+}
+
+impl Iterator for SyntaxTokens {
+    type Item = SyntaxToken;
+
+    fn next(&mut self) -> Option<SyntaxToken> {
+        let id = self.tokens.next()?;
+        Some(SyntaxToken { owner: Arc::clone(&self.owner), id })
     }
 }
 
@@ -701,6 +725,43 @@ mod tests {
         let pointers = root.preorder_pointers();
 
         assert!(preorder.eq(pointers));
+    }
+
+    #[test]
+    fn tokens_preserve_empty_token_order_and_ranges() {
+        let root = root_with_boundary_tokens();
+        let tokens = root.tokens().map(|token| (token.kind(), token.text_range()));
+        let tokens = tokens.collect::<Vec<_>>();
+
+        assert_eq!(
+            tokens,
+            [
+                (SyntaxKind::LOWER, TextRange::new(0.into(), 1.into())),
+                (SyntaxKind::LAYOUT_SEPARATOR, TextRange::empty(1.into())),
+                (SyntaxKind::UPPER, TextRange::new(1.into(), 3.into())),
+            ]
+        );
+    }
+
+    #[test]
+    fn tokens_include_nested_raw_tokens_and_stay_inside_the_subtree() {
+        let mut builder = syntree::Builder::new();
+        builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
+        builder.open(SyntaxValue::token(SyntaxKind::TEXT)).unwrap();
+        builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
+        builder.token(SyntaxValue::token(SyntaxKind::UPPER), 2).unwrap();
+        builder.close().unwrap();
+        builder.close().unwrap();
+        builder.token(SyntaxValue::token(SyntaxKind::LOWER), 1).unwrap();
+        builder.close().unwrap();
+        let root = SyntaxNode::new_root(TreeOwner::new(builder.build().unwrap()));
+
+        let kinds = root.tokens().map(|token| token.kind()).collect::<Vec<_>>();
+        assert_eq!(kinds, [SyntaxKind::TEXT, SyntaxKind::UPPER, SyntaxKind::LOWER]);
+
+        let header = root.preorder_pointers().nth(1).unwrap().to_node(&root);
+        let kinds = header.tokens().map(|token| token.kind()).collect::<Vec<_>>();
+        assert_eq!(kinds, [SyntaxKind::UPPER]);
     }
 
     #[test]

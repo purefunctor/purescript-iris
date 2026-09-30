@@ -1,6 +1,6 @@
 use building_types::QueryProxy;
 use lsp_types::{SemanticToken, SemanticTokenModifiers, SemanticTokenTypes, SemanticTokens};
-use syntax::{SyntaxKind, SyntaxToken, TextRange, WalkEvent};
+use syntax::{SyntaxKind, SyntaxToken, TextRange};
 
 use crate::position::PositionConverter;
 use crate::{AnalyzerContext, AnalyzerError};
@@ -73,9 +73,7 @@ pub fn implementation(
     let mut data = Vec::new();
     let mut previous = lsp_types::Position::new(0, 0);
 
-    for event in root.preorder_with_tokens() {
-        let WalkEvent::Enter(element) = event else { continue };
-        let Some(token) = element.into_token() else { continue };
+    for token in root.tokens() {
         let Some(classification) = classify(&token) else { continue };
 
         push_token_ranges(&mut data, &mut previous, &positions, token.text_range(), classification);
