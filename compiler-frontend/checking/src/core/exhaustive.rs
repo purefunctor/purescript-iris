@@ -616,17 +616,13 @@ fn canonicalise_record_constructor(
     constructor: PatternConstructor,
     matrix: &PatternMatrix,
 ) -> PatternConstructor {
-    let PatternConstructor::Record { labels, fields } = &constructor else {
+    let PatternConstructor::Record { labels: original_labels, fields: original_fields } =
+        &constructor
+    else {
         return constructor;
     };
 
-    let mut canonical = {
-        let labels = labels.iter().cloned();
-        let fields = fields.iter().copied();
-        labels.zip(fields).collect_vec()
-    };
-
-    let initial_length = canonical.len();
+    let mut canonical = None;
 
     for row in matrix {
         let Some(&first) = row.first() else {
@@ -637,6 +633,16 @@ fn canonicalise_record_constructor(
             constructor: PatternConstructor::Record { labels, fields },
         } = &state.patterns[first].kind
         {
+            if labels == original_labels {
+                continue;
+            }
+
+            let canonical = canonical.get_or_insert_with(|| {
+                let labels = original_labels.iter().cloned();
+                let fields = original_fields.iter().copied();
+                labels.zip(fields).collect_vec()
+            });
+
             for (label, &field) in iter::zip(labels, fields) {
                 if !canonical.iter().any(|(existing, _)| existing == label) {
                     canonical.push((label.clone(), field));
@@ -645,7 +651,11 @@ fn canonicalise_record_constructor(
         }
     }
 
-    if canonical.len() == initial_length {
+    let Some(mut canonical) = canonical else {
+        return constructor;
+    };
+
+    if canonical.len() == original_labels.len() {
         return constructor;
     }
 
@@ -1401,10 +1411,75 @@ where
 mod tests {
     use std::num::NonZeroU32;
 
-    use super::{PatternId, PatternMatrix};
+    use files::Files;
+
+    use super::{PatternConstructor, PatternId, PatternMatrix, canonicalise_record_constructor};
+    use crate::core::Type;
+    use crate::interners::CoreInterners;
+    use crate::state::CheckState;
 
     fn pattern_id(value: u32) -> PatternId {
         PatternId::new(NonZeroU32::new(value).unwrap())
+    }
+
+    #[test]
+    fn identical_record_labels_preserve_original_fields() {
+        let file = Files::default().insert("Main.purs", "");
+        let mut state = CheckState::new(file);
+        let t = CoreInterners::default().intern_type(Type::Integer(0));
+        let original = PatternConstructor::Record {
+            labels: vec!["a".into(), "b".into()],
+            fields: vec![pattern_id(10), pattern_id(20)],
+        };
+        let matching = PatternConstructor::Record {
+            labels: vec!["a".into(), "b".into()],
+            fields: vec![pattern_id(30), pattern_id(40)],
+        };
+        let matching = state.allocate_constructor(matching, t);
+        let mut matrix = PatternMatrix::new(1);
+        matrix.push(&[matching]);
+
+        assert_eq!(canonicalise_record_constructor(&state, original.clone(), &matrix), original);
+    }
+
+    #[test]
+    fn differing_record_labels_preserve_first_fields_and_sorted_union() {
+        let file = Files::default().insert("Main.purs", "");
+        let mut state = CheckState::new(file);
+        let t = CoreInterners::default().intern_type(Type::Integer(0));
+        let original = PatternConstructor::Record {
+            labels: vec!["b".into(), "d".into()],
+            fields: vec![pattern_id(10), pattern_id(20)],
+        };
+        let earlier = PatternConstructor::Record {
+            labels: vec!["a".into(), "b".into()],
+            fields: vec![pattern_id(30), pattern_id(40)],
+        };
+        let matching = PatternConstructor::Record {
+            labels: vec!["b".into(), "d".into()],
+            fields: vec![pattern_id(50), pattern_id(60)],
+        };
+        let later = PatternConstructor::Record {
+            labels: vec!["a".into(), "c".into(), "e".into()],
+            fields: vec![pattern_id(70), pattern_id(80), pattern_id(90)],
+        };
+        let mut matrix = PatternMatrix::new(1);
+        for constructor in [earlier, matching, later] {
+            let pattern = state.allocate_constructor(constructor, t);
+            matrix.push(&[pattern]);
+        }
+
+        let expected = PatternConstructor::Record {
+            labels: vec!["a".into(), "b".into(), "c".into(), "d".into(), "e".into()],
+            fields: vec![
+                pattern_id(30),
+                pattern_id(10),
+                pattern_id(80),
+                pattern_id(20),
+                pattern_id(90),
+            ],
+        };
+        assert_eq!(canonicalise_record_constructor(&state, original, &matrix), expected);
     }
 
     #[test]
