@@ -35,7 +35,6 @@ pub(crate) struct BuildActor {
     root: PathBuf,
     /// `None` only while a blocking task owns the session.
     session: Option<BuildSession>,
-    generation: u64,
     build: BuildState,
     /// Filesystem events that have not been applied yet.
     batch: Option<Batch>,
@@ -84,7 +83,6 @@ impl BuildActor {
             config,
             root,
             session: Some(session),
-            generation: 1,
             build: BuildState::NoInputs,
             batch: None,
             needs_rescan: false,
@@ -115,7 +113,7 @@ impl BuildActor {
                         self.synchronize(true).await?;
                         let answer = WaitAnswer { build: BuildState::clone(&self.build) };
                         let value = iris_watch_query::to_value(&answer);
-                        let response = Response::Result { generation: self.generation, value };
+                        let response = Response::Result { value };
                         let _ = request.reply.send(response);
                     } else {
                         self.synchronize(false).await?;
@@ -167,7 +165,6 @@ impl BuildActor {
                 self.needs_rescan = false;
                 report::warnings(&changes);
                 if !changes.is_empty() {
-                    self.generation += 1;
                     self.changed_inputs = changes.inputs;
                     self.needs_rebuild = true;
                 }
@@ -232,14 +229,13 @@ impl BuildActor {
             build: BuildState::clone(&self.build),
             root: PathBuf::clone(&self.root),
         };
-        let generation = self.generation;
         task::spawn_blocking(move || {
             let answer = iris_watch_query::answer(&query, &context);
             // The snapshot must be dropped before answering, so that a change the client makes
             // next is not kept waiting for it.
             drop(context);
             let response = match answer {
-                Ok(value) => Response::Result { generation, value },
+                Ok(value) => Response::Result { value },
                 Err(QueryFailure::Cancelled) => Response::Cancelled,
                 Err(QueryFailure::Failed(message)) => Response::Error { message },
             };

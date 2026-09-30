@@ -74,7 +74,7 @@ Always run it after writing files and before other queries, so answers reflect y
   count from 1, and columns count characters.
 - `javascript` fails while any module has errors, because nothing is written to `output/` then.
 - Each query invocation connects, receives its answer, and exits; there is no client session.
-- `--json` prints the watcher's response as JSON: successful answers have `kind`, `generation`,
-  and `value`; errors have `kind` and `message`.
+- `--json` prints the watcher's response as JSON: successful answers have `kind` and `value`;
+  errors have `kind` and `message`.
 - Exit status: 0 answered, 1 the query failed (the message says why, for example an unknown name),
   2 invalid arguments, 4 no watcher.

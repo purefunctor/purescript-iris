@@ -169,7 +169,7 @@ fn query(options: cli::QueryOptions) -> i32 {
         println!("{}", response.to_line().trim_end());
     }
     match response {
-        Response::Result { value, .. } => {
+        Response::Result { value } => {
             if options.json {
                 return 0;
             }

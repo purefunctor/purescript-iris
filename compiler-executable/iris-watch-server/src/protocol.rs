@@ -47,8 +47,8 @@ pub enum Query {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Response {
-    /// The answer, computed from build `generation`.
-    Result { generation: u64, value: Value },
+    /// The answer.
+    Result { value: Value },
     /// A change to the watcher's inputs was applied while the query ran. Retry.
     Cancelled,
     /// The request failed.
