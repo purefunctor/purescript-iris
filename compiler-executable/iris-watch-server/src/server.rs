@@ -3,11 +3,11 @@
 //! Each connection has one task that reads a query, waits for its answer, writes it, and closes.
 //! Other connections can submit queries while that task waits.
 
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::protocol::{Query, Response};
-use crate::transport::{BoxedConnection, Listener};
+use crate::transport::Listener;
 
 /// A request, forwarded to the watcher with the channel for its response.
 pub struct QueryRequest {
@@ -31,7 +31,7 @@ pub async fn serve(mut listener: Listener, requests: mpsc::UnboundedSender<Query
 }
 
 async fn serve_connection(
-    connection: BoxedConnection,
+    connection: impl AsyncRead + AsyncWrite + Unpin,
     requests: mpsc::UnboundedSender<QueryRequest>,
 ) {
     let mut connection = BufReader::new(connection);
