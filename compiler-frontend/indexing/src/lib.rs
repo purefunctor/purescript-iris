@@ -35,13 +35,9 @@ impl IndexedModule {
         stabilized: &StabilizedModule,
         id: TermItemId,
     ) -> impl Iterator<Item = SyntaxNodePtr> {
-        const fn aux<T: Copy>(expected_id: TermItemId) -> impl Fn(&(T, TermItemId)) -> Option<T> {
-            move |(id, item_id)| if *item_id == expected_id { Some(*id) } else { None }
-        }
-
-        let declaration = self.pairs.declaration_to_term.iter().filter_map(aux(id));
-        let constructor = self.pairs.constructor_to_term.iter().filter_map(aux(id));
-        let class_member = self.pairs.class_member_to_term.iter().filter_map(aux(id));
+        let declaration = item_sources(&self.pairs.declaration_to_term, id);
+        let constructor = item_sources(&self.pairs.constructor_to_term, id);
+        let class_member = item_sources(&self.pairs.class_member_to_term, id);
 
         let declaration = declaration.filter_map(|id| stabilized.syntax_ptr(id));
         let constructor = constructor.filter_map(|id| stabilized.syntax_ptr(id));
@@ -55,11 +51,7 @@ impl IndexedModule {
         stabilized: &StabilizedModule,
         id: TypeItemId,
     ) -> impl Iterator<Item = SyntaxNodePtr> {
-        const fn aux<T: Copy>(expected_id: TypeItemId) -> impl Fn(&(T, TypeItemId)) -> Option<T> {
-            move |(id, item_id)| if *item_id == expected_id { Some(*id) } else { None }
-        }
-
-        let declaration = self.pairs.declaration_to_type.iter().filter_map(aux(id));
+        let declaration = item_sources(&self.pairs.declaration_to_type, id);
         declaration.filter_map(|id| stabilized.syntax_ptr(id))
     }
 
@@ -376,6 +368,20 @@ impl IndexedPairs {
     }
 }
 
+// Items are allocated in source order, and only the open item group can gain
+// declarations. Each pair table is therefore ordered by item as well as source.
+fn item_sources<Source, Item>(pairs: &[(Source, Item)], item: Item) -> impl Iterator<Item = Source>
+where
+    Source: Copy,
+    Item: Copy + Ord,
+{
+    let start = pairs.partition_point(|(_, item_id)| *item_id < item);
+    pairs[start..]
+        .iter()
+        .take_while(move |(_, item_id)| *item_id == item)
+        .map(|(source, _)| *source)
+}
+
 pub fn index_module(
     source: &str,
     cst: &cst::Module,
@@ -383,5 +389,12 @@ pub fn index_module(
 ) -> IndexedModule {
     let algorithm::State { kind, names, exports, items, imports, pairs, errors, .. } =
         algorithm::index_module(source, cst, stabilized);
+    debug_assert!(
+        pairs.declaration_to_term.is_sorted_by_key(|(_, item)| *item)
+            && pairs.constructor_to_term.is_sorted_by_key(|(_, item)| *item)
+            && pairs.class_member_to_term.is_sorted_by_key(|(_, item)| *item)
+            && pairs.declaration_to_type.is_sorted_by_key(|(_, item)| *item),
+        "invariant violated: source associations are not in item order"
+    );
     IndexedModule { kind, names, exports, items, imports, pairs, errors }
 }
