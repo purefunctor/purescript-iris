@@ -107,3 +107,20 @@ fn instance_chain_metadata_preserves_chain_and_source_order() {
     assert_eq!(indexed.pairs.instance_chain_position(last), Some(2));
     assert_eq!(indexed.pairs.instance_chain_position(standalone), Some(0));
 }
+
+#[test]
+fn item_sources_preserve_all_associations_in_table_order() {
+    let pairs = [('z', 1), ('c', 3), ('a', 3), ('b', 3), ('x', 6)];
+    for (item, expected) in [
+        (0, vec![]),
+        (1, vec!['z']),
+        (2, vec![]),
+        (3, vec!['c', 'a', 'b']),
+        (6, vec!['x']),
+        (7, vec![]),
+    ] {
+        let sources = crate::item_sources(&pairs, item).collect::<Vec<_>>();
+        assert_eq!(sources, expected);
+    }
+    assert_eq!(crate::item_sources::<char, u32>(&[], 3).next(), None);
+}
