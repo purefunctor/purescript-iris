@@ -77,7 +77,7 @@ jobs:
           save-if: "false"
 
       - name: Install tools
-        uses: taiki-e/install-action@v2.87.1
+        uses: taiki-e/install-action@v2.87.21
         with:
           tool: cargo-nextest,just
 
@@ -271,7 +271,7 @@ jobs:
           rustup toolchain install "$IRIS_NIGHTLY_TOOLCHAIN" --profile minimal --component rustfmt
 
       - name: Install tools
-        uses: taiki-e/install-action@v2.87.1
+        uses: taiki-e/install-action@v2.87.21
         with:
           tool: just@1.58.0,cargo-bundle-licenses@4.2.0
 
