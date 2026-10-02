@@ -20,7 +20,8 @@ use iris_lsp_server::{
     Answer, ControlMessage, OrderedMessage, Rejection, SettingsResponse, WorkspaceEvent,
     WorkspaceEventSender, WorkspaceFailure, WorkspaceReceivers,
 };
-use lsp_types::{InitializeParams, Uri, WorkspaceFolders};
+use lsp_types::{ClientCapabilities, Uri, WorkspaceFolders};
+use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task;
@@ -69,6 +70,14 @@ struct Session {
     root: Option<PathBuf>,
     position_encoding: PositionEncoding,
     analyzer_capabilities: AnalyzerCapabilities,
+}
+
+/// Decode only workspace-owned fields; `iris-lsp-server` interprets `processId`.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InitializeParams {
+    capabilities: ClientCapabilities,
+    workspace_folders: Option<WorkspaceFolders>,
 }
 
 const WORKSPACE_LOADING: &str = "Workspace is loading";
@@ -278,9 +287,10 @@ impl Actor {
         let parameters = serde_json::from_value::<InitializeParams>(params).map_err(|error| {
             Rejection::InvalidParams(format!("Failed to deserialize parameters: {error}"))
         })?;
-        self.session.position_encoding = negotiate_position_encoding(&parameters);
-        self.session.analyzer_capabilities = negotiate_analyzer_capabilities(&parameters);
-        let scope = match parameters.workspace_folders_initialize_params.workspace_folders {
+        self.session.position_encoding = negotiate_position_encoding(&parameters.capabilities);
+        self.session.analyzer_capabilities =
+            negotiate_analyzer_capabilities(&parameters.capabilities);
+        let scope = match parameters.workspace_folders {
             Some(WorkspaceFolders::WorkspaceFolderList(folders)) => {
                 folders.first().map(|folder| Uri::clone(&folder.uri))
             }
