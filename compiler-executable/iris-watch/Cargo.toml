@@ -10,8 +10,11 @@ repository = "https://github.com/purefunctor/purescript-iris"
 [dependencies]
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-progress = { version = "0.1.0", path = "../iris-progress" }
+iris-watch-query = { version = "0.1.0", path = "../iris-watch-query" }
+iris-watch-server = { version = "0.1.0", path = "../iris-watch-server" }
 itertools = "0.15.0"
 jiff = "0.2.37"
 notify = "8.2.0"
 thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["macros", "rt", "signal", "sync", "time"] }
 tracing = "0.1.44"

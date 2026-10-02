@@ -16,7 +16,7 @@ use crate::extract::AnnotationSyntaxRange;
 use crate::position::PositionConverter;
 use crate::{AnalyzerContext, AnalyzerError, AnalyzerQueries, extract, locate, position};
 
-const PRETTY_CONFIG: PrettyConfig = PrettyConfig::new().width(80);
+pub(crate) const PRETTY_CONFIG: PrettyConfig = PrettyConfig::new().width(80);
 
 pub fn implementation(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
@@ -463,7 +463,7 @@ fn hover_file_type(
     Ok(Some(render_hover(format, Some(value), annotation)))
 }
 
-fn render_annotation(source: &str, range: TextRange) -> Option<String> {
+pub(crate) fn render_annotation(source: &str, range: TextRange) -> Option<String> {
     let cleaned = extract::extract_annotation(source, range);
     if cleaned.is_empty() { None } else { Some(cleaned) }
 }

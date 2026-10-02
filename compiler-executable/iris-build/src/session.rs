@@ -1,10 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{fs, io};
 
-use building::{DiskObservation, LifecycleChange, QueryError, ReloadFailure, SourceUnitKey};
-use files::ForeignSourceKind;
+use building::{
+    DiskObservation, LifecycleChange, QueryEngine, QueryError, ReloadFailure, SourceUnitKey,
+};
+use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
+use prim_constants::MODULE_MAP;
 use thiserror::Error;
 use url::Url;
 
@@ -35,6 +39,30 @@ impl InputChanges {
     pub fn is_empty(&self) -> bool {
         self.inputs.is_empty()
     }
+}
+
+/// A read-only view of a [`BuildSession`]'s query engine.
+///
+/// The engine is a snapshot: a change to the session's inputs waits until it is dropped.
+pub struct SessionSnapshot {
+    pub engine: QueryEngine,
+    /// Every source file the engine knows, including the built-in Prim modules.
+    pub files: Arc<BTreeMap<FileId, SourceFile>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceFile {
+    pub path: PathBuf,
+    pub kind: SourceKind,
+}
+
+/// Where a source file comes from, as the language server's `SourceMetadata` distinguishes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceKind {
+    /// A built-in Prim module, materialized in a temporary directory so that it can be read.
+    Builtin,
+    /// A source file of the project or of one of its dependencies.
+    Project,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -73,6 +101,7 @@ pub struct BuildSession {
     retired_modules: BTreeSet<String>,
     generated_outputs: BTreeSet<PathBuf>,
     compilation: CompilationState,
+    files: Arc<BTreeMap<FileId, SourceFile>>,
     initial_report: Option<InitialBuildReport>,
     initial_inputs: Vec<InputChange>,
     color: bool,
@@ -109,6 +138,7 @@ impl BuildSession {
                 .map(|name| (PathBuf::clone(&input.source_path), String::clone(name)))
         });
         let source_modules = source_modules.collect();
+        let files = Arc::new(source_files(&initial.compilation)?);
         Ok(BuildSession {
             root: project.root,
             output: project.output,
@@ -120,6 +150,7 @@ impl BuildSession {
             retired_modules: BTreeSet::new(),
             generated_outputs: BTreeSet::new(),
             compilation: initial.compilation,
+            files,
             initial_report: Some(initial.report),
             initial_inputs,
             color: config.color,
@@ -139,18 +170,24 @@ impl BuildSession {
         std::mem::take(&mut self.initial_inputs)
     }
 
+    pub fn snapshot(&self) -> SessionSnapshot {
+        SessionSnapshot { engine: self.compilation.snapshot(), files: Arc::clone(&self.files) }
+    }
+
     pub fn synchronize_paths(&mut self, paths: &[PathBuf]) -> Result<InputChanges, SessionError> {
         let change = self.synchronize(paths).map_err(SessionError)?;
-        if !change.inputs.is_empty() {
-            self.initial_report = None;
-        }
-        Ok(change.into_public())
+        self.finish_change(change).map_err(SessionError)
     }
 
     pub fn rescan(&mut self) -> Result<InputChanges, SessionError> {
         let change = self.rescan_inputs().map_err(SessionError)?;
+        self.finish_change(change).map_err(SessionError)
+    }
+
+    fn finish_change(&mut self, change: SessionChange) -> Result<InputChanges, SessionFailure> {
         if !change.inputs.is_empty() {
             self.initial_report = None;
+            self.files = Arc::new(source_files(&self.compilation)?);
         }
         Ok(change.into_public())
     }
@@ -398,6 +435,26 @@ fn source_unit(source_path: &Path) -> Result<SourceUnitKey, SessionFailure> {
     let foreign_url = Url::from_file_path(&foreign_path)
         .map_err(|_| SessionFailure::InvalidPath(PathBuf::clone(&foreign_path)))?;
     Ok(SourceUnitKey::new(source_url.as_str(), foreign_url.as_str()))
+}
+
+fn source_files(
+    compilation: &CompilationState,
+) -> Result<BTreeMap<FileId, SourceFile>, SessionFailure> {
+    let engine = compilation.query_engine();
+    let builtin = MODULE_MAP.iter().filter_map(|(name, _)| engine.module_file(name));
+    let builtin = builtin.map(|file_id| (file_id, SourceKind::Builtin));
+    let project = compilation.source_ids().map(|file_id| (file_id, SourceKind::Project));
+    let files = project.chain(builtin).map(|(file_id, kind)| {
+        let locator = compilation
+            .source_path(file_id)
+            .expect("invariant violated: a source file has no lifecycle path");
+        let path = Url::parse(&locator)
+            .ok()
+            .and_then(|url| url.to_file_path().ok())
+            .ok_or_else(|| SessionFailure::InvalidPath(PathBuf::from(&*locator)))?;
+        Ok((file_id, SourceFile { path, kind }))
+    });
+    files.collect()
 }
 
 fn observe_disk(path: &Path) -> DiskObservation {
