@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data Choice :: Prim.Type
+data Choice
+  | Chosen :: Prim.Int -> Main.Choice
+  | Other :: Main.Choice
+
+interface Extract :: Prim.Type -> Prim.Constraint
+interface Extract a where
+  extract :: a -> Prim.Int
+
+test :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+test = \{partialDict} ->
+  [(\{partialDict1} -> \(Chosen value) -> value) {partialDict}, (\{partialDict2} ->
+    \(Chosen _) -> 23) {partialDict}]
+
+test' :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+test' = \{partialDict} -> [\(Chosen value) -> value, \(Chosen _) -> 23]
+
+dictionary extractChoice :: Main.Extract Main.Choice where
+  extract :: Main.Choice -> Prim.Int
+  extract = \(Chosen value) -> value
+  extract = \Other -> 41
+
+test2 :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+test2 = \{partialDict} ->
+  [extract {extractChoice}, (\{partialDict1} -> \(Chosen _) -> 29) {partialDict}]

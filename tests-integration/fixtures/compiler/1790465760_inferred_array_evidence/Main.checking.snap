@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+Chosen :: Prim.Int -> Main.Choice
+Other :: Main.Choice
+test :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+test' :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+extract :: forall @a. Main.Extract a => a -> Prim.Int
+test2 :: Prim.Partial => Prim.Array (Main.Choice -> Prim.Int)
+
+Types
+Choice :: Prim.Type
+Extract :: Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type). Main.Extract a
+  extract :: forall @a. Main.Extract a => a -> Prim.Int
+
+Instances
+instance Main.Extract Main.Choice
+
+Roles
+Choice = []

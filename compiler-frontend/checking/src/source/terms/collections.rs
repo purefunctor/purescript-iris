@@ -171,8 +171,7 @@ where
         let checked = match mode {
             ArrayMode::Infer => {
                 let inferred = super::infer_expression(state, context, *expression)?;
-                unification::subtype(state, context, inferred.type_id, element)?;
-                inferred
+                super::application::subtype_expression(state, context, inferred, element)?
             }
             ArrayMode::Check => super::check_expression(state, context, *expression, element)?,
         };
