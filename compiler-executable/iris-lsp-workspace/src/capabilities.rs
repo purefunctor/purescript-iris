@@ -5,15 +5,11 @@ use iris_analysis::position::PositionEncoding;
 use lsp_types::*;
 
 pub(crate) fn negotiate_analyzer_capabilities(
-    parameters: &InitializeParams,
+    capabilities: &ClientCapabilities,
 ) -> AnalyzerCapabilities {
-    let workspace_edit = parameters
-        .capabilities
-        .workspace
-        .as_ref()
-        .and_then(|workspace| workspace.workspace_edit.as_ref());
-    let honors_rename_annotations = parameters
-        .capabilities
+    let workspace_edit =
+        capabilities.workspace.as_ref().and_then(|workspace| workspace.workspace_edit.as_ref());
+    let honors_rename_annotations = capabilities
         .text_document
         .as_ref()
         .and_then(|text_document| text_document.rename.as_ref())
@@ -28,8 +24,7 @@ pub(crate) fn negotiate_analyzer_capabilities(
     if change_annotations {
         negotiated = negotiated.with_change_annotations();
     }
-    let markdown_hover = parameters
-        .capabilities
+    let markdown_hover = capabilities
         .text_document
         .as_ref()
         .and_then(|text_document| text_document.hover.as_ref())
@@ -46,12 +41,9 @@ pub(crate) fn negotiate_analyzer_capabilities(
     negotiated
 }
 
-pub(crate) fn negotiate_position_encoding(parameters: &InitializeParams) -> PositionEncoding {
-    let Some(encodings) = parameters
-        .capabilities
-        .general
-        .as_ref()
-        .and_then(|general| general.position_encodings.as_ref())
+pub(crate) fn negotiate_position_encoding(capabilities: &ClientCapabilities) -> PositionEncoding {
+    let Some(encodings) =
+        capabilities.general.as_ref().and_then(|general| general.position_encodings.as_ref())
     else {
         return PositionEncoding::Utf16;
     };
@@ -141,69 +133,66 @@ mod tests {
 
     use super::*;
 
-    fn initialize_parameters(
+    fn client_capabilities(
         position_encodings: Option<Vec<PositionEncodingKind>>,
-    ) -> InitializeParams {
-        InitializeParams {
-            capabilities: ClientCapabilities {
-                general: Some(GeneralClientCapabilities {
-                    position_encodings,
-                    ..GeneralClientCapabilities::default()
-                }),
-                ..ClientCapabilities::default()
-            },
-            ..InitializeParams::default()
+    ) -> ClientCapabilities {
+        ClientCapabilities {
+            general: Some(GeneralClientCapabilities {
+                position_encodings,
+                ..GeneralClientCapabilities::default()
+            }),
+            ..ClientCapabilities::default()
         }
     }
 
     #[test]
     fn defaults_to_utf16_without_client_preference() {
-        let parameters = InitializeParams::default();
+        let capabilities = ClientCapabilities::default();
 
-        let encoding = negotiate_position_encoding(&parameters);
+        let encoding = negotiate_position_encoding(&capabilities);
         assert_eq!(encoding, PositionEncoding::Utf16);
     }
 
     #[test]
     fn prefers_utf8_when_available() {
-        let parameters = initialize_parameters(Some(vec![
+        let capabilities = client_capabilities(Some(vec![
             PositionEncodingKind::UTF32,
             PositionEncodingKind::UTF16,
             PositionEncodingKind::UTF8,
         ]));
 
-        let encoding = negotiate_position_encoding(&parameters);
+        let encoding = negotiate_position_encoding(&capabilities);
         assert_eq!(encoding, PositionEncoding::Utf8);
     }
 
     #[test]
     fn falls_back_to_utf16_before_utf32() {
-        let parameters = initialize_parameters(Some(vec![
+        let capabilities = client_capabilities(Some(vec![
             PositionEncodingKind::UTF32,
             PositionEncodingKind::UTF16,
         ]));
 
-        let encoding = negotiate_position_encoding(&parameters);
+        let encoding = negotiate_position_encoding(&capabilities);
         assert_eq!(encoding, PositionEncoding::Utf16);
     }
 
     #[test]
     fn supports_utf32_when_it_is_the_only_known_option() {
-        let parameters = initialize_parameters(Some(vec![PositionEncodingKind::UTF32]));
+        let capabilities = client_capabilities(Some(vec![PositionEncodingKind::UTF32]));
 
-        let encoding = negotiate_position_encoding(&parameters);
+        let encoding = negotiate_position_encoding(&capabilities);
         assert_eq!(encoding, PositionEncoding::Utf32);
     }
 
     #[test]
     fn negotiates_hover_content_format() {
-        let mut parameters = InitializeParams::default();
+        let mut capabilities = ClientCapabilities::default();
         assert_eq!(
-            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            negotiate_analyzer_capabilities(&capabilities).hover_format(),
             MarkupKind::PlainText
         );
 
-        parameters.capabilities.text_document = Some(TextDocumentClientCapabilities {
+        capabilities.text_document = Some(TextDocumentClientCapabilities {
             hover: Some(HoverClientCapabilities {
                 content_format: Some(vec![MarkupKind::PlainText]),
                 ..HoverClientCapabilities::default()
@@ -211,35 +200,21 @@ mod tests {
             ..TextDocumentClientCapabilities::default()
         });
         assert_eq!(
-            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            negotiate_analyzer_capabilities(&capabilities).hover_format(),
             MarkupKind::PlainText
         );
 
-        parameters
-            .capabilities
-            .text_document
-            .as_mut()
-            .unwrap()
-            .hover
-            .as_mut()
-            .unwrap()
-            .content_format = Some(vec![MarkupKind::PlainText, MarkupKind::Markdown]);
+        capabilities.text_document.as_mut().unwrap().hover.as_mut().unwrap().content_format =
+            Some(vec![MarkupKind::PlainText, MarkupKind::Markdown]);
         assert_eq!(
-            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            negotiate_analyzer_capabilities(&capabilities).hover_format(),
             MarkupKind::PlainText
         );
 
-        parameters
-            .capabilities
-            .text_document
-            .as_mut()
-            .unwrap()
-            .hover
-            .as_mut()
-            .unwrap()
-            .content_format = Some(vec![MarkupKind::Markdown, MarkupKind::PlainText]);
+        capabilities.text_document.as_mut().unwrap().hover.as_mut().unwrap().content_format =
+            Some(vec![MarkupKind::Markdown, MarkupKind::PlainText]);
         assert_eq!(
-            negotiate_analyzer_capabilities(&parameters).hover_format(),
+            negotiate_analyzer_capabilities(&capabilities).hover_format(),
             MarkupKind::Markdown
         );
     }

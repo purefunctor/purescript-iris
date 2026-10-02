@@ -25,7 +25,7 @@ use iris_lsp_server::{
     Answer, ControlMessage, OrderedMessage, Rejection, SettingsResponse, WorkspaceEvent,
     WorkspaceEventSender, WorkspaceFailure, WorkspaceSenders,
 };
-use lsp_types::{Position, Range, Uri};
+use lsp_types::{InitializeResult, Position, PositionEncodingKind, Range, Uri};
 use parking_lot::Mutex;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -305,6 +305,27 @@ fn symbol_names(answer: &Value) -> Vec<String> {
 
 fn module(name: &str, value: &str) -> String {
     format!("module {name} where\n{value} = 1\n")
+}
+
+#[tokio::test]
+async fn an_out_of_range_process_id_does_not_prevent_initialization() {
+    let (events, _event_receiver) = WorkspaceEventSender::channel();
+    let (senders, receivers) = WorkspaceSenders::channel();
+    let actor = Actor::new(config(1), events);
+    let task = tokio::spawn(actor.run(receivers));
+    let initialize = senders.initialize(json!({
+        "processId": 2_147_483_648_i64,
+        "capabilities": {"general": {"positionEncodings": ["utf-8"]}},
+        "workspaceFolders": null
+    }));
+
+    let result = answer(initialize).await.unwrap();
+    let result = serde_json::from_value::<InitializeResult>(result).unwrap();
+    assert_eq!(result.capabilities.position_encoding, Some(PositionEncodingKind::UTF8));
+    assert_eq!(result.server_info.unwrap().name, "iris");
+
+    drop(senders);
+    tokio::time::timeout(PATIENCE, task).await.unwrap().unwrap().unwrap();
 }
 
 #[tokio::test]
