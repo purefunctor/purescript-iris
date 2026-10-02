@@ -186,11 +186,18 @@ impl Server {
     }
 
     fn receive_request(&mut self, request: Request) {
-        let Request { id, method, params } = request;
+        let Request { id, method, mut params } = request;
         match (self.lifecycle, method.as_str()) {
             (Lifecycle::Uninitialized, "initialize") => {
                 if self.reject_duplicate(&id) {
                     return;
+                }
+                // Ignore legacy boolean tag support before either actor decodes capabilities.
+                if let Some(tag_support) =
+                    params.pointer_mut("/capabilities/textDocument/publishDiagnostics/tagSupport")
+                    && tag_support.is_boolean()
+                {
+                    *tag_support = Value::Null;
                 }
                 self.lifecycle = Lifecycle::Initializing;
                 self.session = Session::negotiate(&params);

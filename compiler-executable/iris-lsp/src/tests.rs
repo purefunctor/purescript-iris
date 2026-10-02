@@ -23,10 +23,11 @@ struct Session {
 
 impl Session {
     async fn start() -> Session {
-        Session::start_with(json!({})).await
+        let (session, _) = Session::start_with(json!({})).await;
+        session
     }
 
-    async fn start_with(capabilities: Value) -> Session {
+    async fn start_with(capabilities: Value) -> (Session, Value) {
         let (editor, server) = Connection::memory();
         let config = WorkspaceConfig {
             name: "iris".to_string(),
@@ -51,7 +52,7 @@ impl Session {
         let result = session.result(0).await;
         assert_eq!(result["serverInfo"], json!({"name": "iris", "version": "test"}));
         session.notify("initialized", json!({}));
-        session
+        (session, result)
     }
 
     fn uri(&self, name: &str) -> Url {
@@ -214,6 +215,24 @@ fn symbol_names(symbols: &Value) -> Vec<&str> {
 }
 
 #[tokio::test]
+async fn diagnostic_tag_support_accepts_legacy_booleans_and_objects() {
+    for tag_support in [json!(true), json!(false), json!({"valueSet": [1, 2]})] {
+        let (mut session, result) = Session::start_with(json!({
+            "textDocument": {"publishDiagnostics": {"tagSupport": tag_support}},
+            "general": {"positionEncodings": ["utf-8"]},
+            "workspace": {"configuration": true}
+        }))
+        .await;
+        assert_eq!(result["capabilities"]["positionEncoding"], "utf-8");
+        session.answer_configuration(json!({})).await;
+        session.request(1, "shutdown", Value::Null);
+        session.result(1).await;
+        session.notify("exit", Value::Null);
+        session.stopped().await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn requests_see_the_edits_sent_before_them() {
     let mut session = Session::start().await;
     let uri = session.uri("Main.purs");
@@ -282,7 +301,7 @@ fn invalid_module(name: &str, text: &str) -> String {
 
 #[tokio::test]
 async fn workspace_configuration_updates_diagnostic_triggers_without_replacing_documents() {
-    let mut session = Session::start_with(json!({"workspace": {
+    let (mut session, _) = Session::start_with(json!({"workspace": {
         "configuration": true,
         "didChangeConfiguration": {"dynamicRegistration": true}
     }}))
