@@ -122,6 +122,9 @@ where
         {
             return Ok(expression);
         }
+        if let Some(expression) = self.react_intrinsic(known_function, &known_arguments)? {
+            return Ok(expression);
+        }
         if let Some(effect) = self.known_effect_application(known_function, &known_arguments)? {
             return Ok(self.expression(ExpressionKind::Effect { effect }));
         }

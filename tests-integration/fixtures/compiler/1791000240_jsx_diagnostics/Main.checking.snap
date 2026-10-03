@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+button :: Iris.React.Component ( count :: Prim.Int )
+test :: Iris.React.JSX
+test2 :: Iris.React.JSX
+test3 :: Iris.React.JSX
+test4 :: Iris.React.JSX
+test5 :: ?[missing JSX component]
+test6 :: Iris.React.JSX
+test7 :: Iris.React.JSX
+notCallable :: Prim.Int
+test8 :: Iris.React.JSX
+test9 :: Iris.React.JSX
+test10 :: Iris.React.JSX
+test11 :: Iris.React.JSX
+child :: Iris.React.Component ( children :: Iris.React.JSX )
+test12 :: Iris.React.JSX
+
+Types

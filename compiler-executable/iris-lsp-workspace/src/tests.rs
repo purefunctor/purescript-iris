@@ -43,7 +43,7 @@ use crate::preparation::{PreparationError, ProgressSink};
 use crate::service::Actor;
 use crate::state::{
     PreparedWorkspace, ReadyWorkspace, SourceMetadata, document_kind, observe_disk,
-    source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
+    source_unit_from_foreign_uri, source_unit_from_source_uri,
 };
 
 const PATIENCE: Duration = Duration::from_secs(10);
@@ -885,6 +885,16 @@ fn close(workspace: &mut ReadyWorkspace, uri: &Uri) {
     let _ = apply_document(workspace, &document_context(), notification);
 }
 
+fn change_watched_files(workspace: &mut ReadyWorkspace, changes: Value) {
+    let notification = DocumentNotification::decode(
+        "workspace/didChangeWatchedFiles",
+        json!({"changes": changes}),
+    )
+    .unwrap()
+    .unwrap();
+    let _ = apply_document(workspace, &document_context(), notification);
+}
+
 fn assert_source_close_result(
     source_uri: Uri,
     foreign_uri: Uri,
@@ -928,14 +938,28 @@ fn source_and_foreign_uris_produce_the_same_unit_key() {
     let jsx_uri = Uri::from_file_path(jsx_path).unwrap();
 
     let from_source = source_unit_from_source_uri(&source_uri).unwrap();
-    let from_foreign = source_unit_from_foreign_uri(&foreign_uri).unwrap();
-    let from_jsx = source_unit_from_foreign_uri(&jsx_uri).unwrap();
+    let from_foreign = source_unit_from_foreign_uri(&foreign_uri, None).unwrap();
+    let from_jsx = source_unit_from_foreign_uri(&jsx_uri, None).unwrap();
 
     assert_eq!(from_source, from_foreign);
     assert_eq!(from_source, from_jsx);
     assert_eq!(from_source.source(), source_uri.as_str());
     assert_eq!(from_source.foreign(), foreign_uri.as_str());
     assert_eq!(from_source.foreign_for(ForeignSourceKind::Jsx), jsx_uri.as_str());
+}
+
+#[test]
+fn known_iris_owner_resolves_foreign_before_source_reaches_disk() {
+    let iris_uri = Uri::parse("file:///workspace/Main.iris").unwrap();
+    let foreign_uri = Uri::parse("file:///workspace/Main.js").unwrap();
+    let jsx_uri = Uri::parse("file:///workspace/Main.jsx").unwrap();
+    let owner = source_unit_from_source_uri(&iris_uri).unwrap();
+
+    let from_foreign = source_unit_from_foreign_uri(&foreign_uri, Some(&owner)).unwrap();
+    let from_jsx = source_unit_from_foreign_uri(&jsx_uri, Some(&owner)).unwrap();
+
+    assert_eq!(from_foreign, owner);
+    assert_eq!(from_jsx, owner);
 }
 
 #[test]
@@ -949,7 +973,7 @@ fn localhost_source_and_foreign_uris_keep_the_same_authority() {
             .unwrap();
 
     let from_source = source_unit_from_source_uri(&source_uri).unwrap();
-    let from_foreign = source_unit_from_foreign_uri(&foreign_uri).unwrap();
+    let from_foreign = source_unit_from_foreign_uri(&foreign_uri, None).unwrap();
 
     assert_eq!(from_source, from_foreign);
     assert_eq!(from_source.source(), source_uri.as_str());
@@ -976,7 +1000,7 @@ fn document_kind_is_bounded_to_source_and_foreign_extensions() {
     );
     assert_eq!(document_kind(&jsx_uri), Some(DocumentKind::Foreign(ForeignSourceKind::Jsx)));
     assert_eq!(document_kind(&unsupported_uri), None);
-    assert!(source_unit_from_document_uri(&unsupported_uri).is_err());
+    assert!(ready_workspace().document_unit(&unsupported_uri).is_err());
 }
 
 #[test]
@@ -1044,6 +1068,47 @@ fn duplicate_source_close_does_not_reconcile_foreign() {
         workspace.analysis.engine.foreign_content(foreign_id).unwrap().as_ref(),
         "export const life = 42;\n",
     );
+}
+
+#[test]
+fn watched_dialect_rename_transfers_foreign_ownership_before_foreign_edit() {
+    let directory = tempfile::tempdir().unwrap();
+    let purs_path = directory.path().join("Main.purs");
+    let iris_path = directory.path().join("Main.iris");
+    let foreign_path = directory.path().join("Main.js");
+    fs::write(&purs_path, "module Main where\n").unwrap();
+    fs::write(&foreign_path, "export const life = 1;\n").unwrap();
+    let purs_uri = Uri::from_file_path(&purs_path).unwrap();
+    let iris_uri = Uri::from_file_path(&iris_path).unwrap();
+    let foreign_uri = Uri::from_file_path(&foreign_path).unwrap();
+    let purs_unit = source_unit_from_source_uri(&purs_uri).unwrap();
+    let iris_unit = source_unit_from_source_uri(&iris_uri).unwrap();
+    let mut workspace = ready_workspace();
+    change_watched_files(
+        &mut workspace,
+        json!([
+            {"uri": purs_uri, "type": 1},
+            {"uri": foreign_uri, "type": 1}
+        ]),
+    );
+
+    fs::rename(&purs_path, &iris_path).unwrap();
+    // Some clients omit the deletion, so the retained foreign owner is the only evidence of it.
+    change_watched_files(&mut workspace, json!([{"uri": iris_uri, "type": 1}]));
+
+    fs::write(&foreign_path, "export const life = 2;\n").unwrap();
+    change_watched_files(&mut workspace, json!([{"uri": foreign_uri, "type": 2}]));
+
+    let files = workspace.analysis.files.read();
+    assert_eq!(files.source_id(purs_uri.as_str()), None);
+    assert!(files.source_id(iris_uri.as_str()).is_some());
+    assert_eq!(files.foreign_owner(foreign_uri.as_str()), Some(&iris_unit));
+    let foreign_id = files.foreign_id(foreign_uri.as_str()).unwrap();
+    assert_eq!(
+        workspace.analysis.engine.foreign_content(foreign_id).unwrap().as_ref(),
+        "export const life = 2;\n"
+    );
+    assert_ne!(purs_unit, iris_unit);
 }
 
 #[test]

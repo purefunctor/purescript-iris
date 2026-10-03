@@ -1,0 +1,35 @@
+module Main where
+
+import Iris.React as React
+
+button :: React.Component (count :: Int)
+button = React.component \_ -> React.text "button"
+
+test = <Button count="not an Int" />
+
+test2 = <Button />
+
+test3 = <div title="first" title="second" />
+
+test4 = <div><span /></wrong>
+
+test5 = <Missing />
+
+test6 = <div>{42}</div>
+
+test7 = <><div /></different>
+
+notCallable = 42
+
+test8 = <NotCallable />
+
+test9 = <Button count={1} unknown="extra" />
+
+test10 = <Button key={42} count={1} />
+
+test11 = <div children={React.empty}>duplicate</div>
+
+child :: React.Component (children :: React.JSX)
+child = React.component \props -> props.children
+
+test12 = <Child />

@@ -14,7 +14,11 @@ pub struct Position {
 }
 
 pub fn lex(source: &str) -> Lexed<'_> {
-    let mut lexer = lexer::Lexer::new(source);
+    lex_with_jsx(source, false)
+}
+
+pub fn lex_with_jsx(source: &str, jsx: bool) -> Lexed<'_> {
+    let mut lexer = lexer::Lexer::new(source, jsx);
     while !lexer.is_eof() {
         lexer.take_token();
     }

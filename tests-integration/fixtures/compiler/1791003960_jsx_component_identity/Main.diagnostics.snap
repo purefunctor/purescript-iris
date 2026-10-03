@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [FunctionalCodegen] · Main.iris:5:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ 'Iris.React.component' must directly initialize a non-recursive top-level value.
+  │
+  │ React component identity must remain stable between renders.
+  │
+  │   test name = React.component \_ -> <span>{React.text name}</span>
+  │   ╰───────────────────────────────────────────────────────────────
+  •

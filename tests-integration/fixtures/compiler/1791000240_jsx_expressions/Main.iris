@@ -1,0 +1,112 @@
+module Main where
+
+import Prelude
+import Data.Function as Function
+import Effect (Effect)
+import Iris.React as React
+import Prim.Row as Row
+import Widgets as UI
+
+badge :: React.Component (label :: String, children :: React.JSX)
+badge = React.component \props -> <strong title={props.label}>{props.children}</strong>
+
+label :: React.Component (value :: Show Int => Int)
+label = React.component renderLabel
+
+renderLabel :: { value :: Show Int => Int } -> React.JSX
+renderLabel props = React.text (show (props.value :: Int))
+
+poly :: React.Component (apply :: forall a. a -> a)
+poly = React.component renderPoly
+
+renderPoly :: { apply :: forall a. a -> a } -> React.JSX
+renderPoly props = React.text (props.apply "polymorphic")
+
+test :: React.JSX
+test =
+  <main className="greeting" data-count={3} hidden={false}>
+    Hello {React.text "世界"}!
+    <Badge label="local"><UI.button label="qualified" /></Badge>
+    <UI.Button label="alias" />
+    <my-widget title="a\"b" />
+    <>first<span />last</>
+    <Label key="answer" value={42} />
+    <Poly apply={identity} />
+  </main>
+
+test' = <p>-- text, not a comment &amp; 🌱</p>
+
+test2 = identity (<><i /></>)
+
+test3 =
+  <div info={{ close: "}", nested: { value: 7 } }}>
+    {let value = "let" in <b>{React.text value}</b>}
+    {case true of
+      true -> <yes />
+      false -> <no />}
+    { {- a PureScript comment -} <end /> }
+  </div>
+
+test4 :: Effect React.JSX
+test4 = do
+  pure (<div>{let
+  value = "outdented hole"
+  in React.text value}</div>)
+
+test5 render = <Render value={17} />
+
+test6 = <input transform={_ + 1} />
+
+test7 = <p>
+  first
+    second
+
+  third
+</p>
+
+test8 = <button action={do
+  value <- pure 5
+  pure (value + 2) :: Effect Int
+} />
+
+ordinary = React.element label { value: 5 }
+
+test9 = <Label value={5} />
+
+byTick = identity `Function.apply` <Label value={11} />
+
+byQualified = identity Function.$ <Label value={-1} />
+
+open :: forall props. React.Component (label :: String | props)
+open = React.component \props -> <div>{React.text props.label}</div>
+
+test10 = <Open label="open" count={42} />
+
+foreign import optional :: forall props rest.
+  Row.Union props rest (label :: String, count :: Int) => React.Component props
+
+test11 = <Optional label="subset" />
+
+test12 = <Optional count={7} />
+
+test13 = React.fragment (map React.text ["first", "second"])
+
+test14 = map (React.element UI.button) [{ label: "partial" }]
+
+less :: Int -> Int -> Boolean
+less left right = left<right
+
+keywordLabel right = { then: 1 }.then<right
+
+operators ::
+  { less :: Int -> Int -> Boolean
+  , append :: String -> String -> String
+  , map :: (Int -> Int) -> Array Int -> Array Int
+  }
+operators = { less: (<), append: (<>), map: (<$>) }
+
+operatorResults =
+  { less: operators.less 2 7
+  , append: operators.append "a" "b"
+  , map: operators.map (_ + 2) [3, 8]
+  }

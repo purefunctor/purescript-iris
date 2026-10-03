@@ -3,5 +3,5 @@ fn compiler(path: &std::path::Path) -> datatest_stable::Result<()> {
 }
 
 datatest_stable::harness! {
-    { test = compiler, root = "fixtures/compiler", pattern = r".*/Main\.purs$" },
+    { test = compiler, root = "fixtures/compiler", pattern = r".*/Main\.(purs|iris)$" },
 }

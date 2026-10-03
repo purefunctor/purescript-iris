@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+badge :: Iris.React.Component ( children :: Iris.React.JSX, label :: Prim.String )
+label :: Iris.React.Component ( value :: Data.Show.Show Prim.Int => Prim.Int )
+renderLabel :: { value :: Data.Show.Show Prim.Int => Prim.Int } -> Iris.React.JSX
+poly :: Iris.React.Component ( apply :: forall a. a -> a )
+renderPoly :: { apply :: forall a. a -> a } -> Iris.React.JSX
+test :: Iris.React.JSX
+test' :: Iris.React.JSX
+test2 :: Iris.React.JSX
+test3 :: Iris.React.JSX
+test4 :: Effect.Effect Iris.React.JSX
+test5 :: Iris.React.Component ( value :: Prim.Int ) -> Iris.React.JSX
+test6 :: Iris.React.JSX
+test7 :: Iris.React.JSX
+test8 :: Iris.React.JSX
+ordinary :: Iris.React.JSX
+test9 :: Iris.React.JSX
+byTick :: Iris.React.JSX
+byQualified :: Iris.React.JSX
+open ::
+  forall (props :: Prim.Row Prim.Type).
+    Iris.React.Component ( label :: Prim.String | (props :: Prim.Row Prim.Type) )
+test10 :: Iris.React.JSX
+optional ::
+  forall (props :: Prim.Row Prim.Type) (rest :: Prim.Row Prim.Type).
+    Prim.Row.Union @Prim.Type
+      (props :: Prim.Row Prim.Type)
+      (rest :: Prim.Row Prim.Type)
+      ( count :: Prim.Int, label :: Prim.String ) =>
+    Iris.React.Component (props :: Prim.Row Prim.Type)
+test11 :: Iris.React.JSX
+test12 :: Iris.React.JSX
+test13 :: Iris.React.JSX
+test14 :: Prim.Array Iris.React.JSX
+less :: Prim.Int -> Prim.Int -> Prim.Boolean
+keywordLabel :: Prim.Int -> Prim.Boolean
+operators ::
+  { append :: Prim.String -> Prim.String -> Prim.String
+  , less :: Prim.Int -> Prim.Int -> Prim.Boolean
+  , map :: (Prim.Int -> Prim.Int) -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+  }
+operatorResults :: { append :: Prim.String, less :: Prim.Boolean, map :: Prim.Array Prim.Int }
+
+Types

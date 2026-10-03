@@ -186,6 +186,9 @@ create_cst_enum!(
         | ExpressionParenthesized
         | ExpressionRecordAccess
         | ExpressionRecordUpdate
+        | ExpressionJsxElement
+        | ExpressionJsxText
+        | ExpressionJsxInterpolation
 );
 
 create_cst_struct!(
@@ -217,6 +220,8 @@ create_cst_enum!(RecordItem | RecordField | RecordPun);
 create_cst_struct!(RecordAccessLabel, RecordUpdates);
 
 create_cst_enum!(RecordUpdate | RecordUpdateLeaf | RecordUpdateBranch);
+
+create_cst_struct!(JsxOpening, JsxChildren, JsxClosing, JsxAttribute);
 
 create_cst_struct!(TermOperator, TypeOperator);
 
@@ -949,6 +954,53 @@ has_child!(
     ExpressionRecordUpdate
     | expression() -> Expression
     | record_updates() -> RecordUpdates
+);
+
+has_child!(
+    ExpressionJsxElement
+    | opening() -> JsxOpening
+    | children() -> JsxChildren
+    | closing() -> JsxClosing
+);
+
+has_token!(
+    JsxOpening
+    | name_token() -> JSX_NAME
+);
+
+has_children!(
+    JsxOpening
+    | attributes() -> JsxAttribute
+);
+
+has_token!(
+    JsxClosing
+    | name_token() -> JSX_NAME
+);
+
+has_token!(
+    JsxAttribute
+    | name_token() -> JSX_NAME
+);
+
+has_child!(
+    JsxAttribute
+    | expression() -> Expression
+);
+
+has_children!(
+    JsxChildren
+    | children() -> Expression
+);
+
+has_token!(
+    ExpressionJsxText
+    | text_token() -> JSX_TEXT
+);
+
+has_child!(
+    ExpressionJsxInterpolation
+    | expression() -> Expression
 );
 
 has_children!(

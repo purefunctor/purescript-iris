@@ -27,6 +27,8 @@ enum Delimiter {
     Of,
     Do,
     Ado,
+    Jsx,
+    JsxExpression,
 }
 
 impl Delimiter {
@@ -110,6 +112,50 @@ impl<'l, 's> Insert<'l, 's> {
 
     fn invoke(&mut self) {
         match self.token {
+            SyntaxKind::JSX_OPEN => {
+                self.insert_default();
+                self.push_stack(self.position, Delimiter::Jsx);
+            }
+
+            SyntaxKind::JSX_CLOSE_OPEN
+            | SyntaxKind::JSX_TAG_END
+            | SyntaxKind::JSX_NAME
+            | SyntaxKind::JSX_TEXT
+            | SyntaxKind::JSX_EXPRESSION_START => {
+                self.insert_token(self.token);
+                if self.token == SyntaxKind::JSX_EXPRESSION_START {
+                    self.push_stack(self.position, Delimiter::JsxExpression);
+                }
+            }
+
+            SyntaxKind::JSX_SELF_CLOSE | SyntaxKind::JSX_CLOSE_END => {
+                self.insert_token(self.token);
+                self.pop_stack_if(|delimiter| delimiter == Delimiter::Jsx);
+            }
+
+            SyntaxKind::JSX_EXPRESSION_END => {
+                while let Some((_, delimiter)) = self.layout.stack.last().copied() {
+                    if delimiter == Delimiter::JsxExpression {
+                        self.pop_stack();
+                        break;
+                    }
+                    if delimiter == Delimiter::Jsx {
+                        break;
+                    }
+                    self.pop_stack();
+                    if delimiter.is_indented() {
+                        self.insert_end();
+                    }
+                }
+                self.insert_token(self.token);
+            }
+
+            SyntaxKind::EQUAL | SyntaxKind::STRING | SyntaxKind::RAW_STRING
+                if self.in_jsx_markup() =>
+            {
+                self.insert_token(self.token);
+            }
+
             SyntaxKind::DATA if !self.qualified => {
                 self.insert_default();
                 if self.is_top_declaration(self.position) {
@@ -416,6 +462,19 @@ impl<'l, 's> Insert<'l, 's> {
         )
     }
 
+    fn in_jsx_markup(&self) -> bool {
+        self.layout
+            .stack
+            .iter()
+            .rev()
+            .find_map(|(_, delimiter)| match delimiter {
+                Delimiter::Jsx => Some(true),
+                Delimiter::JsxExpression => Some(false),
+                _ => None,
+            })
+            .unwrap_or(false)
+    }
+
     fn insert_default(&mut self) {
         self.collapse_and_commit(Self::offside_p);
         self.insert_sep();
@@ -423,8 +482,13 @@ impl<'l, 's> Insert<'l, 's> {
     }
 
     fn insert_start(&mut self, delimiter: Delimiter) {
-        if let Some((past_position, _)) =
-            self.layout.stack.iter().rfind(|(_, delimiter)| delimiter.is_indented())
+        if let Some((past_position, _)) = self
+            .layout
+            .stack
+            .iter()
+            .rev()
+            .take_while(|(_, delimiter)| *delimiter != Delimiter::JsxExpression)
+            .find(|(_, delimiter)| delimiter.is_indented())
             && self.next.column <= past_position.column
         {
             return;

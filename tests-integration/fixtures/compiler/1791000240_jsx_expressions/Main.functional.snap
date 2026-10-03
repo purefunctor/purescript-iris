@@ -1,0 +1,104 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export badge = react.component \props%0 ->
+  react.element intrinsic "strong" { title: props%0.label, children: props%0.children }
+
+@export label = react.component renderLabel
+
+@export renderLabel = \props%1 -> show showInt (props%1.value showInt)
+
+@export poly = react.component renderPoly
+
+@export renderPoly = \props%2 -> props%2.apply "polymorphic"
+
+@export test = react.element intrinsic "main" {
+  className: "greeting",
+  "data-count": 3,
+  hidden: false,
+  children:
+    ["Hello ",
+      "世界",
+      "!",
+      react.element badge { label: "local", children: react.element button { label: "qualified" } },
+      react.element button { label: "alias" },
+      react.element intrinsic "my-widget" { title: "a\"b" },
+      react.fragment ["first", react.element intrinsic "span" {  }, "last"],
+      react.element label key "answer" { value: \showIntDict%3 -> 42 },
+      react.element poly { apply: identity categoryFn }]
+}
+
+@export test' = react.element intrinsic "p" { children: "-- text, not a comment &amp; 🌱" }
+
+@export test2 = react.fragment [react.element intrinsic "i" {  }]
+
+@export test3 = react.element intrinsic "div" {
+  info: { close: "}", nested: { value: 7 } },
+  children:
+    [react.element intrinsic "b" { children: "let" },
+      case true of
+        true ->
+          react.element intrinsic "yes" {  }
+        false ->
+          react.element intrinsic "no" {  },
+      react.element intrinsic "end" {  }]
+}
+
+@export test4 = effect.pure (react.element intrinsic "div" { children: "outdented hole" })
+
+@export test5 = \render%6 -> react.element render%6 { value: 17 }
+
+@export test6 = react.element intrinsic "input" {
+  transform: \section358%7 -> integer.add section358%7 1
+}
+
+@export test7 = react.element intrinsic "p" { children: "first second third" }
+
+@export test8 = react.element intrinsic "button" {
+  action: effect.bind (effect.pure 5) \value%8 -> effect.pure (integer.add value%8 2)
+}
+
+@export ordinary = react.element label { value: \showIntDict%9 -> 5 }
+
+@export test9 = react.element label { value: \showIntDict%10 -> 5 }
+
+@export byTick = react.element label { value: \showIntDict%11 -> 11 }
+
+@export byQualified = react.element label { value: \showIntDict%12 -> -1 }
+
+@export open = react.component \props%13 ->
+  react.element intrinsic "div" { children: props%13.label }
+
+@export test10 = react.element open { label: "open", count: 42 }
+
+@export foreign optional
+
+@export test11 = react.element optional <trivial evidence> { label: "subset" }
+
+@export test12 = react.element optional <trivial evidence> { count: 7 }
+
+@export test13 = react.fragment functorArrayDictMap (\value%21 -> value%21) ["first", "second"]
+
+@export test14 = functorArrayDictMap
+  ((\dictionary%18 target%19 props%20 -> react.element target%19 props%20) <trivial evidence>
+    button)
+  [{ label: "partial" }]
+
+@export less = \left%14 right%15 -> lessThan ordInt left%14 right%15
+
+@export keywordLabel = \right%16 -> lessThan ordInt { then: 1 }.then right%16
+
+@export operators = {
+  less: lessThan ordInt,
+  append: append semigroupString,
+  map: functorArrayDictMap
+}
+
+@export operatorResults = {
+  less: operators.less 2 7,
+  append: operators.append "a" "b",
+  map: operators.map (\section657%17 -> integer.add section657%17 2) [3, 8]
+}
+
+functorArrayDictMap = map functorArray

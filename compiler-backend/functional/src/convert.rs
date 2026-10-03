@@ -4,6 +4,7 @@ mod application;
 mod declaration;
 mod evidence;
 mod expression;
+mod react;
 mod stylex;
 
 use std::cell::{OnceCell, RefCell};
@@ -30,6 +31,7 @@ use crate::tree::{
 
 use self::declaration::{derive_declaration, instance_declaration, term_declaration};
 use self::evidence::{EvidenceHoisting, EvidenceKeys, EvidenceScope};
+use self::react::ReactModule;
 use self::stylex::StyleXModules;
 
 type ConversionResult<T> = Result<T, ConversionError>;
@@ -87,6 +89,7 @@ struct Context<'c, Q> {
     dependencies: FxHashMap<FileId, Dependency>,
     indexed_dependencies: RefCell<FxHashMap<FileId, Arc<indexing::IndexedModule>>>,
     stylex_modules: OnceCell<StyleXModules>,
+    react_module: OnceCell<ReactModule>,
     /// Whether a term of a virtual StyleX module was referenced, the only source of StyleX
     /// intrinsics and expressions.
     references_stylex_module: bool,
@@ -153,6 +156,7 @@ where
             dependencies: FxHashMap::default(),
             indexed_dependencies: RefCell::default(),
             stylex_modules: OnceCell::new(),
+            react_module: OnceCell::new(),
             references_stylex_module: false,
             thunk_modules: OnceCell::new(),
             canonical_thunk_instances: RefCell::default(),
@@ -192,6 +196,8 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
     }
     validate_runtime_exports(&context, &declarations, &surface)?;
     context.validate_stylex_uses(&declarations)?;
+    context.validate_react_uses(&declarations)?;
+    context.materialize_react_functions(&declarations)?;
     context.hoist_closed_evidence(&mut declarations)?;
 
     let recursive_globals = declarations

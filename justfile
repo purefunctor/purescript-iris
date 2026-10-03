@@ -32,6 +32,7 @@ coverage-html:
 [doc("Install end-to-end test tools")]
 @e2e-prepare:
   pnpm --dir tests-e2e/tools install --frozen-lockfile
+  pnpm --dir tests-e2e/tools exec playwright install --with-deps chromium
 
 [doc("Run end-to-end tests")]
 @e2e *args="":

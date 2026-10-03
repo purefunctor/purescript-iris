@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test :: Iris.React.JSX
+test2 :: Iris.React.JSX
+test3 :: Iris.React.JSX
+test4 :: Iris.React.JSX
+test5 :: Iris.React.JSX
+test6 :: Iris.React.JSX
+test7 :: Iris.React.JSX
+
+Types

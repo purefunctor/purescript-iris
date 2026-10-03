@@ -19,7 +19,7 @@ pub use manifest::{
     ManifestError, Package, SetAddress, TestConfig, Workspace, parse_manifest, read_manifest,
 };
 pub use sources::{
-    PURS_GLOB, SRC_DIRECTORY, TEST_DIRECTORY, package_source_directories, source_glob,
+    PURS_GLOB, SOURCE_GLOBS, SRC_DIRECTORY, TEST_DIRECTORY, package_source_directories, source_glob,
 };
 
 /// PureScript release whose package ecosystem Iris supports.

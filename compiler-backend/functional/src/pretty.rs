@@ -2,6 +2,7 @@
 
 use pretty::{Arena, DocAllocator, DocBuilder};
 
+use crate::react::{ReactElement, ReactExpression};
 use crate::stylex::{StyleXCallTarget, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
     BinaryOperator, Declaration, DeclarationKind, EffectExpression, ExpressionId, ExpressionKind,
@@ -100,6 +101,7 @@ impl<'a> Printer<'a, '_> {
             | ExpressionKind::Application { .. }
             | ExpressionKind::UncurriedApplication { .. }
             | ExpressionKind::StyleX(_)
+            | ExpressionKind::React(_)
             | ExpressionKind::Effect { .. }
             | ExpressionKind::SynthesizedEvidence { .. } => ExpressionPrecedence::Application,
             ExpressionKind::RecordUpdate { .. } => ExpressionPrecedence::RecordUpdate,
@@ -230,6 +232,7 @@ impl<'a> Printer<'a, '_> {
                 self.arena.text("uncurried.call ").append(function).append(arguments)
             }
             ExpressionKind::StyleX(stylex) => self.stylex_expression(stylex),
+            ExpressionKind::React(react) => self.react_expression(react),
             ExpressionKind::IfThenElse { condition, then, else_ } => {
                 let condition = self.expression(*condition);
                 let then = self.expression(*then);
@@ -332,6 +335,33 @@ impl<'a> Printer<'a, '_> {
                     .append(self.arena.space())
                     .append(self.delimited("[", cases, "]"))
             }
+        }
+    }
+
+    fn react_expression(&self, react: &ReactExpression) -> Doc<'a> {
+        match react {
+            ReactExpression::Component { render } => {
+                self.arena.text("react.component ").append(self.expression(*render))
+            }
+            ReactExpression::Element { component, props, key, .. } => {
+                let target = match component {
+                    ReactElement::Component(value) => self.expression(*value),
+                    ReactElement::Intrinsic(value) => {
+                        self.arena.text("intrinsic ").append(self.expression(*value))
+                    }
+                };
+                let key = key.map(|key| self.arena.text(" key ").append(self.expression(key)));
+                self.arena
+                    .text("react.element ")
+                    .append(target)
+                    .append(key)
+                    .append(" ")
+                    .append(self.expression(*props))
+            }
+            ReactExpression::Fragment { children } => {
+                self.arena.text("react.fragment ").append(self.expression(*children))
+            }
+            ReactExpression::Empty => self.arena.text("react.empty"),
         }
     }
 

@@ -36,7 +36,7 @@ use building_types::{
 };
 use checking::CheckedModule;
 use documenting::DocumentedModule;
-use files::{FileId, ForeignFileCandidates, ForeignFileId};
+use files::{FileId, ForeignFileCandidates, ForeignFileId, SourceDialect};
 use foreign_javascript::{ForeignModule, ForeignValidation};
 use graph::SnapshotGraph;
 use indexing::IndexedModule;
@@ -138,6 +138,7 @@ where
 #[derive(Default)]
 struct InputStorage {
     content: Shards<FileId, InputState<Arc<str>>>,
+    dialect: Shards<FileId, InputState<SourceDialect>>,
     foreign: Shards<FileId, InputState<ForeignFileCandidates>>,
     foreign_content: Shards<ForeignFileId, InputState<Arc<str>>>,
     module: Shards<ModuleNameId, InputState<Option<FileId>>>,
@@ -216,6 +217,7 @@ struct InternedStorage {
 fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
     match query {
         QueryKey::Content(id)
+        | QueryKey::Dialect(id)
         | QueryKey::Foreign(id)
         | QueryKey::ForeignValidation(id)
         | QueryKey::Parsed(id)
@@ -605,6 +607,7 @@ impl QueryEngine {
         for dependency in dependencies {
             match dependency {
                 QueryKey::Content(k) => input_changed!(content, k),
+                QueryKey::Dialect(k) => input_changed!(dialect, k),
                 QueryKey::Foreign(k) => input_changed!(foreign, k),
                 QueryKey::ForeignContent(k) => input_changed!(foreign_content, k),
                 QueryKey::ForeignModule(k) => derived_changed!(foreign_module, k),
@@ -846,6 +849,14 @@ impl QueryEngine {
             .ok_or(QueryError::MissingContent { file_id: id })
     }
 
+    pub fn set_dialect(&self, id: FileId, dialect: SourceDialect) {
+        self.set_input(id, |input| &input.dialect, dialect);
+    }
+
+    pub fn dialect(&self, id: FileId) -> SourceDialect {
+        self.get_input(QueryKey::Dialect(id), id, |input| &input.dialect).unwrap_or_default()
+    }
+
     fn remove_file_queries<T>(
         &self,
         file_id: FileId,
@@ -883,6 +894,7 @@ impl QueryEngine {
 
         self.control.global.revision.fetch_add(1, Ordering::Relaxed);
         self.input.content.remove(&file_id);
+        self.input.dialect.remove(&file_id);
         self.input.foreign.remove(&file_id);
 
         let mut removed_modules = FxHashSet::default();
@@ -1053,8 +1065,9 @@ impl QueryEngine {
             |derived| &derived.parsed,
             |this| {
                 let content = this.content(id)?;
+                let dialect = this.dialect(id);
 
-                let lexed = lexing::lex(&content);
+                let lexed = lexing::lex_with_jsx(&content, dialect == SourceDialect::Iris);
                 let tokens = lexing::layout(&lexed);
                 let parsed = parsing::parse(&lexed, &tokens);
 
@@ -1782,9 +1795,11 @@ mod tests {
         }
 
         let content_states = engine.input.content.inner.iter().map(|shard| shard.read().len());
+        let dialect_states = engine.input.dialect.inner.iter().map(|shard| shard.read().len());
         let module_states = engine.input.module.inner.iter().map(|shard| shard.read().len());
         let parsed_states = engine.derived.parsed.inner.iter().map(|shard| shard.read().len());
         assert_eq!(content_states.sum::<usize>(), 0);
+        assert_eq!(dialect_states.sum::<usize>(), 0);
         assert_eq!(module_states.sum::<usize>(), 0);
         assert_eq!(parsed_states.sum::<usize>(), 0);
     }
@@ -2202,6 +2217,7 @@ mod tests {
         let mut engine = QueryEngine::default();
         let mut files = Files::default();
         prim::configure(&mut engine, &mut files);
+        let initial_revision = engine.control.global.revision.load(Ordering::Relaxed);
 
         macro_rules! assert_trace {
             ($engine:expr, $field:ident($id:expr) => $trace:expr) => {{
@@ -2217,18 +2233,18 @@ mod tests {
         let indexed_a = engine.indexed(id).unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
-            built: 25,
-            changed: 25,
-            dependencies: &[QueryKey::Content(id)]
+            built: initial_revision + 1,
+            changed: initial_revision + 1,
+            dependencies: &[QueryKey::Content(id), QueryKey::Dialect(id)]
         });
         assert_trace!(engine, stabilized(id) => Trace {
-            built: 25,
-            changed: 25,
+            built: initial_revision + 1,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Parsed(id)]
         });
         assert_trace!(engine, indexed(id) => Trace {
-            built: 25,
-            changed: 25,
+            built: initial_revision + 1,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Content(id), QueryKey::Parsed(id), QueryKey::Stabilized(id)]
         });
 
@@ -2238,18 +2254,18 @@ mod tests {
         let indexed_b = engine.indexed(id).unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
-            built: 26,
-            changed: 25,
-            dependencies: &[QueryKey::Content(id)]
+            built: initial_revision + 2,
+            changed: initial_revision + 1,
+            dependencies: &[QueryKey::Content(id), QueryKey::Dialect(id)]
         });
         assert_trace!(engine, stabilized(id) => Trace {
-            built: 26,
-            changed: 25,
+            built: initial_revision + 2,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Parsed(id)]
         });
         assert_trace!(engine, indexed(id) => Trace {
-            built: 26,
-            changed: 26,
+            built: initial_revision + 2,
+            changed: initial_revision + 2,
             dependencies: &[QueryKey::Content(id), QueryKey::Parsed(id), QueryKey::Stabilized(id)]
         });
 
@@ -2262,6 +2278,7 @@ mod tests {
         let mut engine = QueryEngine::default();
         let mut files = Files::default();
         prim::configure(&mut engine, &mut files);
+        let initial_revision = engine.control.global.revision.load(Ordering::Relaxed);
 
         macro_rules! assert_trace {
             ($engine:expr, $field:ident($id:expr) => $trace:expr) => {{
@@ -2280,18 +2297,18 @@ mod tests {
         let resolved_a = engine.resolved(id).unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
-            built: 25,
-            changed: 25,
-            dependencies: &[QueryKey::Content(id)]
+            built: initial_revision + 1,
+            changed: initial_revision + 1,
+            dependencies: &[QueryKey::Content(id), QueryKey::Dialect(id)]
         });
         assert_trace!(engine, indexed(id) => Trace {
-            built: 25,
-            changed: 25,
+            built: initial_revision + 1,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Content(id), QueryKey::Parsed(id), QueryKey::Stabilized(id)]
         });
         assert_trace!(engine, resolved(id) => Trace {
-            built: 25,
-            changed: 25,
+            built: initial_revision + 1,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Indexed(id)]
         });
 
@@ -2304,18 +2321,18 @@ mod tests {
         let resolved_b = engine.resolved(id).unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
-            built: 26,
-            changed: 26,
-            dependencies: &[QueryKey::Content(id)]
+            built: initial_revision + 2,
+            changed: initial_revision + 2,
+            dependencies: &[QueryKey::Content(id), QueryKey::Dialect(id)]
         });
         assert_trace!(engine, indexed(id) => Trace {
-            built: 26,
-            changed: 25,
+            built: initial_revision + 2,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Content(id), QueryKey::Parsed(id), QueryKey::Stabilized(id)]
         });
         assert_trace!(engine, resolved(id) => Trace {
-            built: 26,
-            changed: 25,
+            built: initial_revision + 2,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Indexed(id)]
         });
 
@@ -2328,18 +2345,18 @@ mod tests {
         let resolved_c = engine.resolved(id).unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
-            built: 27,
-            changed: 27,
-            dependencies: &[QueryKey::Content(id)]
+            built: initial_revision + 3,
+            changed: initial_revision + 3,
+            dependencies: &[QueryKey::Content(id), QueryKey::Dialect(id)]
         });
         assert_trace!(engine, indexed(id) => Trace {
-            built: 27,
-            changed: 25,
+            built: initial_revision + 3,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Content(id), QueryKey::Parsed(id), QueryKey::Stabilized(id)]
         });
         assert_trace!(engine, resolved(id) => Trace {
-            built: 27,
-            changed: 25,
+            built: initial_revision + 3,
+            changed: initial_revision + 1,
             dependencies: &[QueryKey::Indexed(id)]
         });
 
@@ -2379,6 +2396,7 @@ mod tests {
         let mut engine = QueryEngine::default();
         let mut files = Files::default();
         prim::configure(&mut engine, &mut files);
+        let initial_revision = engine.control.global.revision.load(Ordering::Relaxed);
 
         let parent = files.insert("./src/Parent.purs", "module Parent where");
         let child = files.insert("./src/Child.purs", "module Child where");
@@ -2402,7 +2420,11 @@ mod tests {
         let guard = shard.read();
         assert_eq!(
             ShowTrace(guard.get(&parent).unwrap()),
-            Trace { built: 25, changed: 25, dependencies: &[QueryKey::Parsed(child)] }
+            Trace {
+                built: initial_revision + 1,
+                changed: initial_revision + 1,
+                dependencies: &[QueryKey::Parsed(child)]
+            }
         );
     }
 

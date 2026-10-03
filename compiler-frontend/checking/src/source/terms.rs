@@ -6,6 +6,7 @@ pub mod form_do;
 pub mod form_let;
 pub mod forms;
 pub mod guarded;
+mod jsx;
 
 use std::sync::Arc;
 
@@ -476,6 +477,12 @@ where
         lowering::ExpressionKind::Ado { map, apply, pure, statements, expression } => {
             form_ado::infer_ado(state, context, *map, *apply, *pure, statements, *expression)
         }
+
+        lowering::ExpressionKind::JsxElement { kind, resolution, attributes, children } => {
+            jsx::infer_element(state, context, kind, *resolution, attributes, children)
+        }
+
+        lowering::ExpressionKind::JsxText { value } => jsx::infer_text(state, context, value),
 
         lowering::ExpressionKind::Constructor { resolution } => {
             let Some((file_id, term_id)) = resolution else {

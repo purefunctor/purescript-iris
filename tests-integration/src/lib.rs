@@ -50,6 +50,7 @@ fn load_file(
     let content = files.content(id);
 
     engine.set_content(id, content.clone());
+    engine.set_dialect(id, files.dialect(id));
     let Ok((parsed, _)) = engine.parsed(id) else {
         return Ok(id);
     };
@@ -88,8 +89,13 @@ fn load_file(
 fn load_folder(folder: &Path) -> FixtureResult<Vec<PathBuf>> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let packages = manifest.join(folder);
-    let pattern = format!("{}/**/*.purs", glob::Pattern::escape(&packages.to_string_lossy()));
-    Ok(glob(&pattern)?.collect::<Result<Vec<_>, _>>()?)
+    let root = glob::Pattern::escape(&packages.to_string_lossy());
+    let mut sources = Vec::new();
+    for extension in ["purs", "iris"] {
+        let pattern = format!("{root}/**/*.{extension}");
+        sources.extend(glob(&pattern)?.collect::<Result<Vec<_>, _>>()?);
+    }
+    Ok(sources)
 }
 
 pub fn load_compiler(folder: &Path) -> FixtureResult<(QueryEngine, Files)> {

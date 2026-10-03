@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 References at Position { line: 2, character: 7 }
 
@@ -41,11 +42,11 @@ test2 (_ + _) = [1 + 2, (+)]
 --       %         %     %
 ```
 
-file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Lib.purs @ 12:12..12:15
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/External.purs @ 4:11..4:14
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:24..8:27
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:9..8:10
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:19..8:20
+file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Lib.purs @ 12:12..12:15
 
 
 References at Position { line: 8, character: 19 }
@@ -55,11 +56,11 @@ test2 (_ + _) = [1 + 2, (+)]
 --       %         %     %
 ```
 
-file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Lib.purs @ 12:12..12:15
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/External.purs @ 4:11..4:14
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:24..8:27
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:9..8:10
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:19..8:20
+file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Lib.purs @ 12:12..12:15
 
 
 References at Position { line: 8, character: 25 }
@@ -69,11 +70,11 @@ test2 (_ + _) = [1 + 2, (+)]
 --       %         %     %
 ```
 
-file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Lib.purs @ 12:12..12:15
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/External.purs @ 4:11..4:14
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:24..8:27
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:9..8:10
 file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Main.purs @ 8:19..8:20
+file:///tests-integration/fixtures/lsp/1757527080_references_baseline/Lib.purs @ 12:12..12:15
 
 
 References at Position { line: 11, character: 13 }

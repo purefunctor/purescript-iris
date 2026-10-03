@@ -9,6 +9,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum QueryKey {
     Content(FileId),
+    Dialect(FileId),
     Foreign(FileId),
     ForeignContent(ForeignFileId),
     ForeignModule(ForeignFileId),

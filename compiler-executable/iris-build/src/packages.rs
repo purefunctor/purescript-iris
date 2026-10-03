@@ -46,6 +46,8 @@ pub enum PackagesError {
     EscapedGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
     #[error("source file {path} is claimed by packages '{first}' and '{second}'")]
     ConflictingSource { path: PathBuf, first: SmolStr, second: SmolStr },
+    #[error("source stem {stem} has both .purs and .iris files")]
+    AmbiguousSourceDialect { stem: PathBuf },
     #[error("failed to canonicalize package path {path}: {source}")]
     CanonicalizePath {
         path: PathBuf,
@@ -124,17 +126,25 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
 
     let mut source_globs = Vec::new();
     let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
+    let mut source_stems = BTreeMap::new();
     let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
     for resolved in discovered.values() {
         let mut package_globs = Vec::new();
         for directory in &resolved.source_directories {
             let relative = directory.strip_prefix(&workspace.root).unwrap_or(directory);
-            package_globs.push(relative.join(iris_spago::PURS_GLOB));
+            package_globs.extend(iris_spago::SOURCE_GLOBS.map(|glob| relative.join(glob)));
         }
         source_globs.extend(package_globs.iter().cloned());
         let walked =
             super::walk::walk_filtered(&workspace.root, package_globs, Vec::<PathBuf>::new())?;
         for file in walked.files {
+            let stem = file.with_extension("");
+            if let Some(previous) =
+                source_stems.insert(PathBuf::clone(&stem), PathBuf::clone(&file))
+                && previous != file
+            {
+                return Err(PackagesError::AmbiguousSourceDialect { stem });
+            }
             if let Some(owner) =
                 owners.insert(PathBuf::clone(&file), SmolStr::clone(&resolved.name))
                 && owner != resolved.name

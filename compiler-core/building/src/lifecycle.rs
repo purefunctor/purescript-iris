@@ -294,6 +294,10 @@ where
         self.foreign_files.id(locator)
     }
 
+    pub fn foreign_owner(&self, locator: &str) -> Option<&SourceUnitKey> {
+        self.foreign_owners.get(locator)
+    }
+
     fn locator_conflict(&self, unit: &SourceUnitKey) -> Option<LifecycleWarning> {
         if let Some(owner) = self.source_owners.get(unit.source())
             && owner != unit

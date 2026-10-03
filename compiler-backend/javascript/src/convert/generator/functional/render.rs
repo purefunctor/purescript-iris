@@ -1,6 +1,7 @@
 //! Rendering functional trees as JavaScript modules.
 
 mod inline;
+mod react;
 mod structure;
 mod stylex;
 mod syntax;
@@ -55,6 +56,9 @@ pub(crate) struct Generator<'m> {
     external_named_imports: FxHashMap<GlobalId, SmolStr>,
     external_references: Vec<Global>,
     stylex_namespace: Option<SmolStr>,
+    react_jsx: Option<SmolStr>,
+    react_jsxs: Option<SmolStr>,
+    react_fragment: Option<SmolStr>,
     foreign_import: Option<ForeignImport>,
     runtime_namespace: Option<SmolStr>,
     lazy_global_names: FxHashMap<GlobalId, SmolStr>,
@@ -309,6 +313,10 @@ impl<'m> Generator<'m> {
         }
 
         let stylex_namespace = has_stylex.then(|| allocator.allocate("$stylex"));
+        let (jsx, jsxs, fragment) = react::required_imports(module);
+        let react_jsx = jsx.then(|| allocator.allocate("$jsx"));
+        let react_jsxs = jsxs.then(|| allocator.allocate("$jsxs"));
+        let react_fragment = fragment.then(|| allocator.allocate("$Fragment"));
 
         let has_foreign = module
             .declarations
@@ -367,6 +375,9 @@ impl<'m> Generator<'m> {
             external_named_imports,
             external_references,
             stylex_namespace,
+            react_jsx,
+            react_jsxs,
+            react_fragment,
             foreign_import,
             runtime_namespace,
             lazy_global_names,
@@ -471,6 +482,18 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     if let Some(namespace) = &generator.stylex_namespace {
         writer.import_namespace(namespace, "@stylexjs/stylex");
     }
+    let react_imports = [
+        ("jsx", &generator.react_jsx),
+        ("jsxs", &generator.react_jsxs),
+        ("Fragment", &generator.react_fragment),
+    ];
+    let react_imports = react_imports
+        .iter()
+        .filter_map(|(import, alias)| alias.as_deref().map(|alias| (*import, alias)))
+        .collect_vec();
+    if !react_imports.is_empty() {
+        writer.import_named(&react_imports, "react/jsx-runtime");
+    }
     if let Some(foreign_import) = &generator.foreign_import {
         let path = format!("./foreign.{}", foreign_import.kind.extension());
         writer.import_namespace(&foreign_import.namespace, &path);
@@ -481,6 +504,8 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     }
     if !generator.external_references.is_empty()
         || generator.stylex_namespace.is_some()
+        || generator.react_jsx.is_some()
+        || generator.react_jsxs.is_some()
         || !generator.external_named_imports.is_empty()
         || generator.foreign_import.is_some()
         || generator.runtime_namespace.is_some()
@@ -1649,6 +1674,9 @@ impl Generator<'_> {
             ExpressionKind::StyleX(stylex) => {
                 self.render_stylex_expression(tree, writer, stylex, context)
             }
+            ExpressionKind::React(react) => {
+                self.render_react_expression(tree, writer, react, context)
+            }
             ExpressionKind::Effect { effect } => {
                 let mut renderer = self.renderer(tree, writer, context);
                 let value = effect_expression(&mut renderer, effect)?;
@@ -1780,6 +1808,7 @@ impl Generator<'_> {
                     }
                 })
                 .is_err(),
+            ExpressionKind::React(_) => true,
             ExpressionKind::Error
             | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
@@ -1819,6 +1848,7 @@ impl Generator<'_> {
             | ExpressionKind::Application { .. }
             | ExpressionKind::UncurriedApplication { .. }
             | ExpressionKind::StyleX(_)
+            | ExpressionKind::React(_)
             | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
@@ -1969,6 +1999,7 @@ impl Generator<'_> {
                 };
                 expression
             }
+            ExpressionKind::React(_) => return Ok(None),
             ExpressionKind::SynthesizedEvidence { evidence } => {
                 synthesized_evidence_expression(tree, evidence)
             }
@@ -2034,6 +2065,7 @@ impl Generator<'_> {
                     if self.expression_can_inline(child) { Ok(()) } else { Err(()) }
                 })
                 .is_ok(),
+            ExpressionKind::React(_) => false,
             ExpressionKind::Error
             | ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::IfThenElse { .. }
@@ -3345,7 +3377,7 @@ fn collect_expression_references(
                 collect_expression_references(module, *argument, seen, globals);
             }
         }
-        kind @ ExpressionKind::StyleX(_) => {
+        kind @ (ExpressionKind::StyleX(_) | ExpressionKind::React(_)) => {
             for_each_expression_child(kind, |child| {
                 collect_expression_references(module, child, seen, globals);
             });
@@ -3563,7 +3595,7 @@ fn collect_expression_children(
                 collect_expression_globals(module, *argument, false, globals);
             }
         }
-        kind @ ExpressionKind::StyleX(_) => {
+        kind @ (ExpressionKind::StyleX(_) | ExpressionKind::React(_)) => {
             for_each_expression_child(kind, |child| {
                 collect_expression_globals(module, child, false, globals);
             });

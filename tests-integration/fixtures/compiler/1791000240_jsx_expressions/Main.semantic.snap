@@ -1,0 +1,129 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+badge :: Iris.React.Component ( children :: Iris.React.JSX, label :: Prim.String )
+badge =
+  component \props -> intrinsic {trivial} "strong" { title: props.label, children: props.children }
+
+label :: Iris.React.Component ( value :: Data.Show.Show Prim.Int => Prim.Int )
+label = component renderLabel
+
+renderLabel :: { value :: Data.Show.Show Prim.Int => Prim.Int } -> Iris.React.JSX
+renderLabel = \props -> text (show {showInt} (props.value {showInt}))
+
+poly :: Iris.React.Component ( apply :: forall a. a -> a )
+poly = component renderPoly
+
+renderPoly :: { apply :: forall a. a -> a } -> Iris.React.JSX
+renderPoly = \props -> text (props.apply "polymorphic")
+
+test :: Iris.React.JSX
+test =
+  intrinsic {trivial} "main"
+    { className: "greeting", data-count: 3, hidden: false, children: array
+      [text "Hello ", text "世界", text "!", element {trivial} badge
+        { label: "local", children: element {trivial} button
+          { label: "qualified" } }, element {trivial} button { label: "alias" }, intrinsic {trivial}
+        "my-widget"
+        { title: "a\"b" }, fragment
+        [text "first", intrinsic {trivial} "span" { }, text "last"], elementKeyed {trivial} "answer"
+        label
+        { value: \{showDict} -> 42 }, element {trivial} poly { apply: identity {categoryFn} }] }
+
+test' :: Iris.React.JSX
+test' = intrinsic {trivial} "p" { children: text "-- text, not a comment &amp; 🌱" }
+
+test2 :: Iris.React.JSX
+test2 = identity {categoryFn} (fragment [intrinsic {trivial} "i" { }])
+
+test3 :: Iris.React.JSX
+test3 =
+  intrinsic {trivial} "div"
+    { info: { close: "}", nested: { value: 7 } }, children: array
+      [let
+        value :: Prim.String
+        value = "let"
+      in
+        intrinsic {trivial} "b" { children: text value }, case true of
+        true -> intrinsic {trivial} "yes" { }
+        false -> intrinsic {trivial} "no" { }, intrinsic {trivial} "end" { }] }
+
+test4 :: Effect.Effect Iris.React.JSX
+test4 =
+  pure {applicativeEffect}
+    (intrinsic {trivial} "div"
+      { children: let
+        value :: Prim.String
+        value = "outdented hole"
+      in
+        text value })
+
+test5 :: Iris.React.Component ( value :: Prim.Int ) -> Iris.React.JSX
+test5 = \render -> element {trivial} render { value: 17 }
+
+test6 :: Iris.React.JSX
+test6 = intrinsic {trivial} "input" { transform: \v358 -> add {semiringInt} v358 1 }
+
+test7 :: Iris.React.JSX
+test7 = intrinsic {trivial} "p" { children: text "first second third" }
+
+test8 :: Iris.React.JSX
+test8 =
+  intrinsic {trivial} "button"
+    { action: bind {bindEffect} (pure {applicativeEffect} 5) \value ->
+      pure {applicativeEffect} (add {semiringInt} value 2) }
+
+ordinary :: Iris.React.JSX
+ordinary = element {trivial} label { value: \{showDict} -> 5 }
+
+test9 :: Iris.React.JSX
+test9 = element {trivial} label { value: \{showDict} -> 5 }
+
+byTick :: Iris.React.JSX
+byTick = apply (identity {categoryFn}) (element {trivial} label { value: \{showDict} -> 11 })
+
+byQualified :: Iris.React.JSX
+byQualified =
+  apply (identity {categoryFn})
+    (element {trivial} label { value: \{showDict} -> negate {ringInt} 1 })
+
+open :: forall props. Iris.React.Component ( label :: Prim.String | props )
+open = component \props -> intrinsic {trivial} "div" { children: text props.label }
+
+test10 :: Iris.React.JSX
+test10 = element {trivial} open { label: "open", count: 42 }
+
+foreign import optional :: forall props rest.
+  Prim.Row.Union @Prim.Type props rest ( count :: Prim.Int, label :: Prim.String ) =>
+  Iris.React.Component props
+
+test11 :: Iris.React.JSX
+test11 = element {trivial} (optional {trivial}) { label: "subset" }
+
+test12 :: Iris.React.JSX
+test12 = element {trivial} (optional {trivial}) { count: 7 }
+
+test13 :: Iris.React.JSX
+test13 = fragment (map {functorArray} text ["first", "second"])
+
+test14 :: Prim.Array Iris.React.JSX
+test14 = map {functorArray} (element {trivial} button) [{ label: "partial" }]
+
+less :: Prim.Int -> Prim.Int -> Prim.Boolean
+less = \left -> \right -> lessThan {ordInt} left right
+
+keywordLabel :: Prim.Int -> Prim.Boolean
+keywordLabel = \right -> lessThan {ordInt} { then: 1 }.then right
+
+operators :: { append :: Prim.String -> Prim.String -> Prim.String
+, less :: Prim.Int -> Prim.Int -> Prim.Boolean
+, map :: (Prim.Int -> Prim.Int) -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+}
+operators = { less: lessThan {ordInt}, append: append {semigroupString}, map: map {functorArray} }
+
+operatorResults :: { append :: Prim.String, less :: Prim.Boolean, map :: Prim.Array Prim.Int }
+operatorResults =
+  { less: operators.less 2 7, append: operators.append "a" "b", map: operators.map
+    (\v657 -> add {semiringInt} v657 2)
+    [3, 8] }

@@ -1,0 +1,19 @@
+module Main where
+
+import Iris.React as React
+import Widgets as UI.Éléments
+
+test view label =
+  <>
+    <my-widget data-label="😀" hidden={false}>
+      Hello 😀 {React.text label}
+      <View label={label}>nested</View>
+      <UI.Éléments.Badge title="hé">world</UI.Éléments.Badge>
+      <UI.Éléments.badge title="lower" children={React.empty} />
+      {if true then <span>{React.text label}</span> else React.empty}
+    </my-widget>
+  </>
+
+-- semantic tokens
+
+unfinished view = <View label=
