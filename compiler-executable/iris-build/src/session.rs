@@ -84,6 +84,8 @@ enum SessionFailure {
     Query(#[from] QueryError),
     #[error(transparent)]
     Walk(#[from] walk::Error),
+    #[error("source stem {0} has both .purs and .iris files")]
+    AmbiguousSourceDialect(PathBuf),
 }
 
 #[derive(Debug, Error)]
@@ -204,24 +206,38 @@ impl BuildSession {
                 continue;
             }
             match path.extension().and_then(|extension| extension.to_str()) {
-                Some("purs") => {
-                    if self.source_paths.contains(path)
-                        || !self.source_globs.matches(path).is_empty()
-                    {
-                        source_paths.insert(PathBuf::clone(path));
+                Some(extension @ ("purs" | "iris")) => {
+                    let is_source = self.source_paths.contains(path)
+                        || !self.source_globs.matches(path).is_empty();
+                    if !is_source {
+                        continue;
                     }
+                    let sibling_extension = if extension == "iris" { "purs" } else { "iris" };
+                    let sibling = path.with_extension(sibling_extension);
+                    if path.exists() && sibling.exists() {
+                        let sibling_is_source = self.source_paths.contains(&sibling)
+                            || paths.iter().any(|changed| changed == &sibling && changed.exists());
+                        if sibling_is_source {
+                            return Err(SessionFailure::AmbiguousSourceDialect(
+                                path.with_extension(""),
+                            ));
+                        }
+                    }
+                    if self.source_paths.contains(&sibling) && !sibling.exists() {
+                        source_paths.insert(sibling);
+                    }
+                    source_paths.insert(PathBuf::clone(path));
                 }
                 Some("js" | "jsx") => {
-                    let source_path = path.with_extension("purs");
-                    if self.source_paths.contains(&source_path) {
-                        foreign_paths.insert(source_path);
-                    }
+                    foreign_paths.insert(PathBuf::clone(path));
                 }
                 _ => {}
             }
         }
 
         let mut change = SessionChange::default();
+        let mut source_paths = source_paths.into_iter().collect::<Vec<_>>();
+        source_paths.sort_by_key(|path| path.exists());
         for path in source_paths {
             change.combine(self.observe_source_path(&path)?);
             if path.exists() {
@@ -230,7 +246,20 @@ impl BuildSession {
                 self.source_paths.remove(&path);
             }
         }
-        for source_path in foreign_paths {
+        for foreign_path in foreign_paths {
+            let purs = foreign_path.with_extension("purs");
+            let iris = foreign_path.with_extension("iris");
+            let source_path =
+                match (self.source_paths.contains(&purs), self.source_paths.contains(&iris)) {
+                    (true, true) => {
+                        return Err(SessionFailure::AmbiguousSourceDialect(
+                            foreign_path.with_extension(""),
+                        ));
+                    }
+                    (true, false) => purs,
+                    (false, true) => iris,
+                    (false, false) => continue,
+                };
             change.combine(observe_foreign(&mut self.compilation, &source_path)?);
         }
         Ok(change)
@@ -239,8 +268,8 @@ impl BuildSession {
     fn rescan_inputs(&mut self) -> Result<SessionChange, SessionFailure> {
         let walked = walk::walk_filtered(&self.root, &self.inputs, [&self.output])?;
         let current_paths = walked.files.into_iter().collect::<BTreeSet<_>>();
-        let affected_paths = self.source_paths.union(&current_paths).cloned().collect_vec();
-
+        let mut affected_paths = self.source_paths.union(&current_paths).cloned().collect_vec();
+        affected_paths.sort_by_key(|path| path.exists());
         let mut change = SessionChange::default();
         for path in affected_paths {
             change.combine(self.observe_source_path(&path)?);
@@ -389,9 +418,14 @@ fn observe_source_unit(
     let previous_name = compilation.module_name(unit.source())?;
 
     let source = observe_disk(source_path);
+    let source_missing = matches!(source, DiskObservation::NotFound);
     let mut lifecycle = compilation.observe_source(SourceUnitKey::clone(&unit), source, ());
     for kind in ForeignSourceKind::ALL {
-        let foreign = observe_disk(&source_path.with_extension(kind.extension()));
+        let foreign = if source_missing {
+            DiskObservation::NotFound
+        } else {
+            observe_disk(&source_path.with_extension(kind.extension()))
+        };
         lifecycle.combine(compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, foreign));
     }
 

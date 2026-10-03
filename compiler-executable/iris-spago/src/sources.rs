@@ -19,6 +19,8 @@ pub const TEST_DIRECTORY: &str = "test";
 
 /// File pattern matched within every source directory.
 pub const PURS_GLOB: &str = "**/*.purs";
+pub const IRIS_GLOB: &str = "**/*.iris";
+pub const SOURCE_GLOBS: [&str; 2] = [PURS_GLOB, IRIS_GLOB];
 
 /// Joins the PureScript glob onto a source directory: `src` becomes `src/**/*.purs`.
 pub fn source_glob(directory: &Path) -> PathBuf {

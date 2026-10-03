@@ -205,12 +205,34 @@ fn rebuilds_for_ffi_changes_and_reconciles_foreign_outputs() {
             && generated_module_contains(&javascript_output, "43")
     });
 
+    std::fs::rename(workspace.path().join("src/Main.purs"), workspace.path().join("src/Main.iris"))
+        .unwrap();
+    workspace.write(
+        "src/Main.iris",
+        r#"module Main where
+
+import Iris.React as React
+
+foreign import value :: Int
+
+view = <div>{React.text "renamed"}</div>
+"#,
+    );
+    workspace.write("src/Main.js", "export const value = 44;\n");
+    let module_output = workspace.path().join("output/Main/index.js");
+    watch.wait_for("source dialect rename with FFI rebuild", |stdout, stderr| {
+        stdout.contains("Rebuild succeeded")
+            && generated_module_contains(&module_output, "renamed")
+            && generated_module_contains(&javascript_output, "44")
+            && !stderr.contains("source stem")
+    });
+
     std::fs::remove_file(workspace.path().join("src/Main.js")).unwrap();
-    workspace.write("src/Main.jsx", "export const value = 44;\n");
+    workspace.write("src/Main.jsx", "export const value = 45;\n");
     let jsx_output = workspace.path().join("output/Main/foreign.jsx");
     watch.wait_for("JSX FFI rebuild", |stdout, _| {
         stdout.contains("Changed 1 input: Main")
-            && generated_module_contains(&jsx_output, "44")
+            && generated_module_contains(&jsx_output, "45")
             && !javascript_output.exists()
     });
 }

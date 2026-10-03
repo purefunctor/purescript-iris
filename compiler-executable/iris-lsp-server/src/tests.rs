@@ -714,6 +714,7 @@ async fn registrations_follow_the_client_capabilities() {
                         registration["registerOptions"],
                         json!({"watchers": [
                             {"globPattern": "**/*.purs"},
+                            {"globPattern": "**/*.iris"},
                             {"globPattern": "**/*.js"},
                             {"globPattern": "**/*.jsx"}
                         ]})

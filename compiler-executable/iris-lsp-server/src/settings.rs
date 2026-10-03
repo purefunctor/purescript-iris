@@ -131,7 +131,12 @@ fn watched_files_registration() -> RegistrationParams {
         kind: None,
     };
     let options = DidChangeWatchedFilesRegistrationOptions {
-        watchers: vec![watcher("**/*.purs"), watcher("**/*.js"), watcher("**/*.jsx")],
+        watchers: vec![
+            watcher("**/*.purs"),
+            watcher("**/*.iris"),
+            watcher("**/*.js"),
+            watcher("**/*.jsx"),
+        ],
     };
     let register_options = serde_json::to_value(options)
         .expect("invariant violated: watched file registration options must serialize");

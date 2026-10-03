@@ -98,6 +98,20 @@ impl ReadyWorkspace {
         }
     }
 
+    pub(crate) fn document_unit(
+        &self,
+        uri: &Uri,
+    ) -> Result<(DocumentKind, SourceUnitKey), DocumentError> {
+        let owner = self.analysis.files.read().foreign_owner(uri.as_str()).cloned();
+        let document = document_kind(uri)
+            .ok_or_else(|| DocumentError::UnsupportedDocumentUri(Uri::clone(uri)))?;
+        let unit = match document {
+            DocumentKind::Source => source_unit_from_source_uri(uri)?,
+            DocumentKind::Foreign(_) => source_unit_from_foreign_uri(uri, owner.as_ref())?,
+        };
+        Ok((document, unit))
+    }
+
     /// Applies lifecycle events, first telling tasks waiting for permits to drop their snapshots.
     pub(crate) fn apply_lifecycle_events(
         &mut self,
@@ -119,7 +133,8 @@ impl ReadyWorkspace {
         let collect_diagnostics = match trigger {
             DiagnosticTrigger::None => Vec::new(),
             DiagnosticTrigger::AssociatedSource(uri) => {
-                let (_, unit) = source_unit_from_document_uri(&uri)
+                let (_, unit) = self
+                    .document_unit(&uri)
                     .expect("invariant violated: diagnostic trigger has an invalid document URI");
                 self.analysis.files.read().source_id(unit.source()).into_iter().collect_vec()
             }
@@ -140,7 +155,7 @@ impl ReadyWorkspace {
 
     /// Collects diagnostics for the source associated with `uri`, without changing anything.
     pub(crate) fn associated_effects(&self, uri: &Uri) -> Result<WorkspaceEffects, DocumentError> {
-        let (_, unit) = source_unit_from_document_uri(uri)?;
+        let (_, unit) = self.document_unit(uri)?;
         let files = self.analysis.files.read();
         let collect_diagnostics = files.source_id(unit.source()).into_iter().collect_vec();
         Ok(WorkspaceEffects { clear_diagnostics: Vec::new(), collect_diagnostics })
@@ -214,23 +229,11 @@ pub(crate) fn document_kind(uri: &Uri) -> Option<DocumentKind> {
         Some(DocumentKind::Foreign(ForeignSourceKind::JavaScript))
     } else if uri.path().ends_with(".jsx") {
         Some(DocumentKind::Foreign(ForeignSourceKind::Jsx))
-    } else if uri.path().ends_with(".purs") {
+    } else if uri.path().ends_with(".purs") || uri.path().ends_with(".iris") {
         Some(DocumentKind::Source)
     } else {
         None
     }
-}
-
-pub(crate) fn source_unit_from_document_uri(
-    uri: &Uri,
-) -> Result<(DocumentKind, SourceUnitKey), DocumentError> {
-    let document =
-        document_kind(uri).ok_or_else(|| DocumentError::UnsupportedDocumentUri(Uri::clone(uri)))?;
-    let unit = match document {
-        DocumentKind::Source => source_unit_from_source_uri(uri)?,
-        DocumentKind::Foreign(_) => source_unit_from_foreign_uri(uri)?,
-    };
-    Ok((document, unit))
 }
 
 fn file_uri_with_extension(uri: &Uri, extension: &str) -> Result<Uri, DocumentError> {
@@ -266,8 +269,22 @@ pub(crate) fn source_unit_from_source_uri(
 
 pub(crate) fn source_unit_from_foreign_uri(
     foreign_uri: &Uri,
+    known_owner: Option<&SourceUnitKey>,
 ) -> Result<SourceUnitKey, DocumentError> {
-    let source_uri = file_uri_with_extension(foreign_uri, "purs")?;
+    if let Some(owner) = known_owner {
+        return Ok(SourceUnitKey::clone(owner));
+    }
+    let purs_uri = file_uri_with_extension(foreign_uri, "purs")?;
+    let iris_uri = file_uri_with_extension(foreign_uri, "iris")?;
+    let purs_exists = purs_uri.to_file_path().is_ok_and(|path| path.exists());
+    let iris_exists = iris_uri.to_file_path().is_ok_and(|path| path.exists());
+    let source_uri = match (purs_exists, iris_exists) {
+        (true, true) => {
+            return Err(DocumentError::AmbiguousSourceDialect(Uri::clone(foreign_uri)));
+        }
+        (false, true) => iris_uri,
+        (true, false) | (false, false) => purs_uri,
+    };
     source_unit_from_source_uri(&source_uri)
 }
 

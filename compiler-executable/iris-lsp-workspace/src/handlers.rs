@@ -19,7 +19,7 @@ use thiserror::Error;
 use crate::analysis::{CONTENT_MODIFIED, ChangeSignal, Snapshot};
 use crate::state::{
     DiagnosticTrigger, ReadyWorkspace, WorkspaceEffects, document_kind, observe_disk,
-    source_unit_from_document_uri, source_unit_from_foreign_uri, source_unit_from_source_uri,
+    source_unit_from_source_uri,
 };
 
 #[derive(Error, Debug)]
@@ -32,6 +32,8 @@ pub(crate) enum DocumentError {
     UnsupportedDocumentUri(Uri),
     #[error("Invalid content change for document {0}")]
     InvalidContentChange(Uri),
+    #[error("Source stem for {0} has both .purs and .iris files")]
+    AmbiguousSourceDialect(Uri),
     #[error("UrlParseError: {0}")]
     UrlParseError(#[from] url::ParseError),
 }
@@ -130,7 +132,7 @@ fn did_open(
     parameters: DidOpenTextDocumentParams,
 ) -> Result<WorkspaceEffects, DocumentError> {
     let uri = &parameters.text_document.uri;
-    let (document, unit) = source_unit_from_document_uri(uri)?;
+    let (document, unit) = workspace.document_unit(uri)?;
 
     let mut events = Vec::new();
     match document {
@@ -174,7 +176,7 @@ fn did_change(
     if parameters.content_changes.is_empty() {
         return Ok(WorkspaceEffects::default());
     }
-    let (document, unit) = source_unit_from_document_uri(uri)?;
+    let (document, unit) = workspace.document_unit(uri)?;
     let content = workspace.analysis.document_content(document, uri)?;
     let content = apply_content_changes(
         uri,
@@ -213,7 +215,7 @@ fn did_close(
     parameters: DidCloseTextDocumentParams,
 ) -> Result<WorkspaceEffects, DocumentError> {
     let uri = parameters.text_document.uri;
-    let (document, unit) = source_unit_from_document_uri(&uri)?;
+    let (document, unit) = workspace.document_unit(&uri)?;
     let disk = observe_disk(&uri);
     let mut events = Vec::new();
     match document {
@@ -260,12 +262,11 @@ fn did_change_watched_files(
 ) -> Result<WorkspaceEffects, DocumentError> {
     let root = context.root.as_deref();
     let mut source_units = FxHashSet::default();
-    let mut foreign_units = FxHashSet::default();
+    let mut foreign_changes = FxHashSet::default();
     for change in parameters.changes {
         match document_kind(&change.uri) {
             Some(DocumentKind::Foreign(kind)) => {
-                let unit = source_unit_from_foreign_uri(&change.uri)?;
-                foreign_units.insert((unit, kind));
+                foreign_changes.insert((change.uri, kind));
             }
             Some(DocumentKind::Source) => {
                 let unit = source_unit_from_source_uri(&change.uri)?;
@@ -274,6 +275,46 @@ fn did_change_watched_files(
             None => {}
         }
     }
+
+    // A rename may be reported as only a creation, or with its deletion after its creation. Retire
+    // missing disk-backed owners before resolving the replacement and its shared foreign locators.
+    let mut removals = Vec::new();
+    for unit in &source_units {
+        let uri = Uri::parse(unit.source())?;
+        if matches!(observe_disk(&uri), DiskObservation::Found(_)) {
+            let owner = workspace.analysis.files.read().foreign_owner(unit.foreign()).cloned();
+            if let Some(owner) = owner.filter(|owner| owner != unit) {
+                let document = DocumentKey::Source(SourceUnitKey::clone(&owner));
+                let owner_uri = Uri::parse(owner.source())?;
+                if workspace.analysis.files.read().is_open(&document)
+                    || matches!(observe_disk(&owner_uri), DiskObservation::Found(_))
+                {
+                    return Err(DocumentError::AmbiguousSourceDialect(uri));
+                }
+                let metadata = workspace.source_metadata(root, &owner, &owner_uri);
+                removals.push(LifecycleEvent::Source {
+                    unit: SourceUnitKey::clone(&owner),
+                    event: SourceEvent::DiskObserved { disk: observe_disk(&owner_uri), metadata },
+                });
+                for kind in files::ForeignSourceKind::ALL {
+                    let document = DocumentKey::Foreign(SourceUnitKey::clone(&owner), kind);
+                    if workspace.analysis.files.read().is_open(&document) {
+                        return Err(DocumentError::AmbiguousSourceDialect(uri));
+                    }
+                    removals.push(LifecycleEvent::Foreign {
+                        unit: SourceUnitKey::clone(&owner),
+                        kind,
+                        event: ForeignEvent::DiskObserved { disk: DiskObservation::NotFound },
+                    });
+                }
+            }
+        }
+    }
+    let mut effects = workspace.apply_lifecycle_events(
+        removals,
+        DiagnosticTrigger::AnalysisChange,
+        &context.change_signal,
+    );
 
     let mut events = Vec::new();
     let mut observed_foreign = FxHashSet::default();
@@ -300,7 +341,8 @@ fn did_change_watched_files(
         }
     }
 
-    for (unit, kind) in foreign_units {
+    for (uri, kind) in foreign_changes {
+        let (_, unit) = workspace.document_unit(&uri)?;
         if observed_foreign.contains(&unit) {
             continue;
         }
@@ -320,7 +362,6 @@ fn did_change_watched_files(
         if !tracked {
             continue;
         }
-        let uri = Uri::parse(unit.foreign_for(kind))?;
         let event = LifecycleEvent::Foreign {
             unit,
             kind,
@@ -330,7 +371,10 @@ fn did_change_watched_files(
     }
 
     let trigger = DiagnosticTrigger::AnalysisChange;
-    Ok(workspace.apply_lifecycle_events(events, trigger, &context.change_signal))
+    let subsequent = workspace.apply_lifecycle_events(events, trigger, &context.change_signal);
+    effects.clear_diagnostics.extend(subsequent.clear_diagnostics);
+    effects.collect_diagnostics.extend(subsequent.collect_diagnostics);
+    Ok(effects)
 }
 
 pub(crate) fn apply_content_changes(
