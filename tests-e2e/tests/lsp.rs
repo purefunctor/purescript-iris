@@ -745,6 +745,68 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
 }
 
 #[test]
+fn formatting_uses_unsaved_buffers_and_utf16_ranges() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
+    let disk = "module Main where\nvalue = 42\n";
+    workspace.write("src/Main.purs", disk);
+    let uri = Url::from_file_path(workspace.path().join("src/Main.purs")).unwrap();
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {
+                "uri": uri, "languageId": "purescript", "version": 1,
+                "text": "module Main where\nvalue=\"😀\""
+            }
+        }),
+    );
+    server.wait_for_symbol("value", true);
+    let parameters = json!({
+        "textDocument": {"uri": uri}, "options": {"tabSize": 2, "insertSpaces": true}
+    });
+    let edits = server
+        .connection
+        .request("textDocument/formatting", parameters.clone())
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap()
+        .unwrap();
+    let formatted = "module Main where\n\nvalue = \"😀\"\n";
+    assert_eq!(
+        edits,
+        json!([{
+            "range": {"start": {"line": 0, "character": 0}, "end": {"line": 1, "character": 10}},
+            "newText": formatted
+        }])
+    );
+    snapshot_json("formatting_unsaved_buffer", &edits);
+    assert_eq!(workspace.read("src/Main.purs"), disk);
+
+    for (version, source, expected) in [
+        (2, formatted, json!([])),
+        (3, "module Main where\nvalue = 1\nnewtype Broken = Broken", Value::Null),
+    ] {
+        server.notify(
+            "textDocument/didChange",
+            json!({
+                "textDocument": {"uri": uri, "version": version},
+                "contentChanges": [{"text": source}]
+            }),
+        );
+        server.wait_for_symbol("value", true);
+        let edits = server
+            .connection
+            .request("textDocument/formatting", parameters.clone())
+            .recv_timeout(Duration::from_secs(10))
+            .unwrap()
+            .unwrap();
+        assert_eq!(edits, expected);
+    }
+    server.shutdown();
+}
+
+#[test]
 fn discovers_workspace_sources_when_opened_from_a_nested_package() {
     let workspace = TestWorkspace::empty();
     workspace.write("spago.yaml", "workspace: {}\n");

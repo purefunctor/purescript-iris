@@ -38,6 +38,10 @@ Exit status is 0 on success, 1 when `--check` finds unformatted input, and 2 on 
 temporary files and preserve permissions; symlink write targets are rejected. Every input is formatted
 before writing any file, but a later filesystem error can still leave an earlier file updated.
 
+The language server also supports **Format Document**, using the same fixed style on the current
+buffer. It leaves invalid buffers untouched. Range formatting and style configuration are not yet
+supported. The formatting style and interface are experimental.
+
 ## Language server configuration
 
 Run `iris lsp --stdio` to start the language server. The `lsp` subcommand is required;

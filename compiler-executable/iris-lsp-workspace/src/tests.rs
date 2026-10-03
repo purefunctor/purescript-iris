@@ -721,7 +721,7 @@ async fn invalid_settings_while_preparing_keep_the_staged_settings() {
 #[tokio::test]
 async fn unknown_methods_and_invalid_parameters_are_rejected() {
     let harness = WorkspaceHarness::builtin(1).await;
-    let unknown = harness.request("textDocument/formatting", json!({}));
+    let unknown = harness.request("textDocument/rangeFormatting", json!({}));
     assert_eq!(answer(unknown).await, Err(Rejection::MethodNotFound));
     let invalid = harness.request("textDocument/hover", json!({"textDocument": 42}));
     let Err(Rejection::InvalidParams(message)) = answer(invalid).await else {

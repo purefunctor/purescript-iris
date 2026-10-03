@@ -98,6 +98,7 @@ fn server_capabilities(position_encoding: PositionEncoding) -> ServerCapabilitie
         document_highlight_provider: Some(DocumentHighlightProvider::Bool(true)),
         workspace_symbol_provider: Some(WorkspaceSymbolProvider::Bool(true)),
         document_symbol_provider: Some(DocumentSymbolProvider::Bool(true)),
+        document_formatting_provider: Some(DocumentFormattingProvider::Bool(true)),
         semantic_tokens_provider: Some(SemanticTokensProvider::SemanticTokensOptions(
             SemanticTokensOptions {
                 work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
