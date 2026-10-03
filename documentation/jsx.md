@@ -11,6 +11,21 @@ compiler, or PureScript formatters. Existing packages remain `.purs`; adopting `
 makes that module Iris-specific. Editor clients also need to associate `.iris` with
 their PureScript language mode; Iris's server recognizes the extension.
 
+Iris supplies semantic highlighting for JSX without requiring a JSX TextMate grammar.
+Intrinsic tags use `type`, component references use `variable`, qualified prefixes use
+`namespace`, attributes use `property`, text uses `string`, and JSX delimiters use
+`operator`. Expressions inside braces retain normal PureScript highlighting, including
+nested JSX. Highlighting also works on incomplete tags while editing.
+
+For VS Code, enable semantic highlighting and associate the extension in your settings:
+
+```json
+{
+  "files.associations": { "*.iris": "purescript" },
+  "editor.semanticHighlighting.enabled": true
+}
+```
+
 ## React imports are generated
 
 Install `react` and `react-dom` in your application. This experiment is tested with

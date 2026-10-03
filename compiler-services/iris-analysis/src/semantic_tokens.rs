@@ -74,12 +74,50 @@ pub fn implementation(
     let mut previous = lsp_types::Position::new(0, 0);
 
     for token in root.tokens() {
+        if token.kind() == SyntaxKind::JSX_NAME {
+            push_jsx_name(&mut data, &mut previous, &positions, &token);
+            continue;
+        }
         let Some(classification) = classify(&token) else { continue };
 
         push_token_ranges(&mut data, &mut previous, &positions, token.text_range(), classification);
     }
 
     Ok(Some(SemanticTokens { result_id: None, data }))
+}
+
+fn push_jsx_name(
+    tokens: &mut Vec<SemanticToken>,
+    previous: &mut lsp_types::Position,
+    positions: &PositionConverter<'_>,
+    token: &SyntaxToken,
+) {
+    let mut range = token.text_range();
+    let token_type = match token.parent().kind() {
+        SyntaxKind::JsxAttribute => PROPERTY,
+        SyntaxKind::JsxOpening | SyntaxKind::JsxClosing => {
+            let name = token.text(positions.content());
+            if let Some(separator) = name.rfind('.') {
+                let qualifier_end = range.start() + syntax::TextSize::new(separator as u32 + 1);
+                let qualifier_range = TextRange::new(range.start(), qualifier_end);
+                push_token_ranges(
+                    tokens,
+                    previous,
+                    positions,
+                    qualifier_range,
+                    TokenClassification::new(NAMESPACE),
+                );
+                range = TextRange::new(qualifier_end, range.end());
+                VARIABLE
+            } else if name.starts_with(char::is_uppercase) {
+                VARIABLE
+            } else {
+                TYPE
+            }
+        }
+        _ => return,
+    };
+    push_token_ranges(tokens, previous, positions, range, TokenClassification::new(token_type));
 }
 
 fn push_token_ranges(
@@ -122,13 +160,23 @@ fn push_token_ranges(
 
 fn classify(token: &SyntaxToken) -> Option<TokenClassification> {
     let classification = match token.kind() {
-        SyntaxKind::CHAR | SyntaxKind::RAW_STRING | SyntaxKind::STRING => {
+        SyntaxKind::CHAR | SyntaxKind::RAW_STRING | SyntaxKind::STRING | SyntaxKind::JSX_TEXT => {
             TokenClassification::new(STRING)
         }
         SyntaxKind::INTEGER | SyntaxKind::NUMBER => TokenClassification::new(NUMBER),
         SyntaxKind::OPERATOR
         | SyntaxKind::OPERATOR_NAME
-        | SyntaxKind::DOUBLE_PERIOD_OPERATOR_NAME => TokenClassification::new(OPERATOR),
+        | SyntaxKind::DOUBLE_PERIOD_OPERATOR_NAME
+        | SyntaxKind::JSX_OPEN
+        | SyntaxKind::JSX_CLOSE_OPEN
+        | SyntaxKind::JSX_TAG_END
+        | SyntaxKind::JSX_CLOSE_END
+        | SyntaxKind::JSX_SELF_CLOSE
+        | SyntaxKind::JSX_EXPRESSION_START
+        | SyntaxKind::JSX_EXPRESSION_END => TokenClassification::new(OPERATOR),
+        SyntaxKind::EQUAL if token.parent().kind() == SyntaxKind::JsxAttribute => {
+            TokenClassification::new(OPERATOR)
+        }
         SyntaxKind::ADO
         | SyntaxKind::CASE
         | SyntaxKind::CLASS
