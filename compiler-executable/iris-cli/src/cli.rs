@@ -33,6 +33,8 @@ pub enum Command {
     Add(AddOptions),
     /// Build a Spago workspace or package.
     Build(BuildOptions),
+    /// Format PureScript source files.
+    Format(FormatOptions),
     /// Build a Spago workspace or package and rebuild when inputs change.
     Watch(WatchOptions),
     /// Run the language server over standard input and output.
@@ -49,6 +51,22 @@ pub enum Command {
         #[usage(flatten)]
         options: TestOptions,
     },
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct FormatOptions {
+    /// Rewrite files in place.
+    #[usage(long)]
+    pub write: bool,
+
+    /// Report files that would change without rewriting them.
+    #[usage(long)]
+    pub check: bool,
+
+    /// Files to format. Omit this argument, or pass `-`, to read standard input.
+    #[usage(value_name = "PATH")]
+    pub paths: Vec<PathBuf>,
 }
 
 pub struct WatchConfig {

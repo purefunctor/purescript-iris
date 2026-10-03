@@ -1,0 +1,18 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+[
+  {
+    "newText": "module Main where\n\nvalue = \"😀\"\n",
+    "range": {
+      "end": {
+        "character": 10,
+        "line": 1
+      },
+      "start": {
+        "character": 0,
+        "line": 0
+      }
+    }
+  }
+]

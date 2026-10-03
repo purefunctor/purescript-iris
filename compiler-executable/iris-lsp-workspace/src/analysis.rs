@@ -261,9 +261,9 @@ impl Workers {
         Some(permit)
     }
 
-    /// Starts an analysis task. It answers `ContentModified` if a change to engine inputs arrives
-    /// while it waits for a permit or cancels its queries, and it stops without answering if the
-    /// request is cancelled first. Either way the snapshot is dropped.
+    /// Starts an analysis task. It answers `ContentModified` if engine inputs change before
+    /// the answer is sent, and stops without answering if the request is cancelled first.
+    /// Either way the snapshot is dropped.
     pub(crate) fn spawn_analysis(
         &self,
         method: String,
@@ -289,7 +289,12 @@ impl Workers {
             }
             let answer = task::spawn_blocking(move || run_job(&method, snapshot, job)).await;
             drop(permit);
-            let answer = answer.unwrap_or_else(|error| Err(Rejection::Internal(error.to_string())));
+            // Formatters can finish without another compiler query observing cancellation.
+            let answer = if changes.has_changed().unwrap_or(true) {
+                Err(Rejection::ContentModified(CONTENT_MODIFIED.to_string()))
+            } else {
+                answer.unwrap_or_else(|error| Err(Rejection::Internal(error.to_string())))
+            };
             let _ = reply.send(answer);
         });
     }

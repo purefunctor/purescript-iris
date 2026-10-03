@@ -1,4 +1,5 @@
 mod cli;
+mod format;
 mod logging;
 mod skills;
 
@@ -41,6 +42,7 @@ pub fn run() -> i32 {
                 1
             }
         },
+        cli::Command::Format(options) => format::run(options),
         cli::Command::Watch(mut options) => {
             if let Some(options) = options.take_query() {
                 return query(options);

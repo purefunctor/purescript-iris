@@ -8,7 +8,7 @@ use building::lifecycle::{
     SourceUnitKey,
 };
 use iris_analysis::AnalyzerError;
-use iris_analysis::position::PositionEncoding;
+use iris_analysis::position::{PositionConverter, PositionEncoding};
 use iris_lsp_server::{Answer, Rejection};
 use lsp_types::*;
 use rustc_hash::FxHashSet;
@@ -394,6 +394,7 @@ pub(crate) fn analysis_job(method: &str, params: Value) -> Result<AnalysisJob, R
         }
         WorkspaceSymbolRequest::METHOD => job::<WorkspaceSymbolRequest>(params, workspace_symbols),
         DocumentSymbolRequest::METHOD => job::<DocumentSymbolRequest>(params, document_symbols),
+        DocumentFormattingRequest::METHOD => job::<DocumentFormattingRequest>(params, formatting),
         SemanticTokensRequest::METHOD => job::<SemanticTokensRequest>(params, semantic_tokens),
         #[cfg(test)]
         LspRequestMethod::Custom(crate::tests::GATED_METHOD) => crate::tests::gated_job(params),
@@ -443,6 +444,36 @@ fn on_non_fatal<T>(result: Result<T, AnalyzerError>, item: T) -> Result<T, Analy
         Err(AnalyzerError::NonFatal) => Ok(item),
         result => result,
     }
+}
+
+fn formatting(
+    snapshot: &Snapshot,
+    parameters: DocumentFormattingParams,
+) -> Result<Option<Vec<TextEdit>>, AnalyzerError> {
+    let result = snapshot.with_analyzer_context(|context| {
+        let file = context
+            .file_id(parameters.text_document.uri.as_str())
+            .ok_or(AnalyzerError::NonFatal)?;
+        let content = context.queries().content(file)?;
+        let formatted = match iris_format::format_module(&content) {
+            Ok(formatted) => formatted,
+            Err(error) => {
+                tracing::debug!(%error, "Document formatting declined");
+                return Ok(None);
+            }
+        };
+        if formatted == content.as_ref() {
+            return Ok(Some(Vec::new()));
+        }
+        let positions = PositionConverter::new(&content, context.position_encoding());
+        let end = positions
+            .offset_to_utf8_position((content.len() as u32).into())
+            .and_then(|position| positions.utf8_position_to_protocol(position))
+            .ok_or(AnalyzerError::NonFatal)?;
+        let range = Range { start: Position { line: 0, character: 0 }, end };
+        Ok(Some(vec![TextEdit { range, new_text: formatted }]))
+    });
+    on_non_fatal(result, None)
 }
 
 fn definition(

@@ -18,6 +18,7 @@ files = { version = "0.1.0", path = "../../compiler-core/files" }
 iris-analysis = { version = "0.1.0", path = "../../compiler-services/iris-analysis" }
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-configuration = { version = "0.1.0", path = "../../compiler-services/iris-configuration" }
+iris-format = { version = "0.1.0", path = "../../compiler-services/iris-format" }
 iris-lsp-server = { version = "0.1.0", path = "../iris-lsp-server" }
 iris-spago = { version = "0.1.0", path = "../iris-spago" }
 itertools = "0.15.0"

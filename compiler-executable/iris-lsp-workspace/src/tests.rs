@@ -464,7 +464,7 @@ async fn dropping_a_queued_request_drops_its_snapshot() {
 }
 
 #[tokio::test]
-async fn a_change_does_not_delay_control_messages() {
+async fn a_change_cancels_query_free_analysis_without_delaying_control_messages() {
     let mut harness = WorkspaceHarness::builtin(2).await;
     harness.diagnostic_settings(false, false, true);
     let uri = harness.uri("Main.purs");
@@ -477,7 +477,7 @@ async fn a_change_does_not_delay_control_messages() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     release("control");
-    assert_eq!(answer(stubborn).await, Ok(json!("released")));
+    assert_eq!(answer(stubborn).await, content_modified());
     // Shutdown took effect while the change waited: the change starts no diagnostics.
     let symbols = harness.document_symbols(&uri);
     assert_eq!(symbol_names(&answer(symbols).await.unwrap()), ["changed"]);
@@ -721,7 +721,7 @@ async fn invalid_settings_while_preparing_keep_the_staged_settings() {
 #[tokio::test]
 async fn unknown_methods_and_invalid_parameters_are_rejected() {
     let harness = WorkspaceHarness::builtin(1).await;
-    let unknown = harness.request("textDocument/formatting", json!({}));
+    let unknown = harness.request("textDocument/rangeFormatting", json!({}));
     assert_eq!(answer(unknown).await, Err(Rejection::MethodNotFound));
     let invalid = harness.request("textDocument/hover", json!({"textDocument": 42}));
     let Err(Rejection::InvalidParams(message)) = answer(invalid).await else {

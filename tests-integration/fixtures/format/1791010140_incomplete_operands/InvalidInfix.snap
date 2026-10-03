@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 401
+---
+cannot format incomplete ExpressionInfixChain

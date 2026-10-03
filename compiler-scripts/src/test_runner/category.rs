@@ -5,6 +5,7 @@ use anyhow::bail;
 #[derive(Copy, Clone, Debug)]
 pub enum TestCategory {
     Compiler,
+    Format,
     Lowering,
     Resolving,
     Lsp,
@@ -15,6 +16,7 @@ impl TestCategory {
     pub fn as_str(&self) -> &'static str {
         match self {
             TestCategory::Compiler => "compiler",
+            TestCategory::Format => "format",
             TestCategory::Lowering => "lowering",
             TestCategory::Resolving => "resolving",
             TestCategory::Lsp => "lsp",
@@ -29,6 +31,7 @@ impl TestCategory {
     pub fn test_targets(&self) -> &'static [&'static str] {
         match self {
             TestCategory::Compiler => &["compiler"],
+            TestCategory::Format => &["format"],
             TestCategory::Lowering => &["lowering"],
             TestCategory::Resolving => &["resolving"],
             TestCategory::Lsp => &["lsp"],
@@ -50,12 +53,13 @@ impl FromStr for TestCategory {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "compiler" | "c" => Ok(TestCategory::Compiler),
+            "format" => Ok(TestCategory::Format),
             "lowering" | "l" => Ok(TestCategory::Lowering),
             "resolving" | "r" => Ok(TestCategory::Resolving),
             "lsp" => Ok(TestCategory::Lsp),
             "docs" => Ok(TestCategory::Docs),
             _ => bail!(
-                "unknown test category '{}', expected: compiler (c), lowering (l), resolving (r), lsp, docs",
+                "unknown test category '{}', expected: compiler (c), format, lowering (l), resolving (r), lsp, docs",
                 s
             ),
         }

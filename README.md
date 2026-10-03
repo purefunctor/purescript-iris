@@ -21,6 +21,27 @@ to enable minimal recomputation across trivial formatting changes.
 The language server component implements core code intelligence features such as completion, jump to
 definition, hover information, find references, workspace symbol search, and diagnostics.
 
+## Experimental formatter
+
+`iris format` reads a module from standard input, and `iris format FILE` previews one file on
+standard output. Use `iris format --check FILE...` to list files that need formatting, or
+`iris format --write FILE...` to rewrite them. Paths must be explicit; shell expansion can supply
+multiple files.
+
+The formatter uses two-space indentation and a width of 100 as a soft target. It preserves source
+spellings, comments, and declaration order. It rejects parse errors and incomplete syntax, then checks
+that formatting preserves the syntax tree, tokens, and comments and is idempotent before returning
+output. It does not type-check the program. Generated whitespace uses LF; literal and block-comment
+contents remain unchanged.
+
+Exit status is 0 on success, 1 when `--check` finds unformatted input, and 2 on an error. Writes use
+temporary files and preserve permissions; symlink write targets are rejected. Every input is formatted
+before writing any file, but a later filesystem error can still leave an earlier file updated.
+
+The language server also supports **Format Document**, using the same fixed style on the current
+buffer. It leaves invalid buffers untouched. Range formatting and style configuration are not yet
+supported. The formatting style and interface are experimental.
+
 ## Language server configuration
 
 Run `iris lsp --stdio` to start the language server. The `lsp` subcommand is required;
