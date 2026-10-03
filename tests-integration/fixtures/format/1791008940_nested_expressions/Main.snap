@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 401
+---
+module Main where
+
+test value =
+  let
+    doubled x = x + x
+    selected =
+      case value of
+        Just x
+          | x > 0 -> doubled x
+        _ -> 0
+  in selected
+    where
+      helper x =
+        case x of
+          0 ->
+            do
+              pure 0
+          other ->
+            ado
+              first <- pure other
+              second <- pure (helper 0)
+            in first + second

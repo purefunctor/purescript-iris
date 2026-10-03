@@ -1,0 +1,2 @@
+module InvalidEquation where
+value =

@@ -1,0 +1,5 @@
+module Main where
+infixr 6 append as <>
+append left right=left+right
+unicode λ={α:λ,beta:λ}
+binders {α: value,beta} [first,second] (left@(Just _))=veryLongFunctionName value beta first second left "an intentionally long argument that should exercise width wrapping"

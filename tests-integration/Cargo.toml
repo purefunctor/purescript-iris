@@ -16,6 +16,7 @@ interner = { version = "0.1.0", path = "../compiler-core/interner" }
 iris-analysis = { version = "0.1.0", path = "../compiler-services/iris-analysis" }
 iris-diagnostics = { version = "0.1.0", path = "../compiler-services/iris-diagnostics" }
 iris-documentation = { version = "0.1.0", path = "../compiler-services/iris-documentation" }
+iris-format = { version = "0.1.0", path = "../compiler-services/iris-format" }
 itertools = "0.15.0"
 insta = "1.48.0"
 javascript = { version = "0.1.0", path = "../compiler-backend/javascript" }
@@ -39,6 +40,10 @@ datatest-stable = "0.3"
 
 [[test]]
 name = "compiler"
+harness = false
+
+[[test]]
+name = "format"
 harness = false
 
 [[test]]

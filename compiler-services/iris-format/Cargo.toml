@@ -1,0 +1,12 @@
+[package]
+name = "iris-format"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[dependencies]
+lexing = { version = "0.1.0", path = "../../compiler-frontend/lexing" }
+parsing = { version = "0.1.0", path = "../../compiler-frontend/parsing" }
+pretty = "0.12.5"
+syntax = { version = "0.1.0", path = "../../compiler-frontend/syntax" }
+thiserror = "2.0.20"

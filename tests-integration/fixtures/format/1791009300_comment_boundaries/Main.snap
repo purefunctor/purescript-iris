@@ -1,0 +1,52 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 401
+---
+-- | Module documentation.
+module Main where -- header comment
+
+-- | Value documentation.
+value {- name -} = {- expression -}
+  [
+    1 -- first element
+    , 2 {- second -}
+    , 3
+  ] -- end of value
+
+-- | The next declaration, not the previous one.
+next :: Int
+next = if true then 1 else 2
+
+empty = [ {- empty list -} ]
+
+record = { where: 1, "quoted label": 2 }
+
+field = record {- before access -} .where
+
+lambda = \ {- binder -} x -> x
+
+block =
+  1 {- first line
+ keep these spaces and {- nesting -}
+last line -}
+    + 2
+
+identity -- argument documentation
+  value = value
+
+signed -- signature continuation
+  ::
+  Int -> Int
+signed value = value
+
+heads first -- another binder
+  second -- equation continuation
+  = first
+
+nested =
+  let
+    local -- local binder
+      value -- local equation
+      = value
+  in local 1
+-- final comment

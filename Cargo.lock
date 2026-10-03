@@ -1857,6 +1857,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-format"
+version = "0.1.0"
+dependencies = [
+ "lexing",
+ "parsing",
+ "pretty",
+ "syntax",
+ "thiserror",
+]
+
+[[package]]
 name = "iris-lsp"
 version = "0.1.0"
 dependencies = [
@@ -4357,6 +4368,7 @@ dependencies = [
  "iris-analysis",
  "iris-diagnostics",
  "iris-documentation",
+ "iris-format",
  "itertools 0.15.0",
  "javascript",
  "line-index",
