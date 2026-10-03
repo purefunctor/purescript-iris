@@ -18,6 +18,7 @@ path = "src/bin/iris.rs"
 [dependencies]
 directories = "6.0.0"
 iris-build = { version = "0.1.0", path = "../iris-build" }
+iris-format = { version = "0.1.0", path = "../../compiler-services/iris-format" }
 iris-lsp = { version = "0.1.0", path = "../iris-lsp" }
 iris-package = { version = "0.1.0", path = "../iris-package" }
 iris-watch = { version = "0.1.0", path = "../iris-watch" }
@@ -25,6 +26,7 @@ iris-watch-query = { version = "0.1.0", path = "../iris-watch-query" }
 iris-watch-server = { version = "0.1.0", path = "../iris-watch-server" }
 itertools = "0.15.0"
 mimalloc = "0.1.52"
+tempfile = "3.27.0"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 usage = { package = "usage-rs", version = "6.11.0" }

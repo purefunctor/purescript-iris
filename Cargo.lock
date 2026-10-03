@@ -1796,6 +1796,7 @@ version = "0.1.2"
 dependencies = [
  "directories",
  "iris-build",
+ "iris-format",
  "iris-lsp",
  "iris-package",
  "iris-watch",
@@ -1803,6 +1804,7 @@ dependencies = [
  "iris-watch-server",
  "itertools 0.15.0",
  "mimalloc",
+ "tempfile",
  "tracing",
  "tracing-subscriber",
  "usage-rs",

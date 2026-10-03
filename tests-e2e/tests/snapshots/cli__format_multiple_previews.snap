@@ -1,0 +1,7 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 2
+--- stdout
+--- stderr
+error: preview mode accepts exactly one file
