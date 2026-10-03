@@ -447,7 +447,7 @@ where
     }
 
     pub(super) fn module_is_virtual(&self, file_id: FileId) -> bool {
-        self.stylex_modules().module(file_id).is_some()
+        self.stylex_modules().module(file_id).is_some() || self.react_module_is_virtual(file_id)
     }
 
     pub(super) fn validate_runtime_reference(

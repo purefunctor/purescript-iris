@@ -78,10 +78,20 @@ pub(super) struct Lexer<'s> {
     qualifier_position: Position,
     current_position: Position,
     lexed: LexedBuilder<'s>,
+    modes: Vec<Mode>,
+    operand_start: bool,
+    jsx: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Mode {
+    PureScript { hole_depth: Option<u32> },
+    Tag { closing: bool, expects_name: bool },
+    Children,
 }
 
 impl<'s> Lexer<'s> {
-    pub(super) fn new(source: &'s str) -> Lexer<'s> {
+    pub(super) fn new(source: &'s str, jsx: bool) -> Lexer<'s> {
         let chars = source.chars();
         let annotation = 0;
         let qualifier = 0;
@@ -100,6 +110,9 @@ impl<'s> Lexer<'s> {
             lexed,
             qualifier_position,
             current_position,
+            modes: vec![Mode::PureScript { hole_depth: None }],
+            operand_start: true,
+            jsx,
         };
         lexer.take_annotation();
         lexer.take_qualifier();
@@ -122,13 +135,173 @@ impl<'s> Lexer<'s> {
     }
 
     pub(super) fn take_token(&mut self) {
-        self.take_token_impl();
-        self.take_annotation();
-        self.take_qualifier();
+        match self.modes.last().copied().unwrap() {
+            Mode::PureScript { .. } => self.take_pure_script_token(),
+            Mode::Tag { .. } => self.take_tag_token(),
+            Mode::Children => self.take_children_token(),
+        }
+        match self.modes.last().copied().unwrap() {
+            Mode::PureScript { .. } => {
+                self.take_annotation();
+                self.take_qualifier();
+            }
+            Mode::Tag { .. } => {
+                // A brace starts a hole here, even in value={-1}; it cannot
+                // introduce a PureScript block comment until inside the hole.
+                self.take_annotation_whitespace();
+                self.annotation = self.consumed() as u32;
+                self.qualifier = self.annotation;
+                self.qualifier_position = self.current_position;
+            }
+            Mode::Children => {
+                self.annotation = self.consumed() as u32;
+                self.qualifier = self.annotation;
+                self.qualifier_position = self.current_position;
+            }
+        }
     }
 }
 
 impl Lexer<'_> {
+    fn starts_jsx(&self) -> bool {
+        self.jsx
+            && self.first() == '<'
+            && self.operand_start
+            && self.annotation == self.qualifier
+            && (self.second() == '>' || jsx_name_start(self.second()))
+    }
+
+    fn take_pure_script_token(&mut self) {
+        if self.starts_jsx() {
+            self.take_jsx_open();
+            return;
+        }
+
+        if let Some(Mode::PureScript { hole_depth: Some(depth) }) = self.modes.last().copied() {
+            match (self.first(), depth) {
+                ('}', 0) => {
+                    self.take_kind(SyntaxKind::JSX_EXPRESSION_END);
+                    self.modes.pop();
+                    self.operand_start = false;
+                    return;
+                }
+                ('{', _) => {
+                    self.take_kind(SyntaxKind::LEFT_CURLY);
+                    *self.modes.last_mut().unwrap() =
+                        Mode::PureScript { hole_depth: Some(depth + 1) };
+                    self.operand_start = true;
+                    return;
+                }
+                ('}', _) => {
+                    self.take_kind(SyntaxKind::RIGHT_CURLY);
+                    *self.modes.last_mut().unwrap() =
+                        Mode::PureScript { hole_depth: Some(depth - 1) };
+                    self.operand_start = false;
+                    return;
+                }
+                _ => {}
+            }
+        }
+
+        let before = self.lexed.len();
+        let property = before > 0 && self.lexed.last_kind() == SyntaxKind::PERIOD;
+        let qualified = self.annotation < self.qualifier;
+        self.take_token_impl();
+        if self.lexed.len() > before {
+            let kind = self.lexed.last_kind();
+            let qualified_prefix = matches!(kind, SyntaxKind::DO | SyntaxKind::ADO)
+                || syntax::names::OPERATOR.contains(kind);
+            self.operand_start =
+                !property && (!qualified || qualified_prefix) && token_permits_operand(kind);
+        }
+    }
+
+    fn take_jsx_open(&mut self) {
+        self.take();
+        let closing = if self.first() == '/' {
+            self.take();
+            true
+        } else {
+            false
+        };
+        self.push(if closing { SyntaxKind::JSX_CLOSE_OPEN } else { SyntaxKind::JSX_OPEN }, None);
+        self.modes.push(Mode::Tag { closing, expects_name: true });
+        self.operand_start = true;
+    }
+
+    fn take_tag_token(&mut self) {
+        let Mode::Tag { closing, expects_name } = self.modes.last().copied().unwrap() else {
+            unreachable!()
+        };
+        match (self.first(), self.second()) {
+            ('/', '>') if !closing => {
+                self.take();
+                self.take();
+                self.push(SyntaxKind::JSX_SELF_CLOSE, None);
+                self.modes.pop();
+                self.operand_start = false;
+            }
+            ('>', _) => {
+                self.take();
+                self.push(
+                    if closing { SyntaxKind::JSX_CLOSE_END } else { SyntaxKind::JSX_TAG_END },
+                    None,
+                );
+                self.modes.pop();
+                if closing {
+                    if matches!(self.modes.last(), Some(Mode::Children)) {
+                        self.modes.pop();
+                    }
+                    self.operand_start = false;
+                } else {
+                    self.modes.push(Mode::Children);
+                }
+            }
+            ('=', _) if !expects_name => self.take_kind(SyntaxKind::EQUAL),
+            ('"', _) if !expects_name => self.take_string(),
+            ('{', _) if !expects_name && !closing => {
+                self.take_kind(SyntaxKind::JSX_EXPRESSION_START);
+                self.modes.push(Mode::PureScript { hole_depth: Some(0) });
+                self.operand_start = true;
+            }
+            (character, _) if jsx_name_start(character) => {
+                let start = self.consumed();
+                self.take();
+                self.take_while(jsx_name_continue);
+                let name = &self.source[start..self.consumed()];
+                let valid =
+                    name.split('.').rev().skip(1).all(|component| {
+                        component.chars().next().is_some_and(char::is_upper_start)
+                    });
+                self.push(
+                    SyntaxKind::JSX_NAME,
+                    (!valid).then_some("JSX name qualifiers must start with an uppercase letter"),
+                );
+                *self.modes.last_mut().unwrap() = Mode::Tag { closing, expects_name: false };
+            }
+            _ => {
+                self.take();
+                self.push(SyntaxKind::JSX_INVALID, Some("Invalid token in JSX tag"));
+            }
+        }
+    }
+
+    fn take_children_token(&mut self) {
+        match (self.first(), self.second()) {
+            ('<', _) => self.take_jsx_open(),
+            ('{', _) => {
+                self.take_kind(SyntaxKind::JSX_EXPRESSION_START);
+                self.modes.push(Mode::PureScript { hole_depth: Some(0) });
+                self.operand_start = true;
+            }
+            _ => {
+                self.take();
+                self.take_while(|character| character != '<' && character != '{');
+                self.push(SyntaxKind::JSX_TEXT, None);
+            }
+        }
+    }
+
     fn first(&self) -> char {
         let mut chars = self.chars.clone();
         chars.next().unwrap_or(EOF_CHAR)
@@ -323,6 +496,20 @@ impl Lexer<'_> {
             token: lp_token,
             position: lp_position,
         };
+
+        // Complete operator names win over fragments: (<>) remains an operator,
+        // while (<><span /></>) starts a parenthesized JSX expression.
+        let operator_name =
+            self.chars.clone().skip_while(|character| character.is_operator()).next() == Some(')');
+        if self.jsx
+            && self.first() == '<'
+            && (self.second() == '>' || jsx_name_start(self.second()))
+            && !operator_name
+        {
+            self.lexed.push(SyntaxKind::LEFT_PARENTHESIS, lp_info, None);
+            self.operand_start = true;
+            return;
+        }
 
         if !self.first().is_operator() {
             return self.lexed.push(SyntaxKind::LEFT_PARENTHESIS, lp_info, None);
@@ -525,4 +712,42 @@ impl Lexer<'_> {
 
         self.push(kind, error);
     }
+}
+
+fn jsx_name_start(character: char) -> bool {
+    character.is_lower_start() || character.is_upper_start()
+}
+
+fn jsx_name_continue(character: char) -> bool {
+    character.is_name() || matches!(character, '-' | '.')
+}
+
+fn token_permits_operand(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::LEFT_PARENTHESIS
+            | SyntaxKind::LEFT_CURLY
+            | SyntaxKind::LEFT_SQUARE
+            | SyntaxKind::BACKSLASH
+            | SyntaxKind::TICK
+            | SyntaxKind::COMMA
+            | SyntaxKind::EQUAL
+            | SyntaxKind::PIPE
+            | SyntaxKind::RIGHT_ARROW
+            | SyntaxKind::LEFT_ARROW
+            | SyntaxKind::THEN
+            | SyntaxKind::ELSE
+            | SyntaxKind::IN
+            | SyntaxKind::OF
+            | SyntaxKind::CASE
+            | SyntaxKind::IF
+            | SyntaxKind::LET
+            | SyntaxKind::DO
+            | SyntaxKind::ADO
+            | SyntaxKind::OPERATOR
+            | SyntaxKind::MINUS
+            | SyntaxKind::COLON
+            | SyntaxKind::DOUBLE_PERIOD
+            | SyntaxKind::LEFT_THICK_ARROW
+    )
 }

@@ -1,0 +1,5 @@
+module Main where
+
+import Iris.React as React
+
+test name = React.component \_ -> <span>{React.text name}</span>

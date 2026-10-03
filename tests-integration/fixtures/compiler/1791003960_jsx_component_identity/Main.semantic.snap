@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: forall t0. Prim.String -> Iris.React.Component t0
+test = \name -> component \_ -> intrinsic {trivial} "span" { children: text name }

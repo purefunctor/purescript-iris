@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use indexing::TypeItemId;
+use smol_str::SmolStr;
 use stabilizing::AstId;
 use syntax::cst;
 
@@ -8,6 +9,8 @@ use syntax::cst;
 pub enum LoweringError {
     NotInScope(NotInScope),
     InvalidStringEscape { source: StringLiteralSource },
+    JsxTagMismatch { id: AstId<cst::JsxClosing>, expected: Option<SmolStr> },
+    DuplicateJsxAttribute { id: AstId<cst::JsxAttribute>, name: SmolStr },
     RecursiveSynonym(RecursiveGroup),
     RecursiveKinds(RecursiveGroup),
 }
@@ -33,6 +36,7 @@ pub enum NotInScope {
     NegateFn { id: AstId<cst::ExpressionNegate> },
     TermOperator { id: AstId<cst::TermOperator> },
     TypeOperator { id: AstId<cst::TypeOperator> },
+    JsxFunction { id: crate::ExpressionId, name: SmolStr },
 }
 
 #[derive(Debug, PartialEq, Eq)]

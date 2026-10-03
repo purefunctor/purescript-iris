@@ -5,6 +5,7 @@ pub mod error;
 pub mod initializers;
 pub mod optimize;
 pub mod pretty;
+pub mod react;
 pub mod stylex;
 pub mod tree;
 

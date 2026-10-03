@@ -9,6 +9,7 @@ use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
 use smol_str::SmolStr;
 
+use crate::react::ReactExpression;
 use crate::stylex::StyleXExpression;
 
 pub type ExpressionId = Idx<Expression>;
@@ -190,6 +191,7 @@ pub enum ExpressionKind {
     Application { function: ExpressionId, arguments: Arc<[ExpressionId]>, synthetic: bool },
     UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]>, synthetic: bool },
     StyleX(StyleXExpression),
+    React(ReactExpression),
     IfThenElse { condition: ExpressionId, then: ExpressionId, else_: ExpressionId },
     Case { scrutinees: Arc<[ExpressionId]>, alternatives: Arc<[CaseAlternative]> },
     Guarded { alternatives: Arc<[GuardedAlternative]> },

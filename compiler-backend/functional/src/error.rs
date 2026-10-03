@@ -50,6 +50,8 @@ pub enum UnsupportedState {
     InvalidStyleXUse { function: String, declaration: GlobalId },
     #[error("Iris.StyleX.{function} {requirement}")]
     InvalidStyleXContext { function: String, requirement: String, declaration: GlobalId },
+    #[error("Iris.React.component must be a direct non-recursive top-level initializer")]
+    InvalidReactComponent { declaration: GlobalId },
     #[error("virtual module declaration {module_name}.{item_name} cannot be used at runtime")]
     VirtualModuleRuntimeReference { module_name: String, item_name: String },
 }

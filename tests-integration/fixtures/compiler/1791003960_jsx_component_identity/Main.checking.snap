@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+test ::
+  forall (t0 :: Prim.Row Prim.Type). Prim.String -> Iris.React.Component (t0 :: Prim.Row Prim.Type)
+
+Types

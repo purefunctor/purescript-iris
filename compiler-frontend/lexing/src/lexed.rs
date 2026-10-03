@@ -95,6 +95,14 @@ impl<'s> LexedBuilder<'s> {
         }
     }
 
+    pub(super) fn len(&self) -> usize {
+        self.kinds.len()
+    }
+
+    pub(super) fn last_kind(&self) -> SyntaxKind {
+        self.kinds.last().copied().unwrap()
+    }
+
     pub(super) fn build(self) -> Lexed<'s> {
         Lexed { source: self.source, kinds: self.kinds, infos: self.infos, errors: self.errors }
     }

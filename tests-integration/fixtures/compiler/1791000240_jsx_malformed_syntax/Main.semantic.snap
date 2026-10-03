@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+test :: Iris.React.JSX
+test = intrinsic {trivial} "div" { children: <error> }
+
+test2 :: Iris.React.JSX
+test2 = intrinsic {trivial} "div" { missing: <error> }
+
+test3 :: Iris.React.JSX
+test3 = intrinsic {trivial} "div" <error>
+
+test4 :: Iris.React.JSX
+test4 = intrinsic {trivial} "div" { children: [1] }
+
+test5 :: Iris.React.JSX
+test5 = intrinsic {trivial} "div" { children: if true then <error> else <error> }
+
+test6 :: Iris.React.JSX
+test6 = intrinsic {trivial} "div" { children: <error> }
+
+test7 :: Iris.React.JSX
+test7 = intrinsic {trivial} "div" { }

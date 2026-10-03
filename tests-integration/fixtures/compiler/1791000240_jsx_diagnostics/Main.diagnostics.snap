@@ -1,0 +1,121 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Parse error · Main.iris:20:29 · JSX fragment closing tag cannot have a name
+Error! · [DuplicateJsxAttribute] · Main.iris:12:28
+  •
+  │
+  • Duplicate JSX attribute 'title'
+  │
+  │   test3 = <div title="first" title="second" />
+  │                              ╰─────────────
+  •
+
+Error! · [JsxTagMismatch] · Main.iris:14:22
+  •
+  │
+  • Expected JSX closing tag </div>
+  │
+  │   test4 = <div><span /></wrong>
+  │                        ╰───────
+  •
+
+Error! · [NotInScope] · Main.iris:16:9
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   test5 = <Missing />
+  │           ╰──────────
+  •
+
+Error! · [JsxTagMismatch] · Main.iris:20:18
+  •
+  │
+  • Expected JSX closing tag </>
+  │
+  │   test7 = <><div /></different>
+  │                    ╰───────────
+  •
+
+Error! · [DuplicateJsxAttribute] · Main.iris:30:15
+  •
+  │
+  • Duplicate JSX attribute 'children'
+  │
+  │   test11 = <div children={React.empty}>duplicate</div>
+  │                 ╰─────────────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:8:22
+  •
+  │
+  • Cannot unify 'String' with 'Int'
+  │
+  │   test = <Button count="not an Int" />
+  │                        ╰───────────
+  •
+
+Error! · [PropertyIsMissing] · Main.iris:10:9
+  •
+  │
+  • Missing required properties: count
+  │
+  │   test2 = <Button />
+  │           ╰─────────
+  •
+
+Error! · [CannotUnify] · Main.iris:16:9
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test5 = <Missing />
+  │           ╰──────────
+  •
+
+Error! · [CannotUnify] · Main.iris:18:15
+  •
+  │
+  • Cannot unify 'Int' with 'JSX'
+  │
+  │   test6 = <div>{42}</div>
+  │                 ╰─
+  •
+
+Error! · [CannotUnify] · Main.iris:24:9
+  •
+  │
+  • Cannot unify 'Int' with 'Component ()'
+  │
+  │   test8 = <NotCallable />
+  │           ╰──────────────
+  •
+
+Error! · [AdditionalProperty] · Main.iris:26:9
+  •
+  │
+  • Additional properties not allowed: unknown
+  │
+  │   test9 = <Button count={1} unknown="extra" />
+  │           ╰───────────────────────────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:28:23
+  •
+  │
+  • Cannot unify 'Int' with 'String'
+  │
+  │   test10 = <Button key={42} count={1} />
+  │                         ╰─
+  •
+
+Error! · [PropertyIsMissing] · Main.iris:35:10
+  •
+  │
+  • Missing required properties: children
+  │
+  │   test12 = <Child />
+  │            ╰────────
+  •

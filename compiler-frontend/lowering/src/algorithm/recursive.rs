@@ -605,6 +605,14 @@ fn lower_expression_kind(
             let updates = recover! { lower_record_updates(state, context, &cst.record_updates()?) };
             ExpressionKind::RecordUpdate { record, updates }
         }
+        cst::Expression::ExpressionJsxElement(cst) => {
+            super::jsx::lower_element(state, context, cst)
+        }
+        cst::Expression::ExpressionJsxText(cst) => super::jsx::lower_text(context, cst),
+        cst::Expression::ExpressionJsxInterpolation(cst) => {
+            let parenthesized = cst.expression().map(|cst| lower_expression(state, context, &cst));
+            ExpressionKind::Parenthesized { parenthesized }
+        }
     }
 }
 

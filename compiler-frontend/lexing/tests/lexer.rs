@@ -1,5 +1,19 @@
 use test_each_file::test_each_file;
 
+#[test]
+fn jsx_requires_opt_in() {
+    use syntax::SyntaxKind;
+
+    for source in ["<div />", "(<><div /></>)"] {
+        let pure_script = lexing::lex(source);
+        let iris = lexing::lex_with_jsx(source, true);
+        assert!(
+            (0..pure_script.len()).all(|index| pure_script.kind(index) != SyntaxKind::JSX_OPEN)
+        );
+        assert!((0..iris.len()).any(|index| iris.kind(index) == SyntaxKind::JSX_OPEN));
+    }
+}
+
 test_each_file! { in "./compiler-frontend/lexing/tests/lexer" => |content: &str| {
     use std::fmt::Write;
 

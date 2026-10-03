@@ -315,6 +315,9 @@ fn variable(
                 if let Some(expression) = context.stylex_value_intrinsic(file_id, term_id)? {
                     return Ok(expression);
                 }
+                if let Some(expression) = context.react_value_intrinsic(file_id, term_id)? {
+                    return Ok(expression);
+                }
                 let global = context.term_global(file_id, term_id)?;
                 Ok(context.expression(ExpressionKind::Global { global }))
             }

@@ -1,0 +1,6 @@
+module Widgets where
+
+import Iris.React as React
+
+button :: React.Component (label :: String)
+button = React.component \props -> <button title={props.label} />

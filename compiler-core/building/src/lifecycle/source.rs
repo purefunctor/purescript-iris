@@ -209,6 +209,7 @@ where
         let id = self.source_files.insert(Arc::clone(&unit.source), Arc::clone(&text));
         self.source_units.insert(id, SourceUnitKey::clone(unit));
         engine.set_content(id, Arc::clone(&text));
+        engine.set_dialect(id, files::SourceDialect::from_path(unit.source()));
         registration.register(engine, id, None);
         let foreign_files = source_unit.foreign_files();
         for kind in files::ForeignSourceKind::ALL {

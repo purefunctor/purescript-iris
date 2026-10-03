@@ -128,7 +128,35 @@ fn batched_registration(path: &Path) -> datatest_stable::Result<()> {
     Ok(())
 }
 
+fn source_dialect(path: &Path) -> datatest_stable::Result<()> {
+    let content: Arc<str> = fs::read_to_string(path)?.into();
+    let engine = QueryEngine::default();
+    let mut files = FileLifecycle::default();
+    let unit = SourceUnitKey::new("file:///src/Main.iris", "file:///src/Main.js");
+    files.apply(&engine, source_disk(&unit, &content));
+    let file_id = files.source_id(unit.source()).unwrap();
+    let iris = engine.parsed(file_id)?;
+    assert!(iris.1.is_empty());
+
+    engine.set_dialect(file_id, files::SourceDialect::PureScript);
+    assert_ne!(engine.parsed(file_id)?, iris);
+    engine.set_dialect(file_id, files::SourceDialect::Iris);
+    assert_eq!(engine.parsed(file_id)?, iris);
+
+    files.apply(
+        &engine,
+        LifecycleEvent::Source {
+            unit,
+            event: SourceEvent::DiskObserved { disk: DiskObservation::NotFound, metadata: () },
+        },
+    );
+    assert_eq!(engine.dialect(file_id), files::SourceDialect::PureScript);
+    assert!(engine.parsed(file_id).is_err());
+    Ok(())
+}
+
 datatest_stable::harness! {
+    { test = source_dialect, root = "fixtures/lifecycle/source_dialect", pattern = r"Main\.iris$" },
     { test = missing_header, root = "fixtures/lifecycle/missing_header", pattern = r"Main\.purs$" },
     { test = duplicate_registration, root = "fixtures/lifecycle/duplicate_registration", pattern = r"Main\.purs$" },
     { test = batched_registration, root = "fixtures/lifecycle/duplicate_registration", pattern = r"Main\.purs$" },

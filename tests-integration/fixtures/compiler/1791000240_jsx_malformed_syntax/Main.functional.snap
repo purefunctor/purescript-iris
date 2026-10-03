@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export test = react.element intrinsic "div" { children: <error> }
+
+@export test2 = react.element intrinsic "div" { missing: <error> }
+
+@export test3 = react.element intrinsic "div" <error>
+
+@export test4 = react.element intrinsic "div" { children: [1] }
+
+@export test5 = react.element intrinsic "div" { children: if true then <error> else <error> }
+
+@export test6 = react.element intrinsic "div" { children: <error> }
+
+@export test7 = react.element intrinsic "div" {  }

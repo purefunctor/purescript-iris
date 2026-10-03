@@ -250,6 +250,7 @@ fn function_profile(
         | ExpressionKind::Application { .. }
         | ExpressionKind::UncurriedApplication { .. }
         | ExpressionKind::StyleX(_)
+        | ExpressionKind::React(_)
         | ExpressionKind::IfThenElse { .. }
         | ExpressionKind::Case { .. }
         | ExpressionKind::Guarded { .. }
@@ -347,6 +348,7 @@ fn collect_tail_edges(
         | ExpressionKind::Application { .. }
         | ExpressionKind::UncurriedApplication { .. }
         | ExpressionKind::StyleX(_)
+        | ExpressionKind::React(_)
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => {}
     }
@@ -390,6 +392,7 @@ fn application_head(module: &Module, expression: ExpressionId) -> Option<Applica
         | ExpressionKind::Abstraction { .. }
         | ExpressionKind::UncurriedAbstraction { .. }
         | ExpressionKind::StyleX(_)
+        | ExpressionKind::React(_)
         | ExpressionKind::IfThenElse { .. }
         | ExpressionKind::Case { .. }
         | ExpressionKind::Guarded { .. }

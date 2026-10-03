@@ -275,6 +275,7 @@ fn is_simple_expression(
             | ExpressionKind::Application { .. }
             | ExpressionKind::UncurriedApplication { .. }
             | ExpressionKind::StyleX(_)
+            | ExpressionKind::React(_)
             | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
@@ -337,6 +338,7 @@ pub fn try_for_each_expression_child<Error>(
             }
         }
         ExpressionKind::StyleX(stylex) => stylex.try_for_each_child(&mut visit)?,
+        ExpressionKind::React(react) => react.try_for_each_child(&mut visit)?,
         ExpressionKind::IfThenElse { condition, then, else_ } => {
             visit(*condition)?;
             visit(*then)?;

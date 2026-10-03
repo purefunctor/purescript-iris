@@ -1,3 +1,4 @@
+mod jsx;
 mod recursive;
 
 use std::mem;

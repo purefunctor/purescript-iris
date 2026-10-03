@@ -189,7 +189,7 @@ pub fn infer_record<Q>(
 where
     Q: ExternalQueries,
 {
-    let (type_id, fields, complete) = record_core(state, context, record, RecordMode::Infer)?;
+    let (type_id, fields, complete) = record_core(state, context, record, RecordMode::Infer, None)?;
     if complete {
         let kind = tree::ExpressionKind::Record { fields };
         Ok(super::allocate_expression(state, type_id, kind))
@@ -207,6 +207,19 @@ pub fn check_record<Q>(
 where
     Q: ExternalQueries,
 {
+    check_record_with_field(state, context, record, expected, None)
+}
+
+pub(super) fn check_record_with_field<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    record: &[lowering::ExpressionRecordItem],
+    expected: TypeId,
+    additional: Option<(&str, ElaboratedExpression)>,
+) -> QueryResult<ElaboratedExpression>
+where
+    Q: ExternalQueries,
+{
     let normalised = normalise::expand(state, context, expected)?;
     if let Type::Application(constructor, row_type) = *context.lookup_type(normalised) {
         let constructor = normalise::expand(state, context, constructor)?;
@@ -219,6 +232,7 @@ where
                     context,
                     record,
                     RecordMode::Check { expected_fields: &expected_fields.fields },
+                    additional,
                 )?;
                 unification::subtype(state, context, record_type, expected)?;
                 if complete {
@@ -231,9 +245,14 @@ where
         }
     }
 
-    let inferred = infer_record(state, context, record)?;
-    unification::subtype(state, context, inferred.type_id, expected)?;
-    Ok(inferred)
+    let (type_id, fields, complete) =
+        record_core(state, context, record, RecordMode::Infer, additional)?;
+    unification::subtype(state, context, type_id, expected)?;
+    if complete {
+        Ok(super::allocate_expression(state, type_id, tree::ExpressionKind::Record { fields }))
+    } else {
+        Ok(super::allocate_error_expression(state, type_id))
+    }
 }
 
 fn find_expected_field(expected_fields: &[RowField], label: &SmolStr) -> Option<TypeId> {
@@ -314,6 +333,7 @@ fn record_core<Q>(
     context: &CheckContext<Q>,
     record: &[lowering::ExpressionRecordItem],
     mode: RecordMode<'_>,
+    additional: Option<(&str, ElaboratedExpression)>,
 ) -> QueryResult<(TypeId, Arc<[tree::RecordExpressionField]>, bool)>
 where
     Q: ExternalQueries,
@@ -344,6 +364,18 @@ where
 
         fields.push(field.row);
         checked_fields.push(field.checked);
+    }
+
+    if let Some((label, value)) = additional {
+        let label = SmolStr::from(label);
+        let value = if let Some(expected) = expected_record_field(mode, &label) {
+            super::check_elaborated_expression(state, context, value, expected)?
+        } else {
+            value
+        };
+        fields.push(RowField { label: label.clone(), id: value.type_id });
+        checked_fields
+            .push(tree::RecordExpressionField::Field { label, expression: value.expression });
     }
 
     let row_type = context.intern_row(fields, None);

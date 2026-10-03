@@ -1,0 +1,136 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Parse error · Main.iris:3:14 · JSX interpolation cannot be empty
+Parse error · Main.iris:5:23 · JSX interpolation cannot be empty
+Parse error · Main.iris:7:18 · Expected JSX attribute value
+Parse error · Main.iris:7:18 · Unexpected token in JSX opening tag
+Parse error · Main.iris:7:18 · Invalid token in JSX tag
+Parse error · Main.iris:7:19 · Unexpected token in JSX opening tag
+Parse error · Main.iris:7:19 · Invalid token in JSX tag
+Parse error · Main.iris:9:19 · Expected RIGHT_SQUARE
+Parse error · Main.iris:11:28 · Expected ELSE
+Parse error · Main.iris:13:16 · Expected RIGHT_PARENTHESIS
+Parse error · Main.iris:16:1 · Unexpected token in JSX children
+Parse error · Main.iris:16:1 · Expected JSX_CLOSE_OPEN
+Parse error · Main.iris:16:1 · Expected JSX closing element name
+Parse error · Main.iris:16:1 · Expected JSX_CLOSE_END
+Parse error · Main.iris:16:1 · Expected LAYOUT_SEPARATOR
+Parse error · Main.iris:16:1 · Expected LAYOUT_END
+Error! · [CannotUnify] · Main.iris:3:8
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test = <div>{}</div>
+  │          ╰────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:3:8
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test = <div>{}</div>
+  │          ╰────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:3:8
+  •
+  │
+  • Cannot unify 'Row Type' with 'Row ?[invalid kind]'
+  │
+  │   test = <div>{}</div>
+  │          ╰────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:5:9
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test2 = <div missing={}></div>
+  │           ╰─────────────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:5:9
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test2 = <div missing={}></div>
+  │           ╰─────────────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:5:9
+  •
+  │
+  • Cannot unify 'Row Type' with 'Row ?[invalid kind]'
+  │
+  │   test2 = <div missing={}></div>
+  │           ╰─────────────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:9:15
+  •
+  │
+  • Cannot unify 'Array Int' with 'JSX'
+  │
+  │   test4 = <div>{[1, }</div>
+  │                 ╰──
+  •
+
+Error! · [CannotUnify] · Main.iris:13:9
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test6 = <div>{(}</div>
+  │           ╰─────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:13:9
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   test6 = <div>{(}</div>
+  │           ╰─────────────
+  •
+
+Error! · [CannotUnify] · Main.iris:13:9
+  •
+  │
+  • Cannot unify 'Row Type' with 'Row ?[invalid kind]'
+  │
+  │   test6 = <div>{(}</div>
+  │           ╰─────────────
+  •
+
+Error! · [NotInScope] · Plain.purs:3:8
+  •
+  │
+  • '<' is not in scope
+  │
+  │   test = <div />
+  │          ╰
+  •
+
+Error! · [NotInScope] · Plain.purs:3:9
+  •
+  │
+  • 'div' is not in scope
+  │
+  │   test = <div />
+  │           ╰──
+  •
+
+Error! · [NotInScope] · Plain.purs:3:13
+  •
+  │
+  • '/>' is not in scope
+  │
+  │   test = <div />
+  │               ╰─
+  •

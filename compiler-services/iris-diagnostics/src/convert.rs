@@ -85,7 +85,8 @@ impl ToDiagnostics for FunctionalModuleError {
                 local_global_span(*duplicate)
             }
             FunctionalUnsupportedState::InvalidStyleXUse { declaration, .. }
-            | FunctionalUnsupportedState::InvalidStyleXContext { declaration, .. } => {
+            | FunctionalUnsupportedState::InvalidStyleXContext { declaration, .. }
+            | FunctionalUnsupportedState::InvalidReactComponent { declaration } => {
                 local_global_span(*declaration)
             }
             _ => None,
@@ -142,6 +143,8 @@ impl ToDiagnostics for FunctionalModuleError {
                 format!("'Iris.StyleX.{function}' must be called directly with all of its arguments.\n\nIt cannot be passed around as a function or partially applied."),
             FunctionalUnsupportedState::InvalidStyleXContext { function, requirement, .. } =>
                 format!("'Iris.StyleX.{function}' {requirement}."),
+            FunctionalUnsupportedState::InvalidReactComponent { .. } =>
+                "'Iris.React.component' must directly initialize a non-recursive top-level value.\n\nReact component identity must remain stable between renders.".to_owned(),
             FunctionalUnsupportedState::VirtualModuleRuntimeReference { module_name, item_name } =>
                 format!("'{module_name}.{item_name}' is a compile-time declaration and cannot be used at runtime."),
         };
@@ -329,6 +332,9 @@ impl ToDiagnostics for LoweringError {
                     lowering::NotInScope::TypeOperator { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
+                    lowering::NotInScope::JsxFunction { id, name } => {
+                        (context.stabilized.syntax_ptr(*id), Some(name.as_str()))
+                    }
                 };
 
                 let Some(ptr) = ptr else { return Vec::new() };
@@ -369,6 +375,21 @@ impl ToDiagnostics for LoweringError {
                     span,
                     "lowering",
                 )]
+            }
+
+            LoweringError::JsxTagMismatch { id, expected } => {
+                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Vec::new() };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
+                let expected = expected.as_deref().unwrap_or("");
+                let message = format!("Expected JSX closing tag </{expected}>");
+                vec![Diagnostic::error("JsxTagMismatch", message, span, "lowering")]
+            }
+
+            LoweringError::DuplicateJsxAttribute { id, name } => {
+                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Vec::new() };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
+                let message = format!("Duplicate JSX attribute '{name}'");
+                vec![Diagnostic::error("DuplicateJsxAttribute", message, span, "lowering")]
             }
 
             LoweringError::RecursiveSynonym(group) => convert_recursive_group(

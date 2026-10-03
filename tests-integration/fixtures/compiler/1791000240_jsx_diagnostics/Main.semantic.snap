@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+button :: Iris.React.Component ( count :: Prim.Int )
+button = component \_ -> text "button"
+
+test :: Iris.React.JSX
+test = element {trivial} button { count: "not an Int" }
+
+test2 :: Iris.React.JSX
+test2 = element {trivial} button { }
+
+test3 :: Iris.React.JSX
+test3 = intrinsic {trivial} "div" { title: "first", title: "second" }
+
+test4 :: Iris.React.JSX
+test4 = intrinsic {trivial} "div" { children: intrinsic {trivial} "span" { } }
+
+test5 :: ?[missing JSX component]
+test5 = <error>
+
+test6 :: Iris.React.JSX
+test6 = intrinsic {trivial} "div" { children: 42 }
+
+test7 :: Iris.React.JSX
+test7 = fragment [intrinsic {trivial} "div" { }]
+
+notCallable :: Prim.Int
+notCallable = 42
+
+test8 :: Iris.React.JSX
+test8 = element {trivial} notCallable { }
+
+test9 :: Iris.React.JSX
+test9 = element {trivial} button { count: 1, unknown: "extra" }
+
+test10 :: Iris.React.JSX
+test10 = elementKeyed {trivial} 42 button { count: 1 }
+
+test11 :: Iris.React.JSX
+test11 = intrinsic {trivial} "div" { children: empty, children: text "duplicate" }
+
+child :: Iris.React.Component ( children :: Iris.React.JSX )
+child = component \props -> props.children
+
+test12 :: Iris.React.JSX
+test12 = element {trivial} child { }

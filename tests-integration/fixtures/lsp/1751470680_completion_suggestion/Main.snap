@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 Completion at Position { line: 3, character: 7 }
 
@@ -124,6 +125,10 @@ cls :: C
 │  Cons              │   (import Prim.RowList)       │  Prim.RowList       │  Prim.RowList.Cons             │  Cons              │  16:7..16:8        │  1:0..1:0                               │
 │                    │                               │                     │                                │                    │  Cons              │                                         │
 │                    │                               │                     │                                │                    │                    │  import Prim.RowList (Cons)             │
+├────────────────────┼───────────────────────────────┼─────────────────────┼────────────────────────────────┼────────────────────┼────────────────────┼─────────────────────────────────────────┤
+│  Component         │   (import Iris.React)         │  Iris.React         │  Iris.React.Component          │  Component         │  16:7..16:8        │  1:0..1:0                               │
+│                    │                               │                     │                                │                    │  Component         │                                         │
+│                    │                               │                     │                                │                    │                    │  import Iris.React (Component)          │
 ├────────────────────┼───────────────────────────────┼─────────────────────┼────────────────────────────────┼────────────────────┼────────────────────┼─────────────────────────────────────────┤
 │  ConditionalCase   │   (import Iris.StyleX)        │  Iris.StyleX        │  Iris.StyleX.ConditionalCase   │  ConditionalCase   │  16:7..16:8        │  1:0..1:0                               │
 │                    │                               │                     │                                │                    │  ConditionalCase   │                                         │

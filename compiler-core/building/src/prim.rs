@@ -11,6 +11,7 @@ pub fn configure(engine: &mut QueryEngine, files: &mut Files) {
         let id = files.insert(path, *content);
 
         engine.set_content(id, *content);
+        engine.set_dialect(id, files.dialect(id));
         engine.set_module_file(name, id);
     }
 }

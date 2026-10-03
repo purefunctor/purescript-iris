@@ -1,0 +1,15 @@
+module Main where
+
+test = <div>{}</div>
+
+test2 = <div missing={}></div>
+
+test3 = <div bad=42 />
+
+test4 = <div>{[1, }</div>
+
+test5 = <div>{if true then }</div>
+
+test6 = <div>{(}</div>
+
+test7 = <div>

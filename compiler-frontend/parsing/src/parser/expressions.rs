@@ -452,9 +452,123 @@ fn expression_atom(p: &mut Parser) {
         expression(p);
         p.expect(SyntaxKind::RIGHT_PARENTHESIS);
         m.end(p, SyntaxKind::ExpressionParenthesized);
+    } else if p.at(SyntaxKind::JSX_OPEN) {
+        expression_jsx_element(p, m);
     } else {
         m.cancel(p);
     }
+}
+
+fn expression_jsx_element(p: &mut Parser, mut m: NodeMarker) {
+    let (self_closing, opening_has_name) = jsx_opening(p);
+    if !self_closing {
+        jsx_children(p);
+        jsx_closing(p, opening_has_name);
+    }
+    m.end(p, SyntaxKind::ExpressionJsxElement);
+}
+
+fn jsx_opening(p: &mut Parser) -> (bool, bool) {
+    let mut m = p.start();
+    p.expect(SyntaxKind::JSX_OPEN);
+
+    let has_name = p.eat(SyntaxKind::JSX_NAME);
+    let is_fragment = !has_name && p.at(SyntaxKind::JSX_TAG_END);
+    if !has_name && !is_fragment {
+        p.error("Expected JSX element name");
+    }
+
+    while p.at(SyntaxKind::JSX_NAME) {
+        if is_fragment {
+            p.error("JSX fragments cannot have attributes");
+        }
+        jsx_attribute(p);
+    }
+
+    while !p.at(SyntaxKind::JSX_TAG_END)
+        && !p.at(SyntaxKind::JSX_SELF_CLOSE)
+        && !p.at(SyntaxKind::JSX_CLOSE_OPEN)
+        && !p.at_eof()
+    {
+        p.error_recover("Unexpected token in JSX opening tag");
+    }
+
+    let self_closing = p.eat(SyntaxKind::JSX_SELF_CLOSE);
+    if self_closing && !has_name {
+        p.error("Self-closing JSX elements require a name");
+    } else if !self_closing {
+        p.expect(SyntaxKind::JSX_TAG_END);
+    }
+    m.end(p, SyntaxKind::JsxOpening);
+    (self_closing, has_name)
+}
+
+fn jsx_attribute(p: &mut Parser) {
+    let mut m = p.start();
+    p.expect(SyntaxKind::JSX_NAME);
+    p.expect(SyntaxKind::EQUAL);
+    if p.at(SyntaxKind::STRING) || p.at(SyntaxKind::RAW_STRING) {
+        let mut value = p.start();
+        p.consume();
+        value.end(p, SyntaxKind::ExpressionString);
+    } else if p.at(SyntaxKind::JSX_EXPRESSION_START) {
+        expression_jsx_interpolation(p);
+    } else {
+        p.error("Expected JSX attribute value");
+    }
+    m.end(p, SyntaxKind::JsxAttribute);
+}
+
+fn jsx_children(p: &mut Parser) {
+    let mut m = p.start();
+    while !p.at(SyntaxKind::JSX_CLOSE_OPEN) && !p.at_eof() {
+        if p.at(SyntaxKind::JSX_TEXT) {
+            let mut child = p.start();
+            p.consume();
+            child.end(p, SyntaxKind::ExpressionJsxText);
+        } else if p.at(SyntaxKind::JSX_EXPRESSION_START) {
+            expression_jsx_interpolation(p);
+        } else if p.at(SyntaxKind::JSX_OPEN) {
+            let child = p.start();
+            expression_jsx_element(p, child);
+        } else {
+            p.error_recover("Unexpected token in JSX children");
+        }
+    }
+    m.end(p, SyntaxKind::JsxChildren);
+}
+
+fn expression_jsx_interpolation(p: &mut Parser) {
+    let mut m = p.start();
+    p.expect(SyntaxKind::JSX_EXPRESSION_START);
+    if p.at(SyntaxKind::JSX_EXPRESSION_END) {
+        p.error("JSX interpolation cannot be empty");
+    } else if p.at_in(EXPRESSION_START) {
+        expression(p);
+    } else {
+        p.error("Expected expression in JSX interpolation");
+        while !p.at(SyntaxKind::JSX_EXPRESSION_END) && !p.at_eof() {
+            p.error_recover("Unexpected token in JSX interpolation");
+        }
+    }
+    p.expect(SyntaxKind::JSX_EXPRESSION_END);
+    m.end(p, SyntaxKind::ExpressionJsxInterpolation);
+}
+
+fn jsx_closing(p: &mut Parser, opening_has_name: bool) {
+    let mut m = p.start();
+    p.expect(SyntaxKind::JSX_CLOSE_OPEN);
+    let closing_has_name = p.eat(SyntaxKind::JSX_NAME);
+    if opening_has_name && !closing_has_name {
+        p.error("Expected JSX closing element name");
+    } else if !opening_has_name && closing_has_name {
+        p.error("JSX fragment closing tag cannot have a name");
+    }
+    while !p.at(SyntaxKind::JSX_CLOSE_END) && !p.at_eof() {
+        p.error_recover("Unexpected token in JSX closing tag");
+    }
+    p.expect(SyntaxKind::JSX_CLOSE_END);
+    m.end(p, SyntaxKind::JsxClosing);
 }
 
 fn expression_array(p: &mut Parser, mut m: NodeMarker) {
@@ -511,6 +625,7 @@ const EXPRESSION_ATOM_START: TokenSet = TokenSet::new(&[
     SyntaxKind::LEFT_SQUARE,
     SyntaxKind::LEFT_CURLY,
     SyntaxKind::LEFT_PARENTHESIS,
+    SyntaxKind::JSX_OPEN,
 ])
 .union(names::LOWER)
 .union(names::OPERATOR_NAME);
@@ -528,5 +643,10 @@ const ARGUMENT_START: TokenSet = TokenSet::new(&[
 pub(super) const EXPRESSION_START: TokenSet =
     ARGUMENT_START.union(TokenSet::new(&[SyntaxKind::MINUS]));
 
-const EXPRESSION_ATOM_RECOVERY: TokenSet =
-    TokenSet::new(&[SyntaxKind::LAYOUT_SEPARATOR, SyntaxKind::LAYOUT_END]);
+const EXPRESSION_ATOM_RECOVERY: TokenSet = TokenSet::new(&[
+    SyntaxKind::LAYOUT_SEPARATOR,
+    SyntaxKind::LAYOUT_END,
+    SyntaxKind::JSX_CLOSE_OPEN,
+    SyntaxKind::JSX_EXPRESSION_END,
+    SyntaxKind::END_OF_FILE,
+]);

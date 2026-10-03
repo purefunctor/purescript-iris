@@ -92,6 +92,18 @@ pub enum SyntaxKind {
     LAYOUT_END,
     END_OF_FILE,
 
+    // JSX
+    JSX_OPEN,
+    JSX_CLOSE_OPEN,
+    JSX_TAG_END,
+    JSX_CLOSE_END,
+    JSX_SELF_CLOSE,
+    JSX_NAME,
+    JSX_TEXT,
+    JSX_EXPRESSION_START,
+    JSX_EXPRESSION_END,
+    JSX_INVALID,
+
     // Special
     ERROR,
 
@@ -217,6 +229,14 @@ pub enum SyntaxKind {
     ExpressionParenthesized,
     ExpressionRecordAccess,
     ExpressionRecordUpdate,
+    ExpressionJsxElement,
+    ExpressionJsxText,
+    ExpressionJsxInterpolation,
+
+    JsxOpening,
+    JsxChildren,
+    JsxClosing,
+    JsxAttribute,
 
     CaseTrunk,
     CaseBranches,

@@ -17,6 +17,19 @@ pub struct FileId {
     index: u32,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SourceDialect {
+    #[default]
+    PureScript,
+    Iris,
+}
+
+impl SourceDialect {
+    pub fn from_path(path: &str) -> SourceDialect {
+        if path.ends_with(".iris") { SourceDialect::Iris } else { SourceDialect::PureScript }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ForeignSourceKind {
     JavaScript,
@@ -160,6 +173,10 @@ impl Files {
     pub fn content(&self, file_id: FileId) -> Arc<str> {
         let file = self.file(file_id);
         Arc::clone(&file.content)
+    }
+
+    pub fn dialect(&self, file_id: FileId) -> SourceDialect {
+        SourceDialect::from_path(&self.file(file_id).path)
     }
 
     pub fn remove(&mut self, path: &str) -> Option<FileId> {

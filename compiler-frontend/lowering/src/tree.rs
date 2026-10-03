@@ -70,7 +70,7 @@ pub enum DoStatement {
     Discard { expression: Option<ExpressionId> },
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionRecordItem {
     RecordField { name: Option<SmolStr>, value: Option<ExpressionId> },
     RecordPun { id: RecordPunId, name: Option<SmolStr>, resolution: Option<TermVariableResolution> },
@@ -80,6 +80,13 @@ pub enum ExpressionRecordItem {
 pub struct RecordAccessLabel {
     pub id: RecordAccessLabelId,
     pub name: SmolStr,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum JsxElementKind {
+    Intrinsic(SmolStr),
+    Component,
+    Fragment,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -178,6 +185,15 @@ pub enum ExpressionKind {
     RecordUpdate {
         record: Option<ExpressionId>,
         updates: Arc<[RecordUpdate]>,
+    },
+    JsxElement {
+        kind: JsxElementKind,
+        resolution: Option<TermVariableResolution>,
+        attributes: Arc<[ExpressionRecordItem]>,
+        children: Arc<[ExpressionId]>,
+    },
+    JsxText {
+        value: StringLiteral,
     },
 }
 
