@@ -44,3 +44,7 @@ path = "tests/package_manager.rs"
 [[test]]
 name = "stylex"
 path = "tests/stylex.rs"
+
+[[test]]
+name = "react"
+path = "tests/react.rs"
