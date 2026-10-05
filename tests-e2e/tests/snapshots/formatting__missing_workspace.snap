@@ -1,0 +1,5 @@
+---
+source: tests-e2e/tests/formatting.rs
+expression: "stderr.replace(root.to_str().unwrap(), \"[workspace]\")"
+---
+error: no Spago workspace found from [workspace]

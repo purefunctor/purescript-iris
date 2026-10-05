@@ -11,6 +11,7 @@ Usage: iris <SUBCOMMAND>
 Commands:
   add     Add dependencies to a Spago package.
   build   Build a Spago workspace or package.
+  format  Format a Spago workspace or explicit source files.
   lsp     Run the language server over standard input and output.
   new     Create a Spago project in the current directory.
   run     Build and run a Spago package with Node.js.

@@ -1806,6 +1806,7 @@ name = "iris-cli"
 version = "0.1.2"
 dependencies = [
  "directories",
+ "formatting",
  "iris-build",
  "iris-lsp",
  "iris-package",
@@ -4349,6 +4350,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "url",
+ "xattr",
 ]
 
 [[package]]

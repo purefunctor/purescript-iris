@@ -1,0 +1,5 @@
+---
+source: tests-e2e/tests/formatting.rs
+expression: "String::from_utf8(write.stderr).unwrap()"
+---
+error: refusing to replace symlink src/ZLinked.purs

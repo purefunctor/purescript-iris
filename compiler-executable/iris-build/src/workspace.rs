@@ -1,12 +1,13 @@
 //! Spago workspace discovery for project builds.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::path::{Path, PathBuf};
 
 use ignore::WalkBuilder;
 use itertools::Itertools;
 use thiserror::Error;
+use walkdir::WalkDir;
 
 use iris_spago::MANIFEST_FILE;
 
@@ -42,6 +43,8 @@ pub enum WorkspaceError {
     },
     #[error(transparent)]
     Walk(#[from] ignore::Error),
+    #[error(transparent)]
+    Sources(#[from] walkdir::Error),
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +59,8 @@ pub struct Workspace {
     pub root: PathBuf,
     pub packages: BTreeMap<String, WorkspacePackage>,
     pub selected: Option<String>,
+    /// Nested workspace roots excluded from package source walks.
+    nested_workspaces: Vec<PathBuf>,
 }
 
 impl Workspace {
@@ -67,7 +72,7 @@ impl Workspace {
             WorkspaceError::CanonicalizeDirectory { path: current_directory.to_path_buf(), source }
         })?;
         let (root, inferred_package) = find_root(&current_directory)?;
-        let packages = discover_packages(&root)?;
+        let (packages, nested_workspaces) = discover_packages(&root)?;
         if packages.is_empty() {
             return Err(WorkspaceError::NoPackages);
         }
@@ -89,7 +94,30 @@ impl Workspace {
             None
         };
 
-        Ok(Workspace { root, packages, selected })
+        Ok(Workspace { root, packages, selected, nested_workspaces })
+    }
+
+    /// Library and test sources of every workspace package, without fetching dependencies.
+    pub fn source_files(&self) -> Result<Vec<PathBuf>, WorkspaceError> {
+        let directories = self.packages.values().flat_map(|package| {
+            iris_spago::package_source_directories().map(|directory| package.root.join(directory))
+        });
+        let mut files = BTreeSet::new();
+        for directory in directories.filter(|directory| directory.is_dir()) {
+            let entries = WalkDir::new(directory).follow_root_links(false).into_iter();
+            let entries = entries.filter_entry(|entry| {
+                !self.nested_workspaces.iter().any(|root| entry.path().starts_with(root))
+            });
+            for entry in entries {
+                let entry = entry?;
+                if entry.file_type().is_file()
+                    && entry.file_name().as_encoded_bytes().ends_with(b".purs")
+                {
+                    files.insert(entry.into_path());
+                }
+            }
+        }
+        Ok(files.into_iter().collect())
     }
 
     pub fn require_selected(&self) -> Result<&WorkspacePackage, WorkspaceError> {
@@ -120,7 +148,9 @@ fn find_root(current_directory: &Path) -> Result<(PathBuf, Option<String>), Work
     Err(WorkspaceError::MissingWorkspace(current_directory.to_path_buf()))
 }
 
-fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, WorkspaceError> {
+fn discover_packages(
+    root: &Path,
+) -> Result<(BTreeMap<String, WorkspacePackage>, Vec<PathBuf>), WorkspaceError> {
     let mut builder = WalkBuilder::new(root);
     builder.hidden(false);
     builder.ignore(false);
@@ -179,7 +209,7 @@ fn discover_packages(root: &Path) -> Result<BTreeMap<String, WorkspacePackage>, 
             });
         }
     }
-    Ok(packages)
+    Ok((packages, nested_workspaces))
 }
 
 fn excluded_directory(path: &Path, root: &Path) -> bool {

@@ -34,6 +34,10 @@ name = "cli"
 path = "tests/cli.rs"
 
 [[test]]
+name = "formatting"
+path = "tests/formatting.rs"
+
+[[test]]
 name = "lsp"
 path = "tests/lsp.rs"
 
@@ -44,3 +48,6 @@ path = "tests/package_manager.rs"
 [[test]]
 name = "stylex"
 path = "tests/stylex.rs"
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+xattr = "1.6.1"

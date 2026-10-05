@@ -1,0 +1,19 @@
+---
+source: tests-e2e/tests/formatting.rs
+expression: diagnostics
+---
+error: the argument '--check' cannot be used with '--write'
+
+Usage: iris format [FLAGS]
+
+For more information, try '--help'.
+error: cannot use --write with standard input
+error: unexpected argument 'src/Main.purs' found
+
+Usage: iris format [FLAGS]
+
+For more information, try '--help'.
+error: multiple files require --write or --check
+error: invalid formatting options: line width must be positive
+error: invalid formatting options: indent width must be between 1 and 65535 spaces
+error: invalid formatting options: indent width must be between 1 and 65535 spaces

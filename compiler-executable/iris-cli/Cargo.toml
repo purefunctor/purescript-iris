@@ -17,6 +17,7 @@ path = "src/bin/iris.rs"
 
 [dependencies]
 directories = "6.0.0"
+formatting = { path = "../../compiler-frontend/formatting" }
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-lsp = { version = "0.1.0", path = "../iris-lsp" }
 iris-package = { version = "0.1.0", path = "../iris-package" }
