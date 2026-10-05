@@ -1,0 +1,27 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 106
+---
+=== width 10, indent 2 ===
+module {- Pre -} Main {- Post -}
+  where
+
+main :: {- Annotation -}
+  Test
+main = {- Inline -}
+  value
+
+=== width 80, indent 2 ===
+module {- Pre -} Main {- Post -} where
+
+main :: {- Annotation -} Test
+main = {- Inline -} value
+
+=== width 20, indent 4, unicode ===
+module {- Pre -} Main {- Post -}
+    where
+
+main ∷ {- Annotation -}
+    Test
+main = {- Inline -}
+    value

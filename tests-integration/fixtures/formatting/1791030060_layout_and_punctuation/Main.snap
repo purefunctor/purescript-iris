@@ -1,0 +1,48 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 118
+---
+module Main (test, Box(..)) where
+
+import Data.Maybe (Maybe(..))
+import Control as Control
+
+data Box a = Box a
+
+test :: forall @a. a -> a
+test x = x
+
+named whole@(Box value) = whole
+negative x = -x
+application = test @Int 1
+access record = record.field
+
+run x = Control.do
+  y <- pure x
+  let
+    next = y
+  pure { one: next, two: [ 1, 2 ] }
+
+empty = ado in 1
+
+nested = ado
+  x <- ado
+    y <- pure 1
+    in y
+  in x
+
+local x =
+  let
+    y = x
+  in
+    y
+
+branch x =
+  case x of
+    Box y -> if true then y else 0
+
+record = { outer: { left: 1, right: 2 }, tail: 3 }
+
+continuation = use do
+    action
+  argument

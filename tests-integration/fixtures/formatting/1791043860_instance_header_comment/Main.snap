@@ -1,0 +1,44 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 106
+---
+=== width 80, indent 2 ===
+module Main where
+
+instance
+  -- unnamed instance explanation
+  Show Int where
+  show value = "value"
+
+instance named
+  -- named instance explanation
+  :: Eq Int where
+  eq first second = true
+
+=== width 20, indent 1 ===
+module Main where
+
+instance
+ -- unnamed instance explanation
+ Show Int where
+ show value =
+  "value"
+
+instance named
+ -- named instance explanation
+ :: Eq Int where
+ eq first second =
+  true
+
+=== width 40, indent 4, unicode ===
+module Main where
+
+instance
+    -- unnamed instance explanation
+    Show Int where
+    show value = "value"
+
+instance named
+    -- named instance explanation
+    ∷ Eq Int where
+    eq first second = true

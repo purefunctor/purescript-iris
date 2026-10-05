@@ -1,0 +1,163 @@
+-- @format width=40 indent=2
+-- @format width=80 indent=2
+-- @format width=120 indent=2
+-- @format width=40 indent=1
+-- @format width=40 indent=4
+-- @format width=40 indent=2 unicode=true
+-- @format width=80 indent=2 unicode=true
+module Main
+  (longApplication,
+   longRecord,
+   branches,
+   Box(..))
+  where
+
+import Data.Collections
+  (Collection,
+   mapCollection,
+   filterCollection)
+  as Collections
+
+data Box value
+  = Box value
+  | Many value value value
+
+longApplication :: forall value.
+  Collection value
+  -> Collection value
+  -> Collection value
+longApplication firstCollection secondCollection =
+  combineCollections
+    firstCollection
+    secondCollection
+
+longRecord =
+  { firstField: transform inputValue,
+    secondField: [firstElement,
+                  secondElement,
+                  thirdElement] }
+updated = longRecord
+  { firstField = transform anotherInput,
+    nested { field = otherValue } }
+branches value =
+  if predicate value
+  then transform firstInput secondInput
+  else fallback anotherInput
+lambda = \firstArgument secondArgument ->
+  combine firstArgument secondArgument
+
+rows ::
+  { firstField :: Collection Int,
+    secondField :: Collection String
+    | tail }
+rows = value
+  :: Collection String
+
+blockHead =
+  do
+      action
+    argument
+blockMiddle =
+  use do
+      action
+    argument
+blockFinal = use do
+  action
+brokenApplication = invokeOperation
+  firstArgument
+  secondArgument
+  do
+    action
+operatorAfterBlock =
+  do
+    action
+  + otherAction
+
+constrained ::
+  forall first second.
+  LongConstraint first =>
+  OtherConstraint second =>
+  first -> second -> Result first second
+type Combined = FirstComponent
+  + SecondComponent
+  + ThirdComponent
+operators = firstOperand
+  + transform firstArgument secondArgument
+  <*> finalOperand
+ticks = firstOperand
+  `combineOperation` secondOperand
+  `firstOperation
+    + secondOperation` thirdOperand
+operatorDo = firstOperand
+  + do
+    action
+operatorDoLongChain = firstOperand +
+  secondOperand +
+  do
+    action
+operatorDoMiddle = firstOperand + do
+    action
+  + finalOperand
+operatorBetweenBlocks =
+  do
+    action
+  + do
+    otherAction
+commentedOperator = do
+  firstOperand
+    -- between operand and operator
+    + secondOperand
+commentedOperatorDo = do
+  firstOperand
+    -- before an inline block
+    + do
+      action
+operatorPattern value = case value of
+  firstElement
+    : secondElement
+    : remainingElements ->
+      transform remainingElements
+
+class Base value <= Derived value
+builtinBind = do
+  value <- action
+  pure value
+existingUnicode ∷ ∀ value. value → value
+existingUnicode value = value
+labels :: forall value. { forall :: value } -> value
+labels record = record.forall
+symbols = "forall :: <- -> <= => ∀ ∷ ← → ⇐ ⇒"
+-- forall :: <- -> <= => ∀ ∷ ← → ⇐ ⇒
+customOperators = first <= second ⊕ third <=> fourth
+type CustomOperator = First <= Second
+
+local value = do
+  action value
+  where
+    helper = transform
+      firstArgument
+      secondArgument
+localLet = let
+  bound = firstArgument
+  in
+    transform
+      bound
+      secondArgument
+
+comments = [ firstElement -- trailing before the comma
+           , {- inline -} secondElement
+           -- standalone before the final item
+           , thirdElement ]
+multiline = consume
+  """first
+
+  preserve this indentation
+
+
+last
+""" {- comment
+
+    preserve this too
+
+-}
+  argument

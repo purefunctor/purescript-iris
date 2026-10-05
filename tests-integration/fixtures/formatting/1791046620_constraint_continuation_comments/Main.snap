@@ -1,0 +1,51 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 106
+---
+=== width 20, indent 1 ===
+module Main where
+
+instance (
+ Show value
+) -- instance explanation
+ => Show (Box value)
+
+derive instance (
+ Eq value
+)
+ -- derive explanation
+ => Eq (Box value)
+
+class (Eq value)
+ -- superclass explanation
+ <= Ord value
+
+=== width 80, indent 2 ===
+module Main where
+
+instance (Show value) -- instance explanation
+  => Show (Box value)
+
+derive instance (Eq value)
+  -- derive explanation
+  => Eq (Box value)
+
+class (Eq value)
+  -- superclass explanation
+  <= Ord value
+
+=== width 40, indent 4, unicode ===
+module Main where
+
+instance (
+    Show value
+) -- instance explanation
+    ⇒ Show (Box value)
+
+derive instance (Eq value)
+    -- derive explanation
+    ⇒ Eq (Box value)
+
+class (Eq value)
+    -- superclass explanation
+    ⇐ Ord value

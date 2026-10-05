@@ -1,0 +1,53 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 118
+---
+=== width 20, indent 2 ===
+module Main where
+
+value =
+  firstLongOperand
+    `combine
+      (
+        inner
+          `f` argument
+      )` secondLongOperand
+nested =
+  firstOperand
+    `combine
+      (
+        inner
+          `f
+            (
+              deeper
+                `g` argument
+            )` another
+      )` secondOperand
+
+=== width 80, indent 2 ===
+module Main where
+
+value = firstLongOperand `combine (inner `f` argument)` secondLongOperand
+nested =
+  firstOperand `combine (inner `f (deeper `g` argument)` another)` secondOperand
+
+=== width 40, indent 4, unicode ===
+module Main where
+
+value =
+    firstLongOperand
+        `combine
+            (
+                inner `f` argument
+            )` secondLongOperand
+nested =
+    firstOperand
+        `combine
+            (
+                inner
+                    `f
+                        (
+                            deeper
+                                `g` argument
+                        )` another
+            )` secondOperand
