@@ -1,0 +1,18 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 124
+---
+=== width 80, indent 2 ===
+module Main where
+
+import Prelude -- Attached at end of file.
+
+import Data.Maybe (Maybe)
+
+=== width 20, indent 1 ===
+module Main where
+
+import Prelude -- Attached at end of file.
+
+import Data.Maybe
+ (Maybe)

@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::fmt;
+use std::ops::Range;
 
 use itertools::Itertools;
 use lexing::Lexed;
@@ -82,7 +83,8 @@ impl fmt::Display for FormatError {
 
 impl std::error::Error for FormatError {}
 
-/// Formats a complete module, preserving lexical atoms and the offside-rule structure.
+/// Formats a complete module, sorting imports while preserving lexical atoms
+/// and the offside-rule structure.
 pub fn format_with_config(source: &str, config: &Config) -> Result<String, FormatError> {
     config.validate()?;
     let lexed = lexing::lex(source);
@@ -95,9 +97,47 @@ pub fn format_with_config(source: &str, config: &Config) -> Result<String, Forma
         )));
     }
     validate_syntax(&parsed.syntax_node(), &lexed)?;
-    let comments = collect_comments(&lexed)?;
-    let contexts = token_contexts(&parsed.syntax_node(), &lexed);
-    let output = printer::render(&parsed.syntax_node(), &lexed, &contexts, config)?;
+    if let Some((source, order)) = sort_imports(&parsed.syntax_node(), &lexed)? {
+        let candidate = lexing::lex(&source);
+        let candidate_layout = lexing::layout(&candidate);
+        let tokens_changed = candidate.len() != lexed.len()
+            || order.iter().enumerate().any(|(index, &original)| {
+                candidate.error(index).is_some()
+                    || candidate.kind(index) != lexed.kind(original)
+                    || candidate.qualifier(index) != lexed.qualifier(original)
+                    || candidate.text(index) != lexed.text(original)
+            });
+        let mut positions = vec![0; order.len()];
+        for (index, &original) in order.iter().enumerate() {
+            positions[original] = index;
+        }
+        if tokens_changed
+            || !layout
+                .iter()
+                .filter(|kind| kind.is_layout_token())
+                .eq(candidate_layout.iter().filter(|kind| kind.is_layout_token()))
+            || collect_comments(&lexed, Some(&positions))? != collect_comments(&candidate, None)?
+        {
+            return Err(FormatError::ChangedSyntax);
+        }
+        let (parsed, errors) = parsing::parse(&candidate, &candidate_layout);
+        if !errors.is_empty() || validate_syntax(&parsed.syntax_node(), &candidate).is_err() {
+            return Err(FormatError::ChangedSyntax);
+        }
+        return render_validated(&parsed.syntax_node(), &candidate, &candidate_layout, config);
+    }
+    render_validated(&parsed.syntax_node(), &lexed, &layout, config)
+}
+
+fn render_validated(
+    root: &SyntaxNode,
+    lexed: &Lexed<'_>,
+    layout: &[SyntaxKind],
+    config: &Config,
+) -> Result<String, FormatError> {
+    let comments = collect_comments(lexed, None)?;
+    let contexts = token_contexts(root, lexed);
+    let output = printer::render(root, lexed, &contexts, config)?;
     let candidate = lexing::lex(&output);
     let token_changed = |(index, context): (usize, &Vec<SyntaxKind>)| {
         candidate.error(index).is_some()
@@ -108,10 +148,97 @@ pub fn format_with_config(source: &str, config: &Config) -> Result<String, Forma
     let tokens_changed = lexing::layout(&candidate) != layout
         || candidate.len() != lexed.len()
         || contexts.iter().enumerate().any(token_changed);
-    if tokens_changed || collect_comments(&candidate)? != comments {
+    if tokens_changed || collect_comments(&candidate, None)? != comments {
         return Err(FormatError::ChangedSyntax);
     }
     Ok(output)
+}
+
+struct ImportFragment<'source> {
+    open_prelude: bool,
+    module_name: &'source str,
+    tokens: Range<usize>,
+}
+
+// The printer's trivia boundaries depend on source order. Reparse reordered
+// import fragments rather than giving it noncontiguous CST children.
+fn sort_imports(
+    root: &SyntaxNode,
+    lexed: &Lexed<'_>,
+) -> Result<Option<(String, Vec<usize>)>, FormatError> {
+    let Some(module) = cst::Module::cast(root.clone()) else {
+        unreachable!("invariant violated: parsed source must have a module root");
+    };
+    let Some(imports) = module.imports() else {
+        return Ok(None);
+    };
+    let imports = imports.children().map(|import| import_fragment(&import, lexed));
+    let mut imports = imports.collect::<Vec<_>>();
+
+    let (Some(first), Some(last)) = (imports.first(), imports.last()) else {
+        return Ok(None);
+    };
+    let (first_token, after_last_token) = (first.tokens.start, last.tokens.end);
+    let prefix_end = fragment_boundary(lexed, first_token)?;
+    let suffix_start = fragment_boundary(lexed, after_last_token)?;
+    let indentation = " ".repeat(lexed.position(first_token).column as usize - 1);
+
+    imports.sort_by(|left, right| {
+        let open_prelude_first = left.open_prelude.cmp(&right.open_prelude).reverse();
+        open_prelude_first
+            .then_with(|| left.module_name.split('.').cmp(right.module_name.split('.')))
+    });
+
+    let mut source = lexed.source[..prefix_end].to_owned();
+    let mut order = (0..first_token).collect::<Vec<_>>();
+    let mut previous_open_prelude = None;
+    for ImportFragment { open_prelude, tokens, .. } in imports {
+        let separator = if previous_open_prelude == Some(open_prelude) { "\n" } else { "\n\n" };
+        source.push_str(separator);
+        source.push_str(&indentation);
+
+        let start = fragment_boundary(lexed, tokens.start)?;
+        let end = fragment_boundary(lexed, tokens.end)?;
+        source.push_str(lexed.source[start..end].trim_start());
+        order.extend(tokens);
+        previous_open_prelude = Some(open_prelude);
+    }
+
+    source.push_str(&lexed.source[suffix_start..]);
+    order.extend(after_last_token..lexed.len());
+    Ok((source != lexed.source).then_some((source, order)))
+}
+
+fn import_fragment<'source>(
+    import: &cst::ImportStatement,
+    lexed: &Lexed<'source>,
+) -> ImportFragment<'source> {
+    let range = import.syntax().text_range();
+    let start = lexed.first_text_start_from(u32::from(range.start()));
+    let end = lexed.first_text_start_from(u32::from(range.end()));
+
+    let Some(module_name) = import.module_name() else {
+        unreachable!("invariant violated: parsed import must have a module name");
+    };
+    let name_token =
+        lexed.first_text_start_from(u32::from(module_name.syntax().text_range().start()));
+    let info = lexed.info(name_token);
+    let module_name = &lexed.source[info.annotation as usize..info.token as usize];
+    let open_prelude = module_name == "Prelude"
+        && import.import_alias().is_none()
+        && import.import_list().is_none();
+
+    ImportFragment { open_prelude, module_name, tokens: start..end }
+}
+
+// One annotation can hold both the previous import's trailing comments and
+// the next import's leading comments; they must move with different imports.
+fn fragment_boundary(lexed: &Lexed<'_>, index: usize) -> Result<usize, FormatError> {
+    let annotation = lexed.annotation(index).unwrap_or_default();
+    let (comments, _) = trivia(annotation)?;
+    let trailing = comments.iter().take_while(|comment| !comment.whitespace.contains('\n'));
+    let end = trailing.last().map_or(0, |comment| comment.end);
+    Ok(lexed.info(index).annotation as usize - annotation.len() + end)
 }
 
 fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatError> {
@@ -279,6 +406,7 @@ struct Comment<'source> {
     whitespace: &'source str,
     text: Cow<'source, str>,
     line: bool,
+    end: usize,
 }
 
 impl Comment<'_> {
@@ -328,7 +456,8 @@ fn trivia(annotation: &str) -> Result<(Vec<Comment<'_>>, &str), FormatError> {
         } else {
             Cow::Borrowed(text)
         };
-        comments.push(Comment { whitespace, text, line });
+        let end = annotation.len() - remaining.len() + length;
+        comments.push(Comment { whitespace, text, line, end });
         remaining = &remaining[length..];
     }
     Ok((comments, ""))
@@ -336,15 +465,19 @@ fn trivia(annotation: &str) -> Result<(Vec<Comment<'_>>, &str), FormatError> {
 
 fn collect_comments<'source>(
     lexed: &'source Lexed<'_>,
+    positions: Option<&[usize]>,
 ) -> Result<Vec<(usize, Cow<'source, str>, bool)>, FormatError> {
     let mut result = Vec::new();
     for (index, annotation) in lexed.annotations().enumerate() {
         let (comments, _) = trivia(annotation.unwrap_or_default())?;
-        for (comment_index, comment) in comments.into_iter().enumerate() {
-            let standalone = (index > 0 || comment_index > 0) && comment.whitespace.contains('\n');
-            result.push((index, comment.text, standalone));
+        for comment in comments {
+            let standalone = index == 0 || comment.whitespace.contains('\n');
+            let anchor = if standalone { index } else { index - 1 };
+            let anchor = positions.map_or(anchor, |positions| positions[anchor]);
+            result.push((anchor, comment.text, standalone));
         }
     }
+    result.sort_by_key(|(anchor, _, standalone)| (*anchor, *standalone));
     Ok(result)
 }
 

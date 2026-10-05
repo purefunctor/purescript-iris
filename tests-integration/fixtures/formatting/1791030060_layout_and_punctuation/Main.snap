@@ -1,11 +1,11 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 124
 ---
 module Main (test, Box(..)) where
 
-import Data.Maybe (Maybe(..))
 import Control as Control
+import Data.Maybe (Maybe(..))
 
 data Box a = Box a
 

@@ -1,4 +1,6 @@
+use std::collections::BTreeMap;
 use std::fs;
+use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -139,6 +141,45 @@ fn semantic_preservation(
         let indexed = engine.indexed(id)?;
         let resolved = engine.resolved(id)?;
         let lowered = engine.lowered(id)?;
+        // Import IDs follow CST order. A witness in the observed output order lets
+        // us check semantics across reordering, then retain exact equality and cache
+        // reuse checks for the printer's whitespace changes.
+        let (_, reordered) = import_permutation(&lexing::lex(source), &lexing::lex(formatted));
+        let (indexed, resolved, lowered) = if let Some(reordered) = reordered {
+            engine.set_content(id, reordered.as_str());
+            let reordered_indexed = engine.indexed(id)?;
+            let reordered_resolved = engine.resolved(id)?;
+            let reordered_lowered = engine.lowered(id)?;
+            assert_eq!(indexed.kind, reordered_indexed.kind);
+            assert_eq!(indexed.names, reordered_indexed.names);
+            assert_eq!(indexed.exports, reordered_indexed.exports);
+            assert_eq!(indexed.items, reordered_indexed.items);
+            assert_eq!(indexed.pairs, reordered_indexed.pairs);
+            assert_eq!(indexed.errors.len(), reordered_indexed.errors.len());
+            assert_eq!(resolved.locals, reordered_resolved.locals);
+            assert_eq!(resolved.class, reordered_resolved.class);
+            assert_eq!(resolved.errors.len(), reordered_resolved.errors.len());
+            assert_eq!(
+                exported_items(resolved.exports.iter_terms()),
+                exported_items(reordered_resolved.exports.iter_terms()),
+            );
+            assert_eq!(
+                exported_items(resolved.exports.iter_types()),
+                exported_items(reordered_resolved.exports.iter_types()),
+            );
+            assert_eq!(
+                exported_items(resolved.exports.iter_classes()),
+                exported_items(reordered_resolved.exports.iter_classes()),
+            );
+            assert_eq!(lowered, reordered_lowered, "import sorting must preserve source semantics");
+            assert!(
+                Arc::ptr_eq(&lowered, &reordered_lowered),
+                "import sorting must reuse the semantic cache"
+            );
+            (reordered_indexed, reordered_resolved, reordered_lowered)
+        } else {
+            (indexed, resolved, lowered)
+        };
         engine.set_content(id, formatted);
         let candidate_indexed = engine.indexed(id)?;
         let candidate_resolved = engine.resolved(id)?;
@@ -153,6 +194,12 @@ fn semantic_preservation(
     })
 }
 
+fn exported_items<Name: Ord, Identifier>(
+    items: impl Iterator<Item = (Name, files::FileId, Identifier)>,
+) -> BTreeMap<Name, (files::FileId, Identifier)> {
+    items.map(|(name, file, item)| (name, (file, item))).collect()
+}
+
 fn syntax_structure(root: syntax::SyntaxNode) -> Vec<(bool, SyntaxKind)> {
     let events = root.preorder().filter_map(|event| match event {
         WalkEvent::Enter(node) if node.kind() != SyntaxKind::Annotation => {
@@ -163,23 +210,144 @@ fn syntax_structure(root: syntax::SyntaxNode) -> Vec<(bool, SyntaxKind)> {
         }
         _ => None,
     });
-    events.collect()
+    let mut events = events.collect::<Vec<_>>();
+    if let Some(imports) = support::child::<cst::ModuleImports>(&root) {
+        let mut children = imports
+            .children()
+            .map(|import| syntax_structure(import.syntax().clone()))
+            .collect::<Vec<_>>();
+        children.sort();
+        let start =
+            events.iter().position(|event| *event == (true, SyntaxKind::ModuleImports)).unwrap();
+        let end =
+            events.iter().position(|event| *event == (false, SyntaxKind::ModuleImports)).unwrap();
+        events.splice(start + 1..end, children.into_iter().flatten());
+    }
+    events
+}
+
+fn import_ranges(lexed: &lexing::Lexed<'_>) -> Vec<Range<usize>> {
+    let (parsed, errors) = parsing::parse(lexed, &lexing::layout(lexed));
+    assert!(errors.is_empty());
+    let module = cst::Module::cast(parsed.syntax_node()).unwrap();
+    let Some(imports) = module.imports() else { return Vec::new() };
+    imports
+        .children()
+        .map(|import| {
+            let range = import.syntax().text_range();
+            lexed.first_text_start_from(u32::from(range.start()))
+                ..lexed.first_text_start_from(u32::from(range.end()))
+        })
+        .collect()
+}
+
+fn import_permutation(
+    original: &lexing::Lexed<'_>,
+    candidate: &lexing::Lexed<'_>,
+) -> (Vec<usize>, Option<String>) {
+    let imports = import_ranges(original);
+    let candidate_imports = import_ranges(candidate);
+    assert_eq!(imports.len(), candidate_imports.len());
+    let Some(first) = imports.first() else { return ((0..original.len()).collect(), None) };
+    let mut remaining = imports.clone();
+    let mut selected = Vec::new();
+    for candidate_import in candidate_imports {
+        let position = remaining
+            .iter()
+            .position(|import| {
+                import.len() == candidate_import.len()
+                    && import.clone().zip(candidate_import.clone()).all(
+                        |(original_index, candidate_index)| {
+                            original.kind(original_index) == candidate.kind(candidate_index)
+                                && original.qualifier(original_index)
+                                    == candidate.qualifier(candidate_index)
+                                && original.text(original_index) == candidate.text(candidate_index)
+                        },
+                    )
+            })
+            .expect("formatting must preserve every import, including duplicates");
+        selected.push(remaining.remove(position));
+    }
+    assert!(remaining.is_empty());
+    let mut order = (0..first.start).collect::<Vec<_>>();
+    order.extend(selected.iter().flat_map(|range| range.clone()));
+    order.extend(imports.last().unwrap().end..original.len());
+    let reordered = order.iter().copied().ne(0..original.len()).then(|| {
+        let span = |range: &Range<usize>| {
+            let last = range.clone().next_back().unwrap();
+            original.info(range.start).annotation as usize..original.info(last).token as usize
+        };
+        let mut source = String::new();
+        let mut offset = 0;
+        for (slot, import) in imports.iter().zip(selected.iter()) {
+            let slot = span(slot);
+            source.push_str(&original.source[offset..slot.start]);
+            source.push_str(&original.source[span(import)]);
+            offset = slot.end;
+        }
+        source.push_str(&original.source[offset..]);
+        source
+    });
+    (order, reordered)
+}
+
+fn comment_anchors(
+    lexed: &lexing::Lexed<'_>,
+    order: Option<&[usize]>,
+) -> Vec<(usize, bool, String)> {
+    let mut comments = Vec::new();
+    for (index, annotation) in lexed.annotations().enumerate() {
+        let mut remaining = annotation.unwrap_or_default();
+        while !remaining.trim_start().is_empty() {
+            let text = remaining.trim_start();
+            let whitespace = &remaining[..remaining.len() - text.len()];
+            let end = if text.starts_with("--") {
+                text.find('\n').unwrap_or(text.len())
+            } else {
+                assert!(text.starts_with("{-"));
+                let mut depth = 1;
+                let mut end = 2;
+                while depth > 0 {
+                    match text.as_bytes().get(end..end + 2) {
+                        Some(b"{-") => {
+                            depth += 1;
+                            end += 2;
+                        }
+                        Some(b"-}") => {
+                            depth -= 1;
+                            end += 2;
+                        }
+                        _ => {
+                            end += 1;
+                            assert!(end <= text.len());
+                        }
+                    }
+                }
+                end
+            };
+            let standalone = index == 0 || whitespace.contains('\n');
+            let anchor = if standalone { index } else { index - 1 };
+            let anchor = order.map_or(anchor, |order| order[anchor]);
+            comments.push((anchor, standalone, text[..end].split_whitespace().collect()));
+            remaining = &text[end..];
+        }
+    }
+    comments.sort_by_key(|(anchor, standalone, _)| (*anchor, *standalone));
+    comments
 }
 
 fn assert_tokens(original: &lexing::Lexed<'_>, candidate: &lexing::Lexed<'_>, config: &Config) {
     assert_eq!(original.len(), candidate.len());
-    let comment_content = |annotation: Option<&str>| {
-        annotation.unwrap_or_default().split_whitespace().collect::<String>()
-    };
-    for index in 0..original.len() {
-        let kind = original.kind(index);
+    let (order, _) = import_permutation(original, candidate);
+    assert_eq!(
+        comment_anchors(original, None),
+        comment_anchors(candidate, Some(&order)),
+        "comments must remain attached to their lexical anchor"
+    );
+    for (index, &original_index) in order.iter().enumerate() {
+        let kind = original.kind(original_index);
         assert_eq!(kind, candidate.kind(index));
-        assert_eq!(original.qualifier(index), candidate.qualifier(index));
-        assert_eq!(
-            comment_content(original.annotation(index)),
-            comment_content(candidate.annotation(index)),
-            "comments must remain at their token boundary"
-        );
+        assert_eq!(original.qualifier(original_index), candidate.qualifier(index));
         if !config.unicode
             || !matches!(
                 kind,
@@ -191,7 +359,7 @@ fn assert_tokens(original: &lexing::Lexed<'_>, candidate: &lexing::Lexed<'_>, co
                     | SyntaxKind::FORALL
             )
         {
-            assert_eq!(original.text(index), candidate.text(index));
+            assert_eq!(original.text(original_index), candidate.text(index));
         }
     }
 }
