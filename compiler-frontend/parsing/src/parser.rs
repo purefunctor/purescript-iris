@@ -1085,6 +1085,8 @@ fn type_variable_binding(p: &mut Parser) {
     p.eat_in(names::LOWER, SyntaxKind::LOWER);
     if p.eat(SyntaxKind::DOUBLE_COLON) {
         types::type_(p);
+    } else if closing {
+        p.expect(SyntaxKind::DOUBLE_COLON);
     }
     if closing {
         p.expect(SyntaxKind::RIGHT_PARENTHESIS);

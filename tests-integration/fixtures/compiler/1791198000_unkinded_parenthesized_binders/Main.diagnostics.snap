@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Parse error · Main.purs:3:14 · Expected DOUBLE_COLON
+Parse error · Main.purs:5:22 · Expected DOUBLE_COLON

@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+data Proxy :: forall k0. k0 -> Prim.Type
+data Proxy @a
+  | Proxy :: Main.Proxy a
+
+identity :: forall a. a -> a
+identity = \value -> value

@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+Proxy :: forall t0 (@a :: t0). Main.Proxy @t0 (a :: t0)
+identity :: forall a. a -> a
+
+Types
+Proxy :: forall t0. t0 -> Prim.Type
+
+Roles
+Proxy = [Phantom]
