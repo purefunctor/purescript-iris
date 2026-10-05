@@ -21,6 +21,21 @@ to enable minimal recomputation across trivial formatting changes.
 The language server component implements core code intelligence features such as completion, jump to
 definition, hover information, find references, workspace symbol search, and diagnostics.
 
+## Formatting
+
+`iris format` formats every package's `src` and `test` sources in the current Spago workspace in
+place. Use `--check` in CI to check formatting without changing files.
+
+```sh
+iris format
+iris format --check
+iris format --file src/Main.purs   # Print formatted output without writing
+```
+
+Editors can use the same formatter through **Format Document**. See the
+[formatting guide](documentation/formatting.md) for file selection, stdin, `--width`, `--indent`,
+`--unicode`, and layout conventions.
+
 ## Language server configuration
 
 Run `iris lsp --stdio` to start the language server. The `lsp` subcommand is required;
