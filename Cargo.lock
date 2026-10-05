@@ -1745,6 +1745,7 @@ dependencies = [
  "checking",
  "files",
  "foreign-javascript",
+ "formatting",
  "gen-lsp-types",
  "indexing",
  "insta",

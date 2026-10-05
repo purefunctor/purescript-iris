@@ -394,6 +394,7 @@ pub(crate) fn analysis_job(method: &str, params: Value) -> Result<AnalysisJob, R
         }
         WorkspaceSymbolRequest::METHOD => job::<WorkspaceSymbolRequest>(params, workspace_symbols),
         DocumentSymbolRequest::METHOD => job::<DocumentSymbolRequest>(params, document_symbols),
+        DocumentFormattingRequest::METHOD => formatting_job(params),
         SemanticTokensRequest::METHOD => job::<SemanticTokensRequest>(params, semantic_tokens),
         #[cfg(test)]
         LspRequestMethod::Custom(crate::tests::GATED_METHOD) => crate::tests::gated_job(params),
@@ -403,7 +404,7 @@ pub(crate) fn analysis_job(method: &str, params: Value) -> Result<AnalysisJob, R
 
 fn job<R>(
     params: Value,
-    handler: fn(&Snapshot, R::Params) -> Result<R::Result, AnalyzerError>,
+    handler: impl FnOnce(&Snapshot, R::Params) -> Result<R::Result, AnalyzerError> + Send + 'static,
 ) -> Result<AnalysisJob, Rejection>
 where
     R: Request,
@@ -430,6 +431,9 @@ fn rejection(error: AnalyzerError) -> Rejection {
             tracing::warn!("AnalyzerError: Rename rejected: {message}");
             Rejection::InvalidParams(message)
         }
+        AnalyzerError::Formatting(iris_analysis::formatting::FormatError::InvalidConfig(
+            message,
+        )) => Rejection::InvalidParams(message.into()),
         error => {
             tracing::error!("AnalyzerError: {error}");
             Rejection::RequestFailed("Request failed".to_string())
@@ -577,6 +581,39 @@ fn document_symbols(
     let uri = parameters.text_document.uri;
     let result =
         snapshot.with_analyzer_context(|context| iris_analysis::symbols::document(context, uri));
+    on_non_fatal(result, None)
+}
+
+fn formatting_job(params: Value) -> Result<AnalysisJob, Rejection> {
+    let line_width = params.get("options").and_then(|options| options.get("lineWidth"));
+    let parse_width = |value: &Value| {
+        let width = value.as_u64().and_then(|width| usize::try_from(width).ok());
+        width
+            .filter(|&width| width > 0)
+            .ok_or_else(|| Rejection::InvalidParams("lineWidth must be a positive integer".into()))
+    };
+    let line_width = line_width.map(parse_width).transpose()?;
+    job::<DocumentFormattingRequest>(params, move |snapshot, parameters| {
+        formatting(snapshot, parameters, line_width)
+    })
+}
+
+fn formatting(
+    snapshot: &Snapshot,
+    parameters: DocumentFormattingParams,
+    line_width: Option<usize>,
+) -> Result<Option<Vec<TextEdit>>, AnalyzerError> {
+    let uri = parameters.text_document.uri;
+    let defaults = iris_analysis::formatting::Config::default();
+    let config = iris_analysis::formatting::Config {
+        line_width: line_width.unwrap_or(defaults.line_width),
+        indent_width: parameters.options.tab_size as usize,
+        ..defaults
+    };
+    config.validate()?;
+    let result = snapshot.with_analyzer_context(|context| {
+        iris_analysis::formatting::implementation(context, uri, &config)
+    });
     on_non_fatal(result, None)
 }
 

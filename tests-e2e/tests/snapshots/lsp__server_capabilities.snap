@@ -17,6 +17,7 @@ source: tests-e2e/tests/lsp.rs
     ]
   },
   "definitionProvider": true,
+  "documentFormattingProvider": true,
   "documentHighlightProvider": true,
   "documentSymbolProvider": true,
   "hoverProvider": true,

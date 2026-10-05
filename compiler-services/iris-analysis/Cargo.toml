@@ -9,6 +9,7 @@ building-types = { version = "0.1.0", path = "../../compiler-core/building-types
 checking = { version = "0.1.0", path = "../../compiler-frontend/checking" }
 files = { version = "0.1.0", path = "../../compiler-core/files" }
 foreign-javascript = { version = "0.1.0", path = "../../compiler-backend/foreign-javascript" }
+formatting = { version = "0.1.0", path = "../../compiler-frontend/formatting" }
 indexing = { version = "0.1.0", path = "../../compiler-frontend/indexing" }
 itertools = "0.15.0"
 iris-diagnostics = { version = "0.1.0", path = "../iris-diagnostics" }

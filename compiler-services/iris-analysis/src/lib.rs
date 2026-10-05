@@ -7,6 +7,7 @@ pub mod diagnostics;
 pub mod document_highlight;
 pub mod error;
 pub mod extract;
+pub mod formatting;
 pub mod hover;
 pub mod locate;
 pub mod nominal;
