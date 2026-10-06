@@ -251,7 +251,7 @@ mod tests {
     fn package(name: &str, sources: &[&str], dependencies: &[&str]) -> PackageInput {
         let source_identities = sources.iter().map(PathBuf::from);
         let source_identities = source_identities.collect_vec();
-        let dependencies = dependencies.iter().map(|dependency| SmolStr::new(dependency));
+        let dependencies = dependencies.iter().map(SmolStr::new);
         PackageInput {
             name: SmolStr::new(name),
             source_identities,

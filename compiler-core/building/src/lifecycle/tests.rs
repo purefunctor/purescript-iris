@@ -293,6 +293,7 @@ fn source_updates_preserve_identity_and_module_ownership() {
     files.apply(&engine, event);
     assert_eq!(files.source_id(unit().source()), Some(file_id));
     assert_eq!(files.source_version(file_id), None);
+    assert_eq!(files.source_metadata(file_id), Some(&true));
     assert_eq!(files.source_authority(&unit()), Some(ContentAuthority::Disk));
     assert_eq!(engine.module_file("Newer"), None);
     assert_eq!(engine.module_file("Disk"), Some(file_id));
@@ -310,10 +311,11 @@ fn retained_source_recovers_without_changing_identity() {
         unit: unit(),
         event: SourceEvent::DiskObserved {
             disk: DiskObservation::Failed(ReloadFailure::clone(&failure)),
-            metadata: true,
+            metadata: false,
         },
     };
     files.apply(&engine, event);
+    assert_eq!(files.source_metadata(file_id), Some(&true));
     assert_eq!(files.source_authority(&unit()), Some(ContentAuthority::Retained));
     assert_eq!(files.source_reload_failure(&unit()), Some(&failure));
     assert_eq!(engine.content(file_id).unwrap().as_ref(), "module Main where\n");
@@ -322,11 +324,12 @@ fn retained_source_recovers_without_changing_identity() {
         unit: unit(),
         event: SourceEvent::DiskObserved {
             disk: DiskObservation::Found(text("module Recovered where\n")),
-            metadata: true,
+            metadata: false,
         },
     };
     files.apply(&engine, event);
     assert_eq!(files.source_id(unit().source()), Some(file_id));
+    assert_eq!(files.source_metadata(file_id), Some(&false));
     assert_eq!(files.source_authority(&unit()), Some(ContentAuthority::Disk));
     assert_eq!(files.source_reload_failure(&unit()), None);
     assert_eq!(engine.content(file_id).unwrap().as_ref(), "module Recovered where\n");

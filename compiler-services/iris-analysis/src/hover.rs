@@ -496,20 +496,6 @@ fn render_hover(format: &MarkupKind, code: Option<String>, annotation: Option<St
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn markdown_hover_keeps_source_backticks_inside_the_code_block() {
-        let source = "module Main {-\n```\n````\n-} where".to_string();
-        let hover = render_hover(&MarkupKind::Markdown, Some(source.clone()), None);
-        let Contents::MarkupContent(markup) = hover.contents else { panic!("expected markup") };
-        assert_eq!(markup.kind, MarkupKind::Markdown);
-        assert_eq!(markup.value, format!("`````purescript\n{source}\n`````"));
-    }
-}
-
 fn hover_pun(
     engine: &impl AnalyzerQueries,
     current_file: FileId,
@@ -522,4 +508,18 @@ fn hover_pun(
     let pun_type = pun_type.ok_or(AnalyzerError::NonFatal)?;
 
     hover_checked_type(engine, current_file, pun_type, format)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn markdown_hover_keeps_source_backticks_inside_the_code_block() {
+        let source = "module Main {-\n```\n````\n-} where".to_string();
+        let hover = render_hover(&MarkupKind::Markdown, Some(source.clone()), None);
+        let Contents::MarkupContent(markup) = hover.contents else { panic!("expected markup") };
+        assert_eq!(markup.kind, MarkupKind::Markdown);
+        assert_eq!(markup.value, format!("`````purescript\n{source}\n`````"));
+    }
 }

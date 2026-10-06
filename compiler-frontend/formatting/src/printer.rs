@@ -52,7 +52,7 @@ impl Tree {
                 let first = atoms.next();
                 let start = first
                     .map_or(offsets.partition_point(|&value| value < offset), |child| child.start);
-                let end = atoms.last().or(first).map_or(start, |child| child.end);
+                let end = atoms.next_back().or(first).map_or(start, |child| child.end);
                 Some(Tree { identifier, kind, start, end, children })
             }
         }
@@ -823,8 +823,7 @@ impl<'arena> Printer<'arena, '_> {
             | LetBindingPattern
             | InstanceEquationStatement
             | CaseBranch => {
-                if elements.last().is_some_and(|tree| tree.kind == Unconditional) {
-                    let last = elements.pop().unwrap();
+                if let Some(last) = elements.pop_if(|tree| tree.kind == Unconditional) {
                     elements.extend(last.elements());
                 }
                 if let Some(separator) =

@@ -143,7 +143,7 @@ fn render_validated(
         candidate.error(index).is_some()
             || candidate.kind(index) != lexed.kind(index)
             || candidate.qualifier(index) != lexed.qualifier(index)
-            || candidate.text(index) != config.token_text(&lexed, context, index)
+            || candidate.text(index) != config.token_text(lexed, context, index)
     };
     let tokens_changed = lexing::layout(&candidate) != layout
         || candidate.len() != lexed.len()

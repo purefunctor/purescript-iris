@@ -412,10 +412,7 @@ impl LanguageServer {
                     && notification["params"]["uri"] == uri.as_str()
             }));
             let deadline = Instant::now() + Duration::from_millis(500);
-            loop {
-                let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
-                    break;
-                };
+            while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
                 match self.messages.recv_timeout(remaining) {
                     Ok(message) => {
                         assert!(

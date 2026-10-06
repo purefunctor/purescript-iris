@@ -117,18 +117,10 @@ where
                     });
                     Member::Present(document)
                 } else {
-                    self.reconcile_source(
-                        engine,
-                        unit,
-                        document,
-                        disk,
-                        None,
-                        &mut change,
-                        registration,
-                    )
+                    self.reconcile_source(engine, unit, document, disk, &mut change, registration)
                 }
             }
-            (Member::Present(document), SourceEvent::DiskObserved { disk, metadata }) => {
+            (Member::Present(mut document), SourceEvent::DiskObserved { disk, metadata }) => {
                 if matches!(document.content, EffectiveContent::Open { .. }) {
                     change.warnings.push(LifecycleWarning::DiskObservedWhileOpen {
                         unit: SourceUnitKey::clone(unit),
@@ -136,15 +128,10 @@ where
                     });
                     Member::Present(document)
                 } else {
-                    self.reconcile_source(
-                        engine,
-                        unit,
-                        document,
-                        disk,
-                        Some(metadata),
-                        &mut change,
-                        registration,
-                    )
+                    if matches!(disk, DiskObservation::Found(_)) {
+                        document.metadata = metadata;
+                    }
+                    self.reconcile_source(engine, unit, document, disk, &mut change, registration)
                 }
             }
         };
@@ -158,7 +145,6 @@ where
         unit: &SourceUnitKey,
         mut document: SourceDocument<Version, Metadata>,
         disk: DiskObservation,
-        metadata: Option<Metadata>,
         change: &mut LifecycleChange,
         registration: &mut ModuleRegistration<'_>,
     ) -> Member<SourceDocument<Version, Metadata>> {
@@ -166,9 +152,6 @@ where
             DiskObservation::Found(text) => {
                 let content_changed =
                     self.set_source_content(engine, document.id, &text, registration);
-                if let Some(metadata) = metadata {
-                    document.metadata = metadata;
-                }
                 document.content = EffectiveContent::Disk { text };
                 change.source_changed(document.id, content_changed);
                 Member::Present(document)

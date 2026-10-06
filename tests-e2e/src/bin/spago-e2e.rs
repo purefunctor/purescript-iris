@@ -43,6 +43,10 @@ fn main() {
         std::fs::write(path, process::id().to_string()).unwrap();
     }
     if env::var_os("IRIS_E2E_SPAGO_DESCENDANT_PID").is_some() {
+        #[expect(
+            clippy::zombie_processes,
+            reason = "the descendant must outlive the shim so E2E tests can verify process-tree retirement"
+        )]
         Command::new(env::current_exe().unwrap()).arg(DESCENDANT_ARGUMENT).spawn().unwrap();
     }
     if env::var_os("IRIS_E2E_SPAGO_EXIT_AFTER_DESCENDANT").is_some() {
@@ -72,8 +76,7 @@ fn main() {
     }
     if is_package_set_query(&arguments) {
         println!(
-            "{}",
-            r#"[{"date":"2026-09-20","version":"99.0.0","compiler":"0.15.16"},{"date":"2026-09-12","version":"81.1.0","compiler":"0.15.15"}]"#
+            r#"[{{"date":"2026-09-20","version":"99.0.0","compiler":"0.15.16"}},{{"date":"2026-09-12","version":"81.1.0","compiler":"0.15.15"}}]"#
         );
         return;
     }
