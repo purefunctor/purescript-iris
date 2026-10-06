@@ -11,4 +11,6 @@ pub enum AnalyzerError {
     QueryError(#[from] QueryError),
     #[error("UrlParseError: {0}")]
     UrlParseError(#[from] url::ParseError),
+    #[error("Formatting: {0}")]
+    Formatting(#[from] formatting::FormatError),
 }

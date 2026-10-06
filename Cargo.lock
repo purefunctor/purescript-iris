@@ -1072,6 +1072,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "formatting"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.15.0",
+ "lexing",
+ "parsing",
+ "pretty",
+ "syntax",
+]
+
+[[package]]
 name = "fraction"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1734,6 +1745,7 @@ dependencies = [
  "checking",
  "files",
  "foreign-javascript",
+ "formatting",
  "gen-lsp-types",
  "indexing",
  "insta",
@@ -1795,6 +1807,7 @@ name = "iris-cli"
 version = "0.1.2"
 dependencies = [
  "directories",
+ "formatting",
  "iris-build",
  "iris-lsp",
  "iris-package",
@@ -4338,6 +4351,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "url",
+ "xattr",
 ]
 
 [[package]]
@@ -4348,6 +4362,7 @@ dependencies = [
  "checking",
  "datatest-stable",
  "files",
+ "formatting",
  "functional",
  "gen-lsp-types",
  "glob",
@@ -4359,8 +4374,10 @@ dependencies = [
  "iris-documentation",
  "itertools 0.15.0",
  "javascript",
+ "lexing",
  "line-index",
  "lowering",
+ "parsing",
  "prim-constants",
  "process_control",
  "serde_json",

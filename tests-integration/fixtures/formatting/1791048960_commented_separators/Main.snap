@@ -1,0 +1,86 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 118
+---
+=== width 80, indent 2 ===
+module Main where
+
+data Choice =
+  First -- first constructor
+  | Second
+
+data Another
+  -- equation explanation
+  = Only
+
+guarded value
+  | first value -- first guard
+    , second value = result
+
+class C a b c
+  | a -> b -- first dependency
+    , b -> c
+
+instance Show a -- constraint explanation
+  => Show (Box a)
+
+arrow ::
+  Int -- input explanation
+  -> Int
+
+=== width 20, indent 2 ===
+module Main where
+
+data Choice =
+  First -- first constructor
+  | Second
+
+data Another
+  -- equation explanation
+  = Only
+
+guarded value
+  | first
+      value -- first guard
+    , second value =
+    result
+
+class C a b c
+  | a
+      -> b -- first dependency
+    , b -> c
+
+instance Show
+  a -- constraint explanation
+  => Show (Box a)
+
+arrow ::
+  Int -- input explanation
+  -> Int
+
+=== width 40, indent 4, unicode ===
+module Main where
+
+data Choice =
+    First -- first constructor
+    | Second
+
+data Another
+    -- equation explanation
+    = Only
+
+guarded value
+    | first value -- first guard
+        , second value = result
+
+class C a b c
+    | a → b -- first dependency
+        , b → c
+
+instance Show
+    a -- constraint explanation
+    ⇒ Show (Box a)
+
+arrow ∷
+    Int -- input explanation
+    → Int

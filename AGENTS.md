@@ -65,6 +65,13 @@ necessarily correct behavior. Resolve routine implementation details from the so
 unresolved language or product intent would change the outcome rather than silently choosing new
 behavior.
 
+### Formatter filesystem boundary
+
+The formatter operates on trusted workspace paths. CLI writes intentionally use `std::fs::write`
+with ordinary OS semantics. Symlink preflight is a convenience safeguard, not a security boundary.
+Concurrent path substitution, atomic replacement, and custom platform metadata management are
+outside the formatter's scope; their absence is not a formatter correctness defect.
+
 ## Code style
 
 In addition to the author's ethos, follow the project's existing conventions for variable names,

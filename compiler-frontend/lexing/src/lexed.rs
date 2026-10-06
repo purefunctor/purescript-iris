@@ -123,6 +123,17 @@ impl Lexed<'_> {
         self.infos[index].position
     }
 
+    /// Finds a token by the exact byte offset of its text, after any qualifier.
+    pub fn find_text_start(&self, offset: u32) -> Option<usize> {
+        self.infos.binary_search_by_key(&offset, |info| info.qualifier).ok()
+    }
+
+    /// Finds the first token whose text starts at or after the byte offset,
+    /// falling back to the end-of-file token for offsets beyond the source.
+    pub fn first_text_start_from(&self, offset: u32) -> usize {
+        self.infos.partition_point(|info| info.qualifier < offset).min(self.end_of_file_index())
+    }
+
     pub fn annotation(&self, index: usize) -> Option<&str> {
         assert!(index < self.infos.len());
 
@@ -130,6 +141,11 @@ impl Lexed<'_> {
         let high = self.infos[index].annotation as usize;
 
         if low < high { Some(&self.source[low..high]) } else { None }
+    }
+
+    /// Iterates annotations in token order, including trailing end-of-file trivia.
+    pub fn annotations(&self) -> impl Iterator<Item = Option<&str>> {
+        (0..self.len()).map(|index| self.annotation(index))
     }
 
     pub fn qualifier(&self, index: usize) -> Option<&str> {
@@ -164,6 +180,12 @@ impl Lexed<'_> {
         let high = self.infos[range.end].token as usize;
 
         &self.source[low..high]
+    }
+
+    /// Every lexer output contains a trailing end-of-file token, even for empty input.
+    pub fn end_of_file_index(&self) -> usize {
+        debug_assert_eq!(self.kinds.last(), Some(&SyntaxKind::END_OF_FILE));
+        self.kinds.len() - 1
     }
 
     pub fn len(&self) -> usize {

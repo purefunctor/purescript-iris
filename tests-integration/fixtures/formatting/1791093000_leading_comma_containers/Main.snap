@@ -1,0 +1,214 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 118
+---
+=== width 24, indent 1 ===
+module Main where
+
+record =
+ { firstField:
+    firstArgument
+ , secondField:
+    secondArgument
+ }
+array =
+ [ firstArgument
+ , secondArgument
+ , thirdArgument
+ ]
+nested =
+ { outer:
+    { left:
+       firstArgument
+    , right:
+       secondArgument
+    }
+ , tail:
+    [ firstArgument
+    , secondArgument
+    ]
+ }
+updated value =
+ value
+  { firstField =
+     firstArgument
+  , nested
+     { left =
+        firstArgument
+     , right =
+        secondArgument
+     }
+  , lastField =
+     thirdArgument
+  }
+type Closed =
+ { firstField ::
+    FirstType
+ , secondField ::
+    SecondType
+ }
+type Open row =
+ { firstField ::
+    FirstType
+ , secondField ::
+    SecondType
+ | row
+ }
+type Row row =
+ ( firstField ::
+    FirstType
+ , secondField ::
+    SecondType
+ | row
+ )
+recordPattern { firstField:
+                 firstArgument
+              , secondField:
+                 secondArgument
+              } =
+ firstArgument
+arrayPattern [ firstArgument
+             , secondArgument
+             , thirdArgument
+             ] =
+ secondArgument
+singletons =
+ { one:
+    [ firstArgument ]
+ , empty: {}
+ , list: []
+ }
+
+=== width 40, indent 2 ===
+module Main where
+
+record =
+  { firstField: firstArgument
+  , secondField: secondArgument
+  }
+array =
+  [ firstArgument
+  , secondArgument
+  , thirdArgument
+  ]
+nested =
+  { outer:
+      { left: firstArgument
+      , right: secondArgument
+      }
+  , tail:
+      [ firstArgument, secondArgument ]
+  }
+updated value =
+  value
+    { firstField = firstArgument
+    , nested
+        { left = firstArgument
+        , right = secondArgument
+        }
+    , lastField = thirdArgument
+    }
+type Closed =
+  { firstField :: FirstType
+  , secondField :: SecondType
+  }
+type Open row =
+  { firstField :: FirstType
+  , secondField :: SecondType
+  | row
+  }
+type Row row =
+  ( firstField :: FirstType
+  , secondField :: SecondType
+  | row
+  )
+recordPattern { firstField:
+                  firstArgument
+              , secondField:
+                  secondArgument
+              } = firstArgument
+arrayPattern [ firstArgument
+             , secondArgument
+             , thirdArgument
+             ] = secondArgument
+singletons =
+  { one: [ firstArgument ]
+  , empty: {}
+  , list: []
+  }
+
+=== width 40, indent 4, unicode ===
+module Main where
+
+record =
+    { firstField: firstArgument
+    , secondField: secondArgument
+    }
+array =
+    [ firstArgument
+    , secondArgument
+    , thirdArgument
+    ]
+nested =
+    { outer:
+          { left: firstArgument
+          , right: secondArgument
+          }
+    , tail:
+          [ firstArgument
+          , secondArgument
+          ]
+    }
+updated value =
+    value
+        { firstField = firstArgument
+        , nested
+              { left = firstArgument
+              , right = secondArgument
+              }
+        , lastField = thirdArgument
+        }
+type Closed =
+    { firstField ∷ FirstType
+    , secondField ∷ SecondType
+    }
+type Open row =
+    { firstField ∷ FirstType
+    , secondField ∷ SecondType
+    | row
+    }
+type Row row =
+    ( firstField ∷ FirstType
+    , secondField ∷ SecondType
+    | row
+    )
+recordPattern { firstField:
+                    firstArgument
+              , secondField:
+                    secondArgument
+              } = firstArgument
+arrayPattern [ firstArgument
+             , secondArgument
+             , thirdArgument
+             ] = secondArgument
+singletons =
+    { one: [ firstArgument ]
+    , empty: {}
+    , list: []
+    }
+
+=== width 120, indent 2 ===
+module Main where
+
+record = { firstField: firstArgument, secondField: secondArgument }
+array = [ firstArgument, secondArgument, thirdArgument ]
+nested = { outer: { left: firstArgument, right: secondArgument }, tail: [ firstArgument, secondArgument ] }
+updated value =
+  value
+    { firstField = firstArgument, nested { left = firstArgument, right = secondArgument }, lastField = thirdArgument }
+type Closed = { firstField :: FirstType, secondField :: SecondType }
+type Open row = { firstField :: FirstType, secondField :: SecondType | row }
+type Row row = (firstField :: FirstType, secondField :: SecondType | row)
+recordPattern { firstField: firstArgument, secondField: secondArgument } = firstArgument
+arrayPattern [ firstArgument, secondArgument, thirdArgument ] = secondArgument
+singletons = { one: [ firstArgument ], empty: {}, list: [] }

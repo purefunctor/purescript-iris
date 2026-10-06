@@ -28,6 +28,7 @@ fn prints_help_for_every_command_path() {
         ("help_watch", &["watch", "--help"]),
         ("help_watch_query", &["watch", "query", "--help"]),
         ("help_skills", &["skills", "--help"]),
+        ("help_format", &["format", "--help"]),
         ("help_lsp", &["lsp", "--help"]),
         ("help_run", &["run", "--help"]),
         ("help_test", &["test", "--help"]),

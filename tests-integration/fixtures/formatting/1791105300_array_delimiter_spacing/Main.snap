@@ -1,0 +1,48 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 118
+---
+=== width 16, indent 2 ===
+module Main
+  where
+
+empty = []
+value =
+  [ 1, 22 ]
+singleton =
+  [ 1 ]
+nested =
+  [ [ 1 ], [] ]
+pattern [ first
+        , second
+        ]
+  [] = first
+comments =
+  [ {- note -} 1
+  ]
+
+=== width 17, indent 2 ===
+module Main where
+
+empty = []
+value = [ 1, 22 ]
+singleton = [ 1 ]
+nested =
+  [ [ 1 ], [] ]
+pattern [ first
+        , second
+        ]
+  [] = first
+comments =
+  [ {- note -} 1
+  ]
+
+=== width 80, indent 4 ===
+module Main where
+
+empty = []
+value = [ 1, 22 ]
+singleton = [ 1 ]
+nested = [ [ 1 ], [] ]
+pattern [ first, second ] [] = first
+comments = [ {- note -} 1 ]

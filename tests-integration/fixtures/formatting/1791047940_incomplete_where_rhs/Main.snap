@@ -1,0 +1,5 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 106
+---
+cannot format: 3:5: incomplete syntax in WhereExpression

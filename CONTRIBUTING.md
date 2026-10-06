@@ -78,6 +78,26 @@ Undeclared collisions and unused replacements fail. Replacements apply only to
 registry modules, never Prim or another fixture module, and do not inherit the
 package's FFI.
 
+### Formatting fixtures
+
+Run `just t formatting` for formatter fixtures and corpus tests. Fixtures live in
+`tests-integration/fixtures/formatting/`; CLI behavior is covered by end-to-end tests.
+See the [formatting guide](documentation/formatting.md) for user-facing behavior.
+
+Leading comments such as `-- @format width=40 indent=4 unicode=true` select formatting options.
+Repeat the header to snapshot multiple configurations of the same source; omitted options use
+the defaults. Headers are test metadata and are removed before formatting. Alternate source layouts
+use separate fixtures, each with its own headers and snapshot.
+
+`crlf=true` exercises CRLF input. `incomplete=true` requires parser-silent invalid syntax to be
+rejected; `incomplete=false` requires successful formatting without parser errors.
+
+Successful cases check syntax and token preservation, comment boundaries, whitespace, idempotence,
+and cross-width consistency in both directions. Fixtures compare the query engine's declaration
+index, name resolutions, and lowered semantic tree before and after formatting, requiring both
+value equality and reuse of the same cached objects. Token comparisons preserve unresolved names
+and qualifiers while allowing opt-in Unicode built-in spellings.
+
 ### Updating dependencies
 
 Edit `package_set` in [`tests-integration/packages.json`](tests-integration/packages.json)

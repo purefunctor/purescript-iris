@@ -1,0 +1,18 @@
+---
+source: tests-e2e/tests/cli.rs
+---
+status: 0
+--- stdout
+Format a Spago workspace or explicit source files.
+
+Usage: iris format [FLAGS]
+
+Flags:
+      --write            Replace files with formatted output. This is the default for workspaces.
+      --check            Report files that are not formatted without changing them.
+      --width <COLUMNS>  Preferred line width. Defaults to 80 columns.
+      --indent <SPACES>  Spaces per indentation level. Defaults to 2.
+      --unicode          Use Unicode spellings for built-in operators and forall.
+      --file <PATH>      Format only this file, without workspace discovery. Repeat for multiple files; use - for stdin.
+  -h, --help             Print help
+--- stderr

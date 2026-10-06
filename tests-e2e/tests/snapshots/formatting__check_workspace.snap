@@ -1,0 +1,11 @@
+---
+source: tests-e2e/tests/formatting.rs
+expression: "stderr.replace(&format!(\"{root}/\"), \"\")"
+---
+packages/first/src/Inner/Foo.purs
+packages/first/src/Inner/src/Inside.purs
+packages/first/src/Main.purs
+packages/first/src/ManifestOnly/Leaf.purs
+packages/first/test/nested/Test.purs
+packages/second/src/Main.purs
+packages/second/test/Test.purs

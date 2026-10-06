@@ -39,6 +39,8 @@ pub enum Command {
     Lsp(LspOptions),
     /// Print agent skills for using Iris, which match this version.
     Skills(SkillsOptions),
+    /// Format a Spago workspace or explicit source files.
+    Format(FormatOptions),
     /// Build and run a Spago package with Node.js.
     Run {
         #[usage(flatten)]
@@ -49,6 +51,37 @@ pub enum Command {
         #[usage(flatten)]
         options: TestOptions,
     },
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct FormatOptions {
+    #[usage(arg_group)]
+    pub mode: Option<FormatMode>,
+
+    /// Preferred line width. Defaults to 80 columns.
+    #[usage(long, value_name = "COLUMNS")]
+    pub width: Option<usize>,
+
+    /// Spaces per indentation level. Defaults to 2.
+    #[usage(long, value_name = "SPACES")]
+    pub indent: Option<usize>,
+
+    /// Use Unicode spellings for built-in operators and forall.
+    #[usage(long)]
+    pub unicode: bool,
+
+    /// Format only this file, without workspace discovery. Repeat for multiple files; use - for stdin.
+    #[usage(long = "file", value_name = "PATH")]
+    pub files: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy, usage::ArgGroup)]
+pub enum FormatMode {
+    /// Replace files with formatted output. This is the default for workspaces.
+    Write,
+    /// Report files that are not formatted without changing them.
+    Check,
 }
 
 pub struct WatchConfig {

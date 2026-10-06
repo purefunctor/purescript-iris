@@ -1,0 +1,17 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 78
+---
+=== width 25, indent 2 ===
+module Main where
+
+identity ::
+  forall a. a -> a
+identity =
+  \value -> value
+
+=== width 25, indent 2, unicode ===
+module Main where
+
+identity ∷ ∀ a. a → a
+identity = \value → value

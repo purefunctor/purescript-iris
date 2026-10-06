@@ -1,0 +1,10 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 78
+---
+module Main where
+
+value =
+    combine
+        firstArgument
+        secondArgument

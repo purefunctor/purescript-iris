@@ -177,6 +177,8 @@ fn type_variable_binding(p: &mut Parser) {
 
     if p.eat(SyntaxKind::DOUBLE_COLON) {
         type_(p);
+    } else if closing {
+        p.expect(SyntaxKind::DOUBLE_COLON);
     }
 
     if closing {

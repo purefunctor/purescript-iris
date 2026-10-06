@@ -1,0 +1,5 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 20
+---
+cannot format: unterminated block comment

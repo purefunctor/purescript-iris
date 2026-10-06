@@ -745,6 +745,126 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
 }
 
 #[test]
+fn formats_unsaved_documents_with_utf16_ranges() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        "package:
+  name: application
+  dependencies: []
+workspace: {}
+",
+    );
+    let saved = "module Main where
+value = 0
+";
+    workspace.write("src/Main.purs", saved);
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    server.request("workspace/symbol", json!({"query": "value"}));
+    let uri = Url::from_file_path(workspace.path().join("src/Main.purs")).unwrap();
+    let source = "module Main where\r\n\r\nvalue=\"😀\"";
+    server.notify(
+        "textDocument/didOpen",
+        json!({
+            "textDocument": {"uri": uri, "languageId": "purescript", "version": 1, "text": source}
+        }),
+    );
+    let parameters =
+        json!({"textDocument": {"uri": uri}, "options": {"tabSize": 2, "insertSpaces": true}});
+    let edits = server
+        .connection
+        .request("textDocument/formatting", parameters.clone())
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        edits,
+        json!([{
+            "range": {"start": {"line": 0, "character": 0}, "end": {"line": 2, "character": 10}},
+            "newText": r#"module Main where
+
+value = "😀"
+"#
+        }])
+    );
+    server.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": {"uri": uri, "version": 2},
+            "contentChanges": [{"text": edits[0]["newText"]}]
+        }),
+    );
+    let edits = server
+        .connection
+        .request("textDocument/formatting", parameters.clone())
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap()
+        .unwrap();
+    assert_eq!(edits, json!([]));
+    server.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": {"uri": uri, "version": 3},
+            "contentChanges": [{"text": "module Main where
+
+value=combine firstArgument secondArgument
+"}]
+        }),
+    );
+    let edits = server.connection.request("textDocument/formatting", json!({
+        "textDocument": {"uri": uri}, "options": {"tabSize": 4, "insertSpaces": false, "lineWidth": 32}
+    })).recv_timeout(Duration::from_secs(10)).unwrap().unwrap();
+    assert_eq!(
+        edits[0]["newText"],
+        "module Main where
+
+value =
+    combine
+        firstArgument
+        secondArgument
+"
+    );
+    let mut errors = Vec::new();
+    for options in [
+        json!({"tabSize": 0, "insertSpaces": true}),
+        json!({"tabSize": 2, "insertSpaces": true, "lineWidth": 0}),
+        json!({"tabSize": 2, "insertSpaces": true, "lineWidth": "40"}),
+    ] {
+        let result = server
+            .connection
+            .request(
+                "textDocument/formatting",
+                json!({
+                    "textDocument": {"uri": uri}, "options": options
+                }),
+            )
+            .recv_timeout(Duration::from_secs(10))
+            .unwrap();
+        let Err(Error::Response(error)) = result else {
+            panic!("expected invalid formatting options to be rejected: {result:?}");
+        };
+        assert_eq!(error.code, ErrorCode::InvalidParams as i32);
+        errors.push(json!({"options": options, "error": error}));
+    }
+    snapshot_json("formatting_invalid_options", &json!(errors));
+    server.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": {"uri": uri, "version": 4}, "contentChanges": [{"text": "module"}]
+        }),
+    );
+    let edits = server
+        .connection
+        .request("textDocument/formatting", parameters)
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap()
+        .unwrap();
+    assert_eq!(edits, Value::Null);
+    assert_eq!(workspace.read("src/Main.purs"), saved);
+    server.shutdown();
+}
+
+#[test]
 fn discovers_workspace_sources_when_opened_from_a_nested_package() {
     let workspace = TestWorkspace::empty();
     workspace.write("spago.yaml", "workspace: {}\n");

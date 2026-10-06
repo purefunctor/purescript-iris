@@ -1,0 +1,125 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 118
+---
+=== width 40, indent 2 ===
+module Main where
+
+data Command =
+  Initialize Configuration
+  | Execute Request Environment
+  | Shutdown Reason
+  | Restart
+
+guarded value
+  | Just first <- lookupFirst value,
+    Just second <- lookupSecond first,
+    second > threshold = second
+
+class Convert input output intermediate
+  | input -> output,
+    output -> intermediate,
+    intermediate -> input
+
+class Correlate
+    firstParameter
+    secondParameter
+    finalParameter
+  | firstParameter secondParameter
+    -> finalParameter
+
+class Multiple
+    firstLongVariable
+    secondLongVariable
+    thirdLongVariable
+    fourthLongVariable
+  | firstLongVariable secondLongVariable
+    -> thirdLongVariable fourthLongVariable
+
+instance command :: (
+  Show configuration
+  , Eq environment
+) =>
+  Show
+    (
+      Command configuration environment
+    ) where
+  show value = "command"
+
+=== width 80, indent 2 ===
+module Main where
+
+data Command =
+  Initialize Configuration
+  | Execute Request Environment
+  | Shutdown Reason
+  | Restart
+
+guarded value
+  | Just first <- lookupFirst value,
+    Just second <- lookupSecond first,
+    second > threshold = second
+
+class Convert input output intermediate
+  | input -> output, output -> intermediate, intermediate -> input
+
+class Correlate firstParameter secondParameter finalParameter
+  | firstParameter secondParameter -> finalParameter
+
+class Multiple
+    firstLongVariable
+    secondLongVariable
+    thirdLongVariable
+    fourthLongVariable
+  | firstLongVariable secondLongVariable -> thirdLongVariable fourthLongVariable
+
+instance command :: (Show configuration, Eq environment) =>
+  Show (Command configuration environment) where
+  show value = "command"
+
+=== width 40, indent 4, unicode ===
+module Main where
+
+data Command =
+    Initialize Configuration
+    | Execute Request Environment
+    | Shutdown Reason
+    | Restart
+
+guarded value
+    | Just first ← lookupFirst value,
+        Just second ←
+            lookupSecond first,
+        second > threshold = second
+
+class Convert input output intermediate
+    | input → output,
+        output → intermediate,
+        intermediate → input
+
+class Correlate
+        firstParameter
+        secondParameter
+        finalParameter
+    | firstParameter secondParameter
+        → finalParameter
+
+class Multiple
+        firstLongVariable
+        secondLongVariable
+        thirdLongVariable
+        fourthLongVariable
+    | firstLongVariable secondLongVariable
+        → thirdLongVariable fourthLongVariable
+
+instance command ∷ (
+    Show configuration
+    , Eq environment
+) ⇒
+    Show
+        (
+            Command
+                configuration
+                environment
+        ) where
+    show value = "command"

@@ -37,7 +37,7 @@ coverage-html:
 @e2e *args="":
   cargo nextest run -p tests-e2e -j 1 "$@"
 
-[doc("Run integration tests with snapshot diffing: compiler (c)|lowering (l)|resolving (r)|lsp")]
+[doc("Run integration tests with snapshot diffing: compiler (c)|lowering (l)|resolving (r)|lsp|docs|formatting")]
 @t *args="":
   cargo run -q -p compiler-scripts --release -- "$@"
 

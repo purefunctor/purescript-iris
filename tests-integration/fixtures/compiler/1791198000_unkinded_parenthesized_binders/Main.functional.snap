@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export constructor Proxy/0
+
+@export identity = \value%0 -> value%0

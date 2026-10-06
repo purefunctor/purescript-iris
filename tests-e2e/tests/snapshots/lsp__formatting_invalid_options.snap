@@ -1,0 +1,40 @@
+---
+source: tests-e2e/tests/lsp.rs
+---
+[
+  {
+    "error": {
+      "code": -32602,
+      "data": null,
+      "message": "indent width must be between 1 and 65535 spaces"
+    },
+    "options": {
+      "insertSpaces": true,
+      "tabSize": 0
+    }
+  },
+  {
+    "error": {
+      "code": -32602,
+      "data": null,
+      "message": "lineWidth must be a positive integer"
+    },
+    "options": {
+      "insertSpaces": true,
+      "lineWidth": 0,
+      "tabSize": 2
+    }
+  },
+  {
+    "error": {
+      "code": -32602,
+      "data": null,
+      "message": "lineWidth must be a positive integer"
+    },
+    "options": {
+      "insertSpaces": true,
+      "lineWidth": "40",
+      "tabSize": 2
+    }
+  }
+]

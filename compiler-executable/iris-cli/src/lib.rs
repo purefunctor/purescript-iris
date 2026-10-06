@@ -1,4 +1,5 @@
 mod cli;
+mod format;
 mod logging;
 mod skills;
 
@@ -12,6 +13,7 @@ pub(crate) const VERSION: &str = env!("IRIS_VERSION");
 pub fn run() -> i32 {
     let program = cli::Program::parse_with_diagnostics();
     match program.command {
+        cli::Command::Format(options) => format::run(options),
         cli::Command::New(options) => match iris_package::create(options.into_config()) {
             Ok(package) => {
                 println!(
