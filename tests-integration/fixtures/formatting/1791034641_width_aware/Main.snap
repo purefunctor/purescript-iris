@@ -1,22 +1,20 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 40, indent 2 ===
 module Main
-  (
-    longApplication
-    , longRecord
-    , branches
-    , Box(..)
+  ( longApplication
+  , longRecord
+  , branches
+  , Box(..)
   )
   where
 
 import Data.Collections
-  (
-    Collection
-    , mapCollection
-    , filterCollection
+  ( Collection
+  , mapCollection
+  , filterCollection
   )
   as Collections
 
@@ -425,19 +423,17 @@ last
 
 === width 40, indent 1 ===
 module Main
- (
-  longApplication
-  , longRecord
-  , branches
-  , Box(..)
+ ( longApplication
+ , longRecord
+ , branches
+ , Box(..)
  )
  where
 
 import Data.Collections
- (
-  Collection
-  , mapCollection
-  , filterCollection
+ ( Collection
+ , mapCollection
+ , filterCollection
  )
  as Collections
 
@@ -604,19 +600,17 @@ last
 
 === width 40, indent 4 ===
 module Main
-    (
-        longApplication
-        , longRecord
-        , branches
-        , Box(..)
+    ( longApplication
+    , longRecord
+    , branches
+    , Box(..)
     )
     where
 
 import Data.Collections
-    (
-        Collection
-        , mapCollection
-        , filterCollection
+    ( Collection
+    , mapCollection
+    , filterCollection
     )
     as Collections
 
@@ -789,19 +783,17 @@ last
 
 === width 40, indent 2, unicode ===
 module Main
-  (
-    longApplication
-    , longRecord
-    , branches
-    , Box(..)
+  ( longApplication
+  , longRecord
+  , branches
+  , Box(..)
   )
   where
 
 import Data.Collections
-  (
-    Collection
-    , mapCollection
-    , filterCollection
+  ( Collection
+  , mapCollection
+  , filterCollection
   )
   as Collections
 

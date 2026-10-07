@@ -425,7 +425,16 @@ impl<'arena> Printer<'arena, '_> {
         if tail.is_empty() {
             return self.fixed(head, context);
         }
-        let head_document = self.fixed(head, Context { following: Some(margin), ..context })?;
+        let head_context = Context { following: Some(margin), ..context };
+        let head_document = if let [keyword, constraints] = head
+            && keyword.kind == CLASS
+            && constraints.kind == ClassConstraints
+            && constraints.children.first().is_some_and(|tree| tree.kind == LEFT_PARENTHESIS)
+        {
+            self.delimited(constraints, head_context, Some((keyword, tail[0])))?
+        } else {
+            self.fixed(head, head_context)?
+        };
         let gap = |position: usize| {
             let previous = if position == 0 { head.last().unwrap() } else { tail[position - 1] };
             let element = tail[position];
@@ -437,7 +446,10 @@ impl<'arena> Printer<'arena, '_> {
         };
         let fixed_gaps =
             (0..tail.len()).all(|position| !matches!(gap(position), Gap::Soft | Gap::SoftEmpty));
-        if fixed_gaps || elements.iter().any(|tree| tree.has_inline_do()) {
+        if fixed_gaps
+            || elements.iter().any(|tree| tree.has_inline_do())
+            || head.last().is_some_and(|tree| tree.kind == ClassConstraints)
+        {
             let mut inline_suffix = self.arena.nil();
             let mut broken_suffix = self.arena.nil();
             for position in (0..tail.len()).rev() {
@@ -473,10 +485,11 @@ impl<'arena> Printer<'arena, '_> {
 
     fn delimited(
         &self,
-        elements: &[&Tree],
+        tree: &Tree,
         context: Context,
-        aligned: bool,
+        prefix: Option<(&Tree, &Tree)>,
     ) -> Result<Doc<'arena>, FormatError> {
+        let elements = tree.elements();
         let opening = elements
             .iter()
             .position(|tree| matches!(tree.kind, LEFT_PARENTHESIS | LEFT_SQUARE | LEFT_CURLY));
@@ -484,102 +497,103 @@ impl<'arena> Printer<'arena, '_> {
             .iter()
             .rposition(|tree| matches!(tree.kind, RIGHT_PARENTHESIS | RIGHT_SQUARE | RIGHT_CURLY));
         let Some((opening, closing)) = opening.zip(closing) else {
-            return self.fixed(elements, context);
+            return self.fixed(&elements, context);
         };
-        if closing == opening + 1 && !aligned {
-            return self.fixed(elements, context);
-        }
-        if aligned {
-            // Coordinates are relative to the opener, including inline openers.
-            // Items start after the two-column `{ ` or `, ` prefix; only their
-            // continuations use the configured indentation width.
-            let item_context = Context { margin: 2, following: None };
-            let punctuation_context = Context { margin: 0, following: None };
-            let mut document = self.tree(elements[opening], punctuation_context)?;
-            let items = elements[opening + 1..closing].iter().flat_map(|element| {
-                if element.kind == TypeRowTail { element.elements() } else { vec![*element] }
-            });
-            let items = items.collect::<Vec<_>>();
-            for (position, element) in items.iter().enumerate() {
-                let punctuation = matches!(element.kind, COMMA | PIPE);
-                let gap = if position == 0 {
-                    if elements[opening].kind == LEFT_PARENTHESIS {
-                        Gap::BrokenSpace
-                    } else {
-                        Gap::Space
-                    }
-                } else if element.kind == COMMA {
-                    Gap::SoftEmpty
-                } else if element.kind == PIPE {
-                    Gap::Soft
+        // Coordinates are relative to the opener, including inline openers.
+        // Items start after the two-column `{ ` or `, ` prefix; only their
+        // continuations use the configured indentation width.
+        let item_context = Context { margin: 2, following: None };
+        let punctuation_context = Context { margin: 0, following: None };
+        let mut document = self.tree(elements[opening], punctuation_context)?;
+        let items = elements[opening + 1..closing].iter().flat_map(|element| {
+            if element.kind == TypeRowTail { element.elements() } else { vec![*element] }
+        });
+        let items = items.collect::<Vec<_>>();
+        for (position, element) in items.iter().enumerate() {
+            let punctuation = matches!(element.kind, COMMA | PIPE);
+            let gap = if position == 0 {
+                if elements[opening].kind == LEFT_PARENTHESIS {
+                    Gap::BrokenSpace
                 } else {
-                    self.fixed_gap(element.start)
-                };
-                let boundary = self.boundary(element.start, gap)?;
-                let body = if punctuation {
-                    boundary.append(self.tree(element, punctuation_context)?)
-                } else if position > 0 && items[position - 1].kind == PIPE {
-                    // A row tail can start beside the opener or after a comment,
-                    // so its continuation must follow the type's actual column.
-                    boundary.append(self.tree(element, punctuation_context)?.align()).nest(2)
-                } else {
-                    boundary.append(self.tree(element, item_context)?).nest(2)
-                };
-                document = document.append(body);
-            }
-            let edge = if items.is_empty() {
-                Gap::Tight
-            } else if matches!(elements[opening].kind, LEFT_CURLY | LEFT_SQUARE) {
+                    Gap::Space
+                }
+            } else if element.kind == COMMA {
+                Gap::SoftEmpty
+            } else if element.kind == PIPE {
                 Gap::Soft
             } else {
-                Gap::SoftEmpty
+                self.fixed_gap(element.start)
             };
-            document = document
-                .append(self.boundary(elements[closing].start, edge)?)
-                .append(self.tree(elements[closing], punctuation_context)?)
-                .group()
-                .align();
-            return Ok(document);
+            let boundary = self.boundary(element.start, gap)?;
+            let body = if punctuation {
+                boundary.append(self.tree(element, punctuation_context)?)
+            } else if position > 0 && items[position - 1].kind == PIPE {
+                // A row tail can start beside the opener or after a comment,
+                // so its continuation must follow the type's actual column.
+                boundary.append(self.tree(element, punctuation_context)?.align()).nest(2)
+            } else {
+                boundary.append(self.tree(element, item_context)?).nest(2)
+            };
+            document = document.append(body);
         }
-        let edge = if elements[opening].kind == LEFT_CURLY { Gap::Soft } else { Gap::SoftEmpty };
-        let inner_context =
-            Context { margin: context.margin + self.config.indent_width, following: None };
-        let body =
-            self.sequence(&elements[opening + 1..closing], inner_context, |_, _, current| {
-                if current.kind == COMMA {
-                    Gap::SoftEmpty
-                } else if current.kind == TypeRowTail {
-                    Gap::Soft
-                } else {
-                    self.fixed_gap(current.start)
-                }
-            })?;
-        let opening_document =
-            self.fixed(&elements[..=opening], Context { following: None, ..context })?;
-        let boundary = self.boundary(elements[opening + 1].start, edge)?;
-        let boundary = if elements[opening + 1..closing].iter().any(|tree| tree.has_inline_do()) {
-            boundary.group()
+        let edge = if items.is_empty() {
+            Gap::Tight
+        } else if matches!(elements[opening].kind, LEFT_CURLY | LEFT_SQUARE) {
+            Gap::Soft
         } else {
-            boundary
+            Gap::SoftEmpty
         };
-        let document = opening_document
-            .append(boundary.append(body).nest(self.config.indent_width as isize))
+        document = document
             .append(self.boundary(elements[closing].start, edge)?)
-            .append(self.tree(elements[closing], context)?)
-            .group();
+            .append(self.tree(elements[closing], punctuation_context)?);
+        if prefix.is_none() && !matches!(tree.kind, ExportList | TypeItemsList) {
+            document = document.group();
+        }
+        let mut document = document.align();
+        if let Some((prefix, head)) = prefix {
+            let keyword = self.tree(prefix, context)?;
+            let broken = keyword.clone().append(
+                self.boundary(elements[opening].start, Gap::Hard(1))?
+                    .append(document.clone())
+                    .nest(self.config.indent_width as isize),
+            );
+            document = keyword.append(
+                self.boundary(elements[opening].start, Gap::Soft)?
+                    .append(document)
+                    .nest(self.config.indent_width as isize),
+            );
+            // Fit the complete class head before allowing its parameters to wrap.
+            let probe =
+                self.arena.fail().flat_alt(self.fixed(&[prefix, tree, head], context)?).group();
+            let width = self.config.line_width;
+            let inline = document.group();
+            document = self.arena.column(move |column| {
+                let mut rendered = String::new();
+                if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                    inline.clone().into_doc()
+                } else {
+                    broken.clone().into_doc()
+                }
+            });
+        }
+        if opening > 0 {
+            document = self
+                .fixed(&elements[..opening], context)?
+                .append(self.boundary(elements[opening].start, Gap::Space)?)
+                .append(document);
+        }
         if closing + 1 < elements.len() {
             let margin = context.margin + self.config.indent_width;
-            Ok(document.append(
+            document = document.append(
                 self.boundary(
                     elements[closing + 1].start,
                     self.fixed_gap(elements[closing + 1].start),
                 )?
                 .append(self.fixed(&elements[closing + 1..], Context { margin, ..context })?)
                 .nest(self.config.indent_width as isize),
-            ))
-        } else {
-            Ok(document)
+            );
         }
+        Ok(document)
     }
 
     fn arrows(&self, tree: &Tree, context: Context) -> Result<Doc<'arena>, FormatError> {
@@ -733,6 +747,16 @@ impl<'arena> Printer<'arena, '_> {
         match tree.kind {
             Module => self.sequence(&elements, context, |_, _, _| Gap::Hard(2)),
             ModuleImports | ModuleStatements => self.statements(&elements, context),
+            ImportType | ExportType => {
+                let document = self.sequence(&elements, context, |_, _, current| {
+                    if current.kind == TypeItemsList {
+                        Gap::BrokenSpace
+                    } else {
+                        self.fixed_gap(current.start)
+                    }
+                })?;
+                Ok(document.group())
+            }
             DoStatements | CaseBranches | LetBindingStatements | ClassStatements
             | InstanceStatements | Conditionals => {
                 // A layout body must exceed the planned following continuation,
@@ -807,16 +831,21 @@ impl<'arena> Printer<'arena, '_> {
                     .append(self.fixed(&elements[position + 1..], context)?)
                     .group())
             }
-            ExpressionArray | ExpressionRecord | BinderArray | BinderRecord | TypeRecord
-            | TypeRow | RecordUpdates => self.delimited(&elements, context, true),
-            ExpressionParenthesized
+            ExpressionArray
+            | ExpressionRecord
+            | BinderArray
+            | BinderRecord
+            | TypeRecord
+            | TypeRow
+            | RecordUpdates
+            | ExpressionParenthesized
             | BinderParenthesized
             | TypeParenthesized
             | ExportList
             | ImportList
             | TypeItemsList
             | InstanceConstraints
-            | ClassConstraints => self.delimited(&elements, context, false),
+            | ClassConstraints => self.delimited(tree, context, None),
             ExpressionIfThenElse => self.conditional(&elements, context),
             ValueEquation
             | LetBindingEquation
@@ -857,7 +886,7 @@ impl<'arena> Printer<'arena, '_> {
             | TypeSynonymEquation
             | NewtypeEquation => {
                 if matches!(elements.first().map(|tree| tree.kind), Some(LEFT_PARENTHESIS)) {
-                    return self.delimited(&elements, context, false);
+                    return self.delimited(tree, context, None);
                 }
                 let separator = elements.iter().position(|tree| {
                     matches!(

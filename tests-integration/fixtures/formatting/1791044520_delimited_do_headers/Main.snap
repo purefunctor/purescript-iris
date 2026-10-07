@@ -1,18 +1,18 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 114
+assertion_line: 127
 ---
 === width 30, indent 2 ===
 module Main where
 
-lambda = for_ values (
-  \value -> do
-    log value
-)
+lambda = for_ values
+  ( \value -> do
+      log value
+  )
 
-parenthesized = use (do
-    action
-) next
+parenthesized = use ( do
+                        action
+                    ) next
 
 record = { onClick: do
              action
@@ -25,22 +25,39 @@ array = [ do
             secondAction
         ]
 
-applicative = use (ado
-    first <- firstAction
-    second <- secondAction
-    in combine first second
-)
+applicative = use ( ado
+                      first <-
+                        firstAction
+                      second <-
+                        secondAction
+                      in
+                        combine
+                          first
+                          second
+                  )
+
+wrapped =
+  ( combine
+      firstArgument
+      secondArgument
+  )
+nested =
+  ( ( combine
+        firstArgument
+        secondArgument
+    )
+  )
 
 === width 80, indent 2 ===
 module Main where
 
-lambda = for_ values (\value -> do
-    log value
-)
+lambda = for_ values ( \value -> do
+                         log value
+                     )
 
-parenthesized = use (do
-    action
-) next
+parenthesized = use ( do
+                        action
+                    ) next
 
 record = { onClick: do
              action
@@ -53,22 +70,25 @@ array = [ do
             secondAction
         ]
 
-applicative = use (ado
-    first <- firstAction
-    second <- secondAction
-    in combine first second
-)
+applicative = use ( ado
+                      first <- firstAction
+                      second <- secondAction
+                      in combine first second
+                  )
+
+wrapped = (combine firstArgument secondArgument)
+nested = ((combine firstArgument secondArgument))
 
 === width 40, indent 4, unicode ===
 module Main where
 
-lambda = for_ values (\value → do
-        log value
-)
+lambda = for_ values ( \value → do
+                           log value
+                     )
 
-parenthesized = use (do
-        action
-) next
+parenthesized = use ( do
+                          action
+                    ) next
 
 record = { onClick: do
                action
@@ -81,8 +101,25 @@ array = [ do
               secondAction
         ]
 
-applicative = use (ado
-        first ← firstAction
-        second ← secondAction
-        in combine first second
-)
+applicative = use ( ado
+                        first ←
+                            firstAction
+                        second ←
+                            secondAction
+                        in
+                            combine
+                                first
+                                second
+                  )
+
+wrapped =
+    ( combine
+          firstArgument
+          secondArgument
+    )
+nested =
+    ( ( combine
+            firstArgument
+            secondArgument
+      )
+    )

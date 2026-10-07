@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 20, indent 2 ===
 module Main where
@@ -63,8 +63,7 @@ commented =
       secondArgument
 negated =
   firstLongOperand
-    - (
-        -secondLongOperand
+    - ( -secondLongOperand
       )
 
 qualified =
@@ -214,8 +213,7 @@ commented =
    secondArgument
 negated =
  firstLongOperand
-  - (
-     -secondLongOperand
+  - ( -secondLongOperand
     )
 
 qualified =

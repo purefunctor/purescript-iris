@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 20, indent 1 ===
 module Main where
@@ -130,9 +130,8 @@ accessUpdate =
      secondArgument
   }
 parenthesizedUpdate =
- (
-  chooseRecord
-   firstArgument
+ ( chooseRecord
+    firstArgument
  )
   { field =
      firstArgument

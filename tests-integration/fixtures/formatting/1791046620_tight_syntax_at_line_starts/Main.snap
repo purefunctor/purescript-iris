@@ -1,25 +1,22 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 30, indent 4 ===
 module Main where
 
 main =
     traverse_
-        (
-            \item ->
-                log
-                    (
-                        "processing "
-                            <> show
-                                   item
-                    )
+        ( \item ->
+              log
+                  ( "processing "
+                        <> show
+                               item
+                  )
         )
-        (
-            Array.range
-                1
-                someUpperBoundValue
+        ( Array.range
+              1
+              someUpperBoundValue
         )
 
 terms = do
@@ -28,9 +25,9 @@ terms = do
     (-1)
     (h @b)
     ({ a: 1 })
-    ((a do
-                b
-        )
+    ( ( a do
+            b
+      )
     )
 
 patterns value =
@@ -58,7 +55,7 @@ terms = do
   (-1)
   (h @b)
   ({ a: 1 })
-  ((a do
+  ( ( a do
         b
     )
   )
@@ -76,19 +73,16 @@ module Main where
 
 main =
     traverse_
-        (
-            \item →
-                log
-                    (
-                        "processing "
-                            <> show
-                                   item
-                    )
+        ( \item →
+              log
+                  ( "processing "
+                        <> show
+                               item
+                  )
         )
-        (
-            Array.range
-                1
-                someUpperBoundValue
+        ( Array.range
+              1
+              someUpperBoundValue
         )
 
 terms = do
@@ -97,9 +91,9 @@ terms = do
     (-1)
     (h @b)
     ({ a: 1 })
-    ((a do
-                b
-        )
+    ( ( a do
+            b
+      )
     )
 
 patterns value =

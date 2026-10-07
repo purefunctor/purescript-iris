@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 20, indent 2 ===
 module Main where
@@ -8,18 +8,15 @@ module Main where
 value =
   firstLongOperand
     `combine
-      (
-        inner
+      ( inner
           `f` argument
       )` secondLongOperand
 nested =
   firstOperand
     `combine
-      (
-        inner
+      ( inner
           `f
-            (
-              deeper
+            ( deeper
                 `g` argument
             )` another
       )` secondOperand
@@ -37,17 +34,14 @@ module Main where
 value =
     firstLongOperand
         `combine
-            (
-                inner `f` argument
+            ( inner `f` argument
             )` secondLongOperand
 nested =
     firstOperand
         `combine
-            (
-                inner
-                    `f
-                        (
-                            deeper
-                                `g` argument
-                        )` another
+            ( inner
+                  `f
+                      ( deeper
+                            `g` argument
+                      )` another
             )` secondOperand
