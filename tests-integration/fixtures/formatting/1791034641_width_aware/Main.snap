@@ -18,8 +18,8 @@ import Data.Collections
   )
   as Collections
 
-data Box value =
-  Box value
+data Box value
+  = Box value
   | Many value value value
 
 longApplication ::
@@ -437,8 +437,8 @@ import Data.Collections
  )
  as Collections
 
-data Box value =
- Box value
+data Box value
+ = Box value
  | Many value value value
 
 longApplication ::
@@ -614,8 +614,8 @@ import Data.Collections
     )
     as Collections
 
-data Box value =
-    Box value
+data Box value
+    = Box value
     | Many value value value
 
 longApplication ::
@@ -797,8 +797,8 @@ import Data.Collections
   )
   as Collections
 
-data Box value =
-  Box value
+data Box value
+  = Box value
   | Many value value value
 
 longApplication ∷

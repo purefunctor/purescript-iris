@@ -770,10 +770,10 @@ impl<'arena> Printer<'arena, '_> {
             | ExpressionRecordUpdate
             | RecordUpdateBranch
             | BinderConstructor
-            | DataConstructor
             | InstanceHead
             | ClassHead
             | FunctionBinders => self.application(&elements, 1, context),
+            DataConstructor => Ok(self.application(&elements, 1, context)?.align()),
             ExpressionOperatorChain
             | ExpressionInfixChain
             | TypeOperatorChain
@@ -808,11 +808,11 @@ impl<'arena> Printer<'arena, '_> {
                 if let Some(separator) = elements.iter().position(|tree| tree.kind == EQUAL) {
                     self.chain(
                         &elements,
-                        separator + 1,
+                        separator,
                         context,
                         context.margin + self.config.indent_width,
-                        |_, previous, current| {
-                            if current.kind == PIPE || previous.kind == EQUAL {
+                        |_, _, current| {
+                            if matches!(current.kind, EQUAL | PIPE) {
                                 Gap::Soft
                             } else {
                                 self.fixed_gap(current.start)

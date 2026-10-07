@@ -95,6 +95,6 @@ import Library
 
 first = 1
 second = 2
-data Box =
-    First
+data Box
+    = First
     | Second
