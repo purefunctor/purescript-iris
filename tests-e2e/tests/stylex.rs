@@ -65,6 +65,7 @@ styles = StyleX.create
       , viewTransitionClass: transition
       }
   , animated: { animationName: StyleX.keyframes { from: { opacity: 0.2 }, to: { opacity: 0.8 } } }
+  , row: { padding: 8 }
   }
 
 inlined = let colour = "green" in StyleX.create { root: { color: colour } }
@@ -83,6 +84,13 @@ locallyImported _ =
   in StyleX.create { root: { padding: spacing, margin: spacing } }
 
 awaitProps = StyleX.props await
+
+markedProps = StyleX.props [ styles.row, StyleX.markerStyle rowMarker ]
+
+markedAttrs = StyleX.attrs [ StyleX.markerStyle rowMarker, styles.row ]
+
+conditionalProps enabled = StyleX.props
+  [ styles.row, StyleX.conditional enabled (StyleX.markerStyle rowMarker) ]
 "#,
     );
 

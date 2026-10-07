@@ -135,6 +135,7 @@ where
                 let Some(result_type) = result_type else { return Ok(None) };
                 self.stylex_record_map(*argument, result_type, StyleXRootCall::Attrs)?
             }
+            (StyleXIntrinsic::Root(StyleXRootIntrinsic::MarkerStyle), [marker]) => Some(*marker),
             (StyleXIntrinsic::Root(StyleXRootIntrinsic::Conditional), [condition, style]) => {
                 Some(self.expression(ExpressionKind::StyleX(StyleXExpression::Conditional {
                     condition: *condition,
@@ -747,6 +748,7 @@ fn stylex_root_intrinsic(name: &str) -> Option<StyleXRootIntrinsic> {
         "firstThatWorks" => StyleXRootCall::FirstThatWorks,
         "recordProps" => return Some(StyleXRootIntrinsic::RecordProps),
         "recordAttrs" => return Some(StyleXRootIntrinsic::RecordAttrs),
+        "markerStyle" => return Some(StyleXRootIntrinsic::MarkerStyle),
         "conditional" => return Some(StyleXRootIntrinsic::Conditional),
         "conditionalValue" => return Some(StyleXRootIntrinsic::ConditionalValue),
         _ => return None,

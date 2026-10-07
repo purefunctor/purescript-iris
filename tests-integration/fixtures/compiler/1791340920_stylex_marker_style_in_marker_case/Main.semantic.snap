@@ -8,10 +8,5 @@ rowMarker = defineMarker
 styles :: { row :: Iris.StyleX.Style }
 styles =
   create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
-    { row: { color: "red" } }
-
-rowProps :: Iris.StyleX.Props
-rowProps = props {propsInputArrayStyle} [styles.row, markerStyle rowMarker]
-
-rowAttrs :: Iris.StyleX.Attrs
-rowAttrs = attrs {propsInputArrayStyle} [markerStyle rowMarker, styles.row]
+    { row: { color: conditionalValue "blue"
+      [ancestorMarker ":hover" (markerStyle rowMarker) "red"] } }

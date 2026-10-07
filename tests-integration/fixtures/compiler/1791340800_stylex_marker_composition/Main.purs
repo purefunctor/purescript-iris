@@ -8,7 +8,7 @@ rowMarker = StyleX.defineMarker
 styles = StyleX.create { row: { color: "red" } }
 
 rowProps :: StyleX.Props
-rowProps = StyleX.props [ styles.row, rowMarker ]
+rowProps = StyleX.props [ styles.row, StyleX.markerStyle rowMarker ]
 
 rowAttrs :: StyleX.Attrs
-rowAttrs = StyleX.attrs [ rowMarker, styles.row ]
+rowAttrs = StyleX.attrs [ StyleX.markerStyle rowMarker, styles.row ]

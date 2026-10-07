@@ -2,29 +2,4 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 308
 ---
-Error! · [CannotUnify] · Main.purs:11:25
-  •
-  │
-  • Cannot unify 'Marker' with 'Style'
-  │
-  │   rowProps = StyleX.props [ styles.row, rowMarker ]
-  │                           ╰────────────────────────
-  •
 
-Error! · [CannotUnify] · Main.purs:14:25
-  •
-  │
-  • Cannot unify 'Style' with 'Marker'
-  │
-  │   rowAttrs = StyleX.attrs [ rowMarker, styles.row ]
-  │                           ╰────────────────────────
-  •
-
-Error! · [NoInstanceFound] · Main.purs:14:12
-  •
-  │
-  • No instance found for: PropsInput (Array Marker)
-  │
-  │   rowAttrs = StyleX.attrs [ rowMarker, styles.row ]
-  │              ╰─────────────────────────────────────
-  •

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [CannotUnify] · Main.purs:6:46
+  •
+  │
+  • Cannot unify 'Style' with 'Marker'
+  │
+  │   invalidConversion style = StyleX.markerStyle style
+  │                                                ╰────
+  •

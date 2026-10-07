@@ -211,6 +211,7 @@ pub(crate) enum StyleXRootIntrinsic {
     Call(StyleXRootCall),
     RecordProps,
     RecordAttrs,
+    MarkerStyle,
     Conditional,
     ConditionalValue,
 }
@@ -221,6 +222,7 @@ impl StyleXRootIntrinsic {
             StyleXRootIntrinsic::Call(call) => call.name(),
             StyleXRootIntrinsic::RecordProps => "recordProps",
             StyleXRootIntrinsic::RecordAttrs => "recordAttrs",
+            StyleXRootIntrinsic::MarkerStyle => "markerStyle",
             StyleXRootIntrinsic::Conditional => "conditional",
             StyleXRootIntrinsic::ConditionalValue => "conditionalValue",
         }

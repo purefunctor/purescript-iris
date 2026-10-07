@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [CannotUnify] · Main.purs:12:43
+  •
+  │
+  • Cannot unify 'Style' with 'Marker'
+  │
+  │             [ When.ancestorMarker ":hover" (StyleX.markerStyle rowMarker) "red" ]
+  │                                             ╰───────────────────────────
+  •

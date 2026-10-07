@@ -20,6 +20,7 @@ module Iris.StyleX
   , defineVars
   , createTheme
   , defineMarker
+  , markerStyle
   , defaultMarker
   , viewTransitionClass
   , positionTry
@@ -217,6 +218,10 @@ foreign import createTheme
   -> Style
 
 foreign import defineMarker :: Marker
+
+-- | Include a named marker in a style array passed to `props` or `attrs`.
+-- | The conversion is erased; keep the original `Marker` for `When.*Marker`.
+foreign import markerStyle :: Marker -> Style
 
 foreign import defaultMarker :: Style
 

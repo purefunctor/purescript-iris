@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export rowMarker = stylex.defineMarker
+
+@export styles = stylex.create {
+  row: { color: stylex.conditionalValue "blue" [stylex.when.ancestor(":hover", rowMarker, "red")] }
+}
