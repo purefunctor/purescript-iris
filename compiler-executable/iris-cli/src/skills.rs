@@ -6,8 +6,10 @@ pub struct Skill {
     content: &'static str,
 }
 
-pub const SKILLS: &[Skill] =
-    &[Skill { name: "watch", content: include_str!("../skills/watch/SKILL.md") }];
+pub const SKILLS: &[Skill] = &[
+    Skill { name: "stylex", content: include_str!("../skills/stylex/SKILL.md") },
+    Skill { name: "watch", content: include_str!("../skills/watch/SKILL.md") },
+];
 
 impl Skill {
     pub fn find(name: &str) -> Option<&'static Skill> {
