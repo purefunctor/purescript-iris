@@ -767,17 +767,53 @@ impl<'arena> Printer<'arena, '_> {
         context: Context,
     ) -> Result<Doc<'arena>, FormatError> {
         let mut document = self.arena.nil();
-        for clause in elements.chunks(2) {
-            if clause[0].kind != IF {
-                document = document.append(self.boundary(clause[0].start, Gap::Soft)?);
-            }
+        let mut clauses = elements.to_vec();
+        let mut leading_else: Option<&Tree> = None;
+        loop {
+            let [if_keyword, condition, then_keyword, consequent, else_keyword, alternative] =
+                clauses[..]
+            else {
+                unreachable!("invariant violated: validated conditional has six elements");
+            };
+            let head = if let Some(keyword) = leading_else.take() {
+                document = document.append(self.boundary(keyword.start, Gap::Soft)?);
+                vec![keyword, if_keyword]
+            } else {
+                vec![if_keyword]
+            };
             document = document.append(self.continuation(
-                &clause[..1],
-                &clause[1..],
+                &head,
+                &[condition],
                 Context { following: None, ..context },
             )?);
+            document = document.append(self.boundary(then_keyword.start, Gap::Soft)?).append(
+                self.continuation(
+                    &[then_keyword],
+                    &[consequent],
+                    Context { following: None, ..context },
+                )?,
+            );
+            // Only direct alternatives share a layout; parentheses and
+            // line-forcing comments retain their continuation boundary.
+            if let [nested] = alternative.elements().as_slice()
+                && nested.kind == ExpressionIfThenElse
+            {
+                let (comments, _) =
+                    trivia(self.lexed.annotation(nested.start).unwrap_or_default())?;
+                if !comments.iter().any(|comment| comment.forces_line()) {
+                    leading_else = Some(else_keyword);
+                    clauses = nested.elements();
+                    continue;
+                }
+            }
+            document = document.append(self.boundary(else_keyword.start, Gap::Soft)?);
+            document = document.append(self.continuation(
+                &[else_keyword],
+                &[alternative],
+                Context { following: None, ..context },
+            )?);
+            return Ok(document.group());
         }
-        Ok(document.group())
     }
 
     fn case_header(
