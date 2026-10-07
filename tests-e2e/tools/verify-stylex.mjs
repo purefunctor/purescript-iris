@@ -115,3 +115,11 @@ assert.deepEqual(
   classNames(main.conditionalProps(false).className),
   classNames(stylex.props(main.styles.row).className),
 );
+assert.deepEqual(main.dynamicProps, stylex.props(main.styles.sized({ width: 100 })));
+assert.ok(Object.values(main.dynamicProps.style).includes("100px"));
+assert.deepEqual(
+  main.mixedDynamicProps,
+  stylex.props(main.styles.row, main.styles.sized({ width: 40 })),
+);
+assert.deepEqual(main.dynamicAttrs, stylex.attrs(main.styles.sized({ width: 30 })));
+assert.ok(main.dynamicAttrs.style.includes("30px"));

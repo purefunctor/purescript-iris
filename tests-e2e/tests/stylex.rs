@@ -67,6 +67,7 @@ styles = StyleX.create
       }
   , animated: { animationName: StyleX.keyframes { from: { opacity: 0.2 }, to: { opacity: 0.8 } } }
   , row: { padding: 8 }
+  , sized: \(size :: { width :: Int }) -> { width: size.width }
   }
 
 inlined = let colour = "green" in StyleX.create { root: { color: colour } }
@@ -87,6 +88,12 @@ locallyImported _ =
 awaitProps = StyleX.props await
 
 markedProps = StyleX.props [ styles.row, StyleX.markerStyle rowMarker ]
+
+dynamicProps = StyleX.props (styles.sized { width: 100 })
+
+mixedDynamicProps = StyleX.props [ StyleX.dynamicStyle styles.row, styles.sized { width: 40 } ]
+
+dynamicAttrs = StyleX.attrs (styles.sized { width: 30 })
 
 markedAttrs = StyleX.attrs [ StyleX.markerStyle rowMarker, styles.row ]
 
