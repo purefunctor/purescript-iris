@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+styles :: { base :: Iris.StyleX.Style
+, faded :: Prim.Number -> Iris.StyleX.DynamicStyle
+, sized :: { height :: Prim.String, width :: Prim.Int } -> Iris.StyleX.DynamicStyle
+}
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListConsTypeFunctionRecord {compileStyleListConsTypeFunctionRecord {compileStyleListNilTypeRow} {trivial}} {trivial}} {trivial}}}
+    { base: { color: "red" }, sized: \(size :: { height :: Prim.String, width :: Prim.Int }) ->
+      { width: size.width, height: size.height }, faded: \opacity ->
+      { opacity: conditionalValue opacity [ancestor ":hover" 1.0] } }
+
+sizedProps :: Iris.StyleX.DynamicProps
+sizedProps = props {propsInputDynamicStyleDynamicProps} (styles.sized { width: 100, height: "50%" })
+
+fadedProps :: { className :: Prim.String, style :: Iris.StyleX.InlineStyle }
+fadedProps =
+  props {propsInputArrayDynamicStyleDynamicProps} [dynamicStyle styles.base, styles.faded 0.5]
+
+fadedAttrs :: Iris.StyleX.Attrs
+fadedAttrs = attrs {propsInputDynamicStyleDynamicProps} (styles.faded 0.25)
+
+baseProps :: Iris.StyleX.Props
+baseProps = props {propsInputStyleProps} styles.base

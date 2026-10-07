@@ -11,7 +11,7 @@ styles =
     { row: { color: "red" } }
 
 rowProps :: Iris.StyleX.Props
-rowProps = props {propsInputArrayStyle} [styles.row, markerStyle rowMarker]
+rowProps = props {propsInputArrayStyleProps} [styles.row, markerStyle rowMarker]
 
 rowAttrs :: Iris.StyleX.Attrs
-rowAttrs = attrs {propsInputArrayStyle} [markerStyle rowMarker, styles.row]
+rowAttrs = attrs {propsInputArrayStyleProps} [markerStyle rowMarker, styles.row]

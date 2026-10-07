@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+styles :: { sized :: Prim.Boolean -> Iris.StyleX.DynamicStyle }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeFunctionRecord {compileStyleListNilTypeRow} {trivial}}}
+    { sized: \wide -> { width: if wide then 100 else 50 } }

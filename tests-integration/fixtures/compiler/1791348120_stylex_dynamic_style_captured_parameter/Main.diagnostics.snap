@@ -10,6 +10,6 @@ Error! · [FunctionalCodegen] · Main.purs:5:1
   │ 'Iris.StyleX.create' requires statically evaluable arguments; runtime parameters, functions, and
   │ ordinary function calls are not supported.
   │
-  │   styles = StyleX.create { root: \(colour :: String) -> { color: colour } }
-  │   ╰────────────────────────────────────────────────────────────────────────
+  │   make :: String -> { sized :: Int -> StyleX.DynamicStyle }
+  │   ╰────────────────────────────────────────────────────────
   •

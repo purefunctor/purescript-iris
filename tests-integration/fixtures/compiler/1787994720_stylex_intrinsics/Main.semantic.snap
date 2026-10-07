@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 animation :: Iris.StyleX.Keyframes
 animation = keyframes { from: { opacity: 0.0 }, to: { opacity: 1.0 } }
@@ -17,7 +18,7 @@ secondary =
     { root: { backgroundColor: "navy" } }
 
 buttonProps :: Iris.StyleX.Props
-buttonProps = props {propsInputStyle} styles.button
+buttonProps = props {propsInputStyleProps} styles.button
 
 styleProps :: { button :: Iris.StyleX.Props, label :: { className :: Prim.String } }
 styleProps =
@@ -37,11 +38,12 @@ flippedStyleProps =
 
 buttonPropsArray :: Prim.Boolean -> Iris.StyleX.Props
 buttonPropsArray = \highlighted ->
-  props {propsInputArrayStyle} [styles.button, conditional highlighted secondary.root]
+  props {propsInputArrayStyleProps} [styles.button, conditional highlighted secondary.root]
 
 selectedProps :: Prim.Boolean -> Prim.Boolean -> Iris.StyleX.Props
 selectedProps = \included -> \alternate ->
-  props {propsInputStyle} (conditional included if alternate then styles.button else styles.label)
+  props {propsInputStyleProps}
+    (conditional included if alternate then styles.button else styles.label)
 
 buttonClassName :: Prim.String
 buttonClassName = buttonProps.className

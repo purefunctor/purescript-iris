@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 Completion at Position { line: 4, character: 13 }
 
@@ -16,6 +17,9 @@ type Test = I
 ├───────────────┼───────────────────────────────┼─────────────────────┼─────────────────────────────┼───────────────┼───────────────┼──────────────────────────────────────┤
 │  Int          │   ...                         │  Prim               │  Int                        │  Int          │  4:12..4:13   │  ...                                 │
 │               │                               │                     │                             │               │  Int          │                                      │
+├───────────────┼───────────────────────────────┼─────────────────────┼─────────────────────────────┼───────────────┼───────────────┼──────────────────────────────────────┤
+│  InlineStyle  │   (import Iris.StyleX)        │  Iris.StyleX        │  Iris.StyleX.InlineStyle    │  InlineStyle  │  4:12..4:13   │  3:0..3:0                            │
+│               │                               │                     │                             │               │  InlineStyle  │  import Iris.StyleX (InlineStyle)    │
 ├───────────────┼───────────────────────────────┼─────────────────────┼─────────────────────────────┼───────────────┼───────────────┼──────────────────────────────────────┤
 │  Integer      │   (import Iris.StyleX.Types)  │  Iris.StyleX.Types  │  Iris.StyleX.Types.Integer  │  Integer      │  4:12..4:13   │  3:0..3:0                            │
 │               │                               │                     │                             │               │  Integer      │  import Iris.StyleX.Types (Integer)  │

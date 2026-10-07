@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+styles :: forall t0 t1 t2.
+  Iris.StyleX.CompileStyleList
+    (Prim.RowList.Cons @Prim.Type
+      "at"
+      (t0 -> t1 -> { left :: t0, top :: t1 })
+      (Prim.RowList.Nil @Prim.Type))
+    t2 =>
+  {| t2 }
+styles = \{compileStyleListDict} ->
+  create {compileStyles {trivial} {compileStyleListDict}} { at: \x y -> { left: x, top: y } }

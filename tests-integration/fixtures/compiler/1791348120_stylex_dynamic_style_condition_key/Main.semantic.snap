@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+styles :: { hovered :: Prim.String -> Iris.StyleX.DynamicStyle }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeFunctionRecord {compileStyleListNilTypeRow} {trivial}}}
+    { hovered: \selector -> { color: conditionalValue "red" [ancestor selector "blue"] } }

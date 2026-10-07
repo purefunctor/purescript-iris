@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+styles :: { sized :: Prim.Boolean -> Iris.StyleX.DynamicStyle }
+
+Types

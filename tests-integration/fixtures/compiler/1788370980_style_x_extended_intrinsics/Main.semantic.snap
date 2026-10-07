@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 309
 ---
 constants :: { columns :: Prim.Int, compact :: Prim.String }
 constants = defineConsts { compact: "@media (max-width: 40rem)", columns: 12 }
@@ -59,7 +60,7 @@ styles =
       ["sticky", "fixed"] } }
 
 attributes :: Iris.StyleX.Attrs
-attributes = attrs {propsInputStyle} styles.root
+attributes = attrs {propsInputStyleProps} styles.root
 
 recordAttributes :: { root :: Iris.StyleX.Attrs }
 recordAttributes =
@@ -67,10 +68,10 @@ recordAttributes =
     styles
 
 markerProps :: Iris.StyleX.Props
-markerProps = props {propsInputMarker} rowMarker
+markerProps = props {propsInputMarkerProps} rowMarker
 
 defaultMarkerProps :: Iris.StyleX.Props
-defaultMarkerProps = props {propsInputStyle} defaultMarker
+defaultMarkerProps = props {propsInputStyleProps} defaultMarker
 
 transitionClass :: Prim.String
 transitionClass = viewTransitionClass { new: { opacity: 1.0 }, old: { opacity: 0.0 } }
