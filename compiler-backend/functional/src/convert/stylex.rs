@@ -16,7 +16,7 @@ use crate::stylex::{
 };
 use crate::tree::{
     Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Field, GlobalId, LocalId,
-    Parameter, RecordField,
+    Parameter, PatternKind, RecordField,
 };
 
 use super::{Context, ConversionResult, term_declaration};
@@ -135,7 +135,12 @@ where
                 let Some(result_type) = result_type else { return Ok(None) };
                 self.stylex_record_map(*argument, result_type, StyleXRootCall::Attrs)?
             }
-            (StyleXIntrinsic::Root(StyleXRootIntrinsic::MarkerStyle), [marker]) => Some(*marker),
+            (
+                StyleXIntrinsic::Root(
+                    StyleXRootIntrinsic::MarkerStyle | StyleXRootIntrinsic::DynamicStyle,
+                ),
+                [style],
+            ) => Some(*style),
             (StyleXIntrinsic::Root(StyleXRootIntrinsic::Conditional), [condition, style]) => {
                 Some(self.expression(ExpressionKind::StyleX(StyleXExpression::Conditional {
                     condition: *condition,
@@ -391,14 +396,29 @@ where
                                 ));
                             }
                             let mut visiting = FxHashSet::default();
-                            for &argument in arguments.iter() {
-                                self.validate_stylex_static_expression(
-                                    argument,
-                                    *call,
-                                    declaration,
-                                    bindings,
-                                    &mut visiting,
-                                )?;
+                            if *call == StyleXRootCall::Create
+                                && let [namespaces] = arguments.as_ref()
+                                && let ExpressionKind::Record { fields } =
+                                    &self.storage[*namespaces].kind
+                            {
+                                for field in fields.iter() {
+                                    self.validate_stylex_namespace(
+                                        field.expression,
+                                        declaration,
+                                        bindings,
+                                        &mut visiting,
+                                    )?;
+                                }
+                            } else {
+                                for &argument in arguments.iter() {
+                                    self.validate_stylex_static_expression(
+                                        argument,
+                                        *call,
+                                        declaration,
+                                        bindings,
+                                        &mut visiting,
+                                    )?;
+                                }
                             }
                         }
                         child_context
@@ -563,6 +583,164 @@ where
         }
         visiting.remove(&expression);
         Ok(())
+    }
+
+    /// A `create` namespace is a record of static declarations, or a function of one named
+    /// parameter returning such a record, which StyleX compiles to CSS variables set at runtime.
+    fn validate_stylex_namespace(
+        &self,
+        namespace: ExpressionId,
+        declaration: &Declaration,
+        bindings: &mut StyleXStaticBindings,
+        visiting: &mut FxHashSet<ExpressionId>,
+    ) -> ConversionResult<()> {
+        let ExpressionKind::Abstraction { parameters, body } = &self.storage[namespace].kind else {
+            let call = StyleXRootCall::Create;
+            return self.validate_stylex_static_expression(
+                namespace,
+                call,
+                declaration,
+                bindings,
+                visiting,
+            );
+        };
+        let invalid = |requirement: &str| {
+            let intrinsic =
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(StyleXRootCall::Create));
+            self.invalid_stylex_context(intrinsic, requirement, declaration.global.id)
+        };
+        let [pattern] = parameters.as_ref() else {
+            return Err(invalid(
+                "requires dynamic namespaces to take exactly one parameter; group several values in a record",
+            ));
+        };
+        let unused = "requires dynamic namespaces to use their parameter; write a namespace that ignores it as a record";
+        let parameter = match &self.storage[*pattern].kind {
+            PatternKind::Variable(parameter) => parameter,
+            // Annotated wildcards lower to a generated name over a wildcard.
+            PatternKind::Named { parameter, pattern }
+                if matches!(self.storage[*pattern].kind, PatternKind::Wildcard) =>
+            {
+                parameter
+            }
+            PatternKind::Wildcard => return Err(invalid(unused)),
+            _ => {
+                return Err(invalid(
+                    "requires dynamic namespaces to take a named parameter; read its fields in the body instead of destructuring it",
+                ));
+            }
+        };
+        if !matches!(self.storage[*body].kind, ExpressionKind::Record { .. }) {
+            return Err(invalid("requires dynamic namespaces to return a record literal"));
+        }
+        let mut used = false;
+        self.validate_stylex_dynamic_expression(
+            *body,
+            parameter.id,
+            &mut used,
+            declaration,
+            bindings,
+            visiting,
+        )?;
+        if !used {
+            return Err(invalid(unused));
+        }
+        Ok(())
+    }
+
+    /// Values in a dynamic namespace may read the parameter, but StyleX only accepts an arrow
+    /// function whose body is an object literal, so the body must render inline: no branches,
+    /// record updates, or calls. Condition keys stay static.
+    fn validate_stylex_dynamic_expression(
+        &self,
+        expression: ExpressionId,
+        parameter: LocalId,
+        used: &mut bool,
+        declaration: &Declaration,
+        bindings: &mut StyleXStaticBindings,
+        visiting: &mut FxHashSet<ExpressionId>,
+    ) -> ConversionResult<()> {
+        let call = StyleXRootCall::Create;
+        let kind = &self.storage[expression].kind;
+        match kind {
+            ExpressionKind::Local { parameter: local } if local.id == parameter => {
+                *used = true;
+                Ok(())
+            }
+            ExpressionKind::StyleX(StyleXExpression::ConditionalValue { default, cases }) => {
+                self.validate_stylex_dynamic_expression(
+                    *default,
+                    parameter,
+                    used,
+                    declaration,
+                    bindings,
+                    visiting,
+                )?;
+                for case in cases.iter() {
+                    let conditions = match case.condition {
+                        StyleXCondition::Expression(condition) => [Some(condition), None],
+                        StyleXCondition::When { selector, marker, .. } => [Some(selector), marker],
+                    };
+                    for condition in conditions.into_iter().flatten() {
+                        self.validate_stylex_static_expression(
+                            condition,
+                            call,
+                            declaration,
+                            bindings,
+                            visiting,
+                        )?;
+                    }
+                    self.validate_stylex_dynamic_expression(
+                        case.value,
+                        parameter,
+                        used,
+                        declaration,
+                        bindings,
+                        visiting,
+                    )?;
+                }
+                Ok(())
+            }
+            ExpressionKind::Application { .. }
+            | ExpressionKind::UncurriedApplication { .. }
+            | ExpressionKind::Abstraction { .. }
+            | ExpressionKind::UncurriedAbstraction { .. }
+            | ExpressionKind::IfThenElse { .. }
+            | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::Case { .. }
+            | ExpressionKind::Guarded { .. }
+            | ExpressionKind::Let { .. }
+            | ExpressionKind::LetPattern { .. }
+            | ExpressionKind::Effect { .. } => {
+                let intrinsic = StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call));
+                let requirement = "requires dynamic namespace values to be built from the parameter, \
+                    its fields, literals, records, arrays, and operators; compute other values in the \
+                    caller and pass them through the parameter";
+                Err(self.invalid_stylex_context(intrinsic, requirement, declaration.global.id))
+            }
+            ExpressionKind::Literal { .. }
+            | ExpressionKind::Array { .. }
+            | ExpressionKind::Record { .. }
+            | ExpressionKind::Project { .. }
+            | ExpressionKind::Unary { .. }
+            | ExpressionKind::Binary { .. } => try_for_each_expression_child(kind, |child| {
+                self.validate_stylex_dynamic_expression(
+                    child,
+                    parameter,
+                    used,
+                    declaration,
+                    bindings,
+                    visiting,
+                )
+            }),
+            _ => self.validate_stylex_static_expression(
+                expression,
+                call,
+                declaration,
+                bindings,
+                visiting,
+            ),
+        }
     }
 
     fn stylex_import_is_static(
@@ -752,6 +930,7 @@ fn stylex_root_intrinsic(name: &str) -> Option<StyleXRootIntrinsic> {
         "recordProps" => return Some(StyleXRootIntrinsic::RecordProps),
         "recordAttrs" => return Some(StyleXRootIntrinsic::RecordAttrs),
         "markerStyle" => return Some(StyleXRootIntrinsic::MarkerStyle),
+        "dynamicStyle" => return Some(StyleXRootIntrinsic::DynamicStyle),
         "conditional" => return Some(StyleXRootIntrinsic::Conditional),
         "conditionalValue" => return Some(StyleXRootIntrinsic::ConditionalValue),
         "conditionalCase" => return Some(StyleXRootIntrinsic::ConditionalCase),

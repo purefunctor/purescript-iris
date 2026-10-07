@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+styles ::
+  { base :: Iris.StyleX.Style
+  , faded :: Prim.Number -> Iris.StyleX.DynamicStyle
+  , sized :: { height :: Prim.String, width :: Prim.Int } -> Iris.StyleX.DynamicStyle
+  }
+sizedProps :: Iris.StyleX.DynamicProps
+fadedProps :: { className :: Prim.String, style :: Iris.StyleX.InlineStyle }
+fadedAttrs :: Iris.StyleX.Attrs
+baseProps :: Iris.StyleX.Props
+
+Types

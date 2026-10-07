@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+styles :: { sized :: Prim.Int -> Iris.StyleX.DynamicStyle }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeFunctionRecord {compileStyleListNilTypeRow} {trivial}}}
+    { sized: \(width :: Prim.Int) -> { width: show {showInt} width } }

@@ -8,6 +8,9 @@ module Iris.StyleX
   , ConditionalCase
   , Variable
   , TypedValue
+  , DynamicStyle
+  , InlineStyle
+  , DynamicProps
   , create
   , props
   , attrs
@@ -22,6 +25,7 @@ module Iris.StyleX
   , createTheme
   , defineMarker
   , markerStyle
+  , dynamicStyle
   , defaultMarker
   , viewTransitionClass
   , positionTry
@@ -63,7 +67,19 @@ class CompileStyles input output | input -> output
 class CompileStyleList :: RowList.RowList Type -> Row Type -> Constraint
 class CompileStyleList input output | input -> output
 
-class PropsInput :: Type -> Constraint
+-- | A style from a dynamic namespace, a `create` field written as a function of one parameter.
+data DynamicStyle :: Type
+data DynamicStyle
+
+-- | The CSS custom properties that dynamic styles set, for the element's `style` attribute.
+-- | Its representation belongs to StyleX; pass it to the UI library unchanged.
+data InlineStyle :: Type
+data InlineStyle
+
+type DynamicProps = { className :: String, style :: InlineStyle }
+
+class PropsInput :: Type -> Type -> Constraint
+class PropsInput input output | input -> output
 
 class CompileProps :: Row Type -> Row Type -> Constraint
 class CompileProps input output | input -> output
@@ -101,11 +117,21 @@ instance
   ) =>
   CompileStyleList (RowList.Cons label (Record declarations) tail) output
 
-instance PropsInput Style
+instance
+  ( CompileStyleList tail outputTail
+  , Row.Cons label (parameter -> DynamicStyle) outputTail output
+  ) =>
+  CompileStyleList (RowList.Cons label (parameter -> Record declarations) tail) output
 
-instance PropsInput (Array Style)
+instance PropsInput Style Props
 
-instance PropsInput Marker
+instance PropsInput (Array Style) Props
+
+instance PropsInput DynamicStyle DynamicProps
+
+instance PropsInput (Array DynamicStyle) DynamicProps
+
+instance PropsInput Marker Props
 
 instance
   ( RowList.RowToList input inputList
@@ -170,14 +196,14 @@ foreign import create
   -> Record output
 
 foreign import props
-  :: forall input
-   . PropsInput input
+  :: forall input output
+   . PropsInput input output
   => input
-  -> Props
+  -> output
 
 foreign import attrs
-  :: forall input
-   . PropsInput input
+  :: forall input output
+   . PropsInput input output
   => input
   -> Attrs
 
@@ -229,6 +255,9 @@ foreign import defineMarker :: Marker
 foreign import markerStyle :: Marker -> Style
 
 foreign import defaultMarker :: Style
+
+-- | Include a static style in a style array with dynamic styles. The conversion is erased.
+foreign import dynamicStyle :: Style -> DynamicStyle
 
 foreign import viewTransitionClass :: forall options. Record options -> String
 

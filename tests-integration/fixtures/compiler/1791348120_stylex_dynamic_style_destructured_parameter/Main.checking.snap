@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+styles ::
+  forall t0 (t1 :: Prim.Row Prim.Type).
+    { sized :: { width :: t0 | (t1 :: Prim.Row Prim.Type) } -> Iris.StyleX.DynamicStyle }
+
+Types

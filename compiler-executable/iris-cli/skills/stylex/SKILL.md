@@ -38,6 +38,8 @@ import Iris.StyleX.Types as Types
 | `stylex.create({ root: { … } })` | `StyleX.create { root: { … } }` |
 | `{...stylex.props(styles.a, styles.b)}` | `StyleX.props [ styles.a, styles.b ]`, a `{ className :: String }` record |
 | `stylex.props(styles.row, marker)` | `StyleX.props [ styles.row, StyleX.markerStyle marker ]` |
+| `create({ bar: (width, height) => ({ width, height }) })` | `create { bar: \size -> { width: size.width, height: size.height } }` |
+| `stylex.props(styles.base, styles.bar(100, 40))` | `StyleX.props [ StyleX.dynamicStyle styles.base, styles.bar { width: 100, height: 40 } ]` |
 | `active && styles.active` | `StyleX.conditional active styles.active` |
 | `variant === 'primary' ? styles.primary : styles.secondary` | A function or `case` returning `StyleX.Style` |
 | `{ default: 'blue', ':hover': 'red' }` | `{ default: "blue", ":hover": "red" }` |
@@ -62,9 +64,12 @@ import Iris.StyleX.Types as Types
   `{ color: palette.brand }`.
 - StyleX's `null` cannot be written. `Data.Nullable.null` is an imported value, which Iris rejects
   inside `create`; give the property a real value or leave it out of that style.
-- StyleX's dynamic styles, functions in a `create` namespace, are not supported, and Iris rejects
-  them. Choose between declared styles, or set an inline `style` attribute for values known only
-  at runtime.
+- StyleX's dynamic styles take one parameter; pass several values as a record and read its
+  fields, as in the table. Annotate the parameter, as in `\(size :: { width :: Int })`, or its
+  field types stay open. Calling one gives a `DynamicStyle`, and `props` on dynamic styles
+  returns `DynamicProps`, `{ className :: String, style :: InlineStyle }`. `InlineStyle` holds
+  StyleX's CSS variables: pass it to the UI library's `style` attribute unchanged. Include static
+  styles in the same array with `StyleX.dynamicStyle styles.base`.
 - `StyleXStyles` props become `StyleX.Style` arguments: pass styles between components as values.
 
 ## Write components
@@ -97,9 +102,10 @@ DOM.button
 - Leave `styles` unannotated; `create` infers a record of `StyleX.Style` with the same labels.
 - `recordProps styles` expands at compile time into a record of `props` results, one per label.
   Use it for elements with a single style, and `props` for compositions and conditional styles.
-- `props` takes a `Style`, an `Array Style`, or a `Marker`. Pass the result as an element's props
-  when it needs nothing else; otherwise take `.className`. `attrs` and `recordAttrs` are the same
-  for renderers that take an HTML `class` attribute and return `Attrs`.
+- `props` takes a `Style`, an `Array Style`, a `Marker`, a `DynamicStyle`, or an
+  `Array DynamicStyle`. Pass the result as an element's props when it needs nothing else;
+  otherwise take `.className`. `attrs` and `recordAttrs` are the same for renderers that take an
+  HTML `class` attribute and return `Attrs`.
 - A named `Marker` joins an array of styles through `StyleX.markerStyle marker`, which compiles
   away; pass the marker itself to `When.*Marker`. `StyleX.defaultMarker` is already a `Style`.
 - Styles shared by several components can live in their own module and be imported.
@@ -130,6 +136,10 @@ requires them to be statically known:
 - Function parameters, `props` results, function calls, and other imported values are rejected,
   even when reached through an alias. `defineConsts` cannot use imported values at all.
 - A `create` call may sit inside a function, as long as its arguments are static.
+- A dynamic namespace takes one named parameter, not a destructuring pattern, and must use it.
+  Its body is a record literal whose values are built from the parameter, its fields, literals,
+  records, arrays, and operators. Compute anything else, such as `show` or `if`, in the caller
+  and pass it in. Condition keys inside it stay static.
 
 `createTheme` overrides are type-checked against the `defineVars` fields of the same name, and
 `Types` functions against their argument types; see their signatures with `iris watch query`.

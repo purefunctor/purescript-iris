@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+styles :: { base :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { base: { color: "red" } }
+
+baseStyle :: forall t0. t0
+baseStyle = (props {propsInputStyleProps} styles.base).style

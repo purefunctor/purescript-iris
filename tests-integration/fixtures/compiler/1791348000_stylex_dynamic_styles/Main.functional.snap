@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export styles = stylex.create {
+  base: { color: "red" },
+  sized: \size%0 -> { width: size%0.width, height: size%0.height },
+  faded:
+    \opacity%1 ->
+      { opacity: stylex.conditionalValue opacity%1 [stylex.when.ancestor(":hover", 1.0)] }
+}
+
+@export sizedProps = stylex.props (styles.sized { width: 100, height: "50%" })
+
+@export fadedProps = stylex.props [styles.base, styles.faded 0.5]
+
+@export fadedAttrs = stylex.attrs (styles.faded 0.25)
+
+@export baseProps = stylex.props styles.base

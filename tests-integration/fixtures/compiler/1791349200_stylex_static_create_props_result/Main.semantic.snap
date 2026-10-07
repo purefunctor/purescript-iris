@@ -8,7 +8,7 @@ base =
     { root: { color: "red" } }
 
 properties :: { className :: Prim.String }
-properties = props {propsInputStyle} base.root
+properties = props {propsInputStyleProps} base.root
 
 styles :: { root :: Iris.StyleX.Style }
 styles =
