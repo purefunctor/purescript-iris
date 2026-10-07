@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export nested = \opacity%0 ->
+  stylex.keyframes { from: { opacity: opacity%0 }, to: { opacity: 1.0 } }

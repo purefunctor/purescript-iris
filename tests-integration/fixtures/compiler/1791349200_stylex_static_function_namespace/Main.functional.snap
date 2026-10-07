@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export styles = \compileStyleListConsFunctionNilDict%0 ->
+  stylex.create { root: \colour%1 -> { color: colour%1 } }

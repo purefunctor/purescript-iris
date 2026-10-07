@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export styles = stylex.create { root: { color: alias.accent } }

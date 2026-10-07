@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+variables :: { accent :: Iris.StyleX.Variable Prim.String }
+variables =
+  defineVars {compileVars {trivial} {compileVarListConsType {compileVarListNilTypeRow} {trivial}}}
+    { accent }

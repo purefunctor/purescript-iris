@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+styles ::
+  forall (t0 :: Prim.Row Prim.Type).
+    Iris.StyleX.CompileStyleList
+      (Prim.RowList.Cons @Prim.Type
+        "root"
+        (Prim.String -> { color :: Prim.String })
+        (Prim.RowList.Nil @Prim.Type))
+      (t0 :: Prim.Row Prim.Type) =>
+    {| (t0 :: Prim.Row Prim.Type) }
+
+Types

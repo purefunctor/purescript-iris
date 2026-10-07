@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export transition = stylex.viewTransitionClass { group: { color: accent } }

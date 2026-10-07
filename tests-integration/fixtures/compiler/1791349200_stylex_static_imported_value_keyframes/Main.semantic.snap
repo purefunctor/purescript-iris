@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+animation :: Iris.StyleX.Keyframes
+animation = keyframes { from: { color: accent }, to: { color: "blue" } }

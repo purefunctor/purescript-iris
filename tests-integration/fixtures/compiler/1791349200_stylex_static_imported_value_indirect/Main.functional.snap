@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export colour = ordinary.accent
+
+@export styles = stylex.create { root: { color: colour } }

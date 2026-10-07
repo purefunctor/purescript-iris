@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+nested :: Prim.Number -> Iris.StyleX.Keyframes
+nested = \opacity -> keyframes { from: { opacity }, to: { opacity: 1.0 } }
