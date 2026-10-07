@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+escaped :: Iris.StyleX.ConditionalCase Prim.String
+escaped = conditionalCase "@media print" "red"

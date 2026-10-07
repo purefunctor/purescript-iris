@@ -1,7 +1,9 @@
 //! JavaScript rendering for semantic StyleX expressions.
 
 use functional::optimize::for_each_expression_child;
-use functional::stylex::{StyleXCallTarget, StyleXConditionalCase, StyleXExpression};
+use functional::stylex::{
+    StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression, StyleXWhenRelation,
+};
 use functional::tree::{
     DeclarationKind, ExpressionKind, Global, GlobalId, InstanceIdentity, Module,
 };
@@ -183,7 +185,7 @@ impl Generator<'_> {
     fn stylex_when_function(
         &self,
         tree: &mut Tree<'_>,
-        case: &StyleXConditionalCase,
+        relation: StyleXWhenRelation,
     ) -> ExpressionId {
         let namespace = self
             .stylex_namespace
@@ -191,7 +193,7 @@ impl Generator<'_> {
             .expect("invariant violated: StyleX expression has no module namespace");
         let namespace = tree.identifier(namespace);
         let namespace = tree.member(namespace, "when");
-        tree.member(namespace, case.relation.name())
+        tree.member(namespace, relation.name())
     }
 
     fn render_stylex_conditional_value<'t>(
@@ -208,14 +210,21 @@ impl Generator<'_> {
             value: default.value,
         }];
         for case in cases {
-            let function = self.stylex_when_function(tree, case);
-            let selector = self.rendered_expression(tree, writer, case.selector, context)?;
-            let mut arguments = vec![selector.value];
-            if let Some(marker) = case.marker {
-                let marker = self.rendered_expression(tree, writer, marker, context)?;
-                arguments.push(marker.value);
-            }
-            let key = tree.call(function, arguments);
+            let key = match case.condition {
+                StyleXCondition::Expression(condition) => {
+                    self.rendered_expression(tree, writer, condition, context)?.value
+                }
+                StyleXCondition::When { relation, selector, marker } => {
+                    let function = self.stylex_when_function(tree, relation);
+                    let selector = self.rendered_expression(tree, writer, selector, context)?;
+                    let mut arguments = vec![selector.value];
+                    if let Some(marker) = marker {
+                        let marker = self.rendered_expression(tree, writer, marker, context)?;
+                        arguments.push(marker.value);
+                    }
+                    tree.call(function, arguments)
+                }
+            };
             let value = self.rendered_expression(tree, writer, case.value, context)?;
             properties.push(ObjectProperty::Computed { key, value: value.value });
         }
@@ -228,18 +237,28 @@ impl Generator<'_> {
         case: &StyleXConditionalCase,
         context: &mut FunctionContext,
     ) -> ModuleResult<Option<(ExpressionId, ExpressionId)>> {
-        let function = self.stylex_when_function(tree, case);
-        let Some(selector) = self.inline_expression(tree, case.selector, context)? else {
-            return Ok(None);
+        let key = match case.condition {
+            StyleXCondition::Expression(condition) => {
+                let Some(condition) = self.inline_expression(tree, condition, context)? else {
+                    return Ok(None);
+                };
+                condition
+            }
+            StyleXCondition::When { relation, selector, marker } => {
+                let function = self.stylex_when_function(tree, relation);
+                let Some(selector) = self.inline_expression(tree, selector, context)? else {
+                    return Ok(None);
+                };
+                let mut arguments = vec![selector];
+                if let Some(marker) = marker {
+                    let Some(marker) = self.inline_expression(tree, marker, context)? else {
+                        return Ok(None);
+                    };
+                    arguments.push(marker);
+                }
+                tree.call(function, arguments)
+            }
         };
-        let mut arguments = vec![selector];
-        if let Some(marker) = case.marker {
-            let Some(marker) = self.inline_expression(tree, marker, context)? else {
-                return Ok(None);
-            };
-            arguments.push(marker);
-        }
-        let key = tree.call(function, arguments);
         let Some(value) = self.inline_expression(tree, case.value, context)? else {
             return Ok(None);
         };

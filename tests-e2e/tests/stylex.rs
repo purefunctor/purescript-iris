@@ -26,7 +26,7 @@ import Iris.StyleX as StyleX
 await :: StyleX.Style
 await = StyleX.defaultMarker
 
-constants = StyleX.defineConsts { spacing: "13px" }
+constants = StyleX.defineConsts { spacing: "13px", small: "@media (max-width: 600px)" }
 
 variables = StyleX.defineVars { accent: "blue" }
 
@@ -63,6 +63,7 @@ styles = StyleX.create
       , animationName: animation
       , positionTryFallbacks: position
       , viewTransitionClass: transition
+      , padding: StyleX.conditionalValue 2 [ StyleX.conditionalCase constants.small 4 ]
       }
   , animated: { animationName: StyleX.keyframes { from: { opacity: 0.2 }, to: { opacity: 0.8 } } }
   , row: { padding: 8 }

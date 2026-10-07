@@ -11,8 +11,8 @@ use crate::optimize::{
     inline_simple_bindings, reachable_expressions, try_for_each_expression_child,
 };
 use crate::stylex::{
-    StyleXCallTarget, StyleXConditionalCase, StyleXExpression, StyleXIntrinsic, StyleXRootCall,
-    StyleXRootIntrinsic, StyleXTypeCall, StyleXWhenRelation,
+    StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression, StyleXIntrinsic,
+    StyleXRootCall, StyleXRootIntrinsic, StyleXTypeCall, StyleXWhenRelation,
 };
 use crate::tree::{
     Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Field, GlobalId, LocalId,
@@ -160,11 +160,19 @@ where
                     cases: converted.into(),
                 })))
             }
+            (StyleXIntrinsic::Root(StyleXRootIntrinsic::ConditionalCase), [condition, value]) => {
+                let condition = StyleXCondition::Expression(*condition);
+                Some(self.stylex_conditional_case(condition, *value))
+            }
             (StyleXIntrinsic::When { relation, marker: false }, [selector, value]) => {
-                Some(self.stylex_conditional_case(relation, *selector, None, *value))
+                let condition =
+                    StyleXCondition::When { relation, selector: *selector, marker: None };
+                Some(self.stylex_conditional_case(condition, *value))
             }
             (StyleXIntrinsic::When { relation, marker: true }, [selector, marker, value]) => {
-                Some(self.stylex_conditional_case(relation, *selector, Some(*marker), *value))
+                let marker = Some(*marker);
+                let condition = StyleXCondition::When { relation, selector: *selector, marker };
+                Some(self.stylex_conditional_case(condition, *value))
             }
             (StyleXIntrinsic::Types(call), [_, argument]) => {
                 Some(self.stylex_call(StyleXCallTarget::Types(call), [*argument]))
@@ -204,12 +212,10 @@ where
 
     fn stylex_conditional_case(
         &mut self,
-        relation: StyleXWhenRelation,
-        selector: ExpressionId,
-        marker: Option<ExpressionId>,
+        condition: StyleXCondition,
         value: ExpressionId,
     ) -> ExpressionId {
-        let case = StyleXConditionalCase { relation, selector, marker, value };
+        let case = StyleXConditionalCase { condition, value };
         self.expression(ExpressionKind::StyleX(StyleXExpression::ConditionalCase(case)))
     }
 
@@ -412,10 +418,7 @@ where
                     }
                     StyleXExpression::ConditionalCase(case) => {
                         return Err(self.invalid_stylex_context(
-                            StyleXIntrinsic::When {
-                                relation: case.relation,
-                                marker: case.marker.is_some(),
-                            },
+                            case.intrinsic(),
                             "must be used directly in a conditionalValue case array",
                             declaration.global.id,
                         ));
@@ -751,6 +754,7 @@ fn stylex_root_intrinsic(name: &str) -> Option<StyleXRootIntrinsic> {
         "markerStyle" => return Some(StyleXRootIntrinsic::MarkerStyle),
         "conditional" => return Some(StyleXRootIntrinsic::Conditional),
         "conditionalValue" => return Some(StyleXRootIntrinsic::ConditionalValue),
+        "conditionalCase" => return Some(StyleXRootIntrinsic::ConditionalCase),
         _ => return None,
     };
     Some(StyleXRootIntrinsic::Call(call))

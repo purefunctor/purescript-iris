@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [FunctionalCodegen] · Main.purs:5:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ 'Iris.StyleX.conditionalCase' must be used directly in a conditionalValue case array.
+  │
+  │   escaped = StyleX.conditionalCase "@media print" "red"
+  │   ╰────────────────────────────────────────────────────
+  •

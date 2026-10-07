@@ -15,6 +15,7 @@ module Iris.StyleX
   , recordAttrs
   , conditional
   , conditionalValue
+  , conditionalCase
   , keyframes
   , defineConsts
   , defineVars
@@ -199,6 +200,10 @@ foreign import conditionalValue
    . value
   -> Array (ConditionalCase value)
   -> ConditionalValue value
+
+-- | A `conditionalValue` case keyed by a condition string such as a media query, including a
+-- | `defineConsts` value, which record labels cannot express.
+foreign import conditionalCase :: forall value. String -> value -> ConditionalCase value
 
 foreign import keyframes :: forall frames. Record frames -> Keyframes
 

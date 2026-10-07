@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export print = "@media print"
+
+@export styles = stylex.create {
+  root:
+    {
+      padding:
+        stylex.conditionalValue 8 [stylex.conditionalCase(breakpoints.small, 4),
+          stylex.conditionalCase(print, 0),
+          stylex.conditionalCase("@media (min-width: 1200px)", 16),
+          stylex.when.ancestor(":hover", 12)]
+    }
+}

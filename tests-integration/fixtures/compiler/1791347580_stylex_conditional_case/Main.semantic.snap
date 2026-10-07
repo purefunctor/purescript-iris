@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+print :: Prim.String
+print = "@media print"
+
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { padding: conditionalValue 8
+      [conditionalCase breakpoints.small 4, conditionalCase print 0, conditionalCase
+        "@media (min-width: 1200px)"
+        16, ancestor ":hover" 12] } }

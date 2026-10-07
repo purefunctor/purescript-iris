@@ -2,7 +2,7 @@
 
 use pretty::{Arena, DocAllocator, DocBuilder};
 
-use crate::stylex::{StyleXCallTarget, StyleXConditionalCase, StyleXExpression};
+use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
     BinaryOperator, Declaration, DeclarationKind, EffectExpression, ExpressionId, ExpressionKind,
     Field, GlobalId, Guard, IndirectModuleExports, Literal, Module, Parameter, PatternId,
@@ -336,14 +336,26 @@ impl<'a> Printer<'a, '_> {
     }
 
     fn stylex_conditional_case(&self, case: &StyleXConditionalCase) -> Doc<'a> {
-        let selector = self.expression_at(case.selector, ExpressionPrecedence::Atom);
-        let marker =
-            case.marker.map(|marker| self.expression_at(marker, ExpressionPrecedence::Atom));
         let value = self.expression_at(case.value, ExpressionPrecedence::Atom);
-        let arguments = std::iter::once(selector).chain(marker).chain(std::iter::once(value));
-        self.arena
-            .text(format!("stylex.when.{}", case.relation.name()))
-            .append(self.delimited("(", arguments, ")"))
+        match case.condition {
+            StyleXCondition::Expression(condition) => {
+                let condition = self.expression_at(condition, ExpressionPrecedence::Atom);
+                let arguments = [condition, value];
+                self.arena
+                    .text("stylex.conditionalCase")
+                    .append(self.delimited("(", arguments, ")"))
+            }
+            StyleXCondition::When { relation, selector, marker } => {
+                let selector = self.expression_at(selector, ExpressionPrecedence::Atom);
+                let marker =
+                    marker.map(|marker| self.expression_at(marker, ExpressionPrecedence::Atom));
+                let arguments =
+                    std::iter::once(selector).chain(marker).chain(std::iter::once(value));
+                self.arena
+                    .text(format!("stylex.when.{}", relation.name()))
+                    .append(self.delimited("(", arguments, ")"))
+            }
+        }
     }
 
     fn pattern(&self, pattern_id: PatternId) -> Doc<'a> {
