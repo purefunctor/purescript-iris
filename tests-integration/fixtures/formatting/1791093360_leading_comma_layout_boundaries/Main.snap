@@ -42,7 +42,9 @@ argument = use
 
 patterns first
  second =
- case first, second of
+ case
+  first, second
+ of
   { firstField:
      value
   , secondField:
@@ -164,10 +166,9 @@ effect = do
           value ← secondAction
           in value
     ]
-    { result:
-          case input of
-              Just value → value
-              Nothing → fallback
+    { result: case input of
+          Just value → value
+          Nothing → fallback
     , local:
           let
               value = firstArgument
@@ -273,10 +274,9 @@ effect = do
       value <- secondAction
       in value
   ]
-  { result:
-      case input of
-        Just value -> value
-        Nothing -> fallback
+  { result: case input of
+      Just value -> value
+      Nothing -> fallback
   , local:
       let
         value = firstArgument
@@ -292,10 +292,9 @@ argument = use
   , nextArgument
   ] finalArgument
 
-patterns first second =
-  case first, second of
-    { firstField: value, secondField: other }, [ item, rest ] -> value
-    _, _ -> fallback
+patterns first second = case first, second of
+  { firstField: value, secondField: other }, [ item, rest ] -> value
+  _, _ -> fallback
 
 named whole@{ firstField: value, secondField: other } = whole
 lambda = \{ firstField: value, secondField: other } -> value

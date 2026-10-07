@@ -22,11 +22,12 @@ localBinding =
            + anotherLongOperand
 branching =
   firstLongOperand
-    <=> case choice of
-          First ->
-            firstBranchValue
-          Second ->
-            secondBranchValue
+    <=>
+      case choice of
+        First ->
+          firstBranchValue
+        Second ->
+          secondBranchValue
 
 guarded value
   | firstLongCondition
@@ -99,21 +100,19 @@ localBinding =
          bound = longBindingValue
        in
          bound + anotherLongOperand
-branching =
-  firstLongOperand
-    <=> case choice of
-          First -> firstBranchValue
-          Second -> secondBranchValue
+branching = firstLongOperand
+  <=> case choice of
+    First -> firstBranchValue
+    Second -> secondBranchValue
 
 guarded value
   | firstLongCondition value
     && secondLongCondition value = 1
   | otherwise = 2
 
-pattern value =
-  case value of
-    Cons firstElement secondElement
-      : remainingElements -> result
+pattern value = case value of
+  Cons firstElement secondElement
+    : remainingElements -> result
 
 typed ::
   forall value.
@@ -173,10 +172,10 @@ localBinding =
 branching =
  firstLongOperand
   <=> case choice of
-       First ->
-        firstBranchValue
-       Second ->
-        secondBranchValue
+   First ->
+    firstBranchValue
+   Second ->
+    secondBranchValue
 
 guarded value
  | firstLongCondition
@@ -250,22 +249,19 @@ localBinding =
            in
                bound
                    + anotherLongOperand
-branching =
-    firstLongOperand
-        <=> case choice of
-                First → firstBranchValue
-                Second →
-                    secondBranchValue
+branching = firstLongOperand
+    <=> case choice of
+        First → firstBranchValue
+        Second → secondBranchValue
 
 guarded value
     | firstLongCondition value
         && secondLongCondition value = 1
     | otherwise = 2
 
-pattern value =
-    case value of
-        Cons firstElement secondElement
-            : remainingElements → result
+pattern value = case value of
+    Cons firstElement secondElement
+        : remainingElements → result
 
 typed ∷
     ∀ value.

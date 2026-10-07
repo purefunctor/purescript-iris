@@ -30,10 +30,9 @@ terms = do
       )
     )
 
-patterns value =
-    case value of
-        [ -1 ] -> 0
-        _ -> 1
+patterns value = case value of
+    [ -1 ] -> 0
+    _ -> 1
 
 rows ::
     forall r.
@@ -60,10 +59,9 @@ terms = do
     )
   )
 
-patterns value =
-  case value of
-    [ -1 ] -> 0
-    _ -> 1
+patterns value = case value of
+  [ -1 ] -> 0
+  _ -> 1
 
 rows :: forall r. { | r } -> { | r } -> Int
 quantified :: (forall b. b -> b) -> Int
@@ -96,10 +94,9 @@ terms = do
       )
     )
 
-patterns value =
-    case value of
-        [ -1 ] → 0
-        _ → 1
+patterns value = case value of
+    [ -1 ] → 0
+    _ → 1
 
 rows ∷
     ∀ r.

@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 92
+assertion_line: 127
 ---
 === width 30, indent 2 ===
 module Main where
@@ -21,20 +21,19 @@ statement = do
         action y
   pure x
 
-branches value =
-  case value of
-    A ->
-      let
-        y = 1
-      in
-        do
-          action y
-    B ->
-      if condition
-      then do
-        firstAction
-        secondAction
-      else fallback
+branches value = case value of
+  A ->
+    let
+      y = 1
+    in
+      do
+        action y
+  B ->
+    if condition
+    then do
+      firstAction
+      secondAction
+    else fallback
 
 conditional =
   if condition
@@ -56,6 +55,28 @@ empty = ado
 emptyLine = ado
   -- before the result
   in 2
+
+letCase =
+  let
+    y = 1
+  in
+    case y of
+      value -> value
+
+conditionalCase =
+  if condition
+  then case value of
+    A -> first
+  else do
+    fallback
+
+lambdaCase = \value ->
+  case value of
+    A -> do
+      firstAction
+    B -> ado
+      result <- secondAction
+      in result
 
 === width 80, indent 2 ===
 module Main where
@@ -76,20 +97,19 @@ statement = do
         action y
   pure x
 
-branches value =
-  case value of
-    A ->
-      let
-        y = 1
-      in
-        do
-          action y
-    B ->
-      if condition
-      then do
-        firstAction
-        secondAction
-      else fallback
+branches value = case value of
+  A ->
+    let
+      y = 1
+    in
+      do
+        action y
+  B ->
+    if condition
+    then do
+      firstAction
+      secondAction
+    else fallback
 
 conditional =
   if condition
@@ -112,6 +132,27 @@ emptyLine = ado
   -- before the result
   in 2
 
+letCase =
+  let
+    y = 1
+  in
+    case y of
+      value -> value
+
+conditionalCase =
+  if condition
+  then case value of
+    A -> first
+  else do
+    fallback
+
+lambdaCase = \value -> case value of
+  A -> do
+    firstAction
+  B -> ado
+    result <- secondAction
+    in result
+
 === width 40, indent 4, unicode ===
 module Main where
 
@@ -131,20 +172,19 @@ statement = do
                 action y
     pure x
 
-branches value =
-    case value of
-        A →
-            let
-                y = 1
-            in
-                do
-                    action y
-        B →
-            if condition
-            then do
-                firstAction
-                secondAction
-            else fallback
+branches value = case value of
+    A →
+        let
+            y = 1
+        in
+            do
+                action y
+    B →
+        if condition
+        then do
+            firstAction
+            secondAction
+        else fallback
 
 conditional =
     if condition
@@ -166,3 +206,24 @@ empty = ado
 emptyLine = ado
     -- before the result
     in 2
+
+letCase =
+    let
+        y = 1
+    in
+        case y of
+            value → value
+
+conditionalCase =
+    if condition
+    then case value of
+        A → first
+    else do
+        fallback
+
+lambdaCase = \value → case value of
+    A → do
+        firstAction
+    B → ado
+        result ← secondAction
+        in result

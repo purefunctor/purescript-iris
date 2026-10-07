@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 20, indent 2 ===
 module Main where
@@ -54,14 +54,13 @@ recordGuard value
   predicate value = 1
  | otherwise = 2
 
-branch value =
- case value of
-  result
-   | [ firstElementName
-     , secondElementName
-     ] <- result,
-    predicate result -> 1
-  _ -> 2
+branch value = case value of
+ result
+  | [ firstElementName
+    , secondElementName
+    ] <- result,
+   predicate result -> 1
+ _ -> 2
 
 === width 40, indent 4, unicode ===
 module Main where
@@ -82,14 +81,13 @@ recordGuard value
         predicate value = 1
     | otherwise = 2
 
-branch value =
-    case value of
-        result
-            | [ firstElementName
-              , secondElementName
-              ] ← result,
-                predicate result → 1
-        _ → 2
+branch value = case value of
+    result
+        | [ firstElementName
+          , secondElementName
+          ] ← result,
+            predicate result → 1
+    _ → 2
 
 === width 120, indent 2 ===
 module Main where
@@ -102,8 +100,7 @@ recordGuard value
   | { firstFieldName: firstArgument, secondFieldName: secondArgument } == value, predicate value = 1
   | otherwise = 2
 
-branch value =
-  case value of
-    result
-      | [ firstElementName, secondElementName ] <- result, predicate result -> 1
-    _ -> 2
+branch value = case value of
+  result
+    | [ firstElementName, secondElementName ] <- result, predicate result -> 1
+  _ -> 2

@@ -60,12 +60,10 @@ guarded value
   | Just result <- lookup value,
     result > 0 = result
 conditional = if condition then 1 else 2
-caseResult =
-  case value of
-    Just result -> result
-multipleCase =
-  case first, second of
-    Just result, Nothing -> result
+caseResult = case value of
+  Just result -> result
+multipleCase = case first, second of
+  Just result, Nothing -> result
 lambda = \value -> value
 parenthesized = (1)
 negative = -1
@@ -160,12 +158,10 @@ patternLocal =
 guarded value
   | Just result <- lookup value, result > 0 = result
 conditional = if condition then 1 else 2
-caseResult =
-  case value of
-    Just result -> result
-multipleCase =
-  case first, second of
-    Just result, Nothing -> result
+caseResult = case value of
+  Just result -> result
+multipleCase = case first, second of
+  Just result, Nothing -> result
 lambda = \value -> value
 parenthesized = (1)
 negative = -1
@@ -256,12 +252,10 @@ guarded value
     | Just result ← lookup value,
         result > 0 = result
 conditional = if condition then 1 else 2
-caseResult =
-    case value of
-        Just result → result
-multipleCase =
-    case first, second of
-        Just result, Nothing → result
+caseResult = case value of
+    Just result → result
+multipleCase = case first, second of
+    Just result, Nothing → result
 lambda = \value → value
 parenthesized = (1)
 negative = -1

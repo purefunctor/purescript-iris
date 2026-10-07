@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 124
+assertion_line: 127
 ---
 module Main (test, Box(..)) where
 
@@ -37,9 +37,8 @@ local x =
   in
     y
 
-branch x =
-  case x of
-    Box y -> if true then y else 0
+branch x = case x of
+  Box y -> if true then y else 0
 
 record = { outer: { left: 1, right: 2 }, tail: 3 }
 

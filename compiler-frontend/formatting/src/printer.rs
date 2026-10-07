@@ -92,8 +92,8 @@ impl Tree {
 
     fn has_inline_block(&self) -> bool {
         match self.kind {
-            ExpressionDo | ExpressionAdo => true,
-            ExpressionLetIn | ExpressionIfThenElse | ExpressionCaseOf => false,
+            ExpressionDo | ExpressionAdo | ExpressionCaseOf => true,
+            ExpressionLetIn | ExpressionIfThenElse => false,
             WhereExpression => self.children.first().is_some_and(Tree::has_inline_block),
             _ => self.children.iter().any(Tree::has_inline_block),
         }
@@ -342,7 +342,13 @@ impl<'arena> Printer<'arena, '_> {
             let inline = self.fixed(tail, context)?;
             let broken = self.fixed(tail, Context { margin, ..context })?;
             let gap = if first.is_delimited_block() { Gap::Hard(1) } else { Gap::Soft };
-            return Ok(head.append(self.attach(first.start, gap, inline, broken)?));
+            return Ok(head.append(self.attach(
+                first.start,
+                gap,
+                inline,
+                broken,
+                self.case_header(first, context)?,
+            )?));
         }
         let tail = self.fixed(tail, Context { margin, ..context })?;
         Ok(head
@@ -361,6 +367,7 @@ impl<'arena> Printer<'arena, '_> {
         gap: Gap,
         inline: Doc<'arena>,
         broken: Doc<'arena>,
+        header: Option<Doc<'arena>>,
     ) -> Result<Doc<'arena>, FormatError> {
         let arena = self.arena;
         let indent = self.config.indent_width;
@@ -371,6 +378,22 @@ impl<'arena> Printer<'arena, '_> {
             // A mandatory break can nest the whole separator, keeping standalone
             // comments aligned with the continuation they precede.
             return Ok(self.boundary(index, gap)?.append(broken).nest(indent as isize));
+        }
+        if let Some(header) = header {
+            // Probe the complete flat header, not the first line of its fallback.
+            // Branch lines and oversized branch atoms cannot affect attachment.
+            let probe = arena.fail().flat_alt(self.boundary(index, gap)?.append(header)).group();
+            let inline = self.boundary(index, Gap::Space)?.append(inline);
+            let broken = self.boundary(index, Gap::Hard(1))?.append(broken).nest(indent as isize);
+            let width = self.config.line_width;
+            return Ok(arena.column(move |column| {
+                let mut rendered = String::new();
+                if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                    inline.clone().into_doc()
+                } else {
+                    broken.clone().into_doc()
+                }
+            }));
         }
         if matches!(gap, Gap::Tight | Gap::Space | Gap::BrokenSpace) {
             return Ok(self.boundary(index, gap)?.append(inline));
@@ -483,7 +506,13 @@ impl<'arena> Printer<'arena, '_> {
                     inline_suffix = inline;
                     broken_suffix = broken;
                 } else {
-                    inline_suffix = self.attach(element.start, gap, inline, broken.clone())?;
+                    inline_suffix = self.attach(
+                        element.start,
+                        gap,
+                        inline,
+                        broken.clone(),
+                        self.case_header(element, context)?,
+                    )?;
                     broken_suffix = self.boundary(element.start, gap)?.group().append(broken);
                 }
             }
@@ -658,14 +687,45 @@ impl<'arena> Printer<'arena, '_> {
                     if operand.is_delimited_block() { Gap::Hard(1) } else { Gap::Space };
                 let following =
                     if position + 2 < elements.len() { Some(margin) } else { context.following };
+                let operand_header = self.case_header(operand, context)?;
+                let operator_header = if let Some(header) = &operand_header {
+                    Some(
+                        self.tree(operator, context)?
+                            .append(self.boundary(operand.start, Gap::Space)?)
+                            .append(header.clone()),
+                    )
+                } else {
+                    None
+                };
                 let inline = operand_document(operand, Context { following, ..context })?
                     .append(inline_suffix);
+                let moved = if operand.kind == ExpressionCaseOf {
+                    Some(
+                        operand_document(
+                            operand,
+                            Context { margin: margin + self.config.indent_width, following },
+                        )?
+                        .append(broken_suffix.clone()),
+                    )
+                } else {
+                    None
+                };
                 let broken =
                     operand_document(operand, Context { margin, following })?.append(broken_suffix);
                 let inline = self
                     .tree(operator, Context { following: Some(margin), ..context })?
-                    .append(self.attach(operand.start, operand_gap, inline, broken.clone())?);
-                let broken = self.boundary(operand.start, operand_gap)?.group().append(broken);
+                    .append(self.attach(
+                        operand.start,
+                        operand_gap,
+                        inline,
+                        broken.clone(),
+                        operand_header.clone(),
+                    )?);
+                let broken = if let Some(moved) = moved {
+                    self.attach(operand.start, operand_gap, broken, moved, operand_header)?
+                } else {
+                    self.boundary(operand.start, operand_gap)?.group().append(broken)
+                };
                 let broken = if operand.is_delimited_block() {
                     broken.nest(self.config.indent_width as isize)
                 } else {
@@ -674,8 +734,13 @@ impl<'arena> Printer<'arena, '_> {
                 let broken = self
                     .tree(operator, Context { margin, following: Some(margin) })?
                     .append(broken);
-                inline_suffix =
-                    self.attach(operator.start, gap(position), inline, broken.clone())?;
+                inline_suffix = self.attach(
+                    operator.start,
+                    gap(position),
+                    inline,
+                    broken.clone(),
+                    operator_header,
+                )?;
                 broken_suffix =
                     self.boundary(operator.start, gap(position))?.group().append(broken);
             }
@@ -713,6 +778,62 @@ impl<'arena> Printer<'arena, '_> {
             )?);
         }
         Ok(document.group())
+    }
+
+    fn case_header(
+        &self,
+        tree: &Tree,
+        context: Context,
+    ) -> Result<Option<Doc<'arena>>, FormatError> {
+        let expression = tree.expression().unwrap_or(tree);
+        if expression.kind == ExpressionCaseOf {
+            self.fixed(&expression.elements()[..3], context).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn case_expression(
+        &self,
+        elements: &[&Tree],
+        context: Context,
+    ) -> Result<Doc<'arena>, FormatError> {
+        let header = self.fixed(&elements[..3], context)?;
+        let margin = context.margin + self.config.indent_width;
+        let items = elements[1].elements();
+        let mut trunk = self.arena.nil();
+        for (position, item) in items.iter().enumerate() {
+            let gap = if item.kind == COMMA { Gap::SoftEmpty } else { self.fixed_gap(item.start) };
+            let boundary =
+                if position == 0 { self.arena.nil() } else { self.boundary(item.start, gap)? };
+            let indentation = if position > 0 && items[position - 1].kind == COMMA { 2 } else { 0 };
+            let item_context = Context { margin: margin + indentation, following: None };
+            trunk = trunk
+                .append(boundary.append(self.tree(item, item_context)?).nest(indentation as isize));
+        }
+        let broken = self
+            .tree(elements[0], context)?
+            .append(
+                self.boundary(elements[1].start, Gap::Hard(1))?
+                    .append(trunk.group())
+                    .nest(self.config.indent_width as isize),
+            )
+            .append(self.boundary(elements[2].start, Gap::Hard(1))?)
+            .append(self.tree(elements[2], context)?);
+        let arena = self.arena;
+        let probe = arena.fail().flat_alt(header).group();
+        let width = self.config.line_width;
+        // A comment after `of` belongs to the branch boundary, so it must not
+        // participate in the decision to split the header.
+        let header = arena.column(move |column| {
+            let mut rendered = String::new();
+            if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                arena.text(rendered).into_doc()
+            } else {
+                broken.clone().into_doc()
+            }
+        });
+        Ok(header.append(self.tree(elements[3], context)?))
     }
 
     fn where_expression(
@@ -872,6 +993,7 @@ impl<'arena> Printer<'arena, '_> {
             | InstanceConstraints
             | ClassConstraints => self.delimited(tree, context, None),
             ExpressionIfThenElse => self.conditional(&elements, context),
+            ExpressionCaseOf => self.case_expression(&elements, context),
             ValueEquation
             | LetBindingEquation
             | LetBindingPattern

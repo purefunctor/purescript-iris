@@ -120,12 +120,11 @@ commentedOperatorDo = do
     -- before an inline block
     + do
       action
-operatorPattern value =
-  case value of
-    firstElement
-      : secondElement
-      : remainingElements ->
-      transform remainingElements
+operatorPattern value = case value of
+  firstElement
+    : secondElement
+    : remainingElements ->
+    transform remainingElements
 
 class Base value <= Derived value
 builtinBind = do
@@ -257,10 +256,9 @@ commentedOperatorDo = do
     -- before an inline block
     + do
       action
-operatorPattern value =
-  case value of
-    firstElement : secondElement : remainingElements ->
-      transform remainingElements
+operatorPattern value = case value of
+  firstElement : secondElement : remainingElements ->
+    transform remainingElements
 
 class Base value <= Derived value
 builtinBind = do
@@ -363,9 +361,8 @@ commentedOperatorDo = do
     -- before an inline block
     + do
       action
-operatorPattern value =
-  case value of
-    firstElement : secondElement : remainingElements -> transform remainingElements
+operatorPattern value = case value of
+  firstElement : secondElement : remainingElements -> transform remainingElements
 
 class Base value <= Derived value
 builtinBind = do
@@ -528,12 +525,11 @@ commentedOperatorDo = do
   -- before an inline block
   + do
    action
-operatorPattern value =
- case value of
-  firstElement
-   : secondElement
-   : remainingElements ->
-   transform remainingElements
+operatorPattern value = case value of
+ firstElement
+  : secondElement
+  : remainingElements ->
+  transform remainingElements
 
 class Base value <= Derived value
 builtinBind = do
@@ -705,12 +701,11 @@ commentedOperatorDo = do
         -- before an inline block
         + do
             action
-operatorPattern value =
-    case value of
-        firstElement
-            : secondElement
-            : remainingElements ->
-            transform remainingElements
+operatorPattern value = case value of
+    firstElement
+        : secondElement
+        : remainingElements ->
+        transform remainingElements
 
 class Base value <= Derived value
 builtinBind = do
@@ -881,12 +876,11 @@ commentedOperatorDo = do
     -- before an inline block
     + do
       action
-operatorPattern value =
-  case value of
-    firstElement
-      : secondElement
-      : remainingElements →
-      transform remainingElements
+operatorPattern value = case value of
+  firstElement
+    : secondElement
+    : remainingElements →
+    transform remainingElements
 
 class Base value ⇐ Derived value
 builtinBind = do
@@ -1016,10 +1010,8 @@ commentedOperatorDo = do
     -- before an inline block
     + do
       action
-operatorPattern value =
-  case value of
-    firstElement : secondElement : remainingElements →
-      transform remainingElements
+operatorPattern value = case value of
+  firstElement : secondElement : remainingElements → transform remainingElements
 
 class Base value ⇐ Derived value
 builtinBind = do

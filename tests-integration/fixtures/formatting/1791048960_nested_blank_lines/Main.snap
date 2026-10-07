@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 114
+assertion_line: 127
 ---
 === width 40, indent 2 ===
 module Main where
@@ -10,11 +10,10 @@ doValue = do
 
   second
 
-caseValue =
-  case value of
-    First -> 1
+caseValue = case value of
+  First -> 1
 
-    Second -> 2
+  Second -> 2
 
 whereValue = first
   where
@@ -58,11 +57,10 @@ doValue = do
 
   second
 
-caseValue =
-  case value of
-    First -> 1
+caseValue = case value of
+  First -> 1
 
-    Second -> 2
+  Second -> 2
 
 whereValue = first
   where

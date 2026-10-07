@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 24, indent 1 ===
 module Main where
@@ -85,12 +85,11 @@ effect = do
     pure 1
   sibling = 2
 
-branch input =
-  case input of
-    Just value -> result
-      where
-      result = value
-    Nothing -> fallback
+branch input = case input of
+  Just value -> result
+    where
+    result = value
+  Nothing -> fallback
   where
   fallback = 0
 
@@ -146,12 +145,11 @@ effect = do
         pure 1
     sibling = 2
 
-branch input =
-    case input of
-        Just value → result
-            where
-            result = value
-        Nothing → fallback
+branch input = case input of
+    Just value → result
+        where
+        result = value
+    Nothing → fallback
     where
     fallback = 0
 
@@ -207,12 +205,11 @@ effect = do
     pure 1
   sibling = 2
 
-branch input =
-  case input of
-    Just value -> result
-      where
-      result = value
-    Nothing -> fallback
+branch input = case input of
+  Just value -> result
+    where
+    result = value
+  Nothing -> fallback
   where
   fallback = 0
 
