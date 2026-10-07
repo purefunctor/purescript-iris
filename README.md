@@ -1,4 +1,4 @@
-<h1 align="center"><img src=".github/assets/iris-readme-banner.webp" alt="Iris" width="1200"></h1>
+<h1 align="center"><a href="https://iris-lang.com"><img src=".github/assets/iris-readme-banner.webp" alt="Iris" width="1200"></a></h1>
 <p align="center">a language implementation for PureScript</p>
 
 > [!WARNING]
