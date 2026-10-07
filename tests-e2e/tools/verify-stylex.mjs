@@ -71,6 +71,8 @@ for (const expected of [
   "top:7px",
   "::view-transition-old",
   "padding:8px",
+  "@media (max-width: 600px)",
+  "padding:4px",
 ]) {
   if (!css.includes(expected)) {
     throw new Error(`StyleX CSS does not contain ${JSON.stringify(expected)}:\n${css}`);
