@@ -65,6 +65,17 @@ impl Tree {
             .collect()
     }
 
+    fn expression(&self) -> Option<&Tree> {
+        if self.kind == ExpressionTermArgument { self.children.first() } else { None }
+    }
+
+    fn is_delimited_block(&self) -> bool {
+        matches!(
+            self.kind,
+            ExpressionParenthesized | ExpressionArray | ExpressionRecord | RecordUpdates
+        ) && self.has_inline_block()
+    }
+
     fn ends_offside(&self) -> bool {
         if matches!(
             self.kind,
@@ -79,12 +90,12 @@ impl Tree {
         self.elements().last().is_some_and(|child| child.ends_offside())
     }
 
-    fn has_inline_do(&self) -> bool {
+    fn has_inline_block(&self) -> bool {
         match self.kind {
             ExpressionDo | ExpressionAdo => true,
             ExpressionLetIn | ExpressionIfThenElse | ExpressionCaseOf => false,
-            WhereExpression => self.children.first().is_some_and(Tree::has_inline_do),
-            _ => self.children.iter().any(Tree::has_inline_do),
+            WhereExpression => self.children.first().is_some_and(Tree::has_inline_block),
+            _ => self.children.iter().any(Tree::has_inline_block),
         }
     }
 }
@@ -327,10 +338,11 @@ impl<'arena> Printer<'arena, '_> {
         };
         let margin = context.margin + self.config.indent_width;
         let head = self.fixed(head, Context { following: Some(margin), ..context })?.group();
-        if tail.iter().any(|tree| tree.has_inline_do()) {
+        if tail.iter().any(|tree| tree.has_inline_block()) {
             let inline = self.fixed(tail, context)?;
             let broken = self.fixed(tail, Context { margin, ..context })?;
-            return Ok(head.append(self.attach(first.start, Gap::Soft, inline, broken)?));
+            let gap = if first.is_delimited_block() { Gap::Hard(1) } else { Gap::Soft };
+            return Ok(head.append(self.attach(first.start, gap, inline, broken)?));
         }
         let tail = self.fixed(tail, Context { margin, ..context })?;
         Ok(head
@@ -397,7 +409,13 @@ impl<'arena> Printer<'arena, '_> {
             head_length,
             context,
             context.margin + self.config.indent_width,
-            |_, _, _| Gap::Soft,
+            |_, _, current| {
+                if current.expression().unwrap_or(current).is_delimited_block() {
+                    Gap::Hard(1)
+                } else {
+                    Gap::Soft
+                }
+            },
         )
     }
 
@@ -447,7 +465,7 @@ impl<'arena> Printer<'arena, '_> {
         let fixed_gaps =
             (0..tail.len()).all(|position| !matches!(gap(position), Gap::Soft | Gap::SoftEmpty));
         if fixed_gaps
-            || elements.iter().any(|tree| tree.has_inline_do())
+            || elements.iter().any(|tree| tree.has_inline_block())
             || head.last().is_some_and(|tree| tree.kind == ClassConstraints)
         {
             let mut inline_suffix = self.arena.nil();
@@ -617,7 +635,7 @@ impl<'arena> Printer<'arena, '_> {
             .nest(self.config.indent_width as isize);
         let operand_document = |operand: &Tree, context: Context| {
             let document = self.tree(operand, context)?;
-            let document = if operand.has_inline_do() { document } else { document.align() };
+            let document = if operand.has_inline_block() { document } else { document.align() };
             Ok::<_, FormatError>(document)
         };
         let pair = |operator: &Tree, operand: &Tree, context: Context| {
@@ -630,12 +648,14 @@ impl<'arena> Printer<'arena, '_> {
         let gap = |position: usize| {
             if elements[position - 1].ends_offside() { Gap::Hard(1) } else { Gap::Soft }
         };
-        if elements.iter().any(|tree| tree.has_inline_do()) {
+        if elements.iter().any(|tree| tree.has_inline_block()) {
             let mut inline_suffix = self.arena.nil();
             let mut broken_suffix = self.arena.nil();
             for position in (1..elements.len()).step_by(2).rev() {
                 let operator = elements[position];
                 let operand = elements[position + 1];
+                let operand_gap =
+                    if operand.is_delimited_block() { Gap::Hard(1) } else { Gap::Space };
                 let following =
                     if position + 2 < elements.len() { Some(margin) } else { context.following };
                 let inline = operand_document(operand, Context { following, ..context })?
@@ -644,10 +664,15 @@ impl<'arena> Printer<'arena, '_> {
                     operand_document(operand, Context { margin, following })?.append(broken_suffix);
                 let inline = self
                     .tree(operator, Context { following: Some(margin), ..context })?
-                    .append(self.attach(operand.start, Gap::Space, inline, broken.clone())?);
+                    .append(self.attach(operand.start, operand_gap, inline, broken.clone())?);
+                let broken = self.boundary(operand.start, operand_gap)?.group().append(broken);
+                let broken = if operand.is_delimited_block() {
+                    broken.nest(self.config.indent_width as isize)
+                } else {
+                    broken
+                };
                 let broken = self
                     .tree(operator, Context { margin, following: Some(margin) })?
-                    .append(self.boundary(operand.start, Gap::Space)?.group())
                     .append(broken);
                 inline_suffix =
                     self.attach(operator.start, gap(position), inline, broken.clone())?;

@@ -10,31 +10,30 @@ lambda = for_ values
       log value
   )
 
-parenthesized = use ( do
-                        action
-                    ) next
+parenthesized = use
+  ( do
+      action
+  ) next
 
-record = { onClick: do
-             action
-         , other: 1
-         }
+record =
+  { onClick: do
+      action
+  , other: 1
+  }
 
-array = [ do
-            firstAction
-        , do
-            secondAction
-        ]
+array =
+  [ do
+      firstAction
+  , do
+      secondAction
+  ]
 
-applicative = use ( ado
-                      first <-
-                        firstAction
-                      second <-
-                        secondAction
-                      in
-                        combine
-                          first
-                          second
-                  )
+applicative = use
+  ( ado
+      first <- firstAction
+      second <- secondAction
+      in combine first second
+  )
 
 wrapped =
   ( combine
@@ -48,69 +47,86 @@ nested =
     )
   )
 
+operator = identity $
+  { onClick: do
+      action
+  , other: 1
+  }
+
 === width 80, indent 2 ===
 module Main where
 
-lambda = for_ values ( \value -> do
-                         log value
-                     )
+lambda = for_ values
+  ( \value -> do
+      log value
+  )
 
-parenthesized = use ( do
-                        action
-                    ) next
+parenthesized = use
+  ( do
+      action
+  ) next
 
-record = { onClick: do
-             action
-         , other: 1
-         }
+record =
+  { onClick: do
+      action
+  , other: 1
+  }
 
-array = [ do
-            firstAction
-        , do
-            secondAction
-        ]
+array =
+  [ do
+      firstAction
+  , do
+      secondAction
+  ]
 
-applicative = use ( ado
-                      first <- firstAction
-                      second <- secondAction
-                      in combine first second
-                  )
+applicative = use
+  ( ado
+      first <- firstAction
+      second <- secondAction
+      in combine first second
+  )
 
 wrapped = (combine firstArgument secondArgument)
 nested = ((combine firstArgument secondArgument))
 
+operator = identity $
+  { onClick: do
+      action
+  , other: 1
+  }
+
 === width 40, indent 4, unicode ===
 module Main where
 
-lambda = for_ values ( \value → do
-                           log value
-                     )
+lambda = for_ values
+    ( \value → do
+          log value
+    )
 
-parenthesized = use ( do
-                          action
-                    ) next
+parenthesized = use
+    ( do
+          action
+    ) next
 
-record = { onClick: do
-               action
-         , other: 1
-         }
+record =
+    { onClick: do
+          action
+    , other: 1
+    }
 
-array = [ do
-              firstAction
-        , do
-              secondAction
-        ]
+array =
+    [ do
+          firstAction
+    , do
+          secondAction
+    ]
 
-applicative = use ( ado
-                        first ←
-                            firstAction
-                        second ←
-                            secondAction
-                        in
-                            combine
-                                first
-                                second
-                  )
+applicative = use
+    ( ado
+          first ← firstAction
+          second ← secondAction
+          in combine first second
+    )
 
 wrapped =
     ( combine
@@ -123,3 +139,9 @@ nested =
             secondArgument
       )
     )
+
+operator = identity $
+    { onClick: do
+          action
+    , other: 1
+    }

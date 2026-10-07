@@ -23,3 +23,6 @@ applicative = use (ado
 
 wrapped = (combine firstArgument secondArgument)
 nested = ((combine firstArgument secondArgument))
+
+operator = identity $ { onClick: do
+  action, other: 1 }

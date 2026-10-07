@@ -34,11 +34,11 @@ effect = do
  }
  finalAction
 
-argument = use [ do
-                  action
-               , nextArgument
-               ]
- finalArgument
+argument = use
+ [ do
+    action
+ , nextArgument
+ ] finalArgument
 
 patterns first
  second =
@@ -110,11 +110,12 @@ second"""
  ]
 
 updateEffect =
- record { field = do
-           action
-        , otherField =
-           secondArgument
-        }
+ record
+  { field = do
+     action
+  , otherField =
+     secondArgument
+  }
 qualifiedUpdate =
  M.record
   { field =
@@ -146,12 +147,12 @@ sectionUpdate =
      secondArgument
   }
 widePrefix = use
- "界界界界" { field:
-               do
-                action
-            , otherField:
-               secondArgument
-            }
+ "界界界界"
+ { field: do
+    action
+ , otherField:
+    secondArgument
+ }
 
 === width 40, indent 4, unicode ===
 module Main where
@@ -179,10 +180,11 @@ effect = do
     }
     finalAction
 
-argument = use [ do
-                     action
-               , nextArgument
-               ] finalArgument
+argument = use
+    [ do
+          action
+    , nextArgument
+    ] finalArgument
 
 patterns first second =
     case first, second of
@@ -230,11 +232,11 @@ second"""
       }
     ]
 
-updateEffect = record { field = do
-                            action
-                      , otherField =
-                            secondArgument
-                      }
+updateEffect = record
+    { field = do
+          action
+    , otherField = secondArgument
+    }
 qualifiedUpdate =
     M.record
         { field = firstArgument
@@ -255,11 +257,11 @@ sectionUpdate =
         { field = firstArgument
         , otherField = secondArgument
         }
-widePrefix = use "界界界界" { field: do
-                                  action
-                            , otherField:
-                                  secondArgument
-                            }
+widePrefix = use "界界界界"
+    { field: do
+          action
+    , otherField: secondArgument
+    }
 
 === width 80, indent 2 ===
 module Main where
@@ -284,10 +286,11 @@ effect = do
   }
   finalAction
 
-argument = use [ do
-                   action
-               , nextArgument
-               ] finalArgument
+argument = use
+  [ do
+      action
+  , nextArgument
+  ] finalArgument
 
 patterns first second =
   case first, second of
@@ -316,10 +319,11 @@ second"""
   , { nested: [ { value: firstArgument }, { value: secondArgument } ] }
   ]
 
-updateEffect = record { field = do
-                          action
-                      , otherField = secondArgument
-                      }
+updateEffect = record
+  { field = do
+      action
+  , otherField = secondArgument
+  }
 qualifiedUpdate =
   M.record { field = firstArgument, otherField = secondArgument }
 accessUpdate =
@@ -328,7 +332,8 @@ parenthesizedUpdate =
   (chooseRecord firstArgument)
     { field = firstArgument, otherField = secondArgument }
 sectionUpdate = _ { field = firstArgument, otherField = secondArgument }
-widePrefix = use "界界界界" { field: do
-                                action
-                            , otherField: secondArgument
-                            }
+widePrefix = use "界界界界"
+  { field: do
+      action
+  , otherField: secondArgument
+  }
