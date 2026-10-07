@@ -308,7 +308,7 @@ where
                         self.stylex_intrinsic_identity(file_id, term_id)? =>
             {
                 let state = UnsupportedState::InvalidStyleXUse {
-                    function: intrinsic.name().to_owned(),
+                    function: intrinsic.qualified_name(),
                     declaration: declaration.global.id,
                 };
                 return Err(self.unsupported(state));
@@ -323,7 +323,7 @@ where
                             StyleXStaticContext::DefineVars | StyleXStaticContext::CreateTheme
                         ) {
                             return Err(self.invalid_stylex_context(
-                                call.name(),
+                                StyleXIntrinsic::Types(*call),
                                 "must be used inside defineVars or createTheme",
                                 declaration.global.id,
                             ));
@@ -332,7 +332,10 @@ where
                     }
                     StyleXExpression::ConditionalCase(case) => {
                         return Err(self.invalid_stylex_context(
-                            case.relation.name(),
+                            StyleXIntrinsic::When {
+                                relation: case.relation,
+                                marker: case.marker.is_some(),
+                            },
                             "must be used directly in a conditionalValue case array",
                             declaration.global.id,
                         ));
@@ -340,7 +343,7 @@ where
                     StyleXExpression::ConditionalValue { .. } => {
                         if context != StyleXStaticContext::Create {
                             return Err(self.invalid_stylex_context(
-                                "conditionalValue",
+                                StyleXIntrinsic::Root(StyleXRootIntrinsic::ConditionalValue),
                                 "must be used inside create",
                                 declaration.global.id,
                             ));
@@ -389,7 +392,7 @@ where
         );
         if requires_direct_initializer && !direct_initializer {
             return Err(self.invalid_stylex_context(
-                call.name(),
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
                 "must directly initialize a non-recursive top-level value",
                 declaration.global.id,
             ));
@@ -402,7 +405,7 @@ where
         ) && !declaration.exported
         {
             return Err(self.invalid_stylex_context(
-                call.name(),
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
                 "must initialize an exported top-level value",
                 declaration.global.id,
             ));
@@ -417,7 +420,7 @@ where
             )
         {
             return Err(self.invalid_stylex_context(
-                call.name(),
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
                 "must be used inside create, keyframes, positionTry, or viewTransitionClass",
                 declaration.global.id,
             ));
@@ -427,12 +430,12 @@ where
 
     fn invalid_stylex_context(
         &self,
-        function: &str,
+        intrinsic: StyleXIntrinsic,
         requirement: &str,
         declaration: GlobalId,
     ) -> super::ConversionError {
         self.unsupported(UnsupportedState::InvalidStyleXContext {
-            function: function.to_owned(),
+            function: intrinsic.qualified_name(),
             requirement: requirement.to_owned(),
             declaration,
         })

@@ -7,7 +7,7 @@ Error! · [FunctionalCodegen] · Main.purs:8:1
   │
   • Cannot generate JavaScript for module 'Main'.
   │
-  │ 'Iris.StyleX.ancestor' must be used directly in a conditionalValue case array.
+  │ 'Iris.StyleX.When.ancestorMarker' must be used directly in a conditionalValue case array.
   │
   │   escaped = When.ancestorMarker ":hover" marker "red"
   │   ╰──────────────────────────────────────────────────
