@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+invalidConversion :: Iris.StyleX.Style -> Iris.StyleX.Style
+invalidConversion = \style -> markerStyle style

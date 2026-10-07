@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+rowMarker :: Iris.StyleX.Marker
+rowMarker = defineMarker
+
+styles :: { row :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { row: { color: "red" } }
+
+rowProps :: Iris.StyleX.Props
+rowProps = props {propsInputArrayStyle} [styles.row, markerStyle rowMarker]
+
+rowAttrs :: Iris.StyleX.Attrs
+rowAttrs = attrs {propsInputArrayStyle} [markerStyle rowMarker, styles.row]

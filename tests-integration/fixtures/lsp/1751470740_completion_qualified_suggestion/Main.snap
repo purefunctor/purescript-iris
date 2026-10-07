@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 427
 ---
 Completion at Position { line: 3, character: 12 }
 
@@ -222,6 +223,10 @@ fullEmpty = Data.Maybe.
 ├───────────────────────┼───────────────────────────────────────┼─────────────────────┼───────────────────────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────┼────────────────────────────────────┤
 │  defineMarker         │   (import Iris.StyleX as Data.Maybe)  │  Iris.StyleX        │  Iris.StyleX.defineMarker         │  Data.Maybe.defineMarker         │  defineMarker :: Marker                                                            │  29:12..29:23                    │  1:0..1:0                          │
 │                       │                                       │                     │                                   │                                  │                                                                                    │  Data.Maybe.defineMarker         │                                    │
+│                       │                                       │                     │                                   │                                  │                                                                                    │                                  │  import Iris.StyleX as Data.Maybe  │
+├───────────────────────┼───────────────────────────────────────┼─────────────────────┼───────────────────────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────┼────────────────────────────────────┤
+│  markerStyle          │   (import Iris.StyleX as Data.Maybe)  │  Iris.StyleX        │  Iris.StyleX.markerStyle          │  Data.Maybe.markerStyle          │  markerStyle :: Marker -> Style                                                    │  29:12..29:23                    │  1:0..1:0                          │
+│                       │                                       │                     │                                   │                                  │                                                                                    │  Data.Maybe.markerStyle          │                                    │
 │                       │                                       │                     │                                   │                                  │                                                                                    │                                  │  import Iris.StyleX as Data.Maybe  │
 ├───────────────────────┼───────────────────────────────────────┼─────────────────────┼───────────────────────────────────┼──────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────────────┼────────────────────────────────────┤
 │  defaultMarker        │   (import Iris.StyleX as Data.Maybe)  │  Iris.StyleX        │  Iris.StyleX.defaultMarker        │  Data.Maybe.defaultMarker        │  defaultMarker :: Style                                                            │  29:12..29:23                    │  1:0..1:0                          │

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+rowMarker :: Iris.StyleX.Marker
+rowMarker = defineMarker
+
+styles :: { row :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { row: { color: conditionalValue "blue"
+      [ancestorMarker ":hover" (markerStyle rowMarker) "red"] } }

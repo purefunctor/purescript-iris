@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export rowMarker = stylex.defineMarker
+
+@export styles = stylex.create { row: { color: "red" } }
+
+@export rowProps = stylex.props [styles.row, rowMarker]
+
+@export rowAttrs = stylex.attrs [rowMarker, styles.row]

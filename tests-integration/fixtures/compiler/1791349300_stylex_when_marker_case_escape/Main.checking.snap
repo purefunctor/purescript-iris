@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+marker :: Iris.StyleX.Marker
+escaped :: Iris.StyleX.ConditionalCase Prim.String
+
+Types

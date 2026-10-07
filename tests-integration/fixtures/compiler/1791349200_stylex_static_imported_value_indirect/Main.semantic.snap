@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+colour :: Prim.String
+colour = ordinary.accent
+
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { color: colour } }

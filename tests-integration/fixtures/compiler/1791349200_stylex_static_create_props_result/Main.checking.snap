@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+base :: { root :: Iris.StyleX.Style }
+properties :: { className :: Prim.String }
+styles :: { root :: Iris.StyleX.Style }
+
+Types

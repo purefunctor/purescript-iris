@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+constants :: { accent :: Iris.StyleX.Variable Prim.String }
+constants = defineConsts { accent: variables.accent }

@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+partialColor :: Prim.String -> Iris.StyleX.TypedValue Iris.StyleX.Types.Color Prim.String
+
+Types

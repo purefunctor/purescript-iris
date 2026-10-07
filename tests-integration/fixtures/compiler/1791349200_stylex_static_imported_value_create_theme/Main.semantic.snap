@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+theme :: Iris.StyleX.Style
+theme =
+  createTheme {themeOverrides {trivial} {themeOverrideListConsType {trivial} {themeOverrideListNilType}}}
+    variables
+    { accent }

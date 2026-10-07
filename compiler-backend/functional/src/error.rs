@@ -46,9 +46,9 @@ pub enum UnsupportedState {
     LocalIdentityOverflow,
     #[error("generated global identity space is exhausted")]
     GeneratedGlobalIdentityOverflow,
-    #[error("Iris.StyleX.{function} must be used as a direct, saturated intrinsic call")]
+    #[error("{function} must be used as a direct, saturated intrinsic call")]
     InvalidStyleXUse { function: String, declaration: GlobalId },
-    #[error("Iris.StyleX.{function} {requirement}")]
+    #[error("{function} {requirement}")]
     InvalidStyleXContext { function: String, requirement: String, declaration: GlobalId },
     #[error("virtual module declaration {module_name}.{item_name} cannot be used at runtime")]
     VirtualModuleRuntimeReference { module_name: String, item_name: String },

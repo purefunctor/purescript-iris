@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+rowMarker :: Iris.StyleX.Marker
+styles :: { row :: Iris.StyleX.Style }
+
+Types

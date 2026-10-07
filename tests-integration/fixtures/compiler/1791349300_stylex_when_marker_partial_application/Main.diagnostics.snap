@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [FunctionalCodegen] · Main.purs:6:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ 'Iris.StyleX.When.ancestorMarker' must be called directly with all of its arguments.
+  │
+  │ It cannot be passed around as a function or partially applied.
+  │
+  │   partialAncestorMarker :: Marker -> String -> ConditionalCase String
+  │   ╰──────────────────────────────────────────────────────────────────
+  •

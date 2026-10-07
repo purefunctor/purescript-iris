@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 307
+---
+Terms
+variables :: { accent :: Iris.StyleX.Variable Prim.String }
+
+Types

@@ -176,8 +176,13 @@ pub(crate) enum StyleXIntrinsic {
 }
 
 impl StyleXIntrinsic {
-    pub(crate) fn name(self) -> &'static str {
-        match self {
+    pub(crate) fn qualified_name(self) -> String {
+        let module_name = match self {
+            StyleXIntrinsic::Root(_) => "Iris.StyleX",
+            StyleXIntrinsic::When { .. } => "Iris.StyleX.When",
+            StyleXIntrinsic::Types(_) => "Iris.StyleX.Types",
+        };
+        let name = match self {
             StyleXIntrinsic::Root(intrinsic) => intrinsic.name(),
             StyleXIntrinsic::When { relation, marker: false } => relation.name(),
             StyleXIntrinsic::When { relation: StyleXWhenRelation::Ancestor, marker: true } => {
@@ -196,7 +201,8 @@ impl StyleXIntrinsic {
                 "anySiblingMarker"
             }
             StyleXIntrinsic::Types(call) => call.name(),
-        }
+        };
+        format!("{module_name}.{name}")
     }
 }
 
@@ -205,6 +211,7 @@ pub(crate) enum StyleXRootIntrinsic {
     Call(StyleXRootCall),
     RecordProps,
     RecordAttrs,
+    MarkerStyle,
     Conditional,
     ConditionalValue,
 }
@@ -215,6 +222,7 @@ impl StyleXRootIntrinsic {
             StyleXRootIntrinsic::Call(call) => call.name(),
             StyleXRootIntrinsic::RecordProps => "recordProps",
             StyleXRootIntrinsic::RecordAttrs => "recordAttrs",
+            StyleXRootIntrinsic::MarkerStyle => "markerStyle",
             StyleXRootIntrinsic::Conditional => "conditional",
             StyleXRootIntrinsic::ConditionalValue => "conditionalValue",
         }

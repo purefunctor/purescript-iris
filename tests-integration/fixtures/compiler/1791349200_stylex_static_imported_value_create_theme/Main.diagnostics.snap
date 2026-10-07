@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [FunctionalCodegen] · Main.purs:6:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ 'Iris.StyleX.createTheme' cannot statically evaluate imported value 'Tokens.accent'; use a same-
+  │ module static value or an exported defineVars, defineConsts, or defineMarker definition.
+  │
+  │   theme = StyleX.createTheme variables { accent }
+  │   ╰──────────────────────────────────────────────
+  •

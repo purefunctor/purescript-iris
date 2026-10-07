@@ -139,9 +139,9 @@ impl ToDiagnostics for FunctionalModuleError {
             FunctionalUnsupportedState::GeneratedGlobalIdentityOverflow =>
                 "The compiler's limit on generated top-level declarations was exceeded.".to_owned(),
             FunctionalUnsupportedState::InvalidStyleXUse { function, .. } =>
-                format!("'Iris.StyleX.{function}' must be called directly with all of its arguments.\n\nIt cannot be passed around as a function or partially applied."),
+                format!("'{function}' must be called directly with all of its arguments.\n\nIt cannot be passed around as a function or partially applied."),
             FunctionalUnsupportedState::InvalidStyleXContext { function, requirement, .. } =>
-                format!("'Iris.StyleX.{function}' {requirement}."),
+                format!("'{function}' {requirement}."),
             FunctionalUnsupportedState::VirtualModuleRuntimeReference { module_name, item_name } =>
                 format!("'{module_name}.{item_name}' is a compile-time declaration and cannot be used at runtime."),
         };

@@ -1,12 +1,13 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 308
 ---
 Error! · [FunctionalCodegen] · Main.purs:5:1
   •
   │
   • Cannot generate JavaScript for module 'Main'.
   │
-  │ 'Iris.StyleX.color' must be used inside defineVars or createTheme.
+  │ 'Iris.StyleX.Types.color' must be used inside defineVars or createTheme.
   │
   │   escaped = Types.color "red"
   │   ╰──────────────────────────

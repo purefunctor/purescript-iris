@@ -5,7 +5,7 @@ use functional::stylex::{StyleXCallTarget, StyleXConditionalCase, StyleXExpressi
 use functional::tree::{
     DeclarationKind, ExpressionKind, Global, GlobalId, InstanceIdentity, Module,
 };
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
 use crate::error::ModuleResult;
@@ -16,9 +16,19 @@ use super::{Destination, FunctionContext, Generator, RenderedExpression};
 
 pub(super) fn collect_stylex_references(module: &Module) -> Vec<Global> {
     let mut expressions = Vec::new();
+    let mut bindings = FxHashMap::default();
     for declaration in module.declarations.iter() {
         if let DeclarationKind::Value(expression) = declaration.kind {
             expressions.push((expression, false));
+            bindings.insert(declaration.global.id, expression);
+        }
+    }
+    let mut locals = FxHashMap::default();
+    for (_, expression) in module.storage.expressions() {
+        if let ExpressionKind::Let { bindings, .. } = &expression.kind {
+            for binding in bindings.iter() {
+                locals.insert(binding.parameter.id, binding.expression);
+            }
         }
     }
     let mut visited = FxHashSet::default();
@@ -32,10 +42,18 @@ pub(super) fn collect_stylex_references(module: &Module) -> Vec<Global> {
         let static_context = static_context || matches!(kind, ExpressionKind::StyleX(_));
         if static_context
             && let ExpressionKind::Constructor { global } | ExpressionKind::Global { global } = kind
-            && global_file(global.id) != module.file_id
-            && globals.insert(global.id)
         {
-            references.push(Global::clone(global));
+            if let Some(&value) = bindings.get(&global.id) {
+                expressions.push((value, true));
+            } else if global_file(global.id) != module.file_id && globals.insert(global.id) {
+                references.push(Global::clone(global));
+            }
+        }
+        if static_context
+            && let ExpressionKind::Local { parameter } = kind
+            && let Some(&value) = locals.get(&parameter.id)
+        {
+            expressions.push((value, true));
         }
         for_each_expression_child(kind, |expression| {
             expressions.push((expression, static_context));

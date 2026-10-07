@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+partialAncestorMarker :: Iris.StyleX.Marker -> Prim.String -> Iris.StyleX.ConditionalCase Prim.String
+partialAncestorMarker = ancestorMarker ":hover"
