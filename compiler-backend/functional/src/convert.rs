@@ -191,7 +191,6 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
         declarations.extend(declaration);
     }
     validate_runtime_exports(&context, &declarations, &surface)?;
-    context.validate_stylex_uses(&declarations)?;
     context.hoist_closed_evidence(&mut declarations)?;
 
     let recursive_globals = declarations
@@ -203,6 +202,8 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
             inline_simple_bindings(&mut context.storage, expression, &recursive_globals);
         }
     }
+    // StyleX consumes the emitted expressions, including literals substituted for local bindings.
+    context.validate_stylex_uses(&declarations)?;
 
     let dependencies = context.dependencies.iter().map(|(&file_id, dependency)| ModuleDependency {
         file_id,

@@ -2,4 +2,4 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 310
 ---
-@export animation = stylex.keyframes { from: { color: accent }, to: { color: "blue" } }
+Module Main rejected; see Main.diagnostics.snap

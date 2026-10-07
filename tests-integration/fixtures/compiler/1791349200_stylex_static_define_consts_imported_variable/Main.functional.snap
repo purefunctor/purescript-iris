@@ -2,4 +2,4 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 310
 ---
-@export constants = stylex.defineConsts { accent: variables.accent }
+Module Main rejected; see Main.diagnostics.snap

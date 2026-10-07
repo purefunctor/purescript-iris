@@ -2,8 +2,4 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 310
 ---
-@export base = stylex.create { root: { color: "red" } }
-
-@export properties = stylex.props base.root
-
-@export styles = stylex.create { root: { color: properties.className } }
+Module Main rejected; see Main.diagnostics.snap

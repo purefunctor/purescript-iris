@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 310
+---
+@export nested = \$string%0@(_) -> stylex.create { root: { color: "red" } }

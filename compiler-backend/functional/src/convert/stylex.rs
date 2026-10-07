@@ -3,20 +3,23 @@
 use building_types::QueryResult;
 use files::FileId;
 use indexing::TermItemId;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
 use crate::error::UnsupportedState;
-use crate::optimize::try_for_each_expression_child;
+use crate::optimize::{
+    inline_simple_bindings, reachable_expressions, try_for_each_expression_child,
+};
 use crate::stylex::{
     StyleXCallTarget, StyleXConditionalCase, StyleXExpression, StyleXIntrinsic, StyleXRootCall,
     StyleXRootIntrinsic, StyleXTypeCall, StyleXWhenRelation,
 };
 use crate::tree::{
-    Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Field, GlobalId,
+    Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Field, GlobalId, LocalId,
     Parameter, RecordField,
 };
 
-use super::{Context, ConversionResult};
+use super::{Context, ConversionResult, term_declaration};
 
 /// Files of the virtual StyleX modules, which have no runtime representation.
 #[derive(Debug, Clone, Copy)]
@@ -53,10 +56,18 @@ enum StyleXStaticContext {
     None,
     Create,
     Keyframes,
+    DefineConsts,
     DefineVars,
     CreateTheme,
     ViewTransitionClass,
     PositionTry,
+}
+
+#[derive(Default)]
+struct StyleXStaticBindings {
+    globals: FxHashMap<GlobalId, ExpressionId>,
+    locals: FxHashMap<LocalId, ExpressionId>,
+    imports: FxHashMap<GlobalId, bool>,
 }
 
 impl<'c, Q> Context<'c, Q>
@@ -282,13 +293,33 @@ where
         if !self.references_stylex_module && !self.module_is_virtual(self.file_id) {
             return Ok(());
         }
+        let mut bindings = StyleXStaticBindings::default();
+        for declaration in declarations {
+            let DeclarationKind::Value(expression) = declaration.kind else { continue };
+            if declaration.recursive_group.is_none() {
+                bindings.globals.insert(declaration.global.id, expression);
+            }
+        }
+        let roots = declarations.iter().filter_map(|declaration| match declaration.kind {
+            DeclarationKind::Value(expression) => Some(expression),
+            _ => None,
+        });
+        for expression in reachable_expressions(&self.storage, roots) {
+            if let ExpressionKind::Let { recursive: false, bindings: locals, .. } =
+                &self.storage[expression].kind
+            {
+                for binding in locals.iter() {
+                    bindings.locals.insert(binding.parameter.id, binding.expression);
+                }
+            }
+        }
         for declaration in declarations {
             let DeclarationKind::Value(expression) = declaration.kind else { continue };
             self.validate_stylex_expression(
                 expression,
-                expression,
                 declaration,
                 StyleXStaticContext::None,
+                &mut bindings,
             )?;
         }
         Ok(())
@@ -297,9 +328,9 @@ where
     fn validate_stylex_expression(
         &self,
         expression: ExpressionId,
-        root: ExpressionId,
         declaration: &Declaration,
         context: StyleXStaticContext,
+        bindings: &mut StyleXStaticBindings,
     ) -> ConversionResult<()> {
         match &self.storage[expression].kind {
             ExpressionKind::Global { global }
@@ -315,8 +346,56 @@ where
             }
             ExpressionKind::StyleX(stylex) => {
                 let child_context = match stylex {
-                    StyleXExpression::Call { target: StyleXCallTarget::Root(call), .. } => self
-                        .validate_stylex_root_call(*call, expression, root, declaration, context)?,
+                    StyleXExpression::Call { target: StyleXCallTarget::Root(call), arguments } => {
+                        let child_context = self.validate_stylex_root_call(
+                            *call,
+                            expression,
+                            declaration,
+                            context,
+                            bindings,
+                        )?;
+                        if matches!(
+                            call,
+                            StyleXRootCall::Create
+                                | StyleXRootCall::Keyframes
+                                | StyleXRootCall::DefineVars
+                                | StyleXRootCall::DefineConsts
+                                | StyleXRootCall::CreateTheme
+                                | StyleXRootCall::PositionTry
+                                | StyleXRootCall::ViewTransitionClass
+                        ) {
+                            let record_literal = matches!(
+                                arguments.as_ref(),
+                                [argument]
+                                    if matches!(
+                                        self.storage[*argument].kind,
+                                        ExpressionKind::Record { .. }
+                                    )
+                            );
+                            if (*call == StyleXRootCall::Create
+                                || *call == StyleXRootCall::Keyframes
+                                    && context == StyleXStaticContext::None)
+                                && !record_literal
+                            {
+                                return Err(self.invalid_stylex_context(
+                                    StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(*call)),
+                                    "requires a record literal after inlining",
+                                    declaration.global.id,
+                                ));
+                            }
+                            let mut visiting = FxHashSet::default();
+                            for &argument in arguments.iter() {
+                                self.validate_stylex_static_expression(
+                                    argument,
+                                    *call,
+                                    declaration,
+                                    bindings,
+                                    &mut visiting,
+                                )?;
+                            }
+                        }
+                        child_context
+                    }
                     StyleXExpression::Call { target: StyleXCallTarget::Types(call), .. } => {
                         if !matches!(
                             context,
@@ -353,34 +432,213 @@ where
                     StyleXExpression::Conditional { .. } => context,
                 };
                 return stylex.try_for_each_child(|child| {
-                    self.validate_stylex_expression(child, root, declaration, child_context)
+                    self.validate_stylex_expression(child, declaration, child_context, bindings)
                 });
             }
             _ => {}
         }
         try_for_each_expression_child(&self.storage[expression].kind, |child| {
-            self.validate_stylex_expression(child, root, declaration, context)
+            self.validate_stylex_expression(child, declaration, context, bindings)
         })
+    }
+
+    fn validate_stylex_static_expression(
+        &self,
+        expression: ExpressionId,
+        call: StyleXRootCall,
+        declaration: &Declaration,
+        bindings: &mut StyleXStaticBindings,
+        visiting: &mut FxHashSet<ExpressionId>,
+    ) -> ConversionResult<()> {
+        let invalid = || {
+            let requirement = "requires statically evaluable arguments; runtime parameters, \
+                functions, and ordinary function calls are not supported";
+            let intrinsic = StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call));
+            self.invalid_stylex_context(intrinsic, requirement, declaration.global.id)
+        };
+        if !visiting.insert(expression) {
+            return Err(invalid());
+        }
+        match &self.storage[expression].kind {
+            ExpressionKind::Global { global } => {
+                if let Some(&value) = bindings.globals.get(&global.id) {
+                    // These definitions are transformed independently before their references
+                    // are evaluated. Their arguments are checked at the defining call.
+                    if !matches!(
+                        self.storage[value].kind,
+                        ExpressionKind::StyleX(StyleXExpression::Call {
+                            target: StyleXCallTarget::Root(
+                                StyleXRootCall::Create
+                                    | StyleXRootCall::Keyframes
+                                    | StyleXRootCall::DefineVars
+                                    | StyleXRootCall::DefineConsts
+                                    | StyleXRootCall::DefineMarker
+                                    | StyleXRootCall::CreateTheme
+                                    | StyleXRootCall::PositionTry
+                                    | StyleXRootCall::ViewTransitionClass
+                            ),
+                            ..
+                        })
+                    ) {
+                        self.validate_stylex_static_expression(
+                            value,
+                            call,
+                            declaration,
+                            bindings,
+                            visiting,
+                        )?;
+                    }
+                } else if let GlobalId::Term(file_id, term_id) = global.id
+                    && file_id != self.file_id
+                {
+                    let static_import = if call == StyleXRootCall::DefineConsts {
+                        false
+                    } else if let Some(&static_import) = bindings.imports.get(&global.id) {
+                        static_import
+                    } else {
+                        let static_import = self.stylex_import_is_static(file_id, term_id)?;
+                        bindings.imports.insert(global.id, static_import);
+                        static_import
+                    };
+                    if !static_import {
+                        let module = self.source_module_name(file_id)?;
+                        let name = &global.item_name;
+                        let requirement = if call == StyleXRootCall::DefineConsts {
+                            format!(
+                                "cannot use imported value '{module}.{name}'; defineConsts arguments must use same-module static values"
+                            )
+                        } else {
+                            format!(
+                                "cannot statically evaluate imported value '{module}.{name}'; use a same-module static value or an exported defineVars, defineConsts, or defineMarker definition"
+                            )
+                        };
+                        return Err(self.invalid_stylex_context(
+                            StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
+                            &requirement,
+                            declaration.global.id,
+                        ));
+                    }
+                } else {
+                    return Err(invalid());
+                }
+            }
+            ExpressionKind::Local { parameter } => {
+                let value = bindings.locals.get(&parameter.id).ok_or_else(invalid)?;
+                self.validate_stylex_static_expression(
+                    *value,
+                    call,
+                    declaration,
+                    bindings,
+                    visiting,
+                )?;
+            }
+            ExpressionKind::StyleX(StyleXExpression::Call {
+                target: StyleXCallTarget::Root(StyleXRootCall::Props | StyleXRootCall::Attrs),
+                ..
+            }) => return Err(invalid()),
+            ExpressionKind::Literal { .. }
+            | ExpressionKind::Array { .. }
+            | ExpressionKind::Record { .. }
+            | ExpressionKind::Project { .. }
+            | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::Unary { .. }
+            | ExpressionKind::Binary { .. }
+            | ExpressionKind::IfThenElse { .. }
+            | ExpressionKind::StyleX(_) => {
+                try_for_each_expression_child(&self.storage[expression].kind, |child| {
+                    self.validate_stylex_static_expression(
+                        child,
+                        call,
+                        declaration,
+                        bindings,
+                        visiting,
+                    )
+                })?;
+            }
+            _ => return Err(invalid()),
+        }
+        visiting.remove(&expression);
+        Ok(())
+    }
+
+    fn stylex_import_is_static(
+        &self,
+        file_id: FileId,
+        term_id: TermItemId,
+    ) -> ConversionResult<bool> {
+        // commonJS resolution hashes the imported export name; it does not read its value.
+        // Following an ordinary alias here would authorize a hash with no matching definition.
+        // Lower only this declaration, without querying or validating its functional module.
+        let mut context = Context::new(self.queries, file_id)?;
+        let Some(declaration) = term_declaration(&mut context, term_id, true)? else {
+            return Ok(false);
+        };
+        if declaration.recursive_group.is_some() {
+            return Ok(false);
+        }
+        let DeclarationKind::Value(expression) = declaration.kind else {
+            return Ok(false);
+        };
+        let recursive_globals =
+            context.recursive_groups.keys().map(|&term_id| GlobalId::Term(file_id, term_id));
+        let recursive_globals = recursive_globals.collect();
+        inline_simple_bindings(&mut context.storage, expression, &recursive_globals);
+        Ok(matches!(
+            context.storage[expression].kind,
+            ExpressionKind::StyleX(StyleXExpression::Call {
+                target: StyleXCallTarget::Root(
+                    StyleXRootCall::DefineVars
+                        | StyleXRootCall::DefineConsts
+                        | StyleXRootCall::DefineMarker
+                ),
+                ..
+            })
+        ))
     }
 
     fn validate_stylex_root_call(
         &self,
         call: StyleXRootCall,
         expression: ExpressionId,
-        root: ExpressionId,
         declaration: &Declaration,
         context: StyleXStaticContext,
+        bindings: &StyleXStaticBindings,
     ) -> ConversionResult<StyleXStaticContext> {
-        let direct_initializer = expression == root && declaration.recursive_group.is_none();
+        let direct_initializer = bindings.globals.get(&declaration.global.id) == Some(&expression);
         let required_context = match call {
             StyleXRootCall::Create => StyleXStaticContext::Create,
             StyleXRootCall::Keyframes => StyleXStaticContext::Keyframes,
+            StyleXRootCall::DefineConsts => StyleXStaticContext::DefineConsts,
             StyleXRootCall::DefineVars => StyleXStaticContext::DefineVars,
             StyleXRootCall::CreateTheme => StyleXStaticContext::CreateTheme,
             StyleXRootCall::ViewTransitionClass => StyleXStaticContext::ViewTransitionClass,
             StyleXRootCall::PositionTry => StyleXStaticContext::PositionTry,
             _ => context,
         };
+        if call == StyleXRootCall::Keyframes
+            && !direct_initializer
+            && !bindings.locals.values().any(|&value| value == expression)
+            && !matches!(
+                context,
+                StyleXStaticContext::Create
+                    | StyleXStaticContext::DefineVars
+                    | StyleXStaticContext::CreateTheme
+                    | StyleXStaticContext::ViewTransitionClass
+            )
+        {
+            return Err(self.invalid_stylex_context(
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
+                "must directly initialize a non-recursive value or be used inside create, defineVars, createTheme, or viewTransitionClass",
+                declaration.global.id,
+            ));
+        }
+        if call == StyleXRootCall::Create && context != StyleXStaticContext::None {
+            return Err(self.invalid_stylex_context(
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
+                "cannot be used inside another static StyleX call",
+                declaration.global.id,
+            ));
+        }
         let requires_direct_initializer = matches!(
             call,
             StyleXRootCall::DefineConsts
