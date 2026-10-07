@@ -41,20 +41,42 @@ impl StyleXExpression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StyleXConditionalCase {
-    pub relation: StyleXWhenRelation,
-    pub selector: ExpressionId,
-    pub marker: Option<ExpressionId>,
+    pub condition: StyleXCondition,
     pub value: ExpressionId,
 }
 
+/// The key of a conditional case: a `stylex.when.*` relation, or a condition string such as a
+/// media query.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StyleXCondition {
+    Expression(ExpressionId),
+    When { relation: StyleXWhenRelation, selector: ExpressionId, marker: Option<ExpressionId> },
+}
+
 impl StyleXConditionalCase {
+    pub(crate) fn intrinsic(&self) -> StyleXIntrinsic {
+        match self.condition {
+            StyleXCondition::Expression(_) => {
+                StyleXIntrinsic::Root(StyleXRootIntrinsic::ConditionalCase)
+            }
+            StyleXCondition::When { relation, marker, .. } => {
+                StyleXIntrinsic::When { relation, marker: marker.is_some() }
+            }
+        }
+    }
+
     fn try_for_each_child<Error>(
         &self,
         visit: &mut impl FnMut(ExpressionId) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        visit(self.selector)?;
-        if let Some(marker) = self.marker {
-            visit(marker)?;
+        match self.condition {
+            StyleXCondition::Expression(condition) => visit(condition)?,
+            StyleXCondition::When { selector, marker, .. } => {
+                visit(selector)?;
+                if let Some(marker) = marker {
+                    visit(marker)?;
+                }
+            }
         }
         visit(self.value)
     }
@@ -214,6 +236,7 @@ pub(crate) enum StyleXRootIntrinsic {
     MarkerStyle,
     Conditional,
     ConditionalValue,
+    ConditionalCase,
 }
 
 impl StyleXRootIntrinsic {
@@ -225,6 +248,7 @@ impl StyleXRootIntrinsic {
             StyleXRootIntrinsic::MarkerStyle => "markerStyle",
             StyleXRootIntrinsic::Conditional => "conditional",
             StyleXRootIntrinsic::ConditionalValue => "conditionalValue",
+            StyleXRootIntrinsic::ConditionalCase => "conditionalCase",
         }
     }
 }

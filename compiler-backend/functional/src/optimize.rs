@@ -413,7 +413,9 @@ fn try_for_each_update_child<Error>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stylex::{StyleXConditionalCase, StyleXExpression, StyleXWhenRelation};
+    use crate::stylex::{
+        StyleXCondition, StyleXConditionalCase, StyleXExpression, StyleXWhenRelation,
+    };
     use crate::tree::{Expression, Field, FieldIdentity, Parameter};
 
     fn expression(index: u32) -> ExpressionId {
@@ -613,21 +615,29 @@ mod tests {
             default: expression(0),
             cases: [
                 StyleXConditionalCase {
-                    relation: StyleXWhenRelation::Ancestor,
-                    selector: expression(1),
-                    marker: None,
+                    condition: StyleXCondition::When {
+                        relation: StyleXWhenRelation::Ancestor,
+                        selector: expression(1),
+                        marker: None,
+                    },
                     value: expression(2),
                 },
                 StyleXConditionalCase {
-                    relation: StyleXWhenRelation::Descendant,
-                    selector: expression(3),
-                    marker: Some(expression(4)),
+                    condition: StyleXCondition::When {
+                        relation: StyleXWhenRelation::Descendant,
+                        selector: expression(3),
+                        marker: Some(expression(4)),
+                    },
                     value: expression(5),
+                },
+                StyleXConditionalCase {
+                    condition: StyleXCondition::Expression(expression(6)),
+                    value: expression(7),
                 },
             ]
             .into(),
         });
-        assert_eq!(visited_children(&kind), (0..6).map(expression).collect::<Vec<_>>());
+        assert_eq!(visited_children(&kind), (0..8).map(expression).collect::<Vec<_>>());
 
         let mut visited = Vec::new();
         let result = try_for_each_expression_child(&kind, |child| {

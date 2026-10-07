@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 309
+---
+responsive :: Prim.String -> { root :: Iris.StyleX.Style }
+responsive = \query ->
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { padding: conditionalValue 8 [conditionalCase query 4] } }

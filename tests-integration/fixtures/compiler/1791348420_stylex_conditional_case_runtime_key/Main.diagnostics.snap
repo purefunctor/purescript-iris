@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 308
+---
+Error! · [FunctionalCodegen] · Main.purs:5:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ 'Iris.StyleX.create' requires statically evaluable arguments; runtime parameters, functions, and
+  │ ordinary function calls are not supported.
+  │
+  │   responsive :: String -> { root :: StyleX.Style }
+  │   ╰───────────────────────────────────────────────
+  •
