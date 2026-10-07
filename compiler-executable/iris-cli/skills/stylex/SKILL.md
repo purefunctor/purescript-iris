@@ -43,6 +43,7 @@ import Iris.StyleX.Types as Types
 | `{ default: 'blue', ':hover': 'red' }` | `{ default: "blue", ":hover": "red" }` |
 | `{ default: 0, [stylex.when.ancestor(':hover')]: 1 }` | `StyleX.conditionalValue 0 [ When.ancestor ":hover" 1 ]` |
 | `[stylex.when.ancestor(':focus', marker)]: 1` | `When.ancestorMarker ":focus" marker 1` |
+| `{ default: 8, [breakpoints.small]: 4 }` | `StyleX.conditionalValue 8 [ StyleX.conditionalCase breakpoints.small 4 ]` |
 | `stylex.defaultMarker()`, `stylex.defineMarker()` | `StyleX.defaultMarker`, `StyleX.defineMarker`, values rather than calls |
 | `stylex.firstThatWorks('sticky', 'fixed')` | `StyleX.firstThatWorks [ "sticky", "fixed" ]` |
 | `stylex.types.color('red')` | `Types.color "red"` |
@@ -54,9 +55,11 @@ import Iris.StyleX.Types as Types
 - Values are strings, `Int`s, or `Number`s; write `0.5` rather than `.5`. The default and cases
   of a `conditionalValue` share one type, so write `StyleX.conditionalValue 0.5 [ When.ancestor
   ":hover" 1.0 ]` rather than mixing `0.5` with `1`.
-- Record labels must be literal, so StyleX's computed keys work only through `When`. A
-  `defineConsts` breakpoint such as `[breakpoints.small]` cannot be a key; write the media query
-  out. Constants and variables still work as values: `{ color: palette.brand }`.
+- Record labels must be literal, so write StyleX's computed keys as `conditionalValue` cases:
+  `{ default: 8, [breakpoints.small]: 4 }` becomes `StyleX.conditionalValue 8
+  [ StyleX.conditionalCase breakpoints.small 4 ]`, which also accepts literal condition strings
+  and mixes with `When` cases. Constants and variables also work as values:
+  `{ color: palette.brand }`.
 - StyleX's `null` cannot be written. `Data.Nullable.null` is an imported value, which Iris rejects
   inside `create`; give the property a real value or leave it out of that style.
 - StyleX's dynamic styles, functions in a `create` namespace, are not supported, and Iris rejects
@@ -114,7 +117,7 @@ begin `Cannot generate JavaScript for module`.
 | `createTheme`, `viewTransitionClass`, `positionTry` | Must be the entire body of a non-recursive top-level value |
 | `keyframes` | The entire body of a non-recursive value or `let` binding, or inside `create`, `defineVars`, `createTheme`, or `viewTransitionClass` |
 | `Types.*` | Only inside `defineVars` or `createTheme` |
-| `When.*` | Only as elements written directly in a `conditionalValue` case array |
+| `When.*`, `conditionalCase` | Only as elements written directly in a `conditionalValue` case array; `conditionalCase` keys must be static |
 | `conditionalValue` | Only inside `create` |
 | `firstThatWorks` | Only inside `create`, `keyframes`, `positionTry`, or `viewTransitionClass`, with a non-empty array literal |
 
