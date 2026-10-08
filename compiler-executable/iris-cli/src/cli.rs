@@ -59,7 +59,7 @@ pub struct FormatOptions {
     #[usage(arg_group)]
     pub mode: Option<FormatMode>,
 
-    /// Preferred line width. Defaults to 80 columns.
+    /// Preferred line width. Defaults to 100 columns.
     #[usage(long, value_name = "COLUMNS")]
     pub width: Option<usize>,
 

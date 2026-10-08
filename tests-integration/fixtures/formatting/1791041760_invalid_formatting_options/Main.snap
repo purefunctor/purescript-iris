@@ -1,10 +1,10 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 78
+assertion_line: 127
 ---
 === width 0, indent 2 ===
 invalid formatting options: line width must be positive
-=== width 80, indent 0 ===
+=== width 100, indent 0 ===
 invalid formatting options: indent width must be between 1 and 65535 spaces
-=== width 80, indent 65536 ===
+=== width 100, indent 65536 ===
 invalid formatting options: indent width must be between 1 and 65535 spaces

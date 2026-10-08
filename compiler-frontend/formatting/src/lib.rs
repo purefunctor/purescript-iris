@@ -22,7 +22,7 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Config {
-        Config { line_width: 80, indent_width: 2, unicode: false }
+        Config { line_width: 100, indent_width: 2, unicode: false }
     }
 }
 
