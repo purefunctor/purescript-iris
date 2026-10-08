@@ -31,7 +31,7 @@ iris format --width 100 --indent 4 --unicode
 |--------|----------|
 | `--check` | List unformatted paths and exit with status 1 when changes are needed, without modifying files |
 | `--write` | Replace selected files with formatted output; the default in workspace mode |
-| `--width COLUMNS` | Preferred line width; a positive value, defaulting to 80 |
+| `--width COLUMNS` | Preferred line width; a positive value, defaulting to 100 |
 | `--indent SPACES` | Spaces per indentation level; from 1 to 65535, defaulting to 2 |
 | `--unicode` | Emit Unicode built-in signatures, arrows, constraints, and quantifiers |
 
