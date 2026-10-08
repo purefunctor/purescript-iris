@@ -463,16 +463,16 @@ impl<'arena> Printer<'arena, '_> {
             return Ok(self.arena.nil());
         }
         let (head, tail) = elements.split_at(head_length.min(elements.len()));
-        if tail.is_empty() {
+        let [first, ..] = tail else {
             return self.fixed(head, context);
-        }
+        };
         let head_context = Context { following: Some(margin), ..context };
         let head_document = if let [keyword, constraints] = head
             && keyword.kind == CLASS
             && constraints.kind == ClassConstraints
             && constraints.children.first().is_some_and(|tree| tree.kind == LEFT_PARENTHESIS)
         {
-            self.delimited(constraints, head_context, Some((keyword, tail[0])))?
+            self.delimited(constraints, head_context, Some((keyword, first)))?
         } else {
             self.fixed(head, head_context)?
         };
@@ -523,7 +523,7 @@ impl<'arena> Printer<'arena, '_> {
         let body = if matches!(gap(0), Gap::Soft) { body } else { body.group() };
         Ok(head_document
             .append(
-                self.boundary(tail[0].start, gap(0))?
+                self.boundary(first.start, gap(0))?
                     .append(body)
                     .nest((margin - context.margin) as isize),
             )
@@ -823,7 +823,10 @@ impl<'arena> Printer<'arena, '_> {
     ) -> Result<Option<Doc<'arena>>, FormatError> {
         let expression = tree.expression().unwrap_or(tree);
         if expression.kind == ExpressionCaseOf {
-            self.fixed(&expression.elements()[..3], context).map(Some)
+            let [case_keyword, trunk, of_keyword, _] = expression.elements()[..] else {
+                unreachable!("invariant violated: validated case expression has four elements");
+            };
+            self.fixed(&[case_keyword, trunk, of_keyword], context).map(Some)
         } else {
             Ok(None)
         }
@@ -834,9 +837,12 @@ impl<'arena> Printer<'arena, '_> {
         elements: &[&Tree],
         context: Context,
     ) -> Result<Doc<'arena>, FormatError> {
-        let header = self.fixed(&elements[..3], context)?;
+        let [case_keyword, scrutinees, of_keyword, branches] = elements[..] else {
+            unreachable!("invariant violated: validated case expression has four elements");
+        };
+        let header = self.fixed(&[case_keyword, scrutinees, of_keyword], context)?;
         let margin = context.margin + self.config.indent_width;
-        let items = elements[1].elements();
+        let items = scrutinees.elements();
         let mut trunk = self.arena.nil();
         for (position, item) in items.iter().enumerate() {
             let gap = if item.kind == COMMA { Gap::SoftEmpty } else { self.fixed_gap(item.start) };
@@ -848,14 +854,14 @@ impl<'arena> Printer<'arena, '_> {
                 .append(boundary.append(self.tree(item, item_context)?).nest(indentation as isize));
         }
         let broken = self
-            .tree(elements[0], context)?
+            .tree(case_keyword, context)?
             .append(
-                self.boundary(elements[1].start, Gap::Hard(1))?
+                self.boundary(scrutinees.start, Gap::Hard(1))?
                     .append(trunk.group())
                     .nest(self.config.indent_width as isize),
             )
-            .append(self.boundary(elements[2].start, Gap::Hard(1))?)
-            .append(self.tree(elements[2], context)?);
+            .append(self.boundary(of_keyword.start, Gap::Hard(1))?)
+            .append(self.tree(of_keyword, context)?);
         let arena = self.arena;
         let probe = arena.fail().flat_alt(header).group();
         let width = self.config.line_width;
@@ -869,7 +875,7 @@ impl<'arena> Printer<'arena, '_> {
                 broken.clone().into_doc()
             }
         });
-        Ok(header.append(self.tree(elements[3], context)?))
+        Ok(header.append(self.tree(branches, context)?))
     }
 
     fn where_expression(
@@ -878,26 +884,32 @@ impl<'arena> Printer<'arena, '_> {
         elements: &[&Tree],
         context: Context,
     ) -> Result<Doc<'arena>, FormatError> {
-        let Some(position) = elements.iter().position(|tree| tree.kind == WHERE) else {
-            return if head.is_empty() {
-                self.fixed(elements, context)
-            } else {
-                self.continuation(head, elements, context)
-            };
+        let (expression, where_keyword, bindings) = match elements {
+            [expression] => {
+                return if head.is_empty() {
+                    self.fixed(&[*expression], context)
+                } else {
+                    self.continuation(head, &[*expression], context)
+                };
+            }
+            [expression, where_keyword, bindings] => (*expression, *where_keyword, *bindings),
+            _ => unreachable!(
+                "invariant violated: validated where expression has one or three elements"
+            ),
         };
         let margin = context.margin.max(context.following.unwrap_or(0) + self.config.indent_width);
         let expression_context =
             Context { following: Some(margin - self.config.indent_width), ..context };
         let expression = if head.is_empty() {
-            self.fixed(&elements[..position], expression_context)?
+            self.fixed(&[expression], expression_context)?
         } else {
-            self.continuation(head, &elements[..position], expression_context)?
+            self.continuation(head, &[expression], expression_context)?
         };
         let binding_context = Context { margin, following: Some(margin) };
-        let bindings = self.block(&elements[position + 1].elements(), binding_context, margin)?;
+        let bindings = self.block(&bindings.elements(), binding_context, margin)?;
         Ok(expression.append(
-            self.boundary(elements[position].start, Gap::Hard(1))?
-                .append(self.tree(elements[position], binding_context)?)
+            self.boundary(where_keyword.start, Gap::Hard(1))?
+                .append(self.tree(where_keyword, binding_context)?)
                 .append(bindings)
                 .nest((margin - context.margin) as isize),
         ))
@@ -1006,11 +1018,13 @@ impl<'arena> Printer<'arena, '_> {
                 }
             }
             TypeForall => {
-                let position = elements.iter().position(|tree| tree.kind == PERIOD).unwrap();
-                let head = self.fixed(&elements[..=position], context)?.group();
+                let [head @ .., body] = elements.as_slice() else {
+                    unreachable!("invariant violated: validated forall has a body");
+                };
+                let head = self.fixed(head, context)?.group();
                 Ok(head
-                    .append(self.boundary(elements[position + 1].start, Gap::Soft)?)
-                    .append(self.fixed(&elements[position + 1..], context)?)
+                    .append(self.boundary(body.start, Gap::Soft)?)
+                    .append(self.fixed(&[*body], context)?)
                     .group())
             }
             ExpressionArray
@@ -1085,10 +1099,12 @@ impl<'arena> Printer<'arena, '_> {
             }
             WhereExpression => self.where_expression(&[], &elements, context),
             ExpressionLetIn | ExpressionAdo => {
-                let position = elements.iter().position(|tree| tree.kind == IN).unwrap();
-                let has_body = elements[1..position].iter().any(|tree| tree.start < tree.end);
+                let [keyword, statements, in_keyword, result] = elements[..] else {
+                    unreachable!("invariant violated: validated let/ado has four elements");
+                };
+                let has_body = statements.start < statements.end;
                 let head =
-                    self.fixed(&elements[..position], Context { following: None, ..context })?;
+                    self.fixed(&[keyword, statements], Context { following: None, ..context })?;
                 let result_margin = if tree.kind == ExpressionAdo {
                     context.margin + self.config.indent_width
                 } else {
@@ -1098,22 +1114,18 @@ impl<'arena> Printer<'arena, '_> {
                 let tail = if tree.kind == ExpressionLetIn {
                     let body_context =
                         Context { margin: context.margin + self.config.indent_width, ..context };
-                    self.tree(elements[position], context)?.append(
-                        self.boundary(elements[position + 1].start, Gap::Hard(1))?
-                            .append(self.fixed(&elements[position + 1..], body_context)?)
+                    self.tree(in_keyword, context)?.append(
+                        self.boundary(result.start, Gap::Hard(1))?
+                            .append(self.fixed(&[result], body_context)?)
                             .nest(self.config.indent_width as isize),
                     )
                 } else {
-                    self.continuation(
-                        &elements[position..=position],
-                        &elements[position + 1..],
-                        result_context,
-                    )?
+                    self.continuation(&[in_keyword], &[result], result_context)?
                 };
                 Ok(head
                     .append(
                         self.boundary(
-                            elements[position].start,
+                            in_keyword.start,
                             if has_body { Gap::Hard(1) } else { Gap::Space },
                         )?
                         .append(tail)
@@ -1123,13 +1135,15 @@ impl<'arena> Printer<'arena, '_> {
             }
             InstanceChain => self.sequence(&elements, context, |_, _, _| Gap::Hard(1)),
             InstanceDeclaration | ClassDeclaration | DeriveDeclaration => {
-                if elements.first().is_some_and(|tree| tree.kind == ELSE)
+                if let [else_keyword, rest @ ..] = elements.as_slice()
+                    && let [first, ..] = rest
+                    && else_keyword.kind == ELSE
                     && tree.children.iter().any(|tree| tree.kind == LAYOUT_SEPARATOR)
                 {
                     let tail = self
-                        .boundary(elements[1].start, Gap::Hard(1))?
-                        .append(self.fixed(&elements[1..], context)?);
-                    Ok(self.tree(elements[0], context)?.append(tail))
+                        .boundary(first.start, Gap::Hard(1))?
+                        .append(self.fixed(rest, context)?);
+                    Ok(self.tree(else_keyword, context)?.append(tail))
                 } else if let Some(head) =
                     elements.iter().position(|tree| matches!(tree.kind, InstanceHead | ClassHead))
                     && elements[..head]
