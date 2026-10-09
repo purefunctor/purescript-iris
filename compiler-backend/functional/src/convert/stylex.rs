@@ -297,13 +297,14 @@ where
         Ok(intrinsic)
     }
 
+    /// Returns the imported theme values that StyleX evaluates statically in this module.
     pub(super) fn validate_stylex_uses(
         &self,
         declarations: &[Declaration],
-    ) -> ConversionResult<()> {
+    ) -> ConversionResult<FxHashSet<GlobalId>> {
         // StyleX intrinsics and expressions only arise from references to the virtual modules.
         if !self.references_stylex_module && !self.module_is_virtual(self.file_id) {
-            return Ok(());
+            return Ok(FxHashSet::default());
         }
         let mut bindings = StyleXStaticBindings::default();
         for declaration in declarations {
@@ -334,7 +335,8 @@ where
                 &mut bindings,
             )?;
         }
-        Ok(())
+        let theme_imports = bindings.imports.into_iter().filter(|&(_, theme)| theme);
+        Ok(theme_imports.map(|(global, _)| global).collect())
     }
 
     fn validate_stylex_expression(
@@ -768,13 +770,9 @@ where
         Ok(matches!(
             context.storage[expression].kind,
             ExpressionKind::StyleX(StyleXExpression::Call {
-                target: StyleXCallTarget::Root(
-                    StyleXRootCall::DefineVars
-                        | StyleXRootCall::DefineConsts
-                        | StyleXRootCall::DefineMarker
-                ),
+                target: StyleXCallTarget::Root(call),
                 ..
-            })
+            }) if call.defines_theme_value()
         ))
     }
 

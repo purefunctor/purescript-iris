@@ -203,7 +203,7 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
         }
     }
     // StyleX consumes the emitted expressions, including literals substituted for local bindings.
-    context.validate_stylex_uses(&declarations)?;
+    let stylex_theme_imports = context.validate_stylex_uses(&declarations)?;
 
     let dependencies = context.dependencies.iter().map(|(&file_id, dependency)| ModuleDependency {
         file_id,
@@ -220,6 +220,7 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
         dependencies: dependencies.into(),
         surface,
         declarations: declarations.into(),
+        stylex_theme_imports,
         storage: context.storage,
     })
 }
