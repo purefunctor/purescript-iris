@@ -1,2 +1,3 @@
+import { breakpoints } from "./index.stylex.js";
 import * as $stylex from "@stylexjs/stylex";
-export const breakpoints = $stylex.defineConsts({ small: "@media (max-width: 600px)" });
+export { breakpoints } from "./index.stylex.js";

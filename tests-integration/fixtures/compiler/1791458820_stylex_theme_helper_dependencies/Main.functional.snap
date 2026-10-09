@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 315
+---
+@export gap = "21px"
+
+sizes = { gap: gap }
+
+@export spacing = stylex.defineConsts { gap: sizes.gap }
+
+@export variables = stylex.defineVars { accent: "blue" }
+
+gapStyles = stylex.create { root: { margin: gap, color: variables.accent } }
+
+@export gapProps = stylex.props gapStyles.root

@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 314
+---
+public :: { gap :: Prim.String }
+public = defineConsts { gap: "21px" }

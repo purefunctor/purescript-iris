@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 315
+---
+@export public = stylex.defineConsts { gap: "21px" }
