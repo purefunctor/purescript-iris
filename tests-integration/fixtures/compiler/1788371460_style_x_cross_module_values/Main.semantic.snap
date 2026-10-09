@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 313
 ---
 theme :: Iris.StyleX.Style
 theme =
@@ -10,4 +11,8 @@ theme =
 styles :: { root :: Iris.StyleX.Style }
 styles =
   create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
-    { root: { color: conditionalValue "blue" [ancestorMarker ":hover" rowMarker "red"] } }
+    { root: { color: conditionalValue "blue"
+      [ancestorMarker ":hover" rowMarker "red"], padding: spacing.gap } }
+
+awaitProps :: { className :: Prim.String }
+awaitProps = props {propsInputStyleProps} await

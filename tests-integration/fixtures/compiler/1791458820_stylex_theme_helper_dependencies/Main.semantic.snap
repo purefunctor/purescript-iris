@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 314
+---
+gap :: Prim.String
+gap = "21px"
+
+sizes :: { gap :: Prim.String }
+sizes = { gap }
+
+spacing :: { gap :: Prim.String }
+spacing = defineConsts { gap: sizes.gap }
+
+variables :: { accent :: Iris.StyleX.Variable Prim.String }
+variables =
+  defineVars {compileVars {trivial} {compileVarListConsType {compileVarListNilTypeRow} {trivial}}}
+    { accent: "blue" }
+
+gapStyles :: { root :: Iris.StyleX.Style }
+gapStyles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { margin: gap, color: variables.accent } }
+
+gapProps :: { className :: Prim.String }
+gapProps = props {propsInputStyleProps} gapStyles.root

@@ -64,6 +64,63 @@ pub(super) fn collect_stylex_references(module: &Module) -> Vec<Global> {
     references
 }
 
+/// The declarations rendered into a module's StyleX theme file.
+///
+/// StyleX evaluates every import of a theme file as a theme value without reading the file, so
+/// the same-module values that the definitions read are rendered again in the theme file rather
+/// than imported from it. These values are statically evaluable data, so duplicating them does not
+/// change their meaning.
+pub(super) struct StyleXTheme {
+    /// Exported `defineVars`, `defineConsts`, and `defineMarker` values.
+    pub(super) definitions: FxHashSet<GlobalId>,
+    /// The definitions and the same-module values that they read.
+    pub(super) declarations: FxHashSet<GlobalId>,
+    /// Other modules' values that the declarations read.
+    pub(super) imports: FxHashSet<GlobalId>,
+}
+
+pub(super) fn collect_stylex_theme(module: &Module) -> Option<StyleXTheme> {
+    let mut values = FxHashMap::default();
+    let mut definitions = FxHashSet::default();
+    for declaration in module.declarations.iter() {
+        let DeclarationKind::Value(expression) = declaration.kind else { continue };
+        values.insert(declaration.global.id, expression);
+        if declaration.exported
+            && let ExpressionKind::StyleX(StyleXExpression::Call {
+                target: StyleXCallTarget::Root(call),
+                ..
+            }) = module.storage[expression].kind
+            && call.defines_theme_value()
+        {
+            definitions.insert(declaration.global.id);
+        }
+    }
+    if definitions.is_empty() {
+        return None;
+    }
+    let mut declarations = FxHashSet::default();
+    let mut imports = FxHashSet::default();
+    let mut pending = definitions.iter().copied().collect::<Vec<_>>();
+    while let Some(id) = pending.pop() {
+        if !declarations.insert(id) {
+            continue;
+        }
+        let expression = values
+            .get(&id)
+            .expect("invariant violated: StyleX theme definition reads a non-value declaration");
+        let mut globals = FxHashSet::default();
+        super::collect_expression_globals(module, *expression, true, &mut globals);
+        for global in globals {
+            if global_file(global) == module.file_id {
+                pending.push(global);
+            } else {
+                imports.insert(global);
+            }
+        }
+    }
+    Some(StyleXTheme { definitions, declarations, imports })
+}
+
 fn global_file(id: GlobalId) -> files::FileId {
     match id {
         GlobalId::Term(file_id, _) | GlobalId::Generated(file_id, _) => file_id,

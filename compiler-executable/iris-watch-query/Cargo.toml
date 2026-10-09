@@ -14,6 +14,7 @@ iris-analysis = { version = "0.1.0", path = "../../compiler-services/iris-analys
 iris-build = { version = "0.1.0", path = "../iris-build" }
 iris-diagnostics = { version = "0.1.0", path = "../../compiler-services/iris-diagnostics" }
 iris-watch-server = { version = "0.1.0", path = "../iris-watch-server" }
+javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
 lsp-types.workspace = true
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

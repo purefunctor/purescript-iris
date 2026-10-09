@@ -1,4 +1,4 @@
-import { breakpoints as Tokens_breakpoints } from "../Tokens/index.js";
+import { breakpoints as Tokens_breakpoints } from "../Tokens/index.stylex.js";
 import * as $stylex from "@stylexjs/stylex";
 export const print = "@media print";
 export const styles = $stylex.create({ root: { padding: {

@@ -12,12 +12,12 @@ import * as stylex from "@stylexjs/stylex";
 // The plugin resolves imports to real paths and hashes them relative to `rootDir`, so a
 // symlinked temporary directory (macOS `/var`) must be canonical on both sides.
 const outputRoot = fs.realpathSync(path.resolve(process.argv[2]));
-const modules = ["Tokens", "Main"];
+const files = ["Tokens/index.stylex.js", "Tokens/index.js", "Main/index.js"];
 const styles = [];
 const transformed = new Map();
 
-for (const moduleName of modules) {
-  const filename = path.join(outputRoot, moduleName, "index.js");
+for (const file of files) {
+  const filename = path.join(outputRoot, file);
   const source = fs.readFileSync(filename, "utf8");
   const result = transformSync(source, {
     filename,
@@ -28,11 +28,8 @@ for (const moduleName of modules) {
         stylexPlugin,
         {
           dev: false,
-          unstable_moduleResolution: {
-            type: "commonJS",
-            rootDir: outputRoot,
-            themeFileExtension: "index",
-          },
+          // The default that `@stylexjs/unplugin` passes; theme files need no further setup.
+          unstable_moduleResolution: { type: "commonJS", rootDir: outputRoot },
         },
       ],
     ],
@@ -49,7 +46,7 @@ for (const moduleName of modules) {
     "viewTransitionClass",
   ];
   if (staticCalls.some((call) => result.code.includes(`$stylex.${call}(`))) {
-    throw new Error(`${moduleName} retains uncompiled static StyleX calls`);
+    throw new Error(`${file} retains uncompiled static StyleX calls`);
   }
   styles.push(...result.metadata.stylex);
   transformed.set(filename, result.code);
@@ -73,6 +70,7 @@ for (const expected of [
   "padding:8px",
   "@media (max-width: 600px)",
   "padding:4px",
+  "margin:21px",
 ]) {
   if (!css.includes(expected)) {
     throw new Error(`StyleX CSS does not contain ${JSON.stringify(expected)}:\n${css}`);
@@ -81,8 +79,12 @@ for (const expected of [
 
 // A cross-module reference must hash to the variable its defining module declares.
 const accent = css.match(/(--[\w-]+):blue/)?.[1];
-if (accent === undefined || !css.includes(`border-color:var(${accent})`)) {
-  throw new Error(`border-color does not use the variable Tokens defines:\n${css}`);
+if (
+  accent === undefined ||
+  !css.includes(`border-color:var(${accent})`) ||
+  !css.includes(`{color:var(${accent})`)
+) {
+  throw new Error(`Styles do not use the variable Tokens defines:\n${css}`);
 }
 
 for (const [filename, code] of transformed) {
@@ -101,7 +103,14 @@ registerHooks({
 
 const tokens = await import(pathToFileURL(path.join(outputRoot, "Tokens/index.js")));
 const main = await import(pathToFileURL(path.join(outputRoot, "Main/index.js")));
+const theme = await import(pathToFileURL(path.join(outputRoot, "Tokens/index.stylex.js")));
+assert.equal(tokens.variables, theme.variables);
 const classNames = (value) => new Set(value.trim().split(/\s+/));
+const gapClasses = classNames(tokens.gapProps.className);
+assert.equal(gapClasses.size, 2);
+for (const gapClass of gapClasses) {
+  assert.ok(css.includes(`.${gapClass}`));
+}
 const expected = classNames(stylex.props(main.styles.row, tokens.rowMarker).className);
 const markerClass = stylex.props(tokens.rowMarker).className;
 assert.ok(markerClass.length > 0);

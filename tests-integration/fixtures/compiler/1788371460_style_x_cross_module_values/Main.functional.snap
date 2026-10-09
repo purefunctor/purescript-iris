@@ -1,8 +1,15 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 314
 ---
 @export theme = stylex.createTheme variables { accent: "white" }
 
 @export styles = stylex.create {
-  root: { color: stylex.conditionalValue "blue" [stylex.when.ancestor(":hover", rowMarker, "red")] }
+  root:
+    {
+      color: stylex.conditionalValue "blue" [stylex.when.ancestor(":hover", rowMarker, "red")],
+      padding: spacing.gap
+    }
 }
+
+@export awaitProps = stylex.props await

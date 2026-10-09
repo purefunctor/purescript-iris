@@ -130,6 +130,17 @@ impl StyleXRootCall {
             StyleXRootCall::FirstThatWorks => "firstThatWorks",
         }
     }
+
+    /// StyleX hashes these definitions by file path, so it accepts them only in theme files and
+    /// resolves references to them only through imports of theme files.
+    pub fn defines_theme_value(self) -> bool {
+        matches!(
+            self,
+            StyleXRootCall::DefineVars
+                | StyleXRootCall::DefineConsts
+                | StyleXRootCall::DefineMarker
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

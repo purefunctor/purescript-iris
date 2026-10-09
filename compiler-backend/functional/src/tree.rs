@@ -7,6 +7,7 @@ use files::FileId;
 use indexing::{DeriveId, InstanceId, TermItemId, TypeItemId};
 use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
+use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
 
 use crate::stylex::StyleXExpression;
@@ -21,6 +22,9 @@ pub struct Module {
     pub dependencies: Arc<[ModuleDependency]>,
     pub surface: ModuleSurface,
     pub declarations: Arc<[Declaration]>,
+    /// Imported `defineVars`, `defineConsts`, and `defineMarker` values that StyleX evaluates
+    /// statically, which it resolves only through imports of the defining module's theme file.
+    pub stylex_theme_imports: FxHashSet<GlobalId>,
     pub storage: Storage,
 }
 

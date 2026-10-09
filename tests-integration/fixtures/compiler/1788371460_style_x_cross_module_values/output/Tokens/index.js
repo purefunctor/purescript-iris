@@ -1,3 +1,5 @@
+import { spacing, variables, rowMarker } from "./index.stylex.js";
 import * as $stylex from "@stylexjs/stylex";
-export const variables = $stylex.defineVars({ accent: "blue" });
-export const rowMarker = $stylex.defineMarker();
+const $await = $stylex.defaultMarker();
+export { $await as "await" };
+export { spacing, variables, rowMarker } from "./index.stylex.js";

@@ -50,7 +50,7 @@ import Iris.StyleX.Types as Types
 | `stylex.firstThatWorks('sticky', 'fixed')` | `StyleX.firstThatWorks [ "sticky", "fixed" ]` |
 | `stylex.types.color('red')` | `Types.color "red"` |
 | `stylex.keyframes`, `defineVars`, `defineConsts`, `createTheme`, `viewTransitionClass`, `positionTry`, `attrs` | The same name under `StyleX` |
-| `tokens.stylex.js` exporting `defineVars` or `defineConsts` | An exported top-level value in any module, with the bundler setting below |
+| `tokens.stylex.js` exporting `defineVars` or `defineConsts` | An exported top-level value in any module; Iris writes it to the module's theme file |
 
 - Quote record labels that are not PureScript identifiers: `":hover"`, `"::placeholder"`,
   `"@media (min-width: 768px)"`, `"WebkitBackdropFilter"`.
@@ -155,23 +155,18 @@ as well as the Iris build.
 Follow StyleX's installation guide for the bundler, then add what Iris output needs:
 
 - Generated modules import `@stylexjs/stylex`, so the project depends on it at runtime.
-- Iris writes each module to `output/<Module>/index.js`, but the plugin accepts `defineVars`,
-  `defineConsts`, `defineMarker`, and `createTheme` only in theme files, `*.stylex.js` by default.
-  Mark Iris output as theme files; `@stylexjs/unplugin` forwards this option to the Babel plugin:
-
-  ```js
-  unstable_moduleResolution: {
-    type: "commonJS",
-    rootDir: process.cwd(),
-    themeFileExtension: "index",
-  },
-  ```
-
-  Without it, those calls fail with `Unable to generate hash` or `Only static values are allowed`,
-  and imports between modules in static calls fail with `Could not resolve the path to the
-  imported file`. When calling the Babel plugin yourself, pass real file paths: the plugin
-  resolves imports through symlinks, so a symlinked filename gives a variable a different hash in
-  the module that imports it.
+- Iris writes each module to `output/<Module>/index.js`. The plugin accepts `defineVars`,
+  `defineConsts`, and `defineMarker` only in theme files named `*.stylex.js`, so Iris writes a
+  module's exported definitions to `output/<Module>/index.stylex.js`, which `index.js`
+  re-exports. Generated modules import these values from the theme file, which the plugin's
+  default module resolution follows. `@stylexjs/unplugin` needs no resolution options; when
+  calling the Babel plugin yourself, pass `unstable_moduleResolution: { type: "commonJS",
+  rootDir }`, since the plugin cannot hash these definitions without it. Remove any
+  `themeFileExtension: "index"` setting from older Iris versions: it no longer matches the
+  generated files.
+- When calling the Babel plugin yourself, also transform each `index.stylex.js` and pass real
+  file paths: the plugin resolves imports through symlinks, so a symlinked filename gives a
+  variable a different hash in the module that imports it.
 - Run `iris watch` beside the dev server, with the same `--output` the bundler imports from.
 - Vite may miss `@stylexjs/stylex` in its first scan of generated modules; add it to
   `optimizeDeps.include` if the dev server reloads on first navigation.

@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 312
+---
+Terms
+gap :: Prim.String
+sizes :: { gap :: Prim.String }
+spacing :: { gap :: Prim.String }
+variables :: { accent :: Iris.StyleX.Variable Prim.String }
+gapStyles :: { root :: Iris.StyleX.Style }
+gapProps :: { className :: Prim.String }
+
+Types

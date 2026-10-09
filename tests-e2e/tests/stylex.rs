@@ -19,19 +19,25 @@ package:
     );
     workspace.write(
         "src/Tokens.purs",
-        r#"module Tokens (await, constants, rowMarker, variables) where
+        r#"module Tokens (await, constants, gapProps, rowMarker, variables) where
 
 import Iris.StyleX as StyleX
 
 await :: StyleX.Style
 await = StyleX.defaultMarker
 
-constants = StyleX.defineConsts { spacing: "13px", small: "@media (max-width: 600px)" }
+gap = "21px"
+
+constants = StyleX.defineConsts { spacing: "13px", small: "@media (max-width: 600px)", gap }
 
 variables = StyleX.defineVars { accent: "blue" }
 
 rowMarker :: StyleX.Marker
 rowMarker = StyleX.defineMarker
+
+gapStyles = StyleX.create { root: { margin: gap, color: variables.accent } }
+
+gapProps = StyleX.props gapStyles.root
 "#,
     );
     workspace.write(
@@ -106,8 +112,8 @@ conditionalProps enabled = StyleX.props
     assert_success(&output);
     let generated = workspace.read("output/Main/index.js");
     assert!(
-        generated
-            .contains("import { \"await\" as Tokens_await, constants as Tokens_constants, rowMarker as Tokens_rowMarker, variables as Tokens_variables }"),
+        generated.contains("import { \"await\" as Tokens_await } from \"../Tokens/index.js\";")
+            && generated.contains("import { constants as Tokens_constants, rowMarker as Tokens_rowMarker, variables as Tokens_variables } from \"../Tokens/index.stylex.js\";"),
         "unexpected generated JavaScript:\n{generated}"
     );
 

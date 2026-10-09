@@ -484,6 +484,13 @@ fn write_module(
         return ModuleWrite { outputs: Vec::new(), result: Err(error.into()) };
     }
     let mut outputs = vec![output_path];
+    if let Some(source) = module.stylex_theme_source() {
+        let output_path = output.join(javascript::stylex_theme_module_filename(module.name()));
+        if let Err(error) = write_if_changed(&output_path, source.as_bytes()) {
+            return ModuleWrite { outputs, result: Err(error.into()) };
+        }
+        outputs.push(output_path);
+    }
     if let Some(kind) = module.foreign_kind() {
         let output_path = output.join(javascript::foreign_module_filename(module.name(), kind));
         let foreign = compilation

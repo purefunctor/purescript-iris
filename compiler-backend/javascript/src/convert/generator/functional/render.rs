@@ -26,7 +26,9 @@ use smol_str::{SmolStr, format_smolstr};
 
 use super::super::names::NameAllocator;
 use crate::error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
-use crate::module::{Module, module_filename, runtime_filename};
+use crate::module::{
+    Module, STYLEX_THEME_FILENAME, module_filename, runtime_filename, stylex_theme_module_filename,
+};
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
 
@@ -34,7 +36,7 @@ use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
     collect_module_references, cyclic_instance_initializers, has_local_lazy_initializers,
 };
-use self::stylex::collect_stylex_references;
+use self::stylex::{StyleXTheme, collect_stylex_references, collect_stylex_theme};
 use self::syntax::{
     binary_expression, combine_conditions, constructor_expression, curried_call_expression,
     literal_expression, synthesized_evidence_expression, unary_expression,
@@ -52,15 +54,20 @@ pub(crate) struct Generator<'m> {
     module_dependencies: FxHashMap<FileId, &'m ModuleDependency>,
     global_names: FxHashMap<GlobalId, SmolStr>,
     external_module_namespaces: FxHashMap<FileId, SmolStr>,
-    external_named_imports: FxHashMap<GlobalId, SmolStr>,
-    external_references: Vec<Global>,
+    external_named_imports: FxHashMap<GlobalId, NamedImport>,
     stylex_namespace: Option<SmolStr>,
+    stylex_theme: Option<StyleXTheme>,
     foreign_import: Option<ForeignImport>,
     runtime_namespace: Option<SmolStr>,
     lazy_global_names: FxHashMap<GlobalId, SmolStr>,
     global_tail_call_groups: Vec<TailCallGroup>,
     global_tail_call_group_positions: FxHashMap<GlobalId, usize>,
     reserved_module_names: Rc<FxHashSet<SmolStr>>,
+}
+
+struct NamedImport {
+    exported_name: SmolStr,
+    local_binding_name: SmolStr,
 }
 
 struct ForeignImport {
@@ -177,6 +184,14 @@ struct ModuleRenderer<'a, 'm, 't> {
     generator: &'a Generator<'m>,
     tree: &'a mut Tree<'t>,
     writer: &'a mut Writer<'t>,
+    file: OutputFile<'a>,
+}
+
+/// The files generated for a module.
+#[derive(Clone, Copy)]
+enum OutputFile<'a> {
+    Index,
+    StyleXTheme(&'a StyleXTheme),
 }
 
 struct FunctionRenderer<'a, 'm, 't> {
@@ -292,8 +307,9 @@ impl<'m> Generator<'m> {
                 .get(&file_id)
                 .expect("invariant violated: external global has no module dependency");
             let preferred = format_smolstr!("{}_{}", dependency.module_name, global.item_name);
-            let name = allocator.allocate(preferred.replace('.', "_"));
-            external_named_imports.insert(global.id, name);
+            let local_binding_name = allocator.allocate(preferred.replace('.', "_"));
+            let binding = NamedImport { exported_name: global.item_name, local_binding_name };
+            external_named_imports.insert(global.id, binding);
         }
         let mut external_module_namespaces = FxHashMap::default();
         for global in
@@ -309,6 +325,7 @@ impl<'m> Generator<'m> {
         }
 
         let stylex_namespace = has_stylex.then(|| allocator.allocate("$stylex"));
+        let stylex_theme = if has_stylex { collect_stylex_theme(module) } else { None };
 
         let has_foreign = module
             .declarations
@@ -365,8 +382,8 @@ impl<'m> Generator<'m> {
             global_names,
             external_module_namespaces,
             external_named_imports,
-            external_references,
             stylex_namespace,
+            stylex_theme,
             foreign_import,
             runtime_namespace,
             lazy_global_names,
@@ -380,17 +397,41 @@ impl<'m> Generator<'m> {
         let allocator = Allocator::default();
         let mut tree = Tree::new(&allocator);
         let mut writer = Writer::new(&allocator);
+        let declarations = sorted_value_declarations(&self);
         let initializer_cycle = {
-            let mut renderer =
-                ModuleRenderer { generator: &self, tree: &mut tree, writer: &mut writer };
+            let mut renderer = ModuleRenderer {
+                generator: &self,
+                tree: &mut tree,
+                writer: &mut writer,
+                file: OutputFile::Index,
+            };
             render_imports(&mut renderer);
             render_constructors(&mut renderer);
             render_source_functions(&mut renderer)?;
             render_foreign_declarations(&mut renderer);
             render_lazy_initializers(&mut renderer)?;
-            let initializer_cycle = render_value_declarations(&mut renderer)?;
+            let initializer_cycle = render_value_declarations(&mut renderer, &declarations)?;
             render_exports(&mut renderer);
             initializer_cycle
+        };
+        let stylex_theme_source = if let Some(theme) = &self.stylex_theme {
+            let mut writer = Writer::new(&allocator);
+            let mut renderer = ModuleRenderer {
+                generator: &self,
+                tree: &mut tree,
+                writer: &mut writer,
+                file: OutputFile::StyleXTheme(theme),
+            };
+            render_imports(&mut renderer);
+            let initializer_cycle = render_value_declarations(&mut renderer, &declarations)?;
+            debug_assert!(
+                initializer_cycle.is_empty(),
+                "invariant violated: statically evaluable StyleX theme values form a cycle"
+            );
+            render_exports(&mut renderer);
+            Some(writer.finish())
+        } else {
+            None
         };
 
         let dependencies = self.module.dependencies.iter().map(|dependency| dependency.file_id);
@@ -409,6 +450,7 @@ impl<'m> Generator<'m> {
             dependencies,
             diagnostics,
             self.foreign_import.as_ref().map(|foreign_import| foreign_import.kind),
+            stylex_theme_source,
             requires_runtime,
         ))
     }
@@ -424,7 +466,15 @@ impl<'m> Generator<'m> {
 }
 
 fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
-    let ModuleRenderer { generator, writer, .. } = renderer;
+    let ModuleRenderer { generator, writer, file, .. } = renderer;
+    if let OutputFile::StyleXTheme(theme) = file {
+        render_named_imports(generator, writer, theme.imports.iter().copied());
+        if let Some(namespace) = &generator.stylex_namespace {
+            writer.import_namespace(namespace, "@stylexjs/stylex");
+        }
+        writer.blank();
+        return;
+    }
     let mut files = generator
         .external_module_namespaces
         .keys()
@@ -439,34 +489,19 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let path = format!("../{}", module_filename(module_name));
         writer.import_namespace(namespace, &path);
     }
-    let mut named_files = generator
-        .external_named_imports
-        .keys()
-        .map(|global| global_file(*global))
-        .collect::<FxHashSet<_>>()
-        .into_iter()
-        .collect_vec();
-    named_files.sort_by_key(|file_id| generator.module_dependency(*file_id).module_name.as_str());
-    for file_id in named_files {
-        let dependency = generator.module_dependency(file_id);
-        let path = format!("../{}", module_filename(&dependency.module_name));
-        let bindings = generator
-            .external_named_imports
+    render_named_imports(generator, writer, generator.external_named_imports.keys().copied());
+    if let Some(theme) = &generator.stylex_theme {
+        let definitions = generator
+            .module
+            .declarations
             .iter()
-            .filter(|(global, _)| global_file(**global) == file_id)
-            .map(|(global, local)| {
-                let imported = generator
-                    .external_references
-                    .iter()
-                    .find(|reference| reference.id == *global)
-                    .expect("invariant violated: named import has no external reference")
-                    .item_name
-                    .as_str();
-                (imported, local.as_str())
+            .filter(|declaration| theme.definitions.contains(&declaration.global.id))
+            .map(|declaration| {
+                let local = generator.global_name(declaration.global.id);
+                (declaration.global.item_name.as_str(), local)
             });
-        let mut bindings = bindings.collect_vec();
-        bindings.sort_unstable();
-        writer.import_named(&bindings, &path);
+        let definitions = definitions.collect_vec();
+        writer.import_named(&definitions, &format!("./{STYLEX_THEME_FILENAME}"));
     }
     if let Some(namespace) = &generator.stylex_namespace {
         writer.import_namespace(namespace, "@stylexjs/stylex");
@@ -479,7 +514,7 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let path = format!("../{}", runtime_filename());
         writer.import_namespace(namespace, &path);
     }
-    if !generator.external_references.is_empty()
+    if !generator.external_module_namespaces.is_empty()
         || generator.stylex_namespace.is_some()
         || !generator.external_named_imports.is_empty()
         || generator.foreign_import.is_some()
@@ -489,16 +524,49 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     }
 }
 
+/// StyleX resolves an imported theme value only when the import names the defining module's
+/// theme file. Other values are imported from the module itself, which re-exports its theme.
+fn render_named_imports(
+    generator: &Generator<'_>,
+    writer: &mut Writer<'_>,
+    globals: impl Iterator<Item = GlobalId>,
+) {
+    let mut groups = FxHashMap::<_, Vec<_>>::default();
+    for global in globals {
+        let binding = generator
+            .external_named_imports
+            .get(&global)
+            .expect("invariant violated: imported StyleX value has no named import");
+        let theme = generator.module.stylex_theme_imports.contains(&global);
+        let group = groups.entry((global_file(global), theme)).or_default();
+        group.push((binding.exported_name.as_str(), binding.local_binding_name.as_str()));
+    }
+    let mut groups = groups.into_iter().collect_vec();
+    groups.sort_by_key(|&((file_id, theme), _)| {
+        (generator.module_dependency(file_id).module_name.as_str(), theme)
+    });
+    for ((file_id, theme), mut bindings) in groups {
+        let module_name = &generator.module_dependency(file_id).module_name;
+        let filename = if theme {
+            stylex_theme_module_filename(module_name)
+        } else {
+            module_filename(module_name)
+        };
+        bindings.sort_unstable();
+        writer.import_named(&bindings, &format!("../{filename}"));
+    }
+}
+
 fn render_constructors(renderer: &mut ModuleRenderer<'_, '_, '_>) {
-    let ModuleRenderer { generator, tree, writer } = renderer;
+    let ModuleRenderer { generator, tree, writer, file } = renderer;
     let mut rendered = false;
     for declaration in generator.module.declarations.iter() {
         let DeclarationKind::Constructor { arity } = declaration.kind else {
             continue;
         };
         let name = generator.global_name(declaration.global.id);
+        let exported = file.declaration_is_inline_exported(generator, declaration);
         let expression = constructor_expression(tree, &declaration.global.item_name, arity);
-        let exported = generator.declaration_is_inline_exported(declaration);
         writer.constant(tree, name, expression, exported);
         rendered = true;
     }
@@ -508,7 +576,7 @@ fn render_constructors(renderer: &mut ModuleRenderer<'_, '_, '_>) {
 }
 
 fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleResult<()> {
-    let generator = renderer.generator;
+    let ModuleRenderer { generator, tree, writer, file } = renderer;
     let mut rendered_groups = FxHashSet::default();
     for declaration in generator.module.declarations.iter() {
         let DeclarationKind::Value(expression) = declaration.kind else {
@@ -526,29 +594,33 @@ fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleR
         {
             if rendered_groups.insert(position) {
                 render_global_tail_call_group(
-                    renderer,
+                    generator,
+                    tree,
+                    writer,
+                    *file,
                     &generator.global_tail_call_groups[position],
                 )?;
-                renderer.writer.blank();
+                writer.blank();
             }
             continue;
         }
         let name = generator.global_name(declaration.global.id);
-        let exported = generator.declaration_is_inline_exported(declaration);
+        let exported = file.declaration_is_inline_exported(generator, declaration);
         let mut context = FunctionContext::new(&generator.reserved_module_names);
-        let mut function_renderer =
-            generator.renderer(renderer.tree, renderer.writer, &mut context);
+        let mut function_renderer = generator.renderer(tree, writer, &mut context);
         render_named_function(&mut function_renderer, name, expression, exported)?;
-        renderer.writer.blank();
+        writer.blank();
     }
     Ok(())
 }
 
-fn render_global_tail_call_group(
-    renderer: &mut ModuleRenderer<'_, '_, '_>,
+fn render_global_tail_call_group<'t>(
+    generator: &Generator<'_>,
+    tree: &mut Tree<'t>,
+    writer: &mut Writer<'t>,
+    file: OutputFile<'_>,
     group: &TailCallGroup,
 ) -> ModuleResult<()> {
-    let generator = renderer.generator;
     let mut context = FunctionContext::new(&generator.reserved_module_names);
     if !group.is_singleton() {
         let state_name = context.allocate("$state");
@@ -560,14 +632,9 @@ fn render_global_tail_call_group(
         let mut dispatcher_parameters = vec![state_name];
         dispatcher_parameters.extend(argument_names.iter().cloned());
         context.tail_calls = Some(tail_calls);
-        renderer.writer.function(
-            &group.dispatcher_name,
-            dispatcher_parameters,
-            false,
-            |writer| {
-                generator.render_tail_call_dispatcher(renderer.tree, writer, group, &mut context)
-            },
-        )?;
+        writer.function(&group.dispatcher_name, dispatcher_parameters, false, |writer| {
+            generator.render_tail_call_dispatcher(tree, writer, group, &mut context)
+        })?;
         context.tail_calls = None;
     }
 
@@ -582,10 +649,10 @@ fn render_global_tail_call_group(
             .find(|declaration| declaration.global.id == global)
             .expect("invariant violated: tail-call profile has no declaration");
         let name = generator.global_name(global);
-        let exported = generator.declaration_is_inline_exported(declaration);
+        let exported = file.declaration_is_inline_exported(generator, declaration);
         generator.render_global_tail_call_wrapper(
-            renderer.tree,
-            renderer.writer,
+            tree,
+            writer,
             TailCallWrapper { name, group, profile, state },
             exported,
             &mut context,
@@ -1033,7 +1100,7 @@ impl Generator<'_> {
 }
 
 fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_>) {
-    let ModuleRenderer { generator, tree, writer } = renderer;
+    let ModuleRenderer { generator, tree, writer, file } = renderer;
     let Some(foreign_import) = &generator.foreign_import else {
         return;
     };
@@ -1043,10 +1110,10 @@ fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_>) {
             continue;
         }
         let name = generator.global_name(declaration.global.id);
+        let exported = file.declaration_is_inline_exported(generator, declaration);
         let object = tree.identifier(&foreign_import.namespace);
         let index = tree.string(declaration.global.item_name.as_str());
         let access = tree.index(object, index);
-        let exported = generator.declaration_is_inline_exported(declaration);
         writer.constant(tree, name, access, exported);
         rendered = true;
     }
@@ -1056,7 +1123,7 @@ fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_>) {
 }
 
 fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleResult<()> {
-    let generator = renderer.generator;
+    let ModuleRenderer { generator, tree, writer, .. } = renderer;
     let Some(runtime) = &generator.runtime_namespace else {
         return Ok(());
     };
@@ -1067,57 +1134,48 @@ fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_>) -> Module
         let DeclarationKind::Value(expression) = declaration.kind else {
             unreachable!("invariant violated: lazy JavaScript declaration is not a value")
         };
-        let name = renderer.tree.string(declaration.global.item_name.as_str());
-        let runtime = renderer.tree.identifier(runtime);
-        let binding = renderer.tree.member(runtime, "binding");
-        let binding = renderer.tree.expression(binding);
-        let name = renderer.tree.expression(name);
+        let name = tree.string(declaration.global.item_name.as_str());
+        let runtime = tree.identifier(runtime);
+        let binding = tree.member(runtime, "binding");
+        let binding = tree.expression(binding);
+        let name = tree.expression(name);
         let mut context = FunctionContext::new(&generator.reserved_module_names);
-        renderer.writer.binding_call(
-            BindingCallTarget::Constant(lazy_name),
-            binding,
-            name,
-            |writer| {
-                generator.render_expression(
-                    renderer.tree,
-                    writer,
-                    expression,
-                    Destination::Return,
-                    &mut context,
-                )
-            },
-        )?;
-        renderer.writer.blank();
+        writer.binding_call(BindingCallTarget::Constant(lazy_name), binding, name, |writer| {
+            generator.render_expression(tree, writer, expression, Destination::Return, &mut context)
+        })?;
+        writer.blank();
     }
     Ok(())
 }
 
 fn render_value_declarations(
     renderer: &mut ModuleRenderer<'_, '_, '_>,
+    declarations: &[(&Declaration, bool)],
 ) -> ModuleResult<Vec<GlobalId>> {
-    let generator = renderer.generator;
+    let ModuleRenderer { generator, tree, writer, file } = renderer;
     let mut rendered = false;
     let mut previous_was_generated = false;
     let mut initializer_cycle = Vec::new();
-    for (declaration, cyclic) in sorted_value_declarations(generator) {
+    for &(declaration, cyclic) in declarations {
         let DeclarationKind::Value(expression) = declaration.kind else {
             unreachable!("invariant violated: sorted JavaScript declaration is not a value")
         };
-        if is_abstraction(&generator.module.storage[expression].kind) {
+        if is_abstraction(&generator.module.storage[expression].kind)
+            || !file.renders_value(generator, declaration)
+        {
             continue;
         }
 
+        let name = generator.global_name(declaration.global.id);
+        let exported = file.declaration_is_inline_exported(generator, declaration);
         let generated = matches!(declaration.global.id, GlobalId::Generated(_, _));
         if rendered && (!previous_was_generated || !generated) {
-            renderer.writer.blank();
+            writer.blank();
         }
-
-        let name = generator.global_name(declaration.global.id);
-        let exported = generator.declaration_is_inline_exported(declaration);
 
         if cyclic {
             initializer_cycle.push(declaration.global.id);
-            renderer.writer.constant_iife(name, exported, |writer| {
+            writer.constant_iife(name, exported, |writer| {
                 writer.throw_error(INITIALIZER_CYCLE_MESSAGE);
             });
             rendered = true;
@@ -1126,23 +1184,21 @@ fn render_value_declarations(
         }
 
         if let Some(lazy_name) = generator.lazy_global_names.get(&declaration.global.id) {
-            let lazy = renderer.tree.identifier(lazy_name);
-            let value = renderer.tree.call(lazy, Vec::new());
-            renderer.writer.constant(renderer.tree, name, value, exported);
+            let lazy = tree.identifier(lazy_name);
+            let value = tree.call(lazy, Vec::new());
+            writer.constant(tree, name, value, exported);
             rendered = true;
             previous_was_generated = generated;
             continue;
         }
 
         let mut context = FunctionContext::new(&generator.reserved_module_names);
-        if let Some(value) =
-            generator.try_inline_expression(renderer.tree, expression, &mut context)?
-        {
-            renderer.writer.constant(renderer.tree, name, value, exported);
+        if let Some(value) = generator.try_inline_expression(tree, expression, &mut context)? {
+            writer.constant(tree, name, value, exported);
         } else {
-            renderer.writer.constant_iife(name, exported, |writer| {
+            writer.constant_iife(name, exported, |writer| {
                 generator.render_expression(
-                    renderer.tree,
+                    tree,
                     writer,
                     expression,
                     Destination::Return,
@@ -1155,7 +1211,7 @@ fn render_value_declarations(
         previous_was_generated = generated;
     }
     if rendered {
-        renderer.writer.blank();
+        writer.blank();
     }
     Ok(initializer_cycle)
 }
@@ -3157,8 +3213,8 @@ impl Generator<'_> {
             })?;
             Ok(tree.identifier(name))
         } else {
-            if let Some(name) = self.external_named_imports.get(&global.id) {
-                return Ok(tree.identifier(name));
+            if let Some(binding) = self.external_named_imports.get(&global.id) {
+                return Ok(tree.identifier(&binding.local_binding_name));
             }
             let namespace = self
                 .external_module_namespaces
@@ -3237,37 +3293,75 @@ fn sorted_value_declarations<'m>(generator: &'m Generator<'_>) -> Vec<(&'m Decla
 }
 
 fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
-    let ModuleRenderer { generator, writer, .. } = renderer;
+    let ModuleRenderer { generator, writer, file, .. } = renderer;
     let mut rendered = false;
     for declaration in generator.module.declarations.iter() {
-        if !declaration.exported {
+        if !file.exports(generator, declaration)
+            || file.declaration_is_inline_exported(generator, declaration)
+        {
             continue;
         }
         let local = generator.global_name(declaration.global.id);
-        if local == declaration.global.item_name {
-            continue;
-        }
         writer.export(local, &declaration.global.item_name);
         rendered = true;
     }
-    for exports in generator.module.surface.indirect.iter() {
-        let specifiers = exports.globals.iter().map(|global| global.item_name.to_string());
-        let dependency = generator.module_dependency(exports.file_id);
-        let path = format!("../{}", module_filename(&dependency.module_name));
-        writer.re_export(specifiers.collect_vec(), &path);
-        rendered = true;
+    if let OutputFile::Index = file {
+        if let Some(theme) = &generator.stylex_theme {
+            let definitions = generator
+                .module
+                .declarations
+                .iter()
+                .filter(|declaration| theme.definitions.contains(&declaration.global.id))
+                .map(|declaration| declaration.global.item_name.to_string());
+            writer.export_from(definitions.collect_vec(), &format!("./{STYLEX_THEME_FILENAME}"));
+            rendered = true;
+        }
+        for exports in generator.module.surface.indirect.iter() {
+            let specifiers = exports.globals.iter().map(|global| global.item_name.to_string());
+            let dependency = generator.module_dependency(exports.file_id);
+            let path = format!("../{}", module_filename(&dependency.module_name));
+            writer.export_from(specifiers.collect_vec(), &path);
+            rendered = true;
+        }
     }
     if rendered {
         writer.blank();
     }
 }
 
-impl Generator<'_> {
-    fn declaration_is_inline_exported(&self, declaration: &Declaration) -> bool {
-        let local = self.global_name(declaration.global.id);
-        declaration.exported && local == declaration.global.item_name
+impl OutputFile<'_> {
+    /// Whether this file renders the declaration, if it is a value: a module's theme definitions
+    /// render only in its theme file, which renders nothing else except the values they read.
+    fn renders_value(self, generator: &Generator<'_>, declaration: &Declaration) -> bool {
+        let id = declaration.global.id;
+        match self {
+            OutputFile::Index => {
+                generator.stylex_theme.as_ref().is_none_or(|theme| !theme.definitions.contains(&id))
+            }
+            OutputFile::StyleXTheme(theme) => theme.declarations.contains(&id),
+        }
     }
 
+    /// A theme file exports only the theme definitions; the values they read stay private to it,
+    /// while the module's own file re-exports the definitions.
+    fn exports(self, generator: &Generator<'_>, declaration: &Declaration) -> bool {
+        match self {
+            OutputFile::StyleXTheme(theme) => theme.definitions.contains(&declaration.global.id),
+            OutputFile::Index => declaration.exported && self.renders_value(generator, declaration),
+        }
+    }
+
+    fn declaration_is_inline_exported(
+        self,
+        generator: &Generator<'_>,
+        declaration: &Declaration,
+    ) -> bool {
+        let local = generator.global_name(declaration.global.id);
+        self.exports(generator, declaration) && local == declaration.global.item_name
+    }
+}
+
+impl Generator<'_> {
     fn global_name(&self, id: GlobalId) -> &str {
         self.global_names
             .get(&id)

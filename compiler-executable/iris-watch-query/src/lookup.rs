@@ -221,7 +221,10 @@ pub(crate) fn javascript(
         )));
     }
     match context.engine.javascript(file_id)? {
-        Ok(module) => Ok(JavascriptAnswer { source: module.source().to_string() }),
+        Ok(module) => Ok(JavascriptAnswer {
+            source: module.source().to_string(),
+            stylex_theme_source: module.stylex_theme_source().map(str::to_string),
+        }),
         Err(_) => Err(QueryFailure::Failed(format!("no JavaScript was generated for {name}"))),
     }
 }
