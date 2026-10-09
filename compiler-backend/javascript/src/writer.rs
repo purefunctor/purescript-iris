@@ -650,7 +650,7 @@ impl<'a> Writer<'a> {
         ));
     }
 
-    pub(crate) fn re_export(&mut self, specifiers: Vec<String>, path: &str) {
+    pub(crate) fn export_from(&mut self, specifiers: Vec<String>, path: &str) {
         let specifiers = specifiers.into_iter().map(|name| {
             ExportSpecifier::new(
                 SPAN,

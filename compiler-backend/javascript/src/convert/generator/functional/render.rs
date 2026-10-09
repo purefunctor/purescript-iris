@@ -52,8 +52,7 @@ pub(crate) struct Generator<'m> {
     module_dependencies: FxHashMap<FileId, &'m ModuleDependency>,
     global_names: FxHashMap<GlobalId, SmolStr>,
     external_module_namespaces: FxHashMap<FileId, SmolStr>,
-    external_named_imports: FxHashMap<GlobalId, SmolStr>,
-    external_references: Vec<Global>,
+    external_named_imports: FxHashMap<GlobalId, NamedImport>,
     stylex_namespace: Option<SmolStr>,
     foreign_import: Option<ForeignImport>,
     runtime_namespace: Option<SmolStr>,
@@ -61,6 +60,11 @@ pub(crate) struct Generator<'m> {
     global_tail_call_groups: Vec<TailCallGroup>,
     global_tail_call_group_positions: FxHashMap<GlobalId, usize>,
     reserved_module_names: Rc<FxHashSet<SmolStr>>,
+}
+
+struct NamedImport {
+    exported_name: SmolStr,
+    local_binding_name: SmolStr,
 }
 
 struct ForeignImport {
@@ -292,8 +296,9 @@ impl<'m> Generator<'m> {
                 .get(&file_id)
                 .expect("invariant violated: external global has no module dependency");
             let preferred = format_smolstr!("{}_{}", dependency.module_name, global.item_name);
-            let name = allocator.allocate(preferred.replace('.', "_"));
-            external_named_imports.insert(global.id, name);
+            let local_binding_name = allocator.allocate(preferred.replace('.', "_"));
+            let binding = NamedImport { exported_name: global.item_name, local_binding_name };
+            external_named_imports.insert(global.id, binding);
         }
         let mut external_module_namespaces = FxHashMap::default();
         for global in
@@ -365,7 +370,6 @@ impl<'m> Generator<'m> {
             global_names,
             external_module_namespaces,
             external_named_imports,
-            external_references,
             stylex_namespace,
             foreign_import,
             runtime_namespace,
@@ -380,6 +384,7 @@ impl<'m> Generator<'m> {
         let allocator = Allocator::default();
         let mut tree = Tree::new(&allocator);
         let mut writer = Writer::new(&allocator);
+        let declarations = sorted_value_declarations(&self);
         let initializer_cycle = {
             let mut renderer =
                 ModuleRenderer { generator: &self, tree: &mut tree, writer: &mut writer };
@@ -388,7 +393,7 @@ impl<'m> Generator<'m> {
             render_source_functions(&mut renderer)?;
             render_foreign_declarations(&mut renderer);
             render_lazy_initializers(&mut renderer)?;
-            let initializer_cycle = render_value_declarations(&mut renderer)?;
+            let initializer_cycle = render_value_declarations(&mut renderer, &declarations)?;
             render_exports(&mut renderer);
             initializer_cycle
         };
@@ -454,15 +459,8 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
             .external_named_imports
             .iter()
             .filter(|(global, _)| global_file(**global) == file_id)
-            .map(|(global, local)| {
-                let imported = generator
-                    .external_references
-                    .iter()
-                    .find(|reference| reference.id == *global)
-                    .expect("invariant violated: named import has no external reference")
-                    .item_name
-                    .as_str();
-                (imported, local.as_str())
+            .map(|(_, binding)| {
+                (binding.exported_name.as_str(), binding.local_binding_name.as_str())
             });
         let mut bindings = bindings.collect_vec();
         bindings.sort_unstable();
@@ -479,7 +477,7 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let path = format!("../{}", runtime_filename());
         writer.import_namespace(namespace, &path);
     }
-    if !generator.external_references.is_empty()
+    if !generator.external_module_namespaces.is_empty()
         || generator.stylex_namespace.is_some()
         || !generator.external_named_imports.is_empty()
         || generator.foreign_import.is_some()
@@ -1094,12 +1092,13 @@ fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_>) -> Module
 
 fn render_value_declarations(
     renderer: &mut ModuleRenderer<'_, '_, '_>,
+    declarations: &[(&Declaration, bool)],
 ) -> ModuleResult<Vec<GlobalId>> {
     let generator = renderer.generator;
     let mut rendered = false;
     let mut previous_was_generated = false;
     let mut initializer_cycle = Vec::new();
-    for (declaration, cyclic) in sorted_value_declarations(generator) {
+    for &(declaration, cyclic) in declarations {
         let DeclarationKind::Value(expression) = declaration.kind else {
             unreachable!("invariant violated: sorted JavaScript declaration is not a value")
         };
@@ -3157,8 +3156,8 @@ impl Generator<'_> {
             })?;
             Ok(tree.identifier(name))
         } else {
-            if let Some(name) = self.external_named_imports.get(&global.id) {
-                return Ok(tree.identifier(name));
+            if let Some(binding) = self.external_named_imports.get(&global.id) {
+                return Ok(tree.identifier(&binding.local_binding_name));
             }
             let namespace = self
                 .external_module_namespaces
@@ -3254,7 +3253,7 @@ fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let specifiers = exports.globals.iter().map(|global| global.item_name.to_string());
         let dependency = generator.module_dependency(exports.file_id);
         let path = format!("../{}", module_filename(&dependency.module_name));
-        writer.re_export(specifiers.collect_vec(), &path);
+        writer.export_from(specifiers.collect_vec(), &path);
         rendered = true;
     }
     if rendered {
