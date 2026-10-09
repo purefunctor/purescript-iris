@@ -1990,6 +1990,7 @@ dependencies = [
  "iris-build",
  "iris-diagnostics",
  "iris-watch-server",
+ "javascript",
  "serde",
  "serde_json",
  "url",

@@ -164,6 +164,7 @@ impl DiagnosticSeverity {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JavascriptAnswer {
     pub source: String,
+    pub stylex_theme_source: Option<String>,
 }
 
 /// Serializes an answer for the protocol.
@@ -292,9 +293,16 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             });
             diagnostics.collect::<Vec<_>>().join("\n")
         }
-        Query::Javascript { .. } => {
-            let JavascriptAnswer { source } = serde_json::from_value(value)?;
-            source
+        Query::Javascript { name } => {
+            let JavascriptAnswer { source, stylex_theme_source } = serde_json::from_value(value)?;
+            match stylex_theme_source {
+                Some(stylex_theme_source) => {
+                    let filename = javascript::module_filename(name);
+                    let theme_filename = javascript::stylex_theme_module_filename(name);
+                    format!("// {filename}\n{source}\n// {theme_filename}\n{stylex_theme_source}")
+                }
+                None => source,
+            }
         }
     };
     Ok(text)
