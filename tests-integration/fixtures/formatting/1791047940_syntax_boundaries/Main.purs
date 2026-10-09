@@ -67,7 +67,7 @@ emptyAdo = ado in 1
 hole = ?hole
 
 binders {} [] named@value (item :: Int) { field: field } = value
-binderOperator (head : tail) = head
+binderOperator (firstElement : remainingElements) = firstElement
 whereValue = result
   where
   result = 1

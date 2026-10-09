@@ -1,12 +1,12 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 80, indent 2 ===
 module Main where
 
-data Choice =
-  First -- first constructor
+data Choice
+  = First -- first constructor
   | Second
 
 data Another
@@ -31,8 +31,8 @@ arrow ::
 === width 20, indent 2 ===
 module Main where
 
-data Choice =
-  First -- first constructor
+data Choice
+  = First -- first constructor
   | Second
 
 data Another
@@ -61,8 +61,8 @@ arrow ::
 === width 40, indent 4, unicode ===
 module Main where
 
-data Choice =
-    First -- first constructor
+data Choice
+    = First -- first constructor
     | Second
 
 data Another

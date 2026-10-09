@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 40, indent 2 ===
 module Main where
@@ -60,12 +60,10 @@ guarded value
   | Just result <- lookup value,
     result > 0 = result
 conditional = if condition then 1 else 2
-caseResult =
-  case value of
-    Just result -> result
-multipleCase =
-  case first, second of
-    Just result, Nothing -> result
+caseResult = case value of
+  Just result -> result
+multipleCase = case first, second of
+  Just result, Nothing -> result
 lambda = \value -> value
 parenthesized = (1)
 negative = -1
@@ -89,7 +87,9 @@ binders {}
   named@value
   (item :: Int)
   { field: field } = value
-binderOperator (head : tail) = head
+binderOperator ( firstElement
+                   : remainingElements
+               ) = firstElement
 whereValue = result
   where
   result = 1
@@ -158,12 +158,10 @@ patternLocal =
 guarded value
   | Just result <- lookup value, result > 0 = result
 conditional = if condition then 1 else 2
-caseResult =
-  case value of
-    Just result -> result
-multipleCase =
-  case first, second of
-    Just result, Nothing -> result
+caseResult = case value of
+  Just result -> result
+multipleCase = case first, second of
+  Just result, Nothing -> result
 lambda = \value -> value
 parenthesized = (1)
 negative = -1
@@ -182,7 +180,7 @@ emptyAdo = ado in 1
 hole = ?hole
 
 binders {} [] named@value (item :: Int) { field: field } = value
-binderOperator (head : tail) = head
+binderOperator (firstElement : remainingElements) = firstElement
 whereValue = result
   where
   result = 1
@@ -254,12 +252,10 @@ guarded value
     | Just result ← lookup value,
         result > 0 = result
 conditional = if condition then 1 else 2
-caseResult =
-    case value of
-        Just result → result
-multipleCase =
-    case first, second of
-        Just result, Nothing → result
+caseResult = case value of
+    Just result → result
+multipleCase = case first, second of
+    Just result, Nothing → result
 lambda = \value → value
 parenthesized = (1)
 negative = -1
@@ -284,7 +280,9 @@ binders {}
     named@value
     (item ∷ Int)
     { field: field } = value
-binderOperator (head : tail) = head
+binderOperator ( firstElement
+                     : remainingElements
+               ) = firstElement
 whereValue = result
     where
     result = 1

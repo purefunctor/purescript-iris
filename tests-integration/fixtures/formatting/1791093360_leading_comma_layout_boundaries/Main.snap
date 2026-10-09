@@ -1,6 +1,6 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 20, indent 1 ===
 module Main where
@@ -34,15 +34,17 @@ effect = do
  }
  finalAction
 
-argument = use [ do
-                  action
-               , nextArgument
-               ]
- finalArgument
+argument = use
+ [ do
+    action
+ , nextArgument
+ ] finalArgument
 
 patterns first
  second =
- case first, second of
+ case
+  first, second
+ of
   { firstField:
      value
   , secondField:
@@ -87,13 +89,13 @@ type Tail row =
  { | row }
 type RowTail row =
  (| row)
-data Wrapped =
- Wrapped
-  { firstField ::
-     FirstType
-  , secondField ::
-     SecondType
-  }
+data Wrapped
+ = Wrapped
+    { firstField ::
+       FirstType
+    , secondField ::
+       SecondType
+    }
 
 literal =
  [ """first
@@ -110,11 +112,12 @@ second"""
  ]
 
 updateEffect =
- record { field = do
-           action
-        , otherField =
-           secondArgument
-        }
+ record
+  { field = do
+     action
+  , otherField =
+     secondArgument
+  }
 qualifiedUpdate =
  M.record
   { field =
@@ -130,9 +133,8 @@ accessUpdate =
      secondArgument
   }
 parenthesizedUpdate =
- (
-  chooseRecord
-   firstArgument
+ ( chooseRecord
+    firstArgument
  )
   { field =
      firstArgument
@@ -147,12 +149,12 @@ sectionUpdate =
      secondArgument
   }
 widePrefix = use
- "界界界界" { field:
-               do
-                action
-            , otherField:
-               secondArgument
-            }
+ "界界界界"
+ { field: do
+    action
+ , otherField:
+    secondArgument
+ }
 
 === width 40, indent 4, unicode ===
 module Main where
@@ -164,10 +166,9 @@ effect = do
           value ← secondAction
           in value
     ]
-    { result:
-          case input of
-              Just value → value
-              Nothing → fallback
+    { result: case input of
+          Just value → value
+          Nothing → fallback
     , local:
           let
               value = firstArgument
@@ -180,10 +181,11 @@ effect = do
     }
     finalAction
 
-argument = use [ do
-                     action
-               , nextArgument
-               ] finalArgument
+argument = use
+    [ do
+          action
+    , nextArgument
+    ] finalArgument
 
 patterns first second =
     case first, second of
@@ -215,11 +217,11 @@ doLocal = do
 
 type Tail row = { | row }
 type RowTail row = (| row)
-data Wrapped =
-    Wrapped
-        { firstField ∷ FirstType
-        , secondField ∷ SecondType
-        }
+data Wrapped
+    = Wrapped
+          { firstField ∷ FirstType
+          , secondField ∷ SecondType
+          }
 
 literal =
     [ """first
@@ -231,11 +233,11 @@ second"""
       }
     ]
 
-updateEffect = record { field = do
-                            action
-                      , otherField =
-                            secondArgument
-                      }
+updateEffect = record
+    { field = do
+          action
+    , otherField = secondArgument
+    }
 qualifiedUpdate =
     M.record
         { field = firstArgument
@@ -256,11 +258,11 @@ sectionUpdate =
         { field = firstArgument
         , otherField = secondArgument
         }
-widePrefix = use "界界界界" { field: do
-                                  action
-                            , otherField:
-                                  secondArgument
-                            }
+widePrefix = use "界界界界"
+    { field: do
+          action
+    , otherField: secondArgument
+    }
 
 === width 80, indent 2 ===
 module Main where
@@ -272,10 +274,9 @@ effect = do
       value <- secondAction
       in value
   ]
-  { result:
-      case input of
-        Just value -> value
-        Nothing -> fallback
+  { result: case input of
+      Just value -> value
+      Nothing -> fallback
   , local:
       let
         value = firstArgument
@@ -285,15 +286,15 @@ effect = do
   }
   finalAction
 
-argument = use [ do
-                   action
-               , nextArgument
-               ] finalArgument
+argument = use
+  [ do
+      action
+  , nextArgument
+  ] finalArgument
 
-patterns first second =
-  case first, second of
-    { firstField: value, secondField: other }, [ item, rest ] -> value
-    _, _ -> fallback
+patterns first second = case first, second of
+  { firstField: value, secondField: other }, [ item, rest ] -> value
+  _, _ -> fallback
 
 named whole@{ firstField: value, secondField: other } = whole
 lambda = \{ firstField: value, secondField: other } -> value
@@ -317,10 +318,11 @@ second"""
   , { nested: [ { value: firstArgument }, { value: secondArgument } ] }
   ]
 
-updateEffect = record { field = do
-                          action
-                      , otherField = secondArgument
-                      }
+updateEffect = record
+  { field = do
+      action
+  , otherField = secondArgument
+  }
 qualifiedUpdate =
   M.record { field = firstArgument, otherField = secondArgument }
 accessUpdate =
@@ -329,7 +331,8 @@ parenthesizedUpdate =
   (chooseRecord firstArgument)
     { field = firstArgument, otherField = secondArgument }
 sectionUpdate = _ { field = firstArgument, otherField = secondArgument }
-widePrefix = use "界界界界" { field: do
-                                action
-                            , otherField: secondArgument
-                            }
+widePrefix = use "界界界界"
+  { field: do
+      action
+  , otherField: secondArgument
+  }

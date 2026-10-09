@@ -1,0 +1,100 @@
+---
+source: tests-integration/tests/formatting.rs
+assertion_line: 127
+---
+=== width 52, indent 2 ===
+module Main
+  ( first
+  , second
+  , Box(First, Second)
+  )
+  where
+
+import Library (first, second, Box(First, Second))
+import Library
+  hiding (first, second, Box(First, Second))
+  as Hidden
+
+first = 1
+second = 2
+data Box = First | Second
+
+=== width 53, indent 2 ===
+module Main (first, second, Box(First, Second)) where
+
+import Library (first, second, Box(First, Second))
+import Library
+  hiding (first, second, Box(First, Second))
+  as Hidden
+
+first = 1
+second = 2
+data Box = First | Second
+
+=== width 80, indent 2 ===
+module Main (first, second, Box(First, Second)) where
+
+import Library (first, second, Box(First, Second))
+import Library hiding (first, second, Box(First, Second)) as Hidden
+
+first = 1
+second = 2
+data Box = First | Second
+
+=== width 30, indent 4 ===
+module Main
+    ( first
+    , second
+    , Box(First, Second)
+    )
+    where
+
+import Library
+    ( first
+    , second
+    , Box(First, Second)
+    )
+import Library
+    hiding ( first
+           , second
+           , Box ( First
+                 , Second
+                 )
+           )
+    as Hidden
+
+first = 1
+second = 2
+data Box = First | Second
+
+=== width 20, indent 4 ===
+module Main
+    ( first
+    , second
+    , Box ( First
+          , Second
+          )
+    )
+    where
+
+import Library
+    ( first
+    , second
+    , Box ( First
+          , Second
+          )
+    )
+import Library
+    hiding ( first
+           , second
+           , Box ( First
+                 , Second
+                 )
+           )
+    as Hidden
+
+first = 1
+second = 2
+data Box
+    = First
+    | Second

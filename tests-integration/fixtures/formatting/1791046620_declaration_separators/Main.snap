@@ -1,12 +1,12 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 118
+assertion_line: 127
 ---
 === width 40, indent 2 ===
 module Main where
 
-data Command =
-  Initialize Configuration
+data Command
+  = Initialize Configuration
   | Execute Request Environment
   | Shutdown Reason
   | Restart
@@ -36,21 +36,19 @@ class Multiple
   | firstLongVariable secondLongVariable
     -> thirdLongVariable fourthLongVariable
 
-instance command :: (
-  Show configuration
-  , Eq environment
-) =>
+instance command :: ( Show configuration
+                    , Eq environment
+                    ) =>
   Show
-    (
-      Command configuration environment
+    ( Command configuration environment
     ) where
   show value = "command"
 
 === width 80, indent 2 ===
 module Main where
 
-data Command =
-  Initialize Configuration
+data Command
+  = Initialize Configuration
   | Execute Request Environment
   | Shutdown Reason
   | Restart
@@ -80,8 +78,8 @@ instance command :: (Show configuration, Eq environment) =>
 === width 40, indent 4, unicode ===
 module Main where
 
-data Command =
-    Initialize Configuration
+data Command
+    = Initialize Configuration
     | Execute Request Environment
     | Shutdown Reason
     | Restart
@@ -112,14 +110,12 @@ class Multiple
     | firstLongVariable secondLongVariable
         → thirdLongVariable fourthLongVariable
 
-instance command ∷ (
-    Show configuration
-    , Eq environment
-) ⇒
+instance command ∷ ( Show configuration
+                   , Eq environment
+                   ) ⇒
     Show
-        (
-            Command
-                configuration
-                environment
+        ( Command
+              configuration
+              environment
         ) where
     show value = "command"

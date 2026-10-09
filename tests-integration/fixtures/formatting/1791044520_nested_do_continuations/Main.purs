@@ -33,3 +33,20 @@ empty = ado
 emptyLine = ado
   -- before the result
   in 2
+
+letCase = let y = 1 in case y of
+  value -> value
+
+conditionalCase =
+  if condition
+  then case value of
+    A -> first
+  else do
+    fallback
+
+lambdaCase = \value -> case value of
+  A -> do
+    firstAction
+  B -> ado
+    result <- secondAction
+    in result

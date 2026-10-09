@@ -65,6 +65,17 @@ impl Tree {
             .collect()
     }
 
+    fn expression(&self) -> Option<&Tree> {
+        if self.kind == ExpressionTermArgument { self.children.first() } else { None }
+    }
+
+    fn is_delimited_block(&self) -> bool {
+        matches!(
+            self.kind,
+            ExpressionParenthesized | ExpressionArray | ExpressionRecord | RecordUpdates
+        ) && self.has_inline_block()
+    }
+
     fn ends_offside(&self) -> bool {
         if matches!(
             self.kind,
@@ -79,12 +90,12 @@ impl Tree {
         self.elements().last().is_some_and(|child| child.ends_offside())
     }
 
-    fn has_inline_do(&self) -> bool {
+    fn has_inline_block(&self) -> bool {
         match self.kind {
-            ExpressionDo | ExpressionAdo => true,
-            ExpressionLetIn | ExpressionIfThenElse | ExpressionCaseOf => false,
-            WhereExpression => self.children.first().is_some_and(Tree::has_inline_do),
-            _ => self.children.iter().any(Tree::has_inline_do),
+            ExpressionDo | ExpressionAdo | ExpressionCaseOf => true,
+            ExpressionLetIn | ExpressionIfThenElse => false,
+            WhereExpression => self.children.first().is_some_and(Tree::has_inline_block),
+            _ => self.children.iter().any(Tree::has_inline_block),
         }
     }
 }
@@ -327,10 +338,17 @@ impl<'arena> Printer<'arena, '_> {
         };
         let margin = context.margin + self.config.indent_width;
         let head = self.fixed(head, Context { following: Some(margin), ..context })?.group();
-        if tail.iter().any(|tree| tree.has_inline_do()) {
+        if tail.iter().any(|tree| tree.has_inline_block()) {
             let inline = self.fixed(tail, context)?;
             let broken = self.fixed(tail, Context { margin, ..context })?;
-            return Ok(head.append(self.attach(first.start, Gap::Soft, inline, broken)?));
+            let gap = if first.is_delimited_block() { Gap::Hard(1) } else { Gap::Soft };
+            return Ok(head.append(self.attach(
+                first.start,
+                gap,
+                inline,
+                broken,
+                self.case_header(first, context)?,
+            )?));
         }
         let tail = self.fixed(tail, Context { margin, ..context })?;
         Ok(head
@@ -349,6 +367,7 @@ impl<'arena> Printer<'arena, '_> {
         gap: Gap,
         inline: Doc<'arena>,
         broken: Doc<'arena>,
+        header: Option<Doc<'arena>>,
     ) -> Result<Doc<'arena>, FormatError> {
         let arena = self.arena;
         let indent = self.config.indent_width;
@@ -359,6 +378,22 @@ impl<'arena> Printer<'arena, '_> {
             // A mandatory break can nest the whole separator, keeping standalone
             // comments aligned with the continuation they precede.
             return Ok(self.boundary(index, gap)?.append(broken).nest(indent as isize));
+        }
+        if let Some(header) = header {
+            // Probe the complete flat header, not the first line of its fallback.
+            // Branch lines and oversized branch atoms cannot affect attachment.
+            let probe = arena.fail().flat_alt(self.boundary(index, gap)?.append(header)).group();
+            let inline = self.boundary(index, Gap::Space)?.append(inline);
+            let broken = self.boundary(index, Gap::Hard(1))?.append(broken).nest(indent as isize);
+            let width = self.config.line_width;
+            return Ok(arena.column(move |column| {
+                let mut rendered = String::new();
+                if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                    inline.clone().into_doc()
+                } else {
+                    broken.clone().into_doc()
+                }
+            }));
         }
         if matches!(gap, Gap::Tight | Gap::Space | Gap::BrokenSpace) {
             return Ok(self.boundary(index, gap)?.append(inline));
@@ -397,7 +432,13 @@ impl<'arena> Printer<'arena, '_> {
             head_length,
             context,
             context.margin + self.config.indent_width,
-            |_, _, _| Gap::Soft,
+            |_, _, current| {
+                if current.expression().unwrap_or(current).is_delimited_block() {
+                    Gap::Hard(1)
+                } else {
+                    Gap::Soft
+                }
+            },
         )
     }
 
@@ -422,10 +463,19 @@ impl<'arena> Printer<'arena, '_> {
             return Ok(self.arena.nil());
         }
         let (head, tail) = elements.split_at(head_length.min(elements.len()));
-        if tail.is_empty() {
+        let [first, ..] = tail else {
             return self.fixed(head, context);
-        }
-        let head_document = self.fixed(head, Context { following: Some(margin), ..context })?;
+        };
+        let head_context = Context { following: Some(margin), ..context };
+        let head_document = if let [keyword, constraints] = head
+            && keyword.kind == CLASS
+            && constraints.kind == ClassConstraints
+            && constraints.children.first().is_some_and(|tree| tree.kind == LEFT_PARENTHESIS)
+        {
+            self.delimited(constraints, head_context, Some((keyword, first)))?
+        } else {
+            self.fixed(head, head_context)?
+        };
         let gap = |position: usize| {
             let previous = if position == 0 { head.last().unwrap() } else { tail[position - 1] };
             let element = tail[position];
@@ -437,7 +487,10 @@ impl<'arena> Printer<'arena, '_> {
         };
         let fixed_gaps =
             (0..tail.len()).all(|position| !matches!(gap(position), Gap::Soft | Gap::SoftEmpty));
-        if fixed_gaps || elements.iter().any(|tree| tree.has_inline_do()) {
+        if fixed_gaps
+            || elements.iter().any(|tree| tree.has_inline_block())
+            || head.last().is_some_and(|tree| tree.kind == ClassConstraints)
+        {
             let mut inline_suffix = self.arena.nil();
             let mut broken_suffix = self.arena.nil();
             for position in (0..tail.len()).rev() {
@@ -453,7 +506,13 @@ impl<'arena> Printer<'arena, '_> {
                     inline_suffix = inline;
                     broken_suffix = broken;
                 } else {
-                    inline_suffix = self.attach(element.start, gap, inline, broken.clone())?;
+                    inline_suffix = self.attach(
+                        element.start,
+                        gap,
+                        inline,
+                        broken.clone(),
+                        self.case_header(element, context)?,
+                    )?;
                     broken_suffix = self.boundary(element.start, gap)?.group().append(broken);
                 }
             }
@@ -464,7 +523,7 @@ impl<'arena> Printer<'arena, '_> {
         let body = if matches!(gap(0), Gap::Soft) { body } else { body.group() };
         Ok(head_document
             .append(
-                self.boundary(tail[0].start, gap(0))?
+                self.boundary(first.start, gap(0))?
                     .append(body)
                     .nest((margin - context.margin) as isize),
             )
@@ -473,10 +532,11 @@ impl<'arena> Printer<'arena, '_> {
 
     fn delimited(
         &self,
-        elements: &[&Tree],
+        tree: &Tree,
         context: Context,
-        aligned: bool,
+        prefix: Option<(&Tree, &Tree)>,
     ) -> Result<Doc<'arena>, FormatError> {
+        let elements = tree.elements();
         let opening = elements
             .iter()
             .position(|tree| matches!(tree.kind, LEFT_PARENTHESIS | LEFT_SQUARE | LEFT_CURLY));
@@ -484,102 +544,103 @@ impl<'arena> Printer<'arena, '_> {
             .iter()
             .rposition(|tree| matches!(tree.kind, RIGHT_PARENTHESIS | RIGHT_SQUARE | RIGHT_CURLY));
         let Some((opening, closing)) = opening.zip(closing) else {
-            return self.fixed(elements, context);
+            return self.fixed(&elements, context);
         };
-        if closing == opening + 1 && !aligned {
-            return self.fixed(elements, context);
-        }
-        if aligned {
-            // Coordinates are relative to the opener, including inline openers.
-            // Items start after the two-column `{ ` or `, ` prefix; only their
-            // continuations use the configured indentation width.
-            let item_context = Context { margin: 2, following: None };
-            let punctuation_context = Context { margin: 0, following: None };
-            let mut document = self.tree(elements[opening], punctuation_context)?;
-            let items = elements[opening + 1..closing].iter().flat_map(|element| {
-                if element.kind == TypeRowTail { element.elements() } else { vec![*element] }
-            });
-            let items = items.collect::<Vec<_>>();
-            for (position, element) in items.iter().enumerate() {
-                let punctuation = matches!(element.kind, COMMA | PIPE);
-                let gap = if position == 0 {
-                    if elements[opening].kind == LEFT_PARENTHESIS {
-                        Gap::BrokenSpace
-                    } else {
-                        Gap::Space
-                    }
-                } else if element.kind == COMMA {
-                    Gap::SoftEmpty
-                } else if element.kind == PIPE {
-                    Gap::Soft
+        // Coordinates are relative to the opener, including inline openers.
+        // Items start after the two-column `{ ` or `, ` prefix; only their
+        // continuations use the configured indentation width.
+        let item_context = Context { margin: 2, following: None };
+        let punctuation_context = Context { margin: 0, following: None };
+        let mut document = self.tree(elements[opening], punctuation_context)?;
+        let items = elements[opening + 1..closing].iter().flat_map(|element| {
+            if element.kind == TypeRowTail { element.elements() } else { vec![*element] }
+        });
+        let items = items.collect::<Vec<_>>();
+        for (position, element) in items.iter().enumerate() {
+            let punctuation = matches!(element.kind, COMMA | PIPE);
+            let gap = if position == 0 {
+                if elements[opening].kind == LEFT_PARENTHESIS {
+                    Gap::BrokenSpace
                 } else {
-                    self.fixed_gap(element.start)
-                };
-                let boundary = self.boundary(element.start, gap)?;
-                let body = if punctuation {
-                    boundary.append(self.tree(element, punctuation_context)?)
-                } else if position > 0 && items[position - 1].kind == PIPE {
-                    // A row tail can start beside the opener or after a comment,
-                    // so its continuation must follow the type's actual column.
-                    boundary.append(self.tree(element, punctuation_context)?.align()).nest(2)
-                } else {
-                    boundary.append(self.tree(element, item_context)?).nest(2)
-                };
-                document = document.append(body);
-            }
-            let edge = if items.is_empty() {
-                Gap::Tight
-            } else if matches!(elements[opening].kind, LEFT_CURLY | LEFT_SQUARE) {
+                    Gap::Space
+                }
+            } else if element.kind == COMMA {
+                Gap::SoftEmpty
+            } else if element.kind == PIPE {
                 Gap::Soft
             } else {
-                Gap::SoftEmpty
+                self.fixed_gap(element.start)
             };
-            document = document
-                .append(self.boundary(elements[closing].start, edge)?)
-                .append(self.tree(elements[closing], punctuation_context)?)
-                .group()
-                .align();
-            return Ok(document);
+            let boundary = self.boundary(element.start, gap)?;
+            let body = if punctuation {
+                boundary.append(self.tree(element, punctuation_context)?)
+            } else if position > 0 && items[position - 1].kind == PIPE {
+                // A row tail can start beside the opener or after a comment,
+                // so its continuation must follow the type's actual column.
+                boundary.append(self.tree(element, punctuation_context)?.align()).nest(2)
+            } else {
+                boundary.append(self.tree(element, item_context)?).nest(2)
+            };
+            document = document.append(body);
         }
-        let edge = if elements[opening].kind == LEFT_CURLY { Gap::Soft } else { Gap::SoftEmpty };
-        let inner_context =
-            Context { margin: context.margin + self.config.indent_width, following: None };
-        let body =
-            self.sequence(&elements[opening + 1..closing], inner_context, |_, _, current| {
-                if current.kind == COMMA {
-                    Gap::SoftEmpty
-                } else if current.kind == TypeRowTail {
-                    Gap::Soft
-                } else {
-                    self.fixed_gap(current.start)
-                }
-            })?;
-        let opening_document =
-            self.fixed(&elements[..=opening], Context { following: None, ..context })?;
-        let boundary = self.boundary(elements[opening + 1].start, edge)?;
-        let boundary = if elements[opening + 1..closing].iter().any(|tree| tree.has_inline_do()) {
-            boundary.group()
+        let edge = if items.is_empty() {
+            Gap::Tight
+        } else if matches!(elements[opening].kind, LEFT_CURLY | LEFT_SQUARE) {
+            Gap::Soft
         } else {
-            boundary
+            Gap::SoftEmpty
         };
-        let document = opening_document
-            .append(boundary.append(body).nest(self.config.indent_width as isize))
+        document = document
             .append(self.boundary(elements[closing].start, edge)?)
-            .append(self.tree(elements[closing], context)?)
-            .group();
+            .append(self.tree(elements[closing], punctuation_context)?);
+        if prefix.is_none() && !matches!(tree.kind, ExportList | TypeItemsList) {
+            document = document.group();
+        }
+        let mut document = document.align();
+        if let Some((prefix, head)) = prefix {
+            let keyword = self.tree(prefix, context)?;
+            let broken = keyword.clone().append(
+                self.boundary(elements[opening].start, Gap::Hard(1))?
+                    .append(document.clone())
+                    .nest(self.config.indent_width as isize),
+            );
+            document = keyword.append(
+                self.boundary(elements[opening].start, Gap::Soft)?
+                    .append(document)
+                    .nest(self.config.indent_width as isize),
+            );
+            // Fit the complete class head before allowing its parameters to wrap.
+            let probe =
+                self.arena.fail().flat_alt(self.fixed(&[prefix, tree, head], context)?).group();
+            let width = self.config.line_width;
+            let inline = document.group();
+            document = self.arena.column(move |column| {
+                let mut rendered = String::new();
+                if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                    inline.clone().into_doc()
+                } else {
+                    broken.clone().into_doc()
+                }
+            });
+        }
+        if opening > 0 {
+            document = self
+                .fixed(&elements[..opening], context)?
+                .append(self.boundary(elements[opening].start, Gap::Space)?)
+                .append(document);
+        }
         if closing + 1 < elements.len() {
             let margin = context.margin + self.config.indent_width;
-            Ok(document.append(
+            document = document.append(
                 self.boundary(
                     elements[closing + 1].start,
                     self.fixed_gap(elements[closing + 1].start),
                 )?
                 .append(self.fixed(&elements[closing + 1..], Context { margin, ..context })?)
                 .nest(self.config.indent_width as isize),
-            ))
-        } else {
-            Ok(document)
+            );
         }
+        Ok(document)
     }
 
     fn arrows(&self, tree: &Tree, context: Context) -> Result<Doc<'arena>, FormatError> {
@@ -603,7 +664,7 @@ impl<'arena> Printer<'arena, '_> {
             .nest(self.config.indent_width as isize);
         let operand_document = |operand: &Tree, context: Context| {
             let document = self.tree(operand, context)?;
-            let document = if operand.has_inline_do() { document } else { document.align() };
+            let document = if operand.has_inline_block() { document } else { document.align() };
             Ok::<_, FormatError>(document)
         };
         let pair = |operator: &Tree, operand: &Tree, context: Context| {
@@ -616,27 +677,70 @@ impl<'arena> Printer<'arena, '_> {
         let gap = |position: usize| {
             if elements[position - 1].ends_offside() { Gap::Hard(1) } else { Gap::Soft }
         };
-        if elements.iter().any(|tree| tree.has_inline_do()) {
+        if elements.iter().any(|tree| tree.has_inline_block()) {
             let mut inline_suffix = self.arena.nil();
             let mut broken_suffix = self.arena.nil();
             for position in (1..elements.len()).step_by(2).rev() {
                 let operator = elements[position];
                 let operand = elements[position + 1];
+                let operand_gap =
+                    if operand.is_delimited_block() { Gap::Hard(1) } else { Gap::Space };
                 let following =
                     if position + 2 < elements.len() { Some(margin) } else { context.following };
+                let operand_header = self.case_header(operand, context)?;
+                let operator_header = if let Some(header) = &operand_header {
+                    Some(
+                        self.tree(operator, context)?
+                            .append(self.boundary(operand.start, Gap::Space)?)
+                            .append(header.clone()),
+                    )
+                } else {
+                    None
+                };
                 let inline = operand_document(operand, Context { following, ..context })?
                     .append(inline_suffix);
+                let moved = if operand.kind == ExpressionCaseOf {
+                    Some(
+                        operand_document(
+                            operand,
+                            Context { margin: margin + self.config.indent_width, following },
+                        )?
+                        .append(broken_suffix.clone()),
+                    )
+                } else {
+                    None
+                };
                 let broken =
                     operand_document(operand, Context { margin, following })?.append(broken_suffix);
                 let inline = self
                     .tree(operator, Context { following: Some(margin), ..context })?
-                    .append(self.attach(operand.start, Gap::Space, inline, broken.clone())?);
+                    .append(self.attach(
+                        operand.start,
+                        operand_gap,
+                        inline,
+                        broken.clone(),
+                        operand_header.clone(),
+                    )?);
+                let broken = if let Some(moved) = moved {
+                    self.attach(operand.start, operand_gap, broken, moved, operand_header)?
+                } else {
+                    self.boundary(operand.start, operand_gap)?.group().append(broken)
+                };
+                let broken = if operand.is_delimited_block() {
+                    broken.nest(self.config.indent_width as isize)
+                } else {
+                    broken
+                };
                 let broken = self
                     .tree(operator, Context { margin, following: Some(margin) })?
-                    .append(self.boundary(operand.start, Gap::Space)?.group())
                     .append(broken);
-                inline_suffix =
-                    self.attach(operator.start, gap(position), inline, broken.clone())?;
+                inline_suffix = self.attach(
+                    operator.start,
+                    gap(position),
+                    inline,
+                    broken.clone(),
+                    operator_header,
+                )?;
                 broken_suffix =
                     self.boundary(operator.start, gap(position))?.group().append(broken);
             }
@@ -663,17 +767,115 @@ impl<'arena> Printer<'arena, '_> {
         context: Context,
     ) -> Result<Doc<'arena>, FormatError> {
         let mut document = self.arena.nil();
-        for clause in elements.chunks(2) {
-            if clause[0].kind != IF {
-                document = document.append(self.boundary(clause[0].start, Gap::Soft)?);
-            }
+        let mut clauses = elements.to_vec();
+        let mut leading_else: Option<&Tree> = None;
+        loop {
+            let [if_keyword, condition, then_keyword, consequent, else_keyword, alternative] =
+                clauses[..]
+            else {
+                unreachable!("invariant violated: validated conditional has six elements");
+            };
+            let head = if let Some(keyword) = leading_else.take() {
+                document = document.append(self.boundary(keyword.start, Gap::Soft)?);
+                vec![keyword, if_keyword]
+            } else {
+                vec![if_keyword]
+            };
             document = document.append(self.continuation(
-                &clause[..1],
-                &clause[1..],
+                &head,
+                &[condition],
                 Context { following: None, ..context },
             )?);
+            document = document.append(self.boundary(then_keyword.start, Gap::Soft)?).append(
+                self.continuation(
+                    &[then_keyword],
+                    &[consequent],
+                    Context { following: None, ..context },
+                )?,
+            );
+            // Only direct alternatives share a layout; parentheses and
+            // line-forcing comments retain their continuation boundary.
+            if let [nested] = alternative.elements().as_slice()
+                && nested.kind == ExpressionIfThenElse
+            {
+                let (comments, _) =
+                    trivia(self.lexed.annotation(nested.start).unwrap_or_default())?;
+                if !comments.iter().any(|comment| comment.forces_line()) {
+                    leading_else = Some(else_keyword);
+                    clauses = nested.elements();
+                    continue;
+                }
+            }
+            document = document.append(self.boundary(else_keyword.start, Gap::Soft)?);
+            document = document.append(self.continuation(
+                &[else_keyword],
+                &[alternative],
+                Context { following: None, ..context },
+            )?);
+            return Ok(document.group());
         }
-        Ok(document.group())
+    }
+
+    fn case_header(
+        &self,
+        tree: &Tree,
+        context: Context,
+    ) -> Result<Option<Doc<'arena>>, FormatError> {
+        let expression = tree.expression().unwrap_or(tree);
+        if expression.kind == ExpressionCaseOf {
+            let [case_keyword, trunk, of_keyword, _] = expression.elements()[..] else {
+                unreachable!("invariant violated: validated case expression has four elements");
+            };
+            self.fixed(&[case_keyword, trunk, of_keyword], context).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn case_expression(
+        &self,
+        elements: &[&Tree],
+        context: Context,
+    ) -> Result<Doc<'arena>, FormatError> {
+        let [case_keyword, scrutinees, of_keyword, branches] = elements[..] else {
+            unreachable!("invariant violated: validated case expression has four elements");
+        };
+        let header = self.fixed(&[case_keyword, scrutinees, of_keyword], context)?;
+        let margin = context.margin + self.config.indent_width;
+        let items = scrutinees.elements();
+        let mut trunk = self.arena.nil();
+        for (position, item) in items.iter().enumerate() {
+            let gap = if item.kind == COMMA { Gap::SoftEmpty } else { self.fixed_gap(item.start) };
+            let boundary =
+                if position == 0 { self.arena.nil() } else { self.boundary(item.start, gap)? };
+            let indentation = if position > 0 && items[position - 1].kind == COMMA { 2 } else { 0 };
+            let item_context = Context { margin: margin + indentation, following: None };
+            trunk = trunk
+                .append(boundary.append(self.tree(item, item_context)?).nest(indentation as isize));
+        }
+        let broken = self
+            .tree(case_keyword, context)?
+            .append(
+                self.boundary(scrutinees.start, Gap::Hard(1))?
+                    .append(trunk.group())
+                    .nest(self.config.indent_width as isize),
+            )
+            .append(self.boundary(of_keyword.start, Gap::Hard(1))?)
+            .append(self.tree(of_keyword, context)?);
+        let arena = self.arena;
+        let probe = arena.fail().flat_alt(header).group();
+        let width = self.config.line_width;
+        // A comment after `of` belongs to the branch boundary, so it must not
+        // participate in the decision to split the header.
+        let header = arena.column(move |column| {
+            let mut rendered = String::new();
+            if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                arena.text(rendered).into_doc()
+            } else {
+                broken.clone().into_doc()
+            }
+        });
+        Ok(header.append(self.tree(branches, context)?))
     }
 
     fn where_expression(
@@ -682,26 +884,32 @@ impl<'arena> Printer<'arena, '_> {
         elements: &[&Tree],
         context: Context,
     ) -> Result<Doc<'arena>, FormatError> {
-        let Some(position) = elements.iter().position(|tree| tree.kind == WHERE) else {
-            return if head.is_empty() {
-                self.fixed(elements, context)
-            } else {
-                self.continuation(head, elements, context)
-            };
+        let (expression, where_keyword, bindings) = match elements {
+            [expression] => {
+                return if head.is_empty() {
+                    self.fixed(&[*expression], context)
+                } else {
+                    self.continuation(head, &[*expression], context)
+                };
+            }
+            [expression, where_keyword, bindings] => (*expression, *where_keyword, *bindings),
+            _ => unreachable!(
+                "invariant violated: validated where expression has one or three elements"
+            ),
         };
         let margin = context.margin.max(context.following.unwrap_or(0) + self.config.indent_width);
         let expression_context =
             Context { following: Some(margin - self.config.indent_width), ..context };
         let expression = if head.is_empty() {
-            self.fixed(&elements[..position], expression_context)?
+            self.fixed(&[expression], expression_context)?
         } else {
-            self.continuation(head, &elements[..position], expression_context)?
+            self.continuation(head, &[expression], expression_context)?
         };
         let binding_context = Context { margin, following: Some(margin) };
-        let bindings = self.block(&elements[position + 1].elements(), binding_context, margin)?;
+        let bindings = self.block(&bindings.elements(), binding_context, margin)?;
         Ok(expression.append(
-            self.boundary(elements[position].start, Gap::Hard(1))?
-                .append(self.tree(elements[position], binding_context)?)
+            self.boundary(where_keyword.start, Gap::Hard(1))?
+                .append(self.tree(where_keyword, binding_context)?)
                 .append(bindings)
                 .nest((margin - context.margin) as isize),
         ))
@@ -733,6 +941,16 @@ impl<'arena> Printer<'arena, '_> {
         match tree.kind {
             Module => self.sequence(&elements, context, |_, _, _| Gap::Hard(2)),
             ModuleImports | ModuleStatements => self.statements(&elements, context),
+            ImportType | ExportType => {
+                let document = self.sequence(&elements, context, |_, _, current| {
+                    if current.kind == TypeItemsList {
+                        Gap::BrokenSpace
+                    } else {
+                        self.fixed_gap(current.start)
+                    }
+                })?;
+                Ok(document.group())
+            }
             DoStatements | CaseBranches | LetBindingStatements | ClassStatements
             | InstanceStatements | Conditionals => {
                 // A layout body must exceed the planned following continuation,
@@ -746,10 +964,10 @@ impl<'arena> Printer<'arena, '_> {
             | ExpressionRecordUpdate
             | RecordUpdateBranch
             | BinderConstructor
-            | DataConstructor
             | InstanceHead
             | ClassHead
             | FunctionBinders => self.application(&elements, 1, context),
+            DataConstructor => Ok(self.application(&elements, 1, context)?.align()),
             ExpressionOperatorChain
             | ExpressionInfixChain
             | TypeOperatorChain
@@ -784,11 +1002,11 @@ impl<'arena> Printer<'arena, '_> {
                 if let Some(separator) = elements.iter().position(|tree| tree.kind == EQUAL) {
                     self.chain(
                         &elements,
-                        separator + 1,
+                        separator,
                         context,
                         context.margin + self.config.indent_width,
-                        |_, previous, current| {
-                            if current.kind == PIPE || previous.kind == EQUAL {
+                        |_, _, current| {
+                            if matches!(current.kind, EQUAL | PIPE) {
                                 Gap::Soft
                             } else {
                                 self.fixed_gap(current.start)
@@ -800,24 +1018,32 @@ impl<'arena> Printer<'arena, '_> {
                 }
             }
             TypeForall => {
-                let position = elements.iter().position(|tree| tree.kind == PERIOD).unwrap();
-                let head = self.fixed(&elements[..=position], context)?.group();
+                let [head @ .., body] = elements.as_slice() else {
+                    unreachable!("invariant violated: validated forall has a body");
+                };
+                let head = self.fixed(head, context)?.group();
                 Ok(head
-                    .append(self.boundary(elements[position + 1].start, Gap::Soft)?)
-                    .append(self.fixed(&elements[position + 1..], context)?)
+                    .append(self.boundary(body.start, Gap::Soft)?)
+                    .append(self.fixed(&[*body], context)?)
                     .group())
             }
-            ExpressionArray | ExpressionRecord | BinderArray | BinderRecord | TypeRecord
-            | TypeRow | RecordUpdates => self.delimited(&elements, context, true),
-            ExpressionParenthesized
+            ExpressionArray
+            | ExpressionRecord
+            | BinderArray
+            | BinderRecord
+            | TypeRecord
+            | TypeRow
+            | RecordUpdates
+            | ExpressionParenthesized
             | BinderParenthesized
             | TypeParenthesized
             | ExportList
             | ImportList
             | TypeItemsList
             | InstanceConstraints
-            | ClassConstraints => self.delimited(&elements, context, false),
+            | ClassConstraints => self.delimited(tree, context, None),
             ExpressionIfThenElse => self.conditional(&elements, context),
+            ExpressionCaseOf => self.case_expression(&elements, context),
             ValueEquation
             | LetBindingEquation
             | LetBindingPattern
@@ -857,7 +1083,7 @@ impl<'arena> Printer<'arena, '_> {
             | TypeSynonymEquation
             | NewtypeEquation => {
                 if matches!(elements.first().map(|tree| tree.kind), Some(LEFT_PARENTHESIS)) {
-                    return self.delimited(&elements, context, false);
+                    return self.delimited(tree, context, None);
                 }
                 let separator = elements.iter().position(|tree| {
                     matches!(
@@ -873,10 +1099,12 @@ impl<'arena> Printer<'arena, '_> {
             }
             WhereExpression => self.where_expression(&[], &elements, context),
             ExpressionLetIn | ExpressionAdo => {
-                let position = elements.iter().position(|tree| tree.kind == IN).unwrap();
-                let has_body = elements[1..position].iter().any(|tree| tree.start < tree.end);
+                let [keyword, statements, in_keyword, result] = elements[..] else {
+                    unreachable!("invariant violated: validated let/ado has four elements");
+                };
+                let has_body = statements.start < statements.end;
                 let head =
-                    self.fixed(&elements[..position], Context { following: None, ..context })?;
+                    self.fixed(&[keyword, statements], Context { following: None, ..context })?;
                 let result_margin = if tree.kind == ExpressionAdo {
                     context.margin + self.config.indent_width
                 } else {
@@ -886,22 +1114,18 @@ impl<'arena> Printer<'arena, '_> {
                 let tail = if tree.kind == ExpressionLetIn {
                     let body_context =
                         Context { margin: context.margin + self.config.indent_width, ..context };
-                    self.tree(elements[position], context)?.append(
-                        self.boundary(elements[position + 1].start, Gap::Hard(1))?
-                            .append(self.fixed(&elements[position + 1..], body_context)?)
+                    self.tree(in_keyword, context)?.append(
+                        self.boundary(result.start, Gap::Hard(1))?
+                            .append(self.fixed(&[result], body_context)?)
                             .nest(self.config.indent_width as isize),
                     )
                 } else {
-                    self.continuation(
-                        &elements[position..=position],
-                        &elements[position + 1..],
-                        result_context,
-                    )?
+                    self.continuation(&[in_keyword], &[result], result_context)?
                 };
                 Ok(head
                     .append(
                         self.boundary(
-                            elements[position].start,
+                            in_keyword.start,
                             if has_body { Gap::Hard(1) } else { Gap::Space },
                         )?
                         .append(tail)
@@ -911,13 +1135,15 @@ impl<'arena> Printer<'arena, '_> {
             }
             InstanceChain => self.sequence(&elements, context, |_, _, _| Gap::Hard(1)),
             InstanceDeclaration | ClassDeclaration | DeriveDeclaration => {
-                if elements.first().is_some_and(|tree| tree.kind == ELSE)
+                if let [else_keyword, rest @ ..] = elements.as_slice()
+                    && let [first, ..] = rest
+                    && else_keyword.kind == ELSE
                     && tree.children.iter().any(|tree| tree.kind == LAYOUT_SEPARATOR)
                 {
                     let tail = self
-                        .boundary(elements[1].start, Gap::Hard(1))?
-                        .append(self.fixed(&elements[1..], context)?);
-                    Ok(self.tree(elements[0], context)?.append(tail))
+                        .boundary(first.start, Gap::Hard(1))?
+                        .append(self.fixed(rest, context)?);
+                    Ok(self.tree(else_keyword, context)?.append(tail))
                 } else if let Some(head) =
                     elements.iter().position(|tree| matches!(tree.kind, InstanceHead | ClassHead))
                     && elements[..head]

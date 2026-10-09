@@ -20,3 +20,9 @@ applicative = use (ado
   first <- firstAction
   second <- secondAction
   in combine first second)
+
+wrapped = (combine firstArgument secondArgument)
+nested = ((combine firstArgument secondArgument))
+
+operator = identity $ { onClick: do
+  action, other: 1 }
