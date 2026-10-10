@@ -154,6 +154,20 @@ pub fn install_spago_launcher(directory: &Path, executable: &Path) {
     .unwrap();
 }
 
+pub fn install_failing_spago_launcher(directory: &Path) {
+    fs::create_dir_all(directory).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = directory.join("spago");
+        fs::write(&path, "#!/bin/sh\nexit 9\n").unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    #[cfg(windows)]
+    fs::write(directory.join("spago.cmd"), "@exit /b 9\r\n").unwrap();
+}
+
 fn spago_executable() -> PathBuf {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let executable = if cfg!(windows) { "spago.cmd" } else { "spago" };

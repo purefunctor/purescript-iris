@@ -8,6 +8,7 @@ description = "PureScript package management commands for Iris."
 repository = "https://github.com/purefunctor/purescript-iris"
 
 [dependencies]
+dunce = "1.0.5"
 ignore = "0.4.33"
 iris-spago = { version = "0.1.0", path = "../iris-spago" }
 itertools = "0.15.0"

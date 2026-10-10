@@ -49,11 +49,22 @@ struct PackageSet {
 }
 
 impl SpagoCommand {
-    pub fn new(current_directory: &Path) -> Result<SpagoCommand, SpagoError> {
+    /// Resolves Spago once: `IRIS_SPAGO`, then the workspace root's `node_modules/.bin`, then
+    /// `PATH`. Directories above the workspace root are not searched because other users may be
+    /// able to write to them.
+    pub fn new(
+        current_directory: &Path,
+        workspace_root: &Path,
+    ) -> Result<SpagoCommand, SpagoError> {
         let shim = tempfile::tempdir().map_err(SpagoError::Shim)?;
         write_purs_shim(shim.path()).map_err(SpagoError::Shim)?;
         let path = prepend_path(shim.path()).map_err(SpagoError::Shim)?;
         let executable = env::var_os("IRIS_SPAGO").unwrap_or_else(|| {
+            let name = if cfg!(windows) { "spago.cmd" } else { "spago" };
+            let executable = workspace_root.join("node_modules").join(".bin").join(name);
+            if executable.is_file() {
+                return executable.into_os_string();
+            }
             #[cfg(windows)]
             if let Some(executable) = find_path_launcher(&path) {
                 return executable;

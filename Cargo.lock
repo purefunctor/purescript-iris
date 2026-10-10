@@ -1930,6 +1930,7 @@ dependencies = [
 name = "iris-package"
 version = "0.1.0"
 dependencies = [
+ "dunce",
  "ignore",
  "iris-spago",
  "itertools 0.15.0",

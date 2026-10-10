@@ -51,7 +51,8 @@ the defaults.
 
 Iris prepares the Spago workspace during startup before serving analysis. It runs `spago fetch` in
 the workspace root, then discovers sources from `spago.yaml` and package manifests, using the
-resolution written by that fetch to select fetched `.spago` checkouts exactly. Preparation runs off
+resolution written by that fetch to select fetched `.spago` checkouts exactly. Iris finds Spago through
+`IRIS_SPAGO`, then `<workspace root>/node_modules/.bin`, then `PATH`. Preparation runs off
 the protocol loop, so the server keeps accepting document notifications and replays them in order
 once the workspace is ready. Requests made before preparation completes are rejected with
 `ContentModified` and the message `Workspace is loading`, so clients that retry stale requests can
