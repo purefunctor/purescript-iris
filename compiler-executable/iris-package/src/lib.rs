@@ -109,7 +109,7 @@ pub fn add(config: AddConfig) -> Result<(), PackageManagerError> {
     let current_directory = env::current_dir().map_err(PackageManagerError::CurrentDirectory)?;
     let workspace = Workspace::discover(&current_directory, config.package.as_deref())?;
     let selected = workspace.require_selected()?;
-    let spago = SpagoCommand::new(&current_directory)?;
+    let spago = SpagoCommand::with_workspace_root(&current_directory, &workspace.root)?;
     spago
         .add(selected, &config.dependencies, config.test_dependencies)
         .map_err(PackageManagerError::from)

@@ -295,7 +295,7 @@ fn prepare_workspace(
     quiet: bool,
     output: PathBuf,
 ) -> Result<PreparedProject, ProjectFailure> {
-    let spago = iris_spago::SpagoCommand::new(current_directory)?;
+    let spago = iris_spago::SpagoCommand::with_workspace_root(current_directory, &workspace.root)?;
     spago.fetch(workspace.selected.as_deref(), !quiet)?;
     let discovered = super::packages::discover_packages(workspace)?;
     let packages = discovered.packages.into_iter().map(|package| PackageInput {
