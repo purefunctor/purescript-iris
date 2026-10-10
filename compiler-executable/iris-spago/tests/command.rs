@@ -35,7 +35,7 @@ fn executes_spago_package_commands_through_the_compiler_shim() {
     let log = temporary.path().join("calls");
     let _executable = EnvironmentVariable::set("IRIS_SPAGO", &executable);
     let _log = EnvironmentVariable::set("IRIS_SPAGO_TEST_LOG", &log);
-    let command = SpagoCommand::new(temporary.path(), temporary.path()).unwrap();
+    let command = SpagoCommand::new(temporary.path()).unwrap();
 
     assert_eq!(command.latest_package_set("0.15.15").unwrap(), "80.4.0");
     command.fetch(Some("application"), true).unwrap();

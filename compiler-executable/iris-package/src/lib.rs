@@ -80,7 +80,7 @@ pub fn create(config: NewConfig) -> Result<CreatedPackage, PackageManagerError> 
         return Err(PackageManagerError::ExistingPaths(existing.join(", ")));
     }
 
-    let spago = SpagoCommand::new(&current_directory, &current_directory)?;
+    let spago = SpagoCommand::new(&current_directory)?;
     let package_set = spago.latest_package_set(COMPILER_VERSION)?;
     let manifest = format!(
         r#"package:
@@ -109,7 +109,7 @@ pub fn add(config: AddConfig) -> Result<(), PackageManagerError> {
     let current_directory = env::current_dir().map_err(PackageManagerError::CurrentDirectory)?;
     let workspace = Workspace::discover(&current_directory, config.package.as_deref())?;
     let selected = workspace.require_selected()?;
-    let spago = SpagoCommand::new(&current_directory, &workspace.root)?;
+    let spago = SpagoCommand::with_workspace_root(&current_directory, &workspace.root)?;
     spago
         .add(selected, &config.dependencies, config.test_dependencies)
         .map_err(PackageManagerError::from)

@@ -321,7 +321,7 @@ async fn prepare(
         return Err(PreparationError::Cancelled);
     }
     progress.report(FETCHING);
-    let spago = SpagoCommand::new(&workspace.root, &workspace.root)?;
+    let spago = SpagoCommand::new(&workspace.root)?;
     fetch(&spago, workspace.selected.as_deref(), &mut cancel).await?;
     if *cancel.borrow() {
         return Err(PreparationError::Cancelled);

@@ -49,10 +49,15 @@ struct PackageSet {
 }
 
 impl SpagoCommand {
+    /// Uses the current directory as the workspace root for local Spago discovery.
+    pub fn new(current_directory: &Path) -> Result<SpagoCommand, SpagoError> {
+        SpagoCommand::with_workspace_root(current_directory, current_directory)
+    }
+
     /// Resolves Spago once: `IRIS_SPAGO`, then the workspace root's `node_modules/.bin`, then
     /// `PATH`. Directories above the workspace root are not searched because other users may be
     /// able to write to them.
-    pub fn new(
+    pub fn with_workspace_root(
         current_directory: &Path,
         workspace_root: &Path,
     ) -> Result<SpagoCommand, SpagoError> {
