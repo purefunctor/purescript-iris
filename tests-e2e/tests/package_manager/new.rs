@@ -1,5 +1,9 @@
+#[cfg(windows)]
+use std::env;
 use std::fs;
 
+#[cfg(windows)]
+use super::support::install_spago_launcher;
 use super::support::{TestWorkspace, assert_success};
 
 #[test]
@@ -77,6 +81,105 @@ fn builds_a_new_project() {
             &["fetch", "-p", "example"],
         ],
     );
+}
+
+#[cfg(windows)]
+#[test]
+fn discovers_windows_spago_launchers_and_preserves_explicit_overrides() {
+    struct LauncherCase {
+        name: &'static str,
+        path_directories: &'static [&'static [&'static str]],
+        use_explicit_override: bool,
+        expect_command_script: bool,
+    }
+
+    let cases = [
+        LauncherCase {
+            name: "command script only",
+            path_directories: &[&["spago.cmd"]],
+            use_explicit_override: false,
+            expect_command_script: true,
+        },
+        LauncherCase {
+            name: "native executable only",
+            path_directories: &[&["spago.exe"]],
+            use_explicit_override: false,
+            expect_command_script: false,
+        },
+        LauncherCase {
+            name: "earlier PATH directory preferred",
+            path_directories: &[&["spago.exe"], &["spago.cmd"]],
+            use_explicit_override: false,
+            expect_command_script: false,
+        },
+        LauncherCase {
+            name: "earlier command script preferred over later native executable",
+            path_directories: &[&["spago.cmd"], &["spago.exe"]],
+            use_explicit_override: false,
+            expect_command_script: true,
+        },
+        LauncherCase {
+            name: "native executable preferred in the same directory",
+            path_directories: &[&["spago.exe", "spago.cmd"]],
+            use_explicit_override: false,
+            expect_command_script: false,
+        },
+        LauncherCase {
+            name: "explicit override preferred",
+            path_directories: &[&["spago.cmd"]],
+            use_explicit_override: true,
+            expect_command_script: false,
+        },
+    ];
+
+    for case in cases {
+        let workspace = TestWorkspace::empty();
+        let explicit_executable = workspace.path().join("explicit tool with spaces.exe");
+        fs::copy(env!("CARGO_BIN_EXE_spago-e2e"), &explicit_executable).unwrap();
+        let mut path_directories = Vec::new();
+        for (index, launchers) in case.path_directories.iter().enumerate() {
+            let directory = workspace.path().join(format!("tools {index} with spaces"));
+            fs::create_dir(&directory).unwrap();
+            if launchers.contains(&"spago.exe") {
+                fs::copy(&explicit_executable, directory.join("spago.exe")).unwrap();
+            }
+            if launchers.contains(&"spago.cmd") {
+                install_spago_launcher(&directory, &explicit_executable);
+            }
+            path_directories.push(directory);
+        }
+        let mut command = workspace.command_builder("", &["new", "--name", "example"]);
+        command.env("PATH", env::join_paths(&path_directories).unwrap()).env_remove("IRIS_SPAGO");
+        if case.use_explicit_override {
+            command.env("IRIS_SPAGO", &explicit_executable);
+        }
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}: {}",
+            case.name,
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(workspace.read("spago.yaml").contains("registry: 81.1.0"), "{}", case.name);
+        let calls = workspace.read("spago-calls");
+        let (directory, arguments) = calls.trim_end().split_once('\t').expect(case.name);
+        assert_eq!(
+            fs::canonicalize(directory).unwrap(),
+            fs::canonicalize(workspace.path()).unwrap(),
+            "{}",
+            case.name,
+        );
+        assert_eq!(arguments, "registry\tpackage-sets\t--latest\t--json\t--quiet", "{}", case.name,);
+        for (index, directory) in path_directories.iter().enumerate() {
+            let script_marker = directory.join("script-used");
+            assert_eq!(
+                script_marker.exists(),
+                index == 0 && case.expect_command_script,
+                "{}",
+                case.name,
+            );
+        }
+    }
 }
 
 #[test]

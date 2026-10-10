@@ -138,6 +138,22 @@ pub fn assert_success(output: &Output) {
     );
 }
 
+pub fn install_spago_launcher(directory: &Path, executable: &Path) {
+    fs::create_dir_all(directory).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(executable, directory.join("spago")).unwrap();
+    #[cfg(windows)]
+    fs::write(
+        directory.join("spago.cmd"),
+        format!(
+            "@echo off\r\necho used>\"{}\"\r\n\"{}\" %*\r\n",
+            directory.join("script-used").display(),
+            executable.display(),
+        ),
+    )
+    .unwrap();
+}
+
 fn spago_executable() -> PathBuf {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let executable = if cfg!(windows) { "spago.cmd" } else { "spago" };

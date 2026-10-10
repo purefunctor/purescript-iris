@@ -53,7 +53,13 @@ impl SpagoCommand {
         let shim = tempfile::tempdir().map_err(SpagoError::Shim)?;
         write_purs_shim(shim.path()).map_err(SpagoError::Shim)?;
         let path = prepend_path(shim.path()).map_err(SpagoError::Shim)?;
-        let executable = env::var_os("IRIS_SPAGO").unwrap_or_else(|| "spago".into());
+        let executable = env::var_os("IRIS_SPAGO").unwrap_or_else(|| {
+            #[cfg(windows)]
+            if let Some(executable) = find_path_launcher(&path) {
+                return executable;
+            }
+            "spago".into()
+        });
         Ok(SpagoCommand {
             current_directory: current_directory.to_path_buf(),
             executable,
@@ -164,6 +170,26 @@ fn failure_tail(stderr: &[u8]) -> String {
 fn forward_output(output: &Output) -> Result<(), SpagoError> {
     io::stdout().write_all(&output.stdout).map_err(SpagoError::Execute)?;
     io::stderr().write_all(&output.stderr).map_err(SpagoError::Execute)
+}
+
+/// Finds Spago on `PATH` directory by directory, trying `.exe` before `.cmd` within each.
+///
+/// `Command` only appends `.exe` when searching `PATH` on Windows, so it cannot find npm's
+/// `spago.cmd` launchers by their bare name.
+#[cfg(windows)]
+fn find_path_launcher(path: &OsString) -> Option<OsString> {
+    for directory in env::split_paths(path) {
+        if directory.as_os_str().is_empty() {
+            continue;
+        }
+        for name in ["spago.exe", "spago.cmd"] {
+            let launcher = directory.join(name);
+            if launcher.is_file() {
+                return Some(launcher.into_os_string());
+            }
+        }
+    }
+    None
 }
 
 fn prepend_path(directory: &Path) -> io::Result<OsString> {
