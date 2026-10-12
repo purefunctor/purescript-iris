@@ -1,0 +1,17 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+{
+  "application": {
+    "dependencies": [
+      "prelude"
+    ],
+    "editable": true,
+    "root": "[WORKSPACE]"
+  },
+  "prelude": {
+    "dependencies": [],
+    "editable": false,
+    "root": "[WORKSPACE]/.spago/p/prelude-6.0.2"
+  }
+}

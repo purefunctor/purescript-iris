@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 
 use itertools::Itertools;
+use serde_json::Value;
+use url::Url;
 
 pub struct TestWorkspace {
     temporary: tempfile::TempDir,
@@ -116,6 +118,93 @@ impl TestWorkspace {
         }
         assert_eq!(actual_arguments, expected);
     }
+}
+
+/// The build manifest in `output`, with workspace paths and the Iris version normalized.
+pub fn normalized_manifest(workspace: &TestWorkspace, output: &str) -> String {
+    let manifest = workspace.read(&format!("{output}/iris-manifest.json"));
+    let mut manifest: Value = serde_json::from_str(&manifest).unwrap();
+    let version = manifest["iris"].as_str().expect("the manifest names the Iris version");
+    let is_version = version.split_once("-dev.").map_or(version, |(release, _)| release);
+    assert!(
+        is_version
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit())),
+        "unexpected Iris version {version}"
+    );
+    manifest["iris"] = Value::from("[VERSION]");
+    normalize_workspace_paths(&mut manifest, &workspace_prefixes(workspace.path()));
+    serde_json::to_string_pretty(&manifest).unwrap()
+}
+
+/// Every spelling of `workspace` that may appear in output: raw and canonical, native and
+/// forward-slash separators, and file URI.
+pub fn workspace_prefixes(workspace: &Path) -> Vec<String> {
+    let mut paths = vec![workspace.to_path_buf()];
+    if let Ok(canonical) = dunce::canonicalize(workspace)
+        && canonical != workspace
+    {
+        paths.push(canonical);
+    }
+    let mut prefixes = paths
+        .into_iter()
+        .flat_map(|path| {
+            let native = path.to_string_lossy().trim_end_matches(['/', '\\']).to_string();
+            let slash = native.replace('\\', "/");
+            let uri = Url::from_directory_path(&path)
+                .expect("invariant violated: workspace path is not absolute")
+                .to_string()
+                .trim_end_matches('/')
+                .to_string();
+            [native, slash, uri]
+        })
+        .collect::<Vec<_>>();
+    prefixes
+        .sort_unstable_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
+    prefixes.dedup();
+    prefixes
+}
+
+pub fn normalize_workspace_paths(value: &mut Value, workspace_prefixes: &[String]) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                normalize_workspace_paths(value, workspace_prefixes);
+            }
+        }
+        Value::Object(fields) => {
+            for value in fields.values_mut() {
+                normalize_workspace_paths(value, workspace_prefixes);
+            }
+        }
+        Value::String(string) => {
+            for workspace_prefix in workspace_prefixes {
+                *string = replace_path_prefix(string, workspace_prefix);
+            }
+            if string.contains("[WORKSPACE]") {
+                *string = string.replace('\\', "/");
+            }
+        }
+        Value::Bool(_) | Value::Null | Value::Number(_) => {}
+    }
+}
+
+fn replace_path_prefix(value: &str, prefix: &str) -> String {
+    let mut result = String::with_capacity(value.len());
+    let mut remaining = value;
+    while let Some(index) = remaining.find(prefix) {
+        let suffix = &remaining[index + prefix.len()..];
+        let boundary = suffix.is_empty() || suffix.starts_with(['/', '\\']);
+        result.push_str(&remaining[..index]);
+        if boundary {
+            result.push_str("[WORKSPACE]");
+        } else {
+            result.push_str(prefix);
+        }
+        remaining = suffix;
+    }
+    result.push_str(remaining);
+    result
 }
 
 fn collect_files(directory: &Path, files: &mut Vec<PathBuf>) {

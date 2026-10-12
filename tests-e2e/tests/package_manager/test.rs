@@ -34,6 +34,7 @@ foreign import main :: Effect Unit
     assert_success(&output);
     assert!(output.stdout.ends_with(b"\n"));
     insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"tests ran: from-manifest");
+    assert!(workspace.path().join("output/iris-manifest.json").is_file());
     workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 

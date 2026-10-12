@@ -1,0 +1,43 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+{
+  "iris": "[VERSION]",
+  "modules": {
+    "Main": {
+      "dependencies": [
+        "Shared"
+      ],
+      "foreign": null,
+      "javascript": "Main/index.js",
+      "package": "application",
+      "source": "[WORKSPACE]/project/src/Main.purs",
+      "stylex_theme": null
+    },
+    "Shared": {
+      "dependencies": [],
+      "foreign": null,
+      "javascript": "Shared/index.js",
+      "package": "shared",
+      "source": "[WORKSPACE]/shared/src/Shared.purs",
+      "stylex_theme": null
+    }
+  },
+  "packages": {
+    "application": {
+      "dependencies": [
+        "shared"
+      ],
+      "editable": true,
+      "root": "[WORKSPACE]/project"
+    },
+    "shared": {
+      "dependencies": [],
+      "editable": true,
+      "root": "[WORKSPACE]/shared"
+    }
+  },
+  "runtime": null,
+  "version": 1,
+  "workspace_root": "[WORKSPACE]/project"
+}

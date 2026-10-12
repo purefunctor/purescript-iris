@@ -23,7 +23,7 @@ use url::Url;
 #[path = "support.rs"]
 mod support;
 
-use support::TestWorkspace;
+use support::{TestWorkspace, normalize_workspace_paths, workspace_prefixes};
 
 fn snapshot_json(name: &str, value: &Value) {
     let mut value = value.clone();
@@ -38,74 +38,6 @@ fn snapshot_workspace_json(name: &str, value: &Value, workspace: &Path) {
     let workspace_prefixes = workspace_prefixes(workspace);
     normalize_workspace_paths(&mut value, &workspace_prefixes);
     snapshot_json(name, &value);
-}
-
-fn workspace_prefixes(workspace: &Path) -> Vec<String> {
-    let mut paths = vec![workspace.to_path_buf()];
-    if let Ok(canonical) = dunce::canonicalize(workspace)
-        && canonical != workspace
-    {
-        paths.push(canonical);
-    }
-    let mut prefixes = paths
-        .into_iter()
-        .flat_map(|path| {
-            let native = path.to_string_lossy().trim_end_matches(['/', '\\']).to_string();
-            let slash = native.replace('\\', "/");
-            let uri = Url::from_directory_path(&path)
-                .expect("invariant violated: workspace path is not absolute")
-                .to_string()
-                .trim_end_matches('/')
-                .to_string();
-            [native, slash, uri]
-        })
-        .collect::<Vec<_>>();
-    prefixes
-        .sort_unstable_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
-    prefixes.dedup();
-    prefixes
-}
-
-fn normalize_workspace_paths(value: &mut Value, workspace_prefixes: &[String]) {
-    match value {
-        Value::Array(values) => {
-            for value in values {
-                normalize_workspace_paths(value, workspace_prefixes);
-            }
-        }
-        Value::Object(fields) => {
-            for value in fields.values_mut() {
-                normalize_workspace_paths(value, workspace_prefixes);
-            }
-        }
-        Value::String(string) => {
-            for workspace_prefix in workspace_prefixes {
-                *string = replace_path_prefix(string, workspace_prefix);
-            }
-            if string.contains("[WORKSPACE]") {
-                *string = string.replace('\\', "/");
-            }
-        }
-        Value::Bool(_) | Value::Null | Value::Number(_) => {}
-    }
-}
-
-fn replace_path_prefix(value: &str, prefix: &str) -> String {
-    let mut result = String::with_capacity(value.len());
-    let mut remaining = value;
-    while let Some(index) = remaining.find(prefix) {
-        let suffix = &remaining[index + prefix.len()..];
-        let boundary = suffix.is_empty() || suffix.starts_with(['/', '\\']);
-        result.push_str(&remaining[..index]);
-        if boundary {
-            result.push_str("[WORKSPACE]");
-        } else {
-            result.push_str(prefix);
-        }
-        remaining = suffix;
-    }
-    result.push_str(remaining);
-    result
 }
 
 fn normalize_process_status(value: &mut Value) {

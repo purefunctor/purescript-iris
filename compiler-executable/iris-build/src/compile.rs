@@ -17,14 +17,17 @@ use url::Url;
 
 use super::compilation::{CompilationState, MaterializedPrim, SourceOwner};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
+use super::manifest::ProjectDescription;
+use super::output::BuildOutput;
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
-use super::{executor, walk};
+use super::{executor, output, walk};
 
 pub(crate) struct BuildConfig<'a> {
     pub root: PathBuf,
     pub output: PathBuf,
     pub source_globs: Vec<PathBuf>,
     pub packages: Vec<PackageInput>,
+    pub project: &'a ProjectDescription,
     pub color: bool,
     pub diagnostics: bool,
     pub resilient: bool,
@@ -215,9 +218,18 @@ where
 
 pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     let started = Instant::now();
-    let BuildConfig { root, output, source_globs, packages, color, diagnostics, resilient, events } =
-        config;
-    let excluded = [PathBuf::clone(&output)];
+    let BuildConfig {
+        root,
+        output: output_directory,
+        source_globs,
+        packages,
+        project,
+        color,
+        diagnostics,
+        resilient,
+        events,
+    } = config;
+    let excluded = [PathBuf::clone(&output_directory)];
     let initial = build_initial(InitialBuildConfig {
         root: &root,
         source_globs: &source_globs,
@@ -240,7 +252,9 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     let has_errors = report.has_errors;
     if !has_errors || resilient {
         let modules = collect_modules(&compilation, &report.sources)?;
-        write_modules(&compilation, &modules, &output, &mut BTreeSet::new())?;
+        let generated = BuildOutput::new(project, &compilation, &modules)?;
+        // A plain build does not know what an earlier build wrote, so it never removes files.
+        output::update(&output_directory, None, Some(&generated))?;
     }
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
     events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });

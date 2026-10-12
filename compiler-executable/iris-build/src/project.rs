@@ -12,6 +12,7 @@ use url::Url;
 use super::compilation::SourceOwner;
 use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
+use super::manifest::ProjectDescription;
 use super::packages::DiscoveredPackage;
 use super::plan::PackageInput;
 use super::workspace::{Workspace, WorkspaceError};
@@ -25,12 +26,16 @@ pub struct BuildConfig {
     pub color: bool,
     pub resilient: bool,
     pub diagnostics: bool,
+    /// The Iris version the build manifest records.
+    pub version: String,
 }
 
 pub struct ProjectConfig {
     pub package: Option<String>,
     pub output: Option<PathBuf>,
     pub quiet: bool,
+    /// The Iris version the build manifest records.
+    pub version: String,
 }
 
 pub struct RunConfig {
@@ -113,6 +118,7 @@ pub struct PreparedProject {
     pub(crate) output: PathBuf,
     pub(crate) source_globs: Vec<PathBuf>,
     pub(crate) packages: Vec<DiscoveredPackage>,
+    pub(crate) description: ProjectDescription,
 }
 
 pub struct InitializedProject {
@@ -178,6 +184,7 @@ fn build_project(config: BuildConfig) -> Result<(), ProjectFailure> {
         package: Option::clone(&config.package),
         output: Option::clone(&config.output),
         quiet: config.quiet,
+        version: String::clone(&config.version),
     })?;
     compile_project(project, &config)
 }
@@ -188,6 +195,7 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
     events.send(BuildEvent::Preparing);
     compile::build(compile::BuildConfig {
         packages: project.package_inputs(),
+        project: &project.description,
         root: project.root,
         output: project.output,
         source_globs: project.source_globs,
@@ -231,7 +239,7 @@ fn run_project(config: RunConfig) -> Result<(), ProjectFailure> {
     let project = prepare_workspace(
         &workspace,
         &current_directory,
-        config.project.quiet,
+        &config.project,
         PathBuf::clone(&output),
     )?;
     compile_project(project, &execution_build_config(config.project, config.color))?;
@@ -253,7 +261,7 @@ fn test_project(config: TestConfig) -> Result<(), ProjectFailure> {
     let project = prepare_workspace(
         &workspace,
         &current_directory,
-        config.project.quiet,
+        &config.project,
         PathBuf::clone(&output),
     )?;
     compile_project(project, &execution_build_config(config.project, config.color))?;
@@ -288,6 +296,7 @@ fn execution_build_config(project: ProjectConfig, color: bool) -> BuildConfig {
         color,
         resilient: false,
         diagnostics: true,
+        version: project.version,
     }
 }
 
@@ -295,7 +304,7 @@ fn prepare_project_inner(config: ProjectConfig) -> Result<PreparedProject, Proje
     let current_directory = env::current_dir().map_err(ProjectFailure::CurrentDirectory)?;
     let workspace = Workspace::discover(&current_directory, config.package.as_deref())?;
     let output = project_output(&workspace.root, config.output.as_deref())?;
-    prepare_workspace(&workspace, &current_directory, config.quiet, output)
+    prepare_workspace(&workspace, &current_directory, &config, output)
 }
 
 fn resolve_output_inner(output: Option<&Path>) -> Result<PathBuf, ProjectFailure> {
@@ -310,17 +319,23 @@ fn resolve_output_inner(output: Option<&Path>) -> Result<PathBuf, ProjectFailure
 fn prepare_workspace(
     workspace: &Workspace,
     current_directory: &Path,
-    quiet: bool,
+    config: &ProjectConfig,
     output: PathBuf,
 ) -> Result<PreparedProject, ProjectFailure> {
     let spago = iris_spago::SpagoCommand::with_workspace_root(current_directory, &workspace.root)?;
-    spago.fetch(workspace.selected.as_deref(), !quiet)?;
+    spago.fetch(workspace.selected.as_deref(), !config.quiet)?;
     let discovered = super::packages::discover_packages(workspace)?;
+    let description = ProjectDescription::new(
+        String::clone(&config.version),
+        &workspace.root,
+        &discovered.packages,
+    );
     Ok(PreparedProject {
         root: PathBuf::clone(&workspace.root),
         output,
         source_globs: discovered.source_globs,
         packages: discovered.packages,
+        description,
     })
 }
 
