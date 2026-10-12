@@ -62,6 +62,7 @@ where
     let indexed = queries.indexed(file_id)?;
     let resolved = queries.resolved(file_id)?;
     let lowered = queries.lowered(file_id)?;
+    let grouped = queries.grouped(file_id)?;
     let checked = queries.checked(file_id)?;
     let foreign_validation = queries.foreign_validation(file_id)?;
 
@@ -85,6 +86,9 @@ where
         diagnostics.extend(error.to_diagnostics(&context));
     }
     for error in &lowered.errors {
+        diagnostics.extend(error.to_diagnostics(&context));
+    }
+    for error in &grouped.cycle_errors {
         diagnostics.extend(error.to_diagnostics(&context));
     }
     for error in &resolved.errors {
