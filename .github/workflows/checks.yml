@@ -28,6 +28,7 @@ jobs:
   end_to_end:
     name: End-to-end tests (${{ matrix.os }})
     permissions:
+      attestations: read
       contents: read
     runs-on: ${{ matrix.os }}
     strategy:
@@ -91,6 +92,10 @@ jobs:
         run: just e2e-prepare
 
       - name: Run end-to-end tests
+        env:
+          # `iris self update` verifies release attestations with the GitHub CLI, which requires
+          # signing in, and reads canaries through the rate-limited API.
+          GH_TOKEN: ${{ github.token }}
         run: just e2e --locked
 
   compatibility:

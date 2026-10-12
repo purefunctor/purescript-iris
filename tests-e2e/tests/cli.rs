@@ -32,6 +32,8 @@ fn prints_help_for_every_command_path() {
         ("help_lsp", &["lsp", "--help"]),
         ("help_run", &["run", "--help"]),
         ("help_test", &["test", "--help"]),
+        ("help_self", &["self", "--help"]),
+        ("help_self_update", &["self", "update", "--help"]),
     ];
 
     for (name, arguments) in paths {

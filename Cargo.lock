@@ -1658,6 +1658,7 @@ dependencies = [
  "iris-build",
  "iris-lsp",
  "iris-package",
+ "iris-self-update",
  "iris-watch",
  "iris-watch-query",
  "iris-watch-server",
