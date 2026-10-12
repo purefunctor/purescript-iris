@@ -49,6 +49,8 @@ jobs:
             exit 1
           fi
 
+          # Installed binaries match canaries to commits on main by this tag; see the contract in
+          # .agents/skills/cutting-releases/SKILL.md before changing it.
           revision=${COMMIT_SHA:0:12}
           version="$package_version-dev.$revision"
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
@@ -137,6 +139,8 @@ jobs:
         env:
           IRIS_BUILD_REVISION: ${{ needs.prepare.outputs.revision }}
         with:
+          # Installed binaries download archives by this name and layout; see the contract in
+          # .agents/skills/cutting-releases/SKILL.md before changing either.
           bin: iris
           package: iris-cli
           archive: iris-$target

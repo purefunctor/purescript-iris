@@ -9,6 +9,15 @@ Use this workflow for stable `purescript-iris` releases. A pushed stable `v*` ta
 
 Merging and pushing the release tag are shared, high-impact actions. Obtain explicit approval before each unless the user has already authorized that stage. Never move or delete a published release tag to repair a failed workflow.
 
+## Contract with installed binaries
+
+`iris self update` in already installed binaries, and the installers, find releases by these names. Old binaries cannot be fixed after they ship, so changing any of these breaks updates for every installed release. Keep them unless the change is deliberate and announced:
+
+- Stable tags match `v<major>.<minor>.<patch>`, and canary tags match `v<version>-dev.<12-character revision>`. The executable's `--version` prints `iris <tag without v>`.
+- The latest stable release is the release GitHub marks latest, read from the `/releases/latest` redirect. Canaries are published prereleases created with `--latest=false`.
+- Each release has an archive per target named `iris-<target>.tar.gz`, or `iris-<target>.zip` on Windows, for `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `universal-apple-darwin`, and `x86_64-pc-windows-msvc`.
+- Each archive has a leading `iris-<target>/` directory containing exactly one `iris` or `iris.exe` executable, and has a GitHub build-provenance attestation.
+
 ## 1. Establish the release range
 
 Start from a clean, current `main` and fetch tags:
