@@ -1,0 +1,120 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 330
+---
+Error! · [NotInScope] · Main.purs:8:24
+  •
+  │
+  • 'Missing' is not in scope
+  │
+  │   unresolvedSignature :: Missing
+  │                          ╰──────
+  •
+
+Error! · [NotInScope] · Main.purs:20:19
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   unresolvedValue = missing
+  │                     ╰──────
+  •
+
+Error! · [NotInScope] · Main.purs:23:29
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   showsUnresolvedValue = show missing
+  │                               ╰──────
+  •
+
+Error! · [CannotUnify] · Main.purs:8:24
+  •
+  │
+  • Cannot unify '?[missing constructor]' with 'Type'
+  │
+  │   unresolvedSignature :: Missing
+  │                          ╰──────
+  •
+
+Error! · [CannotUnify] · Main.purs:9:23
+  •
+  │
+  • Cannot unify 'Int' with '?[missing constructor]'
+  │
+  │   unresolvedSignature = 0
+  │                         ╰
+  •
+
+Error! · [CannotUnify] · Main.purs:12:31
+  •
+  │
+  • Cannot unify '?[missing constructor]' with 'Int'
+  │
+  │   usesUnresolvedSignature = add unresolvedSignature 1
+  │                                 ╰──────────────────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:14:21
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   invalidSignature :: Int String
+  │                       ╰─────────
+  •
+
+Error! · [CannotUnify] · Main.purs:14:21
+  •
+  │
+  • Cannot unify '?[cannot apply function type]' with 'Type'
+  │
+  │   invalidSignature :: Int String
+  │                       ╰─────────
+  •
+
+Error! · [CannotUnify] · Main.purs:15:20
+  •
+  │
+  • Cannot unify 'Int' with 'Int String'
+  │
+  │   invalidSignature = 0
+  │                      ╰
+  •
+
+Error! · [CannotUnify] · Main.purs:18:28
+  •
+  │
+  • Cannot unify 'Int String' with 'Int'
+  │
+  │   usesInvalidSignature = add invalidSignature 1
+  │                              ╰───────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:20:19
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   unresolvedValue = missing
+  │                     ╰──────
+  •
+
+Error! · [CannotUnify] · Main.purs:23:29
+  •
+  │
+  • Cannot unify 'Type' with '?[invalid kind]'
+  │
+  │   showsUnresolvedValue = show missing
+  │                               ╰──────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:23:24
+  •
+  │
+  • No instance found for: Show ?[missing variable resolution]
+  │
+  │   showsUnresolvedValue = show missing
+  │                          ╰───────────
+  •

@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 332
+---
+@export add = \value%0 $int%1@(_) -> value%0
+
+@export unresolvedSignature = 0
+
+@export usesUnresolvedSignature = add unresolvedSignature 1
+
+@export invalidSignature = 0
+
+@export usesInvalidSignature = add invalidSignature 1
+
+@export unresolvedValue = <error>
+
+@export showsUnresolvedValue = show (<error>) (<error>)

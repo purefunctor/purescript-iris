@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 331
+---
+add :: Prim.Int -> Prim.Int -> Prim.Int
+add = \value -> \_ -> value
+
+unresolvedSignature :: ?[missing constructor]
+unresolvedSignature = 0
+
+usesUnresolvedSignature :: Prim.Int
+usesUnresolvedSignature = add unresolvedSignature 1
+
+invalidSignature :: Prim.Int Prim.String
+invalidSignature = 0
+
+usesInvalidSignature :: Prim.Int
+usesInvalidSignature = add invalidSignature 1
+
+unresolvedValue :: ?[missing variable resolution]
+unresolvedValue = <error>
+
+showsUnresolvedValue :: Prim.String
+showsUnresolvedValue = show {error} <error>
