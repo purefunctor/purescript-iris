@@ -56,12 +56,13 @@ where
     Q: ExternalQueries + ForeignQueries,
 {
     let content = queries.content(file_id)?;
-    let (parsed, _) = queries.parsed(file_id)?;
+    let (parsed, parse_errors) = queries.parsed(file_id)?;
     let root = parsed.syntax_node();
     let stabilized = queries.stabilized(file_id)?;
     let indexed = queries.indexed(file_id)?;
     let resolved = queries.resolved(file_id)?;
     let lowered = queries.lowered(file_id)?;
+    let grouped = queries.grouped(file_id)?;
     let checked = queries.checked(file_id)?;
     let foreign_validation = queries.foreign_validation(file_id)?;
 
@@ -81,7 +82,13 @@ where
     }
 
     let source_start = diagnostics.len();
+    for error in parse_errors.iter() {
+        diagnostics.extend(error.to_diagnostics(&context));
+    }
     for error in &lowered.errors {
+        diagnostics.extend(error.to_diagnostics(&context));
+    }
+    for error in &grouped.cycle_errors {
         diagnostics.extend(error.to_diagnostics(&context));
     }
     for error in &resolved.errors {

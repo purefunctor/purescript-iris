@@ -1,8 +1,25 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 304
 ---
-Parse error · Main.purs:6:3 · Expected LEFT_ARROW
-Parse error · Main.purs:6:5 · Unexpected token in function binders
+Error! · [ParseError] · Main.purs:6:3
+  •
+  │
+  • Expected LEFT_ARROW
+  │
+  │     \ @ -> 1
+  │     ╰
+  •
+
+Error! · [ParseError] · Main.purs:6:5
+  •
+  │
+  • Unexpected token in function binders
+  │
+  │     \ @ -> 1
+  │       ╰
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:6:3
   •
   │

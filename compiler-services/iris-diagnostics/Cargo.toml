@@ -12,6 +12,7 @@ functional = { version = "0.1.0", path = "../../compiler-backend/functional" }
 indexing = { version = "0.1.0", path = "../../compiler-frontend/indexing" }
 javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
 lowering = { version = "0.1.0", path = "../../compiler-frontend/lowering" }
+parsing = { version = "0.1.0", path = "../../compiler-frontend/parsing" }
 resolving = { version = "0.1.0", path = "../../compiler-frontend/resolving" }
 checking = { version = "0.1.0", path = "../../compiler-frontend/checking" }
 stabilizing = { version = "0.1.0", path = "../../compiler-frontend/stabilizing" }

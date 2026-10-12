@@ -1846,6 +1846,7 @@ dependencies = [
  "javascript",
  "line-index",
  "lowering",
+ "parsing",
  "resolving",
  "smol_str",
  "stabilizing",

@@ -1,6 +1,21 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 304
 ---
-Parse error · Main.purs:3:14 · Expected DOUBLE_COLON
-Parse error · Main.purs:5:22 · Expected DOUBLE_COLON
+Error! · [ParseError] · Main.purs:3:14
+  •
+  │
+  • Expected DOUBLE_COLON
+  │
+  │   data Proxy (a) = Proxy
+  │                ╰
+  •
+
+Error! · [ParseError] · Main.purs:5:22
+  •
+  │
+  • Expected DOUBLE_COLON
+  │
+  │   identity :: forall (a). a -> a
+  │                        ╰
+  •

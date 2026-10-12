@@ -215,3 +215,29 @@ broken = missing
 
     snapshot_output("suppressed_error_diagnostics", &output);
 }
+
+#[test]
+fn reports_parse_errors_as_build_failures() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+value :: Int
+value = if true then 1
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    snapshot_output("parse_error_diagnostics", &output);
+    assert!(!workspace.path().join("output/Main/index.js").exists());
+}

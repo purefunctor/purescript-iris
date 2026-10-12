@@ -12,6 +12,7 @@ use javascript::{
     UnsupportedState as JavaScriptUnsupportedState,
 };
 use lowering::LoweringError;
+use parsing::ParseError;
 use resolving::ResolvingError;
 use syntax::ast::AstNode;
 use syntax::cst;
@@ -273,6 +274,18 @@ impl ToDiagnostics for ForeignError {
         };
 
         vec![diagnostic]
+    }
+}
+
+impl ToDiagnostics for ParseError {
+    fn to_diagnostics<Q>(&self, _context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    where
+        Q: ExternalQueries,
+    {
+        let offset =
+            u32::try_from(self.offset).expect("invariant violated: source offset exceeds u32");
+        let span = Span::new(offset, offset);
+        vec![Diagnostic::error("ParseError", self.message.as_ref(), span, "parsing")]
     }
 }
 

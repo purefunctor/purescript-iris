@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 303
+---
+Terms
+
+Types
+Recursive :: ?[invalid recursive type]
+Left :: forall t0. t0
+Right :: forall t0. t0
+
+Synonyms
+type Left = Main.Right
+type Right = Main.Left

@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 304
+---
+Error! · [RecursiveKinds] · Main.purs:4:1
+  •
+  │
+  • Invalid kind cycle
+  │
+  │   data Recursive a = Recursive
+  │   ╰───────────────────────────
+  •
+
+Error! · [RecursiveSynonym] · Main.purs:7:1
+  •
+  │
+  • Invalid type synonym cycle
+  │
+  │   type Right = Left
+  │   ╰────────────────
+  │
+  • Includes this type
+  │
+  │   type Left = Right
+  │   ╰────────────────
+  •
+
+Error! · [FunctionalCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The checked representation of a top-level declaration is unavailable.
+  │
+  │   module Main where
+  │   ╰────────────────
+  •

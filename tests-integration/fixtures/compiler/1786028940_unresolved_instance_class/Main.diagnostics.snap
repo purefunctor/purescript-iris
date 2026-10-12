@@ -1,11 +1,52 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 304
 ---
-Parse error · Main.purs:5:1 · Expected LAYOUT_START
-Parse error · Main.purs:5:1 · Expected LAYOUT_END
-Parse error · Main.purs:6:1 · Expected LAYOUT_START
-Parse error · Main.purs:6:1 · Expected LAYOUT_SEPARATOR
-Parse error · Main.purs:6:1 · Expected LAYOUT_END
+Error! · [ParseError] · Main.purs:5:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │   instance Missing.Functor Array where
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:5:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   instance Missing.Functor Array where
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:6:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:6:1
+  •
+  │
+  • Expected LAYOUT_SEPARATOR
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:6:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │
+  │   ╰
+  •
+
 Error! · [NotInScope] · Main.purs:3:10
   •
   │

@@ -1,9 +1,34 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 304
 ---
-Parse error · Main.purs:11:1 · Expected LAYOUT_START
-Parse error · Main.purs:11:1 · Expected LAYOUT_END
-Parse error · Main.purs:11:1 · Expected IN
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │   test2 = ado
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   test2 = ado
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected IN
+  │
+  │   test2 = ado
+  │   ╰
+  •
+
 Error! · [EmptyAdoBlock] · Main.purs:9:9
   •
   │

@@ -1,5 +1,21 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 304
 ---
-Parse error · Main.purs:17:1 · Expected COMMA
-Parse error · Main.purs:17:1 · Expected RIGHT_ARROW
+Error! · [ParseError] · Main.purs:17:1
+  •
+  │
+  • Expected COMMA
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:17:1
+  •
+  │
+  • Expected RIGHT_ARROW
+  │
+  │
+  │   ╰
+  •
