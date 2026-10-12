@@ -403,7 +403,8 @@ where
         | ErrorKind::MissingPatterns { .. }
         | ErrorKind::CustomFailure { .. }
         | ErrorKind::PropertyIsMissing { .. }
-        | ErrorKind::AdditionalProperty { .. }) => kind,
+        | ErrorKind::AdditionalProperty { .. }
+        | ErrorKind::UnreportedUnknownType { .. }) => kind,
     })
 }
 

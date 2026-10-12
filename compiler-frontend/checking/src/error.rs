@@ -173,6 +173,9 @@ pub enum ErrorKind {
     AdditionalProperty {
         labels: Arc<[SmolStr]>,
     },
+    UnreportedUnknownType {
+        type_id: TypeId,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]

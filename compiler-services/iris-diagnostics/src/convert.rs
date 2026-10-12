@@ -810,6 +810,16 @@ impl ToDiagnostics for CheckingError {
                     format!("Missing required properties: {labels_str}"),
                 )
             }
+            ErrorKind::UnreportedUnknownType { type_id } => {
+                let type_id = render_type(*type_id);
+                (
+                    Severity::Error,
+                    "UnreportedUnknownType",
+                    format!(
+                        "The unknown type '{type_id}' was accepted without an error that explains it.\n\nThis is an unsupported internal compiler state."
+                    ),
+                )
+            }
             ErrorKind::AdditionalProperty { labels } => {
                 let labels_str = labels.join(", ");
                 (

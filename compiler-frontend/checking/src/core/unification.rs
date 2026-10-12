@@ -169,6 +169,9 @@ where
     }
 
     match (context.lookup_type(t1), context.lookup_type(t2)) {
+        // Instantiating against an unknown type would leave constraints
+        // that nothing solves, and the unknown type is already an error.
+        (_, Type::Unknown(_)) => subtype(state, context, t1, t2),
         // The inferred expression remains polymorphic at this boundary, so
         // ordinary subtyping handles it without collecting applications.
         (_, Type::Forall(_, _)) => subtype(state, context, t1, t2),
@@ -241,6 +244,10 @@ where
     let t2_core = context.lookup_type(t2);
 
     match (t1_core, t2_core) {
+        // Unknown types are unified before quantifiers are instantiated, so
+        // that no constraints are left for the error that they replace.
+        (Type::Unknown(_), _) | (_, Type::Unknown(_)) => unify_core(state, context, t1, t2),
+
         // Function subtyping is contravariant on the argument type and
         // covariant on the result type. It must also be non-elaborating
         // on both positions; it's impossible to generate any constraint
@@ -444,6 +451,17 @@ where
         // be placed before the one-sided Type::Forall skolemisation.
         (Type::Unification(id), _) => solve_core(state, context, t1, *id, t2)?,
         (_, Type::Unification(id)) => solve_core(state, context, t2, *id, t1)?,
+
+        // Unknown types replace syntax and types whose errors are reported
+        // elsewhere, so they unify with anything instead of reporting again.
+        (Type::Unknown(_), _) => {
+            state.absorb_unknown(t1);
+            Unified::Success
+        }
+        (_, Type::Unknown(_)) => {
+            state.absorb_unknown(t2);
+            Unified::Success
+        }
 
         (
             Type::Application(t1_function, t1_argument),

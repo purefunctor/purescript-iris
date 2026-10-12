@@ -179,6 +179,11 @@ pub struct CheckState {
     pub depth: Depth,
 
     pub crumbs: Vec<ErrorCrumb>,
+
+    /// An internal error for the first unknown type that replaced a failure.
+    ///
+    /// It is reported only if no error explains the unknown type.
+    pub(crate) absorbed_unknown: Option<CheckingError>,
 }
 
 impl CheckState {
@@ -197,6 +202,7 @@ impl CheckState {
             defer_expansion: Default::default(),
             depth: Depth(0),
             crumbs: Default::default(),
+            absorbed_unknown: None,
         }
     }
 
@@ -291,6 +297,15 @@ impl CheckState {
     pub fn insert_error(&mut self, kind: ErrorKind) {
         let crumbs = self.crumbs.iter().copied().collect();
         self.checked.errors.push(CheckingError { kind, crumbs });
+    }
+
+    /// Records an unknown type that replaced a failure instead of reporting it.
+    pub(crate) fn absorb_unknown(&mut self, type_id: TypeId) {
+        if self.absorbed_unknown.is_none() {
+            let crumbs = self.crumbs.iter().copied().collect();
+            let kind = ErrorKind::UnreportedUnknownType { type_id };
+            self.absorbed_unknown = Some(CheckingError { kind, crumbs });
+        }
     }
 
     pub fn push_wanted(&mut self, constraint: TypeId) -> EvidenceVarId {

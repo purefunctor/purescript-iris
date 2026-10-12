@@ -11,15 +11,6 @@ Error! · [CannotUnify] · Main.purs:7:8
   │          ╰──────────────────────────
   •
 
-Error! · [CannotUnify] · Main.purs:7:8
-  •
-  │
-  • Cannot unify '?[invalid function application]' with 'Int'
-  │
-  │   test = identityInt integer integer
-  │          ╰──────────────────────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:3:1
   •
   │

@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 330
 ---
 Error! · [ParseError] · Main.purs:10:1
   •
@@ -33,15 +33,6 @@ Error! · [EmptyDoBlock] · Main.purs:9:8
   •
   │
   • Empty do block
-  │
-  │   test = do
-  │          ╰─
-  •
-
-Error! · [CannotUnify] · Main.purs:9:8
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   test = do
   │          ╰─

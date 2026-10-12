@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [CannotDeriveForType] · Main.purs:17:1
   •
@@ -14,15 +15,6 @@ Error! · [PartialSynonymApplication] · Main.purs:27:21
   •
   │
   • Partial type synonym application
-  │
-  │   derive instance Eq1 ProductInt
-  │                       ╰─────────
-  •
-
-Error! · [CannotUnify] · Main.purs:27:21
-  •
-  │
-  • Cannot unify '?[partial synonym application]' with 'Type -> Type'
   │
   │   derive instance Eq1 ProductInt
   │                       ╰─────────
