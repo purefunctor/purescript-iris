@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 329
+---
+Terms
+needsInvalid :: Main.Constrained Main.Invalid => Prim.Int
+usesInvalid :: Prim.Int
+needsWrapped :: Main.Constrained Main.Wrapped => Prim.Int
+usesWrapped :: Prim.Int
+needsLoop :: Main.Constrained Main.Loop => Prim.Int
+usesLoop :: Prim.Int
+
+Types
+Constrained :: Prim.Type -> Prim.Constraint
+Invalid :: ?[cannot apply function type]
+Wrapped :: Prim.Type
+Loop :: Prim.Type
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+type Wrapped = Prim.Array Main.Invalid
+type Loop = Prim.Array Main.Loop
+
+Classes
+class forall (a :: Prim.Type). Main.Constrained a
