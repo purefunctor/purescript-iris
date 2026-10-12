@@ -88,7 +88,11 @@ workspace: {}
         relative_files(root, package(&discovered, "foo")),
         [".spago/p/foo-1.0.0/src/Foo.purs"]
     );
-    assert_eq!(package(&discovered, "foo").roots, [PathBuf::from(".spago/p/foo-1.0.0")]);
+    assert_eq!(package(&discovered, "foo").root, PathBuf::from(".spago/p/foo-1.0.0"));
+    assert_eq!(
+        package(&discovered, "foo").source_globs,
+        [PathBuf::from(".spago/p/foo-1.0.0/src/**/*.purs")]
+    );
     assert_eq!(package(&discovered, "foo").dependencies, ["bar"]);
 }
 
@@ -666,7 +670,7 @@ workspace:
     );
     assert!(matches!(
         discover_packages(&workspace(root, None)).unwrap_err(),
-        PackagesError::ConflictingSource { .. }
+        PackagesError::ConflictingSource(_)
     ));
 }
 

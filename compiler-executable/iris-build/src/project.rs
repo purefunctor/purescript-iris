@@ -5,11 +5,14 @@ use std::{env, io};
 use iris_progress::ProgressRuntime;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
+use super::compilation::SourceOwner;
 use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
+use super::packages::DiscoveredPackage;
 use super::plan::PackageInput;
 use super::workspace::{Workspace, WorkspaceError};
 
@@ -109,17 +112,31 @@ pub struct PreparedProject {
     pub(crate) root: PathBuf,
     pub(crate) output: PathBuf,
     pub(crate) source_globs: Vec<PathBuf>,
-    pub(crate) packages: Vec<PackageInput>,
+    pub(crate) packages: Vec<DiscoveredPackage>,
 }
 
 pub struct InitializedProject {
     pub(crate) project: PreparedProject,
-    pub(crate) build: compile::InitialBuild<(), ()>,
+    pub(crate) build: compile::InitialBuild<(), SourceOwner>,
 }
 
 impl PreparedProject {
-    pub fn root_directory(&self) -> &std::path::Path {
+    pub fn root_directory(&self) -> &Path {
         &self.root
+    }
+
+    pub fn output_directory(&self) -> &Path {
+        &self.output
+    }
+
+    /// The planning inputs of the discovered packages.
+    pub(crate) fn package_inputs(&self) -> Vec<PackageInput> {
+        let inputs = self.packages.iter().map(|package| PackageInput {
+            name: SmolStr::clone(&package.name),
+            source_identities: Vec::clone(&package.files),
+            dependencies: Vec::clone(&package.dependencies),
+        });
+        inputs.collect_vec()
     }
 
     pub fn source_roots(&self) -> Result<Vec<PathBuf>, ProjectError> {
@@ -170,10 +187,10 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
     let events = ProgressEventSink::new(progress.reporter());
     events.send(BuildEvent::Preparing);
     compile::build(compile::BuildConfig {
+        packages: project.package_inputs(),
         root: project.root,
         output: project.output,
         source_globs: project.source_globs,
-        packages: project.packages,
         color: config.color,
         diagnostics: config.diagnostics,
         resilient: config.resilient,
@@ -185,15 +202,16 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
 fn initialize_project_inner(
     project: PreparedProject,
 ) -> Result<InitializedProject, ProjectFailure> {
-    let PreparedProject { root, output, source_globs, packages } = &project;
-    let excluded = [PathBuf::clone(output)];
+    let excluded = [PathBuf::clone(&project.output)];
     let build = compile::build_initial(compile::InitialBuildConfig {
-        root,
-        source_globs,
+        root: &project.root,
+        source_globs: &project.source_globs,
         excluded: &excluded,
-        packages: Vec::clone(packages),
-        prim_metadata: (),
-        source_metadata: |_: &Path| (),
+        packages: project.package_inputs(),
+        prim_metadata: SourceOwner::Builtin,
+        source_metadata: |package: &SmolStr, _: &Path| {
+            SourceOwner::Package(SmolStr::clone(package))
+        },
         execution: compile::PackageExecution::Parallel,
         events: &SilentBuildEvents,
     })?;
@@ -298,18 +316,11 @@ fn prepare_workspace(
     let spago = iris_spago::SpagoCommand::with_workspace_root(current_directory, &workspace.root)?;
     spago.fetch(workspace.selected.as_deref(), !quiet)?;
     let discovered = super::packages::discover_packages(workspace)?;
-    let packages = discovered.packages.into_iter().map(|package| PackageInput {
-        name: package.name,
-        source_identities: package.files,
-        dependencies: package.dependencies,
-    });
-
-    let packages = packages.collect_vec();
     Ok(PreparedProject {
         root: PathBuf::clone(&workspace.root),
         output,
         source_globs: discovered.source_globs,
-        packages,
+        packages: discovered.packages,
     })
 }
 

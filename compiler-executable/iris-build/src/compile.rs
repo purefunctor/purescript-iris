@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -11,10 +11,11 @@ use files::{FileId, ForeignSourceKind};
 use iris_diagnostics::Severity;
 use itertools::Itertools;
 use rayon::prelude::*;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::{CompilationState, MaterializedPrim};
+use super::compilation::{CompilationState, MaterializedPrim, SourceOwner};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
@@ -70,6 +71,7 @@ pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
     pub excluded: &'a [PathBuf],
     pub packages: Vec<PackageInput>,
     pub prim_metadata: Metadata,
+    /// The metadata of a source, given the name of the package the plan assigns it to.
     pub source_metadata: SourceMetadata,
     pub execution: PackageExecution,
     pub events: &'a dyn BuildEventSink,
@@ -132,7 +134,7 @@ pub fn build_initial<Version, Metadata, SourceMetadata>(
 where
     Version: Clone + Ord,
     Metadata: Clone,
-    SourceMetadata: for<'path> Fn(&'path Path) -> Metadata,
+    SourceMetadata: Fn(&SmolStr, &Path) -> Metadata,
 {
     let InitialBuildConfig {
         root,
@@ -163,24 +165,26 @@ where
 
     let prim = MaterializedPrim::new()?;
     let mut compilation = CompilationState::new(prim, prim_metadata);
-    let planned_source_paths =
-        plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
-    let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
-    let source_units = source_paths.par_iter().map(|path| read_source_unit(path));
+    let planned_sources = plan.packages().flat_map(|package| {
+        package.source_paths.iter().map(|path| (PathBuf::clone(path), &package.name))
+    });
+    let planned_sources = planned_sources.collect::<BTreeMap<_, _>>();
+    let source_units = planned_sources.par_iter().map(|(path, _)| read_source_unit(path));
     let source_units = source_units.collect::<Result<Vec<_>, _>>()?;
     let mut observations = Vec::new();
-    for (path, source_unit) in source_paths.iter().zip(&source_units) {
-        let metadata = source_metadata(path);
+    for ((path, package), source_unit) in planned_sources.iter().zip(&source_units) {
+        let metadata = source_metadata(package, path);
         observations.extend(source_unit.observations(metadata));
     }
     compilation.observe_all(observations);
-    let sources = source_paths.iter().zip(&source_units).map(|(path, source_unit)| {
+    let sources = planned_sources.keys().zip(&source_units).map(|(path, source_unit)| {
         let file_id = compilation
             .source_id(source_unit.unit.source())
             .expect("invariant violated: loaded source has no lifecycle identity");
         (PathBuf::clone(path), file_id)
     });
     let sources = sources.collect::<HashMap<_, _>>();
+    let source_paths = planned_sources.into_keys().collect::<BTreeSet<_>>();
 
     let engine = compilation.query_engine();
     let execute = |package: &super::plan::PlannedPackage| {
@@ -219,8 +223,10 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
         source_globs: &source_globs,
         excluded: &excluded,
         packages,
-        prim_metadata: (),
-        source_metadata: |_: &Path| (),
+        prim_metadata: SourceOwner::Builtin,
+        source_metadata: |package: &SmolStr, _: &Path| {
+            SourceOwner::Package(SmolStr::clone(package))
+        },
         execution: PackageExecution::Parallel,
         events,
     })?;

@@ -185,6 +185,55 @@ fn removes_stale_outputs_when_remaining_sources_have_diagnostics() {
 }
 
 #[test]
+fn reports_a_source_two_packages_claim_without_changing_the_build() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+    workspace.write(
+        "src/library/spago.yaml",
+        r#"package:
+  name: library
+  dependencies: []
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+
+    // Both `src/**/*.purs` and `src/library/src/**/*.purs` select this file.
+    workspace.write(
+        "src/library/src/Claimed.purs",
+        r#"module Claimed where
+"#,
+    );
+    watch.wait_for("conflict report", |_, stderr| {
+        stderr.contains("Watch build failed: source file")
+            && stderr.contains("src/library/src/Claimed.purs is claimed by packages")
+    });
+    assert!(!workspace.path().join("output/Claimed/index.js").exists());
+    assert!(!watch.stdout().contains("Rebuild succeeded"));
+
+    std::fs::remove_file(workspace.path().join("src/library/src/Claimed.purs")).unwrap();
+    watch.wait_for("recovery", |stdout, _| stdout.contains("Rebuild succeeded"));
+    watch.stop();
+    assert_eq!(watch.stderr().matches("Watch build failed").count(), 1);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("watch_conflicting_source", normalized_watch_log(&watch.stdout()));
+    });
+}
+
+#[test]
 fn rebuilds_for_ffi_changes_and_reconciles_foreign_outputs() {
     let workspace = TestWorkspace::empty();
     workspace

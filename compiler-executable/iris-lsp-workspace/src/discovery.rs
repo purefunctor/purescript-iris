@@ -18,7 +18,8 @@ struct DiscoveredWorkspace {
     root: PathBuf,
     source_globs: Vec<PathBuf>,
     packages: Vec<PackageInput>,
-    metadata: BTreeMap<PathBuf, SourceMetadata>,
+    /// The metadata of the sources of each package.
+    metadata: BTreeMap<SmolStr, SourceMetadata>,
     source_roots: Vec<SourceRoot>,
 }
 
@@ -36,12 +37,9 @@ fn discover_workspace(
 
     let packages = packages.collect_vec();
 
-    let metadata = discovered.packages.iter().flat_map(|package| {
+    let metadata = discovered.packages.iter().map(|package| {
         let metadata = SourceMetadata::Package { editable: package.editable };
-        package
-            .files
-            .iter()
-            .map(move |file| (PathBuf::clone(file), SourceMetadata::clone(&metadata)))
+        (SmolStr::clone(&package.name), metadata)
     });
 
     let metadata = metadata.collect::<BTreeMap<_, _>>();
@@ -83,17 +81,17 @@ pub(crate) fn build_prepared_workspace(
         excluded: &[],
         packages,
         prim_metadata: SourceMetadata::Builtin,
-        source_metadata: |path: &Path| {
+        source_metadata: |package: &SmolStr, _: &Path| {
             metadata
-                .get(path)
+                .get(package)
                 .cloned()
-                .expect("invariant violated: discovered source has no LSP metadata")
+                .expect("invariant violated: a planned package has no LSP metadata")
         },
         execution: PackageExecution::Parallel,
         events,
     })?;
 
-    tracing::info!("Loaded {} files.", metadata.len());
+    tracing::info!("Loaded {} files.", initial.sources().len());
     Ok(PreparedWorkspace { compilation: initial.into_compilation(), source_roots })
 }
 
@@ -108,31 +106,29 @@ pub(crate) fn package_source_roots(
     let canonical_client_root = dunce::canonicalize(client_root).ok();
 
     let mut roots = Vec::new();
-    for root in &package.roots {
-        let root = workspace_root.join(root).absolutize()?.to_path_buf();
+    let root = workspace_root.join(&package.root).absolutize()?.to_path_buf();
+    roots.push(SourceRoot {
+        path: PathBuf::clone(&root),
+        metadata: SourceMetadata::clone(&metadata),
+    });
+
+    let canonical = dunce::canonicalize(&root).ok();
+    if let Some(canonical) = &canonical
+        && *canonical != root
+    {
         roots.push(SourceRoot {
-            path: PathBuf::clone(&root),
+            path: PathBuf::clone(canonical),
             metadata: SourceMetadata::clone(&metadata),
         });
+    }
 
-        let canonical = dunce::canonicalize(&root).ok();
-        if let Some(canonical) = &canonical
-            && *canonical != root
-        {
-            roots.push(SourceRoot {
-                path: PathBuf::clone(canonical),
-                metadata: SourceMetadata::clone(&metadata),
-            });
-        }
-
-        if let Some(client_root_canonical) = &canonical_client_root
-            && let Some(canonical) = &canonical
-            && let Ok(relative) = canonical.strip_prefix(client_root_canonical)
-        {
-            let alias = client_root.join(relative).absolutize()?.to_path_buf();
-            if roots.iter().all(|root| root.path != alias) {
-                roots.push(SourceRoot { path: alias, metadata: SourceMetadata::clone(&metadata) });
-            }
+    if let Some(client_root_canonical) = &canonical_client_root
+        && let Some(canonical) = &canonical
+        && let Ok(relative) = canonical.strip_prefix(client_root_canonical)
+    {
+        let alias = client_root.join(relative).absolutize()?.to_path_buf();
+        if roots.iter().all(|root| root.path != alias) {
+            roots.push(SourceRoot { path: alias, metadata });
         }
     }
 

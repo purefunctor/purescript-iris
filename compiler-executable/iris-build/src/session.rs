@@ -9,12 +9,14 @@ use building::{
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
 use prim_constants::MODULE_MAP;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
-use super::compilation::CompilationState;
+use super::compilation::{CompilationState, SourceOwner};
 use super::compile::{self, CompileError, InitialBuildReport};
 use super::events::BuildOutcome;
+use super::packages::{ConflictingSource, SourceOwnership};
 use super::project::InitializedProject;
 use super::walk;
 
@@ -76,6 +78,8 @@ pub enum RebuildOutcome {
 enum SessionFailure {
     #[error(transparent)]
     Compile(#[from] CompileError),
+    #[error(transparent)]
+    ConflictingSource(#[from] ConflictingSource),
     #[error("failed to convert path to a file URL: {0}")]
     InvalidPath(PathBuf),
     #[error(transparent)]
@@ -95,7 +99,7 @@ pub struct BuildSession {
     output: PathBuf,
     inputs: Vec<PathBuf>,
     source_roots: Vec<PathBuf>,
-    source_globs: globset::GlobSet,
+    ownership: SourceOwnership,
     source_paths: BTreeSet<PathBuf>,
     source_modules: BTreeMap<PathBuf, String>,
     retired_modules: BTreeSet<String>,
@@ -123,6 +127,10 @@ impl BuildSession {
         let project = initialized.project;
         let walked = walk::walk_filtered(&project.root, &project.source_globs, [&project.output])?;
         let source_roots = walked.roots.into_iter().collect_vec();
+        let ownership = SourceOwnership::new(
+            &project.root,
+            project.packages.iter().map(|package| (&package.name, package.source_globs.as_slice())),
+        )?;
         let initial = initialized.build.into_parts();
         let initial_inputs = initial.source_paths.iter().map(|path| {
             let source_path = PathBuf::clone(path);
@@ -144,7 +152,7 @@ impl BuildSession {
             output: project.output,
             inputs: project.source_globs,
             source_roots,
-            source_globs: walked.globs,
+            ownership,
             source_paths: initial.source_paths,
             source_modules,
             retired_modules: BTreeSet::new(),
@@ -205,11 +213,7 @@ impl BuildSession {
             }
             match path.extension().and_then(|extension| extension.to_str()) {
                 Some("purs") => {
-                    if self.source_paths.contains(path)
-                        || !self.source_globs.matches(path).is_empty()
-                    {
-                        source_paths.insert(PathBuf::clone(path));
-                    }
+                    source_paths.insert(PathBuf::clone(path));
                 }
                 Some("js" | "jsx") => {
                     let source_path = path.with_extension("purs");
@@ -220,10 +224,11 @@ impl BuildSession {
                 _ => {}
             }
         }
+        let sources = self.assign_sources(source_paths)?;
 
         let mut change = SessionChange::default();
-        for path in source_paths {
-            change.combine(self.observe_source_path(&path)?);
+        for (path, owner) in sources {
+            change.combine(self.observe_source_path(&path, owner)?);
             if path.exists() {
                 self.source_paths.insert(path);
             } else {
@@ -239,15 +244,34 @@ impl BuildSession {
     fn rescan_inputs(&mut self) -> Result<SessionChange, SessionFailure> {
         let walked = walk::walk_filtered(&self.root, &self.inputs, [&self.output])?;
         let current_paths = walked.files.into_iter().collect::<BTreeSet<_>>();
-        let affected_paths = self.source_paths.union(&current_paths).cloned().collect_vec();
+        let affected_paths = self.source_paths.union(&current_paths).cloned();
+        let sources = self.assign_sources(affected_paths)?;
 
         let mut change = SessionChange::default();
-        for path in affected_paths {
-            change.combine(self.observe_source_path(&path)?);
+        for (path, owner) in sources {
+            change.combine(self.observe_source_path(&path, owner)?);
         }
-        self.source_globs = walked.globs;
         self.source_paths = current_paths;
         Ok(change)
+    }
+
+    /// The package of every path that a package's source globs match, resolved before any of
+    /// them is observed so that a conflict leaves the session as it was.
+    fn assign_sources(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+    ) -> Result<Vec<(PathBuf, SmolStr)>, SessionFailure> {
+        let mut sources = Vec::new();
+        for path in paths {
+            match self.ownership.owner(&path) {
+                Ok(Some(owner)) => sources.push((path, SmolStr::clone(owner))),
+                Ok(None) => {}
+                // A path two packages claim is only a conflict while a file exists there.
+                Err(_) if !path.exists() => {}
+                Err(conflict) => return Err(conflict.into()),
+            }
+        }
+        Ok(sources)
     }
 
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
@@ -303,9 +327,13 @@ impl BuildSession {
         }
     }
 
-    fn observe_source_path(&mut self, path: &Path) -> Result<SessionChange, SessionFailure> {
+    fn observe_source_path(
+        &mut self,
+        path: &Path,
+        owner: SmolStr,
+    ) -> Result<SessionChange, SessionFailure> {
         let previous_name = self.source_modules.get(path).cloned();
-        let change = observe_source_unit(&mut self.compilation, path)?;
+        let change = observe_source_unit(&mut self.compilation, path, owner)?;
         if path.exists() {
             let unit = source_unit(path)?;
             if let Some(current_name) = self.compilation.module_name(unit.source())? {
@@ -381,6 +409,7 @@ impl SessionChange {
 fn observe_source_unit(
     compilation: &mut CompilationState,
     source_path: &Path,
+    owner: SmolStr,
 ) -> Result<SessionChange, SessionFailure> {
     let unit = source_unit(source_path)?;
     let previous_source = compilation.source_content(unit.source())?;
@@ -389,7 +418,8 @@ fn observe_source_unit(
     let previous_name = compilation.module_name(unit.source())?;
 
     let source = observe_disk(source_path);
-    let mut lifecycle = compilation.observe_source(SourceUnitKey::clone(&unit), source, ());
+    let owner = SourceOwner::Package(owner);
+    let mut lifecycle = compilation.observe_source(SourceUnitKey::clone(&unit), source, owner);
     for kind in ForeignSourceKind::ALL {
         let foreign = observe_disk(&source_path.with_extension(kind.extension()));
         lifecycle.combine(compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, foreign));

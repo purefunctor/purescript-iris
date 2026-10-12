@@ -1,6 +1,7 @@
 //! Source glob expansion for build preparation.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use globset::{Glob, GlobSet, GlobSetBuilder};
@@ -10,16 +11,34 @@ use walkdir::WalkDir;
 
 pub struct Walk {
     pub roots: BTreeSet<PathBuf>,
-    pub globs: GlobSet,
     pub files: Vec<PathBuf>,
 }
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    GlobSetError(#[from] globset::Error),
+    GlobSet(#[from] globset::Error),
     #[error(transparent)]
-    WalkDirError(#[from] walkdir::Error),
+    WalkDir(#[from] walkdir::Error),
+    #[error("failed to resolve glob {}: {source}", path.display())]
+    Resolve {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    #[error("glob {} is not Unicode", .0.display())]
+    NonUnicodeGlob(PathBuf),
+}
+
+/// The glob for `path` under `root`, spelled the way walked files are, so that it also matches
+/// paths reported later by a filesystem watcher.
+pub fn absolute_glob(root: &Path, path: &Path) -> Result<Glob, Error> {
+    let path = dunce::simplified(root).join(path);
+    let path = path
+        .absolutize()
+        .map_err(|source| Error::Resolve { path: PathBuf::clone(&path), source })?;
+    let pattern = path.to_str().ok_or_else(|| Error::NonUnicodeGlob(path.to_path_buf()))?;
+    Ok(Glob::new(pattern)?)
 }
 
 pub fn walk_filtered(
@@ -30,25 +49,18 @@ pub fn walk_filtered(
     let mut files = Vec::new();
 
     let mut roots: BTreeMap<PathBuf, GlobSetBuilder> = BTreeMap::default();
-    let mut globs = GlobSetBuilder::new();
 
     for path in includes {
-        let path = dunce::simplified(root).join(path);
-        if let Ok(path) = path.absolutize()
-            && let Some(path) = path.to_str()
-            && let Ok(glob) = Glob::new(path)
-        {
+        if let Ok(glob) = absolute_glob(root, path.as_ref()) {
             roots
-                .entry(glob_literal_base(path))
+                .entry(glob_literal_base(glob.glob()))
                 .or_insert_with(GlobSetBuilder::new)
-                .add(glob.clone());
-            globs.add(glob);
+                .add(glob);
         } else {
-            files.push(path);
+            files.push(dunce::simplified(root).join(path));
         }
     }
 
-    let globs = globs.build()?;
     let excludes = build_excludes(root, excludes)?;
     files.retain(|path| !excludes.is_match(path));
     let mut files_from_glob = BTreeSet::default();
@@ -72,7 +84,7 @@ pub fn walk_filtered(
     files.extend(files_from_glob);
 
     let roots = roots.into_keys().collect();
-    Ok(Walk { roots, globs, files })
+    Ok(Walk { roots, files })
 }
 
 fn build_excludes(
@@ -182,7 +194,6 @@ mod tests {
             relative_files(root, walk.files),
             vec!["package/src/Main.purs", "package/src/nested/Test.purs"]
         );
-        assert!(walk.globs.is_match(root.join("package/src/nested/Test.purs")));
         assert_eq!(walk.roots, BTreeSet::from([root.join("package"), root.join("package/src")]));
     }
 

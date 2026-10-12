@@ -10,7 +10,11 @@ mod session;
 mod walk;
 mod workspace;
 
-pub use packages::{DiscoveredPackage, DiscoveredPackages, PackagesError, discover_packages};
+pub use compilation::SourceOwner;
+pub use packages::{
+    ConflictingSource, DiscoveredPackage, DiscoveredPackages, PackagesError, SourceOwnership,
+    discover_packages,
+};
 pub use workspace::{Workspace, WorkspaceError};
 
 pub use project::{

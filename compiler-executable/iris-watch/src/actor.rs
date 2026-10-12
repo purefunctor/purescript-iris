@@ -173,6 +173,9 @@ impl BuildActor {
                 self.needs_rescan = true;
                 self.needs_rebuild = true;
                 self.build = BuildState::Failed { message: error.to_string() };
+                // The inputs of the last summary did not cause this failure; the error names
+                // what did.
+                self.changed_inputs.clear();
                 report::operational_failure(
                     &self.config,
                     &self.root,

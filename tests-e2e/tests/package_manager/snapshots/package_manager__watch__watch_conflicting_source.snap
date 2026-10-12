@@ -1,0 +1,8 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+---
+Answering queries: see `iris watch query --help` or `iris skills get watch`
+[TIME] Build succeeded in [DURATION]
+          Loaded 1 input: Main
+[TIME] Rebuild failed in [DURATION]
+[TIME] Rebuild succeeded in [DURATION]

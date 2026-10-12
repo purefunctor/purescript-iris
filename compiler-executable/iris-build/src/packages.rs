@@ -10,12 +10,14 @@ use std::collections::{BTreeMap, VecDeque};
 use std::path::{Component, Path, PathBuf};
 use std::{fs, io};
 
+use globset::{GlobSet, GlobSetBuilder};
 use itertools::Itertools;
 use serde::Deserialize;
 use smol_str::SmolStr;
 use thiserror::Error;
 use unicode_general_category::{GeneralCategory, get_general_category};
 
+use super::walk;
 use super::workspace::Workspace;
 
 #[derive(Debug, Error)]
@@ -44,8 +46,8 @@ pub enum PackagesError {
     UnsafeGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
     #[error("git package '{name}' subdirectory {subdirectory} resolves outside its checkout")]
     EscapedGitSubdirectory { name: SmolStr, subdirectory: PathBuf },
-    #[error("source file {path} is claimed by packages '{first}' and '{second}'")]
-    ConflictingSource { path: PathBuf, first: SmolStr, second: SmolStr },
+    #[error(transparent)]
+    ConflictingSource(#[from] ConflictingSource),
     #[error("failed to canonicalize package path {path}: {source}")]
     CanonicalizePath {
         path: PathBuf,
@@ -53,7 +55,15 @@ pub enum PackagesError {
         source: io::Error,
     },
     #[error(transparent)]
-    Walk(#[from] super::walk::Error),
+    Walk(#[from] walk::Error),
+}
+
+#[derive(Debug, Error)]
+#[error("source file {} is claimed by packages '{first}' and '{second}'", path.display())]
+pub struct ConflictingSource {
+    pub path: PathBuf,
+    pub first: SmolStr,
+    pub second: SmolStr,
 }
 
 /// A single package with its discovered sources.
@@ -67,8 +77,51 @@ pub struct DiscoveredPackage {
     pub dependencies: Vec<SmolStr>,
     /// Whether the sources are editable project files rather than fetched checkouts.
     pub editable: bool,
-    /// The package locations relative to the workspace root.
-    pub roots: Vec<PathBuf>,
+    /// The package location relative to the workspace root.
+    pub root: PathBuf,
+    /// The globs relative to the workspace root that select this package's sources.
+    pub source_globs: Vec<PathBuf>,
+}
+
+/// The rule that assigns a source file to a package: the package whose source globs match it.
+///
+/// Discovery and `iris watch` share this rule, so a file created while watching belongs to the
+/// package a fresh build would give it.
+pub struct SourceOwnership {
+    packages: Vec<(SmolStr, GlobSet)>,
+}
+
+impl SourceOwnership {
+    pub fn new<'a>(
+        root: &Path,
+        packages: impl IntoIterator<Item = (&'a SmolStr, &'a [PathBuf])>,
+    ) -> Result<SourceOwnership, walk::Error> {
+        let packages = packages.into_iter().map(|(name, source_globs)| {
+            let mut globs = GlobSetBuilder::new();
+            for source_glob in source_globs {
+                globs.add(walk::absolute_glob(root, source_glob)?);
+            }
+            Ok((SmolStr::clone(name), globs.build()?))
+        });
+        let packages = packages.collect::<Result<Vec<_>, walk::Error>>()?;
+        Ok(SourceOwnership { packages })
+    }
+
+    /// The package that owns `path`, or `None` when no package's source globs match it.
+    pub fn owner(&self, path: &Path) -> Result<Option<&SmolStr>, ConflictingSource> {
+        let mut claims = self.packages.iter().filter(|(_, globs)| globs.is_match(path));
+        let Some((owner, _)) = claims.next() else {
+            return Ok(None);
+        };
+        if let Some((second, _)) = claims.next() {
+            return Err(ConflictingSource {
+                path: path.to_path_buf(),
+                first: SmolStr::clone(owner),
+                second: SmolStr::clone(second),
+            });
+        }
+        Ok(Some(owner))
+    }
 }
 
 /// Every package in the dependency closure with the globs that find them.
@@ -122,43 +175,39 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
         discovered.insert(SmolStr::clone(&name), resolved);
     }
 
-    let mut source_globs = Vec::new();
-    let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
-    let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
-    for resolved in discovered.values() {
-        let mut package_globs = Vec::new();
-        for directory in &resolved.source_directories {
+    let package_globs = discovered.values().map(|resolved| {
+        let globs = resolved.source_directories.iter().map(|directory| {
             let relative = directory.strip_prefix(&workspace.root).unwrap_or(directory);
-            package_globs.push(relative.join(iris_spago::PURS_GLOB));
-        }
-        source_globs.extend(package_globs.iter().cloned());
-        let walked =
-            super::walk::walk_filtered(&workspace.root, package_globs, Vec::<PathBuf>::new())?;
-        for file in walked.files {
-            if let Some(owner) =
-                owners.insert(PathBuf::clone(&file), SmolStr::clone(&resolved.name))
-                && owner != resolved.name
-            {
-                return Err(PackagesError::ConflictingSource {
-                    path: file,
-                    first: owner,
-                    second: SmolStr::clone(&resolved.name),
-                });
-            }
-            files.entry(SmolStr::clone(&resolved.name)).or_default().push(file);
-        }
+            relative.join(iris_spago::PURS_GLOB)
+        });
+        (SmolStr::clone(&resolved.name), globs.collect_vec())
+    });
+    let mut package_globs = package_globs.collect::<BTreeMap<_, _>>();
+    let ownership = SourceOwnership::new(
+        &workspace.root,
+        package_globs.iter().map(|(name, globs)| (name, globs.as_slice())),
+    )?;
+    let source_globs = package_globs.values().flatten().cloned().collect_vec();
+    let walked = walk::walk_filtered(&workspace.root, &source_globs, Vec::<PathBuf>::new())?;
+    let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
+    for file in walked.files {
+        let owner = ownership
+            .owner(&file)?
+            .expect("invariant violated: a walked source matches no package glob");
+        files.entry(SmolStr::clone(owner)).or_default().push(file);
     }
 
-    let packages = discovered
-        .into_values()
-        .map(|resolved| DiscoveredPackage {
-            files: files.remove(&resolved.name).unwrap_or_default(),
-            dependencies: resolved.dependencies,
-            editable: resolved.editable,
-            roots: vec![resolved.relative],
-            name: resolved.name,
-        })
-        .collect_vec();
+    let packages = discovered.into_values().map(|resolved| DiscoveredPackage {
+        files: files.remove(&resolved.name).unwrap_or_default(),
+        source_globs: package_globs
+            .remove(&resolved.name)
+            .expect("invariant violated: a resolved package has no source globs"),
+        dependencies: resolved.dependencies,
+        editable: resolved.editable,
+        root: resolved.relative,
+        name: resolved.name,
+    });
+    let packages = packages.collect_vec();
     Ok(DiscoveredPackages { source_globs, packages })
 }
 

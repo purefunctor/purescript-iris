@@ -10,8 +10,17 @@ use building::{
 };
 use files::{FileId, ForeignSourceKind};
 use prim_constants::MODULE_MAP;
+use smol_str::SmolStr;
 use tempfile::TempDir;
 use url::Url;
+
+/// The package a source belongs to, which build execution keeps with the source.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceOwner {
+    /// A built-in Prim module, which no package provides.
+    Builtin,
+    Package(SmolStr),
+}
 
 pub struct MaterializedPrim {
     directory: TempDir,
@@ -27,7 +36,7 @@ impl MaterializedPrim {
     }
 }
 
-pub struct CompilationState<Version = (), Metadata = ()> {
+pub struct CompilationState<Version = (), Metadata = SourceOwner> {
     engine: QueryEngine,
     files: FileLifecycle<Version, Metadata>,
     sources: BTreeSet<FileId>,
@@ -149,6 +158,10 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
 
     pub fn source_path(&self, file_id: FileId) -> Option<Arc<str>> {
         self.files.source_path(file_id)
+    }
+
+    pub fn source_metadata(&self, file_id: FileId) -> Option<&Metadata> {
+        self.files.source_metadata(file_id)
     }
 
     pub fn source_foreign_content(&self, source_id: FileId) -> Option<Arc<str>> {
