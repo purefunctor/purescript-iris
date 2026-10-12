@@ -1,15 +1,23 @@
 use std::sync::Arc;
 
 use files::{FileId, ForeignSourceKind};
+use smol_str::SmolStr;
 
 use crate::ModuleDiagnostic;
+
+/// A module whose generated JavaScript this module imports.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedModule {
+    pub file_id: FileId,
+    pub module_name: SmolStr,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
     file_id: FileId,
     name: Arc<str>,
     source: Arc<str>,
-    dependencies: Arc<[FileId]>,
+    dependencies: Arc<[ImportedModule]>,
     diagnostics: Arc<[ModuleDiagnostic]>,
     foreign_kind: Option<ForeignSourceKind>,
     stylex_theme_source: Option<Arc<str>>,
@@ -21,7 +29,7 @@ impl Module {
         file_id: FileId,
         name: String,
         source: String,
-        dependencies: Vec<FileId>,
+        dependencies: Vec<ImportedModule>,
         diagnostics: Vec<ModuleDiagnostic>,
         foreign_kind: Option<ForeignSourceKind>,
         stylex_theme_source: Option<String>,
@@ -55,7 +63,7 @@ impl Module {
         &self.source
     }
 
-    pub fn dependencies(&self) -> &[FileId] {
+    pub fn dependencies(&self) -> &[ImportedModule] {
         &self.dependencies
     }
 

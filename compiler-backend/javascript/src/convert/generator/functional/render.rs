@@ -27,7 +27,8 @@ use smol_str::{SmolStr, format_smolstr};
 use super::super::names::NameAllocator;
 use crate::error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
 use crate::module::{
-    Module, STYLEX_THEME_FILENAME, module_filename, runtime_filename, stylex_theme_module_filename,
+    ImportedModule, Module, STYLEX_THEME_FILENAME, module_filename, runtime_filename,
+    stylex_theme_module_filename,
 };
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
@@ -434,7 +435,10 @@ impl<'m> Generator<'m> {
             None
         };
 
-        let dependencies = self.module.dependencies.iter().map(|dependency| dependency.file_id);
+        let dependencies = self.module.dependencies.iter().map(|dependency| ImportedModule {
+            file_id: dependency.file_id,
+            module_name: SmolStr::clone(&dependency.module_name),
+        });
         let dependencies = dependencies.collect_vec();
         let diagnostics = if initializer_cycle.is_empty() {
             Vec::new()

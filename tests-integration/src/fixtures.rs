@@ -138,7 +138,7 @@ fn javascript_modules(
             Ok(module) => module,
             Err(error) => return Ok(Err((file_id, error))),
         };
-        pending.extend(module.dependencies().iter().copied());
+        pending.extend(module.dependencies().iter().map(|dependency| dependency.file_id));
         modules.push(module);
     }
     Ok(Ok(JavaScriptModules { modules }))

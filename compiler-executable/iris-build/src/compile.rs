@@ -431,7 +431,7 @@ fn collect_modules(
         });
         let generated = generated.collect::<Result<Vec<_>, _>>()?;
         for module in generated.into_iter().flatten() {
-            pending.extend(module.dependencies().iter().copied());
+            pending.extend(module.dependencies().iter().map(|dependency| dependency.file_id));
             modules.push(module);
         }
     }
