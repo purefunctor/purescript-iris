@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
 use iris_package::{AddConfig, NewConfig};
+use iris_self_update::{Channel, SelfUpdateConfig};
 use iris_watch_server::protocol::{InstanceSearch, Namespace, Query};
 use itertools::Itertools;
 use tracing::level_filters::LevelFilter;
@@ -51,6 +52,9 @@ pub enum Command {
         #[usage(flatten)]
         options: TestOptions,
     },
+    /// Manage this installation of Iris.
+    #[usage(name = "self")]
+    Installation(InstallationOptions),
 }
 
 #[derive(Debug, Args)]
@@ -468,6 +472,53 @@ pub struct SkillName {
     /// Skill name, as listed by `iris skills list`.
     #[usage(value_name = "NAME")]
     pub name: String,
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct InstallationOptions {
+    #[usage(subcommand)]
+    pub command: InstallationCommand,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum InstallationCommand {
+    /// Replace this Iris with a published release.
+    Update(UpdateOptions),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct UpdateOptions {
+    /// Release to install, such as v0.1.6. Defaults to the latest release on this Iris's channel.
+    #[usage(value_name = "VERSION", conflicts("--stable", "--canary", "--check"))]
+    version: Option<String>,
+
+    #[usage(arg_group)]
+    channel: Option<ChannelOption>,
+
+    /// Report whether another release is available without installing it. Exits with 100 when
+    /// one is.
+    #[usage(long)]
+    pub check: bool,
+}
+
+#[derive(Debug, Clone, Copy, usage::ArgGroup)]
+pub enum ChannelOption {
+    /// Follow stable releases. This is the default for stable releases.
+    Stable,
+    /// Follow canary builds of the main branch. This is the default for canary builds.
+    Canary,
+}
+
+impl UpdateOptions {
+    pub fn into_config(self) -> SelfUpdateConfig {
+        let channel = self.channel.map(|channel| match channel {
+            ChannelOption::Stable => Channel::Stable,
+            ChannelOption::Canary => Channel::Canary,
+        });
+        SelfUpdateConfig { current: crate::VERSION.to_string(), version: self.version, channel }
+    }
 }
 
 #[derive(Debug, Args)]

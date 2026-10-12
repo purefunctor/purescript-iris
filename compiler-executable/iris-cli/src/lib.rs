@@ -3,6 +3,7 @@ mod format;
 mod logging;
 mod skills;
 
+use iris_self_update::{Availability, Update};
 use iris_watch_server::client::{self, ClientError};
 use iris_watch_server::discovery::OutputLock;
 use iris_watch_server::protocol::Response;
@@ -124,6 +125,56 @@ pub fn run() -> i32 {
                 error.exit_code()
             }
         },
+        cli::Command::Installation(options) => match options.command {
+            cli::InstallationCommand::Update(options) => self_update(options),
+        },
+    }
+}
+
+/// Exit status of `iris self update --check` when another release is available, as
+/// `dnf check-update` reports available updates, so scripts can tell it apart from a failure.
+const UPDATE_AVAILABLE: i32 = 100;
+
+fn self_update(options: cli::UpdateOptions) -> i32 {
+    if options.check {
+        return match iris_self_update::check(options.into_config()) {
+            Ok(Availability::UpToDate(release)) => {
+                println!("Iris {release} is up to date.");
+                0
+            }
+            Ok(Availability::Available(release)) => {
+                println!("Iris {release} is available; this is Iris {VERSION}.");
+                UPDATE_AVAILABLE
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                1
+            }
+        };
+    }
+    match iris_self_update::update(options.into_config()) {
+        Ok(Update::AlreadyInstalled(release)) => {
+            println!("Iris {release} is already installed.");
+            0
+        }
+        Ok(Update::Installed(installed)) => {
+            let release = installed.release;
+            println!(
+                "Replaced Iris {VERSION} with Iris {release} at {}.",
+                installed.executable.display()
+            );
+            println!("Restart `iris watch` and editor language servers to use Iris {release}.");
+            if !installed.has_self_update {
+                eprintln!(
+                    "warning: Iris {release} cannot update itself; run the installer to update it."
+                );
+            }
+            0
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            1
+        }
     }
 }
 

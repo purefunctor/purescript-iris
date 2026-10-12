@@ -4,23 +4,20 @@ use std::time::Duration;
 
 use anyhow::{Result, bail};
 use flate2::read::GzDecoder;
-use reqwest::blocking::Client;
 use tar::Archive;
+use ureq::Agent;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct PackageCache {
     root: PathBuf,
-    client: Client,
+    agent: Agent,
 }
 
 impl PackageCache {
     pub fn new(root: PathBuf) -> PackageCache {
-        let client = Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .build()
-            .expect("package cache HTTP client configuration is valid");
-        PackageCache { root, client }
+        let agent = Agent::config_builder().timeout_global(Some(REQUEST_TIMEOUT)).build().into();
+        PackageCache { root, agent }
     }
 
     pub fn download_path(&self, package: &str, version: &str) -> PathBuf {
@@ -55,7 +52,9 @@ impl PackageCache {
             fs::create_dir_all(download_path.parent().expect("download path has parent"))?;
             let url =
                 format!("https://packages.registry.purescript.org/{package}/{version}.tar.gz");
-            let bytes = self.client.get(url).send()?.error_for_status()?.bytes()?;
+            let response = self.agent.get(&url).call()?;
+            // Registry archives are not bounded by ureq's default 10 MB body limit.
+            let bytes = response.into_body().into_with_config().limit(u64::MAX).read_to_vec()?;
             fs::write(&download_path, bytes)?;
         }
 

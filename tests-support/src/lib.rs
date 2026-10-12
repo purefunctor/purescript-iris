@@ -6,11 +6,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result, bail, ensure};
 use base64::Engine;
 use flate2::read::GzDecoder;
-use reqwest::blocking::Client;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tar::{Archive, EntryType};
+use ureq::Agent;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const COMPLETE_FILE: &str = ".complete";
@@ -117,13 +117,13 @@ struct Published {
 
 fn resolve_packages(configuration: &PackageConfiguration) -> Result<RegistryLock> {
     let package_set_version = &configuration.package_set;
-    let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
+    let agent = http_agent();
     let base = "https://raw.githubusercontent.com/purescript";
     let package_set_url = format!("{base}/registry/main/package-sets/{package_set_version}.json");
-    let package_set_response = client.get(package_set_url).send()?.error_for_status()?.text()?;
+    let package_set_response = agent.get(&package_set_url).call()?.body_mut().read_to_string()?;
     let package_set: PackageSet = serde_json::from_str(&package_set_response)?;
     build_lock(package_set_version, configuration.roots.clone(), package_set, |path| {
-        Ok(client.get(format!("{base}/{path}")).send()?.error_for_status()?.text()?)
+        Ok(agent.get(&format!("{base}/{path}")).call()?.body_mut().read_to_string()?)
     })
 }
 
@@ -231,15 +231,21 @@ pub fn prepare(
         lock
     };
     let key = digest_hex(&serde_json::to_vec(&lock)?);
-    let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
+    let agent = http_agent();
     prepare_locked(&lock, &key, cache_root, |package| {
         let url = format!(
             "https://packages.registry.purescript.org/{}/{}.tar.gz",
             package.name, package.version
         );
-        Ok(client.get(url).send()?.error_for_status()?.bytes()?.to_vec())
+        let response = agent.get(&url).call()?;
+        // Registry archives are not bounded by ureq's default 10 MB body limit.
+        Ok(response.into_body().into_with_config().limit(u64::MAX).read_to_vec()?)
     })?;
     prepared_sources_for_lock(&lock, &key, cache_root)
+}
+
+fn http_agent() -> Agent {
+    Agent::config_builder().timeout_global(Some(REQUEST_TIMEOUT)).build().into()
 }
 
 fn read_resolution(configuration: &PackageConfiguration, path: &Path) -> Result<RegistryLock> {

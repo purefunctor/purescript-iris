@@ -24,7 +24,6 @@ lowering = { version = "0.1.0", path = "../compiler-frontend/lowering" }
 mimalloc = "0.1.52"
 parsing = { version = "0.1.0", path = "../compiler-frontend/parsing" }
 rayon = "1.12.0"
-reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls"] }
 resolving = { version = "0.1.0", path = "../compiler-frontend/resolving" }
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -33,6 +32,7 @@ stabilizing = { version = "0.1.0", path = "../compiler-frontend/stabilizing" }
 syntax = { version = "0.1.0", path = "../compiler-frontend/syntax" }
 tar = "0.4.46"
 thiserror = "2"
+ureq = "3.4.2"
 url = "2.5.8"
 walkdir = "2.5.0"
 
