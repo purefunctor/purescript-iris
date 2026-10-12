@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 330
 ---
 Error! · [NotInScope] · Main.purs:4:19
   •
@@ -149,6 +149,15 @@ Error! · [NotInScope] · Main.purs:26:15
 Error! · [CannotUnify] · Main.purs:28:28
   •
   │
+  • Cannot unify '?[invalid operator item]' with '?1 -> ?2'
+  │
+  │   type MissingTypeOperator = Int + String
+  │                              ╰───────────
+  •
+
+Error! · [CannotUnify] · Main.purs:28:28
+  •
+  │
   • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   type MissingTypeOperator = Int + String
@@ -195,7 +204,7 @@ Error! · [CannotUnify] · Main.purs:10:3
 Error! · [CannotUnify] · Main.purs:14:3
   •
   │
-  • Cannot unify '?[missing variable resolution]' with '(t2 :: Type -> Type) ?24'
+  • Cannot unify '?[missing variable resolution]' with '(t2 :: Type -> Type) ?26'
   │
   │     absent
   │     ╰─────
@@ -222,7 +231,7 @@ Error! · [CannotUnify] · Main.purs:18:3
 Error! · [CannotUnify] · Main.purs:19:3
   •
   │
-  • Cannot unify '?[missing variable resolution]' with '(t4 :: Type -> Type) ?34'
+  • Cannot unify '?[missing variable resolution]' with '(t4 :: Type -> Type) ?36'
   │
   │     second <- absent
   │     ╰───────────────

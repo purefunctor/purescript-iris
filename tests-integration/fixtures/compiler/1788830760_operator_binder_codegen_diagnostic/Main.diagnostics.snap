@@ -1,6 +1,16 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
+Error! · [CannotUnify] · Main.purs:7:6
+  •
+  │
+  • Cannot unify 'N' with '?2 -> ?3'
+  │
+  │   test (a :+ b) = 1
+  │        ╰───────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:7:7
   •
   │
