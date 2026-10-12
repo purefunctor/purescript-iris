@@ -255,7 +255,7 @@ where
         return Ok(());
     };
 
-    if !state.checked.errors.is_empty() || has_source_errors(context.queries, context.id)? {
+    if has_checking_errors(&state.checked) || has_source_errors(context.queries, context.id)? {
         return Ok(());
     }
 
@@ -266,7 +266,7 @@ where
             continue;
         }
         let checked = context.queries.checked(file_id)?;
-        if !checked.errors.is_empty() || has_source_errors(context.queries, file_id)? {
+        if has_checking_errors(&checked) || has_source_errors(context.queries, file_id)? {
             return Ok(());
         }
         let resolved = context.queries.resolved(file_id)?;
@@ -275,6 +275,10 @@ where
 
     state.checked.errors.push(error);
     Ok(())
+}
+
+fn has_checking_errors(checked: &CheckedModule) -> bool {
+    checked.errors.iter().any(|error| !error.kind.is_warning())
 }
 
 fn has_source_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
