@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 331
+---
+independentMismatches :: { first :: Prim.Int, second :: Prim.Int }
+independentMismatches = { first: "first", second: true }
+
+signatureAndEquation :: ?[missing constructor]
+signatureAndEquation = <error>
+
+warningWithoutError :: Prim.Boolean -> Prim.Int
+warningWithoutError = \true -> 1
+
+warningAfterError :: Prim.Boolean -> Prim.Int
+warningAfterError = \true -> "one"

@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 329
+---
+Terms
+independentMismatches :: { first :: Prim.Int, second :: Prim.Int }
+signatureAndEquation :: ?[missing constructor]
+warningWithoutError :: Prim.Boolean -> Prim.Int
+warningAfterError :: Prim.Boolean -> Prim.Int
+
+Types

@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 332
+---
+@export independentMismatches = { first: "first", second: true }
+
+@export signatureAndEquation = <error>
+
+@export warningWithoutError = \$boolean%0@(true) -> 1
+
+@export warningAfterError = \$boolean%1@(true) -> "one"
