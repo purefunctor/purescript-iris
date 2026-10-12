@@ -59,6 +59,8 @@ pub enum ErrorKind {
     CannotUnify {
         t1: TypeId,
         t2: TypeId,
+        /// The types of the failed check, which contain `t1` and `t2`.
+        outer: (TypeId, TypeId),
     },
     DeriveInvalidArity {
         class_file: files::FileId,

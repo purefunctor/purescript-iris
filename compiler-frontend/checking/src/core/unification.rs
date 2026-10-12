@@ -28,6 +28,31 @@ impl CanUnify {
     }
 }
 
+/// The outcome of the recursive cores behind [`unify`], [`subtype_with`], and [`solve`].
+///
+/// The cores return the first failure instead of reporting it, so that each
+/// entry point reports a single error for the check that it was given.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unified {
+    Success,
+    /// The innermost pair of types that could not be unified.
+    Mismatch {
+        t1: TypeId,
+        t2: TypeId,
+    },
+    /// Labels that a closed row does not allow during record subtyping.
+    Labels {
+        missing: Arc<[SmolStr]>,
+        additional: Arc<[SmolStr]>,
+    },
+}
+
+impl Unified {
+    fn and_then(self, f: impl FnOnce() -> QueryResult<Unified>) -> QueryResult<Unified> {
+        if let Unified::Success = self { f() } else { Ok(self) }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubtypeApplication {
     Type { result: TypeId },
@@ -53,7 +78,7 @@ where
         constraint: TypeId,
         constrained: TypeId,
         t2: TypeId,
-    ) -> QueryResult<bool>;
+    ) -> QueryResult<Unified>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -70,9 +95,9 @@ where
         constraint: TypeId,
         constrained: TypeId,
         t2: TypeId,
-    ) -> QueryResult<bool> {
+    ) -> QueryResult<Unified> {
         state.push_wanted(constraint);
-        subtype_with::<Self, Q>(state, context, constrained, t2)
+        subtype_core::<Self, Q>(state, context, constrained, t2)
     }
 }
 
@@ -90,8 +115,8 @@ where
         _constraint: TypeId,
         _constrained: TypeId,
         t2: TypeId,
-    ) -> QueryResult<bool> {
-        unify(state, context, t1, t2)
+    ) -> QueryResult<Unified> {
+        unify_core(state, context, t1, t2)
     }
 }
 
@@ -177,11 +202,25 @@ where
     P: SubtypePolicy<Q>,
     Q: ExternalQueries,
 {
+    let unified = subtype_core::<P, Q>(state, context, t1, t2)?;
+    Ok(report(state, unified, t1, t2))
+}
+
+fn subtype_core<P, Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    t1: TypeId,
+    t2: TypeId,
+) -> QueryResult<Unified>
+where
+    P: SubtypePolicy<Q>,
+    Q: ExternalQueries,
+{
     let t1 = normalise::expand(state, context, t1)?;
     let t2 = normalise::expand(state, context, t2)?;
 
     if t1 == t2 {
-        return Ok(true);
+        return Ok(Unified::Success);
     }
 
     let t1_core = context.lookup_type(t1);
@@ -212,7 +251,7 @@ where
                     (*t2_argument, *t2_result),
                 )
             } else {
-                unify(state, context, t1, t2)
+                unify_core(state, context, t1, t2)
             }
         }
         (Type::Function(t1_argument, t1_result), Type::Application(_, _)) => {
@@ -225,7 +264,7 @@ where
                     (t2_argument, t2_result),
                 )
             } else {
-                unify(state, context, t1, t2)
+                unify_core(state, context, t1, t2)
             }
         }
 
@@ -256,7 +295,7 @@ where
             let skolem = state.fresh_rigid_named(context.queries, binder.kind, text);
 
             let inner = SubstituteName::one(state, context, binder.name, skolem, *inner)?;
-            state.with_depth(|state| subtype_with::<P, Q>(state, context, t1, inner))
+            state.with_depth(|state| subtype_core::<P, Q>(state, context, t1, inner))
         }
 
         // Forall-L
@@ -280,7 +319,7 @@ where
             let unification = state.fresh_unification(context.queries, binder.kind);
 
             let inner = SubstituteName::one(state, context, binder.name, unification, *inner)?;
-            subtype_with::<P, Q>(state, context, inner, t2)
+            subtype_core::<P, Q>(state, context, inner, t2)
         }
 
         (Type::Constrained(constraint, constrained), _) => {
@@ -305,11 +344,11 @@ where
             {
                 subtype_rows::<NonElaborating, Q>(state, context, *t1_row_id, *t2_row_id)
             } else {
-                unify(state, context, t1, t2)
+                unify_core(state, context, t1, t2)
             }
         }
 
-        (_, _) => unify(state, context, t1, t2),
+        (_, _) => unify_core(state, context, t1, t2),
     }
 }
 
@@ -318,14 +357,14 @@ fn subtype_function<Q>(
     context: &CheckContext<Q>,
     t1: (TypeId, TypeId),
     t2: (TypeId, TypeId),
-) -> QueryResult<bool>
+) -> QueryResult<Unified>
 where
     Q: ExternalQueries,
 {
     let (t1_argument, t1_result) = t1;
     let (t2_argument, t2_result) = t2;
-    Ok(subtype_with::<NonElaborating, Q>(state, context, t2_argument, t1_argument)?
-        && subtype_with::<NonElaborating, Q>(state, context, t1_result, t2_result)?)
+    subtype_core::<NonElaborating, Q>(state, context, t2_argument, t1_argument)?
+        .and_then(|| subtype_core::<NonElaborating, Q>(state, context, t1_result, t2_result))
 }
 
 pub fn unify<Q>(
@@ -337,42 +376,72 @@ pub fn unify<Q>(
 where
     Q: ExternalQueries,
 {
+    let unified = unify_core(state, context, t1, t2)?;
+    Ok(report(state, unified, t1, t2))
+}
+
+/// Reports the failure returned by a recursive core for the types given to an entry point.
+fn report(state: &mut CheckState, unified: Unified, t1: TypeId, t2: TypeId) -> bool {
+    match unified {
+        Unified::Success => true,
+        Unified::Mismatch { t1: mismatch_t1, t2: mismatch_t2 } => {
+            let outer = (t1, t2);
+            state.insert_error(ErrorKind::CannotUnify { t1: mismatch_t1, t2: mismatch_t2, outer });
+            false
+        }
+        Unified::Labels { missing, additional } => {
+            if !missing.is_empty() {
+                state.insert_error(ErrorKind::PropertyIsMissing { labels: missing });
+            }
+            if !additional.is_empty() {
+                state.insert_error(ErrorKind::AdditionalProperty { labels: additional });
+            }
+            false
+        }
+    }
+}
+
+fn unify_core<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    t1: TypeId,
+    t2: TypeId,
+) -> QueryResult<Unified>
+where
+    Q: ExternalQueries,
+{
     if t1 == t2 {
-        return Ok(true);
+        return Ok(Unified::Success);
     }
 
     let t1 = normalise::expand(state, context, t1)?;
     let t2 = normalise::expand(state, context, t2)?;
 
     if t1 == t2 {
-        return Ok(true);
+        return Ok(Unified::Success);
     }
 
     let t1_core = context.lookup_type(t1);
     let t2_core = context.lookup_type(t2);
 
-    let unifies = match (t1_core, t2_core) {
+    let unified = match (t1_core, t2_core) {
         // PureScript has an impredicative type system i.e. unification
         // variables can be solved to Type::Forall. These rules must
         // be placed before the one-sided Type::Forall skolemisation.
-        (Type::Unification(id), _) => return solve(state, context, t1, *id, t2),
-        (_, Type::Unification(id)) => return solve(state, context, t2, *id, t1),
+        (Type::Unification(id), _) => solve_core(state, context, t1, *id, t2)?,
+        (_, Type::Unification(id)) => solve_core(state, context, t2, *id, t1)?,
 
         (
             Type::Application(t1_function, t1_argument),
             Type::Application(t2_function, t2_argument),
-        ) => {
-            unify(state, context, *t1_function, *t2_function)?
-                && unify(state, context, *t1_argument, *t2_argument)?
-        }
+        ) => unify_core(state, context, *t1_function, *t2_function)?
+            .and_then(|| unify_core(state, context, *t1_argument, *t2_argument))?,
 
         (
             Type::KindApplication(t1_function, t1_argument),
             Type::KindApplication(t2_function, t2_argument),
-        ) => {
-            unify(state, context, *t1_function, *t2_function)?
-                && unify(state, context, *t1_argument, *t2_argument)?
-        }
+        ) => unify_core(state, context, *t1_function, *t2_function)?
+            .and_then(|| unify_core(state, context, *t1_argument, *t2_argument))?,
 
         // Forall-Forall
         //
@@ -398,7 +467,7 @@ where
             let t1_inner = SubstituteName::one(state, context, t1_binder.name, skolem, *t1_inner)?;
             let t2_inner = SubstituteName::one(state, context, t2_binder.name, skolem, *t2_inner)?;
 
-            state.with_depth(|state| unify(state, context, t1_inner, t2_inner))?
+            state.with_depth(|state| unify_core(state, context, t1_inner, t2_inner))?
         }
 
         // Forall-B, A-Forall
@@ -420,75 +489,80 @@ where
             let text = state.checked.lookup_name(binder.name);
             let skolem = state.fresh_rigid_named(context.queries, binder.kind, text);
             let inner = SubstituteName::one(state, context, binder.name, skolem, *inner)?;
-            unify(state, context, inner, t2)?
+            unify_core(state, context, inner, t2)?
         }
         (_, Type::Forall(binder_id, inner)) => {
             let binder = context.lookup_forall_binder(*binder_id);
             let text = state.checked.lookup_name(binder.name);
             let skolem = state.fresh_rigid_named(context.queries, binder.kind, text);
             let inner = SubstituteName::one(state, context, binder.name, skolem, *inner)?;
-            unify(state, context, t1, inner)?
+            unify_core(state, context, t1, inner)?
         }
 
         (
             Type::Constrained(t1_constraint, t1_inner),
             Type::Constrained(t2_constraint, t2_inner),
-        ) => {
-            unify(state, context, *t1_constraint, *t2_constraint)?
-                && unify(state, context, *t1_inner, *t2_inner)?
-        }
+        ) => unify_core(state, context, *t1_constraint, *t2_constraint)?
+            .and_then(|| unify_core(state, context, *t1_inner, *t2_inner))?,
 
+        // The function type is rewritten into an application of the
+        // Function constructor, which the source never mentions. Mismatches
+        // inside of the rewritten type are reported on the original types.
         (Type::Application(_, _), Type::Function(t2_argument, t2_result)) => {
-            let t2 = context.intern_function_application(*t2_argument, *t2_result);
-            unify(state, context, t1, t2)?
+            let t2_application = context.intern_function_application(*t2_argument, *t2_result);
+            match unify_core(state, context, t1, t2_application)? {
+                Unified::Mismatch { .. } => Unified::Mismatch { t1, t2 },
+                unified => unified,
+            }
         }
         (Type::Function(t1_argument, t1_result), Type::Application(_, _)) => {
-            let t1 = context.intern_function_application(*t1_argument, *t1_result);
-            unify(state, context, t1, t2)?
+            let t1_application = context.intern_function_application(*t1_argument, *t1_result);
+            match unify_core(state, context, t1_application, t2)? {
+                Unified::Mismatch { .. } => Unified::Mismatch { t1, t2 },
+                unified => unified,
+            }
         }
 
         (Type::Function(t1_argument, t1_result), Type::Function(t2_argument, t2_result)) => {
-            unify(state, context, *t1_argument, *t2_argument)?
-                && unify(state, context, *t1_result, *t2_result)?
+            unify_core(state, context, *t1_argument, *t2_argument)?
+                .and_then(|| unify_core(state, context, *t1_result, *t2_result))?
         }
 
         (Type::Kinded(t1_inner, t1_kind), Type::Kinded(t2_inner, t2_kind)) => {
-            unify(state, context, *t1_inner, *t2_inner)?
-                && unify(state, context, *t1_kind, *t2_kind)?
+            unify_core(state, context, *t1_inner, *t2_inner)?
+                .and_then(|| unify_core(state, context, *t1_kind, *t2_kind))?
         }
 
         (Type::Constructor(t1_file, t1_item), Type::Constructor(t2_file, t2_item))
             if t1_file == t2_file && t1_item == t2_item =>
         {
-            true
+            Unified::Success
         }
 
-        (Type::Integer(t1_value), Type::Integer(t2_value)) if t1_value == t2_value => true,
+        (Type::Integer(t1_value), Type::Integer(t2_value)) if t1_value == t2_value => {
+            Unified::Success
+        }
 
         (Type::String(t1_kind, t1_value), Type::String(t2_kind, t2_value))
             if t1_kind == t2_kind && t1_value == t2_value =>
         {
-            true
+            Unified::Success
         }
 
         (Type::Row(t1_row_id), Type::Row(t2_row_id)) => {
-            unify_rows(state, context, *t1_row_id, *t2_row_id)?
+            unify_rows(state, context, (t1, *t1_row_id), (t2, *t2_row_id))?
         }
 
         (Type::Rigid(t1_name, _, t1_kind), Type::Rigid(t2_name, _, t2_kind))
             if t1_name == t2_name =>
         {
-            unify(state, context, *t1_kind, *t2_kind)?
+            unify_core(state, context, *t1_kind, *t2_kind)?
         }
 
-        _ => false,
+        _ => Unified::Mismatch { t1, t2 },
     };
 
-    if !unifies {
-        state.insert_error(ErrorKind::CannotUnify { t1, t2 });
-    }
-
-    Ok(unifies)
+    Ok(unified)
 }
 
 /// Determines if two types [`CanUnify`].
@@ -598,24 +672,36 @@ pub fn solve<Q>(
 where
     Q: ExternalQueries,
 {
+    let unified = solve_core(state, context, unification, id, solution)?;
+    Ok(report(state, unified, unification, solution))
+}
+
+fn solve_core<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    unification: TypeId,
+    id: u32,
+    solution: TypeId,
+) -> QueryResult<Unified>
+where
+    Q: ExternalQueries,
+{
     let solution = normalise::expand(state, context, solution)?;
 
     match promote_type(state, context, id, solution)? {
         PromoteResult::Ok => {}
         PromoteResult::OccursCheck | PromoteResult::SkolemEscape => {
-            let t1 = unification;
-            let t2 = solution;
-            state.insert_error(ErrorKind::CannotUnify { t1, t2 });
-            return Ok(false);
+            return Ok(Unified::Mismatch { t1: unification, t2: solution });
         }
     }
 
+    // The kinds are reported on their own, since the solution is kept.
     let unification_kind = state.unifications.get(id).kind;
     let solution_kind = types::elaborate_kind(state, context, solution)?;
     unify(state, context, unification_kind, solution_kind)?;
 
     state.unifications.solve(id, solution);
-    Ok(true)
+    Ok(Unified::Success)
 }
 
 enum PromoteResult {
@@ -788,7 +874,7 @@ where
 
 /// Unification on row types.
 ///
-/// Algorithmically, `t1 ~ t2` checks shared labels field-by-field via [`unify`].
+/// Algorithmically, `t1 ~ t2` checks shared labels field-by-field via [`unify_core`].
 /// - if both are closed, then additional fields are disallowed
 /// - if `t1` is closed, additional fields in `t2` are disallowed
 /// - if `t2` is closed, additional fields in `t1` are disallowed
@@ -796,43 +882,42 @@ where
 fn unify_rows<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    t1: RowTypeId,
-    t2: RowTypeId,
-) -> QueryResult<bool>
+    (t1, t1_row_id): (TypeId, RowTypeId),
+    (t2, t2_row_id): (TypeId, RowTypeId),
+) -> QueryResult<Unified>
 where
     Q: ExternalQueries,
 {
-    let t1_row = context.lookup_row_type(t1);
-    let t2_row = context.lookup_row_type(t2);
+    let t1_row = context.lookup_row_type(t1_row_id);
+    let t2_row = context.lookup_row_type(t2_row_id);
 
-    let (left_only, right_only, ok) = partition_row_fields(state, context, t1_row, t2_row)?;
+    let (left_only, right_only, unified) = partition_row_fields(state, context, t1_row, t2_row)?;
 
-    if !ok {
-        return Ok(false);
+    if unified != Unified::Success {
+        return Ok(unified);
     }
 
-    if t1_row.tail.is_none() && t2_row.tail.is_none() {
-        return Ok(left_only.is_empty() && right_only.is_empty());
-    }
+    let disallowed = if t1_row.tail.is_none() && t2_row.tail.is_none() {
+        !left_only.is_empty() || !right_only.is_empty()
+    } else {
+        (t2_row.tail.is_none() && !left_only.is_empty())
+            || (t1_row.tail.is_none() && !right_only.is_empty())
+    };
 
-    if t2_row.tail.is_none() && !left_only.is_empty() {
-        return Ok(false);
-    }
-
-    if t1_row.tail.is_none() && !right_only.is_empty() {
-        return Ok(false);
+    if disallowed {
+        return Ok(Unified::Mismatch { t1, t2 });
     }
 
     unify_row_tails(state, context, t1_row.tail, t2_row.tail, left_only, right_only)
 }
 
-/// Like [`unify_rows`], but uses [`subtype`] for partitioning.
+/// Like [`unify_rows`], but uses [`subtype_core`] for partitioning.
 ///
 /// Additionally, the directionality of the [`subtype`] relation enables the
 /// addition of [`PropertyIsMissing`] and [`AdditionalProperty`] error when
 /// dealing with closed rows.
 ///
-/// Algorithmically, `t1 <: t2` checks shared labels field-by-field via [`subtype`].
+/// Algorithmically, `t1 <: t2` checks shared labels field-by-field via [`subtype_core`].
 ///
 /// Extra labels are only rejected when they appear against a closed row:
 /// - if `t1` is closed, labels exclusive to `t2` are [`PropertyIsMissing`];
@@ -846,7 +931,7 @@ fn subtype_rows<P, Q>(
     context: &CheckContext<Q>,
     t1: RowTypeId,
     t2: RowTypeId,
-) -> QueryResult<bool>
+) -> QueryResult<Unified>
 where
     P: SubtypePolicy<Q>,
     Q: ExternalQueries,
@@ -854,34 +939,27 @@ where
     let t1_row = context.lookup_row_type(t1);
     let t2_row = context.lookup_row_type(t2);
 
-    let (left_only, right_only, ok) = partition_row_fields_with(
+    let (left_only, right_only, unified) = partition_row_fields_with(
         state,
         context,
         t1_row,
         t2_row,
-        |state, context, left, right| subtype_with::<P, Q>(state, context, left, right),
+        |state, context, left, right| subtype_core::<P, Q>(state, context, left, right),
     )?;
 
-    if !ok {
-        return Ok(false);
+    if unified != Unified::Success {
+        return Ok(unified);
     }
 
-    let mut failed = false;
+    let labels = |fields: &[RowField]| {
+        Arc::from_iter(fields.iter().map(|field| SmolStr::clone(&field.label)))
+    };
 
-    if t1_row.tail.is_none() && !right_only.is_empty() {
-        let labels = Arc::from_iter(right_only.iter().map(|field| SmolStr::clone(&field.label)));
-        state.insert_error(ErrorKind::PropertyIsMissing { labels });
-        failed = true;
-    }
+    let missing = if t1_row.tail.is_none() { labels(&right_only) } else { Arc::from([]) };
+    let additional = if t2_row.tail.is_none() { labels(&left_only) } else { Arc::from([]) };
 
-    if t2_row.tail.is_none() && !left_only.is_empty() {
-        let labels = Arc::from_iter(left_only.iter().map(|field| SmolStr::clone(&field.label)));
-        state.insert_error(ErrorKind::AdditionalProperty { labels });
-        failed = true;
-    }
-
-    if failed {
-        return Ok(false);
+    if !missing.is_empty() || !additional.is_empty() {
+        return Ok(Unified::Labels { missing, additional });
     }
 
     unify_row_tails(state, context, t1_row.tail, t2_row.tail, left_only, right_only)
@@ -892,11 +970,11 @@ fn partition_row_fields<Q>(
     context: &CheckContext<Q>,
     t1_row: &RowType,
     t2_row: &RowType,
-) -> QueryResult<(Vec<RowField>, Vec<RowField>, bool)>
+) -> QueryResult<(Vec<RowField>, Vec<RowField>, Unified)>
 where
     Q: ExternalQueries,
 {
-    partition_row_fields_with(state, context, t1_row, t2_row, unify)
+    partition_row_fields_with(state, context, t1_row, t2_row, unify_core)
 }
 
 fn partition_row_fields_with<Q, F>(
@@ -905,23 +983,26 @@ fn partition_row_fields_with<Q, F>(
     t1_row: &RowType,
     t2_row: &RowType,
     mut field_check: F,
-) -> QueryResult<(Vec<RowField>, Vec<RowField>, bool)>
+) -> QueryResult<(Vec<RowField>, Vec<RowField>, Unified)>
 where
     Q: ExternalQueries,
-    F: FnMut(&mut CheckState, &CheckContext<Q>, TypeId, TypeId) -> QueryResult<bool>,
+    F: FnMut(&mut CheckState, &CheckContext<Q>, TypeId, TypeId) -> QueryResult<Unified>,
 {
     let mut extras_left = Vec::new();
     let mut extras_right = Vec::new();
-    let mut ok = true;
+    let mut unified = Unified::Success;
 
     let t1_fields = t1_row.fields.iter();
     let t2_fields = t2_row.fields.iter();
 
+    // Every shared field is checked so that inference learns from each of
+    // them, but only the first failure is kept for reporting.
     for field in t1_fields.merge_join_by(t2_fields, |left, right| left.label.cmp(&right.label)) {
         match field {
             EitherOrBoth::Both(left, right) => {
-                if !field_check(state, context, left.id, right.id)? {
-                    ok = false;
+                let field_unified = field_check(state, context, left.id, right.id)?;
+                if unified == Unified::Success {
+                    unified = field_unified;
                 }
             }
             EitherOrBoth::Left(left) => extras_left.push(left.clone()),
@@ -929,7 +1010,7 @@ where
         }
     }
 
-    Ok((extras_left, extras_right, ok))
+    Ok((extras_left, extras_right, unified))
 }
 
 fn unify_row_tails<Q>(
@@ -939,23 +1020,23 @@ fn unify_row_tails<Q>(
     t2_tail: Option<TypeId>,
     extras_left: Vec<RowField>,
     extras_right: Vec<RowField>,
-) -> QueryResult<bool>
+) -> QueryResult<Unified>
 where
     Q: ExternalQueries,
 {
     match (t1_tail, t2_tail) {
-        (None, None) => Ok(true),
+        (None, None) => Ok(Unified::Success),
 
         // t1_tail ~ ( ...extras_right )
         (Some(t1_tail), None) => {
             let row_type = context.intern_row(extras_right, None);
-            unify(state, context, t1_tail, row_type)
+            unify_core(state, context, t1_tail, row_type)
         }
 
         // ( ...extras_left ) ~ t2_tail
         (None, Some(t2_tail)) => {
             let row_type = context.intern_row(extras_left, None);
-            unify(state, context, t2_tail, row_type)
+            unify_core(state, context, t2_tail, row_type)
         }
 
         // ( | t1_tail ) ~ ( | t2_tail )
@@ -971,7 +1052,7 @@ where
         //
         (Some(t1_tail), Some(t2_tail)) => {
             if extras_left.is_empty() && extras_right.is_empty() {
-                return unify(state, context, t1_tail, t2_tail);
+                return unify_core(state, context, t1_tail, t2_tail);
             }
 
             let tail_kind = state.fresh_unification(context.queries, context.prim.t);
@@ -980,8 +1061,8 @@ where
             let left_tail_row_type = context.intern_row(extras_right, Some(tail));
             let right_tail_row_type = context.intern_row(extras_left, Some(tail));
 
-            Ok(unify(state, context, t1_tail, left_tail_row_type)?
-                && unify(state, context, t2_tail, right_tail_row_type)?)
+            unify_core(state, context, t1_tail, left_tail_row_type)?
+                .and_then(|| unify_core(state, context, t2_tail, right_tail_row_type))
         }
     }
 }

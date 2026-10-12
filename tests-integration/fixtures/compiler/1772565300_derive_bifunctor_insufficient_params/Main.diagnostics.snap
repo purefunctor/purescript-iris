@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [CannotUnify] · Main.purs:6:27
   •
@@ -8,6 +9,9 @@ Error! · [CannotUnify] · Main.purs:6:27
   │
   │   derive instance Bifunctor (Triple Int String)
   │                             ╰──────────────────
+  • while
+  │
+  │   matching 'Type -> Type' with 'Type -> Type -> Type'
   •
 
 Error! · [CannotDeriveForType] · Main.purs:6:1

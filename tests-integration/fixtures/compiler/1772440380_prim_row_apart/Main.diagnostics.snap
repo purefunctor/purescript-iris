@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 330
 ---
 Error! · [CannotUnify] · Main.purs:15:1
   •
@@ -9,15 +9,9 @@ Error! · [CannotUnify] · Main.purs:15:1
   │
   │   forceSolve =
   │   ╰───────────
-  •
-
-Error! · [CannotUnify] · Main.purs:15:1
-  •
+  • while
   │
-  • Cannot unify '( b :: String )' with '( b :: Int )'
-  │
-  │   forceSolve =
-  │   ╰───────────
+  │   matching '( b :: String )' with '( b :: Int )'
   •
 
 Error! · [CannotUnify] · Main.purs:15:1

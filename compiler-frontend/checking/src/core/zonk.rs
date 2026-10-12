@@ -330,10 +330,12 @@ where
             let type_id = zonk(state, context, type_id)?;
             ErrorKind::CovariantOccurrence { type_id }
         }
-        ErrorKind::CannotUnify { t1, t2 } => {
+        ErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) } => {
             let t1 = zonk(state, context, t1)?;
             let t2 = zonk(state, context, t2)?;
-            ErrorKind::CannotUnify { t1, t2 }
+            let outer_t1 = zonk(state, context, outer_t1)?;
+            let outer_t2 = zonk(state, context, outer_t2)?;
+            ErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) }
         }
         ErrorKind::EscapedSkolem { skolem, type_id } => {
             let skolem = zonk(state, context, skolem)?;

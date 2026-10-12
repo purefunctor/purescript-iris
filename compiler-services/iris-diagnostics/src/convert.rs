@@ -596,7 +596,7 @@ impl ToDiagnostics for CheckingError {
                     format!("Type variable occurs in covariant position: {message}"),
                 )
             }
-            ErrorKind::CannotUnify { t1, t2 } => {
+            ErrorKind::CannotUnify { t1, t2, .. } => {
                 let t1 = render_type(*t1);
                 let t2 = render_type(*t2);
                 (Severity::Error, "CannotUnify", format!("Cannot unify '{t1}' with '{t2}'"))
@@ -834,6 +834,15 @@ impl ToDiagnostics for CheckingError {
         }
 
         match &self.kind {
+            // Types are zonked by now, so equal types share an identifier.
+            &ErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) }
+                if (t1, t2) != (outer_t1, outer_t2) =>
+            {
+                let outer_t1 = render_type(outer_t1);
+                let outer_t2 = render_type(outer_t2);
+                let trivia = format!("matching '{outer_t1}' with '{outer_t2}'");
+                diagnostic = diagnostic.with_trivia(trivia);
+            }
             ErrorKind::OverlappingInstances { instances, .. } => {
                 for &instance in instances.iter() {
                     let instance = render_type(instance);

@@ -1,24 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
-Error! · [CannotUnify] · Main.purs:11:16
-  •
-  │
-  • Cannot unify 'Function ?1' with 'Proxy'
-  │
-  │   test = consume \_ extra -> Proxy
-  │                  ╰────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:11:16
-  •
-  │
-  • Cannot unify 'Function ?1 (Proxy ?3)' with 'Proxy value'
-  │
-  │   test = consume \_ extra -> Proxy
-  │                  ╰────────────────
-  •
-
 Error! · [CannotUnify] · Main.purs:11:16
   •
   │
