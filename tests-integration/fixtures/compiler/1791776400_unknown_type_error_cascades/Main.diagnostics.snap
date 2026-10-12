@@ -37,21 +37,3 @@ Error! · [InvalidTypeApplication] · Main.purs:14:21
   │   invalidSignature :: Int String
   │                       ╰─────────
   •
-
-Error! · [CannotUnify] · Main.purs:15:20
-  •
-  │
-  • Cannot unify 'Int' with 'Int String'
-  │
-  │   invalidSignature = 0
-  │                      ╰
-  •
-
-Error! · [CannotUnify] · Main.purs:18:28
-  •
-  │
-  • Cannot unify 'Int String' with 'Int'
-  │
-  │   usesInvalidSignature = add invalidSignature 1
-  │                              ╰───────────────
-  •

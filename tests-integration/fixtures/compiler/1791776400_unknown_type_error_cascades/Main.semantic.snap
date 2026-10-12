@@ -11,7 +11,7 @@ unresolvedSignature = 0
 usesUnresolvedSignature :: Prim.Int
 usesUnresolvedSignature = add unresolvedSignature 1
 
-invalidSignature :: Prim.Int Prim.String
+invalidSignature :: ?[cannot apply function type]
 invalidSignature = 0
 
 usesInvalidSignature :: Prim.Int
