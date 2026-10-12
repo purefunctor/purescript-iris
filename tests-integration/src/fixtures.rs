@@ -8,6 +8,7 @@ use std::time::Duration;
 use std::{env, io};
 
 use building::QueryEngine;
+use checking::error::ErrorCrumb;
 use files::{FileId, Files};
 use iris_diagnostics::{collect_diagnostics, format_rich_with_path};
 use itertools::Itertools;
@@ -45,6 +46,30 @@ fn missing_module(path: &Path, module: &str) -> io::Error {
         "invariant violated: fixture module {module} not found for path {}",
         path.display()
     ))
+}
+
+/// Checking errors without a declaration crumb are reported at the module header, away from the
+/// declaration that caused them.
+fn check_declaration_crumbs(engine: &QueryEngine, file_ids: &[FileId]) -> FixtureResult {
+    for &file_id in file_ids {
+        let checked = engine.checked(file_id)?;
+        let unattributed = checked.errors.iter().find(|error| {
+            !matches!(
+                error.crumbs.first(),
+                Some(
+                    ErrorCrumb::TermDeclaration(_)
+                        | ErrorCrumb::TypeDeclaration(_)
+                        | ErrorCrumb::InstanceDeclaration(_)
+                        | ErrorCrumb::DeriveDeclaration(_)
+                )
+            )
+        });
+        if let Some(error) = unattributed {
+            let message = format!("checking error has no declaration crumb: {error:?}");
+            return Err(invalid_data(message).into());
+        }
+    }
+    Ok(())
 }
 
 const UPDATE_JAVASCRIPT_OUTPUT: &str = "IRIS_UPDATE_JAVASCRIPT_OUTPUT";
@@ -272,6 +297,7 @@ pub fn compiler(path: &Path) -> FixtureResult {
     };
     let mut diagnostic_files = fixture_files.iter().copied().collect_vec();
     diagnostic_files.sort_by_key(|&id| files.path(id));
+    check_declaration_crumbs(&engine, &diagnostic_files)?;
     let collected = collect_diagnostics(&engine, &diagnostic_files)?;
     let mut diagnostics_report = String::new();
     for collection in &collected {

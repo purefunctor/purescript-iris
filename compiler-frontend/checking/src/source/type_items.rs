@@ -125,7 +125,9 @@ where
         populate_skipped_items(state, context, &skipped);
 
         for &item in &items {
-            check_type_signature(state, context, item)?;
+            state.with_error_crumb(ErrorCrumb::TypeDeclaration(item), |state| {
+                check_type_signature(state, context, item)
+            })?;
         }
 
         if scc.is_recursive() {
@@ -135,7 +137,9 @@ where
         let mut scc_state = TypeSccState::default();
 
         for &item in &items {
-            check_type_equation(state, context, &mut scc_state, item)?;
+            state.with_error_crumb(ErrorCrumb::TypeDeclaration(item), |state| {
+                check_type_equation(state, context, &mut scc_state, item)
+            })?;
         }
 
         finalise_type_binding_group(state, context, &items)?;
