@@ -695,6 +695,42 @@ where
     Ok(walker.contains)
 }
 
+pub fn contains_unknown<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    // Type flags do not track unknown types, and solved unification variables
+    // may contain them, so every type is visited.
+    struct ContainsUnknown {
+        contains: bool,
+    }
+
+    impl TypeWalker for ContainsUnknown {
+        fn visit<Q: ExternalQueries>(
+            &mut self,
+            _state: &mut CheckState,
+            _context: &CheckContext<Q>,
+            _id: TypeId,
+            t: &Type,
+        ) -> QueryResult<walk::WalkAction> {
+            if let Type::Unknown(_) = t {
+                self.contains = true;
+                Ok(walk::WalkAction::Break)
+            } else {
+                Ok(walk::WalkAction::Continue)
+            }
+        }
+    }
+
+    let mut walker = ContainsUnknown { contains: false };
+    walk::walk_type(state, context, id, &mut walker)?;
+    Ok(walker.contains)
+}
+
 pub fn decompose_function<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,

@@ -27,7 +27,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::fd::{compute_closure, get_functional_dependencies};
-use crate::core::{ApplicationArgument, TypeId, unification};
+use crate::core::{ApplicationArgument, TypeId, toolkit, unification};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
 use crate::implication::{GivenConstraint, ImplicationId, Patterns, WantedConstraint};
@@ -368,8 +368,20 @@ where
         insert_unique_constraint(state, &mut unique_residuals, constraint);
     }
 
-    let unique_residuals = unique_residuals.into_iter().map(ConstraintInScope::from_parts);
-    Ok(unique_residuals.collect())
+    let mut reported_residuals = Vec::with_capacity(unique_residuals.len());
+    for residual in unique_residuals.into_iter().map(ConstraintInScope::from_parts) {
+        // Unknown types replace errors that are reported elsewhere, so the
+        // constraints that mention them are left unsolved without an error.
+        let wanted = state.canonicals.type_id(context, residual.key.wanted);
+        if toolkit::contains_unknown(state, context, wanted)? {
+            state.absorb_unknown(wanted);
+            state.checked.evidence.mark_error(residual.evidence.wanted);
+        } else {
+            reported_residuals.push(residual);
+        }
+    }
+
+    Ok(reported_residuals)
 }
 
 #[derive(Clone)]

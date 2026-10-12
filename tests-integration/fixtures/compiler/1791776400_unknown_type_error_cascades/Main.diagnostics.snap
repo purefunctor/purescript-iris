@@ -55,12 +55,3 @@ Error! · [CannotUnify] · Main.purs:18:28
   │   usesInvalidSignature = add invalidSignature 1
   │                              ╰───────────────
   •
-
-Error! · [NoInstanceFound] · Main.purs:23:24
-  •
-  │
-  • No instance found for: Show ?[missing variable resolution]
-  │
-  │   showsUnresolvedValue = show missing
-  │                          ╰───────────
-  •
