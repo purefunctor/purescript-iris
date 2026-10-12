@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NotInScope] · Main.purs:3:17
   •
@@ -19,15 +20,6 @@ Error! · [NotInScope] · Main.purs:7:19
   │                     ╰──
   •
 
-Error! · [NotInScope] · Main.purs:7:19
-  •
-  │
-  • 'apply' is not in scope
-  │
-  │   unresolvedApply = ado
-  │                     ╰──
-  •
-
 Error! · [NotInScope] · Main.purs:12:18
   •
   │
@@ -37,6 +29,8 @@ Error! · [NotInScope] · Main.purs:12:18
   │                    ╰──
   •
 
+Hidden diagnostics
+
 Error! · [CannotUnify] · Main.purs:4:3
   •
   │
@@ -44,6 +38,15 @@ Error! · [CannotUnify] · Main.purs:4:3
   │
   │     value <- 1
   │     ╰─────────
+  •
+
+Error! · [NotInScope] · Main.purs:7:19
+  •
+  │
+  • 'apply' is not in scope
+  │
+  │   unresolvedApply = ado
+  │                     ╰──
   •
 
 Error! · [CannotUnify] · Main.purs:8:3

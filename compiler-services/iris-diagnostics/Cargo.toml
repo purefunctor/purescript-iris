@@ -21,6 +21,7 @@ syntax = { version = "0.1.0", path = "../../compiler-frontend/syntax" }
 lsp-types.workspace = true
 line-index = "0.1.2"
 itertools = "0.15.0"
+rustc-hash = "2.1.3"
 smol_str = "0.3.6"
 textwrap = "0.16.4"
 unicode-width = "0.2.2"

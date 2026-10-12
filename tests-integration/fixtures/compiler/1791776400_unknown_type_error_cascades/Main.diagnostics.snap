@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [NotInScope] · Main.purs:8:24
   •
@@ -9,6 +9,15 @@ Error! · [NotInScope] · Main.purs:8:24
   │
   │   unresolvedSignature :: Missing
   │                          ╰──────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:14:21
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   invalidSignature :: Int String
+  │                       ╰─────────
   •
 
 Error! · [NotInScope] · Main.purs:20:19
@@ -27,13 +36,4 @@ Error! · [NotInScope] · Main.purs:23:29
   │
   │   showsUnresolvedValue = show missing
   │                               ╰──────
-  •
-
-Error! · [InvalidTypeApplication] · Main.purs:14:21
-  •
-  │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
-  │
-  │   invalidSignature :: Int String
-  │                       ╰─────────
   •

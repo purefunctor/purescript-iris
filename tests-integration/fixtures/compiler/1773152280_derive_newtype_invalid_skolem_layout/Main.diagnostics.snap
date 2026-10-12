@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [InvalidNewtypeDeriveSkolemArguments] · Main.purs:13:1
   •
@@ -10,6 +11,8 @@ Error! · [InvalidNewtypeDeriveSkolemArguments] · Main.purs:13:1
   │   derive newtype instance Empty (InvalidVector Int)
   │   ╰────────────────────────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

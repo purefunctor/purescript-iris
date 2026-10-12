@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CovariantOccurrence] · Main.purs:9:1
   •
@@ -9,6 +10,8 @@ Error! · [CovariantOccurrence] · Main.purs:9:1
   │   derive instance Contravariant DoubleNegative
   │   ╰───────────────────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

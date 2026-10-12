@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CannotUnify] · Main.purs:6:25
   •
@@ -19,6 +20,19 @@ Error! · [CannotUnify] · Main.purs:9:25
   │                           ╰───
   •
 
+Hidden diagnostics
+
+Error! · [FunctionalCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The checked representation of an instance declaration is unavailable.
+  │
+  │   module Main where
+  │   ╰────────────────
+  •
+
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
@@ -35,15 +49,4 @@ Error! · [CannotDeriveForType] · Main.purs:9:1
   │
   │   derive instance Functor Unit
   │   ╰───────────────────────────
-  •
-
-Error! · [FunctionalCodegen] · Main.purs:1:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The checked representation of an instance declaration is unavailable.
-  │
-  │   module Main where
-  │   ╰────────────────
   •

@@ -1,106 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected LAYOUT_START
-  │
-  │   finalBind = do
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected LAYOUT_END
-  │
-  │   finalBind = do
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:26:1
-  •
-  │
-  • Expected RIGHT_PARENTHESIS
-  │
-  │
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:26:1
-  •
-  │
-  • Expected LEFT_ARROW
-  │
-  │
-  │   ╰
-  •
-
-Error! · [EmptyDoBlock] · Main.purs:9:11
-  •
-  │
-  • Empty do block
-  │
-  │   emptyDo = do
-  │             ╰─
-  •
-
-Warning! · [InvalidFinalBind] · Main.purs:12:3
-  •
-  │
-  • Invalid final bind statement in do expression
-  │
-  │     value <- pure 1
-  │     ╰──────────────
-  •
-
-Error! · [InvalidFinalLet] · Main.purs:15:3
-  •
-  │
-  • Invalid final let statement in do expression
-  │
-  │     let value = 1
-  │     ╰────────────
-  •
-
-Warning! · [InvalidFinalBind] · Main.purs:22:3
-  •
-  │
-  • Invalid final bind statement in do expression
-  │
-  │     value <-
-  │     ╰───────
-  •
-
-Error! · [EmptyDoBlock] · Main.purs:21:26
-  •
-  │
-  • Empty do block
-  │
-  │   missingFinalBindAction = do
-  │                            ╰─
-  •
-
-Warning! · [InvalidFinalBind] · Main.purs:25:3
-  •
-  │
-  • Invalid final bind statement in do expression
-  │
-  │     (
-  │     ╰
-  •
-
-Error! · [EmptyDoBlock] · Main.purs:24:29
-  •
-  │
-  • Empty do block
-  │
-  │   missingFinalDiscardAction = do
-  │                               ╰─
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -126,4 +27,105 @@ Error! · [MissingFFIModule] · Main.purs:7:1
   │
   │   foreign import discard :: forall value result. Effect value -> (value -> Effect result) -> Effect result
   │   ╰───────────────────────────────────────────────────────────────────────────────────────────────────────
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │   finalBind = do
+  │   ╰
+  •
+
+Warning! · [InvalidFinalBind] · Main.purs:12:3
+  •
+  │
+  • Invalid final bind statement in do expression
+  │
+  │     value <- pure 1
+  │     ╰──────────────
+  •
+
+Error! · [InvalidFinalLet] · Main.purs:15:3
+  •
+  │
+  • Invalid final let statement in do expression
+  │
+  │     let value = 1
+  │     ╰────────────
+  •
+
+Error! · [EmptyDoBlock] · Main.purs:21:26
+  •
+  │
+  • Empty do block
+  │
+  │   missingFinalBindAction = do
+  │                            ╰─
+  •
+
+Error! · [ParseError] · Main.purs:26:1
+  •
+  │
+  • Expected RIGHT_PARENTHESIS
+  │
+  │
+  │   ╰
+  •
+
+Hidden diagnostics
+
+Error! · [EmptyDoBlock] · Main.purs:9:11
+  •
+  │
+  • Empty do block
+  │
+  │   emptyDo = do
+  │             ╰─
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   finalBind = do
+  │   ╰
+  •
+
+Warning! · [InvalidFinalBind] · Main.purs:22:3
+  •
+  │
+  • Invalid final bind statement in do expression
+  │
+  │     value <-
+  │     ╰───────
+  •
+
+Error! · [EmptyDoBlock] · Main.purs:24:29
+  •
+  │
+  • Empty do block
+  │
+  │   missingFinalDiscardAction = do
+  │                               ╰─
+  •
+
+Warning! · [InvalidFinalBind] · Main.purs:25:3
+  •
+  │
+  • Invalid final bind statement in do expression
+  │
+  │     (
+  │     ╰
+  •
+
+Error! · [ParseError] · Main.purs:26:1
+  •
+  │
+  • Expected LEFT_ARROW
+  │
+  │
+  │   ╰
   •

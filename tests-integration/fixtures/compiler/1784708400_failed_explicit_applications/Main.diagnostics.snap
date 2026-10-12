@@ -1,16 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [CannotUnify] · Main.purs:7:8
-  •
-  │
-  • Cannot unify 'Int' with '?0 -> ?1'
-  │
-  │   test = identityInt integer integer
-  │          ╰──────────────────────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:3:1
   •
   │
@@ -27,4 +18,13 @@ Error! · [MissingFFIModule] · Main.purs:4:1
   │
   │   foreign import integer :: Int
   │   ╰────────────────────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:7:8
+  •
+  │
+  • Cannot unify 'Int' with '?0 -> ?1'
+  │
+  │   test = identityInt integer integer
+  │          ╰──────────────────────────
   •

@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NoInstanceFound] · Main.purs:11:1
   •
@@ -12,6 +13,8 @@ Error! · [NoInstanceFound] · Main.purs:11:1
   │
   │   Eq a is in scope
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

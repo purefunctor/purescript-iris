@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [RedefinedIdent] · Main.purs:6:1
   •
@@ -15,6 +15,17 @@ Error! · [RedefinedIdent] · Main.purs:6:1
   │   foreign import classInt :: Int
   │   ╰─────────────────────────────
   •
+
+Error! · [MissingFFIModule] · Main.purs:7:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'classInt'
+  │
+  │   foreign import classInt :: Int
+  │   ╰─────────────────────────────
+  •
+
+Hidden diagnostics
 
 Error! · [InstanceHeadMismatch] · Main.purs:6:1
   •
@@ -32,15 +43,6 @@ Error! · [CannotUnify] · Main.purs:6:1
   │
   │   instance classInt :: Class
   │   ╰─────────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:7:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'classInt'
-  │
-  │   foreign import classInt :: Int
-  │   ╰─────────────────────────────
   •
 
 Error! · [FunctionalCodegen] · Main.purs:7:1

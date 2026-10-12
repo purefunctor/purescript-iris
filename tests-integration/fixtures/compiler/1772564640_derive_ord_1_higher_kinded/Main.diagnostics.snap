@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NoInstanceFound] · Main.purs:14:1
   •
@@ -14,6 +15,19 @@ Error! · [NoInstanceFound] · Main.purs:14:1
   │   Eq a is in scope
   •
 
+Hidden diagnostics
+
+Error! · [FunctionalCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The checked representation of an instance declaration is unavailable.
+  │
+  │   module Main where
+  │   ╰────────────────
+  •
+
 Error! · [NoInstanceFound] · Main.purs:14:1
   •
   │
@@ -25,15 +39,4 @@ Error! · [NoInstanceFound] · Main.purs:14:1
   │
   │   Ord a is in scope
   │   Eq a is in scope
-  •
-
-Error! · [FunctionalCodegen] · Main.purs:1:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The checked representation of an instance declaration is unavailable.
-  │
-  │   module Main where
-  │   ╰────────────────
   •

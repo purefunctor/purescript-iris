@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [OverlappingInstances] · Main.purs:7:1
   •
@@ -13,6 +14,8 @@ Error! · [OverlappingInstances] · Main.purs:7:1
   │   forall t0. C X t0 is matching
   │   C X Y is matching
   •
+
+Hidden diagnostics
 
 Warning! · [MissingInstanceMembers] · Main.purs:7:1
   •

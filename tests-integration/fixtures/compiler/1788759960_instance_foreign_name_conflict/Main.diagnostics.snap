@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [RedefinedIdent] · Main.purs:6:1
   •
@@ -14,6 +15,8 @@ Error! · [RedefinedIdent] · Main.purs:6:1
   │   foreign import classInt :: Int
   │   ╰─────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:7:1
   •

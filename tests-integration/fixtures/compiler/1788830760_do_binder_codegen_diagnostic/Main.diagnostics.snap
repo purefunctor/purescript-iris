@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 333
 ---
 Error! · [ParseError] · Main.purs:6:3
   •
@@ -11,14 +11,7 @@ Error! · [ParseError] · Main.purs:6:3
   │     ╰
   •
 
-Error! · [ParseError] · Main.purs:6:5
-  •
-  │
-  • Unexpected token in function binders
-  │
-  │     \ @ -> 1
-  │       ╰
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:6:3
   •
@@ -29,4 +22,13 @@ Error! · [FunctionalCodegen] · Main.purs:6:3
   │
   │     \ @ -> 1
   │     ╰───────
+  •
+
+Error! · [ParseError] · Main.purs:6:5
+  •
+  │
+  • Unexpected token in function binders
+  │
+  │     \ @ -> 1
+  │       ╰
   •

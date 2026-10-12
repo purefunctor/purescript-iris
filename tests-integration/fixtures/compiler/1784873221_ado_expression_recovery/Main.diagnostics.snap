@@ -1,43 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected LAYOUT_START
-  │
-  │   missingAdoAction = ado
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected LAYOUT_END
-  │
-  │   missingAdoAction = ado
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected IN
-  │
-  │   missingAdoAction = ado
-  │   ╰
-  •
-
-Error! · [EmptyAdoBlock] · Main.purs:9:12
-  •
-  │
-  • Empty ado block
-  │
-  │   emptyAdo = ado
-  │              ╰──
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -63,4 +27,42 @@ Error! · [MissingFFIModule] · Main.purs:7:1
   │
   │   foreign import apply :: forall value result. Effect (value -> result) -> Effect value -> Effect result
   │   ╰─────────────────────────────────────────────────────────────────────────────────────────────────────
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │   missingAdoAction = ado
+  │   ╰
+  •
+
+Hidden diagnostics
+
+Error! · [EmptyAdoBlock] · Main.purs:9:12
+  •
+  │
+  • Empty ado block
+  │
+  │   emptyAdo = ado
+  │              ╰──
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   missingAdoAction = ado
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected IN
+  │
+  │   missingAdoAction = ado
+  │   ╰
   •

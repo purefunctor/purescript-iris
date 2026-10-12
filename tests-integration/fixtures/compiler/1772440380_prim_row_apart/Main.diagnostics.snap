@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [CannotUnify] · Main.purs:15:1
   •
@@ -13,6 +13,8 @@ Error! · [CannotUnify] · Main.purs:15:1
   │
   │   matching '( b :: String )' with '( b :: Int )'
   •
+
+Hidden diagnostics
 
 Error! · [CannotUnify] · Main.purs:15:1
   •

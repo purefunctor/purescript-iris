@@ -1,23 +1,41 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [EscapedSkolem] · Main.purs:54:3
+Error! · [MissingFFIModule] · Main.purs:19:1
   •
   │
-  • Type variable '(scope :: t0)' has escaped its scope, appearing in type 'Token @t0 (scope :: t0)'
+  • No JavaScript FFI module was found for foreign import 'mkEval'
   │
-  │     escaped = leak modify
-  │     ╰────────────────────
+  │   foreign import mkEval :: forall value. Spec -> value -> value
+  │   ╰────────────────────────────────────────────────────────────
   •
 
-Error! · [EscapedSkolem] · Main.purs:67:3
+Error! · [MissingFFIModule] · Main.purs:21:1
   •
   │
-  • Type variable '(scope1 :: ?61)' has escaped its scope, appearing in type 'Token @?61
-  │ (scope1 :: ?61)'
+  • No JavaScript FFI module was found for foreign import 'constrainedEval'
   │
-  │     escaped = leak modify
-  │     ╰────────────────────
+  │   foreign import constrainedEval
+  │   ╰─────────────────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:28:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'consumeIdentity'
+  │
+  │   foreign import consumeIdentity :: (forall value. value -> value) -> Unit
+  │   ╰───────────────────────────────────────────────────────────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:30:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'leak'
+  │
+  │   foreign import leak
+  │   ╰──────────────────
   •
 
 Error! · [EscapedSkolem] · Main.purs:50:3
@@ -27,6 +45,15 @@ Error! · [EscapedSkolem] · Main.purs:50:3
   │
   │     eval = constrainedEval Spec
   │     ╰──────────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:54:3
+  •
+  │
+  • Type variable '(scope :: t0)' has escaped its scope, appearing in type 'Token @t0 (scope :: t0)'
+  │
+  │     escaped = leak modify
+  │     ╰────────────────────
   •
 
 Error! · [EscapedSkolem] · Main.purs:56:1
@@ -69,38 +96,12 @@ Error! · [EscapedSkolem] · Main.purs:62:1
   │   ╰───────────────────────────────────────────────────────────────────────────────────────
   •
 
-Error! · [MissingFFIModule] · Main.purs:19:1
+Error! · [EscapedSkolem] · Main.purs:67:3
   •
   │
-  • No JavaScript FFI module was found for foreign import 'mkEval'
+  • Type variable '(scope1 :: ?61)' has escaped its scope, appearing in type 'Token @?61
+  │ (scope1 :: ?61)'
   │
-  │   foreign import mkEval :: forall value. Spec -> value -> value
-  │   ╰────────────────────────────────────────────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:21:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'constrainedEval'
-  │
-  │   foreign import constrainedEval
-  │   ╰─────────────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:28:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'consumeIdentity'
-  │
-  │   foreign import consumeIdentity :: (forall value. value -> value) -> Unit
-  │   ╰───────────────────────────────────────────────────────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:30:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'leak'
-  │
-  │   foreign import leak
-  │   ╰──────────────────
+  │     escaped = leak modify
+  │     ╰────────────────────
   •

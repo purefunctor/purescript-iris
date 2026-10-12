@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CovariantOccurrence] · Main.purs:6:1
   •
@@ -19,14 +20,7 @@ Error! · [ContravariantOccurrence] · Main.purs:9:1
   │   ╰─────────────────────────────────────
   •
 
-Error! · [CovariantOccurrence] · Main.purs:9:1
-  •
-  │
-  • Type variable occurs in covariant position: t2
-  │
-  │   derive instance Profunctor WrongSecond
-  │   ╰─────────────────────────────────────
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
@@ -37,4 +31,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [CovariantOccurrence] · Main.purs:9:1
+  •
+  │
+  • Type variable occurs in covariant position: t2
+  │
+  │   derive instance Profunctor WrongSecond
+  │   ╰─────────────────────────────────────
   •

@@ -1,25 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
-Error! · [CannotUnify] · Main.purs:27:15
-  •
-  │
-  • Cannot unify 'Int' with 'String'
-  │
-  │     let f = a + 123
-  │                 ╰──
-  •
-
-Error! · [NoInstanceFound] · Main.purs:27:11
-  •
-  │
-  • No instance found for: Semiring String
-  │
-  │     let f = a + 123
-  │             ╰──────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
@@ -63,4 +45,24 @@ Error! · [MissingFFIModule] · Main.purs:17:1
   │
   │   foreign import addImpl :: Int -> Int -> Int
   │   ╰──────────────────────────────────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:27:15
+  •
+  │
+  • Cannot unify 'Int' with 'String'
+  │
+  │     let f = a + 123
+  │                 ╰──
+  •
+
+Hidden diagnostics
+
+Error! · [NoInstanceFound] · Main.purs:27:11
+  •
+  │
+  • No instance found for: Semiring String
+  │
+  │     let f = a + 123
+  │             ╰──────
   •

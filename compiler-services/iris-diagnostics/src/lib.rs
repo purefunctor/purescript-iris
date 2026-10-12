@@ -3,6 +3,7 @@ mod context;
 mod convert;
 mod model;
 mod render;
+mod selection;
 
 pub use collection::{DiagnosticCollection, collect_diagnostics};
 pub use context::{DiagnosticsContext, ExternalQueries};

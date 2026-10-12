@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NoInstanceFound] · Main.purs:13:1
   •
@@ -9,6 +10,8 @@ Error! · [NoInstanceFound] · Main.purs:13:1
   │   derive instance Eq ContainsNoEq
   │   ╰──────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

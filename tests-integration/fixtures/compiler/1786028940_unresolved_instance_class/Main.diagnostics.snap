@@ -1,20 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 333
 ---
 Error! · [ParseError] · Main.purs:5:1
   •
   │
   • Expected LAYOUT_START
-  │
-  │   instance Missing.Functor Array where
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:5:1
-  •
-  │
-  • Expected LAYOUT_END
   │
   │   instance Missing.Functor Array where
   │   ╰
@@ -27,6 +18,46 @@ Error! · [ParseError] · Main.purs:6:1
   │
   │
   │   ╰
+  •
+
+Hidden diagnostics
+
+Error! · [FunctionalCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The checked representation of an instance declaration is unavailable.
+  │
+  │   module Main where
+  │   ╰────────────────
+  •
+
+Error! · [NotInScope] · Main.purs:3:10
+  •
+  │
+  • 'Functor' is not in scope
+  │
+  │   instance Functor Array where
+  │            ╰──────
+  •
+
+Error! · [ParseError] · Main.purs:5:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   instance Missing.Functor Array where
+  │   ╰
+  •
+
+Error! · [NotInScope] · Main.purs:5:10
+  •
+  │
+  • 'Missing.Functor' is not in scope
+  │
+  │   instance Missing.Functor Array where
+  │            ╰──────────────
   •
 
 Error! · [ParseError] · Main.purs:6:1
@@ -45,33 +76,4 @@ Error! · [ParseError] · Main.purs:6:1
   │
   │
   │   ╰
-  •
-
-Error! · [NotInScope] · Main.purs:3:10
-  •
-  │
-  • 'Functor' is not in scope
-  │
-  │   instance Functor Array where
-  │            ╰──────
-  •
-
-Error! · [NotInScope] · Main.purs:5:10
-  •
-  │
-  • 'Missing.Functor' is not in scope
-  │
-  │   instance Missing.Functor Array where
-  │            ╰──────────────
-  •
-
-Error! · [FunctionalCodegen] · Main.purs:1:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The checked representation of an instance declaration is unavailable.
-  │
-  │   module Main where
-  │   ╰────────────────
   •

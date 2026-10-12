@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [DeriveInvalidArity] · Main.purs:7:1
   •
@@ -10,14 +11,7 @@ Error! · [DeriveInvalidArity] · Main.purs:7:1
   │   ╰──────────────────────────────
   •
 
-Error! · [CannotUnify] · Main.purs:7:1
-  •
-  │
-  • Cannot unify 'Type -> Constraint' with 'Constraint'
-  │
-  │   derive instance Newtype Wrapper
-  │   ╰──────────────────────────────
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
@@ -28,4 +22,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:7:1
+  •
+  │
+  • Cannot unify 'Type -> Constraint' with 'Constraint'
+  │
+  │   derive instance Newtype Wrapper
+  │   ╰──────────────────────────────
   •

@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NoInstanceFound] · Main.purs:10:1
   •
@@ -10,14 +11,7 @@ Error! · [NoInstanceFound] · Main.purs:10:1
   │   ╰────────────────────────────────────────────────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:10:1
-  •
-  │
-  • No instance found for: Foldable (g :: Type -> Type)
-  │
-  │   derive instance Bifoldable (WrapBothNoConstraint f g)
-  │   ╰────────────────────────────────────────────────────
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
@@ -28,4 +22,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:10:1
+  •
+  │
+  • No instance found for: Foldable (g :: Type -> Type)
+  │
+  │   derive instance Bifoldable (WrapBothNoConstraint f g)
+  │   ╰────────────────────────────────────────────────────
   •

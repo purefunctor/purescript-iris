@@ -1,18 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [TypeHole] · Main.purs:14:19
-  •
-  │
-  • Type hole '?type' has inferred type: ?3 :: Type
-  │
-  │   type TypeHole a = ?type :: Type
-  │                     ╰────
-  • while
-  │
-  │   a :: t0 is in scope
-  •
-
 Error! · [TermHole] · Main.purs:12:5
   •
   │
@@ -24,6 +13,18 @@ Error! · [TermHole] · Main.purs:12:5
   │
   │   argument :: Int is in scope
   │   localInt :: Int is in scope
+  •
+
+Error! · [TypeHole] · Main.purs:14:19
+  •
+  │
+  • Type hole '?type' has inferred type: ?3 :: Type
+  │
+  │   type TypeHole a = ?type :: Type
+  │                     ╰────
+  • while
+  │
+  │   a :: t0 is in scope
   •
 
 Error! · [TermHole] · Main.purs:17:39

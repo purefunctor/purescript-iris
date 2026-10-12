@@ -1,16 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
-Warning! · [MissingPatterns] · Main.purs:14:13
-  •
-  │
-  • Pattern match is not exhaustive. Missing: _
-  │
-  │   refutable = case _ of
-  │               ╰────────
-  •
-
 Error! · [NoInstanceFound] · Main.purs:14:13
   •
   │
@@ -27,4 +18,15 @@ Error! · [MissingFFIModule] · Main.purs:18:1
   │
   │   foreign import arrayLength :: forall a. Array a -> Int
   │   ╰─────────────────────────────────────────────────────
+  •
+
+Hidden diagnostics
+
+Warning! · [MissingPatterns] · Main.purs:14:13
+  •
+  │
+  • Pattern match is not exhaustive. Missing: _
+  │
+  │   refutable = case _ of
+  │               ╰────────
   •

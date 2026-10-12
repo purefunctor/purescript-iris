@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
 Error! · [CustomFailure] · Main.purs:8:31
   •
@@ -10,6 +10,8 @@ Error! · [CustomFailure] · Main.purs:8:31
   │   test = if true then test else guardedFailure
   │                                 ╰─────────────
   •
+
+Hidden diagnostics
 
 Error! · [JavaScriptInitializerCycle] · Main.purs:8:1
   •

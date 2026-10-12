@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [DeriveInvalidArity] · Main.purs:16:1
   •
@@ -108,6 +109,8 @@ Error! · [DeriveInvalidArity] · Main.purs:27:1
   │   derive instance Ord1 Pair Int
   │   ╰────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

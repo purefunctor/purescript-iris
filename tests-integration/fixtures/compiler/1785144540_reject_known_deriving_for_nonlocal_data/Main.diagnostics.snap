@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CannotDeriveForType] · Main.purs:7:1
   •
@@ -54,6 +55,8 @@ Error! · [CannotDeriveForType] · Main.purs:14:1
   │   derive instance Ord1 ImportedOpaque
   │   ╰──────────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

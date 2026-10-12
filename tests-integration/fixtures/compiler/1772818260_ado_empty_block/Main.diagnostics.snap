@@ -1,43 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected LAYOUT_START
-  │
-  │   test2 = ado
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected LAYOUT_END
-  │
-  │   test2 = ado
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:11:1
-  •
-  │
-  • Expected IN
-  │
-  │   test2 = ado
-  │   ╰
-  •
-
-Error! · [EmptyAdoBlock] · Main.purs:9:9
-  •
-  │
-  • Empty ado block
-  │
-  │   test1 = ado
-  │           ╰──
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -63,4 +27,42 @@ Error! · [MissingFFIModule] · Main.purs:7:1
   │
   │   foreign import apply :: forall a b. Effect (a -> b) -> Effect a -> Effect b
   │   ╰──────────────────────────────────────────────────────────────────────────
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │   test2 = ado
+  │   ╰
+  •
+
+Hidden diagnostics
+
+Error! · [EmptyAdoBlock] · Main.purs:9:9
+  •
+  │
+  • Empty ado block
+  │
+  │   test1 = ado
+  │           ╰──
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   test2 = ado
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected IN
+  │
+  │   test2 = ado
+  │   ╰
   •

@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [CannotUnify] · Main.purs:5:1
   •
@@ -13,6 +13,20 @@ Error! · [CannotUnify] · Main.purs:5:1
   │
   │   matching '(?4 -> Box ?4) -> Int' with 'Box t0 -> Int'
   •
+
+Error! · [CannotUnify] · Main.purs:8:1
+  •
+  │
+  • Cannot unify 't1 -> Box t1' with 'Box ?8'
+  │
+  │   test2 Box = 0
+  │   ╰────────────
+  • while
+  │
+  │   matching 'Box ?8 -> Int' with '(t1 -> Box t1) -> Int'
+  •
+
+Hidden diagnostics
 
 Warning! · [RedundantPattern] · Main.purs:5:1
   •
@@ -30,18 +44,6 @@ Warning! · [MissingPatterns] · Main.purs:5:1
   │
   │   test (Box _) = 0
   │   ╰───────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:8:1
-  •
-  │
-  • Cannot unify 't1 -> Box t1' with 'Box ?8'
-  │
-  │   test2 Box = 0
-  │   ╰────────────
-  • while
-  │
-  │   matching 'Box ?8 -> Int' with '(t1 -> Box t1) -> Int'
   •
 
 Warning! · [RedundantPattern] · Main.purs:8:1

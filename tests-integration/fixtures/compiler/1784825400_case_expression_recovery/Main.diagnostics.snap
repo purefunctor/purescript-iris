@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 333
 ---
 Error! · [ParseError] · Main.purs:17:1
   •
@@ -10,6 +10,8 @@ Error! · [ParseError] · Main.purs:17:1
   │
   │   ╰
   •
+
+Hidden diagnostics
 
 Error! · [ParseError] · Main.purs:17:1
   •

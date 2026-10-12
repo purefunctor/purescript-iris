@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 333
 ---
 Error! · [RecursiveKinds] · Main.purs:4:1
   •
@@ -24,6 +24,8 @@ Error! · [RecursiveSynonym] · Main.purs:7:1
   │   type Left = Right
   │   ╰────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

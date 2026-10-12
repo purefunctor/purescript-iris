@@ -1,16 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [CannotUnify] · Main.purs:15:16
-  •
-  │
-  • Cannot unify '?1 -> Proxy ?3' with 'Proxy value'
-  │
-  │   test = consume \_ extra -> Proxy
-  │                  ╰────────────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:11:1
   •
   │
@@ -18,4 +9,13 @@ Error! · [MissingFFIModule] · Main.purs:11:1
   │
   │   foreign import consume ::
   │   ╰────────────────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:15:16
+  •
+  │
+  • Cannot unify '?1 -> Proxy ?3' with 'Proxy value'
+  │
+  │   test = consume \_ extra -> Proxy
+  │                  ╰────────────────
   •

@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NoInstanceFound] · Main.purs:8:1
   •
@@ -50,6 +51,8 @@ Error! · [NoInstanceFound] · Main.purs:24:1
   │   Ord1 (f3 :: Type -> Type) is in scope
   │   Eq1 (f3 :: Type -> Type) is in scope
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

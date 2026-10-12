@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CannotDeriveClass] · Main.purs:7:1
   •
@@ -9,6 +10,8 @@ Error! · [CannotDeriveClass] · Main.purs:7:1
   │   derive instance Generic Box _
   │   ╰────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

@@ -1,43 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [ParseError] · Main.purs:10:1
-  •
-  │
-  • Expected LAYOUT_START
-  │
-  │
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:10:1
-  •
-  │
-  • Expected LAYOUT_SEPARATOR
-  │
-  │
-  │   ╰
-  •
-
-Error! · [ParseError] · Main.purs:10:1
-  •
-  │
-  • Expected LAYOUT_END
-  │
-  │
-  │   ╰
-  •
-
-Error! · [EmptyDoBlock] · Main.purs:9:8
-  •
-  │
-  • Empty do block
-  │
-  │   test = do
-  │          ╰─
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -63,4 +27,42 @@ Error! · [MissingFFIModule] · Main.purs:7:1
   │
   │   foreign import discard :: forall a b. Effect a -> (a -> Effect b) -> Effect b
   │   ╰────────────────────────────────────────────────────────────────────────────
+  •
+
+Error! · [ParseError] · Main.purs:10:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │
+  │   ╰
+  •
+
+Hidden diagnostics
+
+Error! · [EmptyDoBlock] · Main.purs:9:8
+  •
+  │
+  • Empty do block
+  │
+  │   test = do
+  │          ╰─
+  •
+
+Error! · [ParseError] · Main.purs:10:1
+  •
+  │
+  • Expected LAYOUT_SEPARATOR
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:10:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │
+  │   ╰
   •

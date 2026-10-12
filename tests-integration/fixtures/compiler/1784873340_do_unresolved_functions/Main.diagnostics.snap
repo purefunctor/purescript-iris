@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NotInScope] · Main.purs:3:18
   •
@@ -18,6 +19,8 @@ Error! · [NotInScope] · Main.purs:7:21
   │   unresolvedDiscard = do
   │                       ╰─
   •
+
+Hidden diagnostics
 
 Error! · [CannotUnify] · Main.purs:4:3
   •

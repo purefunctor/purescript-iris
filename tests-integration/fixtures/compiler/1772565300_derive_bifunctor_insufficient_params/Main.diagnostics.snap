@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [CannotUnify] · Main.purs:6:27
   •
@@ -14,14 +14,7 @@ Error! · [CannotUnify] · Main.purs:6:27
   │   matching 'Type -> Type' with 'Type -> Type -> Type'
   •
 
-Error! · [CannotDeriveForType] · Main.purs:6:1
-  •
-  │
-  • Cannot derive for type: Triple Int String
-  │
-  │   derive instance Bifunctor (Triple Int String)
-  │   ╰────────────────────────────────────────────
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
@@ -32,4 +25,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [CannotDeriveForType] · Main.purs:6:1
+  •
+  │
+  • Cannot derive for type: Triple Int String
+  │
+  │   derive instance Bifunctor (Triple Int String)
+  │   ╰────────────────────────────────────────────
   •

@@ -1,25 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
-Error! · [NotInScope] · Main.purs:6:25
-  •
-  │
-  • 'Missing' is not in scope
-  │
-  │   signatureAndEquation :: Missing
-  │                           ╰──────
-  •
-
-Error! · [NotInScope] · Main.purs:7:24
-  •
-  │
-  • 'missing' is not in scope
-  │
-  │   signatureAndEquation = missing
-  │                          ╰──────
-  •
-
 Error! · [CannotUnify] · Main.purs:4:34
   •
   │
@@ -29,13 +11,13 @@ Error! · [CannotUnify] · Main.purs:4:34
   │                                    ╰──────
   •
 
-Error! · [CannotUnify] · Main.purs:4:51
+Error! · [NotInScope] · Main.purs:6:25
   •
   │
-  • Cannot unify 'Boolean' with 'Int'
+  • 'Missing' is not in scope
   │
-  │   independentMismatches = { first: "first", second: true }
-  │                                                     ╰───
+  │   signatureAndEquation :: Missing
+  │                           ╰──────
   •
 
 Warning! · [MissingPatterns] · Main.purs:9:1
@@ -54,6 +36,26 @@ Error! · [CannotUnify] · Main.purs:13:26
   │
   │   warningAfterError true = "one"
   │                            ╰────
+  •
+
+Hidden diagnostics
+
+Error! · [CannotUnify] · Main.purs:4:51
+  •
+  │
+  • Cannot unify 'Boolean' with 'Int'
+  │
+  │   independentMismatches = { first: "first", second: true }
+  │                                                     ╰───
+  •
+
+Error! · [NotInScope] · Main.purs:7:24
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   signatureAndEquation = missing
+  │                          ╰──────
   •
 
 Warning! · [MissingPatterns] · Main.purs:12:1

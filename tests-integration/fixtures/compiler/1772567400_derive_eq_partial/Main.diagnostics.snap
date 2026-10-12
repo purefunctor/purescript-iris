@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [OverlappingInstances] · Main.purs:9:1
   •
@@ -14,14 +15,7 @@ Error! · [OverlappingInstances] · Main.purs:9:1
   │   forall b. Eq (Either Int b) is matching
   •
 
-Error! · [NoInstanceFound] · Main.purs:9:1
-  •
-  │
-  • No instance found for: Eq b
-  │
-  │   derive instance Eq (Either Int b)
-  │   ╰────────────────────────────────
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
@@ -32,4 +26,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:9:1
+  •
+  │
+  • No instance found for: Eq b
+  │
+  │   derive instance Eq (Either Int b)
+  │   ╰────────────────────────────────
   •

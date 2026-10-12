@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Warning! · [DuplicateImport] · Main.purs:5:5
   •
@@ -15,15 +16,6 @@ Warning! · [DuplicateImport] · Main.purs:5:5
   │       ╰────
   •
 
-Error! · [InvalidImportStatement] · Main.purs:8:1
-  •
-  │
-  • Cannot import module 'Missing'
-  │
-  │   import Missing
-  │   ╰─────────────
-  •
-
 Error! · [InvalidImportItem] · Main.purs:6:5
   •
   │
@@ -31,4 +23,13 @@ Error! · [InvalidImportItem] · Main.purs:6:5
   │
   │     , missing
   │       ╰──────
+  •
+
+Error! · [InvalidImportStatement] · Main.purs:8:1
+  •
+  │
+  • Cannot import module 'Missing'
+  │
+  │   import Missing
+  │   ╰─────────────
   •

@@ -1,16 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
-Error! · [NoInstanceFound] · Main.purs:17:29
-  •
-  │
-  • No instance found for: First @Type Int
-  │
-  │   test = constrainedValue <+> needsFirst
-  │                               ╰─────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -36,4 +27,13 @@ Error! · [MissingFFIModule] · Main.purs:14:1
   │
   │   foreign import needsFirst :: First Int => Int
   │   ╰────────────────────────────────────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:17:29
+  •
+  │
+  • No instance found for: First @Type Int
+  │
+  │   test = constrainedValue <+> needsFirst
+  │                               ╰─────────
   •

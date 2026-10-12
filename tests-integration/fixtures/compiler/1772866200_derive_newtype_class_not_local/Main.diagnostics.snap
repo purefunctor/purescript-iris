@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [NonLocalNewtype] · Main.purs:6:1
   •
@@ -9,6 +10,8 @@ Error! · [NonLocalNewtype] · Main.purs:6:1
   │   derive instance Newtype Wrapper _
   │   ╰────────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

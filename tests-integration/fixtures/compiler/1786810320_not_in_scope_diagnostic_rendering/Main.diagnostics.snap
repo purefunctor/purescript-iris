@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [NotInScope] · Main.purs:4:19
   •
@@ -47,15 +47,6 @@ Error! · [NotInScope] · Main.purs:9:13
   │               ╰─
   •
 
-Error! · [NotInScope] · Main.purs:10:12
-  •
-  │
-  • 'absent' is not in scope
-  │
-  │     value <- absent
-  │              ╰─────
-  •
-
 Error! · [NotInScope] · Main.purs:13:18
   •
   │
@@ -63,6 +54,44 @@ Error! · [NotInScope] · Main.purs:13:18
   │
   │   missingDiscard = do
   │                    ╰─
+  •
+
+Error! · [NotInScope] · Main.purs:17:14
+  •
+  │
+  • 'map' is not in scope
+  │
+  │   missingAdo = ado
+  │                ╰──
+  •
+
+Error! · [NotInScope] · Main.purs:22:15
+  •
+  │
+  • 'pure' is not in scope
+  │
+  │   missingPure = ado
+  │                 ╰──
+  •
+
+Error! · [NotInScope] · Main.purs:25:16
+  •
+  │
+  • 'MissingType' is not in scope
+  │
+  │   missingType :: MissingType
+  │                  ╰──────────
+  •
+
+Hidden diagnostics
+
+Error! · [NotInScope] · Main.purs:10:12
+  •
+  │
+  • 'absent' is not in scope
+  │
+  │     value <- absent
+  │              ╰─────
   •
 
 Error! · [NotInScope] · Main.purs:14:3
@@ -81,15 +110,6 @@ Error! · [NotInScope] · Main.purs:15:3
   │
   │     absent
   │     ╰─────
-  •
-
-Error! · [NotInScope] · Main.purs:17:14
-  •
-  │
-  • 'map' is not in scope
-  │
-  │   missingAdo = ado
-  │                ╰──
   •
 
 Error! · [NotInScope] · Main.purs:17:14
@@ -117,24 +137,6 @@ Error! · [NotInScope] · Main.purs:19:13
   │
   │     second <- absent
   │               ╰─────
-  •
-
-Error! · [NotInScope] · Main.purs:22:15
-  •
-  │
-  • 'pure' is not in scope
-  │
-  │   missingPure = ado
-  │                 ╰──
-  •
-
-Error! · [NotInScope] · Main.purs:25:16
-  •
-  │
-  • 'MissingType' is not in scope
-  │
-  │   missingType :: MissingType
-  │                  ╰──────────
   •
 
 Error! · [NotInScope] · Main.purs:26:15

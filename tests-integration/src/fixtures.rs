@@ -10,7 +10,7 @@ use std::{env, io};
 use building::QueryEngine;
 use checking::error::ErrorCrumb;
 use files::{FileId, Files};
-use iris_diagnostics::{collect_diagnostics, format_rich_with_path};
+use iris_diagnostics::{Severity, collect_diagnostics, format_rich_with_path};
 use itertools::Itertools;
 use line_index::LineIndex;
 use process_control::{ChildExt, Control};
@@ -300,6 +300,7 @@ pub fn compiler(path: &Path) -> FixtureResult {
     check_declaration_crumbs(&engine, &diagnostic_files)?;
     let collected = collect_diagnostics(&engine, &diagnostic_files)?;
     let mut diagnostics_report = String::new();
+    let mut hidden_report = String::new();
     for collection in &collected {
         let source = Url::parse(&files.path(collection.file_id))?
             .to_file_path()
@@ -307,19 +308,21 @@ pub fn compiler(path: &Path) -> FixtureResult {
         let relative = source.strip_prefix(&fixture)?;
         let display_path = relative.to_string_lossy().replace('\\', "/");
         let line_index = LineIndex::new(&collection.content);
-        for diagnostics in [
-            collection.checking_diagnostics(),
-            collection.foreign_diagnostics(),
-            collection.backend_diagnostics(),
-        ] {
-            diagnostics_report.push_str(&format_rich_with_path(
+        let render = |diagnostics| {
+            format_rich_with_path(
                 diagnostics,
                 &collection.content,
                 &line_index,
                 &display_path,
                 false,
-            ));
-        }
+            )
+        };
+        diagnostics_report.push_str(&render(collection.diagnostics()));
+        hidden_report.push_str(&render(collection.hidden_diagnostics()));
+    }
+    if !hidden_report.is_empty() {
+        diagnostics_report.push_str("Hidden diagnostics\n\n");
+        diagnostics_report.push_str(&hidden_report);
     }
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(&fixture);
@@ -359,7 +362,10 @@ pub fn compiler(path: &Path) -> FixtureResult {
         }
         Err((failed_file, error)) => {
             let reported = collected.iter().any(|collection| {
-                collection.file_id == failed_file && !collection.backend_diagnostics().is_empty()
+                let diagnostics = collection.diagnostics().iter();
+                let mut diagnostics = diagnostics.chain(collection.hidden_diagnostics());
+                collection.file_id == failed_file
+                    && diagnostics.any(|diagnostic| diagnostic.severity == Severity::Error)
             });
             if !reported || fixture.join("verify.mjs").exists() {
                 return Err(error.into());

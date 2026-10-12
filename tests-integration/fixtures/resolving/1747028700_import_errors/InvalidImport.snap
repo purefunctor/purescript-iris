@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 417
 ---
 module InvalidImport
 
@@ -37,15 +38,6 @@ Local Classes:
 Class Members:
 
 Diagnostics
-Error! · [InvalidImportStatement] · InvalidImport.purs:4:1
-  •
-  │
-  • Cannot import module ''
-  │
-  │   import invalidSyntax
-  │   ╰─────
-  •
-
 Error! · [InvalidImportStatement] · InvalidImport.purs:3:1
   •
   │
@@ -53,6 +45,15 @@ Error! · [InvalidImportStatement] · InvalidImport.purs:3:1
   │
   │   import MissingLibrary
   │   ╰────────────────────
+  •
+
+Error! · [InvalidImportStatement] · InvalidImport.purs:4:1
+  •
+  │
+  • Cannot import module ''
+  │
+  │   import invalidSyntax
+  │   ╰─────
   •
 
 Error! · [InvalidImportItem] · InvalidImport.purs:5:18
@@ -64,15 +65,6 @@ Error! · [InvalidImportItem] · InvalidImport.purs:5:18
   │                    ╰──────
   •
 
-Error! · [InvalidImportItem] · InvalidImport.purs:5:36
-  •
-  │
-  • Cannot import item 'Css(Css)'
-  │
-  │   import LibraryA (missing, Missing, Css(Css), Html(..))
-  │                                      ╰───────
-  •
-
 Error! · [InvalidImportItem] · InvalidImport.purs:5:27
   •
   │
@@ -80,4 +72,13 @@ Error! · [InvalidImportItem] · InvalidImport.purs:5:27
   │
   │   import LibraryA (missing, Missing, Css(Css), Html(..))
   │                             ╰──────
+  •
+
+Error! · [InvalidImportItem] · InvalidImport.purs:5:36
+  •
+  │
+  • Cannot import item 'Css(Css)'
+  │
+  │   import LibraryA (missing, Missing, Css(Css), Html(..))
+  │                                      ╰───────
   •

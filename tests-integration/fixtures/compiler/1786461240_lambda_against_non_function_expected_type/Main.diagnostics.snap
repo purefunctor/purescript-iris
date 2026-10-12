@@ -1,15 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [CannotUnify] · Main.purs:8:17
-  •
-  │
-  • Cannot unify '?0 -> Int' with 'Int'
-  │
-  │   test = consume (\value -> 0)
-  │                   ╰──────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -17,4 +9,13 @@ Error! · [MissingFFIModule] · Main.purs:5:1
   │
   │   foreign import consume :: Int -> Unit
   │   ╰────────────────────────────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:8:17
+  •
+  │
+  • Cannot unify '?0 -> Int' with 'Int'
+  │
+  │   test = consume (\value -> 0)
+  │                   ╰──────────
   •

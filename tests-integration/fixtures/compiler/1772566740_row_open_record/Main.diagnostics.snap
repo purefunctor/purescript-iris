@@ -1,7 +1,16 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
+Error! · [MissingFFIModule] · Main.purs:5:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'unsafeCoerce'
+  │
+  │   foreign import unsafeCoerce :: forall a b. a -> b
+  │   ╰────────────────────────────────────────────────
+  •
+
 Error! · [NoInstanceFound] · Main.purs:11:14
   •
   │
@@ -10,13 +19,4 @@ Error! · [NoInstanceFound] · Main.purs:11:14
   │
   │   addField x = union x { b: "hi" }
   │                ╰──────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:5:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'unsafeCoerce'
-  │
-  │   foreign import unsafeCoerce :: forall a b. a -> b
-  │   ╰────────────────────────────────────────────────
   •

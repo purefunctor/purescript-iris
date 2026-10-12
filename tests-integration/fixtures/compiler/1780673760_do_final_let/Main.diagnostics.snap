@@ -1,24 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [InvalidFinalLet] · Main.purs:11:3
-  •
-  │
-  • Invalid final let statement in do expression
-  │
-  │     let _ = expectString record.field
-  │     ╰────────────────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:11:24
-  •
-  │
-  • Cannot unify 'Int' with 'String'
-  │
-  │     let _ = expectString record.field
-  │                          ╰───────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
@@ -44,4 +27,24 @@ Error! · [MissingFFIModule] · Main.purs:7:1
   │
   │   foreign import expectString :: String -> Int
   │   ╰───────────────────────────────────────────
+  •
+
+Error! · [InvalidFinalLet] · Main.purs:11:3
+  •
+  │
+  • Invalid final let statement in do expression
+  │
+  │     let _ = expectString record.field
+  │     ╰────────────────────────────────
+  •
+
+Hidden diagnostics
+
+Error! · [CannotUnify] · Main.purs:11:24
+  •
+  │
+  • Cannot unify 'Int' with 'String'
+  │
+  │     let _ = expectString record.field
+  │                          ╰───────────
   •

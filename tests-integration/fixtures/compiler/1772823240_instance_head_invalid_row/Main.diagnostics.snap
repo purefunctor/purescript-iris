@@ -1,21 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [CannotUnify] · Main.purs:9:1
   •
   │
   • Cannot unify 'Type' with 'Constraint'
-  │
-  │   instance T ( a :: Int )
-  │   ╰──────────────────────
-  •
-
-Error! · [InstanceHeadLabeledRow] · Main.purs:9:1
-  •
-  │
-  • Instance argument at position 0 contains a labeled row, but this position is not determined by
-  │ any functional dependency. Only the `( | r )` form is allowed. Got '( a :: Int )' instead.
   │
   │   instance T ( a :: Int )
   │   ╰──────────────────────
@@ -30,31 +20,10 @@ Error! · [CannotUnify] · Main.purs:10:1
   │   ╰──────────────────────
   •
 
-Error! · [InstanceHeadLabeledRow] · Main.purs:10:1
-  •
-  │
-  • Instance argument at position 0 contains a labeled row, but this position is not determined by
-  │ any functional dependency. Only the `( | r )` form is allowed. Got '{ a :: Int }' instead.
-  │
-  │   instance T { a :: Int }
-  │   ╰──────────────────────
-  •
-
 Error! · [CannotUnify] · Main.purs:11:1
   •
   │
   • Cannot unify 'Type' with 'Constraint'
-  │
-  │   instance T (Proxy ( a :: Int ))
-  │   ╰──────────────────────────────
-  •
-
-Error! · [InstanceHeadLabeledRow] · Main.purs:11:1
-  •
-  │
-  • Instance argument at position 0 contains a labeled row, but this position is not determined by
-  │ any functional dependency. Only the `( | r )` form is allowed. Got 'Proxy @(Row Type) ( a ::
-  │ Int )' instead.
   │
   │   instance T (Proxy ( a :: Int ))
   │   ╰──────────────────────────────
@@ -66,6 +35,39 @@ Error! · [CannotUnify] · Main.purs:12:1
   • Cannot unify 'Type' with 'Constraint'
   │
   │   instance T (Proxy { a :: Int })
+  │   ╰──────────────────────────────
+  •
+
+Hidden diagnostics
+
+Error! · [InstanceHeadLabeledRow] · Main.purs:9:1
+  •
+  │
+  • Instance argument at position 0 contains a labeled row, but this position is not determined by
+  │ any functional dependency. Only the `( | r )` form is allowed. Got '( a :: Int )' instead.
+  │
+  │   instance T ( a :: Int )
+  │   ╰──────────────────────
+  •
+
+Error! · [InstanceHeadLabeledRow] · Main.purs:10:1
+  •
+  │
+  • Instance argument at position 0 contains a labeled row, but this position is not determined by
+  │ any functional dependency. Only the `( | r )` form is allowed. Got '{ a :: Int }' instead.
+  │
+  │   instance T { a :: Int }
+  │   ╰──────────────────────
+  •
+
+Error! · [InstanceHeadLabeledRow] · Main.purs:11:1
+  •
+  │
+  • Instance argument at position 0 contains a labeled row, but this position is not determined by
+  │ any functional dependency. Only the `( | r )` form is allowed. Got 'Proxy @(Row Type) ( a ::
+  │ Int )' instead.
+  │
+  │   instance T (Proxy ( a :: Int ))
   │   ╰──────────────────────────────
   •
 

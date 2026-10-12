@@ -1,12 +1,13 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [CannotGeneraliseRecursiveFunction] · Main.purs:8:1
+Error! · [CannotGeneraliseRecursiveFunction] · Main.purs:6:1
   •
   │
   • Unable to generalise the type of this recursive function.
   │
-  │   second value = append value (first value)
+  │   first value = append value (second value)
   │   ╰────────────────────────────────────────
   • while
   │
@@ -14,12 +15,12 @@ Error! · [CannotGeneraliseRecursiveFunction] · Main.purs:8:1
   │   Try adding a type signature.
   •
 
-Error! · [CannotGeneraliseRecursiveFunction] · Main.purs:6:1
+Error! · [CannotGeneraliseRecursiveFunction] · Main.purs:8:1
   •
   │
   • Unable to generalise the type of this recursive function.
   │
-  │   first value = append value (second value)
+  │   second value = append value (first value)
   │   ╰────────────────────────────────────────
   • while
   │

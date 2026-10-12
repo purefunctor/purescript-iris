@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [AmbiguousConstraint] · Main.purs:33:1
   •
@@ -9,6 +10,8 @@ Error! · [AmbiguousConstraint] · Main.purs:33:1
   │   forceSolve =
   │   ╰───────────
   •
+
+Hidden diagnostics
 
 Error! · [AmbiguousConstraint] · Main.purs:33:1
   •

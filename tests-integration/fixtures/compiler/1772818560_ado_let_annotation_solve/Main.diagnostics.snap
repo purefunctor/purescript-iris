@@ -1,15 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [CannotUnify] · Main.purs:19:9
-  •
-  │
-  • Cannot unify 'String' with 'Int'
-  │
-  │       f = a
-  │           ╰
-  •
-
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
@@ -44,4 +36,13 @@ Error! · [MissingFFIModule] · Main.purs:9:1
   │
   │   foreign import apply :: forall a b. Effect (a -> b) -> Effect a -> Effect b
   │   ╰──────────────────────────────────────────────────────────────────────────
+  •
+
+Error! · [CannotUnify] · Main.purs:19:9
+  •
+  │
+  • Cannot unify 'String' with 'Int'
+  │
+  │       f = a
+  │           ╰
   •

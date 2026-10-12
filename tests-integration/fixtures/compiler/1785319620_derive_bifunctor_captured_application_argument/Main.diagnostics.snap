@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CannotDeriveForType] · Main.purs:8:1
   •
@@ -18,6 +19,8 @@ Error! · [CannotDeriveForType] · Main.purs:13:1
   │   derive instance Bifunctor NestedCaptured
   │   ╰───────────────────────────────────────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •

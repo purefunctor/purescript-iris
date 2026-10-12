@@ -1848,6 +1848,7 @@ dependencies = [
  "lowering",
  "parsing",
  "resolving",
+ "rustc-hash",
  "smol_str",
  "stabilizing",
  "syntax",

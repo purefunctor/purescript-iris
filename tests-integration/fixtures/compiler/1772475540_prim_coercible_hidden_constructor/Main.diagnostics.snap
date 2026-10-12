@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
 Error! · [CoercibleConstructorNotInScope] · Main.purs:7:16
   •
@@ -10,6 +10,8 @@ Error! · [CoercibleConstructorNotInScope] · Main.purs:7:16
   │   coerceHidden = coerce
   │                  ╰─────
   •
+
+Hidden diagnostics
 
 Error! · [NoInstanceFound] · Main.purs:7:16
   •

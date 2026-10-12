@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [CannotDeriveForType] · Main.purs:17:1
   •
@@ -9,24 +9,6 @@ Error! · [CannotDeriveForType] · Main.purs:17:1
   │
   │   derive instance Eq1 ImportedAlias
   │   ╰────────────────────────────────
-  •
-
-Error! · [PartialSynonymApplication] · Main.purs:27:21
-  •
-  │
-  • Partial type synonym application
-  │
-  │   derive instance Eq1 ProductInt
-  │                       ╰─────────
-  •
-
-Error! · [CannotDeriveForType] · Main.purs:27:1
-  •
-  │
-  • Cannot derive for type: ?[partial synonym application]
-  │
-  │   derive instance Eq1 ProductInt
-  │   ╰─────────────────────────────
   •
 
 Error! · [NoInstanceFound] · Main.purs:21:1
@@ -41,6 +23,17 @@ Error! · [NoInstanceFound] · Main.purs:21:1
   │   Eq t0 is in scope
   •
 
+Error! · [PartialSynonymApplication] · Main.purs:27:21
+  •
+  │
+  • Partial type synonym application
+  │
+  │   derive instance Eq1 ProductInt
+  │                       ╰─────────
+  •
+
+Hidden diagnostics
+
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
   │
@@ -50,4 +43,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [CannotDeriveForType] · Main.purs:27:1
+  •
+  │
+  • Cannot derive for type: ?[partial synonym application]
+  │
+  │   derive instance Eq1 ProductInt
+  │   ╰─────────────────────────────
   •

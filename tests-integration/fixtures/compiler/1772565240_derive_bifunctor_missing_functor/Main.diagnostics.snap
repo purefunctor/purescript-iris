@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
@@ -10,14 +11,7 @@ Error! · [CannotDeriveForType] · Main.purs:6:1
   │   ╰───────────────────────────────────────
   •
 
-Error! · [CannotDeriveForType] · Main.purs:6:1
-  •
-  │
-  • Cannot derive for type: (g :: Type -> Type) t1
-  │
-  │   derive instance Bifunctor (WrapBoth f g)
-  │   ╰───────────────────────────────────────
-  •
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
@@ -28,4 +22,13 @@ Error! · [FunctionalCodegen] · Main.purs:1:1
   │
   │   module Main where
   │   ╰────────────────
+  •
+
+Error! · [CannotDeriveForType] · Main.purs:6:1
+  •
+  │
+  • Cannot derive for type: (g :: Type -> Type) t1
+  │
+  │   derive instance Bifunctor (WrapBoth f g)
+  │   ╰───────────────────────────────────────
   •

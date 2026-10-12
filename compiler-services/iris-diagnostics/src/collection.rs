@@ -4,32 +4,26 @@ use building_types::QueryResult;
 use files::FileId;
 use foreign_javascript::ForeignQueries;
 
+use crate::selection::{SelectedDiagnostics, select_diagnostics};
 use crate::{Diagnostic, DiagnosticsContext, ExternalQueries, ToDiagnostics};
 
 pub struct DiagnosticCollection {
     pub file_id: FileId,
     pub content: Arc<str>,
     diagnostics: Vec<Diagnostic>,
-    source_start: usize,
-    foreign_start: usize,
-    backend_start: usize,
+    hidden: Vec<Diagnostic>,
 }
 
 impl DiagnosticCollection {
+    /// Diagnostics to report, with at most one error for each top-level declaration.
     pub fn diagnostics(&self) -> &[Diagnostic] {
-        &self.diagnostics[self.source_start..]
+        &self.diagnostics
     }
 
-    pub fn checking_diagnostics(&self) -> &[Diagnostic] {
-        &self.diagnostics[..self.foreign_start]
-    }
-
-    pub fn foreign_diagnostics(&self) -> &[Diagnostic] {
-        &self.diagnostics[self.foreign_start..self.backend_start]
-    }
-
-    pub fn backend_diagnostics(&self) -> &[Diagnostic] {
-        &self.diagnostics[self.backend_start..]
+    /// Diagnostics left out of [`DiagnosticCollection::diagnostics`], which
+    /// are often caused by a reported error.
+    pub fn hidden_diagnostics(&self) -> &[Diagnostic] {
+        &self.hidden
     }
 }
 
@@ -76,49 +70,43 @@ where
         &checked,
     );
 
-    let mut diagnostics = Vec::new();
+    let mut source = Vec::new();
     for error in &indexed.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        source.extend(error.to_diagnostics(&context));
     }
-
-    let source_start = diagnostics.len();
     for error in parse_errors.iter() {
-        diagnostics.extend(error.to_diagnostics(&context));
+        source.extend(error.to_diagnostics(&context));
     }
     for error in &lowered.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        source.extend(error.to_diagnostics(&context));
     }
     for error in &grouped.cycle_errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        source.extend(error.to_diagnostics(&context));
     }
     for error in &resolved.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        source.extend(error.to_diagnostics(&context));
     }
     for error in &checked.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        source.extend(error.to_diagnostics(&context));
     }
 
-    let foreign_start = diagnostics.len();
+    let mut foreign = Vec::new();
     for error in foreign_validation.errors.iter() {
-        diagnostics.extend(error.to_diagnostics(&context));
+        foreign.extend(error.to_diagnostics(&context));
     }
 
-    let backend_start = diagnostics.len();
+    let mut backend = Vec::new();
     match javascript {
         Ok(module) => {
             for diagnostic in module.diagnostics() {
-                diagnostics.extend(diagnostic.to_diagnostics(&context));
+                backend.extend(diagnostic.to_diagnostics(&context));
             }
         }
-        Err(error) => diagnostics.extend(error.to_diagnostics(&context)),
+        Err(error) => backend.extend(error.to_diagnostics(&context)),
     }
 
-    Ok(DiagnosticCollection {
-        file_id,
-        content,
-        diagnostics,
-        source_start,
-        foreign_start,
-        backend_start,
-    })
+    let SelectedDiagnostics { reported, hidden } =
+        select_diagnostics(&context, source, foreign, backend);
+
+    Ok(DiagnosticCollection { file_id, content, diagnostics: reported, hidden })
 }

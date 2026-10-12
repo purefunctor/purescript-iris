@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
+assertion_line: 333
 ---
 Error! · [CannotUnify] · Main.purs:7:6
   •
@@ -10,6 +10,8 @@ Error! · [CannotUnify] · Main.purs:7:6
   │   test (a :+ b) = 1
   │        ╰───────
   •
+
+Hidden diagnostics
 
 Error! · [FunctionalCodegen] · Main.purs:7:7
   •

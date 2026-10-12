@@ -1,65 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
-Error! · [EscapedSkolem] · Main.purs:99:1
-  •
-  │
-  • Type variable '(scope :: t0)' has escaped its scope, appearing in type 'forall t0. Token @t0
-  │ (scope :: t0)'
-  │
-  │   escapedResult = leak modify
-  │   ╰──────────────────────────
-  •
-
-Error! · [EscapedSkolem] · Main.purs:101:1
-  •
-  │
-  • Type variable 'value' has escaped its scope, appearing in type '(value -> value) -> Unit'
-  │
-  │   escapedBinder = \callback -> consumeIdentity callback
-  │   ╰────────────────────────────────────────────────────
-  •
-
-Error! · [EscapedSkolem] · Main.purs:103:1
-  •
-  │
-  • Type variable '(scope1 :: t1)' has escaped its scope, appearing in type 'forall t1. Token @t1
-  │ (scope1 :: t1)'
-  │
-  │   escapedNestedUse = identity (leak modify)
-  │   ╰────────────────────────────────────────
-  •
-
-Error! · [EscapedSkolem] · Main.purs:105:1
-  •
-  │
-  • Type variable '(scope2 :: t2)' has escaped its scope, appearing in type 'forall t3 t2. t3 ->
-  │ Token @t2 (scope2 :: t2)'
-  │
-  │   escapedDiscardedOuterArgument _ = leak modify
-  │   ╰────────────────────────────────────────────
-  •
-
-Error! · [EscapedSkolem] · Main.purs:107:1
-  •
-  │
-  • Type variable '(scope3 :: ?111)' has escaped its scope, appearing in type 'Token @?111
-  │ (scope3 :: ?111)'
-  │
-  │   escapedDiscardedArgument :: Unit
-  │   ╰───────────────────────────────
-  •
-
-Error! · [EscapedSkolem] · Main.purs:110:1
-  •
-  │
-  • Type variable '(scope4 :: t4)' has escaped its scope, appearing in type 'forall t4 t5 (t6 ::
-  │ t5). EscapingEvidence @t4 @t5 (scope4 :: t4) (t6 :: t5) => Proxy @t5 (t6 :: t5)'
-  │
-  │   escapedEvidenceOnly = leak pokeWithoutWitness
-  │   ╰────────────────────────────────────────────
-  •
-
 Error! · [MissingFFIModule] · Main.purs:23:1
   •
   │
@@ -157,4 +99,63 @@ Error! · [MissingFFIModule] · Main.purs:67:1
   │
   │   foreign import pokeMap
   │   ╰─────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:99:1
+  •
+  │
+  • Type variable '(scope :: t0)' has escaped its scope, appearing in type 'forall t0. Token @t0
+  │ (scope :: t0)'
+  │
+  │   escapedResult = leak modify
+  │   ╰──────────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:101:1
+  •
+  │
+  • Type variable 'value' has escaped its scope, appearing in type '(value -> value) -> Unit'
+  │
+  │   escapedBinder = \callback -> consumeIdentity callback
+  │   ╰────────────────────────────────────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:103:1
+  •
+  │
+  • Type variable '(scope1 :: t1)' has escaped its scope, appearing in type 'forall t1. Token @t1
+  │ (scope1 :: t1)'
+  │
+  │   escapedNestedUse = identity (leak modify)
+  │   ╰────────────────────────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:105:1
+  •
+  │
+  • Type variable '(scope2 :: t2)' has escaped its scope, appearing in type 'forall t3 t2. t3 ->
+  │ Token @t2 (scope2 :: t2)'
+  │
+  │   escapedDiscardedOuterArgument _ = leak modify
+  │   ╰────────────────────────────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:107:1
+  •
+  │
+  • Type variable '(scope3 :: ?111)' has escaped its scope, appearing in type 'Token @?111
+  │ (scope3 :: ?111)'
+  │
+  │   escapedDiscardedArgument :: Unit
+  │   ╰───────────────────────────────
+  •
+
+Error! · [EscapedSkolem] · Main.purs:110:1
+  •
+  │
+  • Type variable '(scope4 :: t4)' has escaped its scope, appearing in type 'forall t4 t5 (t6 ::
+  │ t5). EscapingEvidence @t4 @t5 (scope4 :: t4) (t6 :: t5) => Proxy @t5 (t6 :: t5)'
+  │
+  │   escapedEvidenceOnly = leak pokeWithoutWitness
+  │   ╰────────────────────────────────────────────
   •

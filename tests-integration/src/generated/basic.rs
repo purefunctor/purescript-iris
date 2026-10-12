@@ -107,11 +107,11 @@ pub fn report_resolved(engine: &QueryEngine, id: FileId, name: &str, path: &str)
 
     let mut collected = collect_diagnostics(engine, &[id]).unwrap();
     let collected = collected.pop().unwrap();
-    let diagnostics = collected
-        .checking_diagnostics()
-        .iter()
-        .filter(|diagnostic| diagnostic.source == "resolving");
-    let diagnostics: Vec<_> = diagnostics.cloned().collect();
+    // Resolver diagnostics are reported in full, including those hidden behind another error.
+    let diagnostics = collected.diagnostics().iter().chain(collected.hidden_diagnostics());
+    let diagnostics = diagnostics.filter(|diagnostic| diagnostic.source == "resolving");
+    let diagnostics = diagnostics.cloned().sorted_by_key(|diagnostic| diagnostic.span.start);
+    let diagnostics = diagnostics.collect_vec();
     if !diagnostics.is_empty() {
         heading(&mut out, "Diagnostics");
         let line_index = LineIndex::new(&collected.content);

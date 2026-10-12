@@ -1,6 +1,61 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 333
 ---
+Error! · [MissingFFIModule] · Main.purs:13:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'leak'
+  │
+  │   foreign import leak
+  │   ╰──────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:18:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'pure'
+  │
+  │   foreign import pure :: forall value. value -> Effect value
+  │   ╰─────────────────────────────────────────────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:20:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'bind'
+  │
+  │   foreign import bind
+  │   ╰──────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:26:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'discard'
+  │
+  │   foreign import discard
+  │   ╰─────────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:32:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'map'
+  │
+  │   foreign import map
+  │   ╰─────────────────
+  •
+
+Error! · [MissingFFIModule] · Main.purs:38:1
+  •
+  │
+  • No JavaScript FFI module was found for foreign import 'apply'
+  │
+  │   foreign import apply
+  │   ╰───────────────────
+  •
+
 Error! · [EscapedSkolem] · Main.purs:49:1
   •
   │
@@ -81,58 +136,4 @@ Error! · [EscapedSkolem] · Main.purs:68:1
   │
   │   escapedCase value = case value of
   │   ╰────────────────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:13:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'leak'
-  │
-  │   foreign import leak
-  │   ╰──────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:18:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'pure'
-  │
-  │   foreign import pure :: forall value. value -> Effect value
-  │   ╰─────────────────────────────────────────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:20:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'bind'
-  │
-  │   foreign import bind
-  │   ╰──────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:26:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'discard'
-  │
-  │   foreign import discard
-  │   ╰─────────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:32:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'map'
-  │
-  │   foreign import map
-  │   ╰─────────────────
-  •
-
-Error! · [MissingFFIModule] · Main.purs:38:1
-  •
-  │
-  • No JavaScript FFI module was found for foreign import 'apply'
-  │
-  │   foreign import apply
-  │   ╰───────────────────
   •

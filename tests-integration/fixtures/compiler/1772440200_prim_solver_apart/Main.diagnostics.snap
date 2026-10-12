@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 333
 ---
 Error! · [NoInstanceFound] · Main.purs:21:5
   •
@@ -10,6 +10,17 @@ Error! · [NoInstanceFound] · Main.purs:21:5
   │     { invalidAdd
   │       ╰─────────
   •
+
+Error! · [NoInstanceFound] · Main.purs:29:5
+  •
+  │
+  • No instance found for: Compare 5 1 LT
+  │
+  │     { invalidCompare
+  │       ╰─────────────
+  •
+
+Hidden diagnostics
 
 Error! · [NoInstanceFound] · Main.purs:22:5
   •
@@ -36,15 +47,6 @@ Error! · [NoInstanceFound] · Main.purs:24:5
   │
   │     , invalidCons
   │       ╰──────────
-  •
-
-Error! · [NoInstanceFound] · Main.purs:29:5
-  •
-  │
-  • No instance found for: Compare 5 1 LT
-  │
-  │     { invalidCompare
-  │       ╰─────────────
   •
 
 Error! · [NoInstanceFound] · Main.purs:30:5
