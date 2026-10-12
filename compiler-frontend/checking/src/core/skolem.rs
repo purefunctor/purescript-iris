@@ -50,6 +50,9 @@ where
     context: &'context CheckContext<'queries, Q>,
     judgments: &'c FxHashSet<ExpressionId>,
     local: Option<LocalDeclarationId>,
+    /// Crumbs from the enclosing checking context, which keep errors in
+    /// local declarations attributed to their top-level declaration.
+    enclosing: Arc<[ErrorCrumb]>,
     discovering: bool,
     expected_skolems: FxHashSet<SkolemScope>,
     tasks: Vec<Task<'c>>,
@@ -77,6 +80,7 @@ where
         &state.judgments,
         context,
         None,
+        Arc::from([]),
         Pass::Audit(expected_skolems),
     );
     state.checked.errors.extend(errors);
@@ -94,11 +98,13 @@ where
     let type_id = super::zonk::zonk(state, context, type_id)?;
     state.checked.tree.set_let_type(declaration, type_id);
 
+    let enclosing = Arc::from(state.crumbs.as_slice());
     let (_, expected_skolems) = collect_errors(
         &state.checked,
         &state.judgments,
         context,
         Some(declaration),
+        Arc::clone(&enclosing),
         Pass::Discover,
     );
     if expected_skolems.is_empty() {
@@ -109,6 +115,7 @@ where
         &state.judgments,
         context,
         Some(declaration),
+        enclosing,
         Pass::Audit(expected_skolems),
     );
     state.checked.errors.extend(errors);
@@ -120,6 +127,7 @@ fn new_checker<'c, 'context, 'queries, Q>(
     judgments: &'c FxHashSet<ExpressionId>,
     context: &'context CheckContext<'queries, Q>,
     local: Option<LocalDeclarationId>,
+    enclosing: Arc<[ErrorCrumb]>,
     pass: Pass,
 ) -> SkolemChecker<'c, 'context, 'queries, Q>
 where
@@ -163,6 +171,7 @@ where
         context,
         judgments,
         local,
+        enclosing,
         discovering,
         expected_skolems,
         tasks,
@@ -636,7 +645,8 @@ fn inspect_type<Q>(
                 {
                     let skolem = type_id;
                     let kind = ErrorKind::EscapedSkolem { skolem, type_id: annotation };
-                    checker.errors.push(CheckingError { kind, crumbs: Arc::from([crumb]) });
+                    let crumbs = checker.enclosing.iter().copied().chain([crumb]).dedup().collect();
+                    checker.errors.push(CheckingError { kind, crumbs });
                 }
                 pending.push(kind);
             }
@@ -655,16 +665,20 @@ fn collect_errors<'c, Q>(
     judgments: &'c FxHashSet<ExpressionId>,
     context: &CheckContext<Q>,
     local: Option<LocalDeclarationId>,
+    enclosing: Arc<[ErrorCrumb]>,
     pass: Pass,
 ) -> (Vec<CheckingError>, FxHashSet<SkolemScope>)
 where
     Q: ExternalQueries,
 {
-    let mut checker = new_checker(checked, judgments, context, local, pass);
+    let mut checker = new_checker(checked, judgments, context, local, enclosing, pass);
 
     while let Some(task) = checker.tasks.pop() {
         match task {
-            Task::Term(declaration, crumb) => check_term(&mut checker, declaration, crumb),
+            Task::Term(declaration, crumb) => {
+                checker.enclosing = Arc::from([crumb]);
+                check_term(&mut checker, declaration, crumb);
+            }
             Task::Member(member, crumb) => check_member(&mut checker, member, crumb),
             Task::Local(declaration) => check_local_declaration(&mut checker, declaration),
             Task::Equation(equation, crumb) => check_equation(&mut checker, equation, crumb),

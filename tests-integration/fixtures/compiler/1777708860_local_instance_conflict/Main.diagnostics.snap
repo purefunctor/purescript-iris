@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [RedefinedIdent] · Main.purs:6:1
   •
@@ -15,22 +16,22 @@ Error! · [RedefinedIdent] · Main.purs:6:1
   │   ╰─────────────────────────────
   •
 
-Error! · [InstanceHeadMismatch] · Main.purs:1:1
+Error! · [InstanceHeadMismatch] · Main.purs:6:1
   •
   │
   • Instance head mismatch: expected 1 arguments, got 0
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance classInt :: Class
+  │   ╰─────────────────────────
   •
 
-Error! · [CannotUnify] · Main.purs:1:1
+Error! · [CannotUnify] · Main.purs:6:1
   •
   │
   • Cannot unify 'Type -> Constraint' with 'Constraint'
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance classInt :: Class
+  │   ╰─────────────────────────
   •
 
 Error! · [MissingFFIModule] · Main.purs:7:1

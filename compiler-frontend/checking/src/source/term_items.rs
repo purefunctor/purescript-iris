@@ -68,7 +68,9 @@ where
             resolution,
             arguments: &item.arguments,
         };
-        check_instance_declaration(state, context, item)?;
+        state.with_error_crumb(ErrorCrumb::InstanceDeclaration(item_id), |state| {
+            check_instance_declaration(state, context, item)
+        })?;
     }
 
     Ok(())
@@ -193,7 +195,9 @@ where
         let items = scc.as_slice();
 
         for &item in items {
-            check_term_signature(state, context, item)?;
+            state.with_error_crumb(ErrorCrumb::TermDeclaration(item), |state| {
+                check_term_signature(state, context, item)
+            })?;
         }
 
         let recursive = scc.is_recursive();
@@ -204,7 +208,9 @@ where
         let mut term_scc = TermSccState::default();
 
         for &item in items {
-            check_term_equation(state, context, &mut term_scc, item)?;
+            state.with_error_crumb(ErrorCrumb::TermDeclaration(item), |state| {
+                check_term_equation(state, context, &mut term_scc, item)
+            })?;
         }
 
         finalise_term_binding_group(state, context, &mut term_scc, items, recursive)?;
@@ -779,35 +785,19 @@ fn check_value_group<Q>(
 where
     Q: ExternalQueries,
 {
-    state.with_error_crumb(ErrorCrumb::TermDeclaration(item_id), |state| {
-        check_value_group_core(state, context, item_id, signature, equations)
-    })
-}
-
-fn check_value_group_core<Q>(
-    state: &mut CheckState,
-    context: &CheckContext<Q>,
-    item_id: TermItemId,
-    signature: Option<lowering::TypeId>,
-    equations: &[lowering::Equation],
-) -> QueryResult<Option<PendingValueGroup>>
-where
-    Q: ExternalQueries,
-{
     if let Some(signature_id) = signature
         && let Some(signature_type) = state.checked.lookup_term_item_type(item_id)
     {
         let (residuals, abstractions, equations) =
-            check_value_group_core_check(state, context, signature_id, signature_type, equations)?;
+            check_value_group_check(state, context, signature_id, signature_type, equations)?;
         Ok(Some(PendingValueGroup::Checked { residuals, abstractions, equations }))
     } else {
-        let (residuals, equations) =
-            check_value_group_core_infer(state, context, item_id, equations)?;
+        let (residuals, equations) = check_value_group_infer(state, context, item_id, equations)?;
         Ok(Some(PendingValueGroup::Inferred { residuals, equations }))
     }
 }
 
-fn check_value_group_core_check<Q>(
+fn check_value_group_check<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     signature_id: lowering::TypeId,
@@ -839,7 +829,7 @@ where
     Ok((residuals, checked_equations.abstractions, checked_equations.equations))
 }
 
-fn check_value_group_core_infer<Q>(
+fn check_value_group_infer<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     item_id: TermItemId,

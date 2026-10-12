@@ -1,80 +1,81 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
-Error! · [CannotUnify] · Main.purs:1:1
+Error! · [CannotUnify] · Main.purs:9:1
   •
   │
   • Cannot unify 'Type' with 'Constraint'
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T ( a :: Int )
+  │   ╰──────────────────────
   •
 
-Error! · [InstanceHeadLabeledRow] · Main.purs:1:1
+Error! · [InstanceHeadLabeledRow] · Main.purs:9:1
   •
   │
   • Instance argument at position 0 contains a labeled row, but this position is not determined by
   │ any functional dependency. Only the `( | r )` form is allowed. Got '( a :: Int )' instead.
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T ( a :: Int )
+  │   ╰──────────────────────
   •
 
-Error! · [CannotUnify] · Main.purs:1:1
+Error! · [CannotUnify] · Main.purs:10:1
   •
   │
   • Cannot unify 'Type' with 'Constraint'
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T { a :: Int }
+  │   ╰──────────────────────
   •
 
-Error! · [InstanceHeadLabeledRow] · Main.purs:1:1
+Error! · [InstanceHeadLabeledRow] · Main.purs:10:1
   •
   │
   • Instance argument at position 0 contains a labeled row, but this position is not determined by
   │ any functional dependency. Only the `( | r )` form is allowed. Got '{ a :: Int }' instead.
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T { a :: Int }
+  │   ╰──────────────────────
   •
 
-Error! · [CannotUnify] · Main.purs:1:1
+Error! · [CannotUnify] · Main.purs:11:1
   •
   │
   • Cannot unify 'Type' with 'Constraint'
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T (Proxy ( a :: Int ))
+  │   ╰──────────────────────────────
   •
 
-Error! · [InstanceHeadLabeledRow] · Main.purs:1:1
+Error! · [InstanceHeadLabeledRow] · Main.purs:11:1
   •
   │
   • Instance argument at position 0 contains a labeled row, but this position is not determined by
   │ any functional dependency. Only the `( | r )` form is allowed. Got 'Proxy @(Row Type) ( a ::
   │ Int )' instead.
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T (Proxy ( a :: Int ))
+  │   ╰──────────────────────────────
   •
 
-Error! · [CannotUnify] · Main.purs:1:1
+Error! · [CannotUnify] · Main.purs:12:1
   •
   │
   • Cannot unify 'Type' with 'Constraint'
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T (Proxy { a :: Int })
+  │   ╰──────────────────────────────
   •
 
-Error! · [InstanceHeadLabeledRow] · Main.purs:1:1
+Error! · [InstanceHeadLabeledRow] · Main.purs:12:1
   •
   │
   • Instance argument at position 0 contains a labeled row, but this position is not determined by
   │ any functional dependency. Only the `( | r )` form is allowed. Got 'Proxy @Type { a :: Int }'
   │ instead.
   │
-  │   module Main where
-  │   ╰────────────────
+  │   instance T (Proxy { a :: Int })
+  │   ╰──────────────────────────────
   •
