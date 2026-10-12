@@ -41,6 +41,12 @@ jobs:
           cache-bin: "false"
           prefix-key: "v1-claude-review"
 
+      # The build artifact cache restores all of target/, which can include an incomplete copy of
+      # the integration packages. The packages cache below owns that directory, so start it empty.
+      - name: Clear restored integration packages
+        shell: bash
+        run: rm -rf target/integration-packages
+
       - name: Cache integration packages
         uses: actions/cache@v6
         with:
