@@ -12,8 +12,6 @@ pub enum VerifierError {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
-    Http(#[from] reqwest::Error),
-    #[error(transparent)]
     Url(#[from] url::ParseError),
     #[error("failed to convert path to file URL: {0}")]
     FileUrl(PathBuf),
