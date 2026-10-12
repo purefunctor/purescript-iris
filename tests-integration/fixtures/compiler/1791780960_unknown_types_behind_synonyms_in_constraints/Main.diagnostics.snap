@@ -20,24 +20,6 @@ Error! · [InvalidTypeApplication] · Main.purs:6:16
   │                  ╰─────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:16:15
-  •
-  │
-  • No instance found for: Constrained Invalid
-  │
-  │   usesInvalid = needsInvalid
-  │                 ╰───────────
-  •
-
-Error! · [NoInstanceFound] · Main.purs:22:15
-  •
-  │
-  • No instance found for: Constrained Wrapped
-  │
-  │   usesWrapped = needsWrapped
-  │                 ╰───────────
-  •
-
 Error! · [RecursiveSynonymExpansion] · Main.purs:24:26
   •
   │

@@ -7,7 +7,7 @@ use files::FileId;
 use indexing::{TermItemId, TypeItemId};
 use lowering::{TermItemKind, TypeItemKind};
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
@@ -695,6 +695,12 @@ where
     Ok(walker.contains)
 }
 
+/// Whether a type contains an unknown type, including in the expansions of the
+/// synonyms that it uses.
+///
+/// A type refers to a synonym by name, and the expansion of an invalid synonym
+/// is an unknown type. The walk visits the expansion of each synonym once, so
+/// the walk ends even when a synonym is recursive.
 pub fn contains_unknown<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -707,26 +713,35 @@ where
     // may contain them, so every type is visited.
     struct ContainsUnknown {
         contains: bool,
+        constructors: FxHashSet<(FileId, TypeItemId)>,
     }
 
     impl TypeWalker for ContainsUnknown {
         fn visit<Q: ExternalQueries>(
             &mut self,
-            _state: &mut CheckState,
-            _context: &CheckContext<Q>,
+            state: &mut CheckState,
+            context: &CheckContext<Q>,
             _id: TypeId,
             t: &Type,
         ) -> QueryResult<walk::WalkAction> {
-            if let Type::Unknown(_) = t {
-                self.contains = true;
-                Ok(walk::WalkAction::Break)
-            } else {
-                Ok(walk::WalkAction::Continue)
+            match *t {
+                Type::Unknown(_) => self.contains = true,
+                Type::Constructor(file_id, type_id)
+                    if self.constructors.insert((file_id, type_id)) =>
+                {
+                    let synonym = lookup_file_synonym(state, context, file_id, type_id)?;
+                    if let Some(synonym) = synonym {
+                        walk::walk_type(state, context, synonym.expansion, self)?;
+                    }
+                }
+                _ => (),
             }
+
+            if self.contains { Ok(walk::WalkAction::Break) } else { Ok(walk::WalkAction::Continue) }
         }
     }
 
-    let mut walker = ContainsUnknown { contains: false };
+    let mut walker = ContainsUnknown { contains: false, constructors: FxHashSet::default() };
     walk::walk_type(state, context, id, &mut walker)?;
     Ok(walker.contains)
 }
