@@ -1,20 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [InvalidTypeApplication] · Main.purs:3:12
   •
   │
   • Cannot apply type 'Array Int' to 'String'. 'Array Int' has kind 'Type', which is not a function
   │ kind.
-  │
-  │   type Bad = Array Int String
-  │              ╰───────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:3:12
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   type Bad = Array Int String
   │              ╰───────────────

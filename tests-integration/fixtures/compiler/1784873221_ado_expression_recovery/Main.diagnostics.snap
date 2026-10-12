@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 330
 ---
 Error! · [ParseError] · Main.purs:11:1
   •
@@ -33,15 +33,6 @@ Error! · [EmptyAdoBlock] · Main.purs:9:12
   •
   │
   • Empty ado block
-  │
-  │   emptyAdo = ado
-  │              ╰──
-  •
-
-Error! · [CannotUnify] · Main.purs:9:12
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   emptyAdo = ado
   │              ╰──

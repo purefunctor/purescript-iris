@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 331
+---
+interface Constrained :: Prim.Type -> Prim.Constraint
+interface Constrained a where
+
+needsInvalid :: Main.Constrained Main.Invalid => Prim.Int
+needsInvalid = \{constrainedDict} -> 0
+
+usesInvalid :: Prim.Int
+usesInvalid = needsInvalid {error}
+
+needsWrapped :: Main.Constrained Main.Wrapped => Prim.Int
+needsWrapped = \{constrainedDict} -> 0
+
+usesWrapped :: Prim.Int
+usesWrapped = needsWrapped {error}
+
+needsLoop :: Main.Constrained Main.Loop => Prim.Int
+needsLoop = \{constrainedDict} -> 0
+
+usesLoop :: Prim.Int
+usesLoop = needsLoop {error}

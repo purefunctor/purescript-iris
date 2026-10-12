@@ -173,6 +173,25 @@ pub enum ErrorKind {
     AdditionalProperty {
         labels: Arc<[SmolStr]>,
     },
+    UnreportedUnknownType {
+        type_id: TypeId,
+    },
+}
+
+impl ErrorKind {
+    /// Whether the error is reported as a warning.
+    ///
+    /// A module that has only warnings still compiles.
+    pub fn is_warning(&self) -> bool {
+        matches!(
+            self,
+            ErrorKind::InvalidFinalBind
+                | ErrorKind::MissingInstanceMembers { .. }
+                | ErrorKind::RedundantPatterns { .. }
+                | ErrorKind::MissingPatterns { .. }
+                | ErrorKind::CustomWarning { .. }
+        )
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

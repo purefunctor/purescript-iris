@@ -1,37 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [NotInScope] · Main.purs:13:22
   •
   │
   • 'missing' is not in scope
-  │
-  │   failedBody = apply _ missing
-  │                        ╰──────
-  •
-
-Error! · [CannotUnify] · Main.purs:9:10
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   orphan = _
-  │            ╰
-  •
-
-Error! · [CannotUnify] · Main.purs:11:28
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   orphanInLambda = \value -> _
-  │                              ╰
-  •
-
-Error! · [CannotUnify] · Main.purs:13:22
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   failedBody = apply _ missing
   │                        ╰──────

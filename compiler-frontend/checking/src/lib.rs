@@ -20,8 +20,9 @@ use std::sync::Arc;
 use building_types::{QueryProxy, QueryResult};
 use files::FileId;
 use indexing::{DeriveId, InstanceId, TermItemId, TypeItemId};
+use itertools::Itertools;
 use resolving::ResolvedModule;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
 use crate::core::{
@@ -232,9 +233,69 @@ fn check_source(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<
         core::skolem::check(state, &context);
         core::zonk::zonk_errors(state, &context)
     })?;
+    report_unexplained_unknown(&mut state, &context)?;
     state.checked.evidence.assert_finished();
 
     Ok(state.checked)
+}
+
+/// Reports an unknown type that replaced a failure without any error that explains it.
+///
+/// Unknown types replace syntax and types whose errors are reported elsewhere,
+/// including in transitive imports. Without an explaining error, the failures
+/// that the unknown type replaced would let an ill-typed module through.
+fn report_unexplained_unknown<Q>(
+    state: &mut state::CheckState,
+    context: &context::CheckContext<Q>,
+) -> QueryResult<()>
+where
+    Q: ExternalQueries,
+{
+    let Some(error) = state.absorbed_unknown.take() else {
+        return Ok(());
+    };
+
+    if has_checking_errors(&state.checked) || has_source_errors(context.queries, context.id)? {
+        return Ok(());
+    }
+
+    let mut visited = FxHashSet::default();
+    let mut pending = imported_files(&context.resolved).collect_vec();
+    while let Some(file_id) = pending.pop() {
+        if !visited.insert(file_id) {
+            continue;
+        }
+        let checked = context.queries.checked(file_id)?;
+        if has_checking_errors(&checked) || has_source_errors(context.queries, file_id)? {
+            return Ok(());
+        }
+        let resolved = context.queries.resolved(file_id)?;
+        pending.extend(imported_files(&resolved));
+    }
+
+    state.checked.errors.push(error);
+    Ok(())
+}
+
+fn has_checking_errors(checked: &CheckedModule) -> bool {
+    checked.errors.iter().any(|error| !error.kind.is_warning())
+}
+
+fn has_source_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
+    let (_, parse_errors) = queries.parsed(file_id)?;
+    let lowered = queries.lowered(file_id)?;
+    let grouped = queries.grouped(file_id)?;
+    let resolved = queries.resolved(file_id)?;
+    Ok(!parse_errors.is_empty()
+        || !lowered.errors.is_empty()
+        || !grouped.cycle_errors.is_empty()
+        || !resolved.errors.is_empty())
+}
+
+fn imported_files(resolved: &ResolvedModule) -> impl Iterator<Item = FileId> + '_ {
+    let unqualified = resolved.unqualified.values().flatten();
+    let qualified = resolved.qualified.values().flatten();
+    unqualified.chain(qualified).map(|import| import.file)
 }
 
 fn check_prim(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<CheckedModule> {

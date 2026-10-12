@@ -111,16 +111,16 @@ where
                 // type variables as checking them also binds them.
                 let argument_type = infer_invalid_application_argument(state, context, argument)?;
 
-                let invalid_type = context.intern_application(function_type, argument_type);
-                let unknown_kind = context.unknown(options.message);
-
                 state.insert_error(ErrorKind::InvalidTypeApplication {
                     function_type,
                     function_kind,
                     argument_type,
                 });
 
-                break Ok((invalid_type, unknown_kind));
+                // Keeping the ill-kinded application would report it again
+                // wherever the type is used, unlike an unknown type.
+                let unknown = context.unknown(options.message);
+                break Ok((unknown, unknown));
             }
         }
     }

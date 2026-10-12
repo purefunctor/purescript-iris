@@ -1,19 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [NoVisibleTypeVariable] · Main.purs:7:8
   •
   │
   • No visible type variable for type application in: Int -> Int
-  │
-  │   test = identity @Int @String
-  │          ╰────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:7:8
-  •
-  │
-  • Cannot unify '?[invalid visible type application]' with 'Int -> Int'
   │
   │   test = identity @Int @String
   │          ╰────────────────────

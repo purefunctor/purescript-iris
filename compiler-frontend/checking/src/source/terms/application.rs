@@ -84,7 +84,7 @@ where
 
             let Type::Application(constructor, argument) = *context.lookup_type(function_argument)
             else {
-                return Ok(CallableAnalysis::NotCallable);
+                return not_callable(state, context, function);
             };
 
             let constructor = normalise::expand(state, context, constructor)?;
@@ -104,11 +104,30 @@ where
                 return Ok(CallableAnalysis::Function { argument, result });
             }
 
-            Ok(CallableAnalysis::NotCallable)
+            not_callable(state, context, function)
         }
 
-        _ => Ok(CallableAnalysis::NotCallable),
+        _ => not_callable(state, context, function),
     }
+}
+
+/// Reports a type that cannot be applied as a function.
+///
+/// Unification with a fresh function type reports the mismatch, except for
+/// unknown types whose errors are reported elsewhere.
+fn not_callable<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    function: TypeId,
+) -> QueryResult<CallableAnalysis>
+where
+    Q: ExternalQueries,
+{
+    let argument = state.fresh_unification(context.queries, context.prim.t);
+    let result = state.fresh_unification(context.queries, context.prim.t);
+    let expected = context.intern_function(argument, result);
+    unification::unify(state, context, function, expected)?;
+    Ok(CallableAnalysis::NotCallable)
 }
 
 /// Instantiates `binder` and the invisible binders that immediately follow it

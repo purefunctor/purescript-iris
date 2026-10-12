@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 329
 ---
 Terms
 
@@ -7,4 +8,4 @@ Types
 Bad :: ?[cannot apply function type]
 
 Synonyms
-type Bad = Prim.Array Prim.Int Prim.String
+type Bad = ?[cannot apply function type]

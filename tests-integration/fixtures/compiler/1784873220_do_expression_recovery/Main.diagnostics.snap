@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
+assertion_line: 330
 ---
 Error! · [ParseError] · Main.purs:11:1
   •
@@ -47,15 +47,6 @@ Error! · [EmptyDoBlock] · Main.purs:9:11
   │             ╰─
   •
 
-Error! · [CannotUnify] · Main.purs:9:11
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   emptyDo = do
-  │             ╰─
-  •
-
 Warning! · [InvalidFinalBind] · Main.purs:12:3
   •
   │
@@ -92,15 +83,6 @@ Error! · [EmptyDoBlock] · Main.purs:21:26
   │                            ╰─
   •
 
-Error! · [CannotUnify] · Main.purs:21:26
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
-  │
-  │   missingFinalBindAction = do
-  │                            ╰─
-  •
-
 Warning! · [InvalidFinalBind] · Main.purs:25:3
   •
   │
@@ -114,15 +96,6 @@ Error! · [EmptyDoBlock] · Main.purs:24:29
   •
   │
   • Empty do block
-  │
-  │   missingFinalDiscardAction = do
-  │                               ╰─
-  •
-
-Error! · [CannotUnify] · Main.purs:24:29
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   missingFinalDiscardAction = do
   │                               ╰─

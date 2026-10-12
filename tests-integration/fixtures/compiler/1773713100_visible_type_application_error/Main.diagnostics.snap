@@ -1,19 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [NoVisibleTypeVariable] · Main.purs:6:8
   •
   │
   • No visible type variable for type application in: forall a. a -> a
-  │
-  │   test = identity @Int
-  │          ╰────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:6:8
-  •
-  │
-  • Cannot unify 'Type' with '?[invalid kind]'
   │
   │   test = identity @Int
   │          ╰────────────

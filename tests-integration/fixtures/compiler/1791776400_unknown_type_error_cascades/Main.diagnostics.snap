@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 330
+---
+Error! · [NotInScope] · Main.purs:8:24
+  •
+  │
+  • 'Missing' is not in scope
+  │
+  │   unresolvedSignature :: Missing
+  │                          ╰──────
+  •
+
+Error! · [NotInScope] · Main.purs:20:19
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   unresolvedValue = missing
+  │                     ╰──────
+  •
+
+Error! · [NotInScope] · Main.purs:23:29
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   showsUnresolvedValue = show missing
+  │                               ╰──────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:14:21
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   invalidSignature :: Int String
+  │                       ╰─────────
+  •
