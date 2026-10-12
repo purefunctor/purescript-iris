@@ -452,7 +452,7 @@ where
                 let class_member_type =
                     toolkit::skolemise_forall(state, context, class_member_type)?;
                 let class_member_type = toolkit::collect_givens(state, context, class_member_type)?;
-                unification::subtype(state, context, signature_member_type, class_member_type)
+                unification::subtype_quiet(state, context, signature_member_type, class_member_type)
             })?;
             if !unified {
                 let expected = class_member_type;

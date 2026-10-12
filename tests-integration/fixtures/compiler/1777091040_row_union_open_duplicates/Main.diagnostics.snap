@@ -1,5 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 330
 ---
 Error! · [CannotUnify] · Main.purs:17:1
   •
@@ -8,13 +9,7 @@ Error! · [CannotUnify] · Main.purs:17:1
   │
   │   forceSolve =
   │   ╰───────────
-  •
-
-Error! · [CannotUnify] · Main.purs:17:1
-  •
+  • while
   │
-  • Cannot unify '( a :: String )' with '( a :: Int )'
-  │
-  │   forceSolve =
-  │   ╰───────────
+  │   matching '( a :: String )' with '( a :: Int )'
   •

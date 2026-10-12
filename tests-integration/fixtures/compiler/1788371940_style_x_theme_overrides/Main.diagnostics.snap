@@ -1,6 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
+assertion_line: 330
 ---
 Error! · [CannotUnify] · Main.purs:14:1
   •
@@ -9,43 +9,10 @@ Error! · [CannotUnify] · Main.purs:14:1
   │
   │   wrongType = StyleX.createTheme variables
   │   ╰───────────────────────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:14:1
-  •
+  • while
   │
-  • Cannot unify 'TypedValue Color' with 'TypedValue Length'
-  │
-  │   wrongType = StyleX.createTheme variables
-  │   ╰───────────────────────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:14:1
-  •
-  │
-  • Cannot unify 'TypedValue Color String' with 'TypedValue Length String'
-  │
-  │   wrongType = StyleX.createTheme variables
-  │   ╰───────────────────────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:14:1
-  •
-  │
-  • Cannot unify 'Variable (TypedValue Color String)' with 'Variable (TypedValue Length String)'
-  │
-  │   wrongType = StyleX.createTheme variables
-  │   ╰───────────────────────────────────────
-  •
-
-Error! · [CannotUnify] · Main.purs:14:1
-  •
-  │
-  • Cannot unify '( accent :: Variable (TypedValue Color String), spacing :: Variable (TypedValue
-  │ Length String) )' with '( accent :: Variable (TypedValue Length String) | ?44 )'
-  │
-  │   wrongType = StyleX.createTheme variables
-  │   ╰───────────────────────────────────────
+  │   matching '( accent :: Variable (TypedValue Color String), spacing :: Variable (TypedValue
+  │   Length String) )' with '( accent :: Variable (TypedValue Length String) | ?44 )'
   •
 
 Error! · [CannotUnify] · Main.purs:17:1
