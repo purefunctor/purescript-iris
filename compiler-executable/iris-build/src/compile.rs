@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -11,19 +11,23 @@ use files::{FileId, ForeignSourceKind};
 use iris_diagnostics::Severity;
 use itertools::Itertools;
 use rayon::prelude::*;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
 use super::compilation::{CompilationState, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
+use super::manifest::{BuildManifest, ManifestInputs, PackageMetadata};
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
 
 pub(crate) struct BuildConfig<'a> {
     pub root: PathBuf,
     pub output: PathBuf,
+    pub version: SmolStr,
     pub source_globs: Vec<PathBuf>,
     pub packages: Vec<PackageInput>,
+    pub package_metadata: Vec<PackageMetadata>,
     pub color: bool,
     pub diagnostics: bool,
     pub resilient: bool,
@@ -38,6 +42,8 @@ pub enum CompileError {
     InvalidPath(PathBuf),
     #[error("no input files found")]
     NoInputs,
+    #[error("cannot record {} in the build manifest", .0.display())]
+    ManifestPath(PathBuf),
     #[error(transparent)]
     BuildPlan(#[from] BuildPlanError),
     #[error(transparent)]
@@ -51,6 +57,21 @@ pub enum CompileError {
 pub(crate) struct RebuildResult {
     pub outcome: BuildOutcome,
     pub outputs: BTreeSet<PathBuf>,
+    /// The manifest describing `outputs`, if the build wrote any.
+    pub manifest: Option<BuildManifest>,
+}
+
+/// Where a build writes its output, and what the manifest records besides the generated modules.
+pub(crate) struct OutputTarget<'a> {
+    /// The workspace root that sources and diagnostics are shown relative to.
+    pub root: &'a Path,
+    pub output: &'a Path,
+    pub manifest: ManifestInputs<'a>,
+}
+
+struct WrittenOutput {
+    outputs: BTreeSet<PathBuf>,
+    manifest: BuildManifest,
 }
 
 struct ModuleWrite {
@@ -77,7 +98,7 @@ pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
 
 pub struct InitialBuild<Version, Metadata> {
     compilation: CompilationState<Version, Metadata>,
-    source_paths: BTreeSet<PathBuf>,
+    source_packages: BTreeMap<PathBuf, SmolStr>,
     report: InitialBuildReport,
 }
 
@@ -92,7 +113,8 @@ pub(crate) struct InitialBuildReport {
 
 pub(crate) struct InitialBuildParts<Version, Metadata> {
     pub compilation: CompilationState<Version, Metadata>,
-    pub source_paths: BTreeSet<PathBuf>,
+    /// The package that owns each planned source path.
+    pub source_packages: BTreeMap<PathBuf, SmolStr>,
     pub report: InitialBuildReport,
 }
 
@@ -120,7 +142,7 @@ impl<Version, Metadata> InitialBuild<Version, Metadata> {
     pub(crate) fn into_parts(self) -> InitialBuildParts<Version, Metadata> {
         InitialBuildParts {
             compilation: self.compilation,
-            source_paths: self.source_paths,
+            source_packages: self.source_packages,
             report: self.report,
         }
     }
@@ -163,18 +185,20 @@ where
 
     let prim = MaterializedPrim::new()?;
     let mut compilation = CompilationState::new(prim, prim_metadata);
-    let planned_source_paths =
-        plan.packages().flat_map(|package| package.source_paths.iter()).cloned();
-    let source_paths = planned_source_paths.collect::<BTreeSet<_>>();
-    let source_units = source_paths.par_iter().map(|path| read_source_unit(path));
+    let source_packages = plan.packages().flat_map(|package| {
+        let source_paths = package.source_paths.iter().cloned();
+        source_paths.map(|path| (path, SmolStr::clone(&package.name)))
+    });
+    let source_packages = source_packages.collect::<BTreeMap<_, _>>();
+    let source_units = source_packages.par_iter().map(|(path, _)| read_source_unit(path));
     let source_units = source_units.collect::<Result<Vec<_>, _>>()?;
     let mut observations = Vec::new();
-    for (path, source_unit) in source_paths.iter().zip(&source_units) {
+    for (path, source_unit) in source_packages.keys().zip(&source_units) {
         let metadata = source_metadata(path);
         observations.extend(source_unit.observations(metadata));
     }
     compilation.observe_all(observations);
-    let sources = source_paths.iter().zip(&source_units).map(|(path, source_unit)| {
+    let sources = source_packages.keys().zip(&source_units).map(|(path, source_unit)| {
         let file_id = compilation
             .source_id(source_unit.unit.source())
             .expect("invariant violated: loaded source has no lifecycle identity");
@@ -206,13 +230,23 @@ where
     };
     let report =
         InitialBuildReport { sources, diagnostics, has_errors, no_inputs, failure, duration };
-    Ok(InitialBuild { compilation, source_paths, report })
+    Ok(InitialBuild { compilation, source_packages, report })
 }
 
 pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     let started = Instant::now();
-    let BuildConfig { root, output, source_globs, packages, color, diagnostics, resilient, events } =
-        config;
+    let BuildConfig {
+        root,
+        output,
+        version,
+        source_globs,
+        packages,
+        package_metadata,
+        color,
+        diagnostics,
+        resilient,
+        events,
+    } = config;
     let excluded = [PathBuf::clone(&output)];
     let initial = build_initial(InitialBuildConfig {
         root: &root,
@@ -224,7 +258,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
         execution: PackageExecution::Parallel,
         events,
     })?;
-    let InitialBuildParts { compilation, source_paths: _, mut report } = initial.into_parts();
+    let InitialBuildParts { compilation, source_packages, mut report } = initial.into_parts();
     if report.no_inputs {
         return Err(CompileError::NoInputs);
     }
@@ -233,8 +267,16 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     }
     let has_errors = report.has_errors;
     if !has_errors || resilient {
-        let modules = collect_modules(&compilation, &report.sources)?;
-        write_modules(&compilation, &modules, &output, &mut BTreeSet::new())?;
+        let target = OutputTarget {
+            root: &root,
+            output: &output,
+            manifest: ManifestInputs {
+                version: &version,
+                packages: &package_metadata,
+                source_packages: &source_packages,
+            },
+        };
+        write_output(&compilation, &report.sources, &target, &mut BTreeSet::new())?;
     }
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
     events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });
@@ -249,8 +291,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
 
 pub(crate) fn rebuild(
     compilation: &CompilationState,
-    root: &Path,
-    output: &Path,
+    target: &OutputTarget<'_>,
     color: bool,
     diagnostics: bool,
     owned_outputs: &mut BTreeSet<PathBuf>,
@@ -260,46 +301,54 @@ pub(crate) fn rebuild(
     query_package(engine, &sources)?;
     let (diagnostic_collections, has_errors) = collect_diagnostics(compilation, &sources)?;
     if diagnostics {
-        report_diagnostics(compilation, diagnostic_collections, root, color);
+        report_diagnostics(compilation, diagnostic_collections, target.root, color);
     }
-    let outputs = if has_errors {
-        BTreeSet::new()
-    } else {
-        let modules = collect_modules(compilation, &sources)?;
-        write_modules(compilation, &modules, output, owned_outputs)?
-    };
-    let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
-    Ok(RebuildResult { outcome, outputs })
+    if has_errors {
+        return Ok(RebuildResult::diagnostics());
+    }
+    let written = write_output(compilation, &sources, target, owned_outputs)?;
+    Ok(RebuildResult::succeeded(written))
 }
 
 pub(crate) fn finish_initial(
     compilation: &CompilationState,
     report: &mut InitialBuildReport,
-    root: &Path,
-    output: &Path,
+    target: &OutputTarget<'_>,
     color: bool,
     diagnostics: bool,
     owned_outputs: &mut BTreeSet<PathBuf>,
 ) -> Result<RebuildResult, CompileError> {
     if report.no_inputs {
-        return Ok(RebuildResult { outcome: BuildOutcome::NoInputs, outputs: BTreeSet::new() });
+        let outputs = BTreeSet::new();
+        return Ok(RebuildResult { outcome: BuildOutcome::NoInputs, outputs, manifest: None });
     }
     if let Some(error) = report.failure.take() {
         return Err(error);
     }
     if diagnostics {
         let diagnostics = std::mem::take(&mut report.diagnostics);
-        report_diagnostics(compilation, diagnostics, root, color);
+        report_diagnostics(compilation, diagnostics, target.root, color);
     }
-    let outputs = if report.has_errors {
-        BTreeSet::new()
-    } else {
-        let modules = collect_modules(compilation, &report.sources)?;
-        write_modules(compilation, &modules, output, owned_outputs)?
-    };
-    let outcome =
-        if report.has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
-    Ok(RebuildResult { outcome, outputs })
+    if report.has_errors {
+        return Ok(RebuildResult::diagnostics());
+    }
+    let written = write_output(compilation, &report.sources, target, owned_outputs)?;
+    Ok(RebuildResult::succeeded(written))
+}
+
+impl RebuildResult {
+    fn diagnostics() -> RebuildResult {
+        RebuildResult {
+            outcome: BuildOutcome::Diagnostics,
+            outputs: BTreeSet::new(),
+            manifest: None,
+        }
+    }
+
+    fn succeeded(written: WrittenOutput) -> RebuildResult {
+        let WrittenOutput { outputs, manifest } = written;
+        RebuildResult { outcome: BuildOutcome::Succeeded, outputs, manifest: Some(manifest) }
+    }
 }
 
 struct SourceUnitRead {
@@ -436,6 +485,23 @@ fn collect_modules(
         }
     }
     Ok(modules)
+}
+
+/// Writes the modules reachable from `sources`, then the manifest that describes them, so that a
+/// changed manifest announces a complete build.
+fn write_output(
+    compilation: &CompilationState,
+    sources: &[FileId],
+    target: &OutputTarget<'_>,
+    owned_outputs: &mut BTreeSet<PathBuf>,
+) -> Result<WrittenOutput, CompileError> {
+    let modules = collect_modules(compilation, sources)?;
+    let mut outputs = write_modules(compilation, &modules, target.output, owned_outputs)?;
+    let manifest = BuildManifest::new(target.root, &target.manifest, compilation, &modules)?;
+    let manifest_path = manifest.write(target.output)?;
+    owned_outputs.insert(PathBuf::clone(&manifest_path));
+    outputs.insert(manifest_path);
+    Ok(WrittenOutput { outputs, manifest })
 }
 
 fn write_modules(

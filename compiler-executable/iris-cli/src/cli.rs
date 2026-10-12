@@ -180,6 +180,7 @@ impl BuildOptions {
         BuildConfig {
             package: self.project.package,
             output: self.project.output,
+            version: crate::VERSION.into(),
             quiet: self.project.quiet,
             color: use_color(self.project.color),
             resilient: self.resilient,
@@ -190,8 +191,12 @@ impl BuildOptions {
 
 impl ProjectBuildOptions {
     fn into_project_config(self) -> (ProjectConfig, bool) {
-        let project =
-            ProjectConfig { package: self.package, output: self.output, quiet: self.quiet };
+        let project = ProjectConfig {
+            package: self.package,
+            output: self.output,
+            version: crate::VERSION.into(),
+            quiet: self.quiet,
+        };
         (project, use_color(self.color))
     }
 }
@@ -439,6 +444,7 @@ impl WatchOptions {
             project: ProjectConfig {
                 package: self.package,
                 output: self.output,
+                version: crate::VERSION.into(),
                 quiet: self.quiet,
             },
             watch: iris_watch::WatchConfig {

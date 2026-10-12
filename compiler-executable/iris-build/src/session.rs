@@ -9,12 +9,14 @@ use building::{
 use files::{FileId, ForeignSourceKind};
 use itertools::Itertools;
 use prim_constants::MODULE_MAP;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
 use super::compilation::CompilationState;
-use super::compile::{self, CompileError, InitialBuildReport};
+use super::compile::{self, CompileError, InitialBuildReport, OutputTarget};
 use super::events::BuildOutcome;
+use super::manifest::{BuildManifest, ManifestInputs, PackageMetadata};
 use super::project::InitializedProject;
 use super::walk;
 
@@ -93,13 +95,18 @@ pub struct SessionError(SessionFailure);
 pub struct BuildSession {
     root: PathBuf,
     output: PathBuf,
+    version: SmolStr,
     inputs: Vec<PathBuf>,
     source_roots: Vec<PathBuf>,
     source_globs: globset::GlobSet,
     source_paths: BTreeSet<PathBuf>,
     source_modules: BTreeMap<PathBuf, String>,
+    source_packages: BTreeMap<PathBuf, SmolStr>,
+    package_metadata: Vec<PackageMetadata>,
     retired_modules: BTreeSet<String>,
     generated_outputs: BTreeSet<PathBuf>,
+    /// The manifest describing the generated outputs, if a build wrote any.
+    manifest: Option<BuildManifest>,
     compilation: CompilationState,
     files: Arc<BTreeMap<FileId, SourceFile>>,
     initial_report: Option<InitialBuildReport>,
@@ -124,7 +131,7 @@ impl BuildSession {
         let walked = walk::walk_filtered(&project.root, &project.source_globs, [&project.output])?;
         let source_roots = walked.roots.into_iter().collect_vec();
         let initial = initialized.build.into_parts();
-        let initial_inputs = initial.source_paths.iter().map(|path| {
+        let initial_inputs = initial.source_packages.keys().map(|path| {
             let source_path = PathBuf::clone(path);
             let unit = source_unit(path)?;
             let module_name = initial.compilation.module_name(unit.source())?;
@@ -139,16 +146,24 @@ impl BuildSession {
         });
         let source_modules = source_modules.collect();
         let files = Arc::new(source_files(&initial.compilation)?);
+        let mut package_metadata = project.package_metadata;
+        // A source created after the session starts belongs to the innermost package containing it.
+        package_metadata
+            .sort_by_key(|package| std::cmp::Reverse(package.root.components().count()));
         Ok(BuildSession {
             root: project.root,
             output: project.output,
+            version: project.version,
             inputs: project.source_globs,
             source_roots,
             source_globs: walked.globs,
-            source_paths: initial.source_paths,
+            source_paths: initial.source_packages.keys().cloned().collect(),
             source_modules,
+            source_packages: initial.source_packages,
+            package_metadata,
             retired_modules: BTreeSet::new(),
             generated_outputs: BTreeSet::new(),
+            manifest: None,
             compilation: initial.compilation,
             files,
             initial_report: Some(initial.report),
@@ -230,6 +245,7 @@ impl BuildSession {
                 self.source_paths.remove(&path);
             }
         }
+        self.assign_source_packages();
         for source_path in foreign_paths {
             change.combine(observe_foreign(&mut self.compilation, &source_path)?);
         }
@@ -247,16 +263,41 @@ impl BuildSession {
         }
         self.source_globs = walked.globs;
         self.source_paths = current_paths;
+        self.assign_source_packages();
         Ok(change)
     }
 
+    /// Records the package of each source the session started tracking, and forgets removed ones.
+    fn assign_source_packages(&mut self) {
+        self.source_packages.retain(|path, _| self.source_paths.contains(path));
+        for path in &self.source_paths {
+            if self.source_packages.contains_key(path) {
+                continue;
+            }
+            let package = self
+                .package_metadata
+                .iter()
+                .find(|package| path.starts_with(&package.root))
+                .expect("invariant violated: a source matched by a package glob has no package");
+            self.source_packages.insert(PathBuf::clone(path), SmolStr::clone(&package.name));
+        }
+    }
+
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
+        let target = OutputTarget {
+            root: &self.root,
+            output: &self.output,
+            manifest: ManifestInputs {
+                version: &self.version,
+                packages: &self.package_metadata,
+                source_packages: &self.source_packages,
+            },
+        };
         if let Some(report) = &mut self.initial_report {
             let result = compile::finish_initial(
                 &self.compilation,
                 report,
-                &self.root,
-                &self.output,
+                &target,
                 self.color,
                 self.diagnostics,
                 &mut self.generated_outputs,
@@ -266,14 +307,14 @@ impl BuildSession {
         }
         if self.compilation.source_ids().next().is_none() {
             self.reconcile_outputs(BTreeSet::new())?;
+            self.manifest = None;
             self.retired_modules.clear();
             return Ok(RebuildOutcome::NoInputs);
         }
 
         let result = compile::rebuild(
             &self.compilation,
-            &self.root,
-            &self.output,
+            &target,
             self.color,
             self.diagnostics,
             &mut self.generated_outputs,
@@ -287,6 +328,7 @@ impl BuildSession {
     ) -> Result<RebuildOutcome, SessionFailure> {
         match result.outcome {
             BuildOutcome::Succeeded => {
+                self.manifest = result.manifest;
                 self.reconcile_outputs(result.outputs)?;
                 self.retired_modules.clear();
                 Ok(RebuildOutcome::Succeeded)
@@ -324,11 +366,18 @@ impl BuildSession {
 
     fn reconcile_retired_outputs(&mut self) -> io::Result<()> {
         let active_modules = self.source_modules.values().cloned().collect::<BTreeSet<_>>();
-        let retired_roots = self
-            .retired_modules
-            .difference(&active_modules)
-            .map(|module| self.output.join(module))
-            .collect_vec();
+        let retired_modules = self.retired_modules.difference(&active_modules).collect_vec();
+        // The previous manifest still describes the remaining outputs, but not the removed ones.
+        if let Some(manifest) = &self.manifest
+            && retired_modules.iter().any(|module| manifest.modules.contains_key(*module))
+        {
+            let mut manifest = BuildManifest::clone(manifest);
+            manifest.modules.retain(|module, _| !retired_modules.contains(&module));
+            manifest.write(&self.output)?;
+            self.manifest = Some(manifest);
+        }
+        let retired_roots = retired_modules.iter().map(|module| self.output.join(module));
+        let retired_roots = retired_roots.collect_vec();
         let current_outputs = self
             .generated_outputs
             .iter()

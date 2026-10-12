@@ -4,6 +4,7 @@ pub mod plan;
 
 pub mod compilation;
 pub mod compile;
+pub mod manifest;
 pub mod packages;
 mod project;
 mod session;

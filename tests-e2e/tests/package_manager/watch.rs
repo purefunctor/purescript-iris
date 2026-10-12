@@ -148,12 +148,51 @@ fn adds_and_removes_sources_and_stale_outputs() {
     workspace.write("src/Extra.purs", "module Extra where\n\nvalue = 42\n");
     let extra_output = workspace.path().join("output/Extra/index.js");
     watch.wait_for("source addition", |stdout, _| {
-        stdout.contains("Changed 1 input: Extra") && extra_output.is_file()
+        stdout.contains("Changed 1 input: Extra")
+            && extra_output.is_file()
+            && manifest_package(&workspace, "Extra").as_deref() == Some("application")
     });
 
     std::fs::remove_file(workspace.path().join("src/Extra.purs")).unwrap();
     watch.wait_for("source removal", |stdout, _| {
-        stdout.contains("Changed 1 input: Extra") && !extra_output.exists()
+        stdout.contains("Changed 1 input: Extra")
+            && !extra_output.exists()
+            && manifest_package(&workspace, "Extra").is_none()
+    });
+    assert_eq!(manifest_package(&workspace, "Main").as_deref(), Some("application"));
+}
+
+#[test]
+fn records_the_package_of_sources_added_to_a_nested_package() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: [library]
+"#,
+    );
+    workspace.write("src/Main.purs", "module Main where\n");
+    workspace.write(
+        "packages/library/spago.yaml",
+        r#"package:
+  name: library
+  dependencies: []
+"#,
+    );
+    workspace.write("packages/library/src/Library.purs", "module Library where\n");
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| {
+        stdout.contains("Loaded 2 inputs: Library, Main")
+            && manifest_package(&workspace, "Library").as_deref() == Some("library")
+    });
+
+    workspace.write("packages/library/src/Extra.purs", "module Extra where\n");
+    watch.wait_for("source addition", |stdout, _| {
+        stdout.contains("Changed 1 input: Extra")
+            && manifest_package(&workspace, "Extra").as_deref() == Some("library")
     });
 }
 
@@ -182,6 +221,8 @@ fn removes_stale_outputs_when_remaining_sources_have_diagnostics() {
             && main_output.is_file()
             && !extra_output.exists()
     });
+    assert_eq!(manifest_package(&workspace, "Extra"), None);
+    assert_eq!(manifest_package(&workspace, "Main").as_deref(), Some("application"));
 }
 
 #[test]
@@ -229,8 +270,11 @@ fn waits_for_a_deleted_input_directory_and_builds_when_it_returns() {
     });
 
     std::fs::remove_dir_all(workspace.path().join("src")).unwrap();
+    let manifest = workspace.path().join("output/iris-manifest.json");
     watch.wait_for("empty input state", |stdout, _| {
-        stdout.contains("No input files; waiting for changes") && !output.exists()
+        stdout.contains("No input files; waiting for changes")
+            && !output.exists()
+            && !manifest.exists()
     });
 
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 43\n");
@@ -254,6 +298,12 @@ fn resolves_relative_output_from_the_invocation_directory_and_excludes_it() {
     watch.wait_for("custom output compilation", |stdout, _| {
         stdout.contains("Build succeeded") && output.is_file()
     });
+    // A reader that only knows the output directory finds the sources from the manifest alone.
+    let manifest =
+        std::fs::read_to_string(workspace.path().join("src/generated/iris-manifest.json"));
+    let manifest: serde_json::Value = serde_json::from_str(&manifest.unwrap()).unwrap();
+    let source = manifest["modules"]["Main"]["source"].as_str().unwrap();
+    assert_eq!(std::fs::read_to_string(source).unwrap(), "module Main where\n");
 }
 
 #[test]
@@ -280,6 +330,14 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
 
     std::fs::remove_file(workspace.path().join("src/Main.purs")).unwrap();
     watch.wait_for("partial output cleanup", |_, _| !partial_output.exists());
+}
+
+/// The package that the build manifest assigns to `module`, if the manifest lists it.
+fn manifest_package(workspace: &TestWorkspace, module: &str) -> Option<String> {
+    let manifest = std::fs::read_to_string(workspace.path().join("output/iris-manifest.json"));
+    let manifest: serde_json::Value = serde_json::from_str(&manifest.ok()?).unwrap();
+    let package = manifest["modules"].get(module)?["package"].as_str()?;
+    Some(package.to_owned())
 }
 
 fn generated_module_contains(path: &Path, expected: &str) -> bool {

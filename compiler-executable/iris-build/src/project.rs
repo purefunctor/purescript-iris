@@ -5,11 +5,13 @@ use std::{env, io};
 use iris_progress::ProgressRuntime;
 use itertools::Itertools;
 use path_absolutize::Absolutize;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
 use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
+use super::manifest::PackageMetadata;
 use super::plan::PackageInput;
 use super::workspace::{Workspace, WorkspaceError};
 
@@ -18,6 +20,8 @@ const NODE_RUNNER: &str = include_str!("../bundled/runner.mjs");
 pub struct BuildConfig {
     pub package: Option<String>,
     pub output: Option<PathBuf>,
+    /// The Iris version the build manifest records.
+    pub version: SmolStr,
     pub quiet: bool,
     pub color: bool,
     pub resilient: bool,
@@ -27,6 +31,8 @@ pub struct BuildConfig {
 pub struct ProjectConfig {
     pub package: Option<String>,
     pub output: Option<PathBuf>,
+    /// The Iris version the build manifest records.
+    pub version: SmolStr,
     pub quiet: bool,
 }
 
@@ -58,6 +64,8 @@ enum ProjectFailure {
     CurrentDirectory(io::Error),
     #[error("failed to normalize output directory {}: {error}", path.display())]
     NormalizeOutput { path: PathBuf, error: io::Error },
+    #[error("failed to normalize package directory {}: {error}", path.display())]
+    NormalizePackage { path: PathBuf, error: io::Error },
     #[error("failed to execute Node.js: {source}")]
     Node { source: io::Error },
     #[error("Node.js exited without a status code")]
@@ -108,8 +116,10 @@ impl ExecutionError {
 pub struct PreparedProject {
     pub(crate) root: PathBuf,
     pub(crate) output: PathBuf,
+    pub(crate) version: SmolStr,
     pub(crate) source_globs: Vec<PathBuf>,
     pub(crate) packages: Vec<PackageInput>,
+    pub(crate) package_metadata: Vec<PackageMetadata>,
 }
 
 pub struct InitializedProject {
@@ -160,6 +170,7 @@ fn build_project(config: BuildConfig) -> Result<(), ProjectFailure> {
     let project = prepare_project_inner(ProjectConfig {
         package: Option::clone(&config.package),
         output: Option::clone(&config.output),
+        version: SmolStr::clone(&config.version),
         quiet: config.quiet,
     })?;
     compile_project(project, &config)
@@ -172,8 +183,10 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
     compile::build(compile::BuildConfig {
         root: project.root,
         output: project.output,
+        version: project.version,
         source_globs: project.source_globs,
         packages: project.packages,
+        package_metadata: project.package_metadata,
         color: config.color,
         diagnostics: config.diagnostics,
         resilient: config.resilient,
@@ -185,7 +198,7 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
 fn initialize_project_inner(
     project: PreparedProject,
 ) -> Result<InitializedProject, ProjectFailure> {
-    let PreparedProject { root, output, source_globs, packages } = &project;
+    let PreparedProject { root, output, source_globs, packages, .. } = &project;
     let excluded = [PathBuf::clone(output)];
     let build = compile::build_initial(compile::InitialBuildConfig {
         root,
@@ -213,7 +226,7 @@ fn run_project(config: RunConfig) -> Result<(), ProjectFailure> {
     let project = prepare_workspace(
         &workspace,
         &current_directory,
-        config.project.quiet,
+        &config.project,
         PathBuf::clone(&output),
     )?;
     compile_project(project, &execution_build_config(config.project, config.color))?;
@@ -235,7 +248,7 @@ fn test_project(config: TestConfig) -> Result<(), ProjectFailure> {
     let project = prepare_workspace(
         &workspace,
         &current_directory,
-        config.project.quiet,
+        &config.project,
         PathBuf::clone(&output),
     )?;
     compile_project(project, &execution_build_config(config.project, config.color))?;
@@ -266,6 +279,7 @@ fn execution_build_config(project: ProjectConfig, color: bool) -> BuildConfig {
     BuildConfig {
         package: project.package,
         output: project.output,
+        version: project.version,
         quiet: project.quiet,
         color,
         resilient: false,
@@ -277,7 +291,7 @@ fn prepare_project_inner(config: ProjectConfig) -> Result<PreparedProject, Proje
     let current_directory = env::current_dir().map_err(ProjectFailure::CurrentDirectory)?;
     let workspace = Workspace::discover(&current_directory, config.package.as_deref())?;
     let output = project_output(&workspace.root, config.output.as_deref())?;
-    prepare_workspace(&workspace, &current_directory, config.quiet, output)
+    prepare_workspace(&workspace, &current_directory, &config, output)
 }
 
 fn resolve_output_inner(output: Option<&Path>) -> Result<PathBuf, ProjectFailure> {
@@ -292,12 +306,32 @@ fn resolve_output_inner(output: Option<&Path>) -> Result<PathBuf, ProjectFailure
 fn prepare_workspace(
     workspace: &Workspace,
     current_directory: &Path,
-    quiet: bool,
+    config: &ProjectConfig,
     output: PathBuf,
 ) -> Result<PreparedProject, ProjectFailure> {
     let spago = iris_spago::SpagoCommand::with_workspace_root(current_directory, &workspace.root)?;
-    spago.fetch(workspace.selected.as_deref(), !quiet)?;
+    spago.fetch(workspace.selected.as_deref(), !config.quiet)?;
     let discovered = super::packages::discover_packages(workspace)?;
+    let package_metadata = discovered.packages.iter().map(|package| {
+        let [root] = package.roots.as_slice() else {
+            unreachable!("invariant violated: a discovered package has one root");
+        };
+        let root = workspace.root.join(root);
+        let root = root
+            .absolutize()
+            .map_err(|error| ProjectFailure::NormalizePackage {
+                path: PathBuf::clone(&root),
+                error,
+            })?
+            .into_owned();
+        Ok(PackageMetadata {
+            name: SmolStr::clone(&package.name),
+            editable: package.editable,
+            root,
+            dependencies: Vec::clone(&package.dependencies),
+        })
+    });
+    let package_metadata = package_metadata.collect::<Result<Vec<_>, ProjectFailure>>()?;
     let packages = discovered.packages.into_iter().map(|package| PackageInput {
         name: package.name,
         source_identities: package.files,
@@ -308,8 +342,10 @@ fn prepare_workspace(
     Ok(PreparedProject {
         root: PathBuf::clone(&workspace.root),
         output,
+        version: SmolStr::clone(&config.version),
         source_globs: discovered.source_globs,
         packages,
+        package_metadata,
     })
 }
 

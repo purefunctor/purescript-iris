@@ -1,0 +1,44 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+expression: "workspace.read(\"output/iris-manifest.json\")"
+---
+{
+  "version": 1,
+  "iris": "[version]",
+  "workspace_root": "[workspace]",
+  "runtime": null,
+  "packages": {
+    "application": {
+      "editable": true,
+      "root": "[workspace]",
+      "dependencies": [
+        "library"
+      ]
+    },
+    "library": {
+      "editable": true,
+      "root": "[workspace]/packages/library",
+      "dependencies": []
+    }
+  },
+  "modules": {
+    "Library": {
+      "package": "library",
+      "source": "[workspace]/packages/library/src/Library.purs",
+      "javascript": "Library/index.js",
+      "foreign": null,
+      "stylex_theme": null,
+      "dependencies": []
+    },
+    "Main": {
+      "package": "application",
+      "source": "[workspace]/src/Main.purs",
+      "javascript": "Main/index.js",
+      "foreign": "Main/foreign.js",
+      "stylex_theme": null,
+      "dependencies": [
+        "Library"
+      ]
+    }
+  }
+}

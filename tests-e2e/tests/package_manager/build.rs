@@ -46,6 +46,9 @@ value = 42
     assert_success(&output);
     assert!(workspace.path().join("output/Main/index.js").is_file());
     assert!(!workspace.path().join("output/Library/index.js").exists());
+    let manifest = read_manifest(&workspace);
+    assert_eq!(object_keys(&manifest["packages"]), ["application"]);
+    assert_eq!(object_keys(&manifest["modules"]), ["Main"]);
     workspace.assert_spago_calls("packages/application/src", &[&["fetch", "-p", "application"]]);
 }
 
@@ -124,6 +127,13 @@ value = unit
     assert_ne!(selected_version, "999.0.0");
     assert!(workspace.path().join("output/Main/index.js").is_file());
     assert!(!workspace.path().join("output/Stale/index.js").exists());
+    let manifest = read_manifest(&workspace);
+    let prelude = &manifest["packages"]["prelude"];
+    assert_eq!(prelude["editable"], false);
+    let root = manifest_workspace(&workspace);
+    assert_eq!(prelude["root"], format!("{root}/.spago/p/prelude-{selected_version}"));
+    assert_eq!(manifest["modules"]["Prelude"]["package"], "prelude");
+    assert_eq!(manifest["modules"]["Main"]["package"], "application");
     workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
@@ -240,4 +250,79 @@ value = if true then 1
 
     snapshot_output("parse_error_diagnostics", &output);
     assert!(!workspace.path().join("output/Main/index.js").exists());
+    assert!(!workspace.path().join("output/iris-manifest.json").exists());
+}
+
+#[test]
+fn writes_a_build_manifest_describing_the_generated_modules() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: [library]
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Library (library)
+
+foreign import offset :: Int
+
+main :: Int
+main = library
+"#,
+    );
+    workspace.write("src/Main.js", "export const offset = 1;\n");
+    workspace.write(
+        "packages/library/spago.yaml",
+        r#"package:
+  name: library
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "packages/library/src/Library.purs",
+        r#"module Library where
+
+library :: Int
+library = 42
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    assert_success(&output);
+    let version = workspace.command(&["--version"]);
+    let version = String::from_utf8_lossy(&version.stdout);
+    let version = version.trim_end().strip_prefix("iris ").unwrap();
+    let manifest = read_manifest(&workspace);
+    assert_eq!(manifest["iris"], version);
+    let root = manifest_workspace(&workspace);
+    assert_eq!(manifest["workspace_root"], root);
+    let root_pattern = regex::escape(&root);
+    let filters = vec![
+        (r#""iris": "[^"]+""#, r#""iris": "[version]""#),
+        (root_pattern.as_str(), "[workspace]"),
+    ];
+    insta::with_settings!({filters => filters}, {
+        insta::assert_snapshot!(workspace.read("output/iris-manifest.json"));
+    });
+}
+
+fn read_manifest(workspace: &TestWorkspace) -> serde_json::Value {
+    serde_json::from_str(&workspace.read("output/iris-manifest.json")).unwrap()
+}
+
+/// The workspace root as the manifest spells absolute paths, with forward slashes.
+fn manifest_workspace(workspace: &TestWorkspace) -> String {
+    let root = dunce::canonicalize(workspace.path()).unwrap();
+    root.to_str().unwrap().replace('\\', "/")
+}
+
+fn object_keys(value: &serde_json::Value) -> Vec<&str> {
+    value.as_object().unwrap().keys().map(String::as_str).collect()
 }
