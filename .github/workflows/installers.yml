@@ -29,6 +29,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       GH_TOKEN: ${{ github.token }}
+      # Any published release other than the installed one shows that the installed release can
+      # replace itself with a release archive; this one predates `iris self update`.
+      IRIS_UPDATE_VERSION: v0.1.5
     strategy:
       fail-fast: false
       matrix:
@@ -83,4 +86,41 @@ jobs:
             if (Test-Path "$env:IRIS_INSTALL_DIR\$LegacyBinary") {
               throw "Installer created legacy executable $LegacyBinary"
             }
+          }
+
+      - name: Update the installed release on Linux or macOS
+        if: runner.os != 'Windows'
+        env:
+          IRIS_INSTALL_DIR: ${{ runner.temp }}/iris/bin
+        run: |
+          iris="$IRIS_INSTALL_DIR/iris"
+          if ! "$iris" self update --help >/dev/null 2>&1; then
+            printf 'Skipping update: %s predates iris self update\n' "$("$iris" --version)"
+            exit 0
+          fi
+          "$iris" self update "$IRIS_UPDATE_VERSION"
+          updated_version=$("$iris" --version)
+          if [ "$updated_version" != "iris ${IRIS_UPDATE_VERSION#v}" ]; then
+            printf 'Expected iris %s, found %s\n' "${IRIS_UPDATE_VERSION#v}" "$updated_version" >&2
+            exit 1
+          fi
+
+      - name: Update the installed release on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          IRIS_INSTALL_DIR: ${{ runner.temp }}\iris\bin
+        run: |
+          $Iris = "$env:IRIS_INSTALL_DIR\iris.exe"
+          & $Iris self update --help *> $null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Skipping update: $(& $Iris --version) predates iris self update"
+            exit 0
+          }
+          & $Iris self update $env:IRIS_UPDATE_VERSION
+          if ($LASTEXITCODE -ne 0) { throw "iris self update failed" }
+          $UpdatedVersion = & $Iris --version
+          $ExpectedVersion = "iris " + $env:IRIS_UPDATE_VERSION.Substring(1)
+          if ($UpdatedVersion -ne $ExpectedVersion) {
+            throw "Expected $ExpectedVersion, found $UpdatedVersion"
           }
