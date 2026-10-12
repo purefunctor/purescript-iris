@@ -1,10 +1,43 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 304
 ---
-Parse error · Main.purs:11:1 · Expected LAYOUT_START
-Parse error · Main.purs:11:1 · Expected LAYOUT_END
-Parse error · Main.purs:26:1 · Expected RIGHT_PARENTHESIS
-Parse error · Main.purs:26:1 · Expected LEFT_ARROW
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │   finalBind = do
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:11:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │   finalBind = do
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:26:1
+  •
+  │
+  • Expected RIGHT_PARENTHESIS
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:26:1
+  •
+  │
+  • Expected LEFT_ARROW
+  │
+  │
+  │   ╰
+  •
+
 Error! · [EmptyDoBlock] · Main.purs:9:11
   •
   │

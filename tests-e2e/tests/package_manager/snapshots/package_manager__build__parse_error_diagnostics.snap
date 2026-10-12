@@ -1,0 +1,16 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+status: 1
+--- stdout
+--- stderr
+Error! · [ParseError] · src/Main.purs:5:1
+  •
+  │
+  • Expected ELSE
+  │
+  │
+  │   ╰
+  •
+
+compilation failed

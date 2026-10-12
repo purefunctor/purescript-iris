@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::error::Error;
-use std::fmt::Write;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -281,14 +280,6 @@ pub fn compiler(path: &Path) -> FixtureResult {
             .map_err(|()| invalid_data("fixture source URL is not a file"))?;
         let relative = source.strip_prefix(&fixture)?;
         let display_path = relative.to_string_lossy().replace('\\', "/");
-        let (_, parse_errors) = engine.parsed(collection.file_id)?;
-        for error in parse_errors.iter() {
-            writeln!(
-                diagnostics_report,
-                "Parse error · {display_path}:{}:{} · {}",
-                error.position.line, error.position.column, error.message,
-            )?;
-        }
         let line_index = LineIndex::new(&collection.content);
         for diagnostics in [
             collection.checking_diagnostics(),

@@ -1,9 +1,34 @@
 ---
 source: tests-integration/src/fixtures.rs
+assertion_line: 304
 ---
-Parse error · Main.purs:10:1 · Expected LAYOUT_START
-Parse error · Main.purs:10:1 · Expected LAYOUT_SEPARATOR
-Parse error · Main.purs:10:1 · Expected LAYOUT_END
+Error! · [ParseError] · Main.purs:10:1
+  •
+  │
+  • Expected LAYOUT_START
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:10:1
+  •
+  │
+  • Expected LAYOUT_SEPARATOR
+  │
+  │
+  │   ╰
+  •
+
+Error! · [ParseError] · Main.purs:10:1
+  •
+  │
+  • Expected LAYOUT_END
+  │
+  │
+  │   ╰
+  •
+
 Error! · [EmptyDoBlock] · Main.purs:9:8
   •
   │

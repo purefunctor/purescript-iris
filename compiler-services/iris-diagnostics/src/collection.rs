@@ -56,7 +56,7 @@ where
     Q: ExternalQueries + ForeignQueries,
 {
     let content = queries.content(file_id)?;
-    let (parsed, _) = queries.parsed(file_id)?;
+    let (parsed, parse_errors) = queries.parsed(file_id)?;
     let root = parsed.syntax_node();
     let stabilized = queries.stabilized(file_id)?;
     let indexed = queries.indexed(file_id)?;
@@ -81,6 +81,9 @@ where
     }
 
     let source_start = diagnostics.len();
+    for error in parse_errors.iter() {
+        diagnostics.extend(error.to_diagnostics(&context));
+    }
     for error in &lowered.errors {
         diagnostics.extend(error.to_diagnostics(&context));
     }
