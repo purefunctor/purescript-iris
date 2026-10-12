@@ -176,6 +176,13 @@ Choose the test level by the behavior under test, not by how easy it is to add a
   instead of assembling a second compiler pipeline inside a unit test.
 - CLI, Spago, shell/process, and development-environment behavior belongs in `tests-e2e`.
 
+Each `tests-integration` fixture must cover one small, coherent unit of behavior, especially in the
+`compiler` category. Keep its source and expected results easy to hold in working memory. A few
+closely related examples or cursors may belong together; do not split mechanically by their count.
+Split when understanding the fixture requires tracking unrelated behavior or too much context.
+Preserve context that makes the behavior meaningful. Follow `tests-integration/AGENTS.md` before
+generating snapshots.
+
 Do not add a unit test that repeats a fixture's behavioral coverage. Tests at multiple levels should
 protect distinct contracts, such as a local algorithm invariant and its integration into
 compilation. Choose tests for their regression value and maintenance cost, not test counts or line
