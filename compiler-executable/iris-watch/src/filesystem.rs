@@ -33,6 +33,12 @@ pub(crate) fn is_access(event: &Event) -> bool {
     matches!(event.kind, EventKind::Access(_))
 }
 
+/// Whether every path of the event is inside the output directory, so that it reports a write of
+/// the watcher itself rather than a change to its inputs.
+pub(crate) fn is_output_write(event: &Event, output: &Path) -> bool {
+    !event.paths.is_empty() && event.paths.iter().all(|path| path.starts_with(output))
+}
+
 fn requires_rescan(kind: EventKind) -> bool {
     matches!(
         kind,

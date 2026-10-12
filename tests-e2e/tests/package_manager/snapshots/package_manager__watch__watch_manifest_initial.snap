@@ -1,0 +1,43 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+---
+{
+  "iris": "[VERSION]",
+  "modules": {
+    "Library": {
+      "dependencies": [],
+      "foreign": null,
+      "javascript": "Library/index.js",
+      "package": "library",
+      "source": "[WORKSPACE]/packages/library/src/Library.purs",
+      "stylex_theme": null
+    },
+    "Main": {
+      "dependencies": [
+        "Library"
+      ],
+      "foreign": null,
+      "javascript": "Main/index.js",
+      "package": "application",
+      "source": "[WORKSPACE]/src/Main.purs",
+      "stylex_theme": null
+    }
+  },
+  "packages": {
+    "application": {
+      "dependencies": [
+        "library"
+      ],
+      "editable": true,
+      "root": "[WORKSPACE]"
+    },
+    "library": {
+      "dependencies": [],
+      "editable": true,
+      "root": "[WORKSPACE]/packages/library"
+    }
+  },
+  "runtime": null,
+  "version": 1,
+  "workspace_root": "[WORKSPACE]"
+}

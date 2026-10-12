@@ -16,6 +16,8 @@ use url::Url;
 use super::compilation::{CompilationState, SourceOwner};
 use super::compile::{self, CompileError, InitialBuildReport};
 use super::events::BuildOutcome;
+use super::manifest::{BuildManifest, ProjectDescription};
+use super::output::{self, BuildOutput};
 use super::packages::{ConflictingSource, SourceOwnership};
 use super::project::InitializedProject;
 use super::walk;
@@ -97,13 +99,14 @@ pub struct SessionError(SessionFailure);
 pub struct BuildSession {
     root: PathBuf,
     output: PathBuf,
+    description: ProjectDescription,
     inputs: Vec<PathBuf>,
     source_roots: Vec<PathBuf>,
     ownership: SourceOwnership,
     source_paths: BTreeSet<PathBuf>,
-    source_modules: BTreeMap<PathBuf, String>,
-    retired_modules: BTreeSet<String>,
-    generated_outputs: BTreeSet<PathBuf>,
+    /// The last manifest the session wrote: its only record of the files it owns in the output
+    /// directory. There is none while the session has no current build.
+    record: Option<BuildManifest>,
     compilation: CompilationState,
     files: Arc<BTreeMap<FileId, SourceFile>>,
     initial_report: Option<InitialBuildReport>,
@@ -139,24 +142,16 @@ impl BuildSession {
             Ok::<_, SessionFailure>(InputChange { source_path, module_name })
         });
         let initial_inputs = initial_inputs.process_results(|inputs| inputs.collect_vec())?;
-        let source_modules = initial_inputs.iter().filter_map(|input| {
-            input
-                .module_name
-                .as_ref()
-                .map(|name| (PathBuf::clone(&input.source_path), String::clone(name)))
-        });
-        let source_modules = source_modules.collect();
         let files = Arc::new(source_files(&initial.compilation)?);
         Ok(BuildSession {
             root: project.root,
             output: project.output,
+            description: project.description,
             inputs: project.source_globs,
             source_roots,
             ownership,
             source_paths: initial.source_paths,
-            source_modules,
-            retired_modules: BTreeSet::new(),
-            generated_outputs: BTreeSet::new(),
+            record: None,
             compilation: initial.compilation,
             files,
             initial_report: Some(initial.report),
@@ -228,7 +223,7 @@ impl BuildSession {
 
         let mut change = SessionChange::default();
         for (path, owner) in sources {
-            change.combine(self.observe_source_path(&path, owner)?);
+            change.combine(observe_source_unit(&mut self.compilation, &path, owner)?);
             if path.exists() {
                 self.source_paths.insert(path);
             } else {
@@ -249,7 +244,7 @@ impl BuildSession {
 
         let mut change = SessionChange::default();
         for (path, owner) in sources {
-            change.combine(self.observe_source_path(&path, owner)?);
+            change.combine(observe_source_unit(&mut self.compilation, &path, owner)?);
         }
         self.source_paths = current_paths;
         Ok(change)
@@ -275,115 +270,46 @@ impl BuildSession {
     }
 
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
-        if let Some(report) = &mut self.initial_report {
+        let result = if let Some(report) = &mut self.initial_report {
             let result = compile::finish_initial(
                 &self.compilation,
                 report,
                 &self.root,
-                &self.output,
                 self.color,
                 self.diagnostics,
-                &mut self.generated_outputs,
             )?;
             self.initial_report = None;
-            return self.finish_rebuild(result);
-        }
-        if self.compilation.source_ids().next().is_none() {
-            self.reconcile_outputs(BTreeSet::new())?;
-            self.retired_modules.clear();
-            return Ok(RebuildOutcome::NoInputs);
-        }
-
-        let result = compile::rebuild(
-            &self.compilation,
-            &self.root,
-            &self.output,
-            self.color,
-            self.diagnostics,
-            &mut self.generated_outputs,
-        )?;
+            result
+        } else if self.compilation.source_ids().next().is_none() {
+            compile::RebuildResult { outcome: BuildOutcome::NoInputs, modules: Vec::new() }
+        } else {
+            compile::rebuild(&self.compilation, &self.root, self.color, self.diagnostics)?
+        };
         self.finish_rebuild(result)
     }
 
+    /// Brings the output directory to the state of the rebuild, and records it. A failed update
+    /// leaves the record as it was, since it puts the files it changed back.
     fn finish_rebuild(
         &mut self,
         result: compile::RebuildResult,
     ) -> Result<RebuildOutcome, SessionFailure> {
-        match result.outcome {
+        let next = match result.outcome {
             BuildOutcome::Succeeded => {
-                self.reconcile_outputs(result.outputs)?;
-                self.retired_modules.clear();
-                Ok(RebuildOutcome::Succeeded)
+                Some(BuildOutput::new(&self.description, &self.compilation, &result.modules)?)
             }
             BuildOutcome::Diagnostics => {
-                self.reconcile_retired_outputs()?;
-                self.retired_modules.clear();
-                Ok(RebuildOutcome::Diagnostics)
+                self.record.as_ref().map(|record| BuildOutput::retained(record, &self.compilation))
             }
-            BuildOutcome::NoInputs => {
-                self.retired_modules.clear();
-                Ok(RebuildOutcome::NoInputs)
-            }
-        }
-    }
-
-    fn observe_source_path(
-        &mut self,
-        path: &Path,
-        owner: SmolStr,
-    ) -> Result<SessionChange, SessionFailure> {
-        let previous_name = self.source_modules.get(path).cloned();
-        let change = observe_source_unit(&mut self.compilation, path, owner)?;
-        if path.exists() {
-            let unit = source_unit(path)?;
-            if let Some(current_name) = self.compilation.module_name(unit.source())? {
-                if let Some(previous_name) = previous_name
-                    && previous_name != current_name
-                {
-                    self.retired_modules.insert(previous_name);
-                }
-                self.source_modules.insert(path.to_path_buf(), current_name);
-            }
-        } else if let Some(previous_name) = self.source_modules.remove(path) {
-            self.retired_modules.insert(previous_name);
-        }
-        Ok(change)
-    }
-
-    fn reconcile_retired_outputs(&mut self) -> io::Result<()> {
-        let active_modules = self.source_modules.values().cloned().collect::<BTreeSet<_>>();
-        let retired_roots = self
-            .retired_modules
-            .difference(&active_modules)
-            .map(|module| self.output.join(module))
-            .collect_vec();
-        let current_outputs = self
-            .generated_outputs
-            .iter()
-            .filter(|output| !retired_roots.iter().any(|root| output.starts_with(root)))
-            .cloned()
-            .collect();
-        self.reconcile_outputs(current_outputs)
-    }
-
-    fn reconcile_outputs(&mut self, current: BTreeSet<PathBuf>) -> io::Result<()> {
-        let stale_outputs = self.generated_outputs.difference(&current).cloned().collect_vec();
-        let mut retained_outputs = current;
-        let mut failure = None;
-        for stale in stale_outputs {
-            match fs::remove_file(&stale) {
-                Ok(()) => {}
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                Err(error) => {
-                    retained_outputs.insert(stale);
-                    if failure.is_none() {
-                        failure = Some(error);
-                    }
-                }
-            }
-        }
-        self.generated_outputs = retained_outputs;
-        failure.map_or(Ok(()), Err)
+            BuildOutcome::NoInputs => None,
+        };
+        output::update(&self.output, self.record.as_ref(), next.as_ref())?;
+        self.record = next.map(|next| next.manifest);
+        Ok(match result.outcome {
+            BuildOutcome::Succeeded => RebuildOutcome::Succeeded,
+            BuildOutcome::Diagnostics => RebuildOutcome::Diagnostics,
+            BuildOutcome::NoInputs => RebuildOutcome::NoInputs,
+        })
     }
 }
 

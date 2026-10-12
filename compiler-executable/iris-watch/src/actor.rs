@@ -25,7 +25,7 @@ use tokio::sync::mpsc;
 use tokio::task;
 use tokio::time::{Instant, sleep_until};
 
-use crate::filesystem::{Batch, is_access, persistent_watch_root};
+use crate::filesystem::{Batch, is_access, is_output_write, persistent_watch_root};
 use crate::{WatchConfig, WatchFailure, report};
 
 const DEBOUNCE_DURATION: Duration = Duration::from_millis(100);
@@ -33,6 +33,8 @@ const DEBOUNCE_DURATION: Duration = Duration::from_millis(100);
 pub(crate) struct BuildActor {
     config: WatchConfig,
     root: PathBuf,
+    /// The output directory, whose events are the watcher's own writes.
+    output: PathBuf,
     /// `None` only while a blocking task owns the session.
     session: Option<BuildSession>,
     build: BuildState,
@@ -55,6 +57,7 @@ impl BuildActor {
         config: WatchConfig,
     ) -> Result<BuildActor, WatchFailure> {
         let root = project.root_directory().to_path_buf();
+        let output = project.output_directory().to_path_buf();
         let (sender, filesystem) = mpsc::unbounded_channel();
         let handler = move |event| {
             let _ = sender.send(event);
@@ -82,6 +85,7 @@ impl BuildActor {
         let mut actor = BuildActor {
             config,
             root,
+            output,
             session: Some(session),
             build: BuildState::NoInputs,
             batch: None,
@@ -126,7 +130,9 @@ impl BuildActor {
 
     fn add_event(&mut self, event: notify::Result<Event>) -> Result<(), WatchFailure> {
         let event = event?;
-        if is_access(&event) {
+        // Reacting to the watcher's own writes would rebuild after every build; a failed build
+        // that changed the output would then keep retrying.
+        if is_access(&event) || is_output_write(&event, &self.output) {
             return Ok(());
         }
         let batch =

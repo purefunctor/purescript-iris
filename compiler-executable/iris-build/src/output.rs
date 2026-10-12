@@ -10,6 +10,7 @@ use std::{fs, io};
 
 use itertools::Itertools;
 use rayon::prelude::*;
+use url::Url;
 
 use super::compilation::CompilationState;
 use super::compile::CompileError;
@@ -58,6 +59,26 @@ impl BuildOutput {
             }
         }
         Ok(BuildOutput { manifest, files })
+    }
+
+    /// The record `manifest` describes, brought to the current state of `compilation` by a
+    /// rebuild with errors, which cannot generate replacements. A module whose source is gone is
+    /// dropped with its files. A dependency on a module that no longer exists is dropped too, as
+    /// the compiler excludes a missing module when it resolves imports.
+    pub(crate) fn retained(
+        manifest: &BuildManifest,
+        compilation: &CompilationState,
+    ) -> BuildOutput {
+        let mut manifest = BuildManifest::clone(manifest);
+        manifest.modules.retain(|_, module| {
+            let locator = Url::from_file_path(&module.source);
+            locator.is_ok_and(|locator| compilation.source_id(locator.as_str()).is_some())
+        });
+        let engine = compilation.query_engine();
+        for module in manifest.modules.values_mut() {
+            module.dependencies.retain(|name| engine.module_file(name).is_some());
+        }
+        BuildOutput { manifest, files: Vec::new() }
     }
 }
 

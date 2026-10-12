@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use itertools::Itertools;
 
-use super::support::TestWorkspace;
+use super::support::{TestWorkspace, assert_success, normalized_manifest};
 
 #[test]
 fn watches_a_single_package_with_real_spago() {
@@ -210,6 +210,7 @@ package:
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+    let manifest = workspace.read("output/iris-manifest.json");
 
     // Both `src/**/*.purs` and `src/library/src/**/*.purs` select this file.
     workspace.write(
@@ -223,6 +224,7 @@ package:
     });
     assert!(!workspace.path().join("output/Claimed/index.js").exists());
     assert!(!watch.stdout().contains("Rebuild succeeded"));
+    assert_eq!(workspace.read("output/iris-manifest.json"), manifest);
 
     std::fs::remove_file(workspace.path().join("src/library/src/Claimed.purs")).unwrap();
     watch.wait_for("recovery", |stdout, _| stdout.contains("Rebuild succeeded"));
@@ -303,32 +305,555 @@ fn resolves_relative_output_from_the_invocation_directory_and_excludes_it() {
     watch.wait_for("custom output compilation", |stdout, _| {
         stdout.contains("Build succeeded") && output.is_file()
     });
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!(
+            "watch_manifest_custom_output",
+            normalized_manifest(&workspace, "src/generated")
+        );
+    });
 }
 
 #[test]
-fn reports_output_failures_separately_and_recovers_on_a_later_change() {
+fn removes_what_a_failed_write_created_and_recovers_on_a_later_change() {
     let workspace = TestWorkspace::empty();
-    workspace
-        .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
-    workspace.write("src/Main.purs", "module Main where\n\nforeign import value :: Int\n");
-    workspace.write("src/Main.js", "export const value = 42;\n");
-    std::fs::create_dir_all(workspace.path().join("output/Main/foreign.js")).unwrap();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+foreign import value :: Int
+"#,
+    );
+    workspace.write(
+        "src/Main.js",
+        r#"export const value = 42;
+"#,
+    );
+    let obstruction = workspace.path().join("output/Main/foreign.js");
+    std::fs::create_dir_all(&obstruction).unwrap();
 
     let child = workspace.spawn(&["watch", "--quiet"]);
     let mut watch = WatchProcess::new(child);
-    let partial_output = workspace.path().join("output/Main/index.js");
-    watch.wait_for("partial output failure", |_, stderr| {
-        stderr.contains("Watch build failed:") && partial_output.is_file()
-    });
+    watch.wait_for("output failure", |_, stderr| stderr.contains("Watch build failed:"));
     assert!(!watch.stderr().contains("completed with diagnostics"));
-
     thread::sleep(Duration::from_millis(500));
     let settled_failures = watch.stderr().matches("Watch build failed:").count();
     thread::sleep(Duration::from_millis(500));
     assert_eq!(watch.stderr().matches("Watch build failed:").count(), settled_failures);
+    assert!(!workspace.path().join("output/Main/index.js").exists());
+    assert!(!workspace.path().join("output/iris-manifest.json").exists());
 
-    std::fs::remove_file(workspace.path().join("src/Main.purs")).unwrap();
-    watch.wait_for("partial output cleanup", |_, _| !partial_output.exists());
+    std::fs::remove_dir(&obstruction).unwrap();
+    workspace.write(
+        "src/Main.js",
+        r#"export const value = 43;
+"#,
+    );
+    let manifest = workspace.path().join("output/iris-manifest.json");
+    watch.wait_for("recovery", |_, _| manifest.is_file());
+    assert!(generated_module_contains(&obstruction, "43"));
+    assert!(workspace.path().join("output/Main/index.js").is_file());
+}
+
+#[test]
+fn ignores_its_own_writes_to_an_output_directory_inside_the_sources() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+foreign import value :: Int
+"#,
+    );
+    workspace.write(
+        "src/Main.js",
+        r#"export const value = 42;
+"#,
+    );
+    std::fs::create_dir_all(workspace.path().join("src/generated/Main/foreign.js")).unwrap();
+
+    // Every failed write creates and removes files inside a watched directory.
+    let child = workspace.spawn(&["watch", "--quiet", "--output", "src/generated"]);
+    let mut watch = WatchProcess::new(child);
+    watch.wait_for("output failure", |_, stderr| stderr.contains("Watch build failed:"));
+    thread::sleep(Duration::from_secs(1));
+    assert_eq!(watch.stderr().matches("Watch build failed:").count(), 1);
+}
+
+#[test]
+fn writes_a_manifest_for_the_initial_build_and_replaces_it_on_code_edits() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: [library]
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Library (library)
+
+main :: Int
+main = library
+"#,
+    );
+    workspace.write(
+        "packages/library/spago.yaml",
+        r#"package:
+  name: library
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "packages/library/src/Library.purs",
+        r#"module Library where
+
+library :: Int
+library = 42
+"#,
+    );
+    let manifest = workspace.path().join("output/iris-manifest.json");
+    let modified = |path: &Path| std::fs::metadata(path).unwrap().modified().unwrap();
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| {
+        stdout.contains("Build succeeded") && manifest.is_file()
+    });
+    let initial_manifest = workspace.read("output/iris-manifest.json");
+    let initial_modified = modified(&manifest);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("watch_manifest_initial", normalized_manifest(&workspace, "output"));
+    });
+
+    thread::sleep(Duration::from_millis(50));
+    workspace.write(
+        "packages/library/src/Library.purs",
+        r#"module Library where
+
+library :: Int
+library = 43
+"#,
+    );
+    let library = workspace.path().join("output/Library/index.js");
+    watch.wait_for("code-only rebuild", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && generated_module_contains(&library, "43")
+    });
+    assert!(modified(&manifest) > initial_modified, "a code-only edit replaces the manifest");
+    assert_eq!(workspace.read("output/iris-manifest.json"), initial_manifest);
+}
+
+#[test]
+fn manifest_follows_added_renamed_and_removed_modules_and_foreign_files() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+    let manifest = workspace.path().join("output/iris-manifest.json");
+    let module_entry = |name: &str| {
+        let manifest: serde_json::Value =
+            serde_json::from_str(&workspace.read("output/iris-manifest.json")).unwrap();
+        manifest["modules"].get(name).cloned()
+    };
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| {
+        stdout.contains("Build succeeded") && manifest.is_file()
+    });
+    assert!(module_entry("Extra").is_none());
+
+    workspace.write(
+        "src/Extra.purs",
+        r#"module Extra where
+
+foreign import value :: Int
+"#,
+    );
+    workspace.write(
+        "src/Extra.js",
+        r#"export const value = 42;
+"#,
+    );
+    watch.wait_for("module addition", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && module_entry("Extra").is_some()
+    });
+    assert_eq!(module_entry("Extra").unwrap()["foreign"], "Extra/foreign.js");
+
+    std::fs::remove_file(workspace.path().join("src/Extra.js")).unwrap();
+    workspace.write(
+        "src/Extra.purs",
+        r#"module Extra where
+
+value :: Int
+value = 42
+"#,
+    );
+    let foreign_output = workspace.path().join("output/Extra/foreign.js");
+    watch.wait_for("foreign removal", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && !foreign_output.exists()
+    });
+    assert_eq!(module_entry("Extra").unwrap()["foreign"], serde_json::Value::Null);
+
+    std::fs::rename(
+        workspace.path().join("src/Extra.purs"),
+        workspace.path().join("src/Other.purs"),
+    )
+    .unwrap();
+    workspace.write(
+        "src/Other.purs",
+        r#"module Other where
+
+value :: Int
+value = 42
+"#,
+    );
+    let extra_directory = workspace.path().join("output/Extra");
+    watch.wait_for("module rename", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && module_entry("Other").is_some()
+    });
+    assert!(module_entry("Extra").is_none());
+    assert!(!extra_directory.exists(), "the renamed module's output directory is removed");
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("watch_manifest_renamed", normalized_manifest(&workspace, "output"));
+    });
+
+    std::fs::remove_file(workspace.path().join("src/Other.purs")).unwrap();
+    let other_directory = workspace.path().join("output/Other");
+    watch.wait_for("module removal", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && !other_directory.exists()
+    });
+    assert!(module_entry("Other").is_none());
+}
+
+#[test]
+fn keeps_the_record_without_deleted_sources_while_a_rebuild_has_errors() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Deleted (deleted)
+
+value :: Int
+value = deleted
+"#,
+    );
+    workspace.write(
+        "src/Deleted.purs",
+        r#"module Deleted where
+
+deleted :: Int
+deleted = 42
+"#,
+    );
+    workspace.write(
+        "src/Renamed.purs",
+        r#"module Renamed where
+"#,
+    );
+    let manifest = workspace.path().join("output/iris-manifest.json");
+    let main_output = workspace.path().join("output/Main/index.js");
+    let deleted_output = workspace.path().join("output/Deleted/index.js");
+    let renamed_output = workspace.path().join("output/Renamed/index.js");
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| {
+        stdout.contains("Loaded 3 inputs: Deleted, Main, Renamed") && manifest.is_file()
+    });
+
+    // Deleting the imported module is itself the error.
+    std::fs::remove_file(workspace.path().join("src/Deleted.purs")).unwrap();
+    std::fs::rename(
+        workspace.path().join("src/Renamed.purs"),
+        workspace.path().join("src/Moved.purs"),
+    )
+    .unwrap();
+    workspace.write(
+        "src/Moved.purs",
+        r#"module Moved where
+"#,
+    );
+    watch.wait_for("rebuild with errors", |stdout, stderr| {
+        stdout.contains("Rebuild completed with diagnostics")
+            && stderr.contains("Error")
+            && !deleted_output.exists()
+            && !renamed_output.exists()
+    });
+    assert!(main_output.is_file());
+    assert!(!workspace.path().join("output/Moved").exists());
+    // The deleted module no longer exists, so, as when resolving imports, it is no dependency.
+    let kept: serde_json::Value =
+        serde_json::from_str(&workspace.read("output/iris-manifest.json")).unwrap();
+    assert_eq!(kept["modules"]["Main"]["dependencies"], serde_json::json!([]));
+    assert!(kept["modules"].get("Deleted").is_none());
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!(
+            "watch_manifest_errors_after_deletion",
+            normalized_manifest(&workspace, "output")
+        );
+    });
+
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+value :: Int
+value = 43
+"#,
+    );
+    let moved_output = workspace.path().join("output/Moved/index.js");
+    watch.wait_for("recovery", |stdout, _| {
+        stdout.contains("Rebuild succeeded")
+            && generated_module_contains(&main_output, "43")
+            && moved_output.is_file()
+    });
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!(
+            "watch_manifest_recovered",
+            normalized_manifest(&workspace, "output")
+        );
+    });
+}
+
+#[test]
+fn has_no_manifest_without_inputs() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+    let manifest = workspace.path().join("output/iris-manifest.json");
+    let main_output = workspace.path().join("output/Main/index.js");
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    assert!(manifest.is_file());
+    std::fs::remove_dir_all(workspace.path().join("src")).unwrap();
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("empty start", |stdout, _| {
+        stdout.contains("No input files; waiting for changes") && !manifest.exists()
+    });
+    assert!(main_output.is_file(), "the watcher does not own an earlier build's files");
+
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+value :: Int
+value = 42
+"#,
+    );
+    watch.wait_for("first build", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && manifest.is_file()
+    });
+
+    std::fs::remove_dir_all(workspace.path().join("src")).unwrap();
+    watch.wait_for("empty again", |stdout, _| {
+        stdout.contains("No input files; waiting for changes")
+            && !manifest.exists()
+            && !main_output.exists()
+    });
+}
+
+#[test]
+fn removes_an_earlier_manifest_when_its_first_build_has_errors() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+value :: Int
+value = 42
+"#,
+    );
+    let manifest = workspace.path().join("output/iris-manifest.json");
+    let main_output = workspace.path().join("output/Main/index.js");
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    assert!(manifest.is_file());
+
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+value :: Int
+value = missing
+"#,
+    );
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial build with errors", |stdout, _| {
+        stdout.contains("Build completed with diagnostics") && !manifest.exists()
+    });
+    assert!(main_output.is_file(), "the watcher does not own an earlier build's files");
+
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+value :: Int
+value = 43
+"#,
+    );
+    watch.wait_for("recovery", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && manifest.is_file()
+    });
+}
+
+#[test]
+fn assigns_a_source_created_in_a_nested_package_directory_by_source_globs() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+    workspace.write(
+        "src/library/spago.yaml",
+        r#"package:
+  name: library
+  dependencies: []
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+
+    // Only `src/**/*.purs` selects this file, although `library`'s root is the closest.
+    workspace.write(
+        "src/library/Nested.purs",
+        r#"module Nested where
+"#,
+    );
+    let nested_output = workspace.path().join("output/Nested/index.js");
+    watch.wait_for("nested source", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && nested_output.is_file()
+    });
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!(
+            "watch_manifest_nested_package",
+            normalized_manifest(&workspace, "output")
+        );
+    });
+}
+
+#[test]
+fn rebuilds_a_local_package_outside_the_workspace() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "project/spago.yaml",
+        r#"workspace:
+  extraPackages:
+    shared:
+      path: ../shared
+package:
+  name: application
+  dependencies: [shared]
+"#,
+    );
+    workspace.write(
+        "project/src/Main.purs",
+        r#"module Main where
+
+import Shared (shared)
+
+main :: Int
+main = shared
+"#,
+    );
+    workspace.write(
+        "shared/spago.yaml",
+        r#"package:
+  name: shared
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "shared/src/Shared.purs",
+        r#"module Shared where
+
+shared :: Int
+shared = 1
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn_in("project", &["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+
+    workspace.write(
+        "shared/src/Shared.purs",
+        r#"module Shared where
+
+shared :: Int
+shared = 2
+"#,
+    );
+    let shared_output = workspace.path().join("project/output/Shared/index.js");
+    watch.wait_for("shared rebuild", |stdout, _| {
+        stdout.contains("Changed 1 input: Shared") && generated_module_contains(&shared_output, "2")
+    });
+    let manifest: serde_json::Value =
+        serde_json::from_str(&workspace.read("project/output/iris-manifest.json")).unwrap();
+    assert_eq!(manifest["modules"]["Shared"]["package"], "shared");
+    assert_eq!(manifest["packages"]["shared"]["editable"], true);
 }
 
 fn generated_module_contains(path: &Path, expected: &str) -> bool {
