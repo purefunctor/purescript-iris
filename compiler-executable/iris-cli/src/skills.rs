@@ -7,6 +7,7 @@ pub struct Skill {
 }
 
 pub const SKILLS: &[Skill] = &[
+    Skill { name: "build-manifest", content: include_str!("../skills/build-manifest/SKILL.md") },
     Skill { name: "stylex", content: include_str!("../skills/stylex/SKILL.md") },
     Skill { name: "watch", content: include_str!("../skills/watch/SKILL.md") },
 ];

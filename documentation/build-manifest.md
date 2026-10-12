@@ -3,7 +3,8 @@
 `iris build`, `iris run`, `iris test`, and `iris watch` write `iris-manifest.json` into the output
 directory (`output/` by default). The manifest describes the modules that the build wrote, so tools
 such as bundlers can tell which package owns each generated module without talking to a running
-watcher.
+watcher. Agents can print a guide to the format that matches their Iris version with
+`iris skills get build-manifest`.
 
 ## When the manifest is written
 
