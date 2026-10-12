@@ -206,6 +206,20 @@ where
     Ok(report(state, unified, t1, t2))
 }
 
+/// Checks subtyping like [`subtype`], leaving the failure for the caller to report.
+pub fn subtype_quiet<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    t1: TypeId,
+    t2: TypeId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    let unified = subtype_core::<Elaborating, Q>(state, context, t1, t2)?;
+    Ok(unified == Unified::Success)
+}
+
 fn subtype_core<P, Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,

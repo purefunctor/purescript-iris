@@ -2,18 +2,6 @@
 source: tests-integration/src/fixtures.rs
 assertion_line: 330
 ---
-Error! · [CannotUnify] · Main.purs:7:1
-  •
-  │
-  • Cannot unify 'Int' with 'String'
-  │
-  │   instance Show Int where
-  │   ╰──────────────────────
-  • while
-  │
-  │   matching 'Int -> Int' with 'Int -> String'
-  •
-
 Error! · [InstanceMemberTypeMismatch] · Main.purs:7:1
   •
   │
