@@ -39,11 +39,24 @@ work, identify the exact instruction and the decision needed; continue independe
 - Avoid escape hatches and temporary fixes.
 - Use the type system to encode correctness.
 
+Trace a bug through the places that contribute to it instead of patching only the point where it
+becomes visible. Consider whether those causes call for a design change. Avoid fixes that hide the
+symptom while leaving its cause in place.
+
 ### Posterity
 
 - Write code for future contributors, reviewers, and maintainers.
 - Write code that you will understand 10 years later.
 - Write code that you will not hate 10 years later.
+
+Posterity is about the act of authoring code for future human readers. It is not a requirement to
+cover all bases or anticipate every future use case and failure mode.
+
+Human readers rely on working memory and reasoning about parts of a system, rather than ingesting
+the whole codebase at once. Design the system and its implementation so a reader can understand a
+part with a manageable amount of context. Make responsibilities and relationships clear in the code
+to support that reasoning. Delivering the requested behavior is not sufficient if the resulting
+design and code are difficult for people to understand and maintain.
 
 ### Clarity
 
@@ -59,11 +72,24 @@ work, identify the exact instruction and the decision needed; continue independe
 
 ## Applying the principles
 
-Fix the cause in the layer that owns it. Make the smallest coherent change that restores the
-invariant without unrelated architectural cleanup. Existing code establishes conventions, not
-necessarily correct behavior. Resolve routine implementation details from the source; ask when
-unresolved language or product intent would change the outcome rather than silently choosing new
-behavior.
+Fix the cause in the layer that owns it. The requested behavior determines the scope, not the size
+of the diff. Large refactorings are welcome when they address the causes of a bug within that scope.
+Use the existing snapshot tests to check for unintended behavior changes during refactoring.
+
+Correctness and posterity do not authorize fixing unrelated discoveries or adding guarantees the
+feature does not need. Existing code establishes conventions, not necessarily correct behavior.
+Resolve routine implementation details from the source; ask when unresolved language or product
+intent would change the outcome rather than silently choosing new behavior.
+
+### Necessity and proportionality
+
+For new features, start with the requested use case. Add behavior and safeguards when they are
+necessary for that use, with complexity proportionate to the benefit. Defer speculative requirements
+until experience shows they are needed.
+
+Unlike established type-checker semantics, a new feature's support requirements often become clear
+through use. Derive tests from the agreed behavior and extend coverage as experience reveals new
+needs. Writing a test for an imagined scenario does not make supporting that scenario necessary.
 
 ### Formatter filesystem boundary
 
