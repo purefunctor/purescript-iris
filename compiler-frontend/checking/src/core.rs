@@ -272,7 +272,31 @@ pub enum Type {
 
     /// A type variable that did not resolve to a binder.
     Free(SmolStrId),
-    /// Recovery marker for exceptional type checker paths.
+    /// A type that replaces a type whose error is reported elsewhere.
+    ///
+    /// The checker doesn't report the errors that an unknown type causes:
+    ///
+    /// - Unification accepts an unknown type with any other type.
+    /// - A given that contains an unknown type doesn't apply, whether it is a
+    ///   global instance or a constraint introduced locally.
+    /// - A wanted constraint whose own type contains an unknown type is never
+    ///   reported as unsolved. An instance that applies whatever the unknown
+    ///   type was meant to be still solves it, e.g. through an instance
+    ///   variable or functional dependencies, and the context of that instance
+    ///   is still checked. Otherwise, the constraint fails without an error,
+    ///   even when a known argument rules out every visible instance, because
+    ///   the instance search can't see the module of the type that the user
+    ///   meant.
+    /// - `Fail` and `Warn` still report their messages when the messages
+    ///   mention an unknown type, because they fail or warn whatever that type
+    ///   was meant to be. This holds once a message can be rendered. A message
+    ///   that waits on a type that nothing determines leaves its constraint
+    ///   unsolved, and the rule for unsolved constraints above applies.
+    ///
+    /// If an unknown type absorbs a failure that no error explains, the checker
+    /// reports [`ErrorKind::UnreportedUnknownType`] instead.
+    ///
+    /// [`ErrorKind::UnreportedUnknownType`]: crate::error::ErrorKind::UnreportedUnknownType
     Unknown(SmolStrId),
 }
 
