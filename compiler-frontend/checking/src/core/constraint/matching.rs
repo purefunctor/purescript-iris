@@ -22,9 +22,17 @@ use crate::state::CheckState;
 
 #[derive(PartialEq, Eq)]
 pub enum MatchType {
-    Match { bindings: Vec<(Name, TypeId)> },
+    Match {
+        bindings: Vec<(Name, TypeId)>,
+    },
     Apart,
-    Stuck { stuck: Vec<u32>, skolem: bool },
+    Stuck {
+        stuck: Vec<u32>,
+        skolem: bool,
+    },
+    /// The wanted type contains an unknown type, so whether the types match
+    /// depends on the type that the user meant. See [`Type::Unknown`].
+    Poisoned,
 }
 
 impl MatchType {
@@ -45,9 +53,13 @@ impl MatchType {
                 MatchType::Stuck { stuck: left, skolem: left_skolem || right_skolem }
             }
 
+            // Solving a unification variable may still make the types apart,
+            // but nothing changes the outcome for an unknown type.
             (MatchType::Stuck { stuck, skolem }, _) | (_, MatchType::Stuck { stuck, skolem }) => {
                 MatchType::Stuck { stuck, skolem }
             }
+
+            (MatchType::Poisoned, _) | (_, MatchType::Poisoned) => MatchType::Poisoned,
         }
     }
 
@@ -68,8 +80,8 @@ impl MatchType {
         matches!(self, MatchType::Apart)
     }
 
-    pub fn is_unknown(&self) -> bool {
-        matches!(self, MatchType::Stuck { .. })
+    pub fn is_poisoned(&self) -> bool {
+        matches!(self, MatchType::Poisoned)
     }
 }
 
@@ -112,10 +124,11 @@ where
         }
 
         // An instance variable matches any type, including an unknown type.
-        // Otherwise, a given that contains an unknown type doesn't apply; see
-        // [`Type::Unknown`]. No solution for a unification variable changes
-        // that outcome, so this comes before the cases for unification
-        // variables.
+        // Otherwise, an unknown type in the wanted type poisons the match, and
+        // a given that contains one doesn't apply; see [`Type::Unknown`]. No
+        // solution for a unification variable changes either outcome, so these
+        // come before the cases for unification variables.
+        (Type::Unknown(_), _) => Ok(MatchType::Poisoned),
         (_, Type::Unknown(_)) => Ok(MatchType::Apart),
 
         (Type::Unification(unification), _) | (_, Type::Unification(unification)) => {
@@ -294,6 +307,10 @@ where
         (Type::Kinded(left, _), _) => types_equal(state, context, *left, right),
         (_, Type::Kinded(right, _)) => types_equal(state, context, left, *right),
 
+        // The types that verify_substitution compares both come from the
+        // wanted type, so an unknown type on either side poisons the match.
+        (Type::Unknown(_), _) | (_, Type::Unknown(_)) => Ok(MatchType::Poisoned),
+
         (Type::Unification(left), Type::Unification(right)) => {
             if left == right {
                 Ok(MatchType::Match { bindings: Vec::new() })
@@ -449,10 +466,23 @@ where
         arguments.push(argument);
     }
 
-    if !covers(functional_dependencies, &arguments)? {
+    if !covers(functional_dependencies, &arguments, MatchType::is_match)? {
+        // A poisoned argument may match, and the instance would then determine
+        // the arguments that depend on it, so their mismatches can't make the
+        // instance apart.
+        let may_match = |argument: &MatchType| argument.is_match() || argument.is_poisoned();
+        if arguments.iter().any(MatchType::is_poisoned)
+            && covers(functional_dependencies, &arguments, may_match)?
+        {
+            return Ok(MatchType::Poisoned);
+        }
+
         return Ok(combine_arguments(arguments));
     }
 
+    // The matches alone choose the instance, so the outcomes for determined
+    // arguments are dropped, even poisoned ones. Improvement then unifies the
+    // determined arguments, and unification accepts an unknown type.
     let arguments = arguments.into_iter().enumerate().filter_map(|(index, argument)| {
         let non_determined = !determined.contains(&index);
         non_determined.then_some(argument)
@@ -499,11 +529,15 @@ fn combine_arguments(arguments: impl IntoIterator<Item = MatchType>) -> MatchTyp
     arguments.into_iter().fold(seed, MatchType::combine)
 }
 
-fn covers(fd: &[Fd], types: &[MatchType]) -> QueryResult<bool> {
+fn covers(
+    fd: &[Fd],
+    types: &[MatchType],
+    matches: impl Fn(&MatchType) -> bool,
+) -> QueryResult<bool> {
     let match_indices: FxHashSet<_> = types
         .iter()
         .enumerate()
-        .filter_map(|(index, argument)| argument.is_match().then_some(index))
+        .filter_map(|(index, argument)| matches(argument).then_some(index))
         .collect();
 
     let determined = compute_closure(fd, &match_indices);
@@ -514,6 +548,7 @@ pub enum MatchInstance {
     Match { unifications: Vec<(TypeId, TypeId)>, constraints: Vec<CanonicalConstraintId> },
     Apart,
     Stuck { stuck: Vec<u32>, skolem: bool },
+    Poisoned,
 }
 
 impl MatchInstance {
@@ -694,6 +729,7 @@ where
         }
         MatchType::Apart => Ok(MatchInstance::Apart),
         MatchType::Stuck { stuck, skolem } => Ok(MatchInstance::Stuck { stuck, skolem }),
+        MatchType::Poisoned => Ok(MatchInstance::Poisoned),
     }
 }
 
@@ -784,6 +820,7 @@ where
         }
         MatchType::Apart => Ok(MatchInstance::Apart),
         MatchType::Stuck { stuck, skolem } => Ok(MatchInstance::Stuck { stuck, skolem }),
+        MatchType::Poisoned => Ok(MatchInstance::Poisoned),
     }
 }
 

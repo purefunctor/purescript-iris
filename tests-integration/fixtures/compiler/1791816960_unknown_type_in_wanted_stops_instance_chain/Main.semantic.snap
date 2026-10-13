@@ -15,4 +15,4 @@ needsChain :: Main.Chain Main.Invalid Prim.Boolean => Prim.Int
 needsChain = \{chainDict} -> 0
 
 usesChain :: Prim.Int
-usesChain = needsChain {chain {error}}
+usesChain = needsChain {error}

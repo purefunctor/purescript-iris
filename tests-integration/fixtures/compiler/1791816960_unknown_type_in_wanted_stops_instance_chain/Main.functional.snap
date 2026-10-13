@@ -7,4 +7,4 @@ source: tests-integration/src/fixtures.rs
 
 @export needsChain = \chainInvalidBooleanDict%1 -> 0
 
-@export usesChain = needsChain (chain (<error>))
+@export usesChain = needsChain (<error>)

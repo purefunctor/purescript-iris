@@ -259,7 +259,7 @@ where
                     blocked.extend(stuck);
                     blocked_on_skolem |= skolem;
                 }
-                matching::MatchInstance::Apart => (),
+                matching::MatchInstance::Apart | matching::MatchInstance::Poisoned => (),
             }
         }
 
@@ -305,7 +305,7 @@ where
                 blocked.extend(stuck);
                 blocked_on_skolem |= skolem;
             }
-            Some(compiler::CompilerMatch::Apart) | None => (),
+            Some(compiler::CompilerMatch::Apart | compiler::CompilerMatch::Poisoned) | None => (),
         }
 
         let search = instances::collect_instance_chains(state, context, constraint.key.wanted)?;
@@ -331,6 +331,9 @@ where
                         blocked_on_skolem |= skolem;
                         continue 'chain;
                     }
+                    // The unknown type in the wanted type may stand for a type
+                    // that this member matches, so the later members don't apply.
+                    matching::MatchInstance::Poisoned => continue 'chain,
                     matching::MatchInstance::Apart => (),
                 }
             }

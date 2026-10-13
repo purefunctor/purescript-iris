@@ -40,6 +40,7 @@ pub enum CompilerMatch {
         stuck: Vec<u32>,
         skolem: bool,
     },
+    Poisoned,
 }
 
 impl CompilerMatch {
@@ -50,6 +51,7 @@ impl CompilerMatch {
             }
             MatchInstance::Apart => CompilerMatch::Apart,
             MatchInstance::Stuck { stuck, skolem } => CompilerMatch::Stuck { stuck, skolem },
+            MatchInstance::Poisoned => CompilerMatch::Poisoned,
         }
     }
 

@@ -9,12 +9,3 @@ Error! · [InvalidTypeApplication] · Main.purs:5:16
   │   type Invalid = Int String
   │                  ╰─────────
   •
-
-Error! · [CustomFailure] · Main.purs:17:13
-  •
-  │
-  • Chain fell through to its last instance
-  │
-  │   usesChain = needsChain
-  │               ╰─────────
-  •

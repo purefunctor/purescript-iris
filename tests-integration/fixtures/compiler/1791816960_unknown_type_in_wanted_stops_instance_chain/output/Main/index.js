@@ -8,5 +8,5 @@ export const chainInt = {};
 export const usesChain = (() => {
   let $result;
   throw new Error("Generated code reached a source error");
-  return /* @__PURE__ */ needsChain(/* @__PURE__ */ chain($result));
+  return /* @__PURE__ */ needsChain($result);
 })();
