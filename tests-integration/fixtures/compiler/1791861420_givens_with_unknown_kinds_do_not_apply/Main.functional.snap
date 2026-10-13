@@ -5,8 +5,8 @@ source: tests-integration/src/fixtures.rs
 
 @export needsGlobal = \globalIntDict%0 -> 0
 
-@export usesGlobal = needsGlobal globalInt
+@export usesGlobal = needsGlobal (<error>)
 
 @export needsLocal = \localIntDict%1 -> 0
 
-@export usesLocal = \localIntDict%2 -> needsLocal localIntDict%2
+@export usesLocal = \localIntDict%2 -> needsLocal (<error>)

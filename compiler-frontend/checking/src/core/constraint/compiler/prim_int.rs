@@ -8,7 +8,7 @@ use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::constraint::CanonicalConstraintId;
 use crate::core::constraint::matching::{self, MatchInstance};
-use crate::core::{TypeId, normalise};
+use crate::core::{TypeId, normalise, toolkit};
 use crate::state::CheckState;
 
 use super::{extract_integer, intern_integer, intern_symbol, match_equality};
@@ -122,16 +122,22 @@ where
     let mut graph: DiGraphMap<TypeId, ()> = DiGraphMap::new();
 
     for constraint in given {
-        let constraint = &state.canonicals[constraint];
-        if constraint.file_id != context.prim_int.file_id
-            || constraint.type_id != context.prim_int.compare
+        let canonical = &state.canonicals[constraint];
+        if canonical.file_id != context.prim_int.file_id
+            || canonical.type_id != context.prim_int.compare
         {
             continue;
         }
 
-        let Some([a, b, relation]) = constraint.expect_type_arguments::<3>() else {
+        let Some([a, b, relation]) = canonical.expect_type_arguments::<3>() else {
             continue;
         };
+
+        // A given that contains an unknown type doesn't apply; see [`Type::Unknown`].
+        let constraint = state.canonicals.type_id(context, constraint);
+        if toolkit::find_unknown(state, context, constraint)?.is_some() {
+            continue;
+        }
 
         let a = normalise::expand(state, context, a)?;
         let b = normalise::expand(state, context, b)?;

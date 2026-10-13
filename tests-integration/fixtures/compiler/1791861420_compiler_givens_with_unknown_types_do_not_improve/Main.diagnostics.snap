@@ -10,10 +10,35 @@ Error! · [InvalidTypeApplication] · Main.purs:6:16
   │                  ╰─────────
   •
 
-Error! · [NoInstanceFound] · Main.purs:21:21
+Error! · [NoInstanceFound] · Main.purs:15:28
   •
   │
   • No instance found for: Check (row :: Row Type)
+  │
+  │   usesAnnotatedGiven value = needsCheck value
+  │                              ╰───────────────
+  • while
+  │
+  │   Union @?[cannot apply function type] ( x :: Invalid ) () (row :: Row Type) is in scope
+  •
+
+Error! · [NoInstanceFound] · Main.purs:18:27
+  •
+  │
+  • No instance found for: Check (row1 :: Row ?[cannot apply function type])
+  │
+  │   usesInferredGiven value = needsCheck value
+  │                             ╰───────────────
+  • while
+  │
+  │   Union @?[cannot apply function type] ( x :: Invalid ) () (row1 :: Row ?[cannot apply function
+  │   type]) is in scope
+  •
+
+Error! · [NoInstanceFound] · Main.purs:21:21
+  •
+  │
+  • No instance found for: Check (row2 :: Row Type)
   │
   │   usesNoGiven value = needsCheck value
   │                       ╰───────────────

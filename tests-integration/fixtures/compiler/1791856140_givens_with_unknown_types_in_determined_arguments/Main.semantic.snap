@@ -13,10 +13,10 @@ needsGlobal :: Main.Global Prim.Int Prim.Boolean => Prim.Int
 needsGlobal = \{globalDict} -> 0
 
 usesGlobal :: Prim.Int
-usesGlobal = needsGlobal {globalIntInvalid}
+usesGlobal = needsGlobal {error}
 
 needsLocal :: Main.Local Prim.Int Prim.Boolean => Prim.Int
 needsLocal = \{localDict} -> 0
 
 usesLocal :: Main.Local Prim.Int Main.Invalid => Prim.Int
-usesLocal = \{localDict} -> needsLocal {localDict}
+usesLocal = \{localDict} -> needsLocal {error}

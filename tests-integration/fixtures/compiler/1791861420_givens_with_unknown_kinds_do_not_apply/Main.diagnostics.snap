@@ -9,3 +9,24 @@ Error! · [InvalidTypeApplication] · Main.purs:4:16
   │   type Invalid = Int String
   │                  ╰─────────
   •
+
+Error! · [NoInstanceFound] · Main.purs:15:14
+  •
+  │
+  • No instance found for: Global @Type Int
+  │
+  │   usesGlobal = needsGlobal
+  │                ╰──────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:24:13
+  •
+  │
+  • No instance found for: Local @Type Int
+  │
+  │   usesLocal = needsLocal
+  │               ╰─────────
+  • while
+  │
+  │   Local @?[cannot apply function type] Int is in scope
+  •

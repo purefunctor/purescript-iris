@@ -5,7 +5,13 @@ export function needsLocal(localIntDict) {
   return 0 | 0;
 }
 export function usesLocal(localIntDict) {
-  return /* @__PURE__ */ needsLocal(localIntDict);
+  let $result;
+  throw new Error("Generated code reached a source error");
+  return /* @__PURE__ */ needsLocal($result);
 }
 export const globalInt = {};
-export const usesGlobal = /* @__PURE__ */ needsGlobal(globalInt);
+export const usesGlobal = (() => {
+  let $result;
+  throw new Error("Generated code reached a source error");
+  return /* @__PURE__ */ needsGlobal($result);
+})();

@@ -13,10 +13,10 @@ needsGlobal :: Main.Global @Prim.Type Prim.Int => Prim.Int
 needsGlobal = \{globalDict} -> 0
 
 usesGlobal :: Prim.Int
-usesGlobal = needsGlobal {globalInt}
+usesGlobal = needsGlobal {error}
 
 needsLocal :: Main.Local @Prim.Type Prim.Int => Prim.Int
 needsLocal = \{localDict} -> 0
 
 usesLocal :: Main.Local @?[cannot apply function type] Prim.Int => Prim.Int
-usesLocal = \{localDict} -> needsLocal {localDict}
+usesLocal = \{localDict} -> needsLocal {error}

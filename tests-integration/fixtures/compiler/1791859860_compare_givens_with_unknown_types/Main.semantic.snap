@@ -10,7 +10,7 @@ usesInvalidGivens :: forall m p.
   Prim.Int.Compare m Main.Invalid Prim.Ordering.LT =>
   Prim.Int.Compare Main.Invalid p Prim.Ordering.LT =>
   Type.Proxy.Proxy @Prim.Int m -> Type.Proxy.Proxy @Prim.Int p -> Prim.Int
-usesInvalidGivens = \{compareDict} -> \{compareDict1} -> \m -> \p -> needsLess {trivial} m p
+usesInvalidGivens = \{compareDict} -> \{compareDict1} -> \m -> \p -> needsLess {error} m p
 
 usesNoGivens :: forall m p. Type.Proxy.Proxy @Prim.Int m -> Type.Proxy.Proxy @Prim.Int p -> Prim.Int
 usesNoGivens = \m -> \p -> needsLess {error} m p

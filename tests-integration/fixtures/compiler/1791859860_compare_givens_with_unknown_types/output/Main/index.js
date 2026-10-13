@@ -3,7 +3,14 @@ export function needsLess(compareMPLTDict) {
 }
 export function usesInvalidGivens(compareMInvalidLTDict) {
   return (compareInvalidPLTDict) => {
-    return (m) => (p) => /* @__PURE__ */ needsLess({})(m)(p);
+    const $closure = (m) => {
+      return (p) => {
+        let $result;
+        throw new Error("Generated code reached a source error");
+        return /* @__PURE__ */ needsLess($result)(m)(p);
+      };
+    };
+    return $closure;
   };
 }
 export function usesNoGivens(m) {

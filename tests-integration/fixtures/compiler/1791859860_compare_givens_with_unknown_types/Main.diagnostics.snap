@@ -10,10 +10,23 @@ Error! · [InvalidTypeApplication] · Main.purs:8:16
   │                  ╰──
   •
 
-Error! · [NoInstanceFound] · Main.purs:17:20
+Error! · [NoInstanceFound] · Main.purs:14:25
   •
   │
   • No instance found for: Compare (m :: Int) (p :: Int) LT
+  │
+  │   usesInvalidGivens m p = needsLess m p
+  │                           ╰────────────
+  • while
+  │
+  │   Compare (m :: Int) Invalid LT is in scope
+  │   Compare Invalid (p :: Int) LT is in scope
+  •
+
+Error! · [NoInstanceFound] · Main.purs:17:20
+  •
+  │
+  • No instance found for: Compare (m1 :: Int) (p1 :: Int) LT
   │
   │   usesNoGivens m p = needsLess m p
   │                      ╰────────────

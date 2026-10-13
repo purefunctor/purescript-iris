@@ -111,6 +111,13 @@ where
             Ok(MatchType::Match { bindings: vec![(*right, left)] })
         }
 
+        // An instance variable matches any type, including an unknown type.
+        // Otherwise, a given that contains an unknown type doesn't apply; see
+        // [`Type::Unknown`]. No solution for a unification variable changes
+        // that outcome, so this comes before the cases for unification
+        // variables.
+        (_, Type::Unknown(_)) => Ok(MatchType::Apart),
+
         (Type::Unification(unification), _) | (_, Type::Unification(unification)) => {
             Ok(MatchType::Stuck { stuck: vec![*unification], skolem: false })
         }
@@ -459,6 +466,34 @@ where
     Ok(outcome)
 }
 
+/// Rules out a given that contains an unknown type, which doesn't apply; see
+/// [`Type::Unknown`]. The comparisons in [`match_instance`] can stop before
+/// they reach an unknown type or drop the outcome for a determined argument,
+/// and they don't compare kind arguments, so a given that would otherwise
+/// apply is checked as a whole.
+fn rule_out_given_with_unknown<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    given: &[ApplicationArgument],
+    outcome: MatchType,
+) -> QueryResult<MatchType>
+where
+    Q: ExternalQueries,
+{
+    if outcome.is_apart() {
+        return Ok(outcome);
+    }
+
+    for &argument in given {
+        let (ApplicationArgument::Type(id) | ApplicationArgument::Kind(id)) = argument;
+        if toolkit::find_unknown(state, context, id)?.is_some() {
+            return Ok(MatchType::Apart);
+        }
+    }
+
+    Ok(outcome)
+}
+
 fn combine_arguments(arguments: impl IntoIterator<Item = MatchType>) -> MatchType {
     let seed = MatchType::Match { bindings: Vec::new() };
     arguments.into_iter().fold(seed, MatchType::combine)
@@ -643,14 +678,16 @@ where
         )
         .collect_vec();
 
-    match match_instance(
+    let outcome = match_instance(
         state,
         context,
         &pattern_variables,
         &functional_dependencies,
         &wanted_arguments,
         &provided_arguments,
-    )? {
+    )?;
+
+    match rule_out_given_with_unknown(state, context, &provided.arguments, outcome)? {
         MatchType::Match { .. } => {
             let unifications = iter::zip(wanted_arguments, provided_arguments).collect_vec();
             Ok(MatchInstance::Match { unifications, constraints: Vec::new() })
@@ -690,14 +727,16 @@ where
     let wanted_arguments = type_arguments(&wanted.arguments);
     let declared_arguments = type_arguments(&declared.arguments);
 
-    match match_instance(
+    let outcome = match_instance(
         state,
         context,
         &pattern_variables,
         &functional_dependencies,
         &wanted_arguments,
         &declared_arguments,
-    )? {
+    )?;
+
+    match rule_out_given_with_unknown(state, context, &declared.arguments, outcome)? {
         MatchType::Match { bindings } => {
             let matched_names: FxHashSet<_> = bindings.iter().map(|(name, _)| *name).collect();
 

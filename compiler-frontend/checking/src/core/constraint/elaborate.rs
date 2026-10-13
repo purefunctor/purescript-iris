@@ -260,6 +260,13 @@ where
         let mut changed = false;
 
         for &(constraint, _) in &given_evidence {
+            // A given that contains an unknown type doesn't apply, so it doesn't
+            // improve any type variable either; see [`Type::Unknown`].
+            let constraint_type = state.canonicals.type_id(context, constraint);
+            if toolkit::find_unknown(state, context, constraint_type)?.is_some() {
+                continue;
+            }
+
             let given_constraints = given_evidence.iter().map(|&(constraint, _)| constraint);
             let Some(matched) =
                 compiler::match_compiler_instance(state, context, constraint, given_constraints)?

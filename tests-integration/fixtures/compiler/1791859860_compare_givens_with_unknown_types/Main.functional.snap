@@ -4,6 +4,6 @@ source: tests-integration/src/fixtures.rs
 @export needsLess = \compareMPLTDict%2 -> \$proxy%0@(_) $proxy%1@(_) -> 0
 
 @export usesInvalidGivens = \compareMInvalidLTDict%5 compareInvalidPLTDict%6 ->
-  \m%3 p%4 -> needsLess <trivial evidence> m%3 p%4
+  \m%3 p%4 -> needsLess (<error>) m%3 p%4
 
 @export usesNoGivens = \m%7 p%8 -> needsLess (<error>) m%7 p%8
