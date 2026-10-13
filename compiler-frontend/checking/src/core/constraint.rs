@@ -99,6 +99,7 @@ impl Work {
 type Stuck = FxHashMap<u32, Vec<ConstraintInScope>>;
 type ConstraintSet = IndexMap<ConstraintKey, ConstraintEvidence, FxBuildHasher>;
 type Skolem = Vec<ConstraintInScope>;
+type Absorbed = IndexMap<ConstraintKey, (ConstraintEvidence, TypeId), FxBuildHasher>;
 
 fn fresh_scoped_constraints(
     state: &mut CheckState,
@@ -216,6 +217,134 @@ fn wake_constraints(work: &mut Work, stuck: &mut Stuck, state: &mut CheckState) 
     work.extend_constraints(awake);
 }
 
+/// Fails a wanted constraint whose own type contains an unknown type without
+/// an error, as described on [`Type::Unknown`].
+fn absorb_unknown_constraint(state: &mut CheckState, wanted: EvidenceVarId, unknown: TypeId) {
+    state.absorb_unknown(unknown);
+    state.checked.evidence.mark_error(wanted);
+}
+
+/// Solves the unification variables that stuck wanted constraints leave
+/// undetermined because their own type contains an unknown type.
+///
+/// Such a constraint may wait for unification variables that only its own
+/// instance would solve through functional dependencies, but the unknown type
+/// keeps the solver from choosing that instance. Once no constraint can make
+/// progress, those variables are solved to the unknown type, as unification
+/// does, so that the constraints that wait on them continue. A `Fail` whose
+/// message mentions one of them, for example, then reports its message.
+///
+/// ```text
+/// class Convert a b | a -> b
+/// class Joint a b c | a b -> c
+///
+/// Convert ?[unknown] ?1      solves ?1 := ?[unknown]
+/// Joint ?[unknown] Int ?2    solves ?2 := ?[unknown]
+/// Show ?1                    continues as Show ?[unknown]
+/// ```
+///
+/// Returns whether any unification is queued.
+fn solve_variables_left_by_unknown_types<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    work: &mut Work,
+    stuck: &Stuck,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    // A constraint is stuck once for each variable that it waits for.
+    let mut visited = FxHashSet::default();
+    let mut queued = false;
+
+    for constraint in stuck.values().flatten() {
+        if !visited.insert(constraint.key.wanted) {
+            continue;
+        }
+
+        let wanted = state.canonicals.type_id(context, constraint.key.wanted);
+        let Some(unknown) = toolkit::find_unknown(state, context, wanted)? else {
+            continue;
+        };
+
+        for id in variables_determined_by_instance(state, context, constraint.key.wanted)? {
+            let variable = context.queries.intern_type(Type::Unification(id));
+            work.unifications.push((variable, unknown));
+            queued = true;
+        }
+    }
+
+    Ok(queued)
+}
+
+/// Fails the stuck wanted constraints whose own type contains an unknown type,
+/// once no unification variable that they wait for can be solved.
+fn absorb_stuck_unknown_constraints<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    stuck: &mut Stuck,
+) -> QueryResult<()>
+where
+    Q: ExternalQueries,
+{
+    // A constraint is stuck once for each variable that it waits for.
+    let mut absorbed = Absorbed::default();
+    for constraints in stuck.values_mut() {
+        for constraint in mem::take(constraints) {
+            if let Some((existing, _)) = absorbed.get(&constraint.key) {
+                state.checked.evidence.merge_duplicate(constraint.evidence.wanted, existing.wanted);
+                continue;
+            }
+
+            let wanted = state.canonicals.type_id(context, constraint.key.wanted);
+            if let Some(unknown) = toolkit::find_unknown(state, context, wanted)? {
+                absorbed.insert(constraint.key, (constraint.evidence, unknown));
+            } else {
+                constraints.push(constraint);
+            }
+        }
+    }
+
+    stuck.retain(|_, constraints| !constraints.is_empty());
+
+    for (evidence, unknown) in absorbed.into_values() {
+        absorb_unknown_constraint(state, evidence.wanted, unknown);
+    }
+
+    Ok(())
+}
+
+/// Collects the unsolved unification variables that choosing an instance would
+/// solve, in the arguments that the known arguments determine through
+/// functional dependencies, as for [`is_improving_constraint`].
+fn variables_determined_by_instance<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    constraint: CanonicalConstraintId,
+) -> QueryResult<Vec<u32>>
+where
+    Q: ExternalQueries,
+{
+    let CanonicalConstraint { file_id, type_id, arguments } = state.canonicals[constraint].clone();
+    let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
+    let arguments = matching::type_arguments(&arguments);
+
+    let mut known_positions = FxHashSet::default();
+    for (position, &argument) in arguments.iter().enumerate() {
+        if !matching::is_blocked(state, context, argument)? {
+            known_positions.insert(position);
+        }
+    }
+
+    let determined_positions = compute_closure(&functional_dependencies, &known_positions);
+    let determined_arguments: Vec<_> = determined_positions
+        .difference(&known_positions)
+        .filter_map(|&position| arguments.get(position).copied())
+        .collect();
+
+    matching::collect_blocking(state, context, &determined_arguments)
+}
+
 fn solve_constraints<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -241,6 +370,10 @@ where
         }
 
         let Some(constraint) = work.pop_next(state, context)? else {
+            if solve_variables_left_by_unknown_types(state, context, &mut work, &stuck)? {
+                continue 'work;
+            }
+            absorb_stuck_unknown_constraints(state, context, &mut stuck)?;
             break 'work;
         };
 
@@ -344,7 +477,10 @@ where
         blocked.extend(search.blocking);
 
         if blocked.is_empty() {
-            if blocked_on_skolem {
+            let wanted = state.canonicals.type_id(context, constraint.key.wanted);
+            if let Some(unknown) = toolkit::find_unknown(state, context, wanted)? {
+                absorb_unknown_constraint(state, constraint.evidence.wanted, unknown);
+            } else if blocked_on_skolem {
                 skolem.push(constraint);
             } else {
                 residuals.push(constraint);
@@ -371,20 +507,7 @@ where
         insert_unique_constraint(state, &mut unique_residuals, constraint);
     }
 
-    let mut reported_residuals = Vec::with_capacity(unique_residuals.len());
-    for residual in unique_residuals.into_iter().map(ConstraintInScope::from_parts) {
-        // Unknown types replace errors that are reported elsewhere, so the
-        // constraints that mention them are left unsolved without an error.
-        let wanted = state.canonicals.type_id(context, residual.key.wanted);
-        if toolkit::find_unknown(state, context, wanted)?.is_some() {
-            state.absorb_unknown(wanted);
-            state.checked.evidence.mark_error(residual.evidence.wanted);
-        } else {
-            reported_residuals.push(residual);
-        }
-    }
-
-    Ok(reported_residuals)
+    Ok(unique_residuals.into_iter().map(ConstraintInScope::from_parts).collect())
 }
 
 #[derive(Clone)]

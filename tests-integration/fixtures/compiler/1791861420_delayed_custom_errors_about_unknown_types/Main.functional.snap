@@ -11,4 +11,4 @@ source: tests-integration/src/fixtures.rs
 
 @export reportWarning = \warnBesideQuoteInvalidQuoteDict%6 -> \$b%5@(_) -> 0
 
-@export warnsLater = \value%7 -> reportWarning (<error>) (convert (<error>) value%7)
+@export warnsLater = \value%7 -> reportWarning <trivial evidence> (convert (<error>) value%7)

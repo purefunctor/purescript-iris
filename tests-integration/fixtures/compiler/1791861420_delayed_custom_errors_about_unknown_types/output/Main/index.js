@@ -16,11 +16,9 @@ export function reportWarning(warnBesideQuoteInvalidQuoteDict) {
   return ($b) => 0 | 0;
 }
 export function warnsLater(value) {
+  const $function = reportWarning({});
   let $result;
   throw new Error("Generated code reached a source error");
-  const $function = reportWarning($result);
-  let $result$1;
-  throw new Error("Generated code reached a source error");
-  return /* @__PURE__ */ $function(/* @__PURE__ */ convert($result$1)(value));
+  return /* @__PURE__ */ $function(/* @__PURE__ */ convert($result)(value));
 }
 export const convertIntInt = { convert: (value) => value };

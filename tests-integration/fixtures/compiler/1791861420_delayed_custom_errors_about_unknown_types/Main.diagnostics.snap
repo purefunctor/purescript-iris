@@ -9,3 +9,21 @@ Error! · [InvalidTypeApplication] · Main.purs:5:16
   │   type Invalid = Int String
   │                  ╰─────────
   •
+
+Error! · [CustomFailure] · Main.purs:18:20
+  •
+  │
+  • Invalid?[cannot apply function type]
+  │
+  │   failsLater value = reportFailure (convert value)
+  │                      ╰────────────────────────────
+  •
+
+Warning! · [CustomWarning] · Main.purs:24:20
+  •
+  │
+  • Invalid?[cannot apply function type]
+  │
+  │   warnsLater value = reportWarning (convert value)
+  │                      ╰────────────────────────────
+  •

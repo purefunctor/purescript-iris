@@ -29,4 +29,4 @@ reportWarning :: forall b.
 reportWarning = \{warnDict} -> \_ -> 0
 
 warnsLater :: Main.Invalid -> Prim.Int
-warnsLater = \value -> reportWarning {error} (convert {error} value)
+warnsLater = \value -> reportWarning {trivial} (convert {error} value)

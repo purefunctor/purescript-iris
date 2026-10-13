@@ -9,30 +9,3 @@ Error! · [InvalidTypeApplication] · Main.purs:5:16
   │   type Invalid = Int String
   │                  ╰─────────
   •
-
-Error! · [NoInstanceFound] · Main.purs:15:22
-  •
-  │
-  • No instance found for: Show ?1
-  │
-  │   showsConvert value = show (convert value)
-  │                        ╰───────────────────
-  •
-
-Error! · [NoInstanceFound] · Main.purs:25:20
-  •
-  │
-  • No instance found for: Show ?4
-  │
-  │   showsJoint value = show (joint value 0)
-  │                      ╰───────────────────
-  •
-
-Error! · [NoInstanceFound] · Main.purs:35:26
-  •
-  │
-  • No instance found for: Show ?8
-  │
-  │   showsIndependent value = show (independent value 0)
-  │                            ╰─────────────────────────
-  •
