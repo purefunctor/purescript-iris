@@ -1,4 +1,6 @@
+pub mod module_files;
 pub mod module_name_map;
+pub use module_files::*;
 pub use module_name_map::*;
 
 use std::sync::Arc;
@@ -82,4 +84,6 @@ pub trait QueryProxy {
     fn prim_id(&self) -> FileId;
 
     fn module_file(&self, name: &str) -> Option<FileId>;
+
+    fn module_files(&self, name: &str) -> ModuleFiles;
 }

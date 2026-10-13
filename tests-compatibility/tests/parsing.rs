@@ -52,7 +52,7 @@ fn test_index_package_set() {
     for (_, id, source) in &sources {
         let Ok((parsed, _)) = engine.parsed(*id) else { continue };
         if let Some(module_name) = parsed.module_name(source) {
-            engine.set_module_file(module_name.as_ref(), *id);
+            engine.insert_module_file(module_name.as_ref(), *id);
         }
     }
 
@@ -178,7 +178,7 @@ fn test_parallel_parse_package_set() {
     });
 
     for (name, file) in names {
-        engine.set_module_file(&name, file);
+        engine.insert_module_file(&name, file);
     }
 
     let start = Instant::now();

@@ -8,7 +8,7 @@ use indexing::IndexedModule;
 use lowering::LoweredModule;
 use stabilizing::StabilizedModule;
 use syntax::ast::{AstNode, AstPtr};
-use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxNodePtr, TextRange};
+use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxNodePtr, TextRange, cst};
 
 use crate::Span;
 
@@ -180,6 +180,11 @@ where
         let end = range.end().into();
 
         Span::new(start, end)
+    }
+
+    pub fn module_name_span(&self) -> Option<Span> {
+        let name = cst::Module::cast(self.root.clone())?.header()?.name()?;
+        self.span_from_syntax_node(name.syntax())
     }
 
     pub fn span_from_error_crumb(&self, crumb: &ErrorCrumb) -> Option<Span> {

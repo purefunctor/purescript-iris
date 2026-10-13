@@ -28,7 +28,7 @@ fn configure_materialized_prim(engine: &QueryEngine, files: &mut Files) {
         let id = files.insert(uri.as_str(), *content);
 
         engine.set_content(id, *content);
-        engine.set_module_file(name, id);
+        engine.insert_module_file(name, id);
     }
 }
 
@@ -37,6 +37,7 @@ fn load_file(
     files: &mut Files,
     foreign_files: &mut ForeignFiles,
     path: &Path,
+    fixture_files: &HashSet<FileId>,
     replaceable: &HashSet<FileId>,
     replacements: &mut BTreeMap<String, String>,
 ) -> FixtureResult<FileId> {
@@ -55,18 +56,22 @@ fn load_file(
     };
 
     if let Some(name) = parsed.module_name(&content) {
-        if let Some(previous) = engine.module_file(&name)
-            && (!replaceable.contains(&previous) || replacements.remove(name.as_str()).is_none())
-        {
-            let message = format!(
-                "duplicate module {name}: {} and {}; \
-                 declare intentional registry replacements in replacements.json",
-                files.path(previous),
-                path.display(),
-            );
-            return Err(std::io::Error::other(message).into());
+        // A registry module may be replaced deliberately, while duplicate
+        // fixture modules are left registered for the compiler to report.
+        if let Some(previous) = engine.module_file(&name) {
+            if replaceable.contains(&previous) && replacements.remove(name.as_str()).is_some() {
+                engine.remove_module_file(&name, previous);
+            } else if !fixture_files.contains(&previous) {
+                let message = format!(
+                    "duplicate module {name}: {} and {}; \
+                     declare intentional registry replacements in replacements.json",
+                    files.path(previous),
+                    path.display(),
+                );
+                return Err(std::io::Error::other(message).into());
+            }
         }
-        engine.set_module_file(&name, id);
+        engine.insert_module_file(&name, id);
     }
 
     for kind in ForeignSourceKind::ALL {
@@ -132,6 +137,7 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
                 &mut foreign_files,
                 &path,
                 &HashSet::new(),
+                &HashSet::new(),
                 &mut BTreeMap::new(),
             )?;
             registry_files.insert(id);
@@ -155,6 +161,7 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
             &mut files,
             &mut foreign_files,
             &path,
+            &fixture_files,
             &registry_files,
             &mut replacements,
         )?;

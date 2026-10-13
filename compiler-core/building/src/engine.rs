@@ -32,7 +32,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
 use building_types::{
-    ModuleNameId, ModuleNameInterner, QueryError, QueryKey, QueryProxy, QueryResult,
+    ModuleFiles, ModuleNameId, ModuleNameInterner, QueryError, QueryKey, QueryProxy, QueryResult,
 };
 use checking::CheckedModule;
 use documenting::DocumentedModule;
@@ -140,7 +140,7 @@ struct InputStorage {
     content: Shards<FileId, InputState<Arc<str>>>,
     foreign: Shards<FileId, InputState<ForeignFileCandidates>>,
     foreign_content: Shards<ForeignFileId, InputState<Arc<str>>>,
-    module: Shards<ModuleNameId, InputState<Option<FileId>>>,
+    module: Shards<ModuleNameId, InputState<ModuleFiles>>,
 }
 
 #[derive(Default)]
@@ -829,10 +829,24 @@ impl QueryEngine {
         F: FnOnce(&InputStorage) -> &Shards<K, InputState<V>>,
         V: Clone,
     {
+        self.read_input(query, key, shards, V::clone)
+    }
+
+    fn read_input<K, V, F, R>(
+        &self,
+        query: QueryKey,
+        key: K,
+        shards: F,
+        read: impl FnOnce(&V) -> R,
+    ) -> Option<R>
+    where
+        K: Hash + Eq,
+        F: FnOnce(&InputStorage) -> &Shards<K, InputState<V>>,
+    {
         self.control.local.with_dependency(query);
         let shard = shards(&self.input).shard(&key);
         let guard = shard.read();
-        guard.get(&key).map(|state| V::clone(&state.value))
+        guard.get(&key).map(|state| read(&state.value))
     }
 }
 
@@ -881,7 +895,7 @@ impl QueryEngine {
         self.control.global.cancelled.store(true, Ordering::Relaxed);
         let _query_lock = self.control.global.query_lock.write();
 
-        self.control.global.revision.fetch_add(1, Ordering::Relaxed);
+        let changed = self.control.global.revision.fetch_add(1, Ordering::Relaxed) + 1;
         self.input.content.remove(&file_id);
         self.input.foreign.remove(&file_id);
 
@@ -889,7 +903,11 @@ impl QueryEngine {
         for shard in &self.input.module.inner {
             let mut modules = shard.write();
             modules.retain(|module, state| {
-                if state.value != Some(file_id) {
+                if !state.value.remove(file_id) {
+                    return true;
+                }
+                if !state.value.is_empty() {
+                    state.changed = changed;
                     return true;
                 }
                 removed_modules.insert(*module);
@@ -1023,27 +1041,38 @@ impl QueryEngine {
         )
     }
 
-    pub fn set_module_file(&self, name: &str, file_id: FileId) {
+    /// Registers `file_id` as a declaration of the module `name`, alongside any
+    /// other file that already declares it.
+    pub fn insert_module_file(&self, name: &str, file_id: FileId) {
         let id = self.interned.module.intern(name);
-        self.set_input(id, |input| &input.module, Some(file_id));
+        let mut files = self.module_files_input(id);
+        files.insert(file_id);
+        self.set_input(id, |input| &input.module, files);
     }
 
     pub fn remove_module_file(&self, name: &str, file_id: FileId) {
         let Some(id) = self.interned.module.lookup(name) else {
             return;
         };
-
-        let current = self.get_input(QueryKey::Module(id), id, |input| &input.module);
-        if current != Some(Some(file_id)) {
-            return;
+        let mut files = self.module_files_input(id);
+        if files.remove(file_id) {
+            self.set_input(id, |input| &input.module, files);
         }
-
-        self.set_input(id, |input| &input.module, None);
     }
 
     pub fn module_file(&self, name: &str) -> Option<FileId> {
         let id = self.interned.module.intern(name);
-        self.get_input(QueryKey::Module(id), id, |input| &input.module).flatten()
+        self.read_input(QueryKey::Module(id), id, |input| &input.module, ModuleFiles::primary)
+            .flatten()
+    }
+
+    pub fn module_files(&self, name: &str) -> ModuleFiles {
+        let id = self.interned.module.intern(name);
+        self.module_files_input(id)
+    }
+
+    fn module_files_input(&self, id: ModuleNameId) -> ModuleFiles {
+        self.get_input(QueryKey::Module(id), id, |input| &input.module).unwrap_or_default()
     }
 
     pub fn parsed(&self, id: FileId) -> QueryResult<FullParsedModule> {
@@ -1347,6 +1376,10 @@ impl QueryProxy for QueryEngine {
     fn module_file(&self, name: &str) -> Option<FileId> {
         QueryEngine::module_file(self, name)
     }
+
+    fn module_files(&self, name: &str) -> ModuleFiles {
+        QueryEngine::module_files(self, name)
+    }
 }
 
 impl functional::ExternalQueries for QueryEngine {
@@ -1626,10 +1659,10 @@ mod tests {
     #[test]
     fn test_equal_module_input_write_preserves_revision() {
         const MODULE_FILE: FileId = FileId::new(0);
-        const REPLACEMENT_FILE: FileId = FileId::new(1);
+        const DUPLICATE_FILE: FileId = FileId::new(1);
 
         let engine = QueryEngine::default();
-        engine.set_module_file("Main", MODULE_FILE);
+        engine.insert_module_file("Main", MODULE_FILE);
 
         let module_name = engine.interned.module.lookup("Main").unwrap();
         let changed_before = {
@@ -1638,7 +1671,7 @@ mod tests {
         };
         let revision_before = engine.control.global.revision.load(Ordering::Relaxed);
 
-        engine.set_module_file("Main", MODULE_FILE);
+        engine.insert_module_file("Main", MODULE_FILE);
 
         let changed_after = {
             let shard = engine.input.module.shard(&module_name).read();
@@ -1648,15 +1681,15 @@ mod tests {
         assert_eq!(changed_after, changed_before);
         assert_eq!(revision_after, revision_before);
 
-        engine.set_module_file("Main", REPLACEMENT_FILE);
+        engine.insert_module_file("Main", DUPLICATE_FILE);
 
-        let changed_after_replacement = {
+        let changed_after_duplicate = {
             let shard = engine.input.module.shard(&module_name).read();
             shard.get(&module_name).unwrap().changed
         };
-        let revision_after_replacement = engine.control.global.revision.load(Ordering::Relaxed);
-        assert_eq!(changed_after_replacement, revision_after_replacement);
-        assert_eq!(revision_after_replacement - revision_after, 1);
+        let revision_after_duplicate = engine.control.global.revision.load(Ordering::Relaxed);
+        assert_eq!(changed_after_duplicate, revision_after_duplicate);
+        assert_eq!(revision_after_duplicate - revision_after, 1);
     }
 
     #[test]
@@ -1673,10 +1706,37 @@ mod tests {
         let unresolved = engine.resolved(main).unwrap();
         assert!(!unresolved.unqualified.contains_key("Library"));
 
-        engine.set_module_file("Library", library);
+        engine.insert_module_file("Library", library);
 
         let resolved = engine.resolved(main).unwrap();
         assert!(resolved.unqualified.contains_key("Library"));
+    }
+
+    #[test]
+    fn test_duplicate_module_registration_invalidates_resolved() {
+        let engine = QueryEngine::default();
+        let mut files = Files::default();
+
+        let original = files.insert("Main.purs", "module Main where");
+        let duplicate = files.insert("Duplicate.purs", "module Main where");
+        engine.set_content(original, files.content(original));
+        engine.set_content(duplicate, files.content(duplicate));
+        let is_duplicated = |file_id| {
+            let resolved = engine.resolved(file_id).unwrap();
+            let mut errors = resolved.errors.iter();
+            errors.any(|error| matches!(error, resolving::ResolvingError::DuplicateModule { .. }))
+        };
+
+        engine.insert_module_file("Main", original);
+        assert!(!is_duplicated(original));
+
+        engine.insert_module_file("Main", duplicate);
+        assert!(is_duplicated(original));
+        assert!(is_duplicated(duplicate));
+
+        engine.remove_file(duplicate);
+        assert!(!is_duplicated(original));
+        assert_eq!(engine.module_file("Main"), Some(original));
     }
 
     #[test]
@@ -1692,13 +1752,13 @@ mod tests {
         engine.set_content(library, files.content(library));
         engine.set_content(replacement, files.content(replacement));
 
-        engine.set_module_file("Old", library);
+        engine.insert_module_file("Old", library);
 
         let resolved = engine.resolved(main).unwrap();
         assert!(resolved.unqualified.contains_key("Old"));
 
         engine.remove_module_file("Old", library);
-        engine.set_module_file("New", library);
+        engine.insert_module_file("New", library);
 
         assert_eq!(engine.module_file("Old"), None);
         assert_eq!(engine.module_file("New"), Some(library));
@@ -1706,7 +1766,7 @@ mod tests {
         let resolved = engine.resolved(main).unwrap();
         assert!(!resolved.unqualified.contains_key("Old"));
 
-        engine.set_module_file("Old", replacement);
+        engine.insert_module_file("Old", replacement);
         engine.remove_module_file("Old", library);
 
         assert_eq!(engine.module_file("Old"), Some(replacement));
@@ -1721,8 +1781,8 @@ mod tests {
         let library = files.insert("Library.purs", "module Library where\n\nlife = 42");
         engine.set_content(main, files.content(main));
         engine.set_content(library, files.content(library));
-        engine.set_module_file("Main", main);
-        engine.set_module_file("Library", library);
+        engine.insert_module_file("Main", main);
+        engine.insert_module_file("Library", library);
 
         let resolved = engine.resolved(main).unwrap();
         assert!(resolved.unqualified.contains_key("Library"));
@@ -1738,7 +1798,7 @@ mod tests {
         let replacement = files.insert("Library.purs", "module Library where\n\nlife = 43");
         assert_ne!(replacement, library);
         engine.set_content(replacement, files.content(replacement));
-        engine.set_module_file("Library", replacement);
+        engine.insert_module_file("Library", replacement);
 
         let resolved = engine.resolved(main).unwrap();
         assert!(resolved.unqualified.contains_key("Library"));
@@ -1774,7 +1834,7 @@ mod tests {
             let content = format!("module {module_name} where");
             let file_id = files.insert(path.as_str(), content.as_str());
             engine.set_content(file_id, content);
-            engine.set_module_file(&module_name, file_id);
+            engine.insert_module_file(&module_name, file_id);
             engine.parsed(file_id).unwrap();
 
             engine.remove_file(file_id);
@@ -1994,7 +2054,7 @@ mod tests {
 
         let main = files.insert("Main.purs", "module Main where\n\nlife = 42");
         engine.set_content(main, files.content(main));
-        engine.set_module_file("Main", main);
+        engine.insert_module_file("Main", main);
 
         let functional_initial = engine.functional(main).unwrap().unwrap();
         let javascript_initial = engine.javascript(main).unwrap().unwrap();
@@ -2027,7 +2087,7 @@ mod tests {
 
         let unrelated = files.insert("Unrelated.purs", "module Unrelated where\n\nvalue = 1");
         engine.set_content(unrelated, files.content(unrelated));
-        engine.set_module_file("Unrelated", unrelated);
+        engine.insert_module_file("Unrelated", unrelated);
 
         let functional_after_unrelated = engine.functional(main).unwrap().unwrap();
         let javascript_after_unrelated = engine.javascript(main).unwrap().unwrap();
@@ -2055,7 +2115,7 @@ mod tests {
             "module Main where\n\nimport Iris.StyleX (Props, Style, props)\n\npartialProps :: Style -> Props\npartialProps = props",
         );
         engine.set_content(main, files.content(main));
-        engine.set_module_file("Main", main);
+        engine.insert_module_file("Main", main);
 
         let functional_error = engine.functional(main).unwrap().unwrap_err();
         assert!(matches!(functional_error, functional::ModuleError::Unsupported { .. }));
@@ -2083,7 +2143,7 @@ mod tests {
             "module Main where\n\nimport Data.Eq (class Eq)\n\ndata Value = Value\n\nderive instance Eq Value",
         );
         engine.set_content(main, files.content(main));
-        engine.set_module_file("Main", main);
+        engine.insert_module_file("Main", main);
 
         let checked_initial = engine.checked(main).unwrap();
         let core_initial = engine.checked_core().unwrap();
@@ -2098,7 +2158,7 @@ mod tests {
 
         let unrelated = files.insert("Unrelated.purs", "module Unrelated where\n\nvalue = 2");
         engine.set_content(unrelated, files.content(unrelated));
-        engine.set_module_file("Unrelated", unrelated);
+        engine.insert_module_file("Unrelated", unrelated);
 
         let core_after_unrelated = engine.checked_core().unwrap();
         let checked_after_unrelated = engine.checked(main).unwrap();
@@ -2124,7 +2184,7 @@ mod tests {
             "module Data.Eq where\n\nclass Eq a where\n  eq :: a -> a -> Boolean",
         );
         engine.set_content(data_eq, files.content(data_eq));
-        engine.set_module_file("Data.Eq", data_eq);
+        engine.insert_module_file("Data.Eq", data_eq);
 
         let core_with_eq = engine.checked_core().unwrap();
         assert!(!Arc::ptr_eq(&core_after_unrelated, &core_with_eq));
@@ -2278,6 +2338,7 @@ mod tests {
         let indexed_a = engine.indexed(id).unwrap();
         let lowered_a = engine.lowered(id).unwrap();
         let resolved_a = engine.resolved(id).unwrap();
+        let main = engine.interned.module.lookup("Main").unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
             built: 25,
@@ -2292,7 +2353,7 @@ mod tests {
         assert_trace!(engine, resolved(id) => Trace {
             built: 25,
             changed: 25,
-            dependencies: &[QueryKey::Indexed(id)]
+            dependencies: &[QueryKey::Indexed(id), QueryKey::Module(main)]
         });
 
         let id = files.insert("./src/Main.purs", "module Main where\n\n\n\nlife = 42");
@@ -2316,7 +2377,7 @@ mod tests {
         assert_trace!(engine, resolved(id) => Trace {
             built: 26,
             changed: 25,
-            dependencies: &[QueryKey::Indexed(id)]
+            dependencies: &[QueryKey::Indexed(id), QueryKey::Module(main)]
         });
 
         let id = files.insert("./src/Main.purs", "module Main where\n\n\n\nlife = 42\n\n");
@@ -2340,7 +2401,7 @@ mod tests {
         assert_trace!(engine, resolved(id) => Trace {
             built: 27,
             changed: 25,
-            dependencies: &[QueryKey::Indexed(id)]
+            dependencies: &[QueryKey::Indexed(id), QueryKey::Module(main)]
         });
 
         assert!(Arc::ptr_eq(&indexed_a, &indexed_b));
@@ -2650,8 +2711,8 @@ mod tests {
 
         engine.set_content(main, files.content(main));
         engine.set_content(library, files.content(library));
-        engine.set_module_file("Main", main);
-        engine.set_module_file("Lib", library);
+        engine.insert_module_file("Main", main);
+        engine.insert_module_file("Lib", library);
 
         let result_a = engine.resolved(main);
         assert_eq!(

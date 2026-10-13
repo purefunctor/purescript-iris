@@ -20,6 +20,8 @@ use syntax::{SyntaxNodePtr, cst};
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct IndexedModule {
+    /// The module name declared in the header.
+    pub name: Option<SmolStr>,
     pub kind: ExportKind,
     pub names: IndexedNames,
     pub exports: IndexedExports,
@@ -387,7 +389,7 @@ pub fn index_module(
     cst: &cst::Module,
     stabilized: &StabilizedModule,
 ) -> IndexedModule {
-    let algorithm::State { kind, names, exports, items, imports, pairs, errors, .. } =
+    let algorithm::State { name, kind, names, exports, items, imports, pairs, errors, .. } =
         algorithm::index_module(source, cst, stabilized);
     debug_assert!(
         pairs.declaration_to_term.is_sorted_by_key(|(_, item)| *item)
@@ -396,5 +398,5 @@ pub fn index_module(
             && pairs.declaration_to_type.is_sorted_by_key(|(_, item)| *item),
         "invariant violated: source associations are not in item order"
     );
-    IndexedModule { kind, names, exports, items, imports, pairs, errors }
+    IndexedModule { name, kind, names, exports, items, imports, pairs, errors }
 }
