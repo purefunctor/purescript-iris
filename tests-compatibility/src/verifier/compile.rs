@@ -156,7 +156,7 @@ fn register_modules(
                             },
                         ));
                     } else {
-                        engine.set_module_file(&module_name, file_id);
+                        engine.insert_module_file(&module_name, file_id);
                         modules.insert(module_name, file_id);
                     }
                 }

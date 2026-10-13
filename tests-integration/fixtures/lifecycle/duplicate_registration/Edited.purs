@@ -1,3 +1,3 @@
 module Main where
 
--- A content edit must reclaim registration even when the module name is unchanged.
+-- A content edit keeps the registration of an unchanged module name.

@@ -28,7 +28,7 @@ fn configure_materialized_prim(engine: &QueryEngine, files: &mut Files) {
         let id = files.insert(uri.as_str(), *content);
 
         engine.set_content(id, *content);
-        engine.set_module_file(name, id);
+        engine.insert_module_file(name, id);
     }
 }
 
@@ -55,18 +55,19 @@ fn load_file(
     };
 
     if let Some(name) = parsed.module_name(&content) {
-        if let Some(previous) = engine.module_file(&name)
-            && (!replaceable.contains(&previous) || replacements.remove(name.as_str()).is_none())
-        {
-            let message = format!(
-                "duplicate module {name}: {} and {}; \
-                 declare intentional registry replacements in replacements.json",
-                files.path(previous),
-                path.display(),
-            );
-            return Err(std::io::Error::other(message).into());
+        if let Some(previous) = engine.module_file(&name) {
+            if !replaceable.contains(&previous) || replacements.remove(name.as_str()).is_none() {
+                let message = format!(
+                    "duplicate module {name}: {} and {}; \
+                     declare intentional registry replacements in replacements.json",
+                    files.path(previous),
+                    path.display(),
+                );
+                return Err(std::io::Error::other(message).into());
+            }
+            engine.remove_module_file(&name, previous);
         }
-        engine.set_module_file(&name, id);
+        engine.insert_module_file(&name, id);
     }
 
     for kind in ForeignSourceKind::ALL {

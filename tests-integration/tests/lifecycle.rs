@@ -59,19 +59,31 @@ fn duplicate_registration(path: &Path) -> datatest_stable::Result<()> {
 
     files.apply(&engine, source_disk(&duplicate, &content));
     let duplicate_id = files.source_id(duplicate.source()).unwrap();
-    assert_eq!(engine.module_file("Main"), Some(duplicate_id));
+    assert_eq!(engine.module_file("Main"), Some(original_id));
+    assert!(engine.module_files("Main").is_duplicated());
 
     files.apply(&engine, source_disk(&unit, &renamed));
     assert_eq!(engine.module_file("Main"), Some(duplicate_id));
+    assert!(!engine.module_files("Main").is_duplicated());
     assert_eq!(engine.module_file("Renamed"), Some(original_id));
 
     files.apply(&engine, source_disk(&unit, &content));
     assert_eq!(engine.module_file("Renamed"), None);
     assert_eq!(engine.module_file("Main"), Some(original_id));
+    assert!(engine.module_files("Main").is_duplicated());
 
     engine.parsed(duplicate_id).unwrap();
     files.apply(&engine, source_disk(&duplicate, &edited));
+    assert_eq!(engine.module_file("Main"), Some(original_id));
+    assert!(engine.module_files("Main").is_duplicated());
+
+    let removal = LifecycleEvent::Source {
+        unit: SourceUnitKey::clone(&unit),
+        event: SourceEvent::DiskObserved { disk: DiskObservation::NotFound, metadata: () },
+    };
+    files.apply(&engine, removal);
     assert_eq!(engine.module_file("Main"), Some(duplicate_id));
+    assert!(!engine.module_files("Main").is_duplicated());
     Ok(())
 }
 
@@ -110,8 +122,8 @@ fn batched_registration(path: &Path) -> datatest_stable::Result<()> {
         assert_eq!(batched_change, individual_change, "prefix {length}");
         for name in ["Main", "Renamed"] {
             assert_eq!(
-                batched_engine.module_file(name),
-                individual_engine.module_file(name),
+                batched_engine.module_files(name),
+                individual_engine.module_files(name),
                 "{name}, prefix {length}"
             );
         }
@@ -122,7 +134,9 @@ fn batched_registration(path: &Path) -> datatest_stable::Result<()> {
             );
         }
         if length == 3 {
-            assert_eq!(batched_engine.module_file("Main"), None);
+            let original_id = batched_files.source_id(unit.source());
+            assert_eq!(batched_engine.module_file("Main"), original_id);
+            assert!(!batched_engine.module_files("Main").is_duplicated());
         }
     }
     Ok(())

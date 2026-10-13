@@ -181,7 +181,7 @@ pub fn build_warmed_engine(sources: &[(String, String)]) -> WarmedEngine {
             && let Ok((parsed, _)) = engine.parsed(file_id)
             && let Some(module_name) = parsed.module_name(&content)
         {
-            engine.set_module_file(module_name.as_ref(), file_id);
+            engine.insert_module_file(module_name.as_ref(), file_id);
         }
     }
 

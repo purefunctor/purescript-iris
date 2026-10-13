@@ -68,7 +68,7 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
                 .changed_sources()
                 .next()
                 .expect("invariant violated: Prim source lifecycle did not insert a source");
-            engine.set_module_file(name, id);
+            engine.insert_module_file(name, id);
         }
 
         CompilationState { engine, files, sources: BTreeSet::new(), prim }

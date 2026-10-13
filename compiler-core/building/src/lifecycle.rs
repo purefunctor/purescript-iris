@@ -156,8 +156,9 @@ where
         let mut pending = Vec::new();
         let mut change = LifecycleChange::default();
         for event in events {
-            // Updating or removing a source must observe earlier registrations,
-            // including ownership displaced by a duplicate module name.
+            // A pending registration reads the engine content of its source
+            // when it completes. Complete it before an event replaces or
+            // removes that content, so registrations follow event order.
             if let LifecycleEvent::Source { unit, .. } = &event
                 && self.source_id(unit.source()).is_some()
             {
@@ -390,7 +391,7 @@ fn update_module_name(engine: &QueryEngine, id: FileId, previous_name: Option<Sm
         engine.remove_module_file(&previous_name, id);
     }
     if let Some(current_name) = current_name {
-        engine.set_module_file(&current_name, id);
+        engine.insert_module_file(&current_name, id);
     }
 }
 

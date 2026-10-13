@@ -1,4 +1,6 @@
+pub mod module_files;
 pub mod module_name_map;
+pub use module_files::*;
 pub use module_name_map::*;
 
 use std::sync::Arc;
