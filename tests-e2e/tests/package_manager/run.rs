@@ -34,7 +34,7 @@ foreign import main :: Effect Unit
     assert!(output.stdout.ends_with(b"\n"));
     insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"first,second");
     assert!(workspace.path().join("generated/Configured/index.js").is_file());
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    workspace.assert_spago_calls("", &[&["fetch"]]);
 }
 
 #[test]
@@ -64,4 +64,48 @@ foreign import main :: Effect Unit
     assert_eq!(output.status.code(), Some(7));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).starts_with("Node.js exited with status "));
+}
+
+#[test]
+fn refuses_to_run_a_main_module_that_is_not_part_of_the_build() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Unit = Unit
+foreign import data Effect :: Type -> Type
+foreign import main :: Effect Unit
+"#,
+    );
+    workspace.write(
+        "src/Main.js",
+        r#"export const main = () => console.log("ran");
+"#,
+    );
+    workspace.write(
+        "src/Other.purs",
+        r#"module Other where
+"#,
+    );
+    let ran = workspace.command(&["run", "--quiet"]);
+    assert_success(&ran);
+    assert!(ran.stdout.ends_with(b"\n"));
+    insta::assert_snapshot!(String::from_utf8_lossy(&ran.stdout), @"ran");
+
+    std::fs::remove_file(workspace.path().join("src/Main.purs")).unwrap();
+    let output = workspace.command(&["run", "--quiet"]);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    insta::assert_snapshot!(String::from_utf8_lossy(&output.stderr), @"module Main is not part of the build");
+    assert!(workspace.path().join("output/Main/index.js").is_file());
 }

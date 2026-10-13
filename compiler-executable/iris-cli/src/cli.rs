@@ -179,6 +179,7 @@ impl BuildOptions {
             quiet: self.project.quiet,
             color: use_color(self.project.color),
             diagnostics: !self.no_diagnostics,
+            version: crate::VERSION.to_string(),
         }
     }
 }
@@ -209,7 +210,13 @@ pub struct RunOptions {
 impl RunOptions {
     pub fn into_config(self) -> RunConfig {
         let (project, color) = self.build.into_project_config();
-        RunConfig { project, color, main: self.main, arguments: self.arguments }
+        RunConfig {
+            project,
+            color,
+            version: crate::VERSION.to_string(),
+            main: self.main,
+            arguments: self.arguments,
+        }
     }
 }
 
@@ -231,7 +238,13 @@ pub struct TestOptions {
 impl TestOptions {
     pub fn into_config(self) -> TestConfig {
         let (project, color) = self.build.into_project_config();
-        TestConfig { project, color, main: self.main, arguments: self.arguments }
+        TestConfig {
+            project,
+            color,
+            version: crate::VERSION.to_string(),
+            main: self.main,
+            arguments: self.arguments,
+        }
     }
 }
 

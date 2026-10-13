@@ -65,6 +65,7 @@ pub struct DiscoveredPackage {
     pub files: Vec<PathBuf>,
     /// The names of this package's dependencies.
     pub dependencies: Vec<SmolStr>,
+    pub source_globs: Vec<PathBuf>,
     /// Whether the sources are editable project files rather than fetched checkouts.
     pub editable: bool,
     /// The package locations relative to the workspace root.
@@ -103,11 +104,24 @@ enum ResolvedDependency {
 /// present; missing resolution or fetched sources are reported as errors so
 /// that consumers never analyze a partially installed project.
 pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, PackagesError> {
+    discover(workspace, workspace.selected.as_deref())
+}
+
+pub fn discover_workspace_packages(
+    workspace: &Workspace,
+) -> Result<DiscoveredPackages, PackagesError> {
+    discover(workspace, None)
+}
+
+fn discover(
+    workspace: &Workspace,
+    selected: Option<&str>,
+) -> Result<DiscoveredPackages, PackagesError> {
     let resolution = read_resolution(&workspace.root)?;
 
     let mut discovered = BTreeMap::new();
     let mut queue = VecDeque::new();
-    if let Some(selected) = workspace.selected.as_deref() {
+    if let Some(selected) = selected {
         queue.push_back((SmolStr::new(selected), true));
     } else {
         queue.extend(workspace.packages.keys().map(|name| (SmolStr::new(name), true)));
@@ -123,17 +137,18 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
     }
 
     let mut source_globs = Vec::new();
+    let mut package_globs: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
     let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
     let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
     for resolved in discovered.values() {
-        let mut package_globs = Vec::new();
-        for directory in &resolved.source_directories {
+        let globs = resolved.source_directories.iter().map(|directory| {
             let relative = directory.strip_prefix(&workspace.root).unwrap_or(directory);
-            package_globs.push(relative.join(iris_spago::PURS_GLOB));
-        }
-        source_globs.extend(package_globs.iter().cloned());
-        let walked =
-            super::walk::walk_filtered(&workspace.root, package_globs, Vec::<PathBuf>::new())?;
+            relative.join(iris_spago::PURS_GLOB)
+        });
+        let globs = globs.collect_vec();
+        source_globs.extend(globs.iter().cloned());
+        let walked = super::walk::walk_filtered(&workspace.root, &globs, Vec::<PathBuf>::new())?;
+        package_globs.insert(SmolStr::clone(&resolved.name), globs);
         for file in walked.files {
             if let Some(owner) =
                 owners.insert(PathBuf::clone(&file), SmolStr::clone(&resolved.name))
@@ -154,6 +169,7 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
         .map(|resolved| DiscoveredPackage {
             files: files.remove(&resolved.name).unwrap_or_default(),
             dependencies: resolved.dependencies,
+            source_globs: package_globs.remove(&resolved.name).unwrap_or_default(),
             editable: resolved.editable,
             roots: vec![resolved.relative],
             name: resolved.name,

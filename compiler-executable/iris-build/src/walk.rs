@@ -10,7 +10,6 @@ use walkdir::WalkDir;
 
 pub struct Walk {
     pub roots: BTreeSet<PathBuf>,
-    pub globs: GlobSet,
     pub files: Vec<PathBuf>,
 }
 
@@ -30,25 +29,18 @@ pub fn walk_filtered(
     let mut files = Vec::new();
 
     let mut roots: BTreeMap<PathBuf, GlobSetBuilder> = BTreeMap::default();
-    let mut globs = GlobSetBuilder::new();
 
     for path in includes {
-        let path = dunce::simplified(root).join(path);
-        if let Ok(path) = path.absolutize()
-            && let Some(path) = path.to_str()
-            && let Ok(glob) = Glob::new(path)
-        {
+        if let Some(glob) = absolute_glob(root, path.as_ref()) {
             roots
-                .entry(glob_literal_base(path))
+                .entry(glob_literal_base(glob.glob()))
                 .or_insert_with(GlobSetBuilder::new)
-                .add(glob.clone());
-            globs.add(glob);
+                .add(glob);
         } else {
-            files.push(path);
+            files.push(dunce::simplified(root).join(path));
         }
     }
 
-    let globs = globs.build()?;
     let excludes = build_excludes(root, excludes)?;
     files.retain(|path| !excludes.is_match(path));
     let mut files_from_glob = BTreeSet::default();
@@ -72,7 +64,13 @@ pub fn walk_filtered(
     files.extend(files_from_glob);
 
     let roots = roots.into_keys().collect();
-    Ok(Walk { roots, globs, files })
+    Ok(Walk { roots, files })
+}
+
+pub(crate) fn absolute_glob(root: &Path, include: &Path) -> Option<Glob> {
+    let path = dunce::simplified(root).join(include);
+    let path = path.absolutize().ok()?;
+    Glob::new(path.to_str()?).ok()
 }
 
 fn build_excludes(
@@ -182,7 +180,6 @@ mod tests {
             relative_files(root, walk.files),
             vec!["package/src/Main.purs", "package/src/nested/Test.purs"]
         );
-        assert!(walk.globs.is_match(root.join("package/src/nested/Test.purs")));
         assert_eq!(walk.roots, BTreeSet::from([root.join("package"), root.join("package/src")]));
     }
 

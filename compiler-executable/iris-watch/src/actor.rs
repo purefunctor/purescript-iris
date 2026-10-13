@@ -65,8 +65,11 @@ impl BuildActor {
         }
 
         let started = Instant::now();
-        let session_config =
-            BuildSessionConfig { color: config.color, diagnostics: config.diagnostics };
+        let session_config = BuildSessionConfig {
+            color: config.color,
+            diagnostics: config.diagnostics,
+            version: String::clone(&config.version),
+        };
         let initialized = task::spawn_blocking(move || {
             let project = initialize_project(project)?;
             let mut session = BuildSession::new(project, session_config)?;
