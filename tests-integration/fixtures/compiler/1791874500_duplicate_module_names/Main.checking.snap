@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 329
+---
+Terms
+test :: Prim.Int
+
+Types

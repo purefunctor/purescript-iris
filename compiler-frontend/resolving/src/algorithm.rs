@@ -26,11 +26,23 @@ pub(super) fn resolve_module(queries: &impl ExternalQueries, file: FileId) -> Qu
     let indexed = queries.indexed(file)?;
 
     let mut state = State::default();
+    validate_module_name(queries, &mut state, &indexed);
     validate_instance_names(&mut state, &indexed);
     resolve_imports(queries, &mut state, &indexed)?;
     resolve_exports(&mut state, &indexed, file);
 
     Ok(state)
+}
+
+fn validate_module_name(
+    queries: &impl ExternalQueries,
+    state: &mut State,
+    indexed: &IndexedModule,
+) {
+    let Some(name) = &indexed.name else { return };
+    if queries.module_files(name).is_duplicated() {
+        state.errors.push(ResolvingError::DuplicateModule { name: SmolStr::clone(name) });
+    }
 }
 
 fn validate_instance_names(state: &mut State, indexed: &IndexedModule) {

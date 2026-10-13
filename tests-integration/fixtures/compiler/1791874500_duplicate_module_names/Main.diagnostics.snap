@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+assertion_line: 330
+---
+Error! · [DuplicateModule] · Types.purs:1:8
+  •
+  │
+  • Module 'Types' has been defined multiple times
+  │
+  │   module Types where
+  │          ╰────
+  •
+
+Error! · [DuplicateModule] · Types2.purs:1:8
+  •
+  │
+  • Module 'Types' has been defined multiple times
+  │
+  │   module Types where
+  │          ╰────
+  •

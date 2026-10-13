@@ -24,7 +24,7 @@ enum OpenItemGroup {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(super) struct State<'a> {
     source: &'a str,
-    name: Option<SmolStr>,
+    pub(super) name: Option<SmolStr>,
     open: Option<OpenItemGroup>,
     pub(super) kind: ExportKind,
     pub(super) names: IndexedNames,

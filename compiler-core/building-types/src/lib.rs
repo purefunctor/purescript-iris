@@ -84,4 +84,6 @@ pub trait QueryProxy {
     fn prim_id(&self) -> FileId;
 
     fn module_file(&self, name: &str) -> Option<FileId>;
+
+    fn module_files(&self, name: &str) -> ModuleFiles;
 }

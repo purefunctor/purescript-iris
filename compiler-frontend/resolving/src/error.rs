@@ -9,6 +9,10 @@ use crate::ExportSource;
 /// The kind of errors produced during name resolution.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ResolvingError {
+    /// Another source file declares the same module name.
+    DuplicateModule {
+        name: SmolStr,
+    },
     InstanceNameConflict {
         name: SmolStr,
         instance: InstanceSourceItemId,

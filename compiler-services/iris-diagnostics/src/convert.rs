@@ -445,6 +445,11 @@ impl ToDiagnostics for ResolvingError {
         Q: ExternalQueries,
     {
         match self {
+            ResolvingError::DuplicateModule { name } => {
+                let span = context.module_name_span().unwrap_or_else(|| context.module_span());
+                let message = format!("Module '{name}' has been defined multiple times");
+                vec![Diagnostic::error("DuplicateModule", message, span, "resolving")]
+            }
             ResolvingError::InstanceNameConflict { name, instance, existing } => {
                 let pointer = match instance {
                     InstanceSourceItemId::Instance(id) => {

@@ -37,6 +37,7 @@ fn load_file(
     files: &mut Files,
     foreign_files: &mut ForeignFiles,
     path: &Path,
+    fixture_files: &HashSet<FileId>,
     replaceable: &HashSet<FileId>,
     replacements: &mut BTreeMap<String, String>,
 ) -> FixtureResult<FileId> {
@@ -55,8 +56,12 @@ fn load_file(
     };
 
     if let Some(name) = parsed.module_name(&content) {
+        // A registry module may be replaced deliberately, while duplicate
+        // fixture modules are left registered for the compiler to report.
         if let Some(previous) = engine.module_file(&name) {
-            if !replaceable.contains(&previous) || replacements.remove(name.as_str()).is_none() {
+            if replaceable.contains(&previous) && replacements.remove(name.as_str()).is_some() {
+                engine.remove_module_file(&name, previous);
+            } else if !fixture_files.contains(&previous) {
                 let message = format!(
                     "duplicate module {name}: {} and {}; \
                      declare intentional registry replacements in replacements.json",
@@ -65,7 +70,6 @@ fn load_file(
                 );
                 return Err(std::io::Error::other(message).into());
             }
-            engine.remove_module_file(&name, previous);
         }
         engine.insert_module_file(&name, id);
     }
@@ -133,6 +137,7 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
                 &mut foreign_files,
                 &path,
                 &HashSet::new(),
+                &HashSet::new(),
                 &mut BTreeMap::new(),
             )?;
             registry_files.insert(id);
@@ -156,6 +161,7 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
             &mut files,
             &mut foreign_files,
             &path,
+            &fixture_files,
             &registry_files,
             &mut replacements,
         )?;

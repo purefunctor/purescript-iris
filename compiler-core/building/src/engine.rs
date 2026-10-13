@@ -1376,6 +1376,10 @@ impl QueryProxy for QueryEngine {
     fn module_file(&self, name: &str) -> Option<FileId> {
         QueryEngine::module_file(self, name)
     }
+
+    fn module_files(&self, name: &str) -> ModuleFiles {
+        QueryEngine::module_files(self, name)
+    }
 }
 
 impl functional::ExternalQueries for QueryEngine {
@@ -1706,6 +1710,33 @@ mod tests {
 
         let resolved = engine.resolved(main).unwrap();
         assert!(resolved.unqualified.contains_key("Library"));
+    }
+
+    #[test]
+    fn test_duplicate_module_registration_invalidates_resolved() {
+        let engine = QueryEngine::default();
+        let mut files = Files::default();
+
+        let original = files.insert("Main.purs", "module Main where");
+        let duplicate = files.insert("Duplicate.purs", "module Main where");
+        engine.set_content(original, files.content(original));
+        engine.set_content(duplicate, files.content(duplicate));
+        let is_duplicated = |file_id| {
+            let resolved = engine.resolved(file_id).unwrap();
+            let mut errors = resolved.errors.iter();
+            errors.any(|error| matches!(error, resolving::ResolvingError::DuplicateModule { .. }))
+        };
+
+        engine.insert_module_file("Main", original);
+        assert!(!is_duplicated(original));
+
+        engine.insert_module_file("Main", duplicate);
+        assert!(is_duplicated(original));
+        assert!(is_duplicated(duplicate));
+
+        engine.remove_file(duplicate);
+        assert!(!is_duplicated(original));
+        assert_eq!(engine.module_file("Main"), Some(original));
     }
 
     #[test]
@@ -2307,6 +2338,7 @@ mod tests {
         let indexed_a = engine.indexed(id).unwrap();
         let lowered_a = engine.lowered(id).unwrap();
         let resolved_a = engine.resolved(id).unwrap();
+        let main = engine.interned.module.lookup("Main").unwrap();
 
         assert_trace!(engine, parsed(id) => Trace {
             built: 25,
@@ -2321,7 +2353,7 @@ mod tests {
         assert_trace!(engine, resolved(id) => Trace {
             built: 25,
             changed: 25,
-            dependencies: &[QueryKey::Indexed(id)]
+            dependencies: &[QueryKey::Indexed(id), QueryKey::Module(main)]
         });
 
         let id = files.insert("./src/Main.purs", "module Main where\n\n\n\nlife = 42");
@@ -2345,7 +2377,7 @@ mod tests {
         assert_trace!(engine, resolved(id) => Trace {
             built: 26,
             changed: 25,
-            dependencies: &[QueryKey::Indexed(id)]
+            dependencies: &[QueryKey::Indexed(id), QueryKey::Module(main)]
         });
 
         let id = files.insert("./src/Main.purs", "module Main where\n\n\n\nlife = 42\n\n");
@@ -2369,7 +2401,7 @@ mod tests {
         assert_trace!(engine, resolved(id) => Trace {
             built: 27,
             changed: 25,
-            dependencies: &[QueryKey::Indexed(id)]
+            dependencies: &[QueryKey::Indexed(id), QueryKey::Module(main)]
         });
 
         assert!(Arc::ptr_eq(&indexed_a, &indexed_b));
