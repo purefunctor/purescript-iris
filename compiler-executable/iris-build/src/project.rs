@@ -20,7 +20,6 @@ pub struct BuildConfig {
     pub output: Option<PathBuf>,
     pub quiet: bool,
     pub color: bool,
-    pub resilient: bool,
     pub diagnostics: bool,
 }
 
@@ -176,7 +175,6 @@ fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(),
         packages: project.packages,
         color: config.color,
         diagnostics: config.diagnostics,
-        resilient: config.resilient,
         events: &events,
     })?;
     Ok(())
@@ -268,7 +266,6 @@ fn execution_build_config(project: ProjectConfig, color: bool) -> BuildConfig {
         output: project.output,
         quiet: project.quiet,
         color,
-        resilient: false,
         diagnostics: true,
     }
 }
