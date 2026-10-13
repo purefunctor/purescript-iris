@@ -12,6 +12,8 @@ use crate::state::CheckState;
 pub enum WalkAction {
     /// Stops the entire walk, skipping every remaining type.
     Break,
+    /// Skips the types inside this type, and continues with the rest.
+    SkipChildren,
     Continue,
 }
 
@@ -74,8 +76,10 @@ where
     let id = normalise::normalise(state, context, id);
     let t = context.lookup_type(id);
 
-    if let WalkAction::Break = walker.visit(state, context, id, t)? {
-        return Ok(ControlFlow::Break(()));
+    match walker.visit(state, context, id, t)? {
+        WalkAction::Break => return Ok(ControlFlow::Break(())),
+        WalkAction::SkipChildren => return Ok(ControlFlow::Continue(())),
+        WalkAction::Continue => {}
     }
 
     match *t {

@@ -695,37 +695,42 @@ where
     Ok(walker.contains)
 }
 
-/// Whether a type contains an unknown type, including in the expansions of the
-/// synonyms that it uses.
+/// Finds an unknown type in a type, including in the expansions of the
+/// synonyms that it uses, but not in the kinds of its type variables.
 ///
 /// A type refers to a synonym by name, and the expansion of an invalid synonym
 /// is an unknown type. The walk visits the expansion of each synonym once, so
 /// the walk ends even when a synonym is recursive.
-pub fn contains_unknown<Q>(
+///
+/// A type variable can get an unknown kind from an error elsewhere in its
+/// declaration, e.g. a given with an unknown type, but the variable still
+/// stands for the type that the user wrote.
+pub fn find_unknown<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     id: TypeId,
-) -> QueryResult<bool>
+) -> QueryResult<Option<TypeId>>
 where
     Q: ExternalQueries,
 {
     // Type flags do not track unknown types, and solved unification variables
     // may contain them, so every type is visited.
-    struct ContainsUnknown {
-        contains: bool,
+    struct FindUnknown {
+        unknown: Option<TypeId>,
         constructors: FxHashSet<(FileId, TypeItemId)>,
     }
 
-    impl TypeWalker for ContainsUnknown {
+    impl TypeWalker for FindUnknown {
         fn visit<Q: ExternalQueries>(
             &mut self,
             state: &mut CheckState,
             context: &CheckContext<Q>,
-            _id: TypeId,
+            id: TypeId,
             t: &Type,
         ) -> QueryResult<walk::WalkAction> {
             match *t {
-                Type::Unknown(_) => self.contains = true,
+                Type::Unknown(_) => self.unknown = Some(id),
+                Type::Rigid(..) => return Ok(walk::WalkAction::SkipChildren),
                 Type::Constructor(file_id, type_id)
                     if self.constructors.insert((file_id, type_id)) =>
                 {
@@ -737,13 +742,17 @@ where
                 _ => (),
             }
 
-            if self.contains { Ok(walk::WalkAction::Break) } else { Ok(walk::WalkAction::Continue) }
+            if self.unknown.is_some() {
+                Ok(walk::WalkAction::Break)
+            } else {
+                Ok(walk::WalkAction::Continue)
+            }
         }
     }
 
-    let mut walker = ContainsUnknown { contains: false, constructors: FxHashSet::default() };
+    let mut walker = FindUnknown { unknown: None, constructors: FxHashSet::default() };
     walk::walk_type(state, context, id, &mut walker)?;
-    Ok(walker.contains)
+    Ok(walker.unknown)
 }
 
 pub fn decompose_function<Q>(

@@ -9,3 +9,12 @@ Error! · [InvalidTypeApplication] · Main.purs:5:16
   │   type Invalid = Int String
   │                  ╰─────────
   •
+
+Error! · [NoInstanceFound] · Main.purs:14:17
+  •
+  │
+  • No instance found for: Check (row :: Row Invalid)
+  │
+  │   usesRow value = needsCheck value
+  │                   ╰───────────────
+  •

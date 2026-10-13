@@ -373,7 +373,7 @@ where
         // Unknown types replace errors that are reported elsewhere, so the
         // constraints that mention them are left unsolved without an error.
         let wanted = state.canonicals.type_id(context, residual.key.wanted);
-        if toolkit::contains_unknown(state, context, wanted)? {
+        if toolkit::find_unknown(state, context, wanted)?.is_some() {
             state.absorb_unknown(wanted);
             state.checked.evidence.mark_error(residual.evidence.wanted);
         } else {
