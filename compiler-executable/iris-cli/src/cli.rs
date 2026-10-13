@@ -139,10 +139,6 @@ pub struct BuildOptions {
     #[usage(flatten)]
     project: ProjectBuildOptions,
 
-    /// Write JavaScript output even when compilation reports errors.
-    #[usage(long)]
-    resilient: bool,
-
     /// Suppress compiler warnings and errors without hiding build progress.
     #[usage(long)]
     no_diagnostics: bool,
@@ -182,7 +178,6 @@ impl BuildOptions {
             output: self.project.output,
             quiet: self.project.quiet,
             color: use_color(self.project.color),
-            resilient: self.resilient,
             diagnostics: !self.no_diagnostics,
         }
     }
@@ -621,7 +616,7 @@ mod tests {
 
     #[test]
     fn maps_build_options_to_configuration() {
-        let arguments = ["iris", "build", "--quiet", "--no-diagnostics", "--resilient"];
+        let arguments = ["iris", "build", "--quiet", "--no-diagnostics"];
         let arguments = arguments.iter().map(OsStr::new).collect_vec();
         let program = Program::try_parse_from(&arguments).unwrap();
         let Command::Build(options) = program.command else {
@@ -631,6 +626,5 @@ mod tests {
 
         assert!(config.quiet);
         assert!(!config.diagnostics);
-        assert!(config.resilient);
     }
 }

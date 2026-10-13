@@ -26,7 +26,6 @@ pub(crate) struct BuildConfig<'a> {
     pub packages: Vec<PackageInput>,
     pub color: bool,
     pub diagnostics: bool,
-    pub resilient: bool,
     pub events: &'a dyn BuildEventSink,
 }
 
@@ -211,8 +210,7 @@ where
 
 pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
     let started = Instant::now();
-    let BuildConfig { root, output, source_globs, packages, color, diagnostics, resilient, events } =
-        config;
+    let BuildConfig { root, output, source_globs, packages, color, diagnostics, events } = config;
     let excluded = [PathBuf::clone(&output)];
     let initial = build_initial(InitialBuildConfig {
         root: &root,
@@ -232,7 +230,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
         return Err(error);
     }
     let has_errors = report.has_errors;
-    if !has_errors || resilient {
+    if !has_errors {
         let modules = collect_modules(&compilation, &report.sources)?;
         write_modules(&compilation, &modules, &output, &mut BTreeSet::new())?;
     }
