@@ -28,14 +28,21 @@ The fix commit usually touches compiler code plus the same `.snap`. Depending on
 
 Use the category that owns the observable regression:
 
-| Category | Alias | Use when the regression is visible in |
-|----------|-------|----------------------------------------|
-| `compiler` | `c` | Types, diagnostics, semantic recovery, functional conversion, generated JavaScript, or execution |
-| `lowering` | `l` | Lowered core output, equation/binder shape, or source-to-core links |
-| `resolving` | `r` | Name resolution, imports, exports, qualification, re-exports, or resolver diagnostics |
-| `lsp` | - | Hover, definition, completion, import edits, or editor-facing source positions |
+| Category    | Alias | Use when the regression is visible in                                                            |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------ |
+| `compiler`  | `c`   | Types, diagnostics, semantic recovery, functional conversion, generated JavaScript, or execution |
+| `lowering`  | `l`   | Lowered core output, equation/binder shape, or source-to-core links                              |
+| `resolving` | `r`   | Name resolution, imports, exports, qualification, re-exports, or resolver diagnostics            |
+| `lsp`       | -     | Hover, definition, completion, import edits, or editor-facing source positions                   |
 
 Use the `workflow-integration-tests` skill for fixture authoring details. Use the command reference at `.agents/skills/workflow-integration-tests/reference/compiler-scripts.md` for runner syntax, filters, snapshots, and trace debugging.
+
+Before either workflow, choose small, coherent units of behavior as required by
+`tests-integration/AGENTS.md`. Keep the setup and expected results easy to hold in
+working memory. Simple related variants or controls may stay together; a shared
+bug, root cause, or fix alone does not justify a large collection of examples.
+A failing-fixture commit may contain several focused fixtures; preserve those
+boundaries and their meaningful context in the fix commit.
 
 ## Jujutsu workflow
 
@@ -153,7 +160,7 @@ Before finishing, verify:
 - The fix commit snapshot changes only what the fix should change.
 - Unexpected `???` does not appear unless it is the regression being documented.
 - Error kinds, locations, inferred types, constraints, semantic nodes, lowered bindings, resolved references, and LSP payloads are intentional for the selected category.
-- The fixture is narrow enough for the snapshot diff to be easy to audit.
+- Each fixture covers a small, coherent unit that is easy to understand as a whole. Split overloaded fixtures before accepting snapshots or committing, while preserving meaningful context.
 - For `lowering` and `resolving`, every changed module snapshot in the fixture is expected.
 
 ## Useful commands

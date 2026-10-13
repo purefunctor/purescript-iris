@@ -11,18 +11,24 @@ Use the command reference at `reference/compiler-scripts.md` for test runner syn
 
 ## Choose the category first
 
-| Category | Alias | Use for | Harness pattern |
-|----------|-------|---------|-----------------|
-| `compiler` | `c` | Types, diagnostics, semantic recovery, functional conversion, generated JavaScript, and execution | `Main.purs`, named reports, `output/`, optional `verify.mjs` |
-| `lowering` | `l` | Lowered core output, binding/equation structure, source-to-core name links | every `.purs` file |
-| `resolving` | `r` | Name resolution, imports, exports, qualification, duplicate-name diagnostics | every `.purs` file |
-| `lsp` | - | Hover, definition, completion, import edits, source locations in LSP reports | `Main.purs` only |
+| Category    | Alias | Use for                                                                                           | Harness pattern                                              |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `compiler`  | `c`   | Types, diagnostics, semantic recovery, functional conversion, generated JavaScript, and execution | `Main.purs`, named reports, `output/`, optional `verify.mjs` |
+| `lowering`  | `l`   | Lowered core output, binding/equation structure, source-to-core name links                        | every `.purs` file                                           |
+| `resolving` | `r`   | Name resolution, imports, exports, qualification, duplicate-name diagnostics                      | every `.purs` file                                           |
+| `lsp`       | -     | Hover, definition, completion, import edits, source locations in LSP reports                      | `Main.purs` only                                             |
 
 When a behavior spans phases, test the earliest category that directly owns the behavior. Add a later-phase fixture only if the later report is the clearest way to make the regression reviewable.
 
 ## Creating a Test
 
 ### 1. Create fixture directory
+
+Before creating fixtures, describe the focused behavior and expected results. Choose
+small, coherent units that a reader can hold in working memory, and give each fixture
+a descriptive name. Read `tests-integration/AGENTS.md` for the split criteria. A few
+simple related examples may belong together; sharing a feature, bug, or fix alone
+does not justify combining cases.
 
 ```bash
 just t <category> --create "descriptive name"
@@ -34,7 +40,7 @@ Tests are auto-discovered by the datatest harnesses in `tests-integration/tests/
 
 ### 2. Write focused PureScript modules
 
-Keep each fixture about one behavior. Use a small `Main.purs` by default, and add supporting modules only when imports, exports, qualification, or cross-module behavior are part of the test.
+Keep each fixture about one small, coherent unit of behavior. Use a small `Main.purs` by default, and add supporting modules when needed to demonstrate that behavior. Split when the source and expected results become difficult to understand together, not simply because an example could run independently.
 
 #### Compiler fixtures
 
@@ -57,20 +63,10 @@ modules to stand-ins. Deliberately malformed package cases require a fixture-loc
 Prim and fixture-module collisions cannot be replaced. Keep both ordinary and
 malformed fixtures focused on one behavior.
 
-Pair explicitly checked and inferred variants when both modes matter:
-
-```purescript
-module Main where
-
--- Checking mode: explicit signature constrains type checker
-test :: Array Int -> Int
-test [x] = x
-
--- Inference mode: type checker infers unconstrained
-test' [x] = x
-```
-
-Name declarations predictably: `test`, `test'`, `test2`, `test2'`, etc. Include only edge cases relevant to the behavior.
+A small checked/inferred pair may stay together when the comparison is easy to
+understand. Split variants when their setup or expected results require separate
+explanations. Do not grow a fixture into a catalogue of numbered examples or
+separate sections of `verify.mjs` merely because they share a broad feature.
 
 For semantic behavior, write the smallest source that distinguishes the recovery,
 declaration, expression, binder, or evidence shape under test.
@@ -86,6 +82,11 @@ Use descriptive module names when multiple modules participate, such as `Library
 #### LSP fixtures
 
 Use `Main.purs` as the scenario driver. Add supporting modules for imported symbols and completion candidates. LSP snapshots are generated from `Main.purs`; supporting modules influence the report but do not get their own LSP snapshots.
+
+Multiple cursors may observe one coherent unit, such as document highlights across
+a binding's use, signature, and definition. Keep that context together. A small
+set of related hover examples can also remain together without a request dependency.
+Do not split by cursor count; follow the examples in `tests-integration/AGENTS.md`.
 
 ### 3. Run and review
 
@@ -126,6 +127,7 @@ tests-integration/fixtures/compiler/NNN_import_test/
 ```
 
 **Lib.purs:**
+
 ```purescript
 module Lib where
 
@@ -136,6 +138,7 @@ data Maybe a = Just a | Nothing
 ```
 
 **Main.purs:**
+
 ```purescript
 module Main where
 
@@ -201,13 +204,14 @@ Before accepting, verify:
    - LSP owns editor-facing reports
 
 2. **The fixture is narrow**
-   - One behavior per fixture
-   - Supporting modules exist only when they clarify the behavior
+   - One small, coherent unit whose source and expected results are easy to hold in working memory
+   - Related examples and cursors stay together when they help explain that unit
+   - Supporting declarations, modules, and assertions preserve meaningful context
+   - Split overloaded fixtures before acceptance, commits, or handoff, not mechanically by count
 
 3. **Snapshots are intentional**
    - Compiler reports and generated JavaScript changes are correct
-   - `test :: Array Int -> Int` - signature preserved
-   - `test' :: forall t. Array t -> t` - polymorphism inferred
+   - Explicit signatures and inferred polymorphism match the scenario being tested
    - Semantic/lowering/resolving/LSP changes match the feature or bug being tested
 
 4. **No unexpected `???`**
@@ -224,11 +228,11 @@ Before accepting, verify:
 
 ## Common Issues
 
-| Symptom | Likely Cause |
-|---------|--------------|
-| `test :: ???` | Syntax error or undefined names |
-| Unexpected monomorphism | Missing polymorphic context |
-| Wrong error location | Check binder/expression placement |
-| Missing types in snapshot | Module header or imports incorrect |
-| Missing compiler diagnostics | Confirm the source is fixture-owned and loaded; diagnostics include unreferenced supporting modules and use source paths, not module-header names |
-| Extra resolving/lowering snapshot | Every `.purs` file is snapshotted in `resolving` and `lowering` |
+| Symptom                           | Likely Cause                                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test :: ???`                     | Syntax error or undefined names                                                                                                                   |
+| Unexpected monomorphism           | Missing polymorphic context                                                                                                                       |
+| Wrong error location              | Check binder/expression placement                                                                                                                 |
+| Missing types in snapshot         | Module header or imports incorrect                                                                                                                |
+| Missing compiler diagnostics      | Confirm the source is fixture-owned and loaded; diagnostics include unreferenced supporting modules and use source paths, not module-header names |
+| Extra resolving/lowering snapshot | Every `.purs` file is snapshotted in `resolving` and `lowering`                                                                                   |
