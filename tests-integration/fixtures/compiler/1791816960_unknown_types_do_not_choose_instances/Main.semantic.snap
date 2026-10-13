@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Context :: Prim.Type -> Prim.Constraint
+interface Context a where
+
+interface Wrapper :: Prim.Type -> Prim.Constraint
+interface Wrapper a where
+
+dictionary contextInt :: Main.Context Prim.Int
+
+dictionary wrapperArray ::
+  forall a.
+  { contextDict :: Main.Context a } =>
+  Main.Wrapper (Prim.Array a)
+
+needsWrapper :: Main.Wrapper Main.Invalid => Prim.Int
+needsWrapper = \{wrapperDict} -> 0
+
+usesWrapper :: Prim.Int
+usesWrapper = needsWrapper {error}

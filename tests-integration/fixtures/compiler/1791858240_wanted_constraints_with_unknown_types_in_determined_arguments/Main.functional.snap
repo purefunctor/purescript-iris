@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance determinedIntBoolean = {  }
+
+@export needsDetermined = \determinedIntInvalidDict%0 -> 0
+
+@export usesDetermined = needsDetermined determinedIntBoolean
+
+@export instance requiredIntBoolean = \unavailableDict%1 -> {  }
+
+@export needsRequired = \requiredIntInvalidDict%2 -> 0
+
+@export usesRequired = needsRequired (requiredIntBoolean (<error>))

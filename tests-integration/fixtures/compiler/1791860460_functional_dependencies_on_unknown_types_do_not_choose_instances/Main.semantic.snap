@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Convert a b where
+  convert :: a -> b
+
+interface Bidirectional :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Bidirectional a b where
+
+dictionary convertIntInt :: Main.Convert Prim.Int Prim.Int where
+  convert :: Prim.Int -> Prim.Int
+  convert = \value -> value
+
+dictionary convertStringBoolean :: Main.Convert Prim.String Prim.Boolean where
+  convert :: Prim.String -> Prim.Boolean
+  convert = \_ -> true
+
+usesConvert :: Main.Invalid -> Prim.Boolean
+usesConvert = \value -> convert {error} value
+
+dictionary bidirectionalIntString :: Main.Bidirectional Prim.Int Prim.String
+
+needsBidirectional :: Main.Bidirectional Main.Invalid Prim.Boolean => Prim.Int
+needsBidirectional = \{bidirectionalDict} -> 0
+
+usesBidirectional :: Prim.Int
+usesBidirectional = needsBidirectional {error}

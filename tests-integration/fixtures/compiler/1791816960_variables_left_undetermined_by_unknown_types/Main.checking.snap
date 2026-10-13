@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+convert :: forall @a @b. Main.Convert a b => a -> b
+showsConvert :: Main.Invalid -> Prim.String
+joint :: forall @a @b @c. Main.Joint a b c => a -> b -> c
+showsJoint :: Main.Invalid -> Prim.String
+independent :: forall @a @b @c. Main.Independent a b c => a -> b -> c
+showsIndependent :: Main.Invalid -> Prim.String
+
+Types
+Invalid :: ?[cannot apply function type]
+Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+Joint :: Prim.Type -> Prim.Type -> Prim.Type -> Prim.Constraint
+Independent :: Prim.Type -> Prim.Type -> Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Convert a b
+  convert :: forall @a @b. Main.Convert a b => a -> b
+class forall (a :: Prim.Type) (b :: Prim.Type) (c :: Prim.Type). Main.Joint a b c
+  joint :: forall @a @b @c. Main.Joint a b c => a -> b -> c
+class forall (a :: Prim.Type) (b :: Prim.Type) (c :: Prim.Type). Main.Independent a b c
+  independent :: forall @a @b @c. Main.Independent a b c => a -> b -> c
+
+Instances
+instance Main.Convert Prim.Int Prim.Int
+instance Main.Joint Prim.Int Prim.Int Prim.String
+instance Main.Independent Prim.Int Prim.Int Prim.String

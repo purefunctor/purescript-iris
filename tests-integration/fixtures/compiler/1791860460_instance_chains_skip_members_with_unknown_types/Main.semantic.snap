@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Fallback :: Prim.Type -> Prim.Constraint
+interface Fallback a where
+
+interface Unavailable :: Prim.Constraint
+interface Unavailable where
+
+interface Skipped :: Prim.Type -> Prim.Constraint
+interface Skipped a where
+
+interface SkippedNested :: Prim.Type -> Prim.Constraint
+interface SkippedNested a where
+
+dictionary fallbackArrayInvalid :: Main.Fallback (Prim.Array Main.Invalid)
+
+dictionary fallback :: forall a. Main.Fallback a
+
+needsFallback :: Main.Fallback (Prim.Array Prim.Int) => Prim.Int
+needsFallback = \{fallbackDict} -> 0
+
+usesFallback :: Prim.Int
+usesFallback = needsFallback {fallback}
+
+dictionary skippedInvalid :: Main.Skipped Main.Invalid
+
+dictionary skipped :: forall a. { unavailableDict :: Main.Unavailable } => Main.Skipped a
+
+needsSkipped :: Main.Skipped Main.Invalid => Prim.Int
+needsSkipped = \{skippedDict} -> 0
+
+usesSkipped :: Prim.Int
+usesSkipped = needsSkipped {skipped {error}}
+
+dictionary skippedNestedArrayInvalid :: Main.SkippedNested (Prim.Array Main.Invalid)
+
+dictionary skippedNested ::
+  forall a.
+  { unavailableDict :: Main.Unavailable } =>
+  Main.SkippedNested a
+
+needsSkippedNested :: Main.SkippedNested Main.Invalid => Prim.Int
+needsSkippedNested = \{skippedNestedDict} -> 0
+
+usesSkippedNested :: Prim.Int
+usesSkippedNested = needsSkippedNested {skippedNested {error}}

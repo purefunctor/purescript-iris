@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Global :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Global a b where
+
+interface Local :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Local a b where
+
+dictionary globalIntInvalid :: Main.Global Prim.Int Main.Invalid
+
+needsGlobal :: Main.Global Prim.Int Prim.Boolean => Prim.Int
+needsGlobal = \{globalDict} -> 0
+
+usesGlobal :: Prim.Int
+usesGlobal = needsGlobal {globalIntInvalid}
+
+needsLocal :: Main.Local Prim.Int Prim.Boolean => Prim.Int
+needsLocal = \{localDict} -> 0
+
+usesLocal :: Main.Local Prim.Int Main.Invalid => Prim.Int
+usesLocal = \{localDict} -> needsLocal {localDict}

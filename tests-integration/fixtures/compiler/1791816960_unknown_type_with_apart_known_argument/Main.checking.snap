@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsKnown :: Main.Known Main.Invalid Prim.Boolean => Prim.Int
+usesKnown :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Known :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Known a b
+
+Instances
+instance Main.Known Prim.Int Prim.Int

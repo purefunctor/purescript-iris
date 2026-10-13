@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance fallbackArrayInvalid = {  }
+
+@export instance fallback = {  }
+
+@export needsFallback = \fallbackArrayIntDict%0 -> 0
+
+@export usesFallback = needsFallback fallback
+
+@export instance skippedInvalid = {  }
+
+@export instance skipped = \unavailableDict%1 -> {  }
+
+@export needsSkipped = \skippedInvalidDict%2 -> 0
+
+@export usesSkipped = needsSkipped (skipped (<error>))
+
+@export instance skippedNestedArrayInvalid = {  }
+
+@export instance skippedNested = \unavailableDict%3 -> {  }
+
+@export needsSkippedNested = \skippedNestedInvalidDict%4 -> 0
+
+@export usesSkippedNested = needsSkippedNested (skippedNested (<error>))

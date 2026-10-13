@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsGlobal :: Main.Global @Prim.Type Prim.Int => Prim.Int
+usesGlobal :: Prim.Int
+needsLocal :: Main.Local @Prim.Type Prim.Int => Prim.Int
+usesLocal :: Main.Local @?[cannot apply function type] Prim.Int => Prim.Int
+
+Types
+Invalid :: Prim.Type
+Global :: forall kind. kind -> Prim.Constraint
+Local :: forall kind. kind -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (kind :: Prim.Type) (a :: kind). Main.Global @kind (a :: kind)
+class forall (kind :: Prim.Type) (a :: kind). Main.Local @kind (a :: kind)
+
+Instances
+instance Main.Global @?[cannot apply function type] Prim.Int

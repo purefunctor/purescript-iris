@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:5:16
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   type Invalid = Int String
+  │                  ╰─────────
+  •
+
+Error! · [CustomFailure] · Main.purs:11:24
+  •
+  │
+  • Invalid
+  │
+  │   usesFailsWithUnknown = failsWithUnknown
+  │                          ╰───────────────
+  •
+
+Error! · [CustomFailure] · Main.purs:17:26
+  •
+  │
+  • independent failure
+  │
+  │   usesFailsIndependently = failsIndependently
+  │                            ╰─────────────────
+  •
+
+Warning! · [CustomWarning] · Main.purs:23:24
+  •
+  │
+  • Invalid
+  │
+  │   usesWarnsWithUnknown = warnsWithUnknown
+  │                          ╰───────────────
+  •
+
+Warning! · [CustomWarning] · Main.purs:29:26
+  •
+  │
+  • independent warning
+  │
+  │   usesWarnsIndependently = warnsIndependently
+  │                            ╰─────────────────
+  •

@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsWrapper :: Main.Wrapper Main.Invalid => Prim.Int
+usesWrapper :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Context :: Prim.Type -> Prim.Constraint
+Wrapper :: Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type). Main.Context a
+class forall (a :: Prim.Type). Main.Wrapper a
+
+Instances
+instance Main.Context Prim.Int
+instance forall a. Main.Context a => Main.Wrapper (Prim.Array a)

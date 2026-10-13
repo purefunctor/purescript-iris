@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance knownIntInt = {  }
+
+@export needsKnown = \knownInvalidBooleanDict%0 -> 0
+
+@export usesKnown = needsKnown (<error>)

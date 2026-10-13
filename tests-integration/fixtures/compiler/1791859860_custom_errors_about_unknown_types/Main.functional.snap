@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export failsWithUnknown = \failQuoteInvalidDict%0 -> 0
+
+@export usesFailsWithUnknown = failsWithUnknown (<error>)
+
+@export failsIndependently = \failTextDict%1 -> 0
+
+@export usesFailsIndependently = failsIndependently (<error>)
+
+@export warnsWithUnknown = \warnQuoteInvalidDict%2 -> 0
+
+@export usesWarnsWithUnknown = warnsWithUnknown <trivial evidence>
+
+@export warnsIndependently = \warnTextDict%3 -> 0
+
+@export usesWarnsIndependently = warnsIndependently <trivial evidence>

@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsLess ::
+  forall (m :: Prim.Int) (p :: Prim.Int).
+    Prim.Int.Compare (m :: Prim.Int) (p :: Prim.Int) Prim.Ordering.LT =>
+    Type.Proxy.Proxy @Prim.Int (m :: Prim.Int) ->
+    Type.Proxy.Proxy @Prim.Int (p :: Prim.Int) ->
+    Prim.Int
+usesInvalidGivens ::
+  forall (m :: Prim.Int) (p :: Prim.Int).
+    Prim.Int.Compare (m :: Prim.Int) Main.Invalid Prim.Ordering.LT =>
+    Prim.Int.Compare Main.Invalid (p :: Prim.Int) Prim.Ordering.LT =>
+    Type.Proxy.Proxy @Prim.Int (m :: Prim.Int) ->
+    Type.Proxy.Proxy @Prim.Int (p :: Prim.Int) ->
+    Prim.Int
+usesNoGivens ::
+  forall (m :: Prim.Int) (p :: Prim.Int).
+    Type.Proxy.Proxy @Prim.Int (m :: Prim.Int) ->
+    Type.Proxy.Proxy @Prim.Int (p :: Prim.Int) ->
+    Prim.Int
+
+Types
+Invalid :: Prim.Int
+
+Synonyms
+type Invalid = ?[cannot apply function type]

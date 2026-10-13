@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:3:16
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   type Invalid = Int String
+  │                  ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:28:16
+  •
+  │
+  • No instance found for: Unavailable
+  │
+  │   usesRequired = needsRequired
+  │                  ╰────────────
+  •

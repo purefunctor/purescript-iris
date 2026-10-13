@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsCheck ::
+  forall (row :: Prim.Row Prim.Type).
+    Main.Check (row :: Prim.Row Prim.Type) =>
+    Type.Proxy.Proxy @(Prim.Row Prim.Type) (row :: Prim.Row Prim.Type) -> Prim.Int
+usesAnnotatedGiven ::
+  forall (row :: Prim.Row Prim.Type).
+    Prim.Row.Union @?[cannot apply function type]
+      ( x :: Main.Invalid )
+      ()
+      (row :: Prim.Row Prim.Type) =>
+    Type.Proxy.Proxy @(Prim.Row Prim.Type) (row :: Prim.Row Prim.Type) -> Prim.Int
+usesInferredGiven ::
+  forall (row :: Prim.Row ?[cannot apply function type]).
+    Prim.Row.Union @?[cannot apply function type]
+      ( x :: Main.Invalid )
+      ()
+      (row :: Prim.Row ?[cannot apply function type]) =>
+    Type.Proxy.Proxy @(Prim.Row ?[cannot apply function type])
+      (row :: Prim.Row ?[cannot apply function type]) ->
+    Prim.Int
+usesNoGiven ::
+  forall (row :: Prim.Row Prim.Type).
+    Type.Proxy.Proxy @(Prim.Row Prim.Type) (row :: Prim.Row Prim.Type) -> Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Check :: Prim.Row Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (row :: Prim.Row Prim.Type). Main.Check (row :: Prim.Row Prim.Type)

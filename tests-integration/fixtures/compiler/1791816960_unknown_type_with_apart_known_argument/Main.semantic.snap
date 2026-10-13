@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Known :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Known a b where
+
+dictionary knownIntInt :: Main.Known Prim.Int Prim.Int
+
+needsKnown :: Main.Known Main.Invalid Prim.Boolean => Prim.Int
+needsKnown = \{knownDict} -> 0
+
+usesKnown :: Prim.Int
+usesKnown = needsKnown {error}

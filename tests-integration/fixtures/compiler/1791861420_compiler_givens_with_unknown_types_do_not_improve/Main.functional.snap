@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export needsCheck = \checkRowDict%1 -> \$proxy%0@(_) -> 0
+
+@export usesAnnotatedGiven = \unionRowRowRowDict%3 -> \value%2 -> needsCheck (<error>) value%2
+
+@export usesInferredGiven = \unionRowRowRowDict%5 -> \value%4 -> needsCheck (<error>) value%4
+
+@export usesNoGiven = \value%6 -> needsCheck (<error>) value%6

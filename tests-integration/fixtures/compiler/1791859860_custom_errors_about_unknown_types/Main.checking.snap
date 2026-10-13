@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+failsWithUnknown ::
+  Prim.TypeError.Fail (Prim.TypeError.Quote @?[cannot apply function type] Main.Invalid) => Prim.Int
+usesFailsWithUnknown :: Prim.Int
+failsIndependently :: Prim.TypeError.Fail (Prim.TypeError.Text "independent failure") => Prim.Int
+usesFailsIndependently :: Prim.Int
+warnsWithUnknown ::
+  Prim.TypeError.Warn (Prim.TypeError.Quote @?[cannot apply function type] Main.Invalid) => Prim.Int
+usesWarnsWithUnknown :: Prim.Int
+warnsIndependently :: Prim.TypeError.Warn (Prim.TypeError.Text "independent warning") => Prim.Int
+usesWarnsIndependently :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+
+Synonyms
+type Invalid = ?[cannot apply function type]

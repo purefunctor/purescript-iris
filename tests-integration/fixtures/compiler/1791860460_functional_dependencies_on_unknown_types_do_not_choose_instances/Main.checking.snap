@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+convert :: forall @a @b. Main.Convert a b => a -> b
+usesConvert :: Main.Invalid -> Prim.Boolean
+needsBidirectional :: Main.Bidirectional Main.Invalid Prim.Boolean => Prim.Int
+usesBidirectional :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+Bidirectional :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Convert a b
+  convert :: forall @a @b. Main.Convert a b => a -> b
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Bidirectional a b
+
+Instances
+instance Main.Convert Prim.Int Prim.Int
+instance Main.Convert Prim.String Prim.Boolean
+instance Main.Bidirectional Prim.Int Prim.String

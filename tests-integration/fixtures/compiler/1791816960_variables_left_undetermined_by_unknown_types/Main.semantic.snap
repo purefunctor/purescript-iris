@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Convert a b where
+  convert :: a -> b
+
+interface Joint :: Prim.Type -> Prim.Type -> Prim.Type -> Prim.Constraint
+interface Joint a b c where
+  joint :: a -> b -> c
+
+interface Independent :: Prim.Type -> Prim.Type -> Prim.Type -> Prim.Constraint
+interface Independent a b c where
+  independent :: a -> b -> c
+
+dictionary convertIntInt :: Main.Convert Prim.Int Prim.Int where
+  convert :: Prim.Int -> Prim.Int
+  convert = \value -> value
+
+showsConvert :: Main.Invalid -> Prim.String
+showsConvert = \value -> show {error} (convert {error} value)
+
+dictionary jointIntIntString :: Main.Joint Prim.Int Prim.Int Prim.String where
+  joint :: Prim.Int -> Prim.Int -> Prim.String
+  joint = \_ -> \_ -> "joint"
+
+showsJoint :: Main.Invalid -> Prim.String
+showsJoint = \value -> show {error} (joint {error} value 0)
+
+dictionary independentIntIntString :: Main.Independent Prim.Int Prim.Int Prim.String where
+  independent :: Prim.Int -> Prim.Int -> Prim.String
+  independent = \_ -> \_ -> "independent"
+
+showsIndependent :: Main.Invalid -> Prim.String
+showsIndependent = \value -> show {error} (independent {error} value 0)

@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export convert = \dictionary%0 -> dictionary%0.convert
+
+@export instance convertIntInt = { convert: \value%1 -> value%1 }
+
+@export showsConvert = \value%2 -> show (<error>) (convert (<error>) value%2)
+
+@export joint = \dictionary%3 -> dictionary%3.joint
+
+@export instance jointIntIntString = { joint: \$int%4@(_) $int%5@(_) -> "joint" }
+
+@export showsJoint = \value%6 -> show (<error>) (joint (<error>) value%6 0)
+
+@export independent = \dictionary%7 -> dictionary%7.independent
+
+@export instance independentIntIntString = { independent: \$int%8@(_) $int%9@(_) -> "independent" }
+
+@export showsIndependent = \value%10 -> show (<error>) (independent (<error>) value%10 0)

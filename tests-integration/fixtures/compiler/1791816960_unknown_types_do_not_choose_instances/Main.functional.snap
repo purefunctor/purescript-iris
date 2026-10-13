@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance contextInt = {  }
+
+@export instance wrapperArray = \contextADict%0 -> {  }
+
+@export needsWrapper = \wrapperInvalidDict%1 -> 0
+
+@export usesWrapper = needsWrapper (<error>)

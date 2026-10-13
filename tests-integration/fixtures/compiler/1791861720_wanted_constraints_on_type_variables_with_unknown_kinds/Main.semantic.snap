@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Check :: Prim.Row Prim.Type -> Prim.Constraint
+interface Check row where
+
+needsCheck :: forall row. Main.Check row => Type.Proxy.Proxy @(Prim.Row Prim.Type) row -> Prim.Int
+needsCheck = \{checkDict} -> \_ -> 0
+
+usesRow :: forall row. Type.Proxy.Proxy @(Prim.Row Main.Invalid) row -> Prim.Int
+usesRow = \value -> needsCheck {error} value

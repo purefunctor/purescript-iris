@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance globalIntInvalid = {  }
+
+@export needsGlobal = \globalIntBooleanDict%0 -> 0
+
+@export usesGlobal = needsGlobal globalIntInvalid
+
+@export needsLocal = \localIntBooleanDict%1 -> 0
+
+@export usesLocal = \localIntInvalidDict%2 -> needsLocal localIntInvalidDict%2

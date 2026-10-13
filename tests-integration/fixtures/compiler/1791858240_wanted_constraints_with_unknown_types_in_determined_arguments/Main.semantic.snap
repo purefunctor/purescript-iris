@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Determined :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Determined a b where
+
+interface Unavailable :: Prim.Constraint
+interface Unavailable where
+
+interface Required :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Required a b where
+
+dictionary determinedIntBoolean :: Main.Determined Prim.Int Prim.Boolean
+
+needsDetermined :: Main.Determined Prim.Int Main.Invalid => Prim.Int
+needsDetermined = \{determinedDict} -> 0
+
+usesDetermined :: Prim.Int
+usesDetermined = needsDetermined {determinedIntBoolean}
+
+dictionary requiredIntBoolean ::
+  { unavailableDict :: Main.Unavailable } =>
+  Main.Required Prim.Int Prim.Boolean
+
+needsRequired :: Main.Required Prim.Int Main.Invalid => Prim.Int
+needsRequired = \{requiredDict} -> 0
+
+usesRequired :: Prim.Int
+usesRequired = needsRequired {requiredIntBoolean {error}}

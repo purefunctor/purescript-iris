@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export needsCheck = \checkRowDict%1 -> \$proxy%0@(_) -> 0
+
+@export usesRow = \value%2 -> needsCheck (<error>) value%2

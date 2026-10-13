@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Chain :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Chain a b where
+
+dictionary chainInt :: forall b. Main.Chain Prim.Int b
+
+dictionary chain ::
+  forall a b.
+  { failDict :: Prim.TypeError.Fail (Prim.TypeError.Text "Chain fell through to its last instance") } =>
+  Main.Chain a b
+
+needsChain :: Main.Chain Main.Invalid Prim.Boolean => Prim.Int
+needsChain = \{chainDict} -> 0
+
+usesChain :: Prim.Int
+usesChain = needsChain {chain {error}}

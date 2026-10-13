@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Check :: Prim.Row Prim.Type -> Prim.Constraint
+interface Check row where
+
+needsCheck :: forall row. Main.Check row => Type.Proxy.Proxy @(Prim.Row Prim.Type) row -> Prim.Int
+needsCheck = \{checkDict} -> \_ -> 0
+
+usesAnnotatedGiven :: forall row.
+  Prim.Row.Union @?[cannot apply function type] ( x :: Main.Invalid ) () row =>
+  Type.Proxy.Proxy @(Prim.Row Prim.Type) row -> Prim.Int
+usesAnnotatedGiven = \{unionDict} -> \value -> needsCheck {error} value
+
+usesInferredGiven :: forall row.
+  Prim.Row.Union @?[cannot apply function type] ( x :: Main.Invalid ) () row =>
+  Type.Proxy.Proxy @(Prim.Row ?[cannot apply function type]) row -> Prim.Int
+usesInferredGiven = \{unionDict} -> \value -> needsCheck {error} value
+
+usesNoGiven :: forall row. Type.Proxy.Proxy @(Prim.Row Prim.Type) row -> Prim.Int
+usesNoGiven = \value -> needsCheck {error} value

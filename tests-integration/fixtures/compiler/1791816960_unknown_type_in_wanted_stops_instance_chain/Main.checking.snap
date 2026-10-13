@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsChain :: Main.Chain Main.Invalid Prim.Boolean => Prim.Int
+usesChain :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Chain :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Chain a b
+
+Instances
+instance forall b. Main.Chain Prim.Int b
+instance forall a b.
+  Prim.TypeError.Fail (Prim.TypeError.Text "Chain fell through to its last instance") =>
+  Main.Chain a b

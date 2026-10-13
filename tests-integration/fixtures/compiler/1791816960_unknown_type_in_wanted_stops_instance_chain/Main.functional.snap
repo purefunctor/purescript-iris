@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance chainInt = {  }
+
+@export instance chain = \failTextDict%0 -> {  }
+
+@export needsChain = \chainInvalidBooleanDict%1 -> 0
+
+@export usesChain = needsChain (chain (<error>))

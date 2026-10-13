@@ -1,0 +1,44 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:3:16
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   type Invalid = Int String
+  │                  ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:13:14
+  •
+  │
+  • No instance found for: Global Int
+  │
+  │   usesGlobal = fromGlobal 0
+  │                ╰───────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:20:13
+  •
+  │
+  • No instance found for: Local Int
+  │
+  │   usesLocal = fromLocal 0
+  │               ╰──────────
+  • while
+  │
+  │   Local Invalid is in scope
+  •
+
+Error! · [NoInstanceFound] · Main.purs:23:25
+  •
+  │
+  • No instance found for: Local a
+  │
+  │   usesSkolemLocal value = fromLocal value
+  │                           ╰──────────────
+  • while
+  │
+  │   Local Invalid is in scope
+  •

@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+convert :: forall @a @b. Main.Convert a b => a -> b
+reportFailure ::
+  forall b.
+    Prim.TypeError.Fail
+      (Prim.TypeError.Beside
+        (Prim.TypeError.Quote @?[cannot apply function type] Main.Invalid)
+        (Prim.TypeError.Quote @Prim.Type b)) =>
+    b -> Prim.Int
+failsLater :: Main.Invalid -> Prim.Int
+reportWarning ::
+  forall b.
+    Prim.TypeError.Warn
+      (Prim.TypeError.Beside
+        (Prim.TypeError.Quote @?[cannot apply function type] Main.Invalid)
+        (Prim.TypeError.Quote @Prim.Type b)) =>
+    b -> Prim.Int
+warnsLater :: Main.Invalid -> Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Convert a b
+  convert :: forall @a @b. Main.Convert a b => a -> b
+
+Instances
+instance Main.Convert Prim.Int Prim.Int

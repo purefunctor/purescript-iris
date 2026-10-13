@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Global :: forall kind. kind -> Prim.Constraint
+interface Global a where
+
+interface Local :: forall kind. kind -> Prim.Constraint
+interface Local a where
+
+dictionary globalInt :: Main.Global @?[cannot apply function type] Prim.Int
+
+needsGlobal :: Main.Global @Prim.Type Prim.Int => Prim.Int
+needsGlobal = \{globalDict} -> 0
+
+usesGlobal :: Prim.Int
+usesGlobal = needsGlobal {globalInt}
+
+needsLocal :: Main.Local @Prim.Type Prim.Int => Prim.Int
+needsLocal = \{localDict} -> 0
+
+usesLocal :: Main.Local @?[cannot apply function type] Prim.Int => Prim.Int
+usesLocal = \{localDict} -> needsLocal {localDict}

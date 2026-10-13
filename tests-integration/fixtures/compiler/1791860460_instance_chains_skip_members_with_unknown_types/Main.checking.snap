@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsFallback :: Main.Fallback (Prim.Array Prim.Int) => Prim.Int
+usesFallback :: Prim.Int
+needsSkipped :: Main.Skipped Main.Invalid => Prim.Int
+usesSkipped :: Prim.Int
+needsSkippedNested :: Main.SkippedNested Main.Invalid => Prim.Int
+usesSkippedNested :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Fallback :: Prim.Type -> Prim.Constraint
+Unavailable :: Prim.Constraint
+Skipped :: Prim.Type -> Prim.Constraint
+SkippedNested :: Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type). Main.Fallback a
+class Main.Unavailable
+class forall (a :: Prim.Type). Main.Skipped a
+class forall (a :: Prim.Type). Main.SkippedNested a
+
+Instances
+instance Main.Fallback (Prim.Array Main.Invalid)
+instance forall a. Main.Fallback a
+instance Main.Skipped Main.Invalid
+instance forall a. Main.Unavailable => Main.Skipped a
+instance Main.SkippedNested (Prim.Array Main.Invalid)
+instance forall a. Main.Unavailable => Main.SkippedNested a

@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+needsDetermined :: Main.Determined Prim.Int Main.Invalid => Prim.Int
+usesDetermined :: Prim.Int
+needsRequired :: Main.Required Prim.Int Main.Invalid => Prim.Int
+usesRequired :: Prim.Int
+
+Types
+Invalid :: ?[cannot apply function type]
+Determined :: Prim.Type -> Prim.Type -> Prim.Constraint
+Unavailable :: Prim.Constraint
+Required :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Determined a b
+class Main.Unavailable
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Required a b
+
+Instances
+instance Main.Determined Prim.Int Prim.Boolean
+instance Main.Unavailable => Main.Required Prim.Int Prim.Boolean

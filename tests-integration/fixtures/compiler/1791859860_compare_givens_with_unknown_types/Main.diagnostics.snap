@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:8:16
+  •
+  │
+  • Cannot apply type '1' to '2'. '1' has kind 'Int', which is not a function kind.
+  │
+  │   type Invalid = 1 2
+  │                  ╰──
+  •
+
+Error! · [NoInstanceFound] · Main.purs:17:20
+  •
+  │
+  • No instance found for: Compare (m :: Int) (p :: Int) LT
+  │
+  │   usesNoGivens m p = needsLess m p
+  │                      ╰────────────
+  •

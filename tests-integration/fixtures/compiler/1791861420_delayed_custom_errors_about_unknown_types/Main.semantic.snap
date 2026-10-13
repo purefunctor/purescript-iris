@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Convert a b where
+  convert :: a -> b
+
+dictionary convertIntInt :: Main.Convert Prim.Int Prim.Int where
+  convert :: Prim.Int -> Prim.Int
+  convert = \value -> value
+
+reportFailure :: forall b.
+  Prim.TypeError.Fail
+    (Prim.TypeError.Beside
+      (Prim.TypeError.Quote @?[cannot apply function type] Main.Invalid)
+      (Prim.TypeError.Quote @Prim.Type b)) =>
+  b -> Prim.Int
+reportFailure = \{failDict} -> \_ -> 0
+
+failsLater :: Main.Invalid -> Prim.Int
+failsLater = \value -> reportFailure {error} (convert {error} value)
+
+reportWarning :: forall b.
+  Prim.TypeError.Warn
+    (Prim.TypeError.Beside
+      (Prim.TypeError.Quote @?[cannot apply function type] Main.Invalid)
+      (Prim.TypeError.Quote @Prim.Type b)) =>
+  b -> Prim.Int
+reportWarning = \{warnDict} -> \_ -> 0
+
+warnsLater :: Main.Invalid -> Prim.Int
+warnsLater = \value -> reportWarning {error} (convert {error} value)
