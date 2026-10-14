@@ -98,6 +98,34 @@ impl TestWorkspace {
         command
     }
 
+    pub fn manifest(&self) -> Option<serde_json::Value> {
+        let source = match fs::read_to_string(self.path().join("output/manifest.json")) {
+            Ok(source) => Some(source),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => panic!("failed to read the build manifest: {error}"),
+        };
+        source.map(|source| serde_json::from_str(&source).unwrap())
+    }
+
+    pub fn normalized_manifest(&self) -> String {
+        let manifest = self.manifest().expect("there is no build manifest");
+        let version = self.command(&["--version"]);
+        let version = String::from_utf8_lossy(&version.stdout);
+        let version = version.trim_end().strip_prefix("iris ").unwrap();
+        assert_eq!(manifest["iris"], version);
+
+        let mut source = self.read("output/manifest.json");
+        source = source.replace(&format!("\"iris\": \"{version}\""), "\"iris\": \"[VERSION]\"");
+        let canonical = dunce::canonicalize(self.path()).unwrap();
+        for root in [canonical.as_path(), self.path()] {
+            let root = serde_json::to_string(root.to_str().unwrap()).unwrap();
+            let root = regex::escape(root.trim_matches('"'));
+            let prefix = regex::Regex::new(&format!(r#"{root}(["/]|\\\\)"#)).unwrap();
+            source = prefix.replace_all(&source, "[WORKSPACE]$1").into_owned();
+        }
+        source.replace("\\\\", "/")
+    }
+
     pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {
         let path = self.path().join("spago-calls");
         let source = match fs::read_to_string(path) {

@@ -1,0 +1,49 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+{
+  "version": 1,
+  "iris": "[VERSION]",
+  "workspace_root": "[WORKSPACE]",
+  "packages": {
+    "application": {
+      "editable": true,
+      "root": "[WORKSPACE]",
+      "dependencies": [
+        "library"
+      ]
+    },
+    "library": {
+      "editable": true,
+      "root": "[WORKSPACE]/packages/library",
+      "dependencies": []
+    },
+    "metadata": {
+      "editable": true,
+      "root": "[WORKSPACE]/packages/metadata",
+      "dependencies": [
+        "library"
+      ]
+    }
+  },
+  "modules": {
+    "Library": {
+      "package": "library",
+      "source": "[WORKSPACE]/packages/library/src/Library.purs",
+      "javascript": "Library/index.js",
+      "foreign": "Library/foreign.js"
+    },
+    "Library.Types": {
+      "package": "library",
+      "source": "[WORKSPACE]/packages/library/src/Library/Types.purs",
+      "javascript": "Library.Types/index.js",
+      "foreign": null
+    },
+    "Main": {
+      "package": "application",
+      "source": "[WORKSPACE]/src/Main.purs",
+      "javascript": "Main/index.js",
+      "foreign": "Main/foreign.jsx"
+    }
+  }
+}

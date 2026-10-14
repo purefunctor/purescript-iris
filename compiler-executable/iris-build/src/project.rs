@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::{env, io};
@@ -10,6 +11,8 @@ use url::Url;
 
 use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
+use super::manifest::{ManifestError, WorkspaceLayout};
+use super::output::BuildOutput;
 use super::plan::PackageInput;
 use super::workspace::{Workspace, WorkspaceError};
 
@@ -21,6 +24,7 @@ pub struct BuildConfig {
     pub quiet: bool,
     pub color: bool,
     pub diagnostics: bool,
+    pub version: String,
 }
 
 pub struct ProjectConfig {
@@ -32,6 +36,7 @@ pub struct ProjectConfig {
 pub struct RunConfig {
     pub project: ProjectConfig,
     pub color: bool,
+    pub version: String,
     pub main: Option<String>,
     pub arguments: Vec<String>,
 }
@@ -39,6 +44,7 @@ pub struct RunConfig {
 pub struct TestConfig {
     pub project: ProjectConfig,
     pub color: bool,
+    pub version: String,
     pub main: Option<String>,
     pub arguments: Vec<String>,
 }
@@ -57,14 +63,16 @@ enum ProjectFailure {
     CurrentDirectory(io::Error),
     #[error("failed to normalize output directory {}: {error}", path.display())]
     NormalizeOutput { path: PathBuf, error: io::Error },
+    #[error(transparent)]
+    Manifest(#[from] ManifestError),
     #[error("failed to execute Node.js: {source}")]
     Node { source: io::Error },
     #[error("Node.js exited without a status code")]
     MissingStatus,
     #[error("Node.js exited with status {status}")]
     NodeFailed { status: ExitStatus },
-    #[error("module output does not exist: {path}")]
-    MissingModule { path: PathBuf },
+    #[error("module {module} is not part of the build")]
+    MissingModule { module: String },
     #[error("failed to canonicalize module output {path}: {source}")]
     CanonicalizeModule {
         path: PathBuf,
@@ -109,6 +117,7 @@ pub struct PreparedProject {
     pub(crate) output: PathBuf,
     pub(crate) source_globs: Vec<PathBuf>,
     pub(crate) packages: Vec<PackageInput>,
+    pub(crate) layout: WorkspaceLayout,
 }
 
 pub struct InitializedProject {
@@ -122,7 +131,8 @@ impl PreparedProject {
     }
 
     pub fn source_roots(&self) -> Result<Vec<PathBuf>, ProjectError> {
-        let walked = super::walk::walk_filtered(&self.root, &self.source_globs, [&self.output])
+        let source_globs = self.layout.source_globs();
+        let walked = super::walk::walk_filtered(&self.root, source_globs, [&self.output])
             .map_err(CompileError::from)
             .map_err(ProjectFailure::from)
             .map_err(ProjectError)?;
@@ -161,29 +171,35 @@ fn build_project(config: BuildConfig) -> Result<(), ProjectFailure> {
         output: Option::clone(&config.output),
         quiet: config.quiet,
     })?;
-    compile_project(project, &config)
+    compile_project(project, config)?;
+    Ok(())
 }
 
-fn compile_project(project: PreparedProject, config: &BuildConfig) -> Result<(), ProjectFailure> {
+fn compile_project(
+    project: PreparedProject,
+    config: BuildConfig,
+) -> Result<BTreeSet<String>, ProjectFailure> {
     let progress = ProgressRuntime::start(!config.quiet, config.color);
     let events = ProgressEventSink::new(progress.reporter());
     events.send(BuildEvent::Preparing);
-    compile::build(compile::BuildConfig {
+    let compiled = compile::build(compile::BuildConfig {
         root: project.root,
-        output: project.output,
+        output: BuildOutput::new(project.output),
+        layout: project.layout,
+        version: config.version,
         source_globs: project.source_globs,
         packages: project.packages,
         color: config.color,
         diagnostics: config.diagnostics,
         events: &events,
     })?;
-    Ok(())
+    Ok(compiled)
 }
 
 fn initialize_project_inner(
     project: PreparedProject,
 ) -> Result<InitializedProject, ProjectFailure> {
-    let PreparedProject { root, output, source_globs, packages } = &project;
+    let PreparedProject { root, output, source_globs, packages, .. } = &project;
     let excluded = [PathBuf::clone(output)];
     let build = compile::build_initial(compile::InitialBuildConfig {
         root,
@@ -214,8 +230,9 @@ fn run_project(config: RunConfig) -> Result<(), ProjectFailure> {
         config.project.quiet,
         PathBuf::clone(&output),
     )?;
-    compile_project(project, &execution_build_config(config.project, config.color))?;
-    execute_module(&workspace.root, &output, &main, &arguments)
+    let build_config = execution_build_config(config.project, config.color, config.version);
+    let compiled = compile_project(project, build_config)?;
+    execute_module(&workspace.root, &output, &compiled, &main, &arguments)
 }
 
 fn test_project(config: TestConfig) -> Result<(), ProjectFailure> {
@@ -236,7 +253,8 @@ fn test_project(config: TestConfig) -> Result<(), ProjectFailure> {
         config.project.quiet,
         PathBuf::clone(&output),
     )?;
-    compile_project(project, &execution_build_config(config.project, config.color))?;
+    let build_config = execution_build_config(config.project, config.color, config.version);
+    let compiled = compile_project(project, build_config)?;
 
     let packages = workspace.packages.values().filter(|package| {
         workspace
@@ -255,18 +273,19 @@ fn test_project(config: TestConfig) -> Result<(), ProjectFailure> {
         } else {
             Vec::clone(&config.arguments)
         };
-        execute_module(&workspace.root, &output, &main, &arguments)?;
+        execute_module(&workspace.root, &output, &compiled, &main, &arguments)?;
     }
     Ok(())
 }
 
-fn execution_build_config(project: ProjectConfig, color: bool) -> BuildConfig {
+fn execution_build_config(project: ProjectConfig, color: bool, version: String) -> BuildConfig {
     BuildConfig {
         package: project.package,
         output: project.output,
         quiet: project.quiet,
         color,
         diagnostics: true,
+        version,
     }
 }
 
@@ -293,8 +312,14 @@ fn prepare_workspace(
     output: PathBuf,
 ) -> Result<PreparedProject, ProjectFailure> {
     let spago = iris_spago::SpagoCommand::with_workspace_root(current_directory, &workspace.root)?;
-    spago.fetch(workspace.selected.as_deref(), !quiet)?;
-    let discovered = super::packages::discover_packages(workspace)?;
+    spago.fetch(None, !quiet)?;
+    let workspace_packages = super::packages::discover_workspace_packages(workspace)?;
+    let layout = WorkspaceLayout::new(&workspace.root, &workspace_packages)?;
+    let discovered = if workspace.selected.is_some() {
+        super::packages::discover_packages(workspace)?
+    } else {
+        workspace_packages
+    };
     let packages = discovered.packages.into_iter().map(|package| PackageInput {
         name: package.name,
         source_identities: package.files,
@@ -307,6 +332,7 @@ fn prepare_workspace(
         output,
         source_globs: discovered.source_globs,
         packages,
+        layout,
     })
 }
 
@@ -325,13 +351,14 @@ fn project_output(root: &Path, configured: Option<&Path>) -> Result<PathBuf, Pro
 fn execute_module(
     workspace_root: &Path,
     output: &Path,
+    compiled: &BTreeSet<String>,
     module: &str,
     arguments: &[String],
 ) -> Result<(), ProjectFailure> {
-    let module = output.join(module).join("index.js");
-    if !module.is_file() {
-        return Err(ProjectFailure::MissingModule { path: module });
+    if !compiled.contains(module) {
+        return Err(ProjectFailure::MissingModule { module: module.to_owned() });
     }
+    let module = output.join(javascript::module_filename(module));
     let canonicalization_failure =
         |source| ProjectFailure::CanonicalizeModule { path: PathBuf::clone(&module), source };
     let module = dunce::canonicalize(&module).map_err(canonicalization_failure)?;

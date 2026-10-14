@@ -1076,6 +1076,7 @@ fn package_roots_include_canonical_symlink_aliases() {
         name: "linked-package".into(),
         files: Vec::new(),
         dependencies: Vec::new(),
+        source_globs: Vec::new(),
         editable: true,
         roots: vec![PathBuf::from("linked-package")],
     };

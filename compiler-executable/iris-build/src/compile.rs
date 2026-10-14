@@ -16,12 +16,16 @@ use url::Url;
 
 use super::compilation::{CompilationState, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
+use super::manifest::{ManifestError, WorkspaceLayout};
+use super::output::{BuildOutput, OutputError};
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
 
 pub(crate) struct BuildConfig<'a> {
     pub root: PathBuf,
-    pub output: PathBuf,
+    pub output: BuildOutput,
+    pub layout: WorkspaceLayout,
+    pub version: String,
     pub source_globs: Vec<PathBuf>,
     pub packages: Vec<PackageInput>,
     pub color: bool,
@@ -42,19 +46,19 @@ pub enum CompileError {
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error(transparent)]
+    Manifest(#[from] ManifestError),
+    #[error(transparent)]
+    Output(#[from] OutputError),
+    #[error(transparent)]
     Query(#[from] QueryError),
     #[error(transparent)]
     Walk(#[from] walk::Error),
 }
 
-pub(crate) struct RebuildResult {
-    pub outcome: BuildOutcome,
-    pub outputs: BTreeSet<PathBuf>,
-}
-
-struct ModuleWrite {
-    outputs: Vec<PathBuf>,
-    result: Result<(), CompileError>,
+pub(crate) enum Compiled {
+    NoInputs,
+    Diagnostics,
+    Succeeded(Vec<Arc<javascript::Module>>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -208,10 +212,20 @@ where
     Ok(InitialBuild { compilation, source_paths, report })
 }
 
-pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
+pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, CompileError> {
     let started = Instant::now();
-    let BuildConfig { root, output, source_globs, packages, color, diagnostics, events } = config;
-    let excluded = [PathBuf::clone(&output)];
+    let BuildConfig {
+        root,
+        output,
+        layout,
+        version,
+        source_globs,
+        packages,
+        color,
+        diagnostics,
+        events,
+    } = config;
+    let excluded = [output.directory().to_path_buf()];
     let initial = build_initial(InitialBuildConfig {
         root: &root,
         source_globs: &source_globs,
@@ -230,29 +244,28 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<(), CompileError> {
         return Err(error);
     }
     let has_errors = report.has_errors;
-    if !has_errors {
+    let compiled = if has_errors {
+        None
+    } else {
         let modules = collect_modules(&compilation, &report.sources)?;
-        write_modules(&compilation, &modules, &output, &mut BTreeSet::new())?;
-    }
+        let manifest = layout.manifest(&version, layout.modules(output.directory())?);
+        output.write(&compilation, &modules, &manifest)?;
+        Some(modules.iter().map(|module| module.name().to_owned()).collect())
+    };
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
     events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });
     if diagnostics {
         report_diagnostics(&compilation, std::mem::take(&mut report.diagnostics), &root, color);
     }
-    if has_errors {
-        return Err(CompileError::Diagnostics { reported: diagnostics });
-    }
-    Ok(())
+    compiled.ok_or(CompileError::Diagnostics { reported: diagnostics })
 }
 
 pub(crate) fn rebuild(
     compilation: &CompilationState,
     root: &Path,
-    output: &Path,
     color: bool,
     diagnostics: bool,
-    owned_outputs: &mut BTreeSet<PathBuf>,
-) -> Result<RebuildResult, CompileError> {
+) -> Result<Compiled, CompileError> {
     let sources = compilation.source_ids().collect_vec();
     let engine = compilation.query_engine();
     query_package(engine, &sources)?;
@@ -260,27 +273,21 @@ pub(crate) fn rebuild(
     if diagnostics {
         report_diagnostics(compilation, diagnostic_collections, root, color);
     }
-    let outputs = if has_errors {
-        BTreeSet::new()
-    } else {
-        let modules = collect_modules(compilation, &sources)?;
-        write_modules(compilation, &modules, output, owned_outputs)?
-    };
-    let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
-    Ok(RebuildResult { outcome, outputs })
+    if has_errors {
+        return Ok(Compiled::Diagnostics);
+    }
+    Ok(Compiled::Succeeded(collect_modules(compilation, &sources)?))
 }
 
 pub(crate) fn finish_initial(
     compilation: &CompilationState,
     report: &mut InitialBuildReport,
     root: &Path,
-    output: &Path,
     color: bool,
     diagnostics: bool,
-    owned_outputs: &mut BTreeSet<PathBuf>,
-) -> Result<RebuildResult, CompileError> {
+) -> Result<Compiled, CompileError> {
     if report.no_inputs {
-        return Ok(RebuildResult { outcome: BuildOutcome::NoInputs, outputs: BTreeSet::new() });
+        return Ok(Compiled::NoInputs);
     }
     if let Some(error) = report.failure.take() {
         return Err(error);
@@ -289,15 +296,10 @@ pub(crate) fn finish_initial(
         let diagnostics = std::mem::take(&mut report.diagnostics);
         report_diagnostics(compilation, diagnostics, root, color);
     }
-    let outputs = if report.has_errors {
-        BTreeSet::new()
-    } else {
-        let modules = collect_modules(compilation, &report.sources)?;
-        write_modules(compilation, &modules, output, owned_outputs)?
-    };
-    let outcome =
-        if report.has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
-    Ok(RebuildResult { outcome, outputs })
+    if report.has_errors {
+        return Ok(Compiled::Diagnostics);
+    }
+    Ok(Compiled::Succeeded(collect_modules(compilation, &report.sources)?))
 }
 
 struct SourceUnitRead {
@@ -434,79 +436,4 @@ fn collect_modules(
         }
     }
     Ok(modules)
-}
-
-fn write_modules(
-    compilation: &CompilationState,
-    modules: &[Arc<javascript::Module>],
-    output: &Path,
-    owned_outputs: &mut BTreeSet<PathBuf>,
-) -> Result<BTreeSet<PathBuf>, CompileError> {
-    let mut outputs = BTreeSet::new();
-    if modules.iter().any(|module| module.requires_runtime()) {
-        fs::create_dir_all(output)?;
-        let runtime = output.join(javascript::runtime_filename());
-        write_if_changed(&runtime, javascript::runtime_source().as_bytes())?;
-        owned_outputs.insert(PathBuf::clone(&runtime));
-        outputs.insert(runtime);
-    }
-    let module_writes = modules.par_iter().map(|module| write_module(compilation, module, output));
-    let module_writes = module_writes.collect::<Vec<_>>();
-    let mut failure = None;
-    for write in module_writes {
-        owned_outputs.extend(write.outputs.iter().cloned());
-        outputs.extend(write.outputs);
-        if let Err(error) = write.result
-            && failure.is_none()
-        {
-            failure = Some(error);
-        }
-    }
-    if let Some(error) = failure {
-        return Err(error);
-    }
-    Ok(outputs)
-}
-
-fn write_module(
-    compilation: &CompilationState,
-    module: &javascript::Module,
-    output: &Path,
-) -> ModuleWrite {
-    let output_path = output.join(module.filename());
-    let result = fs::create_dir_all(
-        output_path.parent().expect("invariant violated: module filename has no parent"),
-    )
-    .and_then(|_| write_if_changed(&output_path, module.source().as_bytes()));
-    if let Err(error) = result {
-        return ModuleWrite { outputs: Vec::new(), result: Err(error.into()) };
-    }
-    let mut outputs = vec![output_path];
-    if let Some(source) = module.stylex_theme_source() {
-        let output_path = output.join(javascript::stylex_theme_module_filename(module.name()));
-        if let Err(error) = write_if_changed(&output_path, source.as_bytes()) {
-            return ModuleWrite { outputs, result: Err(error.into()) };
-        }
-        outputs.push(output_path);
-    }
-    if let Some(kind) = module.foreign_kind() {
-        let output_path = output.join(javascript::foreign_module_filename(module.name(), kind));
-        let foreign = compilation
-            .source_foreign_content(module.file_id())
-            .expect("invariant violated: generated module requires missing foreign content");
-        if let Err(error) = write_if_changed(&output_path, foreign.as_bytes()) {
-            return ModuleWrite { outputs, result: Err(error.into()) };
-        }
-        outputs.push(output_path);
-    }
-    ModuleWrite { outputs, result: Ok(()) }
-}
-
-fn write_if_changed(path: &Path, content: &[u8]) -> io::Result<()> {
-    match fs::read(path) {
-        Ok(previous) if previous == content => Ok(()),
-        Ok(_) => fs::write(path, content),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => fs::write(path, content),
-        Err(error) => Err(error),
-    }
 }
