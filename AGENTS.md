@@ -162,35 +162,11 @@ let content = content.clone();
 let file_id = files.insert(uri, content);
 ```
 
-## Documentation strings and comments
+## Comments
 
-Write for a human reader trying to understand the code locally. Module and item documentation
-should explain the purpose and contract of the module, type, or function it describes. Inline
-comments should explain a non-obvious reason or invariant in the code beside them. Neither should
-require knowledge of an agent conversation or leave explanations for a future agent to finish.
-
-Use existing human-written documentation as a style reference, such as the engine and promise APIs
-in `building`. Use `git blame` and the introducing commits to check the relevant text, rather than
-judging a whole file by its latest commit. A commit without an agent co-author is a useful rule of
-thumb for identifying human-written examples.
-
-Read the complete code being documented and follow relevant dependencies to verify behavioral
-claims before writing or revising them. Do not guess from partial context or merely reword a
-sentence whose accuracy is in question. Omit or remove a comment if you cannot make it accurate
-and useful.
-
-Explain design choices and relationships needed to understand the local contract, including what
-the item enables callers to do. For example, the effect of snapshot lifetimes on cancellation
-belongs in the snapshot's documentation. Do not narrate unrelated subsystems' behavior there.
-Keep system-wide behavior in a central place that documents the system or workflow, rather than
-scattering fragments or repeating rules across submodules and items. References should help readers
-find further detail, not substitute for an explanation of the local responsibility.
-
-Use plain, direct language. Avoid mannered phrasing and comments that merely restate the code.
-A short description may be enough for a simple item. Expand it with constraints, rationale, or a
-concrete example when readers need more context to understand or use the item correctly.
-
-Use the `writing-code-commentary` skill for non-obvious compiler derivations and algorithm traces.
+Agents must not write new comments in any form: `//` and `/* */` comments, `///` and `/** */`
+item documentation, or `//!` and `/*! */` module documentation. Comments and documentation in Iris
+are written by humans.
 
 ## Test ownership
 
