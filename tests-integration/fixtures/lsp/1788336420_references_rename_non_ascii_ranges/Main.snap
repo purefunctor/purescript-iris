@@ -8,9 +8,9 @@ first = let emoji = "😀" in original
 --                            %/
 ```
 
-file:///tests-integration/fixtures/lsp/1788336420_references_rename_non_ascii_ranges/Main.purs @ 9:8..9:16
-file:///tests-integration/fixtures/lsp/1788336420_references_rename_non_ascii_ranges/Main.purs @ 7:29..7:37
 file:///tests-integration/fixtures/lsp/1788336420_references_rename_non_ascii_ranges/Main.purs @ 4:28..4:36
+file:///tests-integration/fixtures/lsp/1788336420_references_rename_non_ascii_ranges/Main.purs @ 7:29..7:37
+file:///tests-integration/fixtures/lsp/1788336420_references_rename_non_ascii_ranges/Main.purs @ 9:8..9:16
 
 
 Rename at Position { line: 4, character: 31 }

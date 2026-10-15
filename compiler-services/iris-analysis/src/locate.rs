@@ -13,7 +13,7 @@ use lowering::{
 };
 use stabilizing::{AstId, StabilizedModule};
 use syntax::ast::{AstNode, AstPtr};
-use syntax::{SyntaxNode, SyntaxNodePtr, SyntaxToken, TokenAtOffset, cst};
+use syntax::{SyntaxNode, SyntaxNodePtr, SyntaxToken, TextRange, TokenAtOffset, cst};
 
 use crate::extract::AnnotationSyntaxRange;
 use crate::position::{PositionConverter, Utf8Position, Utf8Range};
@@ -24,8 +24,12 @@ pub fn syntax_range(
     root: &SyntaxNode,
     ptr: &SyntaxNodePtr,
 ) -> Option<Utf8Range> {
-    let range = AnnotationSyntaxRange::from_ptr(root, ptr);
-    range.syntax.and_then(|range| positions.text_range_to_utf8_range(range))
+    let range = syntax_text_range(root, ptr)?;
+    positions.text_range_to_utf8_range(range)
+}
+
+pub(crate) fn syntax_text_range(root: &SyntaxNode, ptr: &SyntaxNodePtr) -> Option<TextRange> {
+    AnnotationSyntaxRange::from_ptr(root, ptr).syntax
 }
 
 pub fn id_range<T>(
@@ -40,6 +44,18 @@ where
     let root = parsed.syntax_node();
     let ptr = stabilized.syntax_ptr(item_id)?;
     syntax_range(positions, &root, &ptr)
+}
+
+pub(crate) fn id_text_range<T>(
+    root: &SyntaxNode,
+    stabilized: &StabilizedModule,
+    item_id: AstId<T>,
+) -> Option<TextRange>
+where
+    T: AstNode,
+{
+    let ptr = stabilized.syntax_ptr(item_id)?;
+    syntax_text_range(root, &ptr)
 }
 
 pub fn instance_head_ranges(
@@ -58,7 +74,8 @@ pub fn instance_head_ranges(
             if lowered.resolution != Some(target) {
                 return None;
             }
-            instance_head_range(positions, &root, stabilized, item.id)
+            let range = instance_head_text_range(&root, stabilized, item.id)?;
+            positions.text_range_to_utf8_range(range)
         }
         indexing::InstanceSourceItemId::Derive(id) => {
             let item = &indexed.items[*id];
@@ -66,7 +83,8 @@ pub fn instance_head_ranges(
             if lowered.resolution != Some(target) {
                 return None;
             }
-            instance_head_range(positions, &root, stabilized, item.id)
+            let range = instance_head_text_range(&root, stabilized, item.id)?;
+            positions.text_range_to_utf8_range(range)
         }
     });
     ranges.collect()
@@ -90,7 +108,8 @@ pub fn term_infix_reference_ranges(
         if resolution.as_ref() != Some(&target) {
             return None;
         }
-        infix_reference_range(positions, &root, stabilized, *id)
+        let range = infix_reference_text_range(&root, stabilized, *id)?;
+        positions.text_range_to_utf8_range(range)
     });
     ranges.collect()
 }
@@ -113,30 +132,28 @@ pub fn type_infix_reference_ranges(
         if resolution.as_ref() != Some(&target) {
             return None;
         }
-        infix_reference_range(positions, &root, stabilized, *id)
+        let range = infix_reference_text_range(&root, stabilized, *id)?;
+        positions.text_range_to_utf8_range(range)
     });
     ranges.collect()
 }
 
-fn infix_reference_range(
-    positions: &PositionConverter<'_>,
+pub(crate) fn infix_reference_text_range(
     root: &SyntaxNode,
     stabilized: &StabilizedModule,
     id: AstId<cst::InfixDeclaration>,
-) -> Option<Utf8Range> {
+) -> Option<TextRange> {
     let ptr = stabilized.syntax_ptr(id)?;
     let declaration = ptr.try_to_node(root).and_then(cst::InfixDeclaration::cast)?;
     let qualified = declaration.qualified()?;
-    let range = position::qualified_name_text_range(&qualified)?;
-    positions.text_range_to_utf8_range(range)
+    position::qualified_name_text_range(&qualified)
 }
 
-fn instance_head_range<T>(
-    positions: &PositionConverter<'_>,
+pub(crate) fn instance_head_text_range<T>(
     root: &SyntaxNode,
     stabilized: &StabilizedModule,
     id: AstId<T>,
-) -> Option<Utf8Range>
+) -> Option<TextRange>
 where
     T: AstNode,
 {
@@ -146,7 +163,7 @@ where
         .and_then(|instance| instance.instance_head())
         .or_else(|| cst::DeriveDeclaration::cast(node)?.instance_head())?;
     let token = head.qualified()?.upper()?;
-    positions.text_range_to_utf8_range(token.text_range())
+    Some(token.text_range())
 }
 
 pub fn value_equation_ranges(

@@ -19,8 +19,8 @@ import Lib (Maybe(..), plus, (+), type (:), class Eq)
 --          %           %     %         %         %
 ```
 
-file:///tests-integration/fixtures/lsp/1757532000_references_import/Lib.purs @ 6:8..6:12
 file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 18:8..18:12
+file:///tests-integration/fixtures/lsp/1757532000_references_import/Lib.purs @ 6:8..6:12
 
 
 References at Position { line: 2, character: 30 }
@@ -30,9 +30,9 @@ import Lib (Maybe(..), plus, (+), type (:), class Eq)
 --          %           %     %         %         %
 ```
 
-file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 7:24..7:27
 file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 7:9..7:10
 file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 7:19..7:20
+file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 7:24..7:27
 
 
 References at Position { line: 2, character: 40 }
@@ -42,9 +42,9 @@ import Lib (Maybe(..), plus, (+), type (:), class Eq)
 --          %           %     %         %         %
 ```
 
-file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 15:13..15:16
-file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 11:23..11:24
 file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 11:17..11:18
+file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 11:23..11:24
+file:///tests-integration/fixtures/lsp/1757532000_references_import/Main.purs @ 15:13..15:16
 
 
 References at Position { line: 2, character: 50 }

@@ -18,8 +18,8 @@ test1 (Lib.Just _) = Lib.Just
 --     %             %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 6:21..6:29
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 6:7..6:17
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 6:21..6:29
 
 
 References at Position { line: 6, character: 21 }
@@ -29,8 +29,8 @@ test1 (Lib.Just _) = Lib.Just
 --     %             %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 6:21..6:29
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 6:7..6:17
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 6:21..6:29
 
 
 References at Position { line: 9, character: 9 }
@@ -40,9 +40,9 @@ test2 (_ Lib.+ _) = [1 Lib.+ 2, Lib.(+)]
 --       %             %        %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:32..9:39
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:9..9:14
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:23..9:28
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:32..9:39
 
 
 References at Position { line: 9, character: 23 }
@@ -52,9 +52,9 @@ test2 (_ Lib.+ _) = [1 Lib.+ 2, Lib.(+)]
 --       %             %        %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:32..9:39
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:9..9:14
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:23..9:28
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:32..9:39
 
 
 References at Position { line: 9, character: 32 }
@@ -64,9 +64,9 @@ test2 (_ Lib.+ _) = [1 Lib.+ 2, Lib.(+)]
 --       %             %        %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:32..9:39
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:9..9:14
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:23..9:28
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 9:32..9:39
 
 
 References at Position { line: 12, character: 13 }
@@ -76,8 +76,8 @@ type Test3 = Lib.Maybe (Lib.Maybe Int)
 --           %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 12:24..12:33
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 12:13..12:22
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 12:24..12:33
 
 
 References at Position { line: 15, character: 17 }
@@ -87,9 +87,9 @@ type Test4 = Int Lib.: Int Lib.: Int
 --               %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 21:13..21:20
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:17..15:22
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:27..15:32
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 21:13..21:20
 
 
 References at Position { line: 18, character: 13 }
@@ -99,11 +99,11 @@ type Test5 = Prim.Int
 --           %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:23..15:26
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 12:34..12:37
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:13..15:16
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:23..15:26
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:33..15:36
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 18:13..18:21
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 12:34..12:37
 
 
 References at Position { line: 21, character: 13 }
@@ -113,6 +113,6 @@ type Test6 = Lib.(:)
 --           %
 ```
 
-file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 21:13..21:20
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:17..15:22
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:27..15:32
+file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 21:13..21:20

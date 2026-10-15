@@ -8,8 +8,8 @@ test = Just
 --     %
 ```
 
+file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/Main.purs @ 4:7..4:11
+file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/External.purs @ 8:8..8:12
+file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/External.purs @ 9:8..9:14
 file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/External.purs @ 10:8..10:15
 file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/External.purs @ 11:8..11:16
-file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/External.purs @ 9:8..9:14
-file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/External.purs @ 8:8..8:12
-file:///tests-integration/fixtures/lsp/1757934780_references_duplicate/Main.purs @ 4:7..4:11
