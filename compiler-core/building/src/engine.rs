@@ -335,6 +335,13 @@ impl LocalState {
         dependencies.collect()
     }
 
+    fn with_verifying<T>(local: &RefCell<LocalStateInner>, verify: impl FnOnce() -> T) -> T {
+        LocalState::set_verifying(local, true);
+        let result = verify();
+        LocalState::set_verifying(local, false);
+        result
+    }
+
     fn set_verifying(local: &RefCell<LocalStateInner>, verifying: bool) {
         let mut inner = local.borrow_mut();
         let frame = inner.frames.last_mut().expect("invariant violated: expected query frame");
@@ -778,9 +785,8 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
-                    LocalState::set_verifying(local, true);
-                    let latest = self.verify_core(&dependencies, revision)?;
-                    LocalState::set_verifying(local, false);
+                    let verify = || self.verify_core(&dependencies, revision);
+                    let latest = LocalState::with_verifying(local, verify)?;
 
                     // If the cached value was built more recently the the
                     // latest change, we can update its built timestamp to
