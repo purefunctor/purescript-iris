@@ -22,9 +22,8 @@ fn module_name(
     context: &CompletionContext<impl crate::AnalyzerHost>,
     file_id: FileId,
 ) -> Result<Option<String>, AnalyzerError> {
-    let content = context.language.queries().content(file_id)?;
-    let (parsed, _) = context.language.queries().parsed(file_id)?;
-    Ok(parsed.module_name(&content).map(|name| name.to_string()))
+    let indexed = context.language.queries().indexed(file_id)?;
+    Ok(indexed.name.as_ref().map(|name| name.to_string()))
 }
 
 /// Yields classes exported by the module of the current import statement.
@@ -864,6 +863,13 @@ fn suggestions_candidates<T: SuggestionsHelper>(
     });
 
     for import_id in file_ids {
+        let indexed = context.language.queries().indexed(import_id)?;
+        let has_candidates = indexed.names.terms.iter().any(|(name, _)| filter.matches(name))
+            || indexed.names.types.iter().any(|(name, _)| filter.matches(name));
+        if !has_candidates {
+            continue;
+        }
+
         let resolved = context.language.queries().resolved(import_id)?;
 
         let source = this
@@ -1179,11 +1185,10 @@ fn suggestions_candidates_qualified<T: SuggestionsHelper>(
     });
 
     for import_id in file_ids {
-        let content = context.language.queries().content(import_id)?;
-        let (parsed, _) = context.language.queries().parsed(import_id)?;
+        let indexed = context.language.queries().indexed(import_id)?;
 
-        if parsed.module_name(&content).is_some_and(|module_name| {
-            let filter = PerfectSegmentFuzzy(&module_name);
+        if indexed.name.as_ref().is_some_and(|module_name| {
+            let filter = PerfectSegmentFuzzy(module_name);
             !filter.matches(prefix)
         }) {
             continue;

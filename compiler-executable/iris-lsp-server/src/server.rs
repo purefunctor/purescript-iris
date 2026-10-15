@@ -447,7 +447,7 @@ impl Server {
 
     fn respond(&self, id: RequestId, method: &str, answer: Answer) {
         let response = match answer {
-            Ok(result) => Response::new_ok(id, result),
+            Ok(result) => Response { id, response_result: Ok(result) },
             Err(rejection) => {
                 let (code, message) = match rejection {
                     Rejection::MethodNotFound => {
