@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use line_index::{LineCol, LineIndex, WideEncoding, WideLineCol};
 use lsp_types;
 use syntax::ast::AstNode;
@@ -52,13 +54,22 @@ pub struct Utf8Range {
 
 pub struct PositionConverter<'content> {
     content: &'content str,
-    line_index: LineIndex,
+    line_index: Cow<'content, LineIndex>,
     encoding: PositionEncoding,
 }
 
 impl<'content> PositionConverter<'content> {
     pub fn new(content: &'content str, encoding: PositionEncoding) -> PositionConverter<'content> {
-        let line_index = LineIndex::new(content);
+        let line_index = Cow::Owned(LineIndex::new(content));
+        PositionConverter { content, line_index, encoding }
+    }
+
+    pub fn with_line_index(
+        content: &'content str,
+        line_index: &'content LineIndex,
+        encoding: PositionEncoding,
+    ) -> PositionConverter<'content> {
+        let line_index = Cow::Borrowed(line_index);
         PositionConverter { content, line_index, encoding }
     }
 

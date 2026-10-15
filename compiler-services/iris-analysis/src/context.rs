@@ -10,6 +10,7 @@ use crate::position::PositionEncoding;
 pub trait AnalyzerQueries:
     PrettyQueries
     + QueryProxy<
+        LineIndex = Arc<line_index::LineIndex>,
         Parsed = parsing::FullParsedModule,
         Stabilized = Arc<stabilizing::StabilizedModule>,
         Indexed = Arc<indexing::IndexedModule>,
@@ -23,6 +24,7 @@ pub trait AnalyzerQueries:
 impl<Queries> AnalyzerQueries for Queries where
     Queries: PrettyQueries
         + QueryProxy<
+            LineIndex = Arc<line_index::LineIndex>,
             Parsed = parsing::FullParsedModule,
             Stabilized = Arc<stabilizing::StabilizedModule>,
             Indexed = Arc<indexing::IndexedModule>,

@@ -40,6 +40,7 @@ use files::{FileId, ForeignFileCandidates, ForeignFileId};
 use foreign_javascript::{ForeignModule, ForeignValidation};
 use graph::SnapshotGraph;
 use indexing::IndexedModule;
+use line_index::LineIndex;
 use lock_api::{RawRwLock, RawRwLockRecursive};
 use lowering::{GroupedModule, LoweredModule};
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard};
@@ -145,6 +146,7 @@ struct InputStorage {
 
 #[derive(Default)]
 struct DerivedStorage {
+    line_index: Shards<FileId, DerivedState<Arc<LineIndex>>>,
     foreign_module: Shards<ForeignFileId, DerivedState<Option<Arc<ForeignModule>>>>,
     foreign_validation: Shards<FileId, DerivedState<Arc<ForeignValidation>>>,
     parsed: Shards<FileId, DerivedState<FullParsedModule>>,
@@ -170,6 +172,7 @@ impl Drop for DerivedStorage {
         // module's values on one thread dominates teardown of a large build.
         rayon::scope(|scope| {
             let DerivedStorage {
+                line_index,
                 foreign_module,
                 foreign_validation,
                 parsed,
@@ -187,6 +190,7 @@ impl Drop for DerivedStorage {
                 functional,
                 javascript,
             } = self;
+            line_index.drop_in(scope);
             foreign_module.drop_in(scope);
             foreign_validation.drop_in(scope);
             parsed.drop_in(scope);
@@ -216,6 +220,7 @@ struct InternedStorage {
 fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
     match query {
         QueryKey::Content(id)
+        | QueryKey::LineIndex(id)
         | QueryKey::Foreign(id)
         | QueryKey::ForeignValidation(id)
         | QueryKey::Parsed(id)
@@ -605,6 +610,7 @@ impl QueryEngine {
         for dependency in dependencies {
             match dependency {
                 QueryKey::Content(k) => input_changed!(content, k),
+                QueryKey::LineIndex(k) => derived_changed!(line_index, k),
                 QueryKey::Foreign(k) => input_changed!(foreign, k),
                 QueryKey::ForeignContent(k) => input_changed!(foreign_content, k),
                 QueryKey::ForeignModule(k) => derived_changed!(foreign_module, k),
@@ -860,6 +866,18 @@ impl QueryEngine {
             .ok_or(QueryError::MissingContent { file_id: id })
     }
 
+    pub fn line_index(&self, id: FileId) -> QueryResult<Arc<LineIndex>> {
+        self.query(
+            QueryKey::LineIndex(id),
+            id,
+            |derived| &derived.line_index,
+            |this| {
+                let content = this.content(id)?;
+                Ok(Arc::new(LineIndex::new(&content)))
+            },
+        )
+    }
+
     fn remove_file_queries<T>(
         &self,
         file_id: FileId,
@@ -921,6 +939,7 @@ impl QueryEngine {
             };
         }
         remove_file_queries!(
+            line_index,
             foreign_validation,
             parsed,
             stabilized,
@@ -1299,6 +1318,8 @@ impl QueryEngine {
 }
 
 impl QueryProxy for QueryEngine {
+    type LineIndex = Arc<LineIndex>;
+
     type Parsed = FullParsedModule;
 
     type Stabilized = Arc<StabilizedModule>;
@@ -1323,6 +1344,10 @@ impl QueryProxy for QueryEngine {
 
     fn content(&self, id: FileId) -> QueryResult<Arc<str>> {
         QueryEngine::content(self, id)
+    }
+
+    fn line_index(&self, id: FileId) -> QueryResult<Arc<LineIndex>> {
+        QueryEngine::line_index(self, id)
     }
 
     fn parsed(&self, id: FileId) -> QueryResult<Self::Parsed> {

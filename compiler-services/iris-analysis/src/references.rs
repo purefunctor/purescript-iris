@@ -521,7 +521,9 @@ fn push_reference_locations(
     let engine = context.queries();
     let uri = common::file_uri(context, file_id)?;
     let content = engine.content(file_id)?;
-    let positions = PositionConverter::new(&content, context.position_encoding());
+    let line_index = engine.line_index(file_id)?;
+    let encoding = context.position_encoding();
+    let positions = PositionConverter::with_line_index(&content, &line_index, encoding);
     let (parsed, _) = engine.parsed(file_id)?;
     let stabilized = engine.stabilized(file_id)?;
     let root = parsed.syntax_node();

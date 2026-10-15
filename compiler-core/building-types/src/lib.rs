@@ -11,6 +11,7 @@ use thiserror::Error;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum QueryKey {
     Content(FileId),
+    LineIndex(FileId),
     Foreign(FileId),
     ForeignContent(ForeignFileId),
     ForeignModule(ForeignFileId),
@@ -45,6 +46,7 @@ pub enum QueryError {
 pub type QueryResult<T> = Result<T, QueryError>;
 
 pub trait QueryProxy {
+    type LineIndex;
     type Parsed;
     type Stabilized;
     type Indexed;
@@ -58,6 +60,8 @@ pub trait QueryProxy {
     type Documented;
 
     fn content(&self, id: FileId) -> QueryResult<Arc<str>>;
+
+    fn line_index(&self, id: FileId) -> QueryResult<Self::LineIndex>;
 
     fn parsed(&self, id: FileId) -> QueryResult<Self::Parsed>;
 
