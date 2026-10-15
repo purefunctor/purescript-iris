@@ -27,7 +27,8 @@ use smol_str::{SmolStr, format_smolstr};
 use super::super::names::NameAllocator;
 use crate::error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
 use crate::module::{
-    Module, STYLEX_THEME_FILENAME, module_filename, runtime_filename, stylex_theme_module_filename,
+    Module, STYLEX_THEME_FILENAME, foreign_filename, module_filename, runtime_filename,
+    stylex_theme_module_filename,
 };
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
@@ -507,7 +508,7 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         writer.import_namespace(namespace, "@stylexjs/stylex");
     }
     if let Some(foreign_import) = &generator.foreign_import {
-        let path = format!("./foreign.{}", foreign_import.kind.extension());
+        let path = format!("./{}", foreign_filename(foreign_import.kind));
         writer.import_namespace(&foreign_import.namespace, &path);
     }
     if let Some(namespace) = &generator.runtime_namespace {
