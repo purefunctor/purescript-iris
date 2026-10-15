@@ -243,6 +243,17 @@ fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
     }
 }
 
+fn computed_trace<K, V>(shards: &Shards<K, DerivedState<V>>, key: &K) -> Option<Trace>
+where
+    K: Hash + Eq,
+{
+    let shard = shards.shard(key).read();
+    match shard.get(key) {
+        Some(DerivedState::Computed { trace, .. }) => Some(*trace),
+        _ => None,
+    }
+}
+
 fn state_references_removed_file<T>(
     state: &DerivedState<T>,
     file_id: FileId,
@@ -593,7 +604,7 @@ impl QueryEngine {
 
     /// Verifies the given dependencies by executing them, returning the
     /// timestamp of the most latest change.
-    fn verify_core(&self, dependencies: &[QueryKey]) -> QueryResult<usize> {
+    fn verify_core(&self, dependencies: &[QueryKey], revision: usize) -> QueryResult<usize> {
         let mut latest = 0;
 
         macro_rules! input_changed {
@@ -606,10 +617,18 @@ impl QueryEngine {
         }
 
         macro_rules! derived_changed {
-            ($field:ident, $key:expr) => {{
-                let _ = self.$field(*$key)?;
-                let shard = self.derived.$field.shard($key).read();
-                if let Some(DerivedState::Computed { trace, .. }) = shard.get($key) {
+            ($field:ident, $key:expr) => {
+                derived_changed!($field, $key, self.$field(*$key))
+            };
+            ($field:ident, $key:expr, $query:expr) => {{
+                let trace = match computed_trace(&self.derived.$field, $key) {
+                    Some(trace) if trace.built == revision => Some(trace),
+                    _ => {
+                        let _ = $query?;
+                        computed_trace(&self.derived.$field, $key)
+                    }
+                };
+                if let Some(trace) = trace {
                     latest = latest.max(trace.changed);
                 }
             }};
@@ -634,11 +653,7 @@ impl QueryEngine {
                 QueryKey::Bracketed(k) => derived_changed!(bracketed, k),
                 QueryKey::Sectioned(k) => derived_changed!(sectioned, k),
                 QueryKey::CheckedCore => {
-                    self.checked_core()?;
-                    let shard = self.derived.checked_core.shard(&()).read();
-                    if let Some(DerivedState::Computed { trace, .. }) = shard.get(&()) {
-                        latest = latest.max(trace.changed);
-                    }
+                    derived_changed!(checked_core, &(), self.checked_core())
                 }
                 QueryKey::Checked(k) => derived_changed!(checked, k),
                 QueryKey::Documented(k) => derived_changed!(documented, k),
@@ -764,7 +779,7 @@ impl QueryEngine {
                     }
 
                     LocalState::set_verifying(local, true);
-                    let latest = self.verify_core(&dependencies)?;
+                    let latest = self.verify_core(&dependencies, revision)?;
                     LocalState::set_verifying(local, false);
 
                     // If the cached value was built more recently the the
