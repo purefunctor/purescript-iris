@@ -351,7 +351,7 @@ impl AnalyzerHost for WatchHost<'_> {
         Uri::parse(url.as_str()).map(Some)
     }
 
-    fn active_files(&self) -> impl Iterator<Item = FileId> + '_ {
+    fn source_files(&self) -> impl Iterator<Item = FileId> + '_ {
         self.context.files.keys().copied()
     }
 

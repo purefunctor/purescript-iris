@@ -160,7 +160,7 @@ fn build_symbol_list(
 ) -> Result<Vec<SymbolInformation>, AnalyzerError> {
     let mut symbols = Vec::new();
 
-    for file_id in context.active_files() {
+    for file_id in context.source_files() {
         let resolved = context.queries().resolved(file_id)?;
 
         let matches = |name: &str| name_starts_with_folded(name, query);

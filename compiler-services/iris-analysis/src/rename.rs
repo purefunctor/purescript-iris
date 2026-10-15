@@ -162,7 +162,7 @@ fn term_item_conflicts(
         return Ok(true);
     }
 
-    for file_id in context.active_files() {
+    for file_id in context.source_files() {
         if file_id != target_file
             && term_item_conflicts_in_file(context, file_id, target_file, target_term, new_name)?
         {
@@ -296,7 +296,7 @@ fn type_item_conflicts(
         return Ok(true);
     }
 
-    for file_id in context.active_files() {
+    for file_id in context.source_files() {
         if file_id != target_file
             && type_item_conflicts_in_file(context, file_id, target_file, target_type, new_name)?
         {

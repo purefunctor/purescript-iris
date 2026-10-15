@@ -481,7 +481,7 @@ fn workspace_references<Reference: ReferenceSyntax>(
         push_reference_locations(context, file_id, references_in(&lowered), &mut locations)?;
     }
 
-    for file_id in context.active_files() {
+    for file_id in context.source_files() {
         if file_id == current_file || file_id == source_file {
             continue;
         }
@@ -546,7 +546,7 @@ fn probe_imports_for(
 ) -> Result<FxHashSet<(FileId, ImportId)>, AnalyzerError> {
     let mut probe = FxHashSet::default();
 
-    for workspace_file_id in context.active_files() {
+    for workspace_file_id in context.source_files() {
         let resolved = context.queries().resolved(workspace_file_id)?;
 
         let unqualified = resolved.unqualified.values().flatten();
