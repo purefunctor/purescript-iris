@@ -30,7 +30,7 @@ record { value } = { value }
 --       %           %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 5:20..5:26
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 5:21..5:26
 
 
 References at Position { line: 5, character: 21 }
@@ -40,7 +40,7 @@ record { value } = { value }
 --       %           %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 5:20..5:26
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 5:21..5:26
 
 
 References at Position { line: 8, character: 15 }
@@ -50,7 +50,7 @@ letBound = let value = 42 in { value }
 --             %               %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 8:30..8:36
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 8:31..8:36
 
 
 References at Position { line: 8, character: 31 }
@@ -60,7 +60,7 @@ letBound = let value = 42 in { value }
 --             %               %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 8:30..8:36
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 8:31..8:36
 
 
 References at Position { line: 11, character: 15 }
@@ -70,7 +70,7 @@ binderBound = \value -> { value }
 --             %          %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 11:25..11:31
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 11:26..11:31
 
 
 References at Position { line: 11, character: 26 }
@@ -80,4 +80,4 @@ binderBound = \value -> { value }
 --             %          %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 11:25..11:31
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 11:26..11:31

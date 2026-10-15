@@ -899,16 +899,11 @@ macro_rules! impl_document_highlight_range {
 impl_document_highlight_range!(
     cst::Binder,
     cst::Expression,
+    cst::RecordPun,
     cst::TermOperator,
     cst::Type,
     cst::TypeOperator,
 );
-
-impl DocumentHighlightRange for cst::RecordPun {
-    fn annotation_syntax_range(&self) -> AnnotationSyntaxRange {
-        self.name().map(|name| AnnotationSyntaxRange::from_node(name.syntax())).unwrap_or_default()
-    }
-}
 
 fn highlight_id_range<T>(
     content: &str,
