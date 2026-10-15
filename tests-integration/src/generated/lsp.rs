@@ -47,7 +47,7 @@ impl AnalyzerHost for IntegrationAnalyzerHost<'_> {
         Uri::parse(&uri).map(Some)
     }
 
-    fn active_files(&self) -> impl Iterator<Item = FileId> + '_ {
+    fn source_files(&self) -> impl Iterator<Item = FileId> + '_ {
         self.files.iter_id()
     }
 

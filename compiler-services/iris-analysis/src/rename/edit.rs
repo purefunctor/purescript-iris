@@ -141,7 +141,7 @@ where
 
         self.push_text_range_edit(target_file, module_name.syntax().text_range(), new_name)?;
 
-        for file_id in self.context.active_files() {
+        for file_id in self.context.source_files() {
             if !self.context.is_editable(file_id) {
                 continue;
             }
@@ -648,7 +648,7 @@ where
         old_name: &str,
         new_name: &str,
     ) -> Result<(), AnalyzerError> {
-        for file_id in self.context.active_files() {
+        for file_id in self.context.source_files() {
             if !self.context.is_editable(file_id) {
                 continue;
             }

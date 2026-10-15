@@ -159,7 +159,7 @@ pub fn definition(
     }
 }
 
-/// Every use of the item in the context's active files, excluding its declaration.
+/// Every use of the item in the context's source files, excluding its declaration.
 pub fn references(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     item: NamedItem,
@@ -199,7 +199,7 @@ pub fn is_class(
     Ok(matches!(indexed.items[type_id].kind, IndexedTypeItemKind::Class { .. }))
 }
 
-/// Every instance in the context's active files that `search` finds for `target`.
+/// Every instance in the context's source files that `search` finds for `target`.
 pub fn instances(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     target: (FileId, TypeItemId),
@@ -207,7 +207,7 @@ pub fn instances(
 ) -> Result<Vec<FoundInstance>, AnalyzerError> {
     let engine = context.queries();
     let mut found = Vec::new();
-    for file_id in context.active_files() {
+    for file_id in context.source_files() {
         let indexed = engine.indexed(file_id)?;
         let lowered = engine.lowered(file_id)?;
         let checked = engine.checked(file_id)?;

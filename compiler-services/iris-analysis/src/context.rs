@@ -41,7 +41,7 @@ pub trait AnalyzerHost {
     fn queries(&self) -> &Self::Queries;
     fn file_id(&self, uri: &str) -> Option<FileId>;
     fn file_uri(&self, file_id: FileId) -> Result<Option<Uri>, url::ParseError>;
-    fn active_files(&self) -> impl Iterator<Item = FileId> + '_;
+    fn source_files(&self) -> impl Iterator<Item = FileId> + '_;
     fn is_editable(&self, file_id: FileId) -> bool;
 }
 
@@ -98,8 +98,8 @@ impl<'a, Host: AnalyzerHost> AnalyzerContext<'a, Host> {
         self.host.file_uri(file_id)
     }
 
-    pub fn active_files(&self) -> impl Iterator<Item = FileId> + '_ {
-        self.host.active_files()
+    pub fn source_files(&self) -> impl Iterator<Item = FileId> + '_ {
+        self.host.source_files()
     }
 
     pub fn is_editable(&self, file_id: FileId) -> bool {

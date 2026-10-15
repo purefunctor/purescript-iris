@@ -856,7 +856,7 @@ fn suggestions_candidates<T: SuggestionsHelper>(
         .flatten()
         .any(|import| import.file == context.prim_id);
 
-    let file_ids = context.language.active_files().filter(move |&id| {
+    let file_ids = context.language.source_files().filter(move |&id| {
         let not_self = id != context.current_file;
         let not_prim = id != context.prim_id;
         not_self && (not_prim || has_prim)
@@ -1178,7 +1178,7 @@ fn suggestions_candidates_qualified<T: SuggestionsHelper>(
     let has_prim =
         context.resolved.qualified.values().flatten().any(|import| import.file == context.prim_id);
 
-    let file_ids = context.language.active_files().filter(move |&id| {
+    let file_ids = context.language.source_files().filter(move |&id| {
         let not_self = id != context.current_file;
         let not_prim = id != context.prim_id;
         not_self && (not_prim || has_prim)
@@ -1259,7 +1259,7 @@ impl CompletionSource for WorkspaceModules {
         filter: F,
         items: &mut Vec<CompletionItem>,
     ) -> Result<Self::T, AnalyzerError> {
-        for id in context.language.active_files() {
+        for id in context.language.source_files() {
             let Some(module_name) = module_name(context, id)? else {
                 continue;
             };

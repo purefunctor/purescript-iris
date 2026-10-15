@@ -184,7 +184,7 @@ impl AnalyzerHost for LspAnalyzerHost<'_> {
         Uri::parse(&uri).map(Some)
     }
 
-    fn active_files(&self) -> impl Iterator<Item = FileId> {
+    fn source_files(&self) -> impl Iterator<Item = FileId> {
         self.files.source_ids()
     }
 

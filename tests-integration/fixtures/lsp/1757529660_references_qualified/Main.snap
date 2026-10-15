@@ -104,6 +104,17 @@ file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:23..15:26
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 15:33..15:36
 file:///tests-integration/fixtures/lsp/1757529660_references_qualified/Main.purs @ 18:13..18:21
+file:///temporary-directory/Prim.Int.purs @ 4:13..4:16
+file:///temporary-directory/Prim.Int.purs @ 4:20..4:23
+file:///temporary-directory/Prim.Int.purs @ 4:27..4:30
+file:///temporary-directory/Prim.Int.purs @ 7:17..7:20
+file:///temporary-directory/Prim.Int.purs @ 7:24..7:27
+file:///temporary-directory/Prim.Int.purs @ 10:13..10:16
+file:///temporary-directory/Prim.Int.purs @ 10:20..10:23
+file:///temporary-directory/Prim.Int.purs @ 10:27..10:30
+file:///temporary-directory/Prim.Int.purs @ 13:18..13:21
+file:///temporary-directory/Iris.StyleX.Types.purs @ 51:21..51:24
+file:///temporary-directory/Iris.StyleX.Types.purs @ 57:29..57:32
 
 
 References at Position { line: 21, character: 13 }
