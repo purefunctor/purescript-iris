@@ -201,6 +201,16 @@ impl SyntaxNode {
         Some(element(&self.owner, child.id(), child.value()))
     }
 
+    pub fn split_leading_annotation(&self) -> (Option<TextRange>, Option<TextRange>) {
+        let tree = self.owner.tree.lock();
+        let Some(node) = tree.get(self.id) else { return (None, None) };
+        let first = node.first();
+        let annotation = first.filter(|child| child.value().kind == SyntaxKind::Annotation);
+        let start = if annotation.is_some() { first.and_then(|child| child.next()) } else { first };
+        let children = start.zip(node.last()).map(|(start, end)| range(&start).cover(range(&end)));
+        (annotation.map(|annotation| range(&annotation)), children)
+    }
+
     pub fn first_token(&self) -> Option<SyntaxToken> {
         let tree = self.owner.tree.lock();
         let node = tree.get(self.id)?;
