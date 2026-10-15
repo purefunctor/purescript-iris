@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+References at Position { line: 5, character: 13 }
+
+```
+imported = { value }
+--           %
+```
+
+file:///tests-integration/fixtures/lsp/1792042200_references_record_pun/Main.purs @ 5:12..5:18
+file:///tests-integration/fixtures/lsp/1792042200_references_record_pun/Lib.purs @ 6:9..6:15

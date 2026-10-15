@@ -32,8 +32,8 @@ class Functor f
 --    $ @ %
 ```
 
-file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 9:9..9:16
+file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 16:16..16:23
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 21:24..21:31
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 28:9..28:16
@@ -70,8 +70,8 @@ instance Functor Identity
 --       $@%&/?
 ```
 
-file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 9:9..9:16
+file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 16:16..16:23
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 21:24..21:31
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 28:9..28:16
@@ -183,8 +183,8 @@ derive instance Functor Derived
 --              $@%
 ```
 
-file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 9:9..9:16
+file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 16:16..16:23
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 21:24..21:31
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 28:9..28:16
@@ -221,8 +221,8 @@ derive newtype instance Functor Wrapper
 --                      $@%
 ```
 
-file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 9:9..9:16
+file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 12:36..12:43
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 16:16..16:23
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 21:24..21:31
 file:///tests-integration/fixtures/lsp/1786015920_locate_instance_head/Main.purs @ 28:9..28:16

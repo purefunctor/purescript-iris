@@ -15,6 +15,7 @@ indexing = { version = "0.1.0", path = "../../compiler-frontend/indexing" }
 interner = { version = "0.1.0", path = "../interner" }
 javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
 lexing = { version = "0.1.0", path = "../../compiler-frontend/lexing" }
+line-index = "0.1.2"
 lock_api = "0.4.14"
 lowering = { version = "0.1.0", path = "../../compiler-frontend/lowering" }
 parking_lot = "0.12.5"

@@ -18,19 +18,7 @@ impl AnnotationSyntaxRange {
     }
 
     pub fn from_node(node: &SyntaxNode) -> AnnotationSyntaxRange {
-        let mut children = node.children_with_tokens().peekable();
-
-        let annotation = children.next_if(|child| {
-            let kind = child.kind();
-            matches!(kind, SyntaxKind::Annotation)
-        });
-
-        let start = children.peek().map(|child| child.text_range());
-        let end = children.last().map(|child| child.text_range());
-
-        let annotation = annotation.map(|child| child.text_range());
-        let syntax = start.zip(end).map(|(start, end)| start.cover(end));
-
+        let (annotation, syntax) = node.split_leading_annotation();
         AnnotationSyntaxRange { annotation, syntax }
     }
 }

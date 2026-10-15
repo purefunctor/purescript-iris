@@ -1,9 +1,11 @@
 use building_types::QueryProxy;
 use files::FileId;
 use indexing::{ImportId, ImportItemId, ImportKind, TermItemId, TypeItemId};
+use itertools::Itertools;
 use lowering::{
-    BinderId, BinderKind, ExpressionId, ExpressionKind, LetBindingNameGroupId, RecordPunId,
-    TermVariableResolution, TypeId, TypeKind, TypeVariableBindingId, TypeVariableResolution,
+    BinderId, ExpressionId, ExpressionKind, LetBindingNameGroupId, LoweredModule, RecordPunId,
+    TermReference, TermVariableResolution, TypeId, TypeKind, TypeReference, TypeVariableBindingId,
+    TypeVariableResolution,
 };
 use lsp_types::*;
 use parsing::ParsedModule;
@@ -12,7 +14,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::ToSmolStr;
 use stabilizing::{AstId, StabilizedModule};
 use syntax::ast::{AstNode, AstPtr};
-use syntax::cst;
+use syntax::{SyntaxNode, TextRange, cst};
 
 use crate::position::PositionConverter;
 use crate::{AnalyzerContext, AnalyzerError, common, locate};
@@ -390,93 +392,54 @@ where
     positions.utf8_range_to_protocol(range)
 }
 
+trait ReferenceSyntax: Copy {
+    fn text_range(self, root: &SyntaxNode, stabilized: &StabilizedModule) -> Option<TextRange>;
+}
+
+impl ReferenceSyntax for TermReference {
+    fn text_range(self, root: &SyntaxNode, stabilized: &StabilizedModule) -> Option<TextRange> {
+        match self {
+            TermReference::Expression(id) => locate::id_text_range(root, stabilized, id),
+            TermReference::RecordPun(id) => locate::id_text_range(root, stabilized, id),
+            TermReference::Binder(id) => locate::id_text_range(root, stabilized, id),
+            TermReference::Operator(id) => locate::id_text_range(root, stabilized, id),
+            TermReference::Infix(id) => locate::infix_reference_text_range(root, stabilized, id),
+        }
+    }
+}
+
+impl ReferenceSyntax for TypeReference {
+    fn text_range(self, root: &SyntaxNode, stabilized: &StabilizedModule) -> Option<TextRange> {
+        match self {
+            TypeReference::Type(id) => locate::id_text_range(root, stabilized, id),
+            TypeReference::Operator(id) => locate::id_text_range(root, stabilized, id),
+            TypeReference::Infix(id) => locate::infix_reference_text_range(root, stabilized, id),
+            TypeReference::Instance(id) => locate::instance_head_text_range(root, stabilized, id),
+            TypeReference::Derive(id) => locate::instance_head_text_range(root, stabilized, id),
+        }
+    }
+}
+
 pub(crate) fn references_file_term(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
     current_file: FileId,
     file_id: FileId,
     term_id: TermItemId,
 ) -> Result<Option<Vec<Location>>, AnalyzerError> {
-    let engine = context.queries();
-    let candidates = probe_term_references(context, current_file, file_id, term_id)?;
-
-    let mut locations = Vec::new();
-    for candidate_id in candidates {
-        let uri = common::file_uri(context, candidate_id)?;
-
-        let content = engine.content(candidate_id)?;
-        let positions = PositionConverter::new(&content, context.position_encoding());
-        let (parsed, _) = engine.parsed(candidate_id)?;
-        let stabilized = engine.stabilized(candidate_id)?;
-        let indexed = engine.indexed(candidate_id)?;
-        let lowered = engine.lowered(candidate_id)?;
-
-        for (expr_id, expr_kind) in lowered.tree.iter_expression() {
-            if let ExpressionKind::Constructor { resolution: Some((f_id, t_id)) } = expr_kind
-                && (*f_id, *t_id) == (file_id, term_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, expr_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            } else if let ExpressionKind::OperatorName { resolution: Some((f_id, t_id)) } =
-                expr_kind
-                && (*f_id, *t_id) == (file_id, term_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, expr_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            } else if let ExpressionKind::Variable { resolution: Some(resolution) } = expr_kind
-                && let TermVariableResolution::Reference(f_id, t_id) = resolution
-                && (*f_id, *t_id) == (file_id, term_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, expr_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
-        }
-
-        for (pun_id, resolution) in lowered.tree.iter_expression_pun() {
-            if let TermVariableResolution::Reference(f_id, t_id) = resolution
-                && (f_id, t_id) == (file_id, term_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, pun_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
-        }
-
-        for (binder_id, binder_kind) in lowered.tree.iter_binder() {
-            if let BinderKind::Constructor { resolution: Some((f_id, t_id)), .. } = binder_kind
-                && (*f_id, *t_id) == (file_id, term_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, binder_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
-        }
-
-        for (operator_id, f_id, t_id) in lowered.tree.iter_term_operator() {
-            if (f_id, t_id) == (file_id, term_id) {
-                let range = id_range(&positions, &parsed, &stabilized, operator_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
-        }
-
-        let ranges = locate::term_infix_reference_ranges(
-            &positions,
-            &parsed,
-            &stabilized,
-            &indexed,
-            &lowered,
-            (file_id, term_id),
-        );
-        for range in ranges {
-            let range = positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-            locations.push(Location { uri: uri.clone(), range });
-        }
-    }
-
-    Ok(Some(locations))
+    let indexed = context.queries().indexed(file_id)?;
+    let name = indexed.items[term_id].name.as_deref();
+    workspace_references(
+        context,
+        current_file,
+        file_id,
+        |lowered| lowered.references.of_term(file_id, term_id),
+        |import| {
+            let imported = name.and_then(|name| import.lookup_term(name));
+            imported.is_some_and(|(f_id, t_id, kind)| {
+                kind != ImportKind::Hidden && (f_id, t_id) == (file_id, term_id)
+            })
+        },
+    )
 }
 
 pub(crate) fn references_file_type(
@@ -485,129 +448,96 @@ pub(crate) fn references_file_type(
     file_id: FileId,
     type_id: TypeItemId,
 ) -> Result<Option<Vec<Location>>, AnalyzerError> {
+    let indexed = context.queries().indexed(file_id)?;
+    let name = indexed.items[type_id].name.as_deref();
+    workspace_references(
+        context,
+        current_file,
+        file_id,
+        |lowered| lowered.references.of_type(file_id, type_id),
+        |import| {
+            let Some(name) = name else { return false };
+            let types = import.lookup_type(name).into_iter();
+            let mut imported = types.chain(import.lookup_class(name));
+            imported.any(|(f_id, t_id, kind)| {
+                kind != ImportKind::Hidden && (f_id, t_id) == (file_id, type_id)
+            })
+        },
+    )
+}
+
+fn workspace_references<Reference: ReferenceSyntax>(
+    context: &AnalyzerContext<impl crate::AnalyzerHost>,
+    current_file: FileId,
+    source_file: FileId,
+    references_in: impl Fn(&LoweredModule) -> &[Reference],
+    imports_item: impl Fn(&ResolvedImport) -> bool,
+) -> Result<Option<Vec<Location>>, AnalyzerError> {
     let engine = context.queries();
-    let candidates = probe_type_references(context, current_file, file_id, type_id)?;
-
     let mut locations = Vec::new();
-    for candidate_id in candidates {
-        let uri = common::file_uri(context, candidate_id)?;
 
-        let content = engine.content(candidate_id)?;
-        let positions = PositionConverter::new(&content, context.position_encoding());
-        let (parsed, _) = engine.parsed(candidate_id)?;
+    for file_id in [current_file, source_file].into_iter().dedup() {
+        let lowered = engine.lowered(file_id)?;
+        push_reference_locations(context, file_id, references_in(&lowered), &mut locations)?;
+    }
 
-        let stabilized = engine.stabilized(candidate_id)?;
-        let indexed = engine.indexed(candidate_id)?;
-        let lowered = engine.lowered(candidate_id)?;
-
-        for (ty_id, ty_kind) in lowered.tree.iter_type() {
-            if let TypeKind::Constructor { resolution: Some((f_id, t_id)) } = ty_kind
-                && (*f_id, *t_id) == (file_id, type_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, ty_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
-            if let TypeKind::Operator { resolution: Some((f_id, t_id)) } = ty_kind
-                && (*f_id, *t_id) == (file_id, type_id)
-            {
-                let range = id_range(&positions, &parsed, &stabilized, ty_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
+    for file_id in context.active_files() {
+        if file_id == current_file || file_id == source_file {
+            continue;
         }
 
-        for (operator_id, f_id, t_id) in lowered.tree.iter_type_operator() {
-            if (f_id, t_id) == (file_id, type_id) {
-                let range = id_range(&positions, &parsed, &stabilized, operator_id)
-                    .ok_or(AnalyzerError::NonFatal)?;
-                locations.push(Location { uri: uri.clone(), range });
-            }
-        }
-
-        let ranges = locate::type_infix_reference_ranges(
-            &positions,
-            &parsed,
-            &stabilized,
-            &indexed,
-            &lowered,
-            (file_id, type_id),
-        );
-        for range in ranges {
-            let range = positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-            locations.push(Location { uri: uri.clone(), range });
-        }
-
-        let ranges = locate::instance_head_ranges(
-            &positions,
-            &parsed,
-            &stabilized,
-            &indexed,
-            &lowered,
-            (file_id, type_id),
-        );
-        for range in ranges {
-            let range = positions.utf8_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
-            locations.push(Location { uri: uri.clone(), range });
+        let lowered = engine.lowered(file_id)?;
+        let references = references_in(&lowered);
+        if !references.is_empty() && imports_any(context, file_id, &imports_item)? {
+            push_reference_locations(context, file_id, references, &mut locations)?;
         }
     }
 
     Ok(Some(locations))
 }
 
-fn probe_term_references(
+fn imports_any(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    current_file: FileId,
     file_id: FileId,
-    term_id: TermItemId,
-) -> Result<FxHashSet<FileId>, AnalyzerError> {
-    probe_workspace_imports(context, current_file, file_id, |import| {
-        import.iter_terms().any(|(_, f_id, t_id, kind)| {
-            kind != ImportKind::Hidden && (f_id, t_id) == (file_id, term_id)
-        })
-    })
+    imports_item: impl Fn(&ResolvedImport) -> bool,
+) -> Result<bool, AnalyzerError> {
+    let resolved = context.queries().resolved(file_id)?;
+    let unqualified = resolved.unqualified.values().flatten();
+    let qualified = resolved.qualified.values().flatten();
+    let mut imports = unqualified.chain(qualified);
+    Ok(imports.any(imports_item))
 }
 
-fn probe_type_references(
+fn push_reference_locations(
     context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    current_file: FileId,
     file_id: FileId,
-    type_id: TypeItemId,
-) -> Result<FxHashSet<FileId>, AnalyzerError> {
-    probe_workspace_imports(context, current_file, file_id, |import| {
-        import.iter_types().any(|(_, f_id, t_id, kind)| {
-            kind != ImportKind::Hidden && (f_id, t_id) == (file_id, type_id)
-        }) || import.iter_classes().any(|(_, f_id, t_id, kind)| {
-            kind != ImportKind::Hidden && (f_id, t_id) == (file_id, type_id)
-        })
-    })
-}
-
-fn probe_workspace_imports(
-    context: &AnalyzerContext<impl crate::AnalyzerHost>,
-    current_file: FileId,
-    source_file: FileId,
-    check_import: impl Fn(&ResolvedImport) -> bool,
-) -> Result<FxHashSet<FileId>, AnalyzerError> {
-    let mut probe = FxHashSet::from_iter([current_file, source_file]);
-
-    for workspace_file_id in context.active_files() {
-        if workspace_file_id == current_file || workspace_file_id == source_file {
-            continue;
-        }
-
-        let resolved = context.queries().resolved(workspace_file_id)?;
-
-        let unqualified = resolved.unqualified.values().flatten();
-        let qualified = resolved.qualified.values().flatten();
-        let mut imports = unqualified.chain(qualified);
-
-        if imports.any(&check_import) {
-            probe.insert(workspace_file_id);
-        }
+    references: &[impl ReferenceSyntax],
+    locations: &mut Vec<Location>,
+) -> Result<(), AnalyzerError> {
+    if references.is_empty() {
+        return Ok(());
     }
 
-    Ok(probe)
+    let engine = context.queries();
+    let uri = common::file_uri(context, file_id)?;
+    let content = engine.content(file_id)?;
+    let line_index = engine.line_index(file_id)?;
+    let encoding = context.position_encoding();
+    let positions = PositionConverter::with_line_index(&content, &line_index, encoding);
+    let (parsed, _) = engine.parsed(file_id)?;
+    let stabilized = engine.stabilized(file_id)?;
+    let root = parsed.syntax_node();
+
+    let ranges = references.iter().map(|reference| reference.text_range(&root, &stabilized));
+    let mut ranges = ranges.collect::<Option<Vec<_>>>().ok_or(AnalyzerError::NonFatal)?;
+    ranges.sort_by_key(|range| (range.start(), range.end()));
+
+    for range in ranges {
+        let range = positions.text_range_to_protocol(range).ok_or(AnalyzerError::NonFatal)?;
+        locations.push(Location { uri: Uri::clone(&uri), range });
+    }
+
+    Ok(())
 }
 
 fn probe_imports_for(

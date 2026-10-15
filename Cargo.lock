@@ -224,6 +224,7 @@ dependencies = [
  "javascript",
  "la-arena",
  "lexing",
+ "line-index",
  "lock_api",
  "lowering",
  "parking_lot",

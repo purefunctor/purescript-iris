@@ -40,6 +40,7 @@ use files::{FileId, ForeignFileCandidates, ForeignFileId};
 use foreign_javascript::{ForeignModule, ForeignValidation};
 use graph::SnapshotGraph;
 use indexing::IndexedModule;
+use line_index::LineIndex;
 use lock_api::{RawRwLock, RawRwLockRecursive};
 use lowering::{GroupedModule, LoweredModule};
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard};
@@ -145,6 +146,7 @@ struct InputStorage {
 
 #[derive(Default)]
 struct DerivedStorage {
+    line_index: Shards<FileId, DerivedState<Arc<LineIndex>>>,
     foreign_module: Shards<ForeignFileId, DerivedState<Option<Arc<ForeignModule>>>>,
     foreign_validation: Shards<FileId, DerivedState<Arc<ForeignValidation>>>,
     parsed: Shards<FileId, DerivedState<FullParsedModule>>,
@@ -170,6 +172,7 @@ impl Drop for DerivedStorage {
         // module's values on one thread dominates teardown of a large build.
         rayon::scope(|scope| {
             let DerivedStorage {
+                line_index,
                 foreign_module,
                 foreign_validation,
                 parsed,
@@ -187,6 +190,7 @@ impl Drop for DerivedStorage {
                 functional,
                 javascript,
             } = self;
+            line_index.drop_in(scope);
             foreign_module.drop_in(scope);
             foreign_validation.drop_in(scope);
             parsed.drop_in(scope);
@@ -216,6 +220,7 @@ struct InternedStorage {
 fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
     match query {
         QueryKey::Content(id)
+        | QueryKey::LineIndex(id)
         | QueryKey::Foreign(id)
         | QueryKey::ForeignValidation(id)
         | QueryKey::Parsed(id)
@@ -235,6 +240,17 @@ fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
         | QueryKey::ForeignModule(_)
         | QueryKey::Module(_)
         | QueryKey::CheckedCore => false,
+    }
+}
+
+fn computed_trace<K, V>(shards: &Shards<K, DerivedState<V>>, key: &K) -> Option<Trace>
+where
+    K: Hash + Eq,
+{
+    let shard = shards.shard(key).read();
+    match shard.get(key) {
+        Some(DerivedState::Computed { trace, .. }) => Some(*trace),
+        _ => None,
     }
 }
 
@@ -287,7 +303,7 @@ impl LocalState {
         {
             let mut inner = local.borrow_mut();
             if let Some(parent) = inner.frames.last_mut() {
-                parent.dependencies.insert(query);
+                parent.record(query);
             }
             inner.frames.push(QueryFrame::new(query));
         }
@@ -303,7 +319,7 @@ impl LocalState {
     fn with_dependency(&self, dependency: QueryKey) {
         let mut inner = self.inner.get_or_default().borrow_mut();
         if let Some(frame) = inner.frames.last_mut() {
-            frame.dependencies.insert(dependency);
+            frame.record(dependency);
         }
     }
 
@@ -319,10 +335,17 @@ impl LocalState {
         dependencies.collect()
     }
 
-    fn clear_dependencies(local: &RefCell<LocalStateInner>) {
+    fn with_verifying<T>(local: &RefCell<LocalStateInner>, verify: impl FnOnce() -> T) -> T {
+        LocalState::set_verifying(local, true);
+        let result = verify();
+        LocalState::set_verifying(local, false);
+        result
+    }
+
+    fn set_verifying(local: &RefCell<LocalStateInner>, verifying: bool) {
         let mut inner = local.borrow_mut();
         let frame = inner.frames.last_mut().expect("invariant violated: expected query frame");
-        frame.dependencies.clear();
+        frame.verifying = verifying;
     }
 
     fn stack(local: &RefCell<LocalStateInner>) -> Arc<[QueryKey]> {
@@ -359,12 +382,20 @@ struct LocalStateInner {
 struct QueryFrame {
     query: QueryKey,
     in_progress: bool,
+    verifying: bool,
     dependencies: FxHashSet<QueryKey>,
 }
 
 impl QueryFrame {
     fn new(query: QueryKey) -> QueryFrame {
-        QueryFrame { query, in_progress: false, dependencies: FxHashSet::default() }
+        let dependencies = FxHashSet::default();
+        QueryFrame { query, in_progress: false, verifying: false, dependencies }
+    }
+
+    fn record(&mut self, dependency: QueryKey) {
+        if !self.verifying {
+            self.dependencies.insert(dependency);
+        }
     }
 }
 
@@ -578,9 +609,10 @@ impl QueryEngine {
         }
     }
 
-    /// Verifies the given dependencies by executing them, returning the
-    /// timestamp of the most latest change.
-    fn verify_core(&self, dependencies: &[QueryKey]) -> QueryResult<usize> {
+    /// Verifies the given dependencies, returning the timestamp of the latest
+    /// change. Dependencies already verified in the current revision are read
+    /// from their traces, and the others are executed.
+    fn verify_core(&self, dependencies: &[QueryKey], revision: usize) -> QueryResult<usize> {
         let mut latest = 0;
 
         macro_rules! input_changed {
@@ -593,10 +625,18 @@ impl QueryEngine {
         }
 
         macro_rules! derived_changed {
-            ($field:ident, $key:expr) => {{
-                let _ = self.$field(*$key)?;
-                let shard = self.derived.$field.shard($key).read();
-                if let Some(DerivedState::Computed { trace, .. }) = shard.get($key) {
+            ($field:ident, $key:expr) => {
+                derived_changed!($field, $key, self.$field(*$key))
+            };
+            ($field:ident, $key:expr, $query:expr) => {{
+                let trace = match computed_trace(&self.derived.$field, $key) {
+                    Some(trace) if trace.built == revision => Some(trace),
+                    _ => {
+                        let _ = $query?;
+                        computed_trace(&self.derived.$field, $key)
+                    }
+                };
+                if let Some(trace) = trace {
                     latest = latest.max(trace.changed);
                 }
             }};
@@ -605,6 +645,7 @@ impl QueryEngine {
         for dependency in dependencies {
             match dependency {
                 QueryKey::Content(k) => input_changed!(content, k),
+                QueryKey::LineIndex(k) => derived_changed!(line_index, k),
                 QueryKey::Foreign(k) => input_changed!(foreign, k),
                 QueryKey::ForeignContent(k) => input_changed!(foreign_content, k),
                 QueryKey::ForeignModule(k) => derived_changed!(foreign_module, k),
@@ -620,11 +661,7 @@ impl QueryEngine {
                 QueryKey::Bracketed(k) => derived_changed!(bracketed, k),
                 QueryKey::Sectioned(k) => derived_changed!(sectioned, k),
                 QueryKey::CheckedCore => {
-                    self.checked_core()?;
-                    let shard = self.derived.checked_core.shard(&()).read();
-                    if let Some(DerivedState::Computed { trace, .. }) = shard.get(&()) {
-                        latest = latest.max(trace.changed);
-                    }
+                    derived_changed!(checked_core, &(), self.checked_core())
                 }
                 QueryKey::Checked(k) => derived_changed!(checked, k),
                 QueryKey::Documented(k) => derived_changed!(documented, k),
@@ -749,7 +786,8 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
-                    let latest = self.verify_core(&dependencies)?;
+                    let verify = || self.verify_core(&dependencies, revision);
+                    let latest = LocalState::with_verifying(local, verify)?;
 
                     // If the cached value was built more recently the the
                     // latest change, we can update its built timestamp to
@@ -767,7 +805,6 @@ impl QueryEngine {
                         return Ok(computed);
                     }
 
-                    LocalState::clear_dependencies(local);
                     self.compute_core(
                         key,
                         shards,
@@ -860,6 +897,18 @@ impl QueryEngine {
             .ok_or(QueryError::MissingContent { file_id: id })
     }
 
+    pub fn line_index(&self, id: FileId) -> QueryResult<Arc<LineIndex>> {
+        self.query(
+            QueryKey::LineIndex(id),
+            id,
+            |derived| &derived.line_index,
+            |this| {
+                let content = this.content(id)?;
+                Ok(Arc::new(LineIndex::new(&content)))
+            },
+        )
+    }
+
     fn remove_file_queries<T>(
         &self,
         file_id: FileId,
@@ -921,6 +970,7 @@ impl QueryEngine {
             };
         }
         remove_file_queries!(
+            line_index,
             foreign_validation,
             parsed,
             stabilized,
@@ -1299,6 +1349,8 @@ impl QueryEngine {
 }
 
 impl QueryProxy for QueryEngine {
+    type LineIndex = Arc<LineIndex>;
+
     type Parsed = FullParsedModule;
 
     type Stabilized = Arc<StabilizedModule>;
@@ -1323,6 +1375,10 @@ impl QueryProxy for QueryEngine {
 
     fn content(&self, id: FileId) -> QueryResult<Arc<str>> {
         QueryEngine::content(self, id)
+    }
+
+    fn line_index(&self, id: FileId) -> QueryResult<Arc<LineIndex>> {
+        QueryEngine::line_index(self, id)
     }
 
     fn parsed(&self, id: FileId) -> QueryResult<Self::Parsed> {
