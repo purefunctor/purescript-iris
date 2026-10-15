@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
 ---
 Terms
 test :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b

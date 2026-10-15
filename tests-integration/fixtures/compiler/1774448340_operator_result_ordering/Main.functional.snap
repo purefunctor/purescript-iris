@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
 ---
 @export apply = \f%0 x%1 -> f%0 x%1
 

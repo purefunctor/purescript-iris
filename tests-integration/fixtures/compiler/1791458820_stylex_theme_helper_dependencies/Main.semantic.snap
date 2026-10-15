@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 314
 ---
 gap :: Prim.String
 gap = "21px"

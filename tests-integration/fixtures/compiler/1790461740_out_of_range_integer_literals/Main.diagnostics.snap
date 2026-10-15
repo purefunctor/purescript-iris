@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
 ---
 Error! · [JavaScriptCodegen] · Given.purs:1:1
   •

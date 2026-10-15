@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 marker :: Iris.StyleX.Marker
 marker = defineMarker

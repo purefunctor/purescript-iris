@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 427
 ---
 Nominal signature Lib.increment
 

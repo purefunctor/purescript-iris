@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 colour :: Prim.String
 colour = ordinary.accent

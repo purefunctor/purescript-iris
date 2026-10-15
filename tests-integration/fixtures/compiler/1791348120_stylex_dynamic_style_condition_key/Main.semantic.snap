@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 styles :: { hovered :: Prim.String -> Iris.StyleX.DynamicStyle }
 styles =

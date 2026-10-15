@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 constants :: { columns :: Prim.Int, compact :: Prim.String }
 constants = defineConsts { compact: "@media (max-width: 40rem)", columns: 12 }

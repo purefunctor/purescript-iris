@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 313
 ---
 theme :: Iris.StyleX.Style
 theme =

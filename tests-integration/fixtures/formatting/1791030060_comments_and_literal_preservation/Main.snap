@@ -1,6 +1,5 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 66
 ---
 -- | Keep documentation before its module.
 module Main where

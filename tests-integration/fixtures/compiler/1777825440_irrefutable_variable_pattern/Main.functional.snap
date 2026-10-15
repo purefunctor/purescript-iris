@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
 ---
 @export variable = \section16%0 ->
   case section16%0 of

@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
 ---
 Error! · [ParseError] · Main.purs:17:1
   •

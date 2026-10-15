@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
 ---
 Error! · [CannotDeriveForType] · Main.purs:17:1
   •

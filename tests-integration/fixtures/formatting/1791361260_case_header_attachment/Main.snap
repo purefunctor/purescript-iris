@@ -1,6 +1,5 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 127
 ---
 === width 14, indent 2 ===
 module Main

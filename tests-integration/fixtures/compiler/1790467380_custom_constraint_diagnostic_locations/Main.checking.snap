@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
 ---
 Terms
 Proxy :: forall k (@a :: k). Main.Proxy @k (a :: k)

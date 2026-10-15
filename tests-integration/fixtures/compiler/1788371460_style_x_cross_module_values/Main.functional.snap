@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 314
 ---
 @export theme = stylex.createTheme variables { accent: "white" }
 

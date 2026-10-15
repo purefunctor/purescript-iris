@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
 ---
 Error! · [NotInScope] · Main.purs:7:14
   •

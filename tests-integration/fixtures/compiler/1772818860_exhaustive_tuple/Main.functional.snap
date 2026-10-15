@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
 ---
 @export constructor Tuple/2
 

@@ -1,6 +1,5 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 122
 ---
 module Main where
 
