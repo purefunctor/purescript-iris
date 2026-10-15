@@ -2,7 +2,7 @@ use files::FileId;
 use indexing::{IndexedTermItemKind, IndexedTypeItemKind, TermItemId, TypeItemId};
 use stabilizing::{AstId, StabilizedModule};
 use syntax::ast::AstNode;
-use syntax::{SyntaxKind, SyntaxNode, SyntaxNodePtr, TextRange};
+use syntax::{SyntaxKind, SyntaxNode, SyntaxNodePtr, TextRange, cst};
 
 use crate::{AnalyzerError, AnalyzerQueries};
 
@@ -18,6 +18,13 @@ impl AnnotationSyntaxRange {
     }
 
     pub fn from_node(node: &SyntaxNode) -> AnnotationSyntaxRange {
+        if let Some(pun) = cst::RecordPun::cast(node.clone()) {
+            return pun
+                .name()
+                .map(|name| AnnotationSyntaxRange::from_node(name.syntax()))
+                .unwrap_or_default();
+        }
+
         let (annotation, syntax) = node.split_leading_annotation();
         AnnotationSyntaxRange { annotation, syntax }
     }
