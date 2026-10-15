@@ -9,3 +9,5 @@ type Local = Char
 ```
 
 file:///tests-integration/fixtures/lsp/1792048860_references_prim_items/Main.purs @ 2:13..2:17
+file:///tests-integration/fixtures/lsp/1792048860_references_prim_items/Lib.purs @ 2:16..2:20
+file:///tests-integration/fixtures/lsp/1792048860_references_prim_items/Lib.purs @ 4:17..4:26

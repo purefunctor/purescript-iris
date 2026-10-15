@@ -474,6 +474,7 @@ fn workspace_references<Reference: ReferenceSyntax>(
     imports_item: impl Fn(&ResolvedImport) -> bool,
 ) -> Result<Option<Vec<Location>>, AnalyzerError> {
     let engine = context.queries();
+    let source_is_prim = source_file == engine.prim_id();
     let mut locations = Vec::new();
 
     for file_id in [current_file, source_file].into_iter().dedup() {
@@ -488,7 +489,9 @@ fn workspace_references<Reference: ReferenceSyntax>(
 
         let lowered = engine.lowered(file_id)?;
         let references = references_in(&lowered);
-        if !references.is_empty() && imports_any(context, file_id, &imports_item)? {
+        if !references.is_empty()
+            && (source_is_prim || imports_any(context, file_id, &imports_item)?)
+        {
             push_reference_locations(context, file_id, references, &mut locations)?;
         }
     }
