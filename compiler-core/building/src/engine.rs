@@ -609,8 +609,9 @@ impl QueryEngine {
         }
     }
 
-    /// Verifies the given dependencies by executing them, returning the
-    /// timestamp of the most latest change.
+    /// Verifies the given dependencies, returning the timestamp of the latest
+    /// change. Dependencies already verified in the current revision are read
+    /// from their traces, and the others are executed.
     fn verify_core(&self, dependencies: &[QueryKey], revision: usize) -> QueryResult<usize> {
         let mut latest = 0;
 
