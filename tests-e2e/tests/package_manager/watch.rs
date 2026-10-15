@@ -394,6 +394,59 @@ fn resolves_relative_output_from_the_invocation_directory_and_excludes_it() {
     });
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn watches_sources_without_watching_the_output_directory() {
+    use std::collections::BTreeSet;
+    use std::fs;
+    use std::os::unix::fs::MetadataExt;
+
+    fn directory_inodes(directory: &Path, inodes: &mut BTreeSet<u64>) {
+        inodes.insert(fs::metadata(directory).unwrap().ino());
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                directory_inodes(&path, inodes);
+            }
+        }
+    }
+
+    fn watched_inodes(pid: u32) -> BTreeSet<u64> {
+        let mut inodes = BTreeSet::new();
+        for entry in fs::read_dir(format!("/proc/{pid}/fd")).unwrap() {
+            let entry = entry.unwrap();
+            let target = fs::read_link(entry.path());
+            if !target.is_ok_and(|target| target == Path::new("anon_inode:inotify")) {
+                continue;
+            }
+            let descriptor = entry.file_name();
+            let information = Path::new(&format!("/proc/{pid}/fdinfo")).join(descriptor);
+            let information = fs::read_to_string(information).unwrap();
+            for watch in information.lines().filter(|line| line.starts_with("inotify ")) {
+                let inode = watch.split_whitespace().find_map(|field| field.strip_prefix("ino:"));
+                inodes.insert(u64::from_str_radix(inode.unwrap(), 16).unwrap());
+            }
+        }
+        inodes
+    }
+
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
+    workspace.write("src/Main.purs", "module Main where\n");
+    workspace.write("output/Stale/index.js", "export {};\n");
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
+
+    let watched = watched_inodes(watch.child.id());
+    let sources = fs::metadata(workspace.path().join("src")).unwrap().ino();
+    assert!(watched.contains(&sources), "{watched:?}");
+    let mut output = BTreeSet::new();
+    directory_inodes(&workspace.path().join("output"), &mut output);
+    assert!(output.is_disjoint(&watched), "{:?}", output.intersection(&watched).collect_vec());
+}
+
 #[test]
 fn reports_output_failures_separately_and_recovers_on_a_later_change() {
     let workspace = TestWorkspace::empty();

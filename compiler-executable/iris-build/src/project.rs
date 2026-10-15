@@ -127,6 +127,10 @@ impl PreparedProject {
         &self.root
     }
 
+    pub fn output_directory(&self) -> &Path {
+        &self.output
+    }
+
     pub fn source_roots(&self) -> Result<Vec<PathBuf>, ProjectError> {
         let walked = super::walk::walk_filtered(&self.root, &self.source_globs, [&self.output])
             .map_err(CompileError::from)

@@ -20,12 +20,12 @@ use iris_progress::WatchOutcome;
 use iris_watch_query::{BuildState, QueryContext, QueryFailure, WaitAnswer};
 use iris_watch_server::QueryRequest;
 use iris_watch_server::protocol::{Query, Response};
-use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Event, RecommendedWatcher, Watcher};
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio::time::{Instant, sleep_until};
 
-use crate::filesystem::{Batch, is_access, persistent_watch_root};
+use crate::filesystem::{Batch, SourceWatcher, is_access};
 use crate::{WatchConfig, WatchFailure, report};
 
 const DEBOUNCE_DURATION: Duration = Duration::from_millis(100);
@@ -45,7 +45,7 @@ pub(crate) struct BuildActor {
     /// The inputs the next watch summary reports as changed.
     changed_inputs: Vec<InputChange>,
     filesystem: mpsc::UnboundedReceiver<notify::Result<Event>>,
-    _watcher: RecommendedWatcher,
+    sources: SourceWatcher,
 }
 
 impl BuildActor {
@@ -59,10 +59,9 @@ impl BuildActor {
         let handler = move |event| {
             let _ = sender.send(event);
         };
-        let mut watcher = RecommendedWatcher::new(handler, notify::Config::default())?;
-        for source_root in project.source_roots()? {
-            watcher.watch(&persistent_watch_root(&source_root), RecursiveMode::Recursive)?;
-        }
+        let watcher = RecommendedWatcher::new(handler, notify::Config::default())?;
+        let source_roots = project.source_roots()?;
+        let sources = SourceWatcher::start(watcher, &source_roots, project.output_directory())?;
 
         let started = Instant::now();
         let session_config = BuildSessionConfig {
@@ -92,7 +91,7 @@ impl BuildActor {
             needs_rebuild: false,
             changed_inputs,
             filesystem,
-            _watcher: watcher,
+            sources,
         };
         actor.rebuild(true, started).await;
         Ok(actor)
@@ -132,6 +131,9 @@ impl BuildActor {
         if is_access(&event) {
             return Ok(());
         }
+        let Some(event) = self.sources.source_event(event) else {
+            return Ok(());
+        };
         let batch =
             self.batch.get_or_insert_with(|| Batch::new(Instant::now() + DEBOUNCE_DURATION));
         batch.add(event);
@@ -154,6 +156,11 @@ impl BuildActor {
         let paths = paths.unwrap_or_default();
         if !everything && !batch_rescan && paths.is_empty() {
             return Ok(());
+        }
+        if !self.sources.watch_unwatched_roots()? {
+            let deadline = Instant::now() + DEBOUNCE_DURATION;
+            let retry = self.batch.get_or_insert_with(|| Batch::new(deadline));
+            retry.rescan = true;
         }
 
         let started = Instant::now();
