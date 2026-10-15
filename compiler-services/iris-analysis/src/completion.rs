@@ -27,16 +27,11 @@ use crate::position::PositionConverter;
 use crate::{AnalyzerContext, AnalyzerError};
 
 #[derive(Clone, Default)]
-pub struct SuggestionsCacheEntry {
-    pub terms: Vec<CompletionItem>,
-    pub types: Vec<CompletionItem>,
-    pub classes: Vec<CompletionItem>,
-    pub qualified_terms: Vec<CompletionItem>,
-    pub qualified_types: Vec<CompletionItem>,
-    pub qualified_classes: Vec<CompletionItem>,
+pub struct SuggestionsCache {
+    terms: Trie<String, Arc<Vec<CompletionItem>>>,
+    types: Trie<String, Arc<Vec<CompletionItem>>>,
+    classes: Trie<String, Arc<Vec<CompletionItem>>>,
 }
-
-pub type SuggestionsCache = Trie<String, Arc<SuggestionsCacheEntry>>;
 
 pub fn implementation(
     language: &AnalyzerContext<impl crate::AnalyzerHost>,
@@ -252,30 +247,10 @@ fn suggestion_namespaces(
     namespaces.collect()
 }
 
-/// Selects which lists of a [`SuggestionsCacheEntry`] a completion request consumes.
 #[derive(Clone, Copy)]
 struct SuggestionSelection<'a> {
     prefix: Option<&'a str>,
     namespaces: &'a [ImportNamespace],
-}
-
-impl<'a> SuggestionSelection<'a> {
-    fn lists<'entry>(
-        self,
-        entry: &'entry SuggestionsCacheEntry,
-    ) -> impl Iterator<Item = (ImportNamespace, &'entry [CompletionItem])> + use<'a, 'entry> {
-        self.namespaces.iter().map(move |&namespace| {
-            let items = match (self.prefix, namespace) {
-                (None, ImportNamespace::Term) => &entry.terms,
-                (None, ImportNamespace::Type) => &entry.types,
-                (None, ImportNamespace::Class) => &entry.classes,
-                (Some(_), ImportNamespace::Term) => &entry.qualified_terms,
-                (Some(_), ImportNamespace::Type) => &entry.qualified_types,
-                (Some(_), ImportNamespace::Class) => &entry.qualified_classes,
-            };
-            (namespace, items.as_slice())
-        })
-    }
 }
 
 fn collect_suggestions<F: Filter>(
@@ -289,28 +264,30 @@ fn collect_suggestions<F: Filter>(
     let query = query.to_lowercase();
     let prefix = suggestions.prefix;
 
-    // An exact hit is not stored again, so only the consumed lists need filtering.
-    if let Some(cached) = cache.get(&query) {
-        tracing::debug!("Found exact match for '{query}'");
-        for (namespace, cached) in suggestions.lists(cached) {
+    for &namespace in suggestions.namespaces {
+        let cache = match namespace {
+            ImportNamespace::Term => &mut cache.terms,
+            ImportNamespace::Type => &mut cache.types,
+            ImportNamespace::Class => &mut cache.classes,
+        };
+
+        if let Some(cached) = cache.get(&query) {
+            tracing::debug!("Found exact match for '{query}'");
             items.extend(collect_entries(cached, &filter, prefix, context, namespace));
+            continue;
         }
-        return Ok(());
-    }
 
-    let entry = if let Some(cached) = cache.get_ancestor_value(&query) {
-        tracing::debug!("Found prefix match for '{query}'");
-        filter_suggestions(cached, prefix, &filter, context)
-    } else {
-        tracing::debug!("Initialising cache for '{query}'");
-        populate_suggestions(context, prefix, filter)?
-    };
+        let entry = if let Some(cached) = cache.get_ancestor_value(&query) {
+            tracing::debug!("Found prefix match for '{query}'");
+            collect_entries(cached, &filter, prefix, context, namespace)
+        } else {
+            tracing::debug!("Initialising cache for '{query}'");
+            populate_suggestions(context, prefix, namespace, filter)?
+        };
 
-    for (_, entry) in suggestions.lists(&entry) {
         items.extend(entry.iter().cloned());
+        cache.insert(query.clone(), Arc::new(entry));
     }
-
-    cache.insert(query, Arc::new(entry));
 
     Ok(())
 }
@@ -318,70 +295,33 @@ fn collect_suggestions<F: Filter>(
 fn populate_suggestions<F: Filter>(
     context: &CompletionContext<impl crate::AnalyzerHost>,
     prefix: Option<&str>,
+    namespace: ImportNamespace,
     filter: F,
-) -> Result<SuggestionsCacheEntry, AnalyzerError> {
-    let mut suggestions = SuggestionsCacheEntry::default();
+) -> Result<Vec<CompletionItem>, AnalyzerError> {
+    let mut suggestions = Vec::new();
 
-    if let Some(prefix) = prefix {
-        QualifiedTermsSuggestions(prefix).collect_into(
-            context,
-            filter,
-            &mut suggestions.qualified_terms,
-        )?;
-        QualifiedTypesSuggestions(prefix).collect_into(
-            context,
-            filter,
-            &mut suggestions.qualified_types,
-        )?;
-        QualifiedClassesSuggestions(prefix).collect_into(
-            context,
-            filter,
-            &mut suggestions.qualified_classes,
-        )?;
-    } else {
-        SuggestedTerms.collect_into(context, filter, &mut suggestions.terms)?;
-        SuggestedTypes.collect_into(context, filter, &mut suggestions.types)?;
-        SuggestedClasses.collect_into(context, filter, &mut suggestions.classes)?;
+    match (prefix, namespace) {
+        (None, ImportNamespace::Term) => {
+            SuggestedTerms.collect_into(context, filter, &mut suggestions)?;
+        }
+        (None, ImportNamespace::Type) => {
+            SuggestedTypes.collect_into(context, filter, &mut suggestions)?;
+        }
+        (None, ImportNamespace::Class) => {
+            SuggestedClasses.collect_into(context, filter, &mut suggestions)?;
+        }
+        (Some(prefix), ImportNamespace::Term) => {
+            QualifiedTermsSuggestions(prefix).collect_into(context, filter, &mut suggestions)?;
+        }
+        (Some(prefix), ImportNamespace::Type) => {
+            QualifiedTypesSuggestions(prefix).collect_into(context, filter, &mut suggestions)?;
+        }
+        (Some(prefix), ImportNamespace::Class) => {
+            QualifiedClassesSuggestions(prefix).collect_into(context, filter, &mut suggestions)?;
+        }
     }
 
     Ok(suggestions)
-}
-
-fn filter_suggestions<F>(
-    cached: &SuggestionsCacheEntry,
-    prefix: Option<&str>,
-    filter: &F,
-    context: &CompletionContext<impl crate::AnalyzerHost>,
-) -> SuggestionsCacheEntry
-where
-    F: Filter,
-{
-    SuggestionsCacheEntry {
-        terms: collect_entries(&cached.terms, filter, prefix, context, ImportNamespace::Term),
-        types: collect_entries(&cached.types, filter, prefix, context, ImportNamespace::Type),
-        classes: collect_entries(&cached.classes, filter, prefix, context, ImportNamespace::Class),
-        qualified_terms: collect_entries(
-            &cached.qualified_terms,
-            filter,
-            prefix,
-            context,
-            ImportNamespace::Term,
-        ),
-        qualified_types: collect_entries(
-            &cached.qualified_types,
-            filter,
-            prefix,
-            context,
-            ImportNamespace::Type,
-        ),
-        qualified_classes: collect_entries(
-            &cached.qualified_classes,
-            filter,
-            prefix,
-            context,
-            ImportNamespace::Class,
-        ),
-    }
 }
 
 #[derive(Clone, Copy)]
