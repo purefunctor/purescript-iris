@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
 ---
 @export test = extendFunctionStringDictExtend (\f%0 -> f%0 "B")
   (\s%1 -> semigroupStringDictAppend s%1 "!")

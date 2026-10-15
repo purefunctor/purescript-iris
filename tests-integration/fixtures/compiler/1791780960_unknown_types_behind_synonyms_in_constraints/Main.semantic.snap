@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 331
 ---
 interface Constrained :: Prim.Type -> Prim.Constraint
 interface Constrained a where

@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
 ---
 Terms
 escaped :: Iris.StyleX.ConditionalCase Prim.String

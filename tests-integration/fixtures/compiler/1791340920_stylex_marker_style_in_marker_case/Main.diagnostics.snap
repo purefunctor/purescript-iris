@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
 ---
 Error! · [CannotUnify] · Main.purs:12:43
   •

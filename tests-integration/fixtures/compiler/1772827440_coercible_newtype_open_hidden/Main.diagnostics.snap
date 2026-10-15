@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
 ---
 Error! · [CoercibleConstructorNotInScope] · Main.purs:7:14
   •

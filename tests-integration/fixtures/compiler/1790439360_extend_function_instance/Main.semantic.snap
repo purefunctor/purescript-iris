@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 test :: Prim.String
 test = extend {extendFn {semigroupString}} (\f -> f "B") (\s -> append {semigroupString} s "!") "A"

@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 332
 ---
 @export add = \value%0 $int%1@(_) -> value%0
 

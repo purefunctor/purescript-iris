@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 partialProps :: Iris.StyleX.Style -> Iris.StyleX.Props
 partialProps = props {propsInputStyleProps}

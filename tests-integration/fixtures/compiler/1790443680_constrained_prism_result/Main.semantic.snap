@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 test :: forall a b. Data.Lens.Types.Prism (Data.Maybe.Maybe a) (Data.Maybe.Maybe b) a b
 test = \{choiceDict} -> apply (prism Just) (maybe (Left Nothing) Right) {choiceDict}

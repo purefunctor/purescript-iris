@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
 ---
 Error! · [RecursiveSynonym] · Main.purs:10:1
   •

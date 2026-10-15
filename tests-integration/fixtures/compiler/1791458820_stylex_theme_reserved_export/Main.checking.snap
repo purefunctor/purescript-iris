@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 312
 ---
 Terms
 public :: { gap :: Prim.String }

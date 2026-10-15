@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 329
 ---
 Terms
 needsInvalid :: Main.Constrained Main.Invalid => Prim.Int

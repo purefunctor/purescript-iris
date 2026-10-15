@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 test :: Prim.Int
 test = negate {ringInt} 2147483648

@@ -460,6 +460,7 @@ dependencies = [
  "clap",
  "console",
  "heck",
+ "insta",
  "serde",
  "serde_json",
  "similar 3.2.0",

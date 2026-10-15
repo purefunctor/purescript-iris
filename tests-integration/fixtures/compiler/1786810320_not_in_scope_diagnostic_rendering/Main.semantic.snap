@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 missingVariable :: ?[missing variable resolution]
 missingVariable = <error>

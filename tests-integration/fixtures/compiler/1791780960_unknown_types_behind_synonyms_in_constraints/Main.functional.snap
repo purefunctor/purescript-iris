@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 332
 ---
 @export needsInvalid = \constrainedInvalidDict%0 -> 0
 

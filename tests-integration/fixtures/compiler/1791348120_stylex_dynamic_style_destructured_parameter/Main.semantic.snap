@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 styles :: forall t0 t1. { sized :: { width :: t0 | t1 } -> Iris.StyleX.DynamicStyle }
 styles =

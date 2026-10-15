@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 310
 ---
 @export test = \choicePDict%0 ->
   prism Just (maybe { tag: "Left", _1: "Nothing" } Right) choicePDict%0

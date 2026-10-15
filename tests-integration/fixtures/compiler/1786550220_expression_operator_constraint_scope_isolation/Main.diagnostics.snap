@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
 ---
 Error! · [NoInstanceFound] · Main.purs:17:29
   •

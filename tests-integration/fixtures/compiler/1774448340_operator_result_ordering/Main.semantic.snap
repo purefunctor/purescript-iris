@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 newtype Wrap :: Prim.Type -> Prim.Type
 newtype Wrap @a

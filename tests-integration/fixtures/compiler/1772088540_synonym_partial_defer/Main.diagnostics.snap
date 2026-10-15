@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 330
 ---
 Error! · [PartialSynonymApplication] · Main.purs:13:12
   •

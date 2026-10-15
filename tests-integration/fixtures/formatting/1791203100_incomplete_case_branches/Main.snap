@@ -1,5 +1,4 @@
 ---
 source: tests-integration/tests/formatting.rs
-assertion_line: 124
 ---
 cannot format: 3:18: incomplete syntax in CaseBranches

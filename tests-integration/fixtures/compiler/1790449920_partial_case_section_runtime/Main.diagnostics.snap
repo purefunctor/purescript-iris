@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 308
 ---
 Warning! · [MissingPatterns] · Main.purs:15:15
   •

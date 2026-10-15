@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 311
 ---
 Terms
 theme :: Iris.StyleX.Style

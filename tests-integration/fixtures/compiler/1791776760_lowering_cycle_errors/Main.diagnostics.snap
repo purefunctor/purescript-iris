@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 304
 ---
 Error! · [RecursiveKinds] · Main.purs:4:1
   •

@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 307
 ---
 Terms
 invalidConversion :: Iris.StyleX.Style -> Iris.StyleX.Style

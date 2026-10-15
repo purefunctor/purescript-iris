@@ -1,6 +1,5 @@
 ---
 source: tests-integration/src/fixtures.rs
-assertion_line: 309
 ---
 variable :: Prim.Array Prim.Int -> Prim.Int
 variable = \v16 ->
