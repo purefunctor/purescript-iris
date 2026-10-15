@@ -89,7 +89,7 @@ fn builds_a_new_project_with_local_spago() {
         let output = command.output().unwrap();
         assert_success(&output);
         assert!(workspace.path().join("output/Main/index.js").is_file());
-        workspace.assert_spago_calls(current_directory, &[&["fetch"]]);
+        workspace.assert_spago_calls(current_directory, &[&["fetch", "-p", "example"]]);
         fs::remove_dir_all(workspace.path().join("output")).unwrap();
     }
 }
@@ -115,7 +115,7 @@ fn ignores_spago_installed_above_the_workspace() {
     let output = command.output().unwrap();
     assert_success(&output);
     assert!(workspace.path().join("project/output/Main/index.js").is_file());
-    workspace.assert_spago_calls("project/src", &[&["fetch"]]);
+    workspace.assert_spago_calls("project/src", &[&["fetch", "-p", "example"]]);
 }
 
 #[cfg(windows)]

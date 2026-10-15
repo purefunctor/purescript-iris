@@ -1,15 +1,16 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io};
 
 use rayon::prelude::*;
+use serde::Serialize;
 use thiserror::Error;
+use url::Url;
 
-use super::compilation::CompilationState;
-use super::manifest::Manifest;
+use super::compile::ProjectCompilation;
 
-const MANIFEST_FILENAME: &str = "manifest.json";
+const METADATA_VERSION: u32 = 1;
+const METADATA_FILENAME: &str = "metadata.json";
 
 #[derive(Debug, Error)]
 pub enum OutputError {
@@ -19,19 +20,32 @@ pub enum OutputError {
         #[source]
         source: io::Error,
     },
-    #[error("failed to serialize the build manifest: {0}")]
-    Serialize(#[source] serde_json::Error),
-    #[error("{error}; failed to remove the build manifest {} as well: {removal}", path.display())]
-    StaleManifest { error: Box<OutputError>, path: PathBuf, removal: io::Error },
+    #[error("failed to serialize {}: {source}", path.display())]
+    Serialize {
+        path: PathBuf,
+        #[source]
+        source: serde_json::Error,
+    },
+}
+
+#[derive(Serialize)]
+struct ModuleMetadata<'a> {
+    version: u32,
+    iris: &'a str,
+    package: &'a str,
+    editable: bool,
+    source: PathBuf,
+    foreign: Option<String>,
 }
 
 pub(crate) struct BuildOutput {
     directory: PathBuf,
+    iris: String,
 }
 
 impl BuildOutput {
-    pub(crate) fn new(directory: PathBuf) -> BuildOutput {
-        BuildOutput { directory }
+    pub(crate) fn new(directory: PathBuf, iris: String) -> BuildOutput {
+        BuildOutput { directory, iris }
     }
 
     pub(crate) fn directory(&self) -> &Path {
@@ -40,88 +54,73 @@ impl BuildOutput {
 
     pub(crate) fn write(
         &self,
-        compilation: &CompilationState,
+        compilation: &ProjectCompilation,
         modules: &[Arc<javascript::Module>],
-        manifest: &Manifest,
     ) -> Result<(), OutputError> {
-        let mut content = serde_json::to_vec_pretty(manifest).map_err(OutputError::Serialize)?;
+        if modules.iter().any(|module| module.requires_runtime()) {
+            let runtime = self.directory.join(javascript::runtime_filename());
+            write_if_changed(&runtime, javascript::runtime_source().as_bytes())?;
+        }
+        let module_writes = modules.par_iter().map(|module| self.write_module(compilation, module));
+        let module_writes = module_writes.collect::<Vec<_>>();
+        module_writes.into_iter().collect()
+    }
+
+    fn write_module(
+        &self,
+        compilation: &ProjectCompilation,
+        module: &javascript::Module,
+    ) -> Result<(), OutputError> {
+        let name = module.name();
+        let index = self.directory.join(module.filename());
+        write_if_changed(&index, module.source().as_bytes())?;
+        if let Some(source) = module.stylex_theme_source() {
+            let path = self.directory.join(javascript::stylex_theme_module_filename(name));
+            write_if_changed(&path, source.as_bytes())?;
+        }
+        if let Some(kind) = module.foreign_kind() {
+            let path = self.directory.join(javascript::foreign_module_filename(name, kind));
+            let foreign = compilation
+                .source_foreign_content(module.file_id())
+                .expect("invariant violated: generated module requires missing foreign content");
+            write_if_changed(&path, foreign.as_bytes())?;
+        }
+        let path = index.with_file_name(METADATA_FILENAME);
+        let metadata = self.module_metadata(compilation, module);
+        let mut content = serde_json::to_vec_pretty(&metadata)
+            .map_err(|source| OutputError::Serialize { path: PathBuf::clone(&path), source })?;
         content.push(b'\n');
-        let written = write_modules(compilation, modules, &self.directory)
-            .and_then(|changed| self.write_manifest(&content, changed));
-        written.map_err(|error| self.remove_manifest(error))
+        write_if_changed(&path, &content)
     }
 
-    fn write_manifest(&self, content: &[u8], files_changed: bool) -> Result<(), OutputError> {
-        let path = self.directory.join(MANIFEST_FILENAME);
-        if !files_changed && fs::read(&path).is_ok_and(|previous| previous == content) {
-            return Ok(());
-        }
-        let failure = |source| OutputError::Write { path: PathBuf::clone(&path), source };
-        fs::create_dir_all(&self.directory).map_err(failure)?;
-        let mut builder = tempfile::Builder::new();
-        builder.prefix(".manifest-").suffix(".json");
-        #[cfg(unix)]
-        builder.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o666));
-        let mut temporary = builder.tempfile_in(&self.directory).map_err(failure)?;
-        temporary.write_all(content).map_err(failure)?;
-        temporary.persist(&path).map_err(|error| failure(error.error))?;
-        Ok(())
-    }
-
-    fn remove_manifest(&self, error: OutputError) -> OutputError {
-        let path = self.directory.join(MANIFEST_FILENAME);
-        match fs::remove_file(&path) {
-            Ok(()) => error,
-            Err(removal) if removal.kind() == io::ErrorKind::NotFound => error,
-            Err(removal) => OutputError::StaleManifest { error: Box::new(error), path, removal },
+    fn module_metadata<'a>(
+        &'a self,
+        compilation: &'a ProjectCompilation,
+        module: &javascript::Module,
+    ) -> ModuleMetadata<'a> {
+        let file_id = module.file_id();
+        let package = compilation.source_metadata(file_id).and_then(Option::as_ref);
+        let package = package.expect("invariant violated: a generated module has no package");
+        let source = compilation.source_path(file_id).and_then(|locator| {
+            let url = Url::parse(&locator).ok()?;
+            url.to_file_path().ok()
+        });
+        let source = source.expect("invariant violated: a generated module has no source path");
+        ModuleMetadata {
+            version: METADATA_VERSION,
+            iris: &self.iris,
+            package: &package.name,
+            editable: package.editable,
+            source,
+            foreign: module.foreign_kind().map(javascript::foreign_filename),
         }
     }
 }
 
-fn write_modules(
-    compilation: &CompilationState,
-    modules: &[Arc<javascript::Module>],
-    output: &Path,
-) -> Result<bool, OutputError> {
-    let mut changed = false;
-    if modules.iter().any(|module| module.requires_runtime()) {
-        let runtime = output.join(javascript::runtime_filename());
-        changed |= write_if_changed(&runtime, javascript::runtime_source().as_bytes())?;
-    }
-    let module_writes = modules.par_iter().map(|module| write_module(compilation, module, output));
-    let module_writes = module_writes.collect::<Vec<_>>();
-    for module_changed in module_writes {
-        changed |= module_changed?;
-    }
-    Ok(changed)
-}
-
-fn write_module(
-    compilation: &CompilationState,
-    module: &javascript::Module,
-    output: &Path,
-) -> Result<bool, OutputError> {
-    let name = module.name();
-    let index = output.join(module.filename());
-    let mut changed = write_if_changed(&index, module.source().as_bytes())?;
-    if let Some(source) = module.stylex_theme_source() {
-        let path = output.join(javascript::stylex_theme_module_filename(name));
-        changed |= write_if_changed(&path, source.as_bytes())?;
-    }
-    if let Some(kind) = module.foreign_kind() {
-        let path = output.join(javascript::foreign_module_filename(name, kind));
-        let foreign = compilation
-            .source_foreign_content(module.file_id())
-            .expect("invariant violated: generated module requires missing foreign content");
-        changed |= write_if_changed(&path, foreign.as_bytes())?;
-    }
-    Ok(changed)
-}
-
-fn write_if_changed(path: &Path, content: &[u8]) -> Result<bool, OutputError> {
+fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), OutputError> {
     let failure = |source| OutputError::Write { path: path.to_path_buf(), source };
     match fs::read(path) {
-        Ok(previous) if previous == content => return Ok(false),
+        Ok(previous) if previous == content => return Ok(()),
         Ok(_) => {}
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             let parent = path.parent().expect("invariant violated: an output file has no parent");
@@ -129,6 +128,5 @@ fn write_if_changed(path: &Path, content: &[u8]) -> Result<bool, OutputError> {
         }
         Err(error) => return Err(failure(error)),
     }
-    fs::write(path, content).map_err(failure)?;
-    Ok(true)
+    fs::write(path, content).map_err(failure)
 }

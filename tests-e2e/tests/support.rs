@@ -98,32 +98,44 @@ impl TestWorkspace {
         command
     }
 
-    pub fn manifest(&self) -> Option<serde_json::Value> {
-        let source = match fs::read_to_string(self.path().join("output/manifest.json")) {
-            Ok(source) => Some(source),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-            Err(error) => panic!("failed to read the build manifest: {error}"),
-        };
-        source.map(|source| serde_json::from_str(&source).unwrap())
+    pub fn module_metadata(&self, module: &str) -> Option<serde_json::Value> {
+        let path = self.path().join("output").join(module).join("metadata.json");
+        let source = fs::read_to_string(path).ok()?;
+        serde_json::from_str(&source).ok()
     }
 
-    pub fn normalized_manifest(&self) -> String {
-        let manifest = self.manifest().expect("there is no build manifest");
+    pub fn metadata_modules(&self) -> Vec<String> {
+        let Ok(entries) = fs::read_dir(self.path().join("output")) else {
+            return Vec::new();
+        };
+        let directories = entries.map(|entry| entry.unwrap().path());
+        let directories = directories.filter(|path| path.join("metadata.json").is_file());
+        let modules = directories.map(|path| path.file_name().unwrap().to_string_lossy().into());
+        modules.sorted().collect_vec()
+    }
+
+    pub fn normalized_metadata(&self) -> String {
         let version = self.command(&["--version"]);
         let version = String::from_utf8_lossy(&version.stdout);
         let version = version.trim_end().strip_prefix("iris ").unwrap();
-        assert_eq!(manifest["iris"], version);
-
-        let mut source = self.read("output/manifest.json");
-        source = source.replace(&format!("\"iris\": \"{version}\""), "\"iris\": \"[VERSION]\"");
         let canonical = dunce::canonicalize(self.path()).unwrap();
-        for root in [canonical.as_path(), self.path()] {
-            let root = serde_json::to_string(root.to_str().unwrap()).unwrap();
-            let root = regex::escape(root.trim_matches('"'));
-            let prefix = regex::Regex::new(&format!(r#"{root}(["/]|\\\\)"#)).unwrap();
-            source = prefix.replace_all(&source, "[WORKSPACE]$1").into_owned();
+
+        let mut summary = String::new();
+        for module in self.metadata_modules() {
+            let path = format!("output/{module}/metadata.json");
+            let mut source = self.read(&path);
+            let metadata: serde_json::Value = serde_json::from_str(&source).unwrap();
+            assert_eq!(metadata["iris"], version);
+            source = source.replace(&format!("\"iris\": \"{version}\""), "\"iris\": \"[VERSION]\"");
+            for root in [canonical.as_path(), self.path()] {
+                let root = serde_json::to_string(root.to_str().unwrap()).unwrap();
+                let root = regex::escape(root.trim_matches('"'));
+                let prefix = regex::Regex::new(&format!(r#"{root}(["/]|\\\\)"#)).unwrap();
+                source = prefix.replace_all(&source, "[WORKSPACE]$1").into_owned();
+            }
+            summary.push_str(&format!("--- {path}\n{}", source.replace("\\\\", "/")));
         }
-        source.replace("\\\\", "/")
+        summary
     }
 
     pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {

@@ -11,9 +11,9 @@ use url::Url;
 
 use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
-use super::manifest::{ManifestError, WorkspaceLayout};
 use super::output::BuildOutput;
-use super::plan::PackageInput;
+use super::ownership::SourcePackage;
+use super::packages::DiscoveredPackage;
 use super::workspace::{Workspace, WorkspaceError};
 
 const NODE_RUNNER: &str = include_str!("../bundled/runner.mjs");
@@ -63,8 +63,6 @@ enum ProjectFailure {
     CurrentDirectory(io::Error),
     #[error("failed to normalize output directory {}: {error}", path.display())]
     NormalizeOutput { path: PathBuf, error: io::Error },
-    #[error(transparent)]
-    Manifest(#[from] ManifestError),
     #[error("failed to execute Node.js: {source}")]
     Node { source: io::Error },
     #[error("Node.js exited without a status code")]
@@ -116,13 +114,12 @@ pub struct PreparedProject {
     pub(crate) root: PathBuf,
     pub(crate) output: PathBuf,
     pub(crate) source_globs: Vec<PathBuf>,
-    pub(crate) packages: Vec<PackageInput>,
-    pub(crate) layout: WorkspaceLayout,
+    pub(crate) packages: Vec<DiscoveredPackage>,
 }
 
 pub struct InitializedProject {
     pub(crate) project: PreparedProject,
-    pub(crate) build: compile::InitialBuild<(), ()>,
+    pub(crate) build: compile::InitialBuild<(), Option<SourcePackage>>,
 }
 
 impl PreparedProject {
@@ -131,8 +128,7 @@ impl PreparedProject {
     }
 
     pub fn source_roots(&self) -> Result<Vec<PathBuf>, ProjectError> {
-        let source_globs = self.layout.source_globs();
-        let walked = super::walk::walk_filtered(&self.root, source_globs, [&self.output])
+        let walked = super::walk::walk_filtered(&self.root, &self.source_globs, [&self.output])
             .map_err(CompileError::from)
             .map_err(ProjectFailure::from)
             .map_err(ProjectError)?;
@@ -184,9 +180,7 @@ fn compile_project(
     events.send(BuildEvent::Preparing);
     let compiled = compile::build(compile::BuildConfig {
         root: project.root,
-        output: BuildOutput::new(project.output),
-        layout: project.layout,
-        version: config.version,
+        output: BuildOutput::new(project.output, config.version),
         source_globs: project.source_globs,
         packages: project.packages,
         color: config.color,
@@ -199,18 +193,9 @@ fn compile_project(
 fn initialize_project_inner(
     project: PreparedProject,
 ) -> Result<InitializedProject, ProjectFailure> {
-    let PreparedProject { root, output, source_globs, packages, .. } = &project;
-    let excluded = [PathBuf::clone(output)];
-    let build = compile::build_initial(compile::InitialBuildConfig {
-        root,
-        source_globs,
-        excluded: &excluded,
-        packages: Vec::clone(packages),
-        prim_metadata: (),
-        source_metadata: |_: &Path| (),
-        execution: compile::PackageExecution::Parallel,
-        events: &SilentBuildEvents,
-    })?;
+    let PreparedProject { root, output, source_globs, packages } = &project;
+    let build =
+        compile::build_initial_packages(root, source_globs, output, packages, &SilentBuildEvents)?;
     Ok(InitializedProject { project, build })
 }
 
@@ -312,27 +297,13 @@ fn prepare_workspace(
     output: PathBuf,
 ) -> Result<PreparedProject, ProjectFailure> {
     let spago = iris_spago::SpagoCommand::with_workspace_root(current_directory, &workspace.root)?;
-    spago.fetch(None, !quiet)?;
-    let workspace_packages = super::packages::discover_workspace_packages(workspace)?;
-    let layout = WorkspaceLayout::new(&workspace.root, &workspace_packages)?;
-    let discovered = if workspace.selected.is_some() {
-        super::packages::discover_packages(workspace)?
-    } else {
-        workspace_packages
-    };
-    let packages = discovered.packages.into_iter().map(|package| PackageInput {
-        name: package.name,
-        source_identities: package.files,
-        dependencies: package.dependencies,
-    });
-
-    let packages = packages.collect_vec();
+    spago.fetch(workspace.selected.as_deref(), !quiet)?;
+    let discovered = super::packages::discover_packages(workspace)?;
     Ok(PreparedProject {
         root: PathBuf::clone(&workspace.root),
         output,
         source_globs: discovered.source_globs,
-        packages,
-        layout,
+        packages: discovered.packages,
     })
 }
 

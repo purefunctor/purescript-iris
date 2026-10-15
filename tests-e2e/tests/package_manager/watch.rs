@@ -38,7 +38,7 @@ value = 42
     insta::assert_snapshot!("watch_single_package", normalized_watch_log(&watch.stdout()));
     });
 
-    workspace.assert_spago_calls("", &[&["fetch"]]);
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn suppresses_diagnostics_without_hiding_watch_summaries() {
 }
 
 #[test]
-fn adds_and_removes_sources_in_the_manifest_without_deleting_outputs() {
+fn adds_and_removes_sources_without_deleting_outputs() {
     let workspace = TestWorkspace::empty();
     workspace
         .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
@@ -141,22 +141,23 @@ fn adds_and_removes_sources_in_the_manifest_without_deleting_outputs() {
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && manifest_modules(&workspace) == ["Main"]
+        stdout.contains("Loaded 1 input: Main") && workspace.metadata_modules() == ["Main"]
     });
 
     workspace.write("src/Extra.purs", "module Extra where\n\nvalue = 42\n");
     let extra_output = workspace.path().join("output/Extra/index.js");
     watch.wait_for("source addition", |stdout, _| {
         stdout.contains("Changed 1 input: Extra")
-            && manifest_modules(&workspace) == ["Extra", "Main"]
+            && workspace.module_metadata("Extra").is_some()
             && extra_output.is_file()
     });
+    let extra = workspace.module_metadata("Extra").unwrap();
+    assert_eq!(extra["package"], "application");
 
     std::fs::remove_file(workspace.path().join("src/Extra.purs")).unwrap();
-    watch.wait_for("source removal", |stdout, _| {
-        stdout.contains("Changed 1 input: Extra") && manifest_modules(&workspace) == ["Main"]
-    });
+    watch.wait_for("source removal", |stdout, _| stdout.contains("Changed 1 input: Extra"));
     assert!(extra_output.is_file());
+    assert_eq!(workspace.module_metadata("Extra"), Some(extra));
 }
 
 #[test]
@@ -184,15 +185,14 @@ value = 42
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     watch.wait_for("initial compilation", |stdout, _| {
         stdout.contains("Loaded 2 inputs: Extra, Main")
-            && manifest_modules(&workspace) == ["Extra", "Main"]
+            && workspace.metadata_modules() == ["Extra", "Main"]
     });
-    let manifest = workspace.read("output/manifest.json");
 
     std::fs::remove_file(workspace.path().join("src/Extra.purs")).unwrap();
     watch.wait_for("diagnostic rebuild after source removal", |stdout, _| {
         stdout.contains("Rebuild completed with diagnostics")
     });
-    assert_eq!(workspace.read("output/manifest.json"), manifest);
+    assert_eq!(workspace.metadata_modules(), ["Extra", "Main"]);
     assert!(workspace.path().join("output/Extra/index.js").is_file());
     assert!(workspace.path().join("output/Main/index.js").is_file());
 }
@@ -210,7 +210,7 @@ fn rebuilds_for_ffi_changes_and_records_the_foreign_module() {
     watch.wait_for("initial FFI compilation", |stdout, _| {
         stdout.contains("Loaded 1 input: Main")
             && generated_module_contains(&javascript_output, "42")
-            && manifest_foreign(&workspace) == Some("Main/foreign.js".to_owned())
+            && foreign_module(&workspace).as_deref() == Some("foreign.js")
     });
 
     workspace.write("src/Main.js", "export const value = 43;\n");
@@ -225,7 +225,7 @@ fn rebuilds_for_ffi_changes_and_records_the_foreign_module() {
     watch.wait_for("JSX FFI rebuild", |stdout, _| {
         stdout.contains("Changed 1 input: Main")
             && generated_module_contains(&jsx_output, "44")
-            && manifest_foreign(&workspace) == Some("Main/foreign.jsx".to_owned())
+            && foreign_module(&workspace).as_deref() == Some("foreign.jsx")
     });
     assert!(generated_module_contains(&javascript_output, "43"));
 }
@@ -240,22 +240,22 @@ fn waits_for_a_deleted_input_directory_and_builds_when_it_returns() {
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     let output = workspace.path().join("output/Main/index.js");
     watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && manifest_modules(&workspace) == ["Main"]
+        stdout.contains("Loaded 1 input: Main") && workspace.module_metadata("Main").is_some()
     });
-    let manifest = workspace.read("output/manifest.json");
+    let metadata = workspace.module_metadata("Main");
 
     std::fs::remove_dir_all(workspace.path().join("src")).unwrap();
     watch.wait_for("empty input state", |stdout, _| {
         stdout.contains("No input files; waiting for changes")
     });
-    assert_eq!(workspace.read("output/manifest.json"), manifest);
+    assert_eq!(workspace.module_metadata("Main"), metadata);
     assert!(generated_module_contains(&output, "42"));
 
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 43\n");
     watch.wait_for("recreated input compilation", |stdout, _| {
         stdout.contains("Rebuild succeeded") && generated_module_contains(&output, "43")
     });
-    assert_eq!(manifest_modules(&workspace), ["Main"]);
+    assert_eq!(workspace.module_metadata("Main"), metadata);
 }
 
 #[test]
@@ -284,9 +284,8 @@ package:
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && manifest_modules(&workspace) == ["Main"]
+        stdout.contains("Loaded 1 input: Main") && workspace.metadata_modules() == ["Main"]
     });
-    let manifest = workspace.read("output/manifest.json");
 
     let claimed = workspace.path().join("src/vendored/src/Vendored.purs");
     workspace.write(
@@ -298,32 +297,39 @@ package:
         stderr.contains("Watch build failed: source file ")
             && stderr.contains("is claimed by packages 'application' and 'vendored'")
     });
-    assert_eq!(workspace.read("output/manifest.json"), manifest);
     assert!(!workspace.path().join("output/Vendored").exists());
 
     std::fs::remove_file(claimed).unwrap();
     watch.wait_for("recovered rebuild", |stdout, _| stdout.contains("Rebuild succeeded"));
-    assert_eq!(workspace.read("output/manifest.json"), manifest);
+    assert_eq!(workspace.metadata_modules(), ["Main"]);
 }
 
 #[test]
-fn records_modules_of_unselected_packages_without_building_them() {
+fn ignores_unselected_packages_and_records_new_modules_of_dependencies() {
     let workspace = TestWorkspace::empty();
     workspace.write(
         "spago.yaml",
         r#"workspace: {}
+package:
+  name: application
+  dependencies: [library]
 "#,
     );
     workspace.write(
-        "packages/application/spago.yaml",
+        "src/Main.purs",
+        r#"module Main where
+"#,
+    );
+    workspace.write(
+        "packages/library/spago.yaml",
         r#"package:
-  name: application
+  name: library
   dependencies: []
 "#,
     );
     workspace.write(
-        "packages/application/src/Main.purs",
-        r#"module Main where
+        "packages/library/src/Library.purs",
+        r#"module Library where
 "#,
     );
     workspace.write(
@@ -341,27 +347,34 @@ fn records_modules_of_unselected_packages_without_building_them() {
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch", "--package", "application"]));
     watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && manifest_modules(&workspace) == ["Main", "Tool"]
+        stdout.contains("Loaded 2 inputs: Library, Main")
+            && workspace.metadata_modules() == ["Library", "Main"]
     });
+    let settled = workspace.command(&["watch", "query", "wait"]);
+    assert_eq!(String::from_utf8_lossy(&settled.stdout), "Build succeeded.\n");
 
     workspace.write(
-        "packages/tool/src/Extra.purs",
-        r#"module Extra where
+        "packages/tool/src/Unselected.purs",
+        r#"module Unselected where
 "#,
     );
-    watch.wait_for("module added outside the selection", |stdout, _| {
-        stdout.contains("Changed 1 input: Extra")
-            && manifest_modules(&workspace) == ["Extra", "Main", "Tool"]
+    workspace.write(
+        "packages/library/src/Dependency.purs",
+        r#"module Dependency where
+"#,
+    );
+    let rescanned = workspace.command(&["watch", "query", "wait"]);
+    assert_eq!(String::from_utf8_lossy(&rescanned.stdout), "Build succeeded.\n");
+    watch.wait_for("module added to a dependency", |stdout, _| {
+        stdout.contains("Rebuild succeeded") && stdout.contains("Dependency")
     });
-
-    std::fs::remove_file(workspace.path().join("packages/tool/src/Tool.purs")).unwrap();
-    watch.wait_for("module removed outside the selection", |stdout, _| {
-        stdout.contains("Changed 1 input: Tool")
-            && manifest_modules(&workspace) == ["Extra", "Main"]
-    });
-    assert!(workspace.path().join("output/Main/index.js").is_file());
-    assert!(!workspace.path().join("output/Extra").exists());
-    assert!(!workspace.path().join("output/Tool").exists());
+    assert!(!watch.stdout().contains("Unselected"), "{}", watch.stdout());
+    assert!(!workspace.path().join("output/Unselected").exists());
+    assert_eq!(workspace.metadata_modules(), ["Dependency", "Library", "Main"]);
+    let dependency = workspace.module_metadata("Dependency").unwrap();
+    assert_eq!(dependency["package"], "library");
+    assert_eq!(dependency["editable"], true);
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]
@@ -391,7 +404,7 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
 
     let child = workspace.spawn(&["watch", "--quiet"]);
     let mut watch = WatchProcess::new(child);
-    watch.wait_for("initial compilation", |_, _| manifest_modules(&workspace) == ["Main"]);
+    watch.wait_for("initial compilation", |_, _| workspace.module_metadata("Main").is_some());
 
     let foreign_output = workspace.path().join("output/Main/foreign.js");
     std::fs::remove_file(&foreign_output).unwrap();
@@ -401,10 +414,9 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
         r#"export const value = 43;
 "#,
     );
-    watch.wait_for("output failure", |_, stderr| {
-        stderr.contains("Watch build failed:") && workspace.manifest().is_none()
-    });
+    watch.wait_for("output failure", |_, stderr| stderr.contains("Watch build failed:"));
     assert!(!watch.stderr().contains("completed with diagnostics"));
+    assert!(workspace.module_metadata("Main").is_some());
 
     thread::sleep(Duration::from_millis(500));
     let settled_failures = watch.stderr().matches("Watch build failed:").count();
@@ -417,19 +429,12 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
         r#"export const value = 44;
 "#,
     );
-    watch.wait_for("recovery", |_, _| {
-        generated_module_contains(&foreign_output, "44") && manifest_modules(&workspace) == ["Main"]
-    });
+    watch.wait_for("recovery", |_, _| generated_module_contains(&foreign_output, "44"));
 }
 
-fn manifest_modules(workspace: &TestWorkspace) -> Vec<String> {
-    let Some(manifest) = workspace.manifest() else { return Vec::new() };
-    manifest["modules"].as_object().unwrap().keys().cloned().collect_vec()
-}
-
-fn manifest_foreign(workspace: &TestWorkspace) -> Option<String> {
-    let manifest = workspace.manifest()?;
-    manifest["modules"]["Main"]["foreign"].as_str().map(str::to_owned)
+fn foreign_module(workspace: &TestWorkspace) -> Option<String> {
+    let metadata = workspace.module_metadata("Main")?;
+    metadata["foreign"].as_str().map(str::to_owned)
 }
 
 fn generated_module_contains(path: &Path, expected: &str) -> bool {
