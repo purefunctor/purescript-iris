@@ -382,18 +382,9 @@ impl<'arena> Printer<'arena, '_> {
         if let Some(header) = header {
             // Probe the complete flat header, not the first line of its fallback.
             // Branch lines and oversized branch atoms cannot affect attachment.
-            let probe = arena.fail().flat_alt(self.boundary(index, gap)?.append(header)).group();
             let inline = self.boundary(index, Gap::Space)?.append(inline);
             let broken = self.boundary(index, Gap::Hard(1))?.append(broken).nest(indent as isize);
-            let width = self.config.line_width;
-            return Ok(arena.column(move |column| {
-                let mut rendered = String::new();
-                if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
-                    inline.clone().into_doc()
-                } else {
-                    broken.clone().into_doc()
-                }
-            }));
+            return self.probe_header(index, gap, header, inline, broken);
         }
         if matches!(gap, Gap::Tight | Gap::Space | Gap::BrokenSpace) {
             return Ok(self.boundary(index, gap)?.append(inline));
@@ -418,6 +409,41 @@ impl<'arena> Printer<'arena, '_> {
                 }
             });
             separator.clone().append(body).nest(-(margin as isize)).into_doc()
+        }))
+    }
+
+    fn separated(
+        &self,
+        index: usize,
+        gap: Gap,
+        header: Option<Doc<'arena>>,
+        document: Doc<'arena>,
+    ) -> Result<Doc<'arena>, FormatError> {
+        let Some(header) = header else {
+            return Ok(self.boundary(index, gap)?.group().append(document));
+        };
+        let fitting = self.boundary(index, Gap::Space)?.append(document.clone());
+        let overflowing = self.boundary(index, Gap::Hard(1))?.append(document);
+        self.probe_header(index, gap, header, fitting, overflowing)
+    }
+
+    fn probe_header(
+        &self,
+        index: usize,
+        gap: Gap,
+        header: Doc<'arena>,
+        fitting: Doc<'arena>,
+        overflowing: Doc<'arena>,
+    ) -> Result<Doc<'arena>, FormatError> {
+        let probe = self.arena.fail().flat_alt(self.boundary(index, gap)?.append(header)).group();
+        let width = self.config.line_width;
+        Ok(self.arena.column(move |column| {
+            let mut rendered = String::new();
+            if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+                fitting.clone().into_doc()
+            } else {
+                overflowing.clone().into_doc()
+            }
         }))
     }
 
@@ -506,14 +532,10 @@ impl<'arena> Printer<'arena, '_> {
                     inline_suffix = inline;
                     broken_suffix = broken;
                 } else {
-                    inline_suffix = self.attach(
-                        element.start,
-                        gap,
-                        inline,
-                        broken.clone(),
-                        self.case_header(element, context)?,
-                    )?;
-                    broken_suffix = self.boundary(element.start, gap)?.group().append(broken);
+                    let header = self.case_header(element, context)?;
+                    inline_suffix =
+                        self.attach(element.start, gap, inline, broken.clone(), header.clone())?;
+                    broken_suffix = self.separated(element.start, gap, header, broken)?;
                 }
             }
             return Ok(head_document.append(inline_suffix));
@@ -739,10 +761,10 @@ impl<'arena> Printer<'arena, '_> {
                     gap(position),
                     inline,
                     broken.clone(),
-                    operator_header,
+                    operator_header.clone(),
                 )?;
                 broken_suffix =
-                    self.boundary(operator.start, gap(position))?.group().append(broken);
+                    self.separated(operator.start, gap(position), operator_header, broken)?;
             }
             return Ok(head.append(inline_suffix));
         }
