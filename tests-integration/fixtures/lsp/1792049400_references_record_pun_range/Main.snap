@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+References at Position { line: 4, character: 13 }
+
+```
+topPun = { top }
+--           %
+```
+
+file:///tests-integration/fixtures/lsp/1792049400_references_record_pun_range/Main.purs @ 4:10..4:14
