@@ -292,7 +292,7 @@ impl LocalState {
         {
             let mut inner = local.borrow_mut();
             if let Some(parent) = inner.frames.last_mut() {
-                parent.dependencies.insert(query);
+                parent.record(query);
             }
             inner.frames.push(QueryFrame::new(query));
         }
@@ -308,7 +308,7 @@ impl LocalState {
     fn with_dependency(&self, dependency: QueryKey) {
         let mut inner = self.inner.get_or_default().borrow_mut();
         if let Some(frame) = inner.frames.last_mut() {
-            frame.dependencies.insert(dependency);
+            frame.record(dependency);
         }
     }
 
@@ -324,10 +324,10 @@ impl LocalState {
         dependencies.collect()
     }
 
-    fn clear_dependencies(local: &RefCell<LocalStateInner>) {
+    fn set_verifying(local: &RefCell<LocalStateInner>, verifying: bool) {
         let mut inner = local.borrow_mut();
         let frame = inner.frames.last_mut().expect("invariant violated: expected query frame");
-        frame.dependencies.clear();
+        frame.verifying = verifying;
     }
 
     fn stack(local: &RefCell<LocalStateInner>) -> Arc<[QueryKey]> {
@@ -364,12 +364,20 @@ struct LocalStateInner {
 struct QueryFrame {
     query: QueryKey,
     in_progress: bool,
+    verifying: bool,
     dependencies: FxHashSet<QueryKey>,
 }
 
 impl QueryFrame {
     fn new(query: QueryKey) -> QueryFrame {
-        QueryFrame { query, in_progress: false, dependencies: FxHashSet::default() }
+        let dependencies = FxHashSet::default();
+        QueryFrame { query, in_progress: false, verifying: false, dependencies }
+    }
+
+    fn record(&mut self, dependency: QueryKey) {
+        if !self.verifying {
+            self.dependencies.insert(dependency);
+        }
     }
 }
 
@@ -755,7 +763,9 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
+                    LocalState::set_verifying(local, true);
                     let latest = self.verify_core(&dependencies)?;
+                    LocalState::set_verifying(local, false);
 
                     // If the cached value was built more recently the the
                     // latest change, we can update its built timestamp to
@@ -773,7 +783,6 @@ impl QueryEngine {
                         return Ok(computed);
                     }
 
-                    LocalState::clear_dependencies(local);
                     self.compute_core(
                         key,
                         shards,
