@@ -2,8 +2,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, fs};
 
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use console::style;
+use insta::Snapshot;
 use serde::Deserialize;
 
 use crate::test_runner::category::TestCategory;
@@ -196,20 +197,8 @@ pub fn accept_snapshots(snapshots: &[SnapshotInfo]) -> AcceptRejectResult {
             continue;
         }
 
-        let snap_path = Path::new(&info.snapshot_path);
-
-        // Remove existing snapshot if present
-        if snap_path.exists()
-            && let Err(e) = fs::remove_file(snap_path)
-        {
-            println!("{} {} ({})", style("FAIL").red().bold(), style(&info.short_path).cyan(), e);
-            failed += 1;
-            continue;
-        }
-
-        // Rename .new to .snap
-        if let Err(e) = fs::rename(&info.snap_new, snap_path) {
-            println!("{} {} ({})", style("FAIL").red().bold(), style(&info.short_path).cyan(), e);
+        if let Err(e) = persist_snapshot(&info.snap_new, Path::new(&info.snapshot_path)) {
+            println!("{} {} ({:#})", style("FAIL").red().bold(), style(&info.short_path).cyan(), e);
             failed += 1;
             continue;
         }
@@ -219,6 +208,14 @@ pub fn accept_snapshots(snapshots: &[SnapshotInfo]) -> AcceptRejectResult {
     }
 
     AcceptRejectResult { accepted, rejected: 0, failed }
+}
+
+fn persist_snapshot(snap_new: &Path, snap_path: &Path) -> anyhow::Result<()> {
+    let snapshot = Snapshot::from_file(snap_new).map_err(|error| anyhow!("{error}"))?;
+    snapshot.save(snap_path).map_err(|error| anyhow!("{error}"))?;
+    fs::remove_file(snap_new)
+        .with_context(|| format!("failed to remove {}", snap_new.display()))?;
+    Ok(())
 }
 
 pub fn reject_snapshots(snapshots: &[SnapshotInfo]) -> AcceptRejectResult {
