@@ -1,0 +1,36 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+module Main where
+
+component = unsafePerformEffect $ reactComponent "ModuleMetadata" \_ ->
+  pure $ documentation
+    { page: ModuleMetadata
+    , intro:
+        "Next to each module's generated JavaScript, Iris writes a metadata.json file."
+    , sections
+    }
+
+folded = foldl combineValues initialAccumulator \accumulator value ->
+  accumulator + value
+
+configured =
+  withOptions { firstOption: firstValue, secondOption: secondValue } \result ->
+    consume result
+
+filled = foldlWithIndex combineIndexedValues initialAccumulatorValue
+  secondaryAccumulatorValue additionalContext \index accumulator value ->
+    combineWithIndex index accumulator value
+
+handled =
+  loadConfiguration applicationSettings defaultOptions
+    <#> \configuration environment -> do
+      logConfiguration configuration
+      runApplication environment
+
+indexed =
+  loadConfiguration applicationSettings defaultOptions
+    <#> foldlWithIndex combineIndexedValues initialAccumulatorValue
+          \index accumulator value -> do
+            combineIndexed accumulator
+            advance index value

@@ -3,21 +3,19 @@ source: tests-integration/tests/formatting.rs
 ---
 module Main where
 
-filled =
-  combineCollections firstCollection secondCollection thirdCollection
-    fourthCollection fifthCollection sixthCollection
+filled = combineCollections firstCollection secondCollection thirdCollection
+  fourthCollection fifthCollection sixthCollection
 
 filledFromNextLine =
   combineCollections firstCollection secondCollection thirdCollection
     fourthCollection fifthCollection sixthCollection
 
-separated =
-  div
-    [ className "documentation-container"
-    , id "module-metadata"
-    , title "Module metadata"
-    ]
-    [ text "Iris writes a metadata.json file." ]
+separated = div
+  [ className "documentation-container"
+  , id "module-metadata"
+  , title "Module metadata"
+  ]
+  [ text "Iris writes a metadata.json file." ]
 
 applied =
   ( \firstValue secondValue ->

@@ -7,9 +7,8 @@ module Main where
 local value = do
   action value
   where
-  helper =
-    transform firstArgument secondArgument thirdArgument fourthArgument
-      fifthArgument
+  helper = transform firstArgument secondArgument thirdArgument fourthArgument
+    fifthArgument
 localLet =
   let
     bound = firstArgument
@@ -48,9 +47,8 @@ module Main where
 local value = do
     action value
     where
-    helper =
-        transform firstArgument secondArgument thirdArgument fourthArgument
-            fifthArgument
+    helper = transform firstArgument secondArgument thirdArgument fourthArgument
+        fifthArgument
 localLet =
     let
         bound = firstArgument
@@ -63,9 +61,8 @@ module Main where
 local value = do
   action value
   where
-  helper =
-    transform firstArgument secondArgument thirdArgument fourthArgument
-      fifthArgument
+  helper = transform firstArgument secondArgument thirdArgument fourthArgument
+    fifthArgument
 localLet =
   let
     bound = firstArgument

@@ -815,9 +815,8 @@ value=combine firstArgument secondArgument
         edits[0]["newText"],
         "module Main where
 
-value =
-    combine firstArgument
-        secondArgument
+value = combine firstArgument
+    secondArgument
 "
     );
     let mut errors = Vec::new();

@@ -99,22 +99,76 @@ impl Tree {
         }
     }
 
+    fn is_hanging_argument(&self) -> bool {
+        match self.kind {
+            ExpressionTypeArgument => true,
+            ExpressionTermArgument => {
+                self.expression().is_some_and(|expression| expression.kind != ExpressionLambda)
+                    && !self.has_inline_block()
+            }
+            _ => false,
+        }
+    }
+
     fn argument_header(&self) -> Option<Vec<&Tree>> {
         let expression = self.expression()?;
-        match expression.kind {
-            ExpressionDo | ExpressionAdo => Some(expression.elements()[..1].to_vec()),
+        if matches!(expression.kind, ExpressionDo | ExpressionAdo) {
+            return Some(expression.elements()[..1].to_vec());
+        }
+        self.header()
+    }
+
+    fn header(&self) -> Option<Vec<&Tree>> {
+        let expression = self.expression().unwrap_or(self);
+        if expression.kind == ExpressionCaseOf {
+            let [case_keyword, trunk, of_keyword, _] = expression.elements()[..] else {
+                unreachable!("invariant violated: validated case expression has four elements");
+            };
+            return Some(vec![case_keyword, trunk, of_keyword]);
+        }
+        let (header, hanging) = expression.trailing_header()?;
+        (hanging.kind == ExpressionLambda).then_some(header)
+    }
+
+    fn call(&self) -> Option<&Tree> {
+        match self.kind {
+            ExpressionApplicationChain => Some(self),
+            ExpressionIf | ExpressionThen | ExpressionElse => {
+                self.elements().last().and_then(|expression| expression.call())
+            }
+            _ => None,
+        }
+    }
+
+    fn last_operation(&self) -> &Tree {
+        match self.kind {
+            ExpressionOperatorChain | ExpressionInfixChain => {
+                self.elements().last().copied().unwrap_or(self)
+            }
+            ExpressionIf | ExpressionThen | ExpressionElse => {
+                self.elements().last().map_or(self, |expression| expression.last_operation())
+            }
+            _ => self,
+        }
+    }
+
+    fn trailing_header(&self) -> Option<(Vec<&Tree>, &Tree)> {
+        match self.kind {
             ExpressionLambda => {
-                let [backslash, binders, arrow, _] = expression.elements()[..] else {
+                let [backslash, binders, arrow, _] = self.elements()[..] else {
                     unreachable!("invariant violated: validated lambda has four elements");
                 };
-                Some(vec![backslash, binders, arrow])
+                Some((vec![backslash, binders, arrow], self))
             }
-            ExpressionCaseOf => {
-                let [case_keyword, trunk, of_keyword, _] = expression.elements()[..] else {
-                    unreachable!("invariant violated: validated case expression has four elements");
-                };
-                Some(vec![case_keyword, trunk, of_keyword])
-            }
+            ExpressionApplicationChain
+            | ExpressionTermArgument
+            | ExpressionOperatorChain
+            | ExpressionOperatorPair
+            | ExpressionInfixChain
+            | ExpressionInfixPair
+            | ExpressionIf
+            | ExpressionThen
+            | ExpressionElse => trailing_header(&self.elements()),
             _ => None,
         }
     }
@@ -358,6 +412,29 @@ impl<'arena> Printer<'arena, '_> {
         };
         let margin = context.margin + self.config.indent_width;
         let head = self.fixed(head, Context { following: Some(margin), ..context })?.group();
+        if let Some((header, hanging)) = first.trailing_header() {
+            let attached =
+                self.boundary(first.start, Gap::Space)?.append(self.fixed(tail, context)?);
+            let wrapped = self
+                .boundary(first.start, Gap::Soft)?
+                .append(self.fixed(tail, Context { margin, ..context })?)
+                .group()
+                .nest(self.config.indent_width as isize);
+            if let [_] = tail
+                && let Some(call) = first.call()
+            {
+                return Ok(head.append(self.probe_arguments(call, context, attached, wrapped)?));
+            }
+            let header =
+                self.boundary(first.start, Gap::Space)?.append(self.fixed(&header, context)?);
+            let tail = if hanging.is_hanging_argument() {
+                let intact = self.fixed(&[first.last_operation()], context)?;
+                self.probe_trailing(header, intact, attached, wrapped)
+            } else {
+                self.probe_header(header, attached, wrapped)
+            };
+            return Ok(head.append(tail));
+        }
         if tail.iter().any(|tree| tree.has_inline_block()) {
             let inline = self.fixed(tail, context)?;
             let broken = self.fixed(tail, Context { margin, ..context })?;
@@ -367,7 +444,7 @@ impl<'arena> Printer<'arena, '_> {
                 gap,
                 inline,
                 broken,
-                self.case_header(first, context)?,
+                self.header(first, context)?,
             )?));
         }
         let tail = self.fixed(tail, Context { margin, ..context })?;
@@ -404,7 +481,11 @@ impl<'arena> Printer<'arena, '_> {
             // Branch lines and oversized branch atoms cannot affect attachment.
             let inline = self.boundary(index, Gap::Space)?.append(inline);
             let broken = self.boundary(index, Gap::Hard(1))?.append(broken).nest(indent as isize);
-            return self.probe_header(index, gap, header, inline, broken);
+            return Ok(self.probe_header(
+                self.boundary(index, gap)?.append(header),
+                inline,
+                broken,
+            ));
         }
         if matches!(gap, Gap::Tight | Gap::Space | Gap::BrokenSpace) {
             return Ok(self.boundary(index, gap)?.append(inline));
@@ -444,7 +525,7 @@ impl<'arena> Printer<'arena, '_> {
         };
         let fitting = self.boundary(index, Gap::Space)?.append(document.clone());
         let overflowing = self.boundary(index, Gap::Hard(1))?.append(document);
-        self.probe_header(index, gap, header, fitting, overflowing)
+        Ok(self.probe_header(self.boundary(index, gap)?.append(header), fitting, overflowing))
     }
 
     fn probe(&self, document: Doc<'arena>) -> Doc<'arena> {
@@ -459,22 +540,101 @@ impl<'arena> Printer<'arena, '_> {
 
     fn probe_header(
         &self,
-        index: usize,
-        gap: Gap,
         header: Doc<'arena>,
         fitting: Doc<'arena>,
         overflowing: Doc<'arena>,
-    ) -> Result<Doc<'arena>, FormatError> {
-        let probe = self.arena.fail().flat_alt(self.boundary(index, gap)?.append(header)).group();
+    ) -> Doc<'arena> {
+        let probe = self.probe(header);
         let width = self.config.line_width;
-        Ok(self.arena.column(move |column| {
-            let mut rendered = String::new();
-            if probe.render_fmt(width.saturating_sub(column), &mut rendered).is_ok() {
+        self.arena.column(move |column| {
+            if fits(&probe, width.saturating_sub(column)) {
                 fitting.clone().into_doc()
             } else {
                 overflowing.clone().into_doc()
             }
+        })
+    }
+
+    fn probe_arguments(
+        &self,
+        call: &Tree,
+        context: Context,
+        attached: Doc<'arena>,
+        wrapped: Doc<'arena>,
+    ) -> Result<Doc<'arena>, FormatError> {
+        let arena = self.arena;
+        let width = self.config.line_width;
+        let indent = self.config.indent_width;
+        let leading = self.boundary(call.start, Gap::Space)?;
+        let elements = call.elements();
+        let mut attached_prefixes = Vec::new();
+        let mut wrapped_prefixes = Vec::new();
+        for count in 1..=elements.len() {
+            let mut prefix = elements[..count].to_vec();
+            if count == elements.len()
+                && let Some(header) = elements[count - 1].argument_header()
+            {
+                prefix.pop();
+                prefix.extend(header);
+            }
+            let prefix = self.fixed(&prefix, context)?;
+            let wrapped_prefix = self.probe(prefix.clone());
+            if !fits(&wrapped_prefix, width) {
+                break;
+            }
+            attached_prefixes.push(self.probe(leading.clone().append(prefix)));
+            wrapped_prefixes.push(wrapped_prefix);
+        }
+        Ok(arena.nesting(move |nesting| {
+            let attached_prefixes = attached_prefixes.clone();
+            let wrapped_prefixes = wrapped_prefixes.clone();
+            let attached = attached.clone();
+            let wrapped = wrapped.clone();
+            let document = arena.column(move |column| {
+                let fitting = |prefixes: &[Doc<'arena>], width: usize| {
+                    prefixes.iter().take_while(|prefix| fits(prefix, width)).count()
+                };
+                let attached_count = fitting(&attached_prefixes, width.saturating_sub(column));
+                let wrapped_count =
+                    fitting(&wrapped_prefixes, width.saturating_sub(nesting + indent));
+                if attached_count == 0 || wrapped_count > attached_count {
+                    wrapped.clone().into_doc()
+                } else {
+                    attached.clone().into_doc()
+                }
+            });
+            document.into_doc()
         }))
+    }
+
+    fn probe_trailing(
+        &self,
+        header: Doc<'arena>,
+        intact: Doc<'arena>,
+        attached: Doc<'arena>,
+        wrapped: Doc<'arena>,
+    ) -> Doc<'arena> {
+        let arena = self.arena;
+        let header = self.probe(header);
+        let intact = self.probe(intact);
+        let width = self.config.line_width;
+        let indent = self.config.indent_width;
+        arena.nesting(move |nesting| {
+            let header = header.clone();
+            let intact = intact.clone();
+            let attached = attached.clone();
+            let wrapped = wrapped.clone();
+            let document = arena.column(move |column| {
+                let header_fits = fits(&header, width.saturating_sub(column));
+                let intact_fits = fits(&intact, width.saturating_sub(nesting + indent));
+                if header_fits && !intact_fits {
+                    attached.clone().into_doc()
+                } else {
+                    wrapped.clone().into_doc()
+                }
+            });
+            document.into_doc()
+        })
     }
 
     fn application(
@@ -639,7 +799,7 @@ impl<'arena> Printer<'arena, '_> {
                     inline_suffix = inline;
                     broken_suffix = broken;
                 } else {
-                    let header = self.case_header(element, context)?;
+                    let header = self.header(element, context)?;
                     inline_suffix =
                         self.attach(element.start, gap, inline, broken.clone(), header.clone())?;
                     broken_suffix = self.separated(element.start, gap, header, broken)?;
@@ -797,15 +957,59 @@ impl<'arena> Printer<'arena, '_> {
             Ok::<_, FormatError>(document)
         };
         let pair = |operator: &Tree, operand: &Tree, context: Context| {
+            let document = operand_document(operand, context)?;
+            let document = if operand.has_inline_block()
+                && let Some(header) = self.header(operand, context)?
+            {
+                self.probe_header(header, document.clone(), document.align())
+            } else {
+                document
+            };
             Ok::<_, FormatError>(
                 self.tree(operator, Context { following: Some(margin), ..context })?
                     .append(self.boundary(operand.start, Gap::Space)?)
-                    .append(operand_document(operand, context)?),
+                    .append(document),
             )
         };
         let gap = |position: usize| {
             if elements[position - 1].ends_offside() { Gap::Hard(1) } else { Gap::Soft }
         };
+        let following = |position: usize| {
+            if position + 2 < elements.len() { Some(margin) } else { context.following }
+        };
+        let leading = || {
+            let mut document = head.clone();
+            for position in (1..elements.len()).step_by(2) {
+                let operator = elements[position];
+                let operand = elements[position + 1];
+                let following = following(position);
+                document = document.append(
+                    self.boundary(operator.start, gap(position))?
+                        .append(pair(operator, operand, Context { margin, following })?)
+                        .nest(self.config.indent_width as isize),
+                );
+            }
+            Ok::<_, FormatError>(document.group())
+        };
+        if let Some((header, hanging)) = trailing_header(elements) {
+            let mut attached = head.clone();
+            for position in (1..elements.len()).step_by(2) {
+                let operator = elements[position];
+                let operand = elements[position + 1];
+                let following = following(position);
+                attached = attached
+                    .append(self.boundary(operator.start, Gap::Space)?)
+                    .append(self.tree(operator, Context { following: Some(margin), ..context })?)
+                    .append(self.boundary(operand.start, Gap::Space)?)
+                    .append(self.tree(operand, Context { following, ..context })?);
+            }
+            let header = self.fixed(&header, context)?;
+            if hanging.is_hanging_argument() {
+                let intact = self.fixed(&elements[elements.len() - 2..], context)?;
+                return Ok(self.probe_trailing(header, intact, attached, leading()?));
+            }
+            return Ok(self.probe_header(header, attached, leading()?));
+        }
         if elements.iter().any(|tree| tree.has_inline_block()) {
             let mut inline_suffix = self.arena.nil();
             let mut broken_suffix = self.arena.nil();
@@ -814,9 +1018,8 @@ impl<'arena> Printer<'arena, '_> {
                 let operand = elements[position + 1];
                 let operand_gap =
                     if operand.is_delimited_block() { Gap::Hard(1) } else { Gap::Space };
-                let following =
-                    if position + 2 < elements.len() { Some(margin) } else { context.following };
-                let operand_header = self.case_header(operand, context)?;
+                let following = following(position);
+                let operand_header = self.header(operand, context)?;
                 let operator_header = if let Some(header) = &operand_header {
                     Some(
                         self.tree(operator, context)?
@@ -875,19 +1078,7 @@ impl<'arena> Printer<'arena, '_> {
             }
             return Ok(head.append(inline_suffix));
         }
-        let mut document = head;
-        for position in (1..elements.len()).step_by(2) {
-            let operator = elements[position];
-            let operand = elements[position + 1];
-            let following =
-                if position + 2 < elements.len() { Some(margin) } else { context.following };
-            document = document.append(
-                self.boundary(operator.start, gap(position))?
-                    .append(pair(operator, operand, Context { margin, following })?)
-                    .nest(self.config.indent_width as isize),
-            );
-        }
-        Ok(document.group())
+        leading()
     }
 
     fn conditional(
@@ -945,20 +1136,8 @@ impl<'arena> Printer<'arena, '_> {
         }
     }
 
-    fn case_header(
-        &self,
-        tree: &Tree,
-        context: Context,
-    ) -> Result<Option<Doc<'arena>>, FormatError> {
-        let expression = tree.expression().unwrap_or(tree);
-        if expression.kind == ExpressionCaseOf {
-            let [case_keyword, trunk, of_keyword, _] = expression.elements()[..] else {
-                unreachable!("invariant violated: validated case expression has four elements");
-            };
-            self.fixed(&[case_keyword, trunk, of_keyword], context).map(Some)
-        } else {
-            Ok(None)
-        }
+    fn header(&self, tree: &Tree, context: Context) -> Result<Option<Doc<'arena>>, FormatError> {
+        tree.header().map(|elements| self.fixed(&elements, context)).transpose()
     }
 
     fn case_expression(
@@ -1301,6 +1480,18 @@ fn is_block(kind: SyntaxKind) -> bool {
         kind,
         DoStatements | CaseBranches | LetBindingStatements | ClassStatements | InstanceStatements
     )
+}
+
+fn trailing_header<'tree>(elements: &[&'tree Tree]) -> Option<(Vec<&'tree Tree>, &'tree Tree)> {
+    let (last, prefix) = elements.split_last()?;
+    if prefix.iter().any(|tree| tree.has_inline_block()) {
+        return None;
+    }
+    if last.is_hanging_argument() {
+        return Some((prefix.to_vec(), last));
+    }
+    let (header, hanging) = last.trailing_header()?;
+    Some(([prefix, &header].concat(), hanging))
 }
 
 fn fits(document: &Doc<'_>, width: usize) -> bool {

@@ -55,9 +55,8 @@ nested =
 wrapped =
   if a
   then x
-  else if
-    predicate firstArgument secondArgument thirdArgument fourthArgument
-      fifthArgument
+  else if predicate firstArgument secondArgument thirdArgument fourthArgument
+    fifthArgument
   then y
   else z
 

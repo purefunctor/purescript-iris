@@ -4,18 +4,16 @@ source: tests-integration/tests/formatting.rs
 === width 80, indent 2 ===
 module Main where
 
-main =
-  traverse_
-    ( \item ->
-        log
-          ( "processing "
-              <> show item
-              <> " of "
-              <> show (Array.length items)
-              <> " in the current batch"
-          )
-    )
-    (Array.range firstIndex lastIndex)
+main = traverse_
+  ( \item -> log
+      ( "processing "
+          <> show item
+          <> " of "
+          <> show (Array.length items)
+          <> " in the current batch"
+      )
+  )
+  (Array.range firstIndex lastIndex)
 
 terms = do
   (r.a)
@@ -41,18 +39,16 @@ quantified ::
 === width 100, indent 4, unicode ===
 module Main where
 
-main =
-    traverse_
-        ( \item →
-              log
-                  ( "processing "
-                        <> show item
-                        <> " of "
-                        <> show (Array.length items)
-                        <> " in the current batch"
-                  )
-        )
-        (Array.range firstIndex lastIndex)
+main = traverse_
+    ( \item → log
+          ( "processing "
+                <> show item
+                <> " of "
+                <> show (Array.length items)
+                <> " in the current batch"
+          )
+    )
+    (Array.range firstIndex lastIndex)
 
 terms = do
     (r.a)
@@ -75,10 +71,9 @@ quantified ∷ (∀ value. value → value) → (∀ value. value → value) →
 === width 120, indent 2 ===
 module Main where
 
-main =
-  traverse_
-    (\item -> log ("processing " <> show item <> " of " <> show (Array.length items) <> " in the current batch"))
-    (Array.range firstIndex lastIndex)
+main = traverse_
+  (\item -> log ("processing " <> show item <> " of " <> show (Array.length items) <> " in the current batch"))
+  (Array.range firstIndex lastIndex)
 
 terms = do
   (r.a)
