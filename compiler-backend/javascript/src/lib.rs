@@ -14,8 +14,8 @@ use std::sync::Arc;
 pub use convert::convert_module;
 pub use error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
 pub use module::{
-    Module, foreign_module_filename, module_filename, runtime_filename, runtime_source,
-    stylex_theme_module_filename,
+    Module, foreign_filename, foreign_module_filename, module_filename, runtime_filename,
+    runtime_source, stylex_theme_module_filename,
 };
 
 use building_types::QueryResult;

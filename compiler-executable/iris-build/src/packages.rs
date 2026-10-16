@@ -104,24 +104,11 @@ enum ResolvedDependency {
 /// present; missing resolution or fetched sources are reported as errors so
 /// that consumers never analyze a partially installed project.
 pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, PackagesError> {
-    discover(workspace, workspace.selected.as_deref())
-}
-
-pub fn discover_workspace_packages(
-    workspace: &Workspace,
-) -> Result<DiscoveredPackages, PackagesError> {
-    discover(workspace, None)
-}
-
-fn discover(
-    workspace: &Workspace,
-    selected: Option<&str>,
-) -> Result<DiscoveredPackages, PackagesError> {
     let resolution = read_resolution(&workspace.root)?;
 
     let mut discovered = BTreeMap::new();
     let mut queue = VecDeque::new();
-    if let Some(selected) = selected {
+    if let Some(selected) = workspace.selected.as_deref() {
         queue.push_back((SmolStr::new(selected), true));
     } else {
         queue.extend(workspace.packages.keys().map(|name| (SmolStr::new(name), true)));

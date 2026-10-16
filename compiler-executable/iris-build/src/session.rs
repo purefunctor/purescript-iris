@@ -12,12 +12,9 @@ use prim_constants::MODULE_MAP;
 use thiserror::Error;
 use url::Url;
 
-use smol_str::SmolStr;
-
-use super::compilation::CompilationState;
-use super::compile::{self, CompileError, Compiled, InitialBuildReport};
-use super::manifest::{LayoutModules, ManifestError, WorkspaceLayout};
+use super::compile::{self, CompileError, Compiled, InitialBuildReport, ProjectCompilation};
 use super::output::{BuildOutput, OutputError};
+use super::ownership::{SourceOwnership, SourcePackage};
 use super::packages::PackagesError;
 use super::project::InitializedProject;
 use super::walk;
@@ -86,13 +83,13 @@ enum SessionFailure {
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error(transparent)]
-    Manifest(#[from] ManifestError),
-    #[error(transparent)]
     Output(#[from] OutputError),
     #[error(transparent)]
     Packages(#[from] PackagesError),
     #[error(transparent)]
     Query(#[from] QueryError),
+    #[error("invalid package source glob: {0}")]
+    SourceGlob(#[from] globset::Error),
     #[error(transparent)]
     Walk(#[from] walk::Error),
 }
@@ -106,17 +103,14 @@ pub struct BuildSession {
     output: BuildOutput,
     inputs: Vec<PathBuf>,
     source_roots: Vec<PathBuf>,
-    layout: WorkspaceLayout,
-    layout_modules: Option<LayoutModules>,
-    compiled_packages: BTreeSet<SmolStr>,
+    ownership: SourceOwnership,
     source_paths: BTreeSet<PathBuf>,
-    compilation: CompilationState,
+    compilation: ProjectCompilation,
     files: Arc<BTreeMap<FileId, SourceFile>>,
     initial_report: Option<InitialBuildReport>,
     initial_inputs: Vec<InputChange>,
     color: bool,
     diagnostics: bool,
-    version: String,
 }
 
 impl BuildSession {
@@ -132,8 +126,7 @@ impl BuildSession {
         config: BuildSessionConfig,
     ) -> Result<BuildSession, SessionFailure> {
         let project = initialized.project;
-        let compiled_packages = project.packages.iter().map(|package| package.name.clone());
-        let compiled_packages = compiled_packages.collect();
+        let ownership = SourceOwnership::new(&project.root, &project.packages)?;
         let walked = walk::walk_filtered(&project.root, &project.source_globs, [&project.output])?;
         let source_roots = walked.roots.into_iter().collect_vec();
         let initial = initialized.build.into_parts();
@@ -147,12 +140,10 @@ impl BuildSession {
         let files = Arc::new(source_files(&initial.compilation)?);
         Ok(BuildSession {
             root: project.root,
-            output: BuildOutput::new(project.output),
+            output: BuildOutput::new(project.output, config.version),
             inputs: project.source_globs,
             source_roots,
-            layout: project.layout,
-            layout_modules: None,
-            compiled_packages,
+            ownership,
             source_paths: initial.source_paths,
             compilation: initial.compilation,
             files,
@@ -160,7 +151,6 @@ impl BuildSession {
             initial_inputs,
             color: config.color,
             diagnostics: config.diagnostics,
-            version: config.version,
         })
     }
 
@@ -203,40 +193,31 @@ impl BuildSession {
     }
 
     fn synchronize(&mut self, paths: &[PathBuf]) -> Result<SessionChange, SessionFailure> {
-        let mut source_paths = BTreeSet::new();
+        let mut source_paths = BTreeMap::new();
         let mut foreign_paths = BTreeSet::new();
-        let mut layout_touched = false;
         for path in paths {
             if path.starts_with(self.output.directory()) {
                 continue;
             }
             match path.extension().and_then(|extension| extension.to_str()) {
-                Some("purs") if self.source_paths.contains(path) => {
-                    source_paths.insert(PathBuf::clone(path));
-                }
-                Some("purs") => match self.existing_owner(path)? {
-                    Some(package) if self.compiled_packages.contains(package) => {
-                        source_paths.insert(PathBuf::clone(path));
+                Some("purs") if self.source_paths.contains(path) || path.exists() => {
+                    if let Some(package) = self.source_package(path)? {
+                        source_paths.insert(PathBuf::clone(path), package);
                     }
-                    Some(_) => layout_touched = true,
-                    None => layout_touched |= self.layout.ownership().claims(path),
-                },
+                }
                 Some("js" | "jsx") => {
                     let source_path = path.with_extension("purs");
                     if self.source_paths.contains(&source_path) {
                         foreign_paths.insert(source_path);
-                    } else {
-                        layout_touched |= self.layout.ownership().claims(&source_path);
                     }
                 }
                 _ => {}
             }
         }
-        let layout = if layout_touched { Some(self.read_layout()?) } else { None };
 
         let mut change = SessionChange::default();
-        for path in source_paths {
-            change.combine(observe_source_unit(&mut self.compilation, &path)?);
+        for (path, package) in source_paths {
+            change.combine(observe_source_unit(&mut self.compilation, &path, package)?);
             if path.exists() {
                 self.source_paths.insert(path);
             } else {
@@ -246,45 +227,35 @@ impl BuildSession {
         for source_path in foreign_paths {
             change.combine(observe_foreign(&mut self.compilation, &source_path)?);
         }
-        if let Some(layout) = layout {
-            change.combine(self.update_layout(layout));
-        }
         Ok(change)
-    }
-
-    fn existing_owner(&self, path: &Path) -> Result<Option<&SmolStr>, SessionFailure> {
-        if !path.exists() {
-            return Ok(None);
-        }
-        Ok(self.layout.ownership().owner(path)?)
     }
 
     fn rescan_inputs(&mut self) -> Result<SessionChange, SessionFailure> {
-        let layout = self.read_layout()?;
         let walked = walk::walk_filtered(&self.root, &self.inputs, [self.output.directory()])?;
         let current_paths = walked.files.into_iter().collect::<BTreeSet<_>>();
-        let affected_paths = self.source_paths.union(&current_paths).cloned().collect_vec();
+        let mut affected_sources = Vec::new();
+        for path in self.source_paths.union(&current_paths) {
+            if let Some(package) = self.source_package(path)? {
+                affected_sources.push((PathBuf::clone(path), package));
+            }
+        }
 
         let mut change = SessionChange::default();
-        for path in affected_paths {
-            change.combine(observe_source_unit(&mut self.compilation, &path)?);
+        for (path, package) in affected_sources {
+            change.combine(observe_source_unit(&mut self.compilation, &path, package)?);
         }
         self.source_paths = current_paths;
-        change.combine(self.update_layout(layout));
         Ok(change)
     }
 
-    fn read_layout(&self) -> Result<LayoutModules, SessionFailure> {
-        Ok(self.layout.modules(self.output.directory())?)
-    }
-
-    fn update_layout(&mut self, current: LayoutModules) -> SessionChange {
-        let inputs = match &self.layout_modules {
-            Some(previous) => layout_changes(previous, &current, &self.compiled_packages),
-            None => Vec::new(),
-        };
-        self.layout_modules = Some(current);
-        SessionChange { lifecycle: LifecycleChange::default(), inputs }
+    fn source_package(&self, path: &Path) -> Result<Option<SourcePackage>, SessionFailure> {
+        let unit = source_unit(path)?;
+        let file_id = self.compilation.source_id(unit.source());
+        let recorded = file_id.and_then(|file_id| self.compilation.source_metadata(file_id));
+        match recorded {
+            Some(package) => Ok(Option::clone(package)),
+            None => Ok(self.ownership.owner(path)?.cloned()),
+        }
     }
 
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
@@ -305,20 +276,12 @@ impl BuildSession {
         };
         match compiled {
             Compiled::Succeeded(modules) => {
-                self.write_output(&modules)?;
+                self.output.write(&self.compilation, &modules)?;
                 Ok(RebuildOutcome::Succeeded)
             }
             Compiled::Diagnostics => Ok(RebuildOutcome::Diagnostics),
             Compiled::NoInputs => Ok(RebuildOutcome::NoInputs),
         }
-    }
-
-    fn write_output(&mut self, modules: &[Arc<javascript::Module>]) -> Result<(), SessionFailure> {
-        let layout = self.read_layout()?;
-        let manifest = self.layout.manifest(&self.version, layout.clone());
-        self.output.write(&self.compilation, modules, &manifest)?;
-        self.layout_modules = Some(layout);
-        Ok(())
     }
 }
 
@@ -341,29 +304,10 @@ impl SessionChange {
     }
 }
 
-fn layout_changes(
-    previous: &LayoutModules,
-    current: &LayoutModules,
-    compiled_packages: &BTreeSet<SmolStr>,
-) -> Vec<InputChange> {
-    let names = previous.keys().chain(current.keys()).unique();
-    let changed = names.filter(|name| previous.get(*name) != current.get(*name));
-    let changed = changed.map(|name| {
-        let module = current.get(name).or_else(|| previous.get(name));
-        let module = module.expect("invariant violated: a changed module is in either layout");
-        (name, module)
-    });
-    let changed = changed.filter(|(_, module)| !compiled_packages.contains(module.package()));
-    let changed = changed.map(|(name, module)| InputChange {
-        source_path: module.source().to_path_buf(),
-        module_name: Some(name.clone()),
-    });
-    changed.collect()
-}
-
 fn observe_source_unit(
-    compilation: &mut CompilationState,
+    compilation: &mut ProjectCompilation,
     source_path: &Path,
+    package: SourcePackage,
 ) -> Result<SessionChange, SessionFailure> {
     let unit = source_unit(source_path)?;
     let previous_source = compilation.source_content(unit.source())?;
@@ -372,7 +316,8 @@ fn observe_source_unit(
     let previous_name = compilation.module_name(unit.source())?;
 
     let source = observe_disk(source_path);
-    let mut lifecycle = compilation.observe_source(SourceUnitKey::clone(&unit), source, ());
+    let mut lifecycle =
+        compilation.observe_source(SourceUnitKey::clone(&unit), source, Some(package));
     for kind in ForeignSourceKind::ALL {
         let foreign = observe_disk(&source_path.with_extension(kind.extension()));
         lifecycle.combine(compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, foreign));
@@ -390,7 +335,7 @@ fn observe_source_unit(
 }
 
 fn observe_foreign(
-    compilation: &mut CompilationState,
+    compilation: &mut ProjectCompilation,
     source_path: &Path,
 ) -> Result<SessionChange, SessionFailure> {
     let unit = source_unit(source_path)?;
@@ -421,7 +366,7 @@ fn source_unit(source_path: &Path) -> Result<SourceUnitKey, SessionFailure> {
 }
 
 fn source_files(
-    compilation: &CompilationState,
+    compilation: &ProjectCompilation,
 ) -> Result<BTreeMap<FileId, SourceFile>, SessionFailure> {
     let engine = compilation.query_engine();
     let builtin = MODULE_MAP.iter().filter_map(|(name, _)| engine.module_file(name));

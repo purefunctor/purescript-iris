@@ -33,5 +33,6 @@ The [Iris documentation](https://iris-lang.com/docs) covers installing and using
   another editor, configure diagnostics, and understand workspace preparation.
 - [Formatting](https://iris-lang.com/docs/formatting): format sources with `iris format` or from
   your editor.
-- [Build manifest](https://iris-lang.com/docs/build-manifest): read `output/manifest.json` to find
-  every package and module in the workspace, and where their output files go.
+- [Module metadata](https://iris-lang.com/docs/module-metadata): read
+  `output/<Module>/metadata.json` to find the package, source file, and foreign module of each
+  module that a build compiled.

@@ -1,0 +1,30 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+--- output/Library/metadata.json
+{
+  "version": 1,
+  "iris": "[VERSION]",
+  "package": "library",
+  "editable": true,
+  "source": "[WORKSPACE]/packages/library/src/Library.purs",
+  "foreign": "foreign.js"
+}
+--- output/Library.Types/metadata.json
+{
+  "version": 1,
+  "iris": "[VERSION]",
+  "package": "library",
+  "editable": true,
+  "source": "[WORKSPACE]/packages/library/src/Library/Types.purs",
+  "foreign": null
+}
+--- output/Main/metadata.json
+{
+  "version": 1,
+  "iris": "[VERSION]",
+  "package": "application",
+  "editable": true,
+  "source": "[WORKSPACE]/src/Main.purs",
+  "foreign": "foreign.jsx"
+}

@@ -11,23 +11,23 @@ use files::{FileId, ForeignSourceKind};
 use iris_diagnostics::Severity;
 use itertools::Itertools;
 use rayon::prelude::*;
+use smol_str::SmolStr;
 use thiserror::Error;
 use url::Url;
 
 use super::compilation::{CompilationState, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
-use super::manifest::{ManifestError, WorkspaceLayout};
 use super::output::{BuildOutput, OutputError};
+use super::ownership::SourcePackage;
+use super::packages::DiscoveredPackage;
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
 
 pub(crate) struct BuildConfig<'a> {
     pub root: PathBuf,
     pub output: BuildOutput,
-    pub layout: WorkspaceLayout,
-    pub version: String,
     pub source_globs: Vec<PathBuf>,
-    pub packages: Vec<PackageInput>,
+    pub packages: Vec<DiscoveredPackage>,
     pub color: bool,
     pub diagnostics: bool,
     pub events: &'a dyn BuildEventSink,
@@ -46,14 +46,14 @@ pub enum CompileError {
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error(transparent)]
-    Manifest(#[from] ManifestError),
-    #[error(transparent)]
     Output(#[from] OutputError),
     #[error(transparent)]
     Query(#[from] QueryError),
     #[error(transparent)]
     Walk(#[from] walk::Error),
 }
+
+pub(crate) type ProjectCompilation = CompilationState<(), Option<SourcePackage>>;
 
 pub(crate) enum Compiled {
     NoInputs,
@@ -212,30 +212,43 @@ where
     Ok(InitialBuild { compilation, source_paths, report })
 }
 
-pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, CompileError> {
-    let started = Instant::now();
-    let BuildConfig {
+pub(crate) fn build_initial_packages(
+    root: &Path,
+    source_globs: &[PathBuf],
+    output: &Path,
+    packages: &[DiscoveredPackage],
+    events: &dyn BuildEventSink,
+) -> Result<InitialBuild<(), Option<SourcePackage>>, CompileError> {
+    let owners = packages
+        .iter()
+        .flat_map(|package| package.files.iter().map(move |file| (file.as_path(), package)))
+        .collect::<HashMap<_, _>>();
+    let inputs = packages.iter().map(|package| PackageInput {
+        name: SmolStr::clone(&package.name),
+        source_identities: Vec::clone(&package.files),
+        dependencies: Vec::clone(&package.dependencies),
+    });
+    let excluded = [output.to_path_buf()];
+    build_initial(InitialBuildConfig {
         root,
-        output,
-        layout,
-        version,
         source_globs,
-        packages,
-        color,
-        diagnostics,
-        events,
-    } = config;
-    let excluded = [output.directory().to_path_buf()];
-    let initial = build_initial(InitialBuildConfig {
-        root: &root,
-        source_globs: &source_globs,
         excluded: &excluded,
-        packages,
-        prim_metadata: (),
-        source_metadata: |_: &Path| (),
+        packages: inputs.collect(),
+        prim_metadata: None,
+        source_metadata: |path: &Path| {
+            let package = owners.get(path).map(|package| SourcePackage::new(package));
+            Some(package.expect("invariant violated: a planned source was not discovered"))
+        },
         execution: PackageExecution::Parallel,
         events,
-    })?;
+    })
+}
+
+pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, CompileError> {
+    let started = Instant::now();
+    let BuildConfig { root, output, source_globs, packages, color, diagnostics, events } = config;
+    let initial =
+        build_initial_packages(&root, &source_globs, output.directory(), &packages, events)?;
     let InitialBuildParts { compilation, source_paths: _, mut report } = initial.into_parts();
     if report.no_inputs {
         return Err(CompileError::NoInputs);
@@ -248,8 +261,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, Compile
         None
     } else {
         let modules = collect_modules(&compilation, &report.sources)?;
-        let manifest = layout.manifest(&version, layout.modules(output.directory())?);
-        output.write(&compilation, &modules, &manifest)?;
+        output.write(&compilation, &modules)?;
         Some(modules.iter().map(|module| module.name().to_owned()).collect())
     };
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
@@ -261,7 +273,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, Compile
 }
 
 pub(crate) fn rebuild(
-    compilation: &CompilationState,
+    compilation: &ProjectCompilation,
     root: &Path,
     color: bool,
     diagnostics: bool,
@@ -280,7 +292,7 @@ pub(crate) fn rebuild(
 }
 
 pub(crate) fn finish_initial(
-    compilation: &CompilationState,
+    compilation: &ProjectCompilation,
     report: &mut InitialBuildReport,
     root: &Path,
     color: bool,
@@ -380,7 +392,7 @@ where
 }
 
 fn report_diagnostics(
-    compilation: &CompilationState,
+    compilation: &ProjectCompilation,
     diagnostics: Vec<iris_diagnostics::DiagnosticCollection>,
     root: &Path,
     color: bool,
@@ -416,7 +428,7 @@ fn display_source_path(source_path: &str, root: &Path) -> String {
 }
 
 fn collect_modules(
-    compilation: &CompilationState,
+    compilation: &ProjectCompilation,
     sources: &[FileId],
 ) -> Result<Vec<Arc<javascript::Module>>, CompileError> {
     let mut pending = sources.to_vec();

@@ -97,6 +97,10 @@ pub fn stylex_theme_module_filename(module_name: &str) -> String {
 
 pub(crate) const STYLEX_THEME_FILENAME: &str = "index.stylex.js";
 
+pub fn foreign_filename(kind: ForeignSourceKind) -> String {
+    format!("foreign.{}", kind.extension())
+}
+
 pub fn foreign_module_filename(module_name: &str, kind: ForeignSourceKind) -> String {
-    format!("{module_name}/foreign.{}", kind.extension())
+    format!("{module_name}/{}", foreign_filename(kind))
 }

@@ -34,7 +34,7 @@ foreign import main :: Effect Unit
     assert!(output.stdout.ends_with(b"\n"));
     insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"first,second");
     assert!(workspace.path().join("generated/Configured/index.js").is_file());
-    workspace.assert_spago_calls("", &[&["fetch"]]);
+    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
 }
 
 #[test]

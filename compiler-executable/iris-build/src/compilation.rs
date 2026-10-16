@@ -151,6 +151,10 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
         self.files.source_path(file_id)
     }
 
+    pub fn source_metadata(&self, file_id: FileId) -> Option<&Metadata> {
+        self.files.source_metadata(file_id)
+    }
+
     pub fn source_foreign_content(&self, source_id: FileId) -> Option<Arc<str>> {
         let foreign_id = self.engine.foreign_file(source_id)?;
         let content = self
