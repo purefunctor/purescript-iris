@@ -8,7 +8,8 @@ argument = use
   [ do
       action
   , nextArgument
-  ] finalArgument
+  ]
+  finalArgument
 
 updateEffect = record
   { field = do
@@ -28,7 +29,8 @@ argument = use
     [ do
           action
     , nextArgument
-    ] finalArgument
+    ]
+    finalArgument
 
 updateEffect = record
     { field = do

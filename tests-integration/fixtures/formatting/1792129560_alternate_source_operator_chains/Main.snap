@@ -12,11 +12,7 @@ type Combined =
     + FifthComponent
 operators =
   firstOperand
-    + transform
-        firstArgument
-        secondArgument
-        thirdArgument
-        fourthArgument
+    + transform firstArgument secondArgument thirdArgument fourthArgument
         fifthArgument
     <*> finalOperand
 ticks =
@@ -73,11 +69,7 @@ type Combined =
         + FifthComponent
 operators =
     firstOperand
-        + transform
-              firstArgument
-              secondArgument
-              thirdArgument
-              fourthArgument
+        + transform firstArgument secondArgument thirdArgument fourthArgument
               fifthArgument
         <*> finalOperand
 ticks =
@@ -105,11 +97,7 @@ type Combined =
     + FifthComponent
 operators =
   firstOperand
-    + transform
-        firstArgument
-        secondArgument
-        thirdArgument
-        fourthArgument
+    + transform firstArgument secondArgument thirdArgument fourthArgument
         fifthArgument
     <*> finalOperand
 ticks =

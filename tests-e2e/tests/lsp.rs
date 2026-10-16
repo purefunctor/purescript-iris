@@ -816,8 +816,7 @@ value=combine firstArgument secondArgument
         "module Main where
 
 value =
-    combine
-        firstArgument
+    combine firstArgument
         secondArgument
 "
     );

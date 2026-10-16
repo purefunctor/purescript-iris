@@ -1,0 +1,10 @@
+-- @format width=80
+module Main where
+
+filled = combineCollections firstCollection secondCollection thirdCollection fourthCollection fifthCollection sixthCollection
+
+filledFromNextLine = combineCollections firstCollection secondCollection thirdCollection fourthCollection fifthCollection sixthCollection
+
+separated = div [ className "documentation-container", id "module-metadata", title "Module metadata" ] [ text "Iris writes a metadata.json file." ]
+
+applied = (\firstValue secondValue -> combineValues firstValue secondValue (summarize firstValue secondValue)) firstArgument secondArgument

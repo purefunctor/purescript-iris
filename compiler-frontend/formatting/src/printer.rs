@@ -98,6 +98,26 @@ impl Tree {
             _ => self.children.iter().any(Tree::has_inline_block),
         }
     }
+
+    fn argument_header(&self) -> Option<Vec<&Tree>> {
+        let expression = self.expression()?;
+        match expression.kind {
+            ExpressionDo | ExpressionAdo => Some(expression.elements()[..1].to_vec()),
+            ExpressionLambda => {
+                let [backslash, binders, arrow, _] = expression.elements()[..] else {
+                    unreachable!("invariant violated: validated lambda has four elements");
+                };
+                Some(vec![backslash, binders, arrow])
+            }
+            ExpressionCaseOf => {
+                let [case_keyword, trunk, of_keyword, _] = expression.elements()[..] else {
+                    unreachable!("invariant violated: validated case expression has four elements");
+                };
+                Some(vec![case_keyword, trunk, of_keyword])
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -427,6 +447,16 @@ impl<'arena> Printer<'arena, '_> {
         self.probe_header(index, gap, header, fitting, overflowing)
     }
 
+    fn probe(&self, document: Doc<'arena>) -> Doc<'arena> {
+        let arena = self.arena;
+        let document = arena.fail().flat_alt(document).group();
+        let mut rendered = String::new();
+        match document.render_fmt(self.config.line_width, &mut rendered) {
+            Ok(()) => arena.fail().flat_alt(arena.text(rendered)).group(),
+            Err(_) => arena.fail(),
+        }
+    }
+
     fn probe_header(
         &self,
         index: usize,
@@ -466,6 +496,83 @@ impl<'arena> Printer<'arena, '_> {
                 }
             },
         )
+    }
+
+    fn call(&self, elements: &[&Tree], context: Context) -> Result<Doc<'arena>, FormatError> {
+        let [function, arguments @ ..] = elements else {
+            unreachable!("invariant violated: validated application has a function");
+        };
+        let arena = self.arena;
+        let width = self.config.line_width;
+        let indent = self.config.indent_width;
+        let margin = context.margin + indent;
+        let mut first_line = arena.nil();
+        let mut continuation_line = arena.nil();
+        let mut new_line = arena.nil();
+        for (position, argument) in arguments.iter().enumerate().rev() {
+            let last = position + 1 == arguments.len();
+            let following = if last { context.following } else { Some(margin) };
+            let inline = self.tree(argument, Context { following, ..context })?;
+            let broken = self.tree(argument, Context { margin, following })?;
+            let space = self.boundary(argument.start, Gap::Space)?;
+            let mut wrapped = self
+                .boundary(argument.start, Gap::Hard(1))?
+                .append(broken.clone())
+                .nest(indent as isize);
+            if !last {
+                let flat = self.probe(broken.clone());
+                let continuation_line = continuation_line.clone();
+                let new_line = new_line.clone();
+                wrapped = wrapped.append(arena.nesting(move |nesting| {
+                    if fits(&flat, width.saturating_sub(nesting + indent)) {
+                        continuation_line.clone().into_doc()
+                    } else {
+                        new_line.clone().into_doc()
+                    }
+                }));
+            }
+            let (comments, _) = trivia(self.lexed.annotation(argument.start).unwrap_or_default())?;
+            let forced = (position > 0 && arguments[position - 1].ends_offside())
+                || comments.last().is_some_and(|comment| comment.forces_line());
+            let header = argument.argument_header();
+            let header = header.map(|header| self.fixed(&header, context)).transpose()?;
+            let probe = match header {
+                Some(header) => Some(space.clone().append(header)),
+                None if last => None,
+                None => Some(space.clone().append(inline.clone())),
+            };
+            let probe = probe.map(|probe| self.probe(probe));
+            let place = |placed: Doc<'arena>| {
+                if forced {
+                    return wrapped.clone();
+                }
+                let Some(probe) = probe.clone() else {
+                    return wrapped.clone().flat_alt(placed).group();
+                };
+                let wrapped = wrapped.clone();
+                arena.column(move |column| {
+                    if fits(&probe, width.saturating_sub(column)) {
+                        placed.clone().into_doc()
+                    } else {
+                        wrapped.clone().into_doc()
+                    }
+                })
+            };
+            first_line = place(space.clone().append(inline).append(first_line));
+            continuation_line =
+                place(space.append(broken).nest(indent as isize).append(continuation_line));
+            new_line = wrapped;
+        }
+        let function = self.tree(function, Context { following: Some(margin), ..context })?;
+        let flat = self.probe(function.clone());
+        Ok(arena.column(move |column| {
+            let arguments = if fits(&flat, width.saturating_sub(column)) {
+                first_line.clone()
+            } else {
+                new_line.clone()
+            };
+            function.clone().append(arguments).into_doc()
+        }))
     }
 
     fn chain(
@@ -981,8 +1088,8 @@ impl<'arena> Printer<'arena, '_> {
                     context.margin.max(context.following.unwrap_or(0)) + self.config.indent_width;
                 self.block(&elements, context, margin)
             }
-            ExpressionApplicationChain
-            | TypeApplicationChain
+            ExpressionApplicationChain => self.call(&elements, context),
+            TypeApplicationChain
             | ExpressionRecordUpdate
             | RecordUpdateBranch
             | BinderConstructor
@@ -1194,4 +1301,9 @@ fn is_block(kind: SyntaxKind) -> bool {
         kind,
         DoStatements | CaseBranches | LetBindingStatements | ClassStatements | InstanceStatements
     )
+}
+
+fn fits(document: &Doc<'_>, width: usize) -> bool {
+    let mut rendered = String::new();
+    document.render_fmt(width, &mut rendered).is_ok()
 }

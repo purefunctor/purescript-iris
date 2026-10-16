@@ -28,11 +28,7 @@ applied = consume case input of
 
 scrutinee =
   case
-    combineAll
-      firstArgument
-      secondArgument
-      thirdArgument
-      fourthArgument
+    combineAll firstArgument secondArgument thirdArgument fourthArgument
       fifthArgument
   of
     value ->
@@ -64,11 +60,7 @@ branchComment = case input of -- branch explanation
 
 parenthesized = consume
   ( case
-      combine
-        firstArgument
-        secondArgument
-        thirdArgument
-        fourthArgument
+      combine firstArgument secondArgument thirdArgument fourthArgument
         fifthArgument
     of
       value -> value

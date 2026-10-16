@@ -12,7 +12,8 @@ lambda = for_ values
 parenthesized = use
   ( do
       action
-  ) next
+  )
+  next
 
 record =
   { onClick: do
@@ -35,19 +36,11 @@ applicative = use
   )
 
 wrapped =
-  ( combine
-      firstArgument
-      secondArgument
-      thirdArgument
-      fourthArgument
+  ( combine firstArgument secondArgument thirdArgument fourthArgument
       fifthArgument
   )
 nested =
-  ( ( combine
-        firstArgument
-        secondArgument
-        thirdArgument
-        fourthArgument
+  ( ( combine firstArgument secondArgument thirdArgument fourthArgument
         fifthArgument
     )
   )
@@ -69,7 +62,8 @@ lambda = for_ values
 parenthesized = use
     ( do
           action
-    ) next
+    )
+    next
 
 record =
     { onClick: do

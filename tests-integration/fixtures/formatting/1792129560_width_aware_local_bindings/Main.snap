@@ -8,11 +8,7 @@ local value = do
   action value
   where
   helper =
-    transform
-      firstArgument
-      secondArgument
-      thirdArgument
-      fourthArgument
+    transform firstArgument secondArgument thirdArgument fourthArgument
       fifthArgument
 localLet =
   let
@@ -53,11 +49,7 @@ local value = do
     action value
     where
     helper =
-        transform
-            firstArgument
-            secondArgument
-            thirdArgument
-            fourthArgument
+        transform firstArgument secondArgument thirdArgument fourthArgument
             fifthArgument
 localLet =
     let
@@ -72,11 +64,7 @@ local value = do
   action value
   where
   helper =
-    transform
-      firstArgument
-      secondArgument
-      thirdArgument
-      fourthArgument
+    transform firstArgument secondArgument thirdArgument fourthArgument
       fifthArgument
 localLet =
   let
