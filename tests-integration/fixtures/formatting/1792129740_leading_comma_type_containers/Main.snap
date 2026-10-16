@@ -1,0 +1,21 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+type Tail row = { | row }
+type RowTail row = (| row)
+data Wrapped
+  = Wrapped
+      { firstField :: FirstType
+      , secondField :: SecondType
+      , thirdField :: ThirdType
+      }
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+type Tail row = { | row }
+type RowTail row = (| row)
+data Wrapped = Wrapped { firstField ∷ FirstType, secondField ∷ SecondType, thirdField ∷ ThirdType }
