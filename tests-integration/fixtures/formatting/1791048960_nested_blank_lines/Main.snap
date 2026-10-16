@@ -38,8 +38,7 @@ instance C Int where
 
   second = 2
 
-literal =
-  """first
+literal = """first
   
 second"""
 
@@ -85,8 +84,7 @@ instance C Int where
 
     second = 2
 
-literal =
-    """first
+literal = """first
   
 second"""
 

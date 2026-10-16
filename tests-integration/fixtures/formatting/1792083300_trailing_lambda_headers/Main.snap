@@ -22,15 +22,13 @@ filled = foldlWithIndex combineIndexedValues initialAccumulatorValue
   secondaryAccumulatorValue additionalContext \index accumulator value ->
     combineWithIndex index accumulator value
 
-handled =
-  loadConfiguration applicationSettings defaultOptions
-    <#> \configuration environment -> do
-      logConfiguration configuration
-      runApplication environment
+handled = loadConfiguration applicationSettings defaultOptions
+  <#> \configuration environment -> do
+    logConfiguration configuration
+    runApplication environment
 
-indexed =
-  loadConfiguration applicationSettings defaultOptions
-    <#> foldlWithIndex combineIndexedValues initialAccumulatorValue
-          \index accumulator value -> do
-            combineIndexed accumulator
-            advance index value
+indexed = loadConfiguration applicationSettings defaultOptions
+  <#> foldlWithIndex combineIndexedValues initialAccumulatorValue
+        \index accumulator value -> do
+          combineIndexed accumulator
+          advance index value

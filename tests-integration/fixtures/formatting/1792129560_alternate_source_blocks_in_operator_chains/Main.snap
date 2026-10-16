@@ -6,8 +6,8 @@ module Main where
 
 operatorDo = firstOperand + do
   action
-operatorDoLongChain = firstOperand + secondOperand + thirdOperand
-  + fourthOperand + do
+operatorDoLongChain =
+  firstOperand + secondOperand + thirdOperand + fourthOperand + do
     action
 
 === width 100, indent 2 ===
@@ -31,8 +31,8 @@ module Main where
 
 operatorDo = firstOperand + do
     action
-operatorDoLongChain = firstOperand + secondOperand + thirdOperand
-    + fourthOperand + do
+operatorDoLongChain =
+    firstOperand + secondOperand + thirdOperand + fourthOperand + do
         action
 
 === width 80, indent 2, unicode ===
@@ -40,6 +40,6 @@ module Main where
 
 operatorDo = firstOperand + do
   action
-operatorDoLongChain = firstOperand + secondOperand + thirdOperand
-  + fourthOperand + do
+operatorDoLongChain =
+  firstOperand + secondOperand + thirdOperand + fourthOperand + do
     action

@@ -1025,8 +1025,8 @@ dependencies = [
  "itertools 0.15.0",
  "lexing",
  "parsing",
- "pretty",
  "syntax",
+ "unicode-width",
 ]
 
 [[package]]

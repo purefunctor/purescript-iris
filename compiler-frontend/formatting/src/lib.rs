@@ -9,6 +9,7 @@ use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, WalkEvent, cst};
 
 use SyntaxKind::*;
 
+mod layout;
 mod printer;
 
 /// Layout and spelling preferences.

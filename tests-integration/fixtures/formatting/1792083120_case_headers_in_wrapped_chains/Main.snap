@@ -12,7 +12,8 @@ appliedAlone = consumeEveryArgument firstArgumentExpressionWithLongName
   case someEvenLongerInputExpressionValue of
     value -> value
 
-chained = firstOperandExpression <> secondOperandExpression
+chained = firstOperandExpression
+  <> secondOperandExpression
   <> case someLongerInputExpression of
     value -> value
 

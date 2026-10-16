@@ -10,14 +10,15 @@ operatorAfterBlock = do
 
 operatorDo = firstOperand + do
   action
-operatorDoLongChain = firstOperand + secondOperand + thirdOperand
-  + fourthOperand + do
+operatorDoLongChain =
+  firstOperand + secondOperand + thirdOperand + fourthOperand + do
     action
-operatorAdoLongChain = firstOperand + secondOperand + thirdOperand
-  + fourthOperand + ado
+operatorAdoLongChain =
+  firstOperand + secondOperand + thirdOperand + fourthOperand + ado
     value <- action
     in transform value
-operatorDoMiddle = firstOperand + do
+operatorDoMiddle = firstOperand
+  + do
     action
   + finalOperand
 operatorBetweenBlocks = do
@@ -48,7 +49,8 @@ operatorDoLongChain = firstOperand + secondOperand + thirdOperand + fourthOperan
 operatorAdoLongChain = firstOperand + secondOperand + thirdOperand + fourthOperand + ado
   value <- action
   in transform value
-operatorDoMiddle = firstOperand + do
+operatorDoMiddle = firstOperand
+  + do
     action
   + finalOperand
 operatorBetweenBlocks = do
@@ -79,7 +81,8 @@ operatorDoLongChain = firstOperand + secondOperand + thirdOperand + fourthOperan
 operatorAdoLongChain = firstOperand + secondOperand + thirdOperand + fourthOperand + ado
   value <- action
   in transform value
-operatorDoMiddle = firstOperand + do
+operatorDoMiddle = firstOperand
+  + do
     action
   + finalOperand
 operatorBetweenBlocks = do
@@ -105,14 +108,15 @@ operatorAfterBlock = do
 
 operatorDo = firstOperand + do
     action
-operatorDoLongChain = firstOperand + secondOperand + thirdOperand
-    + fourthOperand + do
+operatorDoLongChain =
+    firstOperand + secondOperand + thirdOperand + fourthOperand + do
         action
-operatorAdoLongChain = firstOperand + secondOperand + thirdOperand
-    + fourthOperand + ado
+operatorAdoLongChain =
+    firstOperand + secondOperand + thirdOperand + fourthOperand + ado
         value <- action
         in transform value
-operatorDoMiddle = firstOperand + do
+operatorDoMiddle = firstOperand
+    + do
         action
     + finalOperand
 operatorBetweenBlocks = do
@@ -138,14 +142,15 @@ operatorAfterBlock = do
 
 operatorDo = firstOperand + do
   action
-operatorDoLongChain = firstOperand + secondOperand + thirdOperand
-  + fourthOperand + do
+operatorDoLongChain =
+  firstOperand + secondOperand + thirdOperand + fourthOperand + do
     action
-operatorAdoLongChain = firstOperand + secondOperand + thirdOperand
-  + fourthOperand + ado
+operatorAdoLongChain =
+  firstOperand + secondOperand + thirdOperand + fourthOperand + ado
     value ← action
     in transform value
-operatorDoMiddle = firstOperand + do
+operatorDoMiddle = firstOperand
+  + do
     action
   + finalOperand
 operatorBetweenBlocks = do

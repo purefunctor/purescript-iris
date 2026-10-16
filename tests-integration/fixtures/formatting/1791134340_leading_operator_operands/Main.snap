@@ -4,17 +4,13 @@ source: tests-integration/tests/formatting.rs
 === width 80, indent 2 ===
 module Main where
 
-conditional =
-  firstLongOperand
-    + if conditionHolds firstArgument
-      then firstBranchValue
-      else secondBranchValue
-localBinding =
-  firstLongOperand
-    <> let
-         bound = longBindingValue
-       in
-         bound + anotherLongOperand
+conditional = firstLongOperand
+  + if conditionHolds firstArgument then firstBranchValue else secondBranchValue
+localBinding = firstLongOperand
+  <> let
+       bound = longBindingValue
+     in
+       bound + anotherLongOperand
 branching = firstLongOperandWithADescriptiveName
   <=> case chooseBetweenBranches firstArgument of
     First -> firstBranchValue
@@ -40,18 +36,15 @@ typed ::
   value
 typed value = value
 
-commented =
-  firstLongOperand
-    + -- operand explanation
-    transform firstArgument secondArgument
-negated =
-  firstOperandWithAVeryLongDescriptiveName
-    - (-secondOperandWithAVeryLongDescriptiveName)
+commented = firstLongOperand
+  + -- operand explanation
+  transform firstArgument secondArgument
+negated = firstOperandWithAVeryLongDescriptiveName
+  - (-secondOperandWithAVeryLongDescriptiveName)
 
-qualified =
-  firstLongOperand
-    Data.Semigroup.<> secondLongOperand
-    Data.Semigroup.<> thirdLongOperand
+qualified = firstLongOperand
+  Data.Semigroup.<> secondLongOperand
+  Data.Semigroup.<> thirdLongOperand
 
 offside = do
     action
@@ -63,7 +56,8 @@ commentedDo = left
     action
 commentedMiddle = first
   + -- explains why the middle operand is combined with the first operand
-  second + do
+  second
+  + do
     action
 
 === width 100, indent 4, unicode ===
@@ -71,12 +65,11 @@ module Main where
 
 conditional =
     firstLongOperand + if conditionHolds firstArgument then firstBranchValue else secondBranchValue
-localBinding =
-    firstLongOperand
-        <> let
-               bound = longBindingValue
-           in
-               bound + anotherLongOperand
+localBinding = firstLongOperand
+    <> let
+           bound = longBindingValue
+       in
+           bound + anotherLongOperand
 branching = firstLongOperandWithADescriptiveName <=> case chooseBetweenBranches firstArgument of
     First → firstBranchValue
     Second → secondBranchValue
@@ -97,10 +90,9 @@ typed ∷
     value
 typed value = value
 
-commented =
-    firstLongOperand
-        + -- operand explanation
-        transform firstArgument secondArgument
+commented = firstLongOperand
+    + -- operand explanation
+    transform firstArgument secondArgument
 negated = firstOperandWithAVeryLongDescriptiveName - (-secondOperandWithAVeryLongDescriptiveName)
 
 qualified = firstLongOperand Data.Semigroup.<> secondLongOperand Data.Semigroup.<> thirdLongOperand
@@ -109,23 +101,25 @@ offside = do
         action
     Data.Semigroup.<> otherAction
 
-commentedDo = left + -- explains why the following block is combined with the left operand
+commentedDo = left
+    + -- explains why the following block is combined with the left operand
     do
         action
-commentedMiddle = first + -- explains why the middle operand is combined with the first operand
-    second + do
+commentedMiddle = first
+    + -- explains why the middle operand is combined with the first operand
+    second
+    + do
         action
 
 === width 120, indent 2 ===
 module Main where
 
 conditional = firstLongOperand + if conditionHolds firstArgument then firstBranchValue else secondBranchValue
-localBinding =
-  firstLongOperand
-    <> let
-         bound = longBindingValue
-       in
-         bound + anotherLongOperand
+localBinding = firstLongOperand
+  <> let
+       bound = longBindingValue
+     in
+       bound + anotherLongOperand
 branching = firstLongOperandWithADescriptiveName <=> case chooseBetweenBranches firstArgument of
   First -> firstBranchValue
   Second -> secondBranchValue
@@ -141,10 +135,9 @@ typed ::
   forall value. FirstConstraint value => SecondConstraint value => FirstComponent + SecondComponent -> value -> value
 typed value = value
 
-commented =
-  firstLongOperand
-    + -- operand explanation
-    transform firstArgument secondArgument
+commented = firstLongOperand
+  + -- operand explanation
+  transform firstArgument secondArgument
 negated = firstOperandWithAVeryLongDescriptiveName - (-secondOperandWithAVeryLongDescriptiveName)
 
 qualified = firstLongOperand Data.Semigroup.<> secondLongOperand Data.Semigroup.<> thirdLongOperand
@@ -153,9 +146,12 @@ offside = do
     action
   Data.Semigroup.<> otherAction
 
-commentedDo = left + -- explains why the following block is combined with the left operand
+commentedDo = left
+  + -- explains why the following block is combined with the left operand
   do
     action
-commentedMiddle = first + -- explains why the middle operand is combined with the first operand
-  second + do
+commentedMiddle = first
+  + -- explains why the middle operand is combined with the first operand
+  second
+  + do
     action

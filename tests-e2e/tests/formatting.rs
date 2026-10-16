@@ -30,8 +30,7 @@ second"""
 
 {- A block comment.
    With another line. -}
-value =
-  """first
+value = """first
 second"""
 "#
     .replace("first\nsecond", "first\r\nsecond");

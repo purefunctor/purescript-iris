@@ -4,43 +4,36 @@ source: tests-integration/tests/formatting.rs
 === width 80, indent 2 ===
 module Main where
 
-value =
-  firstOperandWithALongName
-    `combineWith
-      ( innerOperandName `transformWith` innerArgumentName
-      )` secondOperandWithALongName
-nested =
-  firstOperandWithALongName
-    `combineWith
-      ( innerOperandName
-          `transformWith
-            ( deeperOperandName `adjustWith` deeperArgumentName
-            )` anotherArgumentName
-      )` secondOperandWithALongName
+value = firstOperandWithALongName
+  `combineWith
+    ( innerOperandName `transformWith` innerArgumentName
+    )` secondOperandWithALongName
+nested = firstOperandWithALongName
+  `combineWith
+    ( innerOperandName
+        `transformWith
+          ( deeperOperandName `adjustWith` deeperArgumentName
+          )` anotherArgumentName
+    )` secondOperandWithALongName
 
 === width 100, indent 4, unicode ===
 module Main where
 
-value =
-    firstOperandWithALongName
-        `combineWith
-            (innerOperandName `transformWith` innerArgumentName)` secondOperandWithALongName
-nested =
-    firstOperandWithALongName
-        `combineWith
-            ( innerOperandName
-                  `transformWith
-                      (deeperOperandName `adjustWith` deeperArgumentName)` anotherArgumentName
-            )` secondOperandWithALongName
+value = firstOperandWithALongName
+    `combineWith (innerOperandName `transformWith` innerArgumentName)` secondOperandWithALongName
+nested = firstOperandWithALongName
+    `combineWith
+        ( innerOperandName
+              `transformWith
+                  (deeperOperandName `adjustWith` deeperArgumentName)` anotherArgumentName
+        )` secondOperandWithALongName
 
 === width 120, indent 2 ===
 module Main where
 
-value =
-  firstOperandWithALongName
-    `combineWith (innerOperandName `transformWith` innerArgumentName)` secondOperandWithALongName
-nested =
-  firstOperandWithALongName
-    `combineWith
-      ( innerOperandName `transformWith (deeperOperandName `adjustWith` deeperArgumentName)` anotherArgumentName
-      )` secondOperandWithALongName
+value = firstOperandWithALongName
+  `combineWith (innerOperandName `transformWith` innerArgumentName)` secondOperandWithALongName
+nested = firstOperandWithALongName
+  `combineWith
+    ( innerOperandName `transformWith (deeperOperandName `adjustWith` deeperArgumentName)` anotherArgumentName
+    )` secondOperandWithALongName
