@@ -12,7 +12,8 @@ lambda = for_ values
 parenthesized = use
   ( do
       action
-  ) next
+  )
+  next
 
 record =
   { onClick: do
@@ -35,28 +36,20 @@ applicative = use
   )
 
 wrapped =
-  ( combine
-      firstArgument
-      secondArgument
-      thirdArgument
-      fourthArgument
+  ( combine firstArgument secondArgument thirdArgument fourthArgument
       fifthArgument
   )
 nested =
-  ( ( combine
-        firstArgument
-        secondArgument
-        thirdArgument
-        fourthArgument
+  ( ( combine firstArgument secondArgument thirdArgument fourthArgument
         fifthArgument
     )
   )
 
-operator = identity $
-  { onClick: do
-      action
-  , other: 1
-  }
+operator = identity
+  $ { onClick: do
+        action
+    , other: 1
+    }
 
 === width 100, indent 4, unicode ===
 module Main where
@@ -69,7 +62,8 @@ lambda = for_ values
 parenthesized = use
     ( do
           action
-    ) next
+    )
+    next
 
 record =
     { onClick: do
@@ -94,8 +88,8 @@ applicative = use
 wrapped = (combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument)
 nested = ((combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument))
 
-operator = identity $
-    { onClick: do
-          action
-    , other: 1
-    }
+operator = identity
+    $ { onClick: do
+            action
+      , other: 1
+      }

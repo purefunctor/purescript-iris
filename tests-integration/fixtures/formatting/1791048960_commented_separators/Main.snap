@@ -20,8 +20,7 @@ class C a b c
   | a -> b -- first dependency
     , b -> c
 
-instance Show
-  a -- explains why showing a box only requires showing the value inside it
+instance Show a -- explains why showing a box only requires showing the value inside it
   => Show (Box a)
 
 arrow ::

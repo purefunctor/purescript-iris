@@ -12,8 +12,7 @@ nested = do
   -- between statements
   pure 2
 
-raw =
-  """first
+raw = """first
       indented raw text
 last"""
 unicode = "😀 café"

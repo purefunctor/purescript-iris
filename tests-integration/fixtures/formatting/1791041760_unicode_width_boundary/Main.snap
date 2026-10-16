@@ -6,8 +6,8 @@ module Main where
 
 applyTransformationTo ::
   forall input output. (input -> output) -> input -> output
-applyTransformationTo =
-  \transformFunction argument -> transformFunction argument
+applyTransformationTo = \transformFunction argument ->
+  transformFunction argument
 
 === width 80, indent 2, unicode ===
 module Main where

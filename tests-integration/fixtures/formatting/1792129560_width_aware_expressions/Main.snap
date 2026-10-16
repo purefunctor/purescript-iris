@@ -25,9 +25,8 @@ branches value =
   if predicate value
   then transform firstInput secondInput
   else fallback anotherInput
-lambda =
-  \firstArgument secondArgument thirdArgument ->
-    combine firstArgument secondArgument thirdArgument
+lambda = \firstArgument secondArgument thirdArgument ->
+  combine firstArgument secondArgument thirdArgument
 
 === width 100, indent 2 ===
 module Main where
@@ -44,8 +43,8 @@ updated =
     , nested { field = otherValue }
     }
 branches value = if predicate value then transform firstInput secondInput else fallback anotherInput
-lambda =
-  \firstArgument secondArgument thirdArgument -> combine firstArgument secondArgument thirdArgument
+lambda = \firstArgument secondArgument thirdArgument ->
+  combine firstArgument secondArgument thirdArgument
 
 === width 120, indent 2 ===
 module Main where
@@ -83,9 +82,8 @@ branches value =
     if predicate value
     then transform firstInput secondInput
     else fallback anotherInput
-lambda =
-    \firstArgument secondArgument thirdArgument ->
-        combine firstArgument secondArgument thirdArgument
+lambda = \firstArgument secondArgument thirdArgument ->
+    combine firstArgument secondArgument thirdArgument
 
 === width 80, indent 2, unicode ===
 module Main where
@@ -111,6 +109,5 @@ branches value =
   if predicate value
   then transform firstInput secondInput
   else fallback anotherInput
-lambda =
-  \firstArgument secondArgument thirdArgument →
-    combine firstArgument secondArgument thirdArgument
+lambda = \firstArgument secondArgument thirdArgument →
+  combine firstArgument secondArgument thirdArgument

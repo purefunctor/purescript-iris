@@ -1,0 +1,31 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+module Main where
+
+component = pure $ documentation
+  { page: ModuleMetadata
+  , intro:
+      "Next to each module's generated JavaScript, Iris writes a metadata.json file."
+  , sections
+  }
+
+children = div [ className "container" ]
+  [ text "Next to each module's generated JavaScript"
+  , text "Iris writes a metadata.json file."
+  ]
+
+parenthesized = pure $ documentation
+  (makeDocumentation ModuleMetadata "Generated metadata for each module")
+
+intact =
+  documentation { page: ModuleMetadata, intro: "Generated metadata", sections }
+
+merged = defaults
+  <> overrides { page: ModuleMetadata, intro: "Generated metadata", sections }
+
+operand = defaults
+  <> { page: ModuleMetadata
+     , intro: "Next to each module's generated JavaScript."
+     , sections
+     }

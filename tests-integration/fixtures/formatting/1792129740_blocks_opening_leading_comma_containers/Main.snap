@@ -8,13 +8,15 @@ argument = use
   [ do
       action
   , nextArgument
-  ] finalArgument
+  ]
+  finalArgument
 
-updateEffect = record
-  { field = do
-      action
-  , otherField = secondArgument
-  }
+updateEffect =
+  record
+    { field = do
+        action
+    , otherField = secondArgument
+    }
 widePrefix = use "界界界界"
   { field: do
       action
@@ -28,13 +30,15 @@ argument = use
     [ do
           action
     , nextArgument
-    ] finalArgument
+    ]
+    finalArgument
 
-updateEffect = record
-    { field = do
-          action
-    , otherField = secondArgument
-    }
+updateEffect =
+    record
+        { field = do
+              action
+        , otherField = secondArgument
+        }
 widePrefix = use "界界界界"
     { field: do
           action

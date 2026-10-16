@@ -3,10 +3,5 @@ source: tests-integration/tests/formatting.rs
 ---
 module Main where
 
-value =
-    combine
-        firstArgument
-        secondArgument
-        thirdArgument
-        fourthArgument
-        fifthArgument
+value = combine firstArgument secondArgument thirdArgument fourthArgument
+    fifthArgument

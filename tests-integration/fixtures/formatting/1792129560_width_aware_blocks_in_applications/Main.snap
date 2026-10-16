@@ -12,8 +12,8 @@ blockMiddle = use do
   argument
 blockFinal = use do
   action
-brokenApplication = invokeOperation firstArgument secondArgument thirdArgument
-  fourthArgument do
+brokenApplication =
+  invokeOperation firstArgument secondArgument thirdArgument fourthArgument do
     action
 
 === width 100, indent 2 ===
@@ -55,8 +55,8 @@ blockMiddle = use do
     argument
 blockFinal = use do
     action
-brokenApplication = invokeOperation firstArgument secondArgument thirdArgument
-    fourthArgument do
+brokenApplication =
+    invokeOperation firstArgument secondArgument thirdArgument fourthArgument do
         action
 
 === width 80, indent 2, unicode ===
@@ -70,6 +70,6 @@ blockMiddle = use do
   argument
 blockFinal = use do
   action
-brokenApplication = invokeOperation firstArgument secondArgument thirdArgument
-  fourthArgument do
+brokenApplication =
+  invokeOperation firstArgument secondArgument thirdArgument fourthArgument do
     action

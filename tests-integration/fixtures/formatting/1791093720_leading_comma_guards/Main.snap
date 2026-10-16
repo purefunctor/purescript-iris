@@ -19,7 +19,7 @@ recordGuard value
     , secondFieldName: secondArgument
     , thirdFieldName: thirdArgument
     }
-      == value,
+    == value,
     predicate value = 1
   | otherwise = 2
 
@@ -46,7 +46,7 @@ recordGuard value
       , secondFieldName: secondArgument
       , thirdFieldName: thirdArgument
       }
-            == value,
+        == value,
         predicate value = 1
     | otherwise = 2
 

@@ -22,10 +22,7 @@ longApplication firstCollection
   secondCollection
   thirdCollection
   fourthCollection =
-  combineCollections
-    firstCollection
-    secondCollection
-    thirdCollection
+  combineCollections firstCollection secondCollection thirdCollection
     fourthCollection
 
 rows ::
@@ -104,10 +101,7 @@ longApplication firstCollection
     secondCollection
     thirdCollection
     fourthCollection =
-    combineCollections
-        firstCollection
-        secondCollection
-        thirdCollection
+    combineCollections firstCollection secondCollection thirdCollection
         fourthCollection
 
 rows ::
@@ -147,10 +141,7 @@ longApplication firstCollection
   secondCollection
   thirdCollection
   fourthCollection =
-  combineCollections
-    firstCollection
-    secondCollection
-    thirdCollection
+  combineCollections firstCollection secondCollection thirdCollection
     fourthCollection
 
 rows ∷

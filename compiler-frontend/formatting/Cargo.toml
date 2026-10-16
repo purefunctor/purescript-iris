@@ -8,5 +8,5 @@ license.workspace = true
 itertools = "0.15.0"
 lexing = { version = "0.1.0", path = "../lexing" }
 parsing = { version = "0.1.0", path = "../parsing" }
-pretty = "0.12.5"
 syntax = { version = "0.1.0", path = "../syntax" }
+unicode-width = "0.2.2"

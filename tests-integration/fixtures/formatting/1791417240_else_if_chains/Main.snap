@@ -55,13 +55,8 @@ nested =
 wrapped =
   if a
   then x
-  else if
-    predicate
-      firstArgument
-      secondArgument
-      thirdArgument
-      fourthArgument
-      fifthArgument
+  else if predicate firstArgument secondArgument thirdArgument fourthArgument
+    fifthArgument
   then y
   else z
 
@@ -79,13 +74,12 @@ standaloneComment =
     {- next condition -}
     if b then y else z
 
-operand =
-  firstOperand
-    + if firstCondition
-      then firstResult
-      else if secondCondition
-      then secondResult
-      else fallback
+operand = firstOperand
+  + if firstCondition
+    then firstResult
+    else if secondCondition
+    then secondResult
+    else fallback
 
 === width 100, indent 4, unicode ===
 module Main where
@@ -155,9 +149,8 @@ standaloneComment =
         {- next condition -}
         if b then y else z
 
-operand =
-    firstOperand
-        + if firstCondition then firstResult else if secondCondition then secondResult else fallback
+operand = firstOperand
+    + if firstCondition then firstResult else if secondCondition then secondResult else fallback
 
 === width 120, indent 2 ===
 module Main where
