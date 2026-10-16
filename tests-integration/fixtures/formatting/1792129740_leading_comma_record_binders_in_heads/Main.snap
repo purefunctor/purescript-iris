@@ -1,0 +1,37 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+patterns first second = case first, second of
+  { firstField: firstValue
+  , secondField: secondValue
+  , thirdField: thirdValue
+  , fourthField: fourthValue
+  }, [ item, rest ] -> firstValue
+  _, _ -> fallback
+
+named whole@{ firstField: firstValue
+            , secondField: secondValue
+            , thirdField: thirdValue
+            } = whole
+lambda =
+  \{ firstField: firstValue
+   , secondField: secondValue
+   , thirdField: thirdValue
+   } -> firstValue
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+patterns first second = case first, second of
+    { firstField: firstValue
+    , secondField: secondValue
+    , thirdField: thirdValue
+    , fourthField: fourthValue
+    }, [ item, rest ] → firstValue
+    _, _ → fallback
+
+named whole@{ firstField: firstValue, secondField: secondValue, thirdField: thirdValue } = whole
+lambda = \{ firstField: firstValue, secondField: secondValue, thirdField: thirdValue } → firstValue

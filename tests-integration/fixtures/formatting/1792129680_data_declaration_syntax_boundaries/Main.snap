@@ -1,0 +1,18 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+data Void
+data Box (a :: Type) = Box a
+newtype Wrapped a = Wrapped a
+type role Wrapped representational
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+data Void
+data Box (a ∷ Type) = Box a
+newtype Wrapped a = Wrapped a
+type role Wrapped representational

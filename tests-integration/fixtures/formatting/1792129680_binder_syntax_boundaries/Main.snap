@@ -1,0 +1,24 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+binders {}
+  []
+  namedBinder@wholeValue
+  (annotatedItem :: Int)
+  { recordField: recordField } = wholeValue
+binderOperator ( firstElement
+                   : secondElement
+                   : thirdElement
+                   : fourthElement
+                   : remainingElements
+               ) = firstElement
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+binders {} [] namedBinder@wholeValue (annotatedItem ∷ Int) { recordField: recordField } = wholeValue
+binderOperator (firstElement : secondElement : thirdElement : fourthElement : remainingElements) =
+    firstElement

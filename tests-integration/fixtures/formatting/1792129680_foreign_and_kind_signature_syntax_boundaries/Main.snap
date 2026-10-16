@@ -1,0 +1,22 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+foreign import external :: Int
+foreign import data External :: Type
+data Kind :: Type
+newtype NewKind :: Type
+type AliasKind :: Type
+class ClassKind :: Type -> Constraint
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+foreign import external ∷ Int
+foreign import data External ∷ Type
+data Kind ∷ Type
+newtype NewKind ∷ Type
+type AliasKind ∷ Type
+class ClassKind ∷ Type → Constraint

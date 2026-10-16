@@ -1,0 +1,32 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+recordPattern { firstField: firstArgument
+              , secondField: secondArgument
+              , thirdField: thirdArgument
+              } = firstArgument
+arrayPattern [ firstArgument
+             , secondArgument
+             , thirdArgument
+             , fourthArgument
+             , fifthArgument
+             ] = secondArgument
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+recordPattern { firstField: firstArgument
+              , secondField: secondArgument
+              , thirdField: thirdArgument
+              } = firstArgument
+arrayPattern [ firstArgument, secondArgument, thirdArgument, fourthArgument, fifthArgument ] =
+    secondArgument
+
+=== width 120, indent 2 ===
+module Main where
+
+recordPattern { firstField: firstArgument, secondField: secondArgument, thirdField: thirdArgument } = firstArgument
+arrayPattern [ firstArgument, secondArgument, thirdArgument, fourthArgument, fifthArgument ] = secondArgument

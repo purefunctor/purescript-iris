@@ -1,0 +1,67 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+effect = do
+  [ do
+      firstAction
+  , ado
+      value <- secondAction
+      in value
+  ]
+  { result: case input of
+      Just value -> value
+      Nothing -> fallback
+  , local:
+      let
+        value = firstArgument
+      in
+        value
+  , choice:
+      if conditionHolds firstArgument
+      then transform firstArgument
+      else transform secondArgument
+  }
+  finalAction
+
+literal =
+  [ """first
+second"""
+  , { nested:
+        [ { value: firstArgument }
+        , { value: secondArgument }
+        , { value: thirdArgument }
+        ]
+    }
+  ]
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+effect = do
+    [ do
+          firstAction
+    , ado
+          value ← secondAction
+          in value
+    ]
+    { result: case input of
+          Just value → value
+          Nothing → fallback
+    , local:
+          let
+              value = firstArgument
+          in
+              value
+    , choice:
+          if conditionHolds firstArgument then transform firstArgument else transform secondArgument
+    }
+    finalAction
+
+literal =
+    [ """first
+second"""
+    , { nested: [ { value: firstArgument }, { value: secondArgument }, { value: thirdArgument } ] }
+    ]
