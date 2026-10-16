@@ -1,59 +1,11 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-=== width 20, indent 1 ===
-module Main where
-
-instance ( Show
-            value
-         ) -- instance explanation
- => Show (Box value)
-
-derive instance ( Eq
-                   value
-                )
- -- derive explanation
- => Eq (Box value)
-
-class
- ( Eq value
- , Show value
- )
- -- superclass explanation
- <= Ord value
-
-class
- ( Eq value
- , Show value
- ) <= Thing value
-
-=== width 30, indent 2 ===
-module Main where
-
-instance ( Show value
-         ) -- instance explanation
-  => Show (Box value)
-
-derive instance (Eq value)
-  -- derive explanation
-  => Eq (Box value)
-
-class
-  ( Eq value
-  , Show value
-  )
-  -- superclass explanation
-  <= Ord value
-
-class
-  ( Eq value
-  , Show value
-  ) <= Thing value
-
 === width 80, indent 2 ===
 module Main where
 
-instance (Show value) -- instance explanation
+instance ( Show value
+         ) -- explains why showing a box only requires showing the value inside it
   => Show (Box value)
 
 derive instance (Eq value)
@@ -67,13 +19,19 @@ class
   -- superclass explanation
   <= Ord value
 
-class (Eq value, Show value) <= Thing value
+class (Eq element, Ord element, Show element, Enum element) <= Container element
 
-=== width 40, indent 4, unicode ===
+class
+  ( Eq element
+  , Ord element
+  , Show element
+  , Enum element
+  ) <= Collection element
+
+=== width 100, indent 4, unicode ===
 module Main where
 
-instance ( Show value
-         ) -- instance explanation
+instance (Show value) -- explains why showing a box only requires showing the value inside it
     ⇒ Show (Box value)
 
 derive instance (Eq value)
@@ -87,50 +45,6 @@ class
     -- superclass explanation
     ⇐ Ord value
 
-class
-    ( Eq value
-    , Show value
-    ) ⇐ Thing value
+class (Eq element, Ord element, Show element, Enum element) ⇐ Container element
 
-=== width 41, indent 4, unicode ===
-module Main where
-
-instance ( Show value
-         ) -- instance explanation
-    ⇒ Show (Box value)
-
-derive instance (Eq value)
-    -- derive explanation
-    ⇒ Eq (Box value)
-
-class
-    ( Eq value
-    , Show value
-    )
-    -- superclass explanation
-    ⇐ Ord value
-
-class
-    ( Eq value
-    , Show value
-    ) ⇐ Thing value
-
-=== width 42, indent 4, unicode ===
-module Main where
-
-instance ( Show value
-         ) -- instance explanation
-    ⇒ Show (Box value)
-
-derive instance (Eq value)
-    -- derive explanation
-    ⇒ Eq (Box value)
-
-class
-    ( Eq value
-    , Show value
-    )
-    -- superclass explanation
-    ⇐ Ord value
-
-class (Eq value, Show value) ⇐ Thing value
+class (Eq element, Ord element, Show element, Enum element) ⇐ Collection element
