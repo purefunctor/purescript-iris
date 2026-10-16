@@ -1,0 +1,34 @@
+---
+source: tests-integration/tests/formatting.rs
+---
+=== width 80, indent 2 ===
+module Main where
+
+type EmptyRow = ()
+type EmptyRecord = {}
+type OpenRow r = (| r)
+type OpenRecord r = { | r }
+type RowFields r = (field :: Int, other :: String | r)
+type RecordFields r = { field :: Int, other :: String | r }
+type Quantified = forall @a (b :: Type). a -> b
+type Kinded = Int :: Type
+type Signed = P -1
+type Arrow = Int -> Int
+type Constrained = Show a => a
+type Operator = Int + Int
+
+=== width 100, indent 4, unicode ===
+module Main where
+
+type EmptyRow = ()
+type EmptyRecord = {}
+type OpenRow r = (| r)
+type OpenRecord r = { | r }
+type RowFields r = (field ∷ Int, other ∷ String | r)
+type RecordFields r = { field ∷ Int, other ∷ String | r }
+type Quantified = ∀ @a (b ∷ Type). a → b
+type Kinded = Int ∷ Type
+type Signed = P -1
+type Arrow = Int → Int
+type Constrained = Show a ⇒ a
+type Operator = Int + Int
