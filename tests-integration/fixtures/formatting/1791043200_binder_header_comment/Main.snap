@@ -5,19 +5,11 @@ source: tests-integration/tests/formatting.rs
 module Main where
 
 choose -- explanation
-  firstArgument secondArgument = firstArgument
+  firstArgument secondArgument thirdArgument fourthArgument fifthArgument =
+  firstArgument
 
-=== width 20, indent 1 ===
+=== width 100, indent 4, unicode ===
 module Main where
 
 choose -- explanation
- firstArgument
-  secondArgument =
- firstArgument
-
-=== width 40, indent 4, unicode ===
-module Main where
-
-choose -- explanation
-    firstArgument secondArgument =
-    firstArgument
+    firstArgument secondArgument thirdArgument fourthArgument fifthArgument = firstArgument
