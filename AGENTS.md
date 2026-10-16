@@ -210,18 +210,18 @@ required checks pass, broaden or repeat them only for new changes, failures, or 
 - Use `just format` for Rust formatting; it requires nightly and sets the required import
   granularity.
 
-## Commits and pull requests
+## Commits and merge commits
 
-Commits must be atomic units of work. Pull requests use merge commits that retain branch history;
-curate the branch into a reviewable story before opening a PR to avoid force-push noise.
+Commits must be atomic units of work. Branches land on `main` through merge commits that retain
+branch history; curate the branch into a reviewable story before merging it.
 
-Before pushing commits for a pull request, run `just format` and `just licenses`, then squash any
-resulting changes into the relevant commits in the branch.
+Before merging a branch, run `just format` and `just licenses`, then squash any resulting changes
+into the relevant commits in the branch.
 
 ### Commit format
 
 Regular commits use a short imperative, sentence-case subject naming the behavior or subsystem, not
-the PR title format:
+the merge commit subject format:
 
 ```text
 Add failing test case for overlapping instances
@@ -229,25 +229,24 @@ Fix inference for do expressions with final let
 Implement local name completions
 ```
 
-### Pull request title format
+### Merge commit subject format
 
-PR titles use `[category] description`. GitHub appends the PR number; do not include it yourself.
-Choose the narrowest established category for the primary subsystem or project area, consulting
-recent merge commits on `main` when necessary. Use crate names such as `checking` or `analyzer`, or
-broader areas such as `lsp`; use `agents` for agent configuration, `meta` for repository-wide
-maintenance, and `ci` for CI changes. Do not use change types such as `fix`, vague categories such
-as `misc`, or multiple categories.
+Merge commit subjects use `[category] description`. Choose the narrowest established category for
+the primary subsystem or project area, consulting recent merge commits on `main` when necessary. Use
+crate names such as `checking` or `analyzer`, or broader areas such as `lsp`; use `agents` for agent
+configuration, `meta` for repository-wide maintenance, and `ci` for CI changes. Do not use change
+types such as `fix`, vague categories such as `misc`, or multiple categories.
 
-Good pull request titles:
+Good merge commit subjects:
 
 ```text
 [checking] Preserve type variable names in instance members
 [lsp] Handle rename rejections
-[agents] Clarify pull request title categories
+[agents] Clarify merge commit subject categories
 [ci] Test installers on supported platforms
 ```
 
-Bad pull request titles:
+Bad merge commit subjects:
 
 ```text
 Preserve type variable names in instance members       # Missing category
