@@ -66,7 +66,13 @@ fn formatting(path: &Path) -> datatest_stable::Result<()> {
         let formatted = match formatting::format_with_config(&input, &config) {
             Ok(formatted) => {
                 assert_ne!(incomplete, Some(true), "incomplete syntax must not be formatted");
-                assert_semantics.as_ref().unwrap()(&input, &formatted)?;
+                let converging = [10, 20, 40, 80, 120].map(|line_width| {
+                    formatting::format_with_config(&input, &Config { line_width, ..config })
+                });
+                let converging = converging.into_iter().collect::<Result<Vec<_>, _>>()?;
+                let outputs = std::iter::once(&formatted).chain(&converging);
+                let outputs = outputs.map(String::as_str).collect::<Vec<_>>();
+                assert_semantics.as_ref().unwrap()(&input, &outputs)?;
                 let candidate = lexing::lex(&formatted);
                 assert_tokens(&lexing::lex(&input), &candidate, &config);
                 assert_spacing(&candidate);
@@ -90,11 +96,8 @@ fn formatting(path: &Path) -> datatest_stable::Result<()> {
                         "CRLF whitespace must normalize to LF"
                     );
                 }
-                for line_width in [10, 20, 40, 80, 120] {
-                    let other =
-                        formatting::format_with_config(&input, &Config { line_width, ..config })?;
-                    assert_semantics.as_ref().unwrap()(&input, &other)?;
-                    assert_eq!(formatting::format_with_config(&other, &config)?, formatted);
+                for other in &converging {
+                    assert_eq!(formatting::format_with_config(other, &config)?, formatted);
                 }
                 formatted
             }
@@ -130,66 +133,78 @@ fn formatting(path: &Path) -> datatest_stable::Result<()> {
 
 fn semantic_preservation(
     path: &Path,
-) -> datatest_stable::Result<impl Fn(&str, &str) -> datatest_stable::Result<()>> {
+) -> datatest_stable::Result<impl Fn(&str, &[&str]) -> datatest_stable::Result<()>> {
     let (engine, files) = tests_integration::load_compiler(path.parent().unwrap())?;
     let absolute_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
     let uri = url::Url::from_file_path(absolute_path).unwrap();
     let id = files.id(uri.as_str()).unwrap();
 
-    Ok(move |source: &str, formatted: &str| {
+    Ok(move |source: &str, outputs: &[&str]| {
         engine.set_content(id, source);
         let indexed = engine.indexed(id)?;
         let resolved = engine.resolved(id)?;
         let lowered = engine.lowered(id)?;
-        // Import IDs follow CST order. A witness in the observed output order lets
-        // us check semantics across reordering, then retain exact equality and cache
-        // reuse checks for the printer's whitespace changes.
-        let (_, reordered) = import_permutation(&lexing::lex(source), &lexing::lex(formatted));
-        let (indexed, resolved, lowered) = if let Some(reordered) = reordered {
-            engine.set_content(id, reordered.as_str());
-            let reordered_indexed = engine.indexed(id)?;
-            let reordered_resolved = engine.resolved(id)?;
-            let reordered_lowered = engine.lowered(id)?;
-            assert_eq!(indexed.kind, reordered_indexed.kind);
-            assert_eq!(indexed.names, reordered_indexed.names);
-            assert_eq!(indexed.exports, reordered_indexed.exports);
-            assert_eq!(indexed.items, reordered_indexed.items);
-            assert_eq!(indexed.pairs, reordered_indexed.pairs);
-            assert_eq!(indexed.errors.len(), reordered_indexed.errors.len());
-            assert_eq!(resolved.locals, reordered_resolved.locals);
-            assert_eq!(resolved.class, reordered_resolved.class);
-            assert_eq!(resolved.errors.len(), reordered_resolved.errors.len());
-            assert_eq!(
-                exported_items(resolved.exports.iter_terms()),
-                exported_items(reordered_resolved.exports.iter_terms()),
-            );
-            assert_eq!(
-                exported_items(resolved.exports.iter_types()),
-                exported_items(reordered_resolved.exports.iter_types()),
-            );
-            assert_eq!(
-                exported_items(resolved.exports.iter_classes()),
-                exported_items(reordered_resolved.exports.iter_classes()),
-            );
-            assert_eq!(lowered, reordered_lowered, "import sorting must preserve source semantics");
+        let lexed = lexing::lex(source);
+        for &formatted in outputs {
+            // Import IDs follow CST order. A witness in the observed output order lets
+            // us check semantics across reordering, then retain exact equality and cache
+            // reuse checks for the printer's whitespace changes.
+            let (_, reordered) = import_permutation(&lexed, &lexing::lex(formatted));
+            let (indexed, resolved, lowered) = if let Some(reordered) = reordered {
+                engine.set_content(id, reordered.as_str());
+                let reordered_indexed = engine.indexed(id)?;
+                let reordered_resolved = engine.resolved(id)?;
+                let reordered_lowered = engine.lowered(id)?;
+                assert_eq!(indexed.kind, reordered_indexed.kind);
+                assert_eq!(indexed.names, reordered_indexed.names);
+                assert_eq!(indexed.exports, reordered_indexed.exports);
+                assert_eq!(indexed.items, reordered_indexed.items);
+                assert_eq!(indexed.pairs, reordered_indexed.pairs);
+                assert_eq!(indexed.errors.len(), reordered_indexed.errors.len());
+                assert_eq!(resolved.locals, reordered_resolved.locals);
+                assert_eq!(resolved.class, reordered_resolved.class);
+                assert_eq!(resolved.errors.len(), reordered_resolved.errors.len());
+                assert_eq!(
+                    exported_items(resolved.exports.iter_terms()),
+                    exported_items(reordered_resolved.exports.iter_terms()),
+                );
+                assert_eq!(
+                    exported_items(resolved.exports.iter_types()),
+                    exported_items(reordered_resolved.exports.iter_types()),
+                );
+                assert_eq!(
+                    exported_items(resolved.exports.iter_classes()),
+                    exported_items(reordered_resolved.exports.iter_classes()),
+                );
+                assert_eq!(
+                    lowered, reordered_lowered,
+                    "import sorting must preserve source semantics"
+                );
+                assert!(
+                    Arc::ptr_eq(&lowered, &reordered_lowered),
+                    "import sorting must reuse the semantic cache"
+                );
+                (reordered_indexed, reordered_resolved, reordered_lowered)
+            } else {
+                (indexed.clone(), resolved.clone(), lowered.clone())
+            };
+            engine.set_content(id, formatted);
+            let candidate_indexed = engine.indexed(id)?;
+            let candidate_resolved = engine.resolved(id)?;
+            let candidate_lowered = engine.lowered(id)?;
+            assert_eq!(indexed, candidate_indexed, "formatting must preserve declarations");
+            assert_eq!(resolved, candidate_resolved, "formatting must preserve name resolution");
+            assert_eq!(lowered, candidate_lowered, "formatting must preserve source semantics");
             assert!(
-                Arc::ptr_eq(&lowered, &reordered_lowered),
-                "import sorting must reuse the semantic cache"
+                Arc::ptr_eq(&indexed, &candidate_indexed),
+                "the declaration cache must be reused"
             );
-            (reordered_indexed, reordered_resolved, reordered_lowered)
-        } else {
-            (indexed, resolved, lowered)
-        };
-        engine.set_content(id, formatted);
-        let candidate_indexed = engine.indexed(id)?;
-        let candidate_resolved = engine.resolved(id)?;
-        let candidate_lowered = engine.lowered(id)?;
-        assert_eq!(indexed, candidate_indexed, "formatting must preserve declarations");
-        assert_eq!(resolved, candidate_resolved, "formatting must preserve name resolution");
-        assert_eq!(lowered, candidate_lowered, "formatting must preserve source semantics");
-        assert!(Arc::ptr_eq(&indexed, &candidate_indexed), "the declaration cache must be reused");
-        assert!(Arc::ptr_eq(&resolved, &candidate_resolved), "the resolution cache must be reused");
-        assert!(Arc::ptr_eq(&lowered, &candidate_lowered), "the semantic cache must be reused");
+            assert!(
+                Arc::ptr_eq(&resolved, &candidate_resolved),
+                "the resolution cache must be reused"
+            );
+            assert!(Arc::ptr_eq(&lowered, &candidate_lowered), "the semantic cache must be reused");
+        }
         Ok(())
     })
 }
@@ -390,8 +405,12 @@ fn comment_boundaries(
     lexed: &lexing::Lexed<'_>,
     layout: &[SyntaxKind],
     expected: &[(bool, SyntaxKind)],
-    assert_semantics: &impl Fn(&str, &str) -> datatest_stable::Result<()>,
+    assert_semantics: &impl Fn(&str, &[&str]) -> datatest_stable::Result<()>,
 ) -> datatest_stable::Result<()> {
+    let configurations = [
+        Config { line_width: 20, indent_width: 1, unicode: false },
+        Config { line_width: 40, indent_width: 4, unicode: true },
+    ];
     let mut tested = 0;
     for index in 1..lexed.len() {
         let (before, after) = source.split_at(lexed.info(index).annotation as usize);
@@ -402,31 +421,30 @@ fn comment_boundaries(
             format!(" {{- boundary\n-}}\n{indent}"),
         ] {
             let input = format!("{before}{comment}{after}");
-            let candidate = lexing::lex(&input);
-            let candidate_layout = lexing::layout(&candidate);
-            let (candidate, errors) = parsing::parse(&candidate, &candidate_layout);
+            let input_lexed = lexing::lex(&input);
+            let candidate_layout = lexing::layout(&input_lexed);
+            let (candidate, errors) = parsing::parse(&input_lexed, &candidate_layout);
             if !errors.is_empty()
                 || candidate_layout != layout
                 || syntax_structure(candidate.syntax_node()) != expected
             {
                 continue;
             }
-            for config in [
-                Config { line_width: 20, indent_width: 1, unicode: false },
-                Config { line_width: 40, indent_width: 4, unicode: true },
-            ] {
-                let formatted =
-                    formatting::format_with_config(&input, &config).map_err(|error| {
-                        format!("comment before token {index}, {config:?}: {error}\n{input}")
-                    })?;
-                assert_semantics(&input, &formatted)?;
-                let candidate = lexing::lex(&formatted);
-                assert_tokens(&lexing::lex(&input), &candidate, &config);
+            let outputs = configurations.map(|config| {
+                formatting::format_with_config(&input, &config).map_err(|error| {
+                    format!("comment before token {index}, {config:?}: {error}\n{input}")
+                })
+            });
+            let outputs = outputs.into_iter().collect::<Result<Vec<_>, _>>()?;
+            assert_semantics(&input, &outputs.iter().map(String::as_str).collect::<Vec<_>>())?;
+            for (config, formatted) in configurations.iter().zip(&outputs) {
+                let candidate = lexing::lex(formatted);
+                assert_tokens(&input_lexed, &candidate, config);
                 assert_spacing(&candidate);
                 let (candidate, errors) = parsing::parse(&candidate, &lexing::layout(&candidate));
                 assert!(errors.is_empty());
                 assert_eq!(expected, syntax_structure(candidate.syntax_node()));
-                assert_eq!(formatting::format_with_config(&formatted, &config)?, formatted);
+                assert_eq!(&formatting::format_with_config(formatted, config)?, formatted);
                 tested += 1;
             }
         }
