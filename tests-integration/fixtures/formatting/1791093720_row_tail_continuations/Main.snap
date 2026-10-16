@@ -1,51 +1,30 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-=== width 20, indent 1 ===
-module Main where
-
-type Tail =
- ( | VeryLongRowTypeConstructorName
-      firstArgument
-      secondArgument
- )
-type Fields =
- ( field :: Int
- | VeryLongRowTypeConstructorName
-    firstArgument
-    secondArgument
- )
-type RecordTail =
- { | VeryLongRowTypeConstructorName
-      firstArgument
-      secondArgument
- }
-type CommentTail =
- ( field :: Int
- | -- tail comment
-   VeryLongRowTypeConstructorName
-    firstArgument
-    secondArgument
- )
-
-=== width 40, indent 2 ===
+=== width 80, indent 2 ===
 module Main where
 
 type Tail =
   ( | VeryLongRowTypeConstructorName
         firstArgument
         secondArgument
+        thirdArgument
+        fourthArgument
   )
 type Fields =
   ( field :: Int
   | VeryLongRowTypeConstructorName
       firstArgument
       secondArgument
+      thirdArgument
+      fourthArgument
   )
 type RecordTail =
   { | VeryLongRowTypeConstructorName
         firstArgument
         secondArgument
+        thirdArgument
+        fourthArgument
   }
 type CommentTail =
   ( field :: Int
@@ -53,43 +32,35 @@ type CommentTail =
     VeryLongRowTypeConstructorName
       firstArgument
       secondArgument
+      thirdArgument
+      fourthArgument
   )
 
-=== width 40, indent 4, unicode ===
+=== width 100, indent 4, unicode ===
 module Main where
 
 type Tail =
-    ( | VeryLongRowTypeConstructorName
-            firstArgument
-            secondArgument
-    )
+    (| VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument)
 type Fields =
     ( field ∷ Int
-    | VeryLongRowTypeConstructorName
-          firstArgument
-          secondArgument
+    | VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument
     )
 type RecordTail =
-    { | VeryLongRowTypeConstructorName
-            firstArgument
-            secondArgument
-    }
+    { | VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument }
 type CommentTail =
     ( field ∷ Int
     | -- tail comment
-      VeryLongRowTypeConstructorName
-          firstArgument
-          secondArgument
+      VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument
     )
 
 === width 120, indent 2 ===
 module Main where
 
-type Tail = (| VeryLongRowTypeConstructorName firstArgument secondArgument)
-type Fields = (field :: Int | VeryLongRowTypeConstructorName firstArgument secondArgument)
-type RecordTail = { | VeryLongRowTypeConstructorName firstArgument secondArgument }
+type Tail = (| VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument)
+type Fields = (field :: Int | VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument)
+type RecordTail = { | VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument }
 type CommentTail =
   ( field :: Int
   | -- tail comment
-    VeryLongRowTypeConstructorName firstArgument secondArgument
+    VeryLongRowTypeConstructorName firstArgument secondArgument thirdArgument fourthArgument
   )
