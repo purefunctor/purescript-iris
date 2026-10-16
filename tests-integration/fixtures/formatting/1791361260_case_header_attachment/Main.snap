@@ -1,222 +1,19 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-=== width 14, indent 2 ===
-module Main
-  where
-
-abc =
-  case _ of
-    0 -> 1
-    value ->
-      value
-
-longHeader firstArgument
-  secondArgument =
-  case
-    firstArgument
-  of
-    0 ->
-      secondArgument
-    value ->
-      case
-        secondArgument
-      of
-        0 ->
-          value
-        other ->
-          other
-
-commented = -- keep the comment before the case
-  case _ of
-    value ->
-      value
-
-handler =
-  \value ->
-    case
-      value
-    of
-      other ->
-        other
-
-applied =
-  consume
-    case
-      input
-    of
-      value ->
-        value
-    nextArgument
-
-scrutinee =
-  case
-    combine
-      firstArgument
-      secondArgument
-  of
-    value ->
-      "this indivisible body literal must not force the case header onto a new line"
-
-multiple =
-  case
-    combine
-      firstArgument
-      secondArgument
-    , choose
-        thirdArgument
-        fourthArgument
-  of
-    first, second ->
-      first
-
-nestedScrutinee =
-  case
-    do
-      firstAction
-      secondAction
-  of
-    value ->
-      value
-
-headerComment =
-  case
-    input -- scrutinee explanation
-  of
-    value ->
-      value
-
-branchComment =
-  case
-    input
-  of -- branch explanation
-    value ->
-      value
-
-parenthesized =
-  consume
-    ( case
-        combine
-          firstArgument
-          secondArgument
-      of
-        value ->
-          value
-    )
-
-=== width 15, indent 2 ===
-module Main
-  where
-
-abc = case _ of
-  0 -> 1
-  value ->
-    value
-
-longHeader firstArgument
-  secondArgument =
-  case
-    firstArgument
-  of
-    0 ->
-      secondArgument
-    value ->
-      case
-        secondArgument
-      of
-        0 ->
-          value
-        other ->
-          other
-
-commented = -- keep the comment before the case
-  case _ of
-    value ->
-      value
-
-handler =
-  \value ->
-    case
-      value
-    of
-      other ->
-        other
-
-applied =
-  consume
-    case
-      input
-    of
-      value ->
-        value
-    nextArgument
-
-scrutinee =
-  case
-    combine
-      firstArgument
-      secondArgument
-  of
-    value ->
-      "this indivisible body literal must not force the case header onto a new line"
-
-multiple =
-  case
-    combine
-      firstArgument
-      secondArgument
-    , choose
-        thirdArgument
-        fourthArgument
-  of
-    first, second ->
-      first
-
-nestedScrutinee =
-  case
-    do
-      firstAction
-      secondAction
-  of
-    value ->
-      value
-
-headerComment =
-  case
-    input -- scrutinee explanation
-  of
-    value ->
-      value
-
-branchComment =
-  case input of -- branch explanation
-    value ->
-      value
-
-parenthesized =
-  consume
-    ( case
-        combine
-          firstArgument
-          secondArgument
-      of
-        value ->
-          value
-    )
-
-=== width 40, indent 2 ===
+=== width 80, indent 2 ===
 module Main where
 
-abc = case _ of
-  0 -> 1
-  value -> value
-
-longHeader firstArgument
-  secondArgument = case firstArgument of
+fittingHeader firstArgument secondArgument thirdArgument = case firstArgument of
   0 -> secondArgument
   value -> case secondArgument of
     0 -> value
     other -> other
+
+overflowHeader firstArgument secondArgument thirdArgument =
+  case firstArgument of
+    0 -> secondArgument
+    value -> thirdArgument
 
 commented = -- keep the comment before the case
   case _ of
@@ -231,17 +28,20 @@ applied = consume case input of
 
 scrutinee =
   case
-    combine firstArgument secondArgument
+    combineAll
+      firstArgument
+      secondArgument
+      thirdArgument
+      fourthArgument
+      fifthArgument
   of
     value ->
-      "this indivisible body literal must not force the case header onto a new line"
+      "this indivisible body literal is wider than every configured line width, so it must not force the case header onto a new line"
 
 multiple =
   case
-    combine firstArgument secondArgument
-    , choose
-        thirdArgument
-        fourthArgument
+    combineAll firstArgument secondArgument
+    , choose thirdArgument fourthArgument fifthArgument
   of
     first, second -> first
 
@@ -267,139 +67,25 @@ parenthesized = consume
       combine
         firstArgument
         secondArgument
+        thirdArgument
+        fourthArgument
+        fifthArgument
     of
       value -> value
   )
 
-=== width 50, indent 2 ===
+=== width 100, indent 4 ===
 module Main where
 
-abc = case _ of
-  0 -> 1
-  value -> value
-
-longHeader firstArgument secondArgument =
-  case firstArgument of
+fittingHeader firstArgument secondArgument thirdArgument = case firstArgument of
     0 -> secondArgument
     value -> case secondArgument of
-      0 -> value
-      other -> other
+        0 -> value
+        other -> other
 
-commented = -- keep the comment before the case
-  case _ of
-    value -> value
-
-handler = \value -> case value of
-  other -> other
-
-applied = consume case input of
-    value -> value
-  nextArgument
-
-scrutinee =
-  case combine firstArgument secondArgument of
-    value ->
-      "this indivisible body literal must not force the case header onto a new line"
-
-multiple =
-  case
-    combine firstArgument secondArgument
-    , choose thirdArgument fourthArgument
-  of
-    first, second -> first
-
-nestedScrutinee =
-  case
-    do
-      firstAction
-      secondAction
-  of
-    value -> value
-
-headerComment =
-  case
-    input -- scrutinee explanation
-  of
-    value -> value
-
-branchComment = case input of -- branch explanation
-  value -> value
-
-parenthesized = consume
-  ( case combine firstArgument secondArgument of
-      value -> value
-  )
-
-=== width 80, indent 2 ===
-module Main where
-
-abc = case _ of
-  0 -> 1
-  value -> value
-
-longHeader firstArgument secondArgument = case firstArgument of
-  0 -> secondArgument
-  value -> case secondArgument of
-    0 -> value
-    other -> other
-
-commented = -- keep the comment before the case
-  case _ of
-    value -> value
-
-handler = \value -> case value of
-  other -> other
-
-applied = consume case input of
-    value -> value
-  nextArgument
-
-scrutinee = case combine firstArgument secondArgument of
-  value ->
-    "this indivisible body literal must not force the case header onto a new line"
-
-multiple =
-  case
-    combine firstArgument secondArgument, choose thirdArgument fourthArgument
-  of
-    first, second -> first
-
-nestedScrutinee =
-  case
-    do
-      firstAction
-      secondAction
-  of
-    value -> value
-
-headerComment =
-  case
-    input -- scrutinee explanation
-  of
-    value -> value
-
-branchComment = case input of -- branch explanation
-  value -> value
-
-parenthesized = consume
-  ( case combine firstArgument secondArgument of
-      value -> value
-  )
-
-=== width 40, indent 4 ===
-module Main where
-
-abc = case _ of
-    0 -> 1
-    value -> value
-
-longHeader firstArgument
-    secondArgument =
-    case firstArgument of
-        0 -> secondArgument
-        value -> case secondArgument of
-            0 -> value
-            other -> other
+overflowHeader firstArgument secondArgument thirdArgument = case firstArgument of
+    0 -> secondArgument
+    value -> thirdArgument
 
 commented = -- keep the comment before the case
     case _ of
@@ -413,22 +99,13 @@ applied = consume case input of
     nextArgument
 
 scrutinee =
-    case
-        combine
-            firstArgument
-            secondArgument
-    of
+    case combineAll firstArgument secondArgument thirdArgument fourthArgument fifthArgument of
         value ->
-            "this indivisible body literal must not force the case header onto a new line"
+            "this indivisible body literal is wider than every configured line width, so it must not force the case header onto a new line"
 
 multiple =
     case
-        combine
-            firstArgument
-            secondArgument
-        , choose
-              thirdArgument
-              fourthArgument
+        combineAll firstArgument secondArgument, choose thirdArgument fourthArgument fifthArgument
     of
         first, second -> first
 
@@ -450,10 +127,59 @@ branchComment = case input of -- branch explanation
     value -> value
 
 parenthesized = consume
-    ( case
-          combine
-              firstArgument
-              secondArgument
-      of
+    ( case combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument of
           value -> value
     )
+
+=== width 120, indent 2 ===
+module Main where
+
+fittingHeader firstArgument secondArgument thirdArgument = case firstArgument of
+  0 -> secondArgument
+  value -> case secondArgument of
+    0 -> value
+    other -> other
+
+overflowHeader firstArgument secondArgument thirdArgument = case firstArgument of
+  0 -> secondArgument
+  value -> thirdArgument
+
+commented = -- keep the comment before the case
+  case _ of
+    value -> value
+
+handler = \value -> case value of
+  other -> other
+
+applied = consume case input of
+    value -> value
+  nextArgument
+
+scrutinee = case combineAll firstArgument secondArgument thirdArgument fourthArgument fifthArgument of
+  value ->
+    "this indivisible body literal is wider than every configured line width, so it must not force the case header onto a new line"
+
+multiple = case combineAll firstArgument secondArgument, choose thirdArgument fourthArgument fifthArgument of
+  first, second -> first
+
+nestedScrutinee =
+  case
+    do
+      firstAction
+      secondAction
+  of
+    value -> value
+
+headerComment =
+  case
+    input -- scrutinee explanation
+  of
+    value -> value
+
+branchComment = case input of -- branch explanation
+  value -> value
+
+parenthesized = consume
+  ( case combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument of
+      value -> value
+  )
