@@ -1,20 +1,17 @@
--- @format width=14
--- @format width=15
--- @format width=40
--- @format width=50
 -- @format width=80
--- @format width=40 indent=4
+-- @format width=100 indent=4
+-- @format width=120
 module Main where
 
-abc = case _ of
-  0 -> 1
-  value -> value
-
-longHeader firstArgument secondArgument = case firstArgument of
+fittingHeader firstArgument secondArgument thirdArgument = case firstArgument of
   0 -> secondArgument
   value -> case secondArgument of
     0 -> value
     other -> other
+
+overflowHeader firstArgument secondArgument thirdArgument = case firstArgument of
+  0 -> secondArgument
+  value -> thirdArgument
 
 commented = -- keep the comment before the case
   case _ of
@@ -27,10 +24,10 @@ applied = consume case input of
     value -> value
   nextArgument
 
-scrutinee = case combine firstArgument secondArgument of
-  value -> "this indivisible body literal must not force the case header onto a new line"
+scrutinee = case combineAll firstArgument secondArgument thirdArgument fourthArgument fifthArgument of
+  value -> "this indivisible body literal is wider than every configured line width, so it must not force the case header onto a new line"
 
-multiple = case combine firstArgument secondArgument, choose thirdArgument fourthArgument of
+multiple = case combineAll firstArgument secondArgument, choose thirdArgument fourthArgument fifthArgument of
   first, second -> first
 
 nestedScrutinee = case do
@@ -46,5 +43,5 @@ headerComment = case input -- scrutinee explanation
 branchComment = case input of -- branch explanation
   value -> value
 
-parenthesized = consume (case combine firstArgument secondArgument of
+parenthesized = consume (case combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument of
   value -> value)

@@ -1,7 +1,7 @@
--- @format width=20
 -- @format width=80
--- @format width=40 indent=4 unicode=true
+-- @format width=100 indent=4 unicode=true
+-- @format width=120
 module Main where
 
-value = firstLongOperand `combine (inner `f` argument)` secondLongOperand
-nested = firstOperand `combine (inner `f (deeper `g` argument)` another)` secondOperand
+value = firstOperandWithALongName `combineWith (innerOperandName `transformWith` innerArgumentName)` secondOperandWithALongName
+nested = firstOperandWithALongName `combineWith (innerOperandName `transformWith (deeperOperandName `adjustWith` deeperArgumentName)` anotherArgumentName)` secondOperandWithALongName

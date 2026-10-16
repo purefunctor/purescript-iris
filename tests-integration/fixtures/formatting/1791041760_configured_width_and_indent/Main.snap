@@ -7,3 +7,6 @@ value =
     combine
         firstArgument
         secondArgument
+        thirdArgument
+        fourthArgument
+        fifthArgument

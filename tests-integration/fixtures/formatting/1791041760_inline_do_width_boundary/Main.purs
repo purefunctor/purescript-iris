@@ -1,6 +1,8 @@
--- @format width=39
--- @format width=40
+-- @format width=80
 module Main where
 
-exactlyFortyColumnWithAnInlineBlock = do
+headerThatFillsTheWholeEightyColumnLineWidthAndKeepsItsDoBlockOnTheSameLine = do
+  "An indivisible literal in the body must not force a fitting do header onto a new line."
+
+headerThatExceedsTheEightyColumnLineWidthByOneAndMovesItsDoBlockOntoANewLine = do
   "An indivisible literal in the body must not force a fitting do header onto a new line."

@@ -20,43 +20,7 @@ import Prelude as Functions
 -- The declaration explanation.
 test = Tuple (Maybe.Just (Functions.identity 1)) (length [ 1, 2 ])
 
-=== width 20, indent 1 ===
-module Main
- where -- Module explanation.
-
--- The open Prelude import.
-import Prelude -- Prelude explanation.
-
-import Control.Monad
- as Monad
--- Array explanation.
-import Data.Array
- (length)
-import Data.Maybe
- (Maybe(..))
- as Maybe
-import Data.Tuple
- ( Tuple(..)
- ) {- Tuple explanation.
-   Still attached to Tuple. -}
-import Prelude
- (identity)
-import Prelude
- hiding (identity)
-import Prelude
- as Functions
-
--- The declaration explanation.
-test =
- Tuple
-  ( Maybe.Just
-     ( Functions.identity
-        1
-     )
-  )
-  (length [ 1, 2 ])
-
-=== width 40, indent 4, unicode ===
+=== width 100, indent 4, unicode ===
 module Main where -- Module explanation.
 
 -- The open Prelude import.
@@ -66,17 +30,11 @@ import Control.Monad as Monad
 -- Array explanation.
 import Data.Array (length)
 import Data.Maybe (Maybe(..)) as Maybe
-import Data.Tuple
-    (Tuple(..)) {- Tuple explanation.
+import Data.Tuple (Tuple(..)) {- Tuple explanation.
    Still attached to Tuple. -}
 import Prelude (identity)
 import Prelude hiding (identity)
 import Prelude as Functions
 
 -- The declaration explanation.
-test =
-    Tuple
-        ( Maybe.Just
-              (Functions.identity 1)
-        )
-        (length [ 1, 2 ])
+test = Tuple (Maybe.Just (Functions.identity 1)) (length [ 1, 2 ])

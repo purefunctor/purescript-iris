@@ -1,25 +1,23 @@
--- @format width=40 indent=2
 -- @format width=80 indent=2
+-- @format width=100 indent=2
 -- @format width=120 indent=2
--- @format width=40 indent=1
--- @format width=40 indent=4
--- @format width=40 indent=2 unicode=true
+-- @format width=80 indent=4
 -- @format width=80 indent=2 unicode=true
-module Main (longApplication, longRecord, branches, Box(..)) where
+module Main (longApplication, longRecord, branches, lambda, operators, constrained, Box(..)) where
 
-import Data.Collections (Collection, mapCollection, filterCollection) as Collections
+import Data.Collections (Collection, mapCollection, filterCollection, foldCollection, traverseCollection) as Collections
 
-data Box value = Box value | Many value value value
+data Box value = Empty | Box value | Pair value value | Many value value value | Nested (Box value)
 
-longApplication :: forall value. Collection value -> Collection value -> Collection value
-longApplication firstCollection secondCollection = combineCollections firstCollection secondCollection
+longApplication :: forall value. Collection value -> Collection value -> Collection value -> Collection value -> Collection value
+longApplication firstCollection secondCollection thirdCollection fourthCollection = combineCollections firstCollection secondCollection thirdCollection fourthCollection
 
-longRecord = { firstField: transform inputValue, secondField: [firstElement, secondElement, thirdElement] }
-updated = longRecord { firstField = transform anotherInput, nested { field = otherValue } }
+longRecord = { firstField: transform inputValue, secondField: [firstElement, secondElement, thirdElement, fourthElement, fifthElement, sixthElement] }
+updated = longRecord { firstField = transform anotherInput, secondField = transform otherInput, nested { field = otherValue } }
 branches value = if predicate value then transform firstInput secondInput else fallback anotherInput
-lambda = \firstArgument secondArgument -> combine firstArgument secondArgument
+lambda = \firstArgument secondArgument thirdArgument -> combine firstArgument secondArgument thirdArgument
 
-rows :: { firstField :: Collection Int, secondField :: Collection String | tail }
+rows :: { firstField :: Collection Int, secondField :: Collection String, thirdField :: Collection Boolean | tail }
 rows = value :: Collection String
 
 blockHead =
@@ -32,7 +30,7 @@ blockMiddle =
     argument
 blockFinal = use do
   action
-brokenApplication = invokeOperation firstArgument secondArgument do
+brokenApplication = invokeOperation firstArgument secondArgument thirdArgument fourthArgument do
   action
 operatorAfterBlock =
   do
@@ -40,14 +38,14 @@ operatorAfterBlock =
   + otherAction
 
 constrained :: forall first second. LongConstraint first => OtherConstraint second => first -> second -> Result first second
-type Combined = FirstComponent + SecondComponent + ThirdComponent
-operators = firstOperand + transform firstArgument secondArgument <*> finalOperand
-ticks = firstOperand `combineOperation` secondOperand `firstOperation + secondOperation` thirdOperand
+type Combined = FirstComponent + SecondComponent + ThirdComponent + FourthComponent + FifthComponent
+operators = firstOperand + transform firstArgument secondArgument thirdArgument fourthArgument fifthArgument <*> finalOperand
+ticks = firstOperand `combineOperation` secondOperand `firstOperation + secondOperation + thirdOperation + fourthOperation` thirdOperand
 operatorDo = firstOperand + do
   action
-operatorDoLongChain = firstOperand + secondOperand + do
+operatorDoLongChain = firstOperand + secondOperand + thirdOperand + fourthOperand + do
   action
-operatorAdoLongChain = firstOperand + secondOperand + ado
+operatorAdoLongChain = firstOperand + secondOperand + thirdOperand + fourthOperand + ado
   value <- action
   in transform value
 operatorDoMiddle = firstOperand + do
@@ -68,7 +66,7 @@ commentedOperatorDo = do
     + do
       action
 operatorPattern value = case value of
-  firstElement : secondElement : remainingElements -> transform remainingElements
+  firstElement : secondElement : thirdElement : fourthElement : remainingElements -> transform remainingElements
 
 class Base value <= Derived value
 builtinBind = do
@@ -86,7 +84,7 @@ type CustomOperator = First <= Second
 local value = do
   action value
   where
-    helper = transform firstArgument secondArgument
+    helper = transform firstArgument secondArgument thirdArgument fourthArgument fifthArgument
 localLet = let bound = firstArgument in transform bound secondArgument
 
 comments = [ firstElement -- trailing before the comma

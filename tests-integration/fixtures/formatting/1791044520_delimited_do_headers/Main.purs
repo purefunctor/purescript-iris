@@ -1,6 +1,5 @@
--- @format width=30
 -- @format width=80
--- @format width=40 indent=4 unicode=true
+-- @format width=100 indent=4 unicode=true
 module Main where
 
 lambda = for_ values (\value -> do
@@ -21,8 +20,8 @@ applicative = use (ado
   second <- secondAction
   in combine first second)
 
-wrapped = (combine firstArgument secondArgument)
-nested = ((combine firstArgument secondArgument))
+wrapped = (combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument)
+nested = ((combine firstArgument secondArgument thirdArgument fourthArgument fifthArgument))
 
 operator = identity $ { onClick: do
   action, other: 1 }

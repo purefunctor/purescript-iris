@@ -1,6 +1,5 @@
--- @format width=20 indent=1 incomplete=false
--- @format width=40 indent=4 unicode=true
--- @format width=80
+-- @format width=80 incomplete=false
+-- @format width=100 indent=4 unicode=true
 module Main where
 
 array = [ -- opening comment
@@ -18,7 +17,7 @@ record = { {- opening block -} firstField: firstArgument
 
 block = [ {- opening
 block -} firstArgument, secondArgument ]
-type Row = ( {- field -} firstField :: FirstType, secondField :: SecondType )
+type Row = ( {- field -} firstField :: FirstType, secondField :: SecondType, thirdField :: ThirdType )
 
 value = result
   where -- keyword comment

@@ -1,54 +1,69 @@
--- @format width=40 indent=2
 -- @format width=80 indent=2
+-- @format width=100 indent=2
 -- @format width=120 indent=2
--- @format width=40 indent=1
--- @format width=40 indent=4
--- @format width=40 indent=2 unicode=true
+-- @format width=80 indent=4
 -- @format width=80 indent=2 unicode=true
 module Main
   (longApplication,
    longRecord,
    branches,
+   lambda,
+   operators,
+   constrained,
    Box(..))
   where
 
 import Data.Collections
   (Collection,
    mapCollection,
-   filterCollection)
+   filterCollection,
+   foldCollection,
+   traverseCollection)
   as Collections
 
 data Box value
-  = Box value
+  = Empty
+  | Box value
+  | Pair value value
   | Many value value value
+  | Nested (Box value)
 
 longApplication :: forall value.
   Collection value
   -> Collection value
   -> Collection value
-longApplication firstCollection secondCollection =
+  -> Collection value
+  -> Collection value
+longApplication firstCollection secondCollection thirdCollection fourthCollection =
   combineCollections
     firstCollection
     secondCollection
+    thirdCollection
+    fourthCollection
 
 longRecord =
   { firstField: transform inputValue,
     secondField: [firstElement,
                   secondElement,
-                  thirdElement] }
+                  thirdElement,
+                  fourthElement,
+                  fifthElement,
+                  sixthElement] }
 updated = longRecord
   { firstField = transform anotherInput,
+    secondField = transform otherInput,
     nested { field = otherValue } }
 branches value =
   if predicate value
   then transform firstInput secondInput
   else fallback anotherInput
-lambda = \firstArgument secondArgument ->
-  combine firstArgument secondArgument
+lambda = \firstArgument secondArgument thirdArgument ->
+  combine firstArgument secondArgument thirdArgument
 
 rows ::
   { firstField :: Collection Int,
-    secondField :: Collection String
+    secondField :: Collection String,
+    thirdField :: Collection Boolean
     | tail }
 rows = value
   :: Collection String
@@ -66,6 +81,8 @@ blockFinal = use do
 brokenApplication = invokeOperation
   firstArgument
   secondArgument
+  thirdArgument
+  fourthArgument
   do
     action
 operatorAfterBlock =
@@ -81,18 +98,24 @@ constrained ::
 type Combined = FirstComponent
   + SecondComponent
   + ThirdComponent
+  + FourthComponent
+  + FifthComponent
 operators = firstOperand
-  + transform firstArgument secondArgument
+  + transform firstArgument secondArgument thirdArgument fourthArgument fifthArgument
   <*> finalOperand
 ticks = firstOperand
   `combineOperation` secondOperand
   `firstOperation
-    + secondOperation` thirdOperand
+    + secondOperation
+    + thirdOperation
+    + fourthOperation` thirdOperand
 operatorDo = firstOperand
   + do
     action
 operatorDoLongChain = firstOperand +
   secondOperand +
+  thirdOperand +
+  fourthOperand +
   do
     action
 operatorDoMiddle = firstOperand + do
@@ -115,6 +138,8 @@ commentedOperatorDo = do
 operatorPattern value = case value of
   firstElement
     : secondElement
+    : thirdElement
+    : fourthElement
     : remainingElements ->
       transform remainingElements
 
@@ -137,6 +162,9 @@ local value = do
     helper = transform
       firstArgument
       secondArgument
+      thirdArgument
+      fourthArgument
+      fifthArgument
 localLet = let
   bound = firstArgument
   in

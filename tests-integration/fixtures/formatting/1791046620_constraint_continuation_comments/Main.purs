@@ -1,12 +1,8 @@
--- @format width=20 indent=1
--- @format width=30
 -- @format width=80
--- @format width=40 indent=4 unicode=true
--- @format width=41 indent=4 unicode=true
--- @format width=42 indent=4 unicode=true
+-- @format width=100 indent=4 unicode=true
 module Main where
 
-instance (Show value) -- instance explanation
+instance (Show value) -- explains why showing a box only requires showing the value inside it
   => Show (Box value)
 
 derive instance (Eq value)
@@ -17,4 +13,6 @@ class (Eq value, Show value)
   -- superclass explanation
   <= Ord value
 
-class (Eq value, Show value) <= Thing value
+class (Eq element, Ord element, Show element, Enum element) <= Container element
+
+class (Eq element, Ord element, Show element, Enum element) <= Collection element

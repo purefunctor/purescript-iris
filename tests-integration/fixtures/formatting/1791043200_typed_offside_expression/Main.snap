@@ -8,14 +8,7 @@ value = do
     action
   :: Effect Unit
 
-=== width 20, indent 1 ===
-module Main where
-
-value = do
-  action
- :: Effect Unit
-
-=== width 40, indent 4, unicode ===
+=== width 100, indent 4, unicode ===
 module Main where
 
 value = do

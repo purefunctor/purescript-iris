@@ -1,6 +1,6 @@
--- @format width=25
--- @format width=25 unicode=true
+-- @format width=80
+-- @format width=80 unicode=true
 module Main where
 
-identity :: forall a. a -> a
-identity = \value -> value
+applyTransformationTo :: forall input output. (input -> output) -> input -> output
+applyTransformationTo = \transformFunction argument -> transformFunction argument
