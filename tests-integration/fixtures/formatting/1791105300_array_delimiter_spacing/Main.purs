@@ -1,10 +1,10 @@
--- @format width=16 incomplete=false
--- @format width=17
--- @format width=80 indent=4
+-- @format width=80 incomplete=false
+-- @format width=120 indent=4
 module Main where
 
 empty=[]
-value=[1,22]
+squares=[1,4,9,16,25,36,49,64,81,100,121,144,169,196,225,256]
+triangularNumbers=[1,3,6,10,15,21,28,36,45,55,66,78,91,105,120]
 singleton=[1]
 nested=[[1],[]]
 pattern [first,second] []=first

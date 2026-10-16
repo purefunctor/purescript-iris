@@ -1,15 +1,11 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-=== width 39, indent 2 ===
 module Main where
 
-exactlyFortyColumnWithAnInlineBlock =
+headerThatFillsTheWholeEightyColumnLineWidthAndKeepsItsDoBlockOnTheSameLine = do
+  "An indivisible literal in the body must not force a fitting do header onto a new line."
+
+headerThatExceedsTheEightyColumnLineWidthByOneAndMovesItsDoBlockOntoANewLine =
   do
     "An indivisible literal in the body must not force a fitting do header onto a new line."
-
-=== width 40, indent 2 ===
-module Main where
-
-exactlyFortyColumnWithAnInlineBlock = do
-  "An indivisible literal in the body must not force a fitting do header onto a new line."
