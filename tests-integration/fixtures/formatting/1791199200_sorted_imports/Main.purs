@@ -1,6 +1,5 @@
 -- @format width=80 crlf=true
--- @format width=20 indent=1
--- @format width=40 indent=4 unicode=true
+-- @format width=100 indent=4 unicode=true
 module Main where -- Module explanation.
 
 import Data.Tuple (Tuple(..)) {- Tuple explanation.

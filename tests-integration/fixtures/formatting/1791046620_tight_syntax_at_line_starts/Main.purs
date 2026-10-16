@@ -1,9 +1,9 @@
--- @format width=30 indent=4
 -- @format width=80
--- @format width=30 indent=4 unicode=true
+-- @format width=100 indent=4 unicode=true
+-- @format width=120
 module Main where
 
-main = traverse_ (\item -> log ("processing " <> show item)) (Array.range 1 someUpperBoundValue)
+main = traverse_ (\item -> log ("processing " <> show item <> " of " <> show (Array.length items) <> " in the current batch")) (Array.range firstIndex lastIndex)
 
 terms = do
   (r.a)
@@ -18,5 +18,5 @@ patterns value = case value of
   [-1] -> 0
   _ -> 1
 
-rows :: forall r. { | r } -> { | r } -> Int
-quantified :: (forall b. b -> b) -> Int
+rows :: forall firstRow secondRow. { | firstRow } -> { | secondRow } -> { | firstRow } -> Int
+quantified :: (forall value. value -> value) -> (forall value. value -> value) -> Int
