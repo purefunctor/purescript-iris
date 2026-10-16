@@ -1,7 +1,5 @@
--- @format width=24 indent=1 incomplete=false
--- @format width=40 indent=2
--- @format width=40 indent=4 unicode=true
--- @format width=120
+-- @format width=80 incomplete=false
+-- @format width=100 indent=4 unicode=true
 module Main where
 
 value = combine first second

@@ -1,6 +1,5 @@
--- @format width=30
 -- @format width=80
--- @format width=40 indent=4 unicode=true
+-- @format width=100 indent=4 unicode=true
 module Main where
 
 plain value = result
