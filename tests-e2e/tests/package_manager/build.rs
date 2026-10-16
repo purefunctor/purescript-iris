@@ -1,4 +1,5 @@
 use std::fs::{self, File};
+use std::io::Read;
 use std::path::Path;
 use std::process::Output;
 use std::time::{Duration, SystemTime};
@@ -315,7 +316,7 @@ foreign import render :: Int -> Int
 }
 
 #[test]
-fn writes_module_metadata_only_when_a_successful_build_changes_it() {
+fn replaces_module_metadata_only_when_a_successful_build_changes_it() {
     let workspace = TestWorkspace::empty();
     workspace.write(
         "spago.yaml",
@@ -365,4 +366,24 @@ value = 2
     assert!(workspace.module_metadata("Extra").is_some());
     let modified = fs::metadata(&metadata_path).unwrap().modified().unwrap();
     assert_eq!(modified, old, "a build that kept the metadata of Main rewrote it");
+
+    let previous = fs::read_to_string(&metadata_path).unwrap();
+    let mut reader = File::open(&metadata_path).unwrap();
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+foreign import value :: Int
+"#,
+    );
+    workspace.write(
+        "src/Main.js",
+        r#"export const value = 3;
+"#,
+    );
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    assert_eq!(workspace.module_metadata("Main").unwrap()["foreign"], "foreign.js");
+    let mut read = String::new();
+    reader.read_to_string(&mut read).unwrap();
+    assert_eq!(read, previous, "a build rewrote the metadata of Main in place");
 }

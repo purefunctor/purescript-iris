@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{fs, io};
+use std::{fs, io, process};
 
 use rayon::prelude::*;
 use serde::Serialize;
@@ -90,7 +90,7 @@ impl BuildOutput {
         let mut content = serde_json::to_vec_pretty(&metadata)
             .map_err(|source| OutputError::Serialize { path: PathBuf::clone(&path), source })?;
         content.push(b'\n');
-        write_if_changed(&path, &content)
+        replace_if_changed(&path, &content)
     }
 
     fn module_metadata<'a>(
@@ -118,6 +118,18 @@ impl BuildOutput {
 }
 
 fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), OutputError> {
+    write_changed_with(path, content, |path, content| fs::write(path, content))
+}
+
+fn replace_if_changed(path: &Path, content: &[u8]) -> Result<(), OutputError> {
+    write_changed_with(path, content, replace)
+}
+
+fn write_changed_with(
+    path: &Path,
+    content: &[u8],
+    write: impl FnOnce(&Path, &[u8]) -> io::Result<()>,
+) -> Result<(), OutputError> {
     let failure = |source| OutputError::Write { path: path.to_path_buf(), source };
     match fs::read(path) {
         Ok(previous) if previous == content => return Ok(()),
@@ -128,5 +140,16 @@ fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), OutputError> {
         }
         Err(error) => return Err(failure(error)),
     }
-    fs::write(path, content).map_err(failure)
+    write(path, content).map_err(failure)
+}
+
+fn replace(path: &Path, content: &[u8]) -> io::Result<()> {
+    let mut temporary = path.as_os_str().to_owned();
+    temporary.push(format!(".{}.tmp", process::id()));
+    let temporary = PathBuf::from(temporary);
+    let replaced = fs::write(&temporary, content).and_then(|()| fs::rename(&temporary, path));
+    if replaced.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    replaced
 }
