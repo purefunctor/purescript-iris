@@ -22,13 +22,12 @@ source: tests-integration/src/fixtures.rs
   |   ^ 11:7 0 -> "none"
 8 |   return ((value) => /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupString)("count ")(/* @__PURE__ */ Data_Show.show(Data_Show.showInt)(value)))(doubled);
   |   ^ 12:12 label doubled
-  |            ^ 14:3 label value = "count " <> show value
   |                      ^ 14:17 "count " <> show value
   |                                                                                                      ^ 14:29 show value
   |                                                                                                                                                        ^ 14:34 value
   |                                                                                                                                                             ^ 14:29 show value
   |                                                                                                                                                              ^ 14:17 "count " <> show value
-  |                                                                                                                                                                ^ 14:3 label value = "count " <> show value
+  |                                                                                                                                                                ^ 12:12 label doubled
   |                                                                                                                                                                 ^ 12:18 doubled
   |                                                                                                                                                                        ^ 12:12 label doubled
 9 | }

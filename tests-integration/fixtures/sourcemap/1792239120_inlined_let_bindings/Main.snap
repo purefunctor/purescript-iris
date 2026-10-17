@@ -7,7 +7,7 @@ source: tests-integration/src/fixtures.rs
   |   ^ 10:5 1 + doubled
   |                     ^ 8:15 value * 2
   |                              ^ 8:23 2
-  |                                       ^ 8:15 value * 2
+  |                                       ^ 10:9 doubled
   |                                            ^ 10:5 1 + doubled
 3 | }
   | ^ 6:1 offset value =

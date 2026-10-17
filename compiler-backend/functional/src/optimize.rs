@@ -108,14 +108,9 @@ fn inline_bindings(
     }) {
         let binding = bindings.remove(position);
         for remaining in &bindings {
-            substitute_local(
-                storage,
-                remaining.expression,
-                binding.parameter.id,
-                binding.expression,
-            );
+            substitute_local(storage, remaining.expression, &binding);
         }
-        substitute_local(storage, body, binding.parameter.id, binding.expression);
+        substitute_local(storage, body, &binding);
     }
 
     if bindings.is_empty() {
@@ -202,17 +197,18 @@ pub fn local_uses(storage: &Storage, expression: ExpressionId, parameter: LocalI
     uses
 }
 
-fn substitute_local(
-    storage: &mut Storage,
-    expression: ExpressionId,
-    parameter: LocalId,
-    replacement: ExpressionId,
-) {
+fn substitute_local(storage: &mut Storage, expression: ExpressionId, binding: &Binding) {
+    let parameter = binding.parameter.id;
     let mut pending = vec![expression];
     while let Some(expression) = pending.pop() {
         let kind = &storage[expression].kind;
         if matches!(kind, ExpressionKind::Local { parameter: local } if local.id == parameter) {
-            storage.replace_expression(expression, replacement);
+            if binding.origin.is_some() {
+                let replacement = ExpressionKind::clone(&storage[binding.expression].kind);
+                storage.replace_expression_kind(expression, replacement);
+            } else {
+                storage.replace_expression(expression, binding.expression);
+            }
             continue;
         }
         let children_start = pending.len();
@@ -421,6 +417,11 @@ mod tests {
         ExpressionId::from_raw(index.into())
     }
 
+    fn value_binding(expression: ExpressionId) -> Binding {
+        let parameter = Parameter { id: LocalId(0), name: "value".into() };
+        Binding { parameter, expression, source_order: 0, origin: None }
+    }
+
     fn visited_children(kind: &ExpressionKind) -> Vec<ExpressionId> {
         let mut children = Vec::new();
         for_each_expression_child(kind, |child| children.push(child));
@@ -450,7 +451,7 @@ mod tests {
         let (mut storage, root, replacement) = nested_arrays(100_000);
         inline_simple_bindings(&mut storage, root, &FxHashSet::default());
         assert_eq!(local_uses(&storage, root, LocalId(0)), 1);
-        substitute_local(&mut storage, root, LocalId(0), replacement);
+        substitute_local(&mut storage, root, &value_binding(replacement));
         assert_eq!(local_uses(&storage, root, LocalId(0)), 0);
 
         let parameter = Parameter { id: LocalId(1), name: "bound".into() };
@@ -514,7 +515,7 @@ mod tests {
             },
             origin: None,
         });
-        substitute_local(&mut storage, target, LocalId(0), replacement);
+        substitute_local(&mut storage, target, &value_binding(replacement));
         assert_eq!(storage[target].kind, storage[replacement].kind);
         assert_eq!(local_uses(&storage, target, LocalId(0)), 1);
     }
@@ -582,7 +583,7 @@ mod tests {
         assert_eq!(visited_children(&storage[root].kind), vec![replacement, local]);
         inline_simple_bindings(&mut storage, root, &FxHashSet::default());
         assert_eq!(local_uses(&storage, root, LocalId(0)), 1);
-        substitute_local(&mut storage, root, LocalId(0), replacement);
+        substitute_local(&mut storage, root, &value_binding(replacement));
         assert_eq!(local_uses(&storage, root, LocalId(0)), 0);
 
         // Retained levels keep recursive Arc destruction out of this traversal test.

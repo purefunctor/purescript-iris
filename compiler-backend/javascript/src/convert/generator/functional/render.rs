@@ -1103,6 +1103,7 @@ impl Generator<'_> {
         let Some(pattern) = patterns.get(position).copied() else {
             return self.render_expression(tree, writer, body, Destination::Return, context);
         };
+        let _origin = tree.enter_origin(self.module.storage[pattern].origin);
         let argument = &arguments[position];
         let value = tree.identifier(argument);
         let plan = self.pattern_plan(tree, pattern, value, Some(argument), context)?;
@@ -2193,10 +2194,12 @@ impl Generator<'_> {
         } else if arguments.is_empty() {
             body = tree.arrow(Vec::new(), body);
         } else {
-            for (pattern, argument) in parameters.iter().zip(arguments).rev() {
+            let outermost = arguments.remove(0);
+            for (pattern, argument) in parameters[1..].iter().zip(arguments).rev() {
                 let _origin = tree.enter_origin(self.module.storage[*pattern].origin);
                 body = tree.arrow(vec![argument], body);
             }
+            body = tree.arrow(vec![outermost], body);
         }
         Ok(Some(body))
     }

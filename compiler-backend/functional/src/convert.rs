@@ -515,7 +515,7 @@ where
     }
 
     fn pattern(&mut self, kind: PatternKind) -> PatternId {
-        self.storage.allocate_pattern(Pattern { kind, origin: None })
+        self.storage.allocate_pattern(Pattern { kind, origin: self.origin })
     }
 
     fn label_field(&self, label: SmolStr) -> Field {
