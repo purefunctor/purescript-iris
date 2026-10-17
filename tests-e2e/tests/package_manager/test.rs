@@ -38,6 +38,46 @@ foreign import main :: Effect Unit
 }
 
 #[test]
+fn maps_stack_traces_to_purescript_sources() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+  test:
+    main: Test.Main
+    dependencies: []
+"#,
+    );
+    workspace.write(
+        "test/Test/Main.purs",
+        r#"module Test.Main where
+
+data Unit = Unit
+
+foreign import data Effect :: Type -> Type
+
+foreign import fail :: Unit -> Effect Unit
+
+main :: Effect Unit
+main = fail Unit
+"#,
+    );
+    workspace.write(
+        "test/Test/Main.js",
+        "export const fail = () => { throw new Error(\"failed\"); };\n",
+    );
+
+    let output = workspace.command(&["test", "--quiet"]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr).replace('\\', "/");
+    assert!(!output.status.success());
+    assert!(stderr.contains("test/Test/Main.purs:10:8"), "unmapped stack trace:\n{stderr}");
+}
+
+#[test]
 fn rejects_a_selected_package_without_tests_before_fetching() {
     let workspace = TestWorkspace::empty();
     workspace.write(

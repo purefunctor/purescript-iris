@@ -38,6 +38,40 @@ foreign import main :: Effect Unit
 }
 
 #[test]
+fn maps_stack_traces_to_purescript_sources() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Unit = Unit
+
+foreign import data Effect :: Type -> Type
+
+foreign import fail :: Unit -> Effect Unit
+
+main :: Effect Unit
+main = fail Unit
+"#,
+    );
+    workspace.write("src/Main.js", "export const fail = () => { throw new Error(\"failed\"); };\n");
+
+    let output = workspace.command(&["run", "--quiet"]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr).replace('\\', "/");
+    assert!(!output.status.success());
+    assert!(stderr.contains("src/Main.purs:10:8"), "unmapped stack trace:\n{stderr}");
+}
+
+#[test]
 fn preserves_the_node_exit_code() {
     let workspace = TestWorkspace::empty();
     workspace.write(
