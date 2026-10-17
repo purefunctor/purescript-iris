@@ -1079,6 +1079,8 @@ dependencies = [
  "resolving",
  "rustc-hash",
  "smol_str",
+ "stabilizing",
+ "syntax",
  "thiserror",
 ]
 
@@ -1939,6 +1941,7 @@ dependencies = [
  "functional",
  "itertools 0.15.0",
  "la-arena",
+ "line-index",
  "oxc_allocator",
  "oxc_ast",
  "oxc_codegen",
@@ -1946,6 +1949,8 @@ dependencies = [
  "oxc_syntax",
  "rustc-hash",
  "smol_str",
+ "stabilizing",
+ "syntax",
  "thiserror",
 ]
 

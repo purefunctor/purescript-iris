@@ -19,6 +19,7 @@ pub use module::{
     Module, ModuleFiles, foreign_filename, foreign_module_filename, module_filename,
     runtime_filename, runtime_source, stylex_theme_module_filename,
 };
+pub use source_map::{Position, SourceMap, SourceMapping, source_map};
 
 use building_types::QueryResult;
 use files::{FileId, ForeignFileId};

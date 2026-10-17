@@ -90,6 +90,10 @@ impl ModuleFiles {
         &self.index_source
     }
 
+    pub(crate) fn index_mappings(&self) -> &[OriginMapping] {
+        &self.index_mappings
+    }
+
     /// The module's StyleX theme definitions, written to [`stylex_theme_module_filename`].
     pub fn stylex_theme_source(&self) -> Option<&str> {
         self.stylex_theme_source.as_deref()

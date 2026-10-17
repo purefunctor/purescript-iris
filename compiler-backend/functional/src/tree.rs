@@ -12,6 +12,8 @@ use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
 use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
+use stabilizing::StabilizedModule;
+use syntax::SyntaxNodePtr;
 
 use crate::stylex::StyleXExpression;
 
@@ -165,6 +167,22 @@ pub enum Origin {
     ClassMember(ClassMemberId),
     Instance(InstanceId),
     Derive(DeriveId),
+}
+
+impl Origin {
+    pub fn syntax_ptr(self, stabilized: &StabilizedModule) -> Option<SyntaxNodePtr> {
+        match self {
+            Origin::Expression(id) => stabilized.syntax_ptr(id),
+            Origin::Equation(EquationSourceId::Value(id)) => stabilized.syntax_ptr(id),
+            Origin::Equation(EquationSourceId::Instance(id)) => stabilized.syntax_ptr(id),
+            Origin::LocalEquation(id) => stabilized.syntax_ptr(id),
+            Origin::Constructor(id) => stabilized.syntax_ptr(id),
+            Origin::Foreign(id) => stabilized.syntax_ptr(id),
+            Origin::ClassMember(id) => stabilized.syntax_ptr(id),
+            Origin::Instance(id) => stabilized.syntax_ptr(id),
+            Origin::Derive(id) => stabilized.syntax_ptr(id),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
