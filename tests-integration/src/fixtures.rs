@@ -86,16 +86,17 @@ impl JavaScriptModules {
             std::fs::write(runtime, javascript::runtime_source())?;
         }
         for module in &self.modules {
+            let module_files = module.files();
             let output_path = output.join(module.filename());
             let output_parent = output_path.parent().expect("module filename has no parent");
             std::fs::create_dir_all(output_parent)?;
-            std::fs::write(output_path, module.source())?;
-            if let Some(source) = module.stylex_theme_source() {
+            std::fs::write(output_path, module_files.index_source())?;
+            if let Some(source) = module_files.stylex_theme_source() {
                 let output_path =
                     output.join(javascript::stylex_theme_module_filename(module.name()));
                 std::fs::write(output_path, source)?;
             }
-            if let Some(kind) = module.foreign_kind() {
+            if let Some(kind) = module_files.foreign_kind() {
                 let source_url = Url::parse(&files.path(module.file_id()))?;
                 let source_path = source_url.to_file_path().map_err(|()| {
                     invalid_data(format!(
@@ -343,13 +344,14 @@ pub fn compiler(path: &Path) -> FixtureResult {
                 if !fixture_files.contains(&module.file_id()) {
                     continue;
                 }
+                let module_files = module.files();
                 expected_paths.insert(PathBuf::from(module.filename()));
-                if module.stylex_theme_source().is_some() {
+                if module_files.stylex_theme_source().is_some() {
                     expected_paths.insert(PathBuf::from(javascript::stylex_theme_module_filename(
                         module.name(),
                     )));
                 }
-                if let Some(kind) = module.foreign_kind() {
+                if let Some(kind) = module_files.foreign_kind() {
                     expected_paths.insert(PathBuf::from(javascript::foreign_module_filename(
                         module.name(),
                         kind,
