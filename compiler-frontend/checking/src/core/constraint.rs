@@ -27,7 +27,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::fd::{compute_closure, get_functional_dependencies};
-use crate::core::{ApplicationArgument, TypeId, toolkit, unification};
+use crate::core::{TypeId, toolkit, unification};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
 use crate::implication::{GivenConstraint, ImplicationId, Patterns, WantedConstraint};
@@ -143,39 +143,47 @@ fn is_improving_constraint<Q>(
 where
     Q: ExternalQueries,
 {
+    let determined = determined_arguments(state, context, constraint)?;
+    Ok(!determined.is_empty())
+}
+
+fn determined_arguments<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    constraint: CanonicalConstraintId,
+) -> QueryResult<Vec<TypeId>>
+where
+    Q: ExternalQueries,
+{
     let CanonicalConstraint { file_id, type_id, arguments } = state.canonicals[constraint].clone();
     let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
 
     if functional_dependencies.is_empty() {
-        return Ok(false);
+        return Ok(Vec::new());
     }
 
-    let arguments = arguments.iter().filter_map(|argument| {
-        if let ApplicationArgument::Type(argument) = argument { Some(*argument) } else { None }
-    });
+    let arguments = matching::type_arguments(&arguments);
 
     let mut known_positions = FxHashSet::default();
-    let mut position_count = 0;
-
-    for (position, argument) in arguments.enumerate() {
-        position_count += 1;
+    for (position, &argument) in arguments.iter().enumerate() {
         if !matching::is_blocked(state, context, argument)? {
             known_positions.insert(position);
         }
     }
 
-    if known_positions.len() == position_count {
-        return Ok(false);
+    if known_positions.len() == arguments.len() {
+        return Ok(Vec::new());
     }
 
     // Every position that is not known is blocked, so the constraint is
     // improving when functional dependencies determine one of them.
     let closure = compute_closure(&functional_dependencies, &known_positions);
-    let is_improving = closure
-        .iter()
-        .any(|position| *position < position_count && !known_positions.contains(position));
+    let determined = arguments.into_iter().enumerate().filter_map(|(position, argument)| {
+        let is_determined = closure.contains(&position) && !known_positions.contains(&position);
+        is_determined.then_some(argument)
+    });
 
-    Ok(is_improving)
+    Ok(determined.collect())
 }
 
 fn wake_constraints(work: &mut Work, stuck: &mut Stuck, state: &mut CheckState) {
