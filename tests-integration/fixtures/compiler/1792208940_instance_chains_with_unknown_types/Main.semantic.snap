@@ -1,0 +1,45 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Pick :: Prim.Type -> Prim.Constraint
+interface Pick a where
+  pick :: a -> Prim.String
+
+interface Single :: Prim.Type -> Prim.Constraint
+interface Single a where
+  single :: a -> Prim.String
+
+dictionary pickBoolean :: Main.Pick Prim.Boolean where
+  pick :: Prim.Boolean -> Prim.String
+  pick = \_ -> "boolean"
+
+dictionary pickArray :: Main.Pick (Prim.Array ?[cannot apply function type]) where
+  pick :: Prim.Array ?[cannot apply function type] -> Prim.String
+  pick = \_ -> "invalid"
+
+dictionary pick1 :: forall a. Main.Pick a where
+  pick :: a -> Prim.String
+  pick = \_ -> "other"
+
+picksBoolean :: Prim.String
+picksBoolean = pick {error} true
+
+picksString :: Prim.String
+picksString = pick {error} "string"
+
+picksArray :: Prim.String
+picksArray = pick {error} [1]
+
+dictionary single1 :: Main.Single ?[cannot apply function type] where
+  single :: ?[cannot apply function type] -> Prim.String
+  single = \_ -> "invalid"
+
+dictionary singleBoolean1 :: Main.Single Prim.Boolean where
+  single :: Prim.Boolean -> Prim.String
+  single = \_ -> "boolean"
+
+singleInt :: Prim.String
+singleInt = single {error} 1
+
+singleBoolean :: Prim.String
+singleBoolean = single {singleBoolean1} true

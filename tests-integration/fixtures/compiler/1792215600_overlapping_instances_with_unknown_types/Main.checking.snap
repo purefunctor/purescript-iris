@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+Single :: Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type). Main.Single a
+
+Instances
+instance forall a. Main.Single a
+instance Main.Single ?[cannot apply function type]

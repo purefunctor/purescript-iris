@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+pick :: forall @a. Main.Pick a => a -> Prim.String
+picksBoolean :: Prim.String
+picksString :: Prim.String
+picksArray :: Prim.String
+single :: forall @a. Main.Single a => a -> Prim.String
+singleInt :: Prim.String
+singleBoolean :: Prim.String
+
+Types
+Pick :: Prim.Type -> Prim.Constraint
+Single :: Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type). Main.Pick a
+  pick :: forall @a. Main.Pick a => a -> Prim.String
+class forall (a :: Prim.Type). Main.Single a
+  single :: forall @a. Main.Single a => a -> Prim.String
+
+Instances
+instance Main.Pick Prim.Boolean
+instance Main.Pick (Prim.Array ?[cannot apply function type])
+instance forall a. Main.Pick a
+instance Main.Single ?[cannot apply function type]
+instance Main.Single Prim.Boolean

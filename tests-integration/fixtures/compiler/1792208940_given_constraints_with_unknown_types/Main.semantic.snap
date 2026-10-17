@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+givenRigid :: forall a. Data.Show.Show ?[cannot apply function type] => a -> Prim.String
+givenRigid = \{showDict} -> \value -> show {error} value
+
+givenConcrete :: Data.Show.Show ?[cannot apply function type] => Prim.String
+givenConcrete = \{showDict} -> show {showInt} 1
+
+givenPartial :: forall a. Data.Show.Show (Prim.Array ?[cannot apply function type]) => Prim.Array a -> Prim.String
+givenPartial = \{showDict} -> \value -> show {showArray {error}} value

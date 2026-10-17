@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:9:16
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   instance Show (Int String) => Pick Int where
+  │                  ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:15:12
+  •
+  │
+  • No instance found for: Pick Int
+  │
+  │   picksInt = pick 1
+  │              ╰─────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:18:15
+  •
+  │
+  • No instance found for: Pick String
+  │
+  │   picksString = pick "string"
+  │                 ╰────────────
+  •

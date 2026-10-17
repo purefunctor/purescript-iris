@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:11:16
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   type Invalid = Int String
+  │                  ╰─────────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:8:46
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   showsViaSuperclass :: forall a. Container a (Int String) => a -> String
+  │                                                ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:9:28
+  •
+  │
+  • No instance found for: Show a
+  │
+  │   showsViaSuperclass value = show value
+  │                              ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:19:25
+  •
+  │
+  • No instance found for: Show a1
+  │
+  │   showsViaWrapper value = show value
+  │                           ╰─────────
+  • while
+  │
+  │   Wrapper @Type a1 is in scope
+  •

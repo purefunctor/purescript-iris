@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Single :: Prim.Type -> Prim.Constraint
+interface Single a where
+
+dictionary single :: forall a. Main.Single a
+
+dictionary single1 :: Main.Single ?[cannot apply function type]

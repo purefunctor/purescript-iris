@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+convert :: forall @a @b. Main.Convert a b => a -> b
+showsConverted :: ?[cannot apply function type] -> Prim.String
+inferredConverted :: ?[cannot apply function type] -> ?[ignored constraint]
+
+Types
+Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Main.Convert a b
+  convert :: forall @a @b. Main.Convert a b => a -> b
+
+Instances
+instance forall a. Main.Convert a Prim.Int

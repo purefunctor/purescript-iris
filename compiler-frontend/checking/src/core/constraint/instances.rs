@@ -83,6 +83,11 @@ where
         return Ok(());
     };
 
+    if toolkit::contains_unknown(state, context, instance.signature)? {
+        state.absorb_unknown(instance.signature);
+        return Ok(());
+    }
+
     let Some(&current_position) = context.instance_positions.get(&origin) else {
         return Ok(());
     };
@@ -284,14 +289,17 @@ where
 
     for file_id in files {
         if file_id == context.id {
+            let mut candidates = Vec::new();
             collect_instances_from_checked(
-                &mut instances,
+                &mut candidates,
                 file_id,
                 &state.checked,
                 &context.indexed,
                 constraint.file_id,
                 constraint.type_id,
             );
+            let candidates = without_unknown_chains(state, context, candidates)?;
+            instances.extend(candidates);
         } else {
             let key = (file_id, constraint.file_id, constraint.type_id);
             let cached = context.dependency_instance_candidates.borrow();
@@ -312,12 +320,41 @@ where
                 constraint.file_id,
                 constraint.type_id,
             );
+            let candidates = without_unknown_chains(state, context, candidates)?;
             instances.extend_from_slice(&candidates);
             context.dependency_instance_candidates.borrow_mut().insert(key, candidates);
         }
     }
 
     Ok(InstanceChains::new(instances, blocking))
+}
+
+fn without_unknown_chains<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    candidates: Vec<InstanceCandidate>,
+) -> QueryResult<Vec<InstanceCandidate>>
+where
+    Q: ExternalQueries,
+{
+    let mut unknown_chains = FxHashSet::default();
+    let mut unknown_origins = FxHashSet::default();
+    for candidate in &candidates {
+        if toolkit::contains_unknown(state, context, candidate.instance.signature)? {
+            state.absorb_unknown(candidate.instance.signature);
+            unknown_origins.insert(candidate.origin);
+            if let Some(chain) = candidate.chain {
+                unknown_chains.insert(chain);
+            }
+        }
+    }
+
+    let candidates = candidates.into_iter().filter(|candidate| {
+        let in_unknown_chain = candidate.chain.is_some_and(|chain| unknown_chains.contains(&chain));
+        !in_unknown_chain && !unknown_origins.contains(&candidate.origin)
+    });
+
+    Ok(candidates.collect())
 }
 
 fn instance_candidate_chain<Q>(

@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:12:19
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   showsConverted :: Int String -> String
+  │                     ╰─────────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:15:45
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   inferredConverted value = convert (value :: Int String)
+  │                                               ╰─────────
+  •

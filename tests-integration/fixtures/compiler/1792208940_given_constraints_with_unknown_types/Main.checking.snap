@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+givenRigid :: forall a. Data.Show.Show ?[cannot apply function type] => a -> Prim.String
+givenConcrete :: Data.Show.Show ?[cannot apply function type] => Prim.String
+givenPartial ::
+  forall a. Data.Show.Show (Prim.Array ?[cannot apply function type]) => Prim.Array a -> Prim.String
+
+Types
