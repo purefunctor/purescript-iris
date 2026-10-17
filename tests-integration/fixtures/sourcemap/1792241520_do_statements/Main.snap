@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Control_Applicative from "../Control.Applicative/index.js";
+   | ^ unmapped
+ 2 | import * as Control_Bind from "../Control.Bind/index.js";
+   | ^ unmapped
+ 3 | export function lookup(monadMDict) {
+   | ^ 6:1 lookup ask record = do
+ 4 |   const $closure = (ask) => {
+   |   ^ 6:1 lookup ask record = do
+ 5 |     return (record) => {
+   |     ^ 6:1 lookup ask record = do
+ 6 |       const $closure$1 = ($record) => {
+   |       ^ 7:3 { value } <- ask
+ 7 |         const value = $record.value;
+   |         ^ 7:3 { value } <- ask
+ 8 |         return /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit)(/* @__PURE__ */ monadMDict.Bind1())(record(value))(($unit) => /* @__PURE__ */ Control_Applicative.pure(/* @__PURE__ */ monadMDict.Applicative0())(value));
+   |         ^ 8:3 record value
+   |                                                                                                                          ^ 8:10 value
+   |                                                                                                                               ^ 8:3 record value
+   |                                                                                                                                             ^ 9:3 pure value
+   |                                                                                                                                                                                                                                 ^ 9:8 value
+   |                                                                                                                                                                                                                                      ^ 9:3 pure value
+   |                                                                                                                                                                                                                                       ^ 8:3 record value
+ 9 |       };
+   |       ^ 7:3 { value } <- ask
+10 |       return /* @__PURE__ */ Control_Bind.bind(/* @__PURE__ */ monadMDict.Bind1())(ask)($closure$1);
+   |       ^ 6:21 do
+   |                                                                                    ^ 7:16 ask
+   |                                                                                       ^ 6:21 do
+   |                                                                                         ^ 7:3 { value } <- ask
+   |                                                                                                   ^ 6:21 do
+11 |     };
+   |     ^ 6:1 lookup ask record = do
+12 |   };
+   |   ^ 6:1 lookup ask record = do
+13 |   return $closure;
+   |   ^ 6:1 lookup ask record = do
+14 | }
+   | ^ 6:1 lookup ask record = do

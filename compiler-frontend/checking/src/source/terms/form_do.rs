@@ -63,9 +63,21 @@ struct CheckedDoApplication {
 }
 
 enum CheckedDoStep {
-    Application { application: CheckedDoApplication, binder: tree::BinderId },
-    MissingApplication { binder: tree::BinderId, lambda_type: TypeId, result: TypeId },
-    Let { bindings: tree::LetBindings },
+    Application {
+        statement: lowering::DoStatementId,
+        application: CheckedDoApplication,
+        binder: tree::BinderId,
+    },
+    MissingApplication {
+        statement: lowering::DoStatementId,
+        binder: tree::BinderId,
+        lambda_type: TypeId,
+        result: TypeId,
+    },
+    Let {
+        statement: lowering::DoStatementId,
+        bindings: tree::LetBindings,
+    },
 }
 
 enum DoBlockFinalStep {
@@ -395,7 +407,7 @@ where
                     .with_error_crumb(ErrorCrumb::CheckingDoLet(*statement), |state| {
                         form_let::check_let_chunks(state, context, statements)
                     })?;
-                checked_steps.push(CheckedDoStep::Let { bindings });
+                checked_steps.push(CheckedDoStep::Let { statement: *statement, bindings });
             }
             DoStep::Bind { statement, binder_type, binder, expression } => {
                 let Some((&now_type, &next_type)) = continuations.next() else {
@@ -404,6 +416,7 @@ where
                 let Some(expression) = *expression else {
                     let lambda_type = context.intern_function(*binder_type, next_type);
                     checked_steps.push(CheckedDoStep::MissingApplication {
+                        statement: *statement,
                         binder: *binder,
                         lambda_type,
                         result: now_type,
@@ -427,7 +440,11 @@ where
                         Ok(application)
                     })?;
                 application.result = now_type;
-                checked_steps.push(CheckedDoStep::Application { application, binder: *binder });
+                checked_steps.push(CheckedDoStep::Application {
+                    statement: *statement,
+                    application,
+                    binder: *binder,
+                });
             }
             DoStep::Discard { statement, expression } => {
                 let Some((&now_type, &next_type)) = continuations.next() else {
@@ -442,6 +459,7 @@ where
                     );
                     let lambda_type = context.intern_function(binder_type, next_type);
                     checked_steps.push(CheckedDoStep::MissingApplication {
+                        statement: *statement,
                         binder,
                         lambda_type,
                         result: now_type,
@@ -462,7 +480,11 @@ where
                     },
                 )?;
                 application.result = now_type;
-                checked_steps.push(CheckedDoStep::Application { application, binder });
+                checked_steps.push(CheckedDoStep::Application {
+                    statement: *statement,
+                    application,
+                    binder,
+                });
             }
         }
     }
@@ -484,14 +506,15 @@ where
     };
     let mut continuation = ElaboratedExpression { type_id: final_continuation, ..final_expression };
 
-    for step in checked_steps.into_iter().rev() {
-        match step {
-            CheckedDoStep::Application { application, binder } => {
+    for (position, step) in checked_steps.into_iter().rev().with_position() {
+        let statement = match step {
+            CheckedDoStep::Application { statement, application, binder } => {
                 let kind = tree::ExpressionKind::Lambda {
                     binders: vec![binder].into(),
                     expression: continuation.expression,
                 };
                 let lambda = super::allocate_expression(state, application.lambda_type, kind);
+                attribute_do_statement(state, lambda.expression, statement);
                 continuation = application::materialize_application(
                     state,
                     application.function,
@@ -499,13 +522,15 @@ where
                     application.result,
                     lambda,
                 );
+                statement
             }
-            CheckedDoStep::MissingApplication { binder, lambda_type, result } => {
+            CheckedDoStep::MissingApplication { statement, binder, lambda_type, result } => {
                 let kind = tree::ExpressionKind::Lambda {
                     binders: vec![binder].into(),
                     expression: continuation.expression,
                 };
                 let lambda = super::allocate_expression(state, lambda_type, kind);
+                attribute_do_statement(state, lambda.expression, statement);
                 let function_type = context.intern_function(lambda_type, result);
                 let function = super::allocate_error_expression(state, function_type);
                 continuation = application::materialize_application(
@@ -515,16 +540,31 @@ where
                     result,
                     lambda,
                 );
+                statement
             }
-            CheckedDoStep::Let { bindings } => {
+            CheckedDoStep::Let { statement, bindings } => {
                 let kind =
                     tree::ExpressionKind::Let { bindings, expression: continuation.expression };
                 continuation = super::allocate_expression(state, continuation.type_id, kind);
+                statement
             }
+        };
+        let is_outermost = position.is_last();
+        if !is_outermost {
+            attribute_do_statement(state, continuation.expression, statement);
         }
     }
 
     Ok(ElaboratedExpression { type_id: first_continuation, ..continuation })
+}
+
+fn attribute_do_statement(
+    state: &mut CheckState,
+    expression: tree::ExpressionId,
+    statement: lowering::DoStatementId,
+) {
+    let source = tree::ExpressionSource::DoStatement(statement);
+    state.checked.tree.attribute_expression(expression, source);
 }
 
 fn infer_do_bind_core<Q>(

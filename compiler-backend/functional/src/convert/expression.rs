@@ -17,8 +17,15 @@ pub(super) fn convert_expression(
     context: &mut Context<'_, impl checking::ExternalQueries>,
     expression_id: checking_tree::ExpressionId,
 ) -> ConversionResult<ExpressionId> {
-    let origin = context.checked.tree[expression_id].source.map(Origin::Expression);
+    let origin = context.checked.tree[expression_id].source.map(expression_origin);
     context.with_origin(origin, |context| convert_expression_kind(context, expression_id))
+}
+
+fn expression_origin(source: checking_tree::ExpressionSource) -> Origin {
+    match source {
+        checking_tree::ExpressionSource::Expression(id) => Origin::Expression(id),
+        checking_tree::ExpressionSource::DoStatement(id) => Origin::DoStatement(id),
+    }
 }
 
 fn convert_expression_kind(

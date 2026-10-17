@@ -161,6 +161,7 @@ pub struct GeneratedGlobalId(pub u32);
 pub enum Origin {
     Expression(lowering::ExpressionId),
     CaseBranch(lowering::CaseBranchId),
+    DoStatement(lowering::DoStatementId),
     Equation(EquationSourceId),
     LocalEquation(lowering::LetBindingEquationId),
     LetPattern(lowering::LetBindingId),
@@ -176,6 +177,7 @@ impl Origin {
         match self {
             Origin::Expression(id) => stabilized.syntax_ptr(id),
             Origin::CaseBranch(id) => stabilized.syntax_ptr(id),
+            Origin::DoStatement(id) => stabilized.syntax_ptr(id),
             Origin::Equation(EquationSourceId::Value(id)) => stabilized.syntax_ptr(id),
             Origin::Equation(EquationSourceId::Instance(id)) => stabilized.syntax_ptr(id),
             Origin::LocalEquation(id) => stabilized.syntax_ptr(id),
