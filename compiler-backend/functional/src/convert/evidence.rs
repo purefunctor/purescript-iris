@@ -12,8 +12,8 @@ use crate::error::UnsupportedState;
 use crate::initializers::cyclic_initializers;
 use crate::optimize::{expression_globals, reachable_expressions};
 use crate::tree::{
-    Binding, Declaration, DeclarationKind, Expression, ExpressionId, ExpressionKind, Global,
-    GlobalId, InstanceIdentity, Parameter, ReflectableEvidence, ReflectableOrdering, Storage,
+    Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Global, GlobalId,
+    InstanceIdentity, Parameter, ReflectableEvidence, ReflectableOrdering, Storage,
     SynthesizedEvidence,
 };
 
@@ -650,8 +650,8 @@ where
                 .split_first()
                 .expect("invariant violated: repeated evidence has no occurrence");
             let initializer =
-                self.storage.replace_expression_kind(*first, ExpressionKind::clone(&replacement));
-            let initializer = self.storage.allocate_expression(Expression { kind: initializer });
+                self.storage.relocate_expression(*first, ExpressionKind::clone(&replacement));
+            let origin = self.storage[initializer].origin;
 
             for &expression in remaining {
                 self.storage
@@ -663,6 +663,7 @@ where
                 exported: false,
                 recursive_group: None,
                 kind: DeclarationKind::Value(initializer),
+                origin,
             };
             declarations.push(declaration);
         }
@@ -732,8 +733,7 @@ where
                     // separate tree pass.
                     let parameter = self.fresh_parameter(name)?;
                     let local = ExpressionKind::Local { parameter: Parameter::clone(&parameter) };
-                    let construction = self.storage.replace_expression_kind(expression, local);
-                    let construction = self.expression(construction);
+                    let construction = self.storage.relocate_expression(expression, local);
                     let scope = self
                         .evidence_scopes
                         .last_mut()
@@ -762,8 +762,7 @@ where
                 OccurrenceConstruction::Inline { expression, name, order } => {
                     let parameter = self.fresh_parameter(name)?;
                     let local = ExpressionKind::Local { parameter: Parameter::clone(&parameter) };
-                    let construction = self.storage.replace_expression_kind(expression, local);
-                    let construction = self.expression(construction);
+                    let construction = self.storage.relocate_expression(expression, local);
                     occurrence.constructions.insert(
                         evidence,
                         OccurrenceConstruction::Shared(Parameter::clone(&parameter)),
@@ -1094,6 +1093,7 @@ mod tests {
     use checking::evidence::{Evidences, ReflectableEvidence, SynthesizedEvidence};
 
     use super::*;
+    use crate::tree::Expression;
 
     #[test]
     fn cut_points_account_for_branching_evidence() {
@@ -1197,12 +1197,13 @@ mod tests {
             } else {
                 ExpressionKind::TrivialEvidence
             };
-            let expression = storage.allocate_expression(Expression { kind });
+            let expression = storage.allocate_expression(Expression { kind, origin: None });
             declarations.push(Declaration {
                 global,
                 exported: false,
                 recursive_group: None,
                 kind: DeclarationKind::Value(expression),
+                origin: None,
             });
         }
         (storage, declarations)

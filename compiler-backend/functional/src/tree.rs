@@ -4,7 +4,10 @@ use std::ops::Index;
 use std::sync::Arc;
 
 use files::FileId;
-use indexing::{DeriveId, InstanceId, TermItemId, TypeItemId};
+use indexing::{
+    ClassMemberId, DataConstructorId, DeriveId, EquationSourceId, ForeignValueId, InstanceId,
+    TermItemId, TypeItemId,
+};
 use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
 use rustc_hash::FxHashSet;
@@ -72,8 +75,29 @@ impl Storage {
         &mut self,
         expression: ExpressionId,
         kind: ExpressionKind,
-    ) -> ExpressionKind {
-        std::mem::replace(&mut self.expressions[expression].kind, kind)
+    ) {
+        self.expressions[expression].kind = kind;
+    }
+
+    pub(crate) fn replace_expression(
+        &mut self,
+        expression: ExpressionId,
+        replacement: ExpressionId,
+    ) {
+        let Expression { kind, origin } = Expression::clone(&self.expressions[replacement]);
+        let expression = &mut self.expressions[expression];
+        expression.kind = kind;
+        expression.origin = origin.or(expression.origin);
+    }
+
+    pub(crate) fn relocate_expression(
+        &mut self,
+        expression: ExpressionId,
+        replacement: ExpressionKind,
+    ) -> ExpressionId {
+        let origin = self.expressions[expression].origin;
+        let kind = std::mem::replace(&mut self.expressions[expression].kind, replacement);
+        self.expressions.alloc(Expression { kind, origin })
     }
 }
 
@@ -99,6 +123,7 @@ pub struct Declaration {
     pub exported: bool,
     pub recursive_group: Option<RecursiveGroupId>,
     pub kind: DeclarationKind,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -129,6 +154,18 @@ pub enum InstanceIdentity {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GeneratedGlobalId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Origin {
+    Expression(lowering::ExpressionId),
+    Equation(EquationSourceId),
+    LocalEquation(lowering::LetBindingEquationId),
+    Constructor(DataConstructorId),
+    Foreign(ForeignValueId),
+    ClassMember(ClassMemberId),
+    Instance(InstanceId),
+    Derive(DeriveId),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RecursiveGroupId(pub u32);
@@ -174,6 +211,7 @@ pub enum Literal {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expression {
     pub kind: ExpressionKind,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -251,6 +289,7 @@ pub struct Binding {
 pub struct CaseAlternative {
     pub patterns: Arc<[PatternId]>,
     pub expression: ExpressionId,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
