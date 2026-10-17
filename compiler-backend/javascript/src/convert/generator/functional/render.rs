@@ -126,6 +126,11 @@ enum PatternBinding {
     Constructor { names: Vec<Option<SmolStr>>, value: ExpressionId },
 }
 
+enum CaseScrutinee {
+    Reusable(FunctionalExpressionId),
+    Rendered(ExpressionId),
+}
+
 // Pending expressions must be evaluated before rendering an eager later sibling.
 struct RenderedExpression {
     value: ExpressionId,
@@ -2469,10 +2474,14 @@ fn render_case(
 ) -> ModuleResult<()> {
     let FunctionRenderer { generator, tree, writer, context } = renderer;
     let mut values = Vec::with_capacity(scrutinees.len());
-    for scrutinee in scrutinees {
-        let value = generator.rendered_expression(tree, writer, *scrutinee, context)?;
-        let value = generator.materialize_pattern_value(tree, writer, *scrutinee, value, context);
-        values.push(value);
+    for &scrutinee in scrutinees {
+        if generator.functional_expression_is_reusable(scrutinee, context) {
+            values.push(CaseScrutinee::Reusable(scrutinee));
+            continue;
+        }
+        let value = generator.rendered_expression(tree, writer, scrutinee, context)?;
+        let value = generator.materialize_pattern_value(tree, writer, scrutinee, value, context);
+        values.push(CaseScrutinee::Rendered(value));
     }
     let scrutinees = values;
     match destination {
@@ -2524,7 +2533,7 @@ impl Generator<'_> {
         &self,
         tree: &mut Tree<'t>,
         writer: &mut Writer<'t>,
-        scrutinees: &[ExpressionId],
+        scrutinees: &[CaseScrutinee],
         alternatives: &[CaseAlternative],
         destination: Destination<'_>,
         context: &mut FunctionContext,
@@ -2532,8 +2541,13 @@ impl Generator<'_> {
         for alternative in alternatives {
             let _origin = tree.enter_origin(alternative.origin);
             let mut plan = PatternPlan::default();
-            for (pattern, value) in alternative.patterns.iter().zip(scrutinees) {
-                let value = tree.duplicate(value);
+            for (pattern, scrutinee) in alternative.patterns.iter().zip(scrutinees) {
+                let value = match scrutinee {
+                    CaseScrutinee::Reusable(expression) => self
+                        .inline_expression(tree, *expression, context)?
+                        .expect("invariant violated: a reusable scrutinee cannot be inlined"),
+                    CaseScrutinee::Rendered(value) => tree.duplicate(value),
+                };
                 self.extend_pattern_plan(tree, *pattern, value, None, context, &mut plan)?;
             }
             let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
