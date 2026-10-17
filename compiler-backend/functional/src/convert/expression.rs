@@ -164,9 +164,13 @@ fn case_alternative(
     context: &mut Context<'_, impl checking::ExternalQueries>,
     alternative: &checking_tree::CaseAlternative,
 ) -> ConversionResult<CaseAlternative> {
-    let patterns = patterns(context, &alternative.binders)?;
-    let expression = guarded_expression(context, &alternative.guarded_expression)?;
-    Ok(CaseAlternative { patterns: patterns.into(), expression, origin: context.origin })
+    let origin = alternative.source.map(Origin::CaseBranch);
+    let origin = origin.or(context.origin);
+    context.with_origin(origin, |context| {
+        let patterns = patterns(context, &alternative.binders)?;
+        let expression = guarded_expression(context, &alternative.guarded_expression)?;
+        Ok(CaseAlternative { patterns: patterns.into(), expression, origin })
+    })
 }
 
 fn expressions(

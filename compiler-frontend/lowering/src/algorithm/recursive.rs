@@ -343,6 +343,7 @@ fn lower_expression_kind(
                 context: &Context,
                 cst: &cst::CaseBranch,
             ) -> CaseBranch {
+                let source = context.stabilized.lookup_cst(cst).expect_id();
                 state.with_scope(|state| {
                     state.push_binder_scope();
                     let binders = recover! {
@@ -353,7 +354,7 @@ fn lower_expression_kind(
                     };
                     let guarded_expression =
                         cst.guarded_expression().map(|cst| lower_guarded(state, context, &cst));
-                    CaseBranch { binders, guarded_expression }
+                    CaseBranch { source, binders, guarded_expression }
                 })
             }
 

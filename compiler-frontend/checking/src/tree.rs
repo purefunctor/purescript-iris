@@ -246,6 +246,7 @@ pub struct GuardedAlternative {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CaseAlternative {
+    pub source: Option<lowering::CaseBranchId>,
     pub binders: Arc<[BinderId]>,
     pub guarded_expression: GuardedExpression,
 }

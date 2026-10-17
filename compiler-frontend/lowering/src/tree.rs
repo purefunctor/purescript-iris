@@ -59,6 +59,7 @@ pub enum RecordUpdate {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CaseBranch {
+    pub source: CaseBranchId,
     pub binders: Arc<[BinderId]>,
     pub guarded_expression: Option<GuardedExpression>,
 }
