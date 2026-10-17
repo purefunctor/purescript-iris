@@ -208,10 +208,11 @@ Check hover text, definitions, completions, edits, and reported positions. Revie
 ### Source maps
 
 Check that each mapping points at the construct that generated the code: the declaration,
-equation, local binding, case alternative, guard, do statement, or expression. Code generated for
-one equation or case alternative must not map to a sibling. Imports, re-exports, and the control
-flow of the `$tail_` dispatcher shared by mutually recursive top-level functions are unmapped;
-treat other new `unmapped` lines, and mappings into unrelated source lines, as regressions.
+equation, local binding, case alternative, guard, do or ado statement, or expression. Code
+generated for one equation or case alternative must not map to a sibling. Imports, re-exports, and
+the control flow of the `$tail_` dispatcher shared by mutually recursive top-level functions are
+unmapped; treat other new `unmapped` lines, and mappings into unrelated source lines, as
+regressions.
 
 ## Acceptance Criteria
 

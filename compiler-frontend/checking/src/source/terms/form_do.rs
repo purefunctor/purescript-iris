@@ -509,6 +509,7 @@ where
     for (position, step) in checked_steps.into_iter().rev().with_position() {
         let statement = match step {
             CheckedDoStep::Application { statement, application, binder } => {
+                state.checked.tree.insert_binder_statement(binder, statement);
                 let kind = tree::ExpressionKind::Lambda {
                     binders: vec![binder].into(),
                     expression: continuation.expression,
@@ -525,6 +526,7 @@ where
                 statement
             }
             CheckedDoStep::MissingApplication { statement, binder, lambda_type, result } => {
+                state.checked.tree.insert_binder_statement(binder, statement);
                 let kind = tree::ExpressionKind::Lambda {
                     binders: vec![binder].into(),
                     expression: continuation.expression,
@@ -558,7 +560,7 @@ where
     Ok(ElaboratedExpression { type_id: first_continuation, ..continuation })
 }
 
-fn attribute_do_statement(
+pub fn attribute_do_statement(
     state: &mut CheckState,
     expression: tree::ExpressionId,
     statement: lowering::DoStatementId,

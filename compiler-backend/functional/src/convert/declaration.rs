@@ -347,20 +347,22 @@ pub(super) fn function_patterns(
 ) -> ConversionResult<Vec<PatternId>> {
     let mut converted = Vec::with_capacity(binders.len());
     for (position, &binder) in binders.iter().enumerate() {
-        let pattern = convert_pattern(context, binder)?;
+        let mut pattern = convert_pattern(context, binder)?;
         let named = matches!(
             context.storage[pattern].kind,
             PatternKind::Variable(_) | PatternKind::Named { .. }
         );
-        if named {
-            converted.push(pattern);
-            continue;
+        if !named {
+            let fallback = format_smolstr!("argument{position}");
+            let type_id = context.checked.tree[binder].type_id;
+            let name = context.type_parameter_name(type_id, fallback)?;
+            let parameter = context.fresh_parameter(name)?;
+            pattern = context.pattern(PatternKind::Named { parameter, pattern });
         }
-        let fallback = format_smolstr!("argument{position}");
-        let type_id = context.checked.tree[binder].type_id;
-        let name = context.type_parameter_name(type_id, fallback)?;
-        let parameter = context.fresh_parameter(name)?;
-        converted.push(context.pattern(PatternKind::Named { parameter, pattern }));
+        if let Some(statement) = context.checked.tree.lookup_binder_statement(binder) {
+            context.storage.set_pattern_origin(pattern, Origin::DoStatement(statement));
+        }
+        converted.push(pattern);
     }
     Ok(converted)
 }

@@ -34,6 +34,7 @@ pub struct CheckedTree {
     types: ArenaMap<TypeItemId, TypeDeclarationId>,
     lets: ArenaMap<LetBindingNameGroupId, LocalDeclarationId>,
     sections: FxHashMap<lowering::ExpressionId, BinderId>,
+    binder_statements: ArenaMap<BinderId, lowering::DoStatementId>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -431,6 +432,18 @@ impl CheckedTree {
 
     pub fn lookup_section_binder(&self, source: lowering::ExpressionId) -> Option<BinderId> {
         self.sections.get(&source).copied()
+    }
+
+    pub(crate) fn insert_binder_statement(
+        &mut self,
+        binder: BinderId,
+        statement: lowering::DoStatementId,
+    ) {
+        self.binder_statements.insert(binder, statement);
+    }
+
+    pub fn lookup_binder_statement(&self, binder: BinderId) -> Option<lowering::DoStatementId> {
+        self.binder_statements.get(binder).copied()
     }
 
     pub fn insert_term(&mut self, source: TermItemId, term: TermDeclaration) -> TermDeclarationId {

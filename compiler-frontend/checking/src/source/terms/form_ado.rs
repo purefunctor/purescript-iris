@@ -1,4 +1,5 @@
 use building_types::QueryResult;
+use itertools::Itertools;
 
 use crate::context::CheckContext;
 use crate::core::{TypeId, unification};
@@ -268,7 +269,8 @@ where
                     })?;
                 checked_lets.push(bindings);
             }
-            AdoStep::Action { statement, expression, .. } => {
+            AdoStep::Action { statement, binder, expression, .. } => {
+                state.checked.tree.insert_binder_statement(*binder, *statement);
                 let application = if let Some(continuation_type) = continuation_type {
                     // Then, the infer_ado_apply rule applies `apply` to the inferred
                     // expression type and the continuation type that is a function
@@ -306,7 +308,7 @@ where
                     })?
                 };
                 continuation_type = Some(application.type_id());
-                checked_actions.push(application);
+                checked_actions.push((*statement, application));
             }
         }
     }
@@ -336,12 +338,16 @@ where
         tree::ExpressionKind::Lambda { binders: binders.into(), expression: body.expression };
     let lambda = super::allocate_expression(state, lambda_type, kind);
 
-    let mut checked_actions = checked_actions.into_iter();
-    let first_action =
-        checked_actions.next().expect("invariant violated: ado has no checked map application");
-    let mut expression = first_action.materialize(state, lambda);
-    for action in checked_actions {
+    let mut expression = lambda;
+    for (position, (statement, action)) in checked_actions.into_iter().with_position() {
+        if position.is_first() {
+            form_do::attribute_do_statement(state, lambda.expression, statement);
+        }
         expression = action.materialize(state, expression);
+        let is_outermost = position.is_last();
+        if !is_outermost {
+            form_do::attribute_do_statement(state, expression.expression, statement);
+        }
     }
 
     let Some(continuation_type) = continuation_type else {

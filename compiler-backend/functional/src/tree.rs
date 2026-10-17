@@ -92,6 +92,10 @@ impl Storage {
         expression.origin = origin.or(expression.origin);
     }
 
+    pub(crate) fn set_pattern_origin(&mut self, pattern: PatternId, origin: Origin) {
+        self.patterns[pattern].origin = Some(origin);
+    }
+
     pub(crate) fn relocate_expression(
         &mut self,
         expression: ExpressionId,
@@ -332,6 +336,7 @@ pub enum Guard {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Pattern {
     pub kind: PatternKind,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
