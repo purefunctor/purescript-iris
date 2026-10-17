@@ -13,7 +13,7 @@ interface Wrapper a where
   superclass constrainedDict :: Main.Constrained Main.Invalid
 
 showsViaSuperclass :: forall a. Main.Container a ?[cannot apply function type] => a -> Prim.String
-showsViaSuperclass = \{containerDict} -> \value -> show {containerDict.showDict} value
+showsViaSuperclass = \{containerDict} -> \value -> show {error} value
 
 showsViaWrapper :: forall a. Main.Wrapper @Prim.Type a => a -> Prim.String
 showsViaWrapper = \{wrapperDict} -> \value -> show {error} value

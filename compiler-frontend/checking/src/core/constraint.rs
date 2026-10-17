@@ -562,10 +562,15 @@ where
         let mut introduced_binders = Vec::new();
         for GivenConstraint { constraint, evidence } in given {
             if let Some(given) = canonical::canonicalise(state, context, constraint)? {
-                introduced_binders.push((given, evidence));
-
                 let canonical = state.canonicals.type_id(context, given);
                 state.checked.evidence.bind_binder(evidence, canonical);
+
+                if toolkit::contains_unknown(state, context, canonical)? {
+                    state.absorb_unknown(canonical);
+                    continue;
+                }
+
+                introduced_binders.push((given, evidence));
 
                 let proof = state.checked.evidence.allocate(Evidence::Given(evidence));
                 evidence_in_scope.insert(given, proof);

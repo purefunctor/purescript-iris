@@ -17,9 +17,6 @@ Error! · [NoInstanceFound] · Main.purs:6:20
   │
   │   givenRigid value = show value
   │                      ╰─────────
-  • while
-  │
-  │   Show ?[cannot apply function type] is in scope
   •
 
 Error! · [InvalidTypeApplication] · Main.purs:8:24
@@ -47,7 +44,4 @@ Error! · [NoInstanceFound] · Main.purs:12:22
   │
   │   givenPartial value = show value
   │                        ╰─────────
-  • while
-  │
-  │   Show (Array ?[cannot apply function type]) is in scope
   •
