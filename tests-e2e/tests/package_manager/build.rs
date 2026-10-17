@@ -1,7 +1,7 @@
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
-use std::process::Output;
+use std::process::{Command, Output};
 use std::time::{Duration, SystemTime};
 
 use super::support::{TestWorkspace, assert_success};
@@ -250,6 +250,47 @@ value = if true then 1
 
     snapshot_output("parse_error_diagnostics", &output);
     assert!(!workspace.path().join("output/Main/index.js").exists());
+}
+
+#[test]
+fn maps_node_stack_traces_to_purescript_sources() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Unit = Unit
+
+foreign import fail :: Unit -> Unit
+
+failure :: Unit
+failure = fail Unit
+"#,
+    );
+    workspace.write("src/Main.js", "export const fail = () => { throw new Error(\"failed\"); };\n");
+    workspace.write("main.mjs", "import \"./output/Main/index.js\";\n");
+
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    let source_map = workspace.read("output/Main/index.js.map");
+    let source_map: serde_json::Value = serde_json::from_str(&source_map).unwrap();
+    assert_eq!(source_map["sources"], serde_json::json!(["../../src/Main.purs"]));
+    let output = Command::new("node")
+        .args(["--enable-source-maps", "main.mjs"])
+        .current_dir(workspace.path())
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr).replace('\\', "/");
+    assert!(!output.status.success());
+    assert!(stderr.contains("src/Main.purs:8:11"), "unmapped stack trace:\n{stderr}");
 }
 
 #[test]

@@ -14,6 +14,7 @@ line-index = "0.1.2"
 oxc_allocator = "=0.151.0"
 oxc_codegen = { version = "=0.151.0", default-features = false, features = ["sourcemap"] }
 oxc_ast = "=0.151.0"
+oxc_sourcemap = "8.1.2"
 oxc_span = "=0.151.0"
 oxc_syntax = "=0.151.0"
 rustc-hash = "2.1.3"

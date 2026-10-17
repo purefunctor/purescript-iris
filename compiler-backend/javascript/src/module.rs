@@ -113,8 +113,20 @@ pub fn runtime_source() -> &'static str {
 }
 
 pub fn module_filename(module_name: &str) -> String {
-    format!("{module_name}/index.js")
+    format!("{module_name}/{INDEX_FILENAME}")
 }
+
+pub fn source_map_module_filename(module_name: &str) -> String {
+    format!("{module_name}/{SOURCE_MAP_FILENAME}")
+}
+
+pub fn source_mapping_url_comment() -> String {
+    format!("//# sourceMappingURL={SOURCE_MAP_FILENAME}\n")
+}
+
+pub(crate) const INDEX_FILENAME: &str = "index.js";
+
+pub(crate) const SOURCE_MAP_FILENAME: &str = "index.js.map";
 
 /// StyleX accepts `defineVars`, `defineConsts`, and `defineMarker` only in files named
 /// `*.stylex.js`, which its default module resolution recognizes without configuration.

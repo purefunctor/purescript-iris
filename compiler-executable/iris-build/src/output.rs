@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io, process};
 
+use files::FileId;
 use rayon::prelude::*;
 use serde::Serialize;
 use thiserror::Error;
@@ -43,6 +44,11 @@ pub(crate) struct BuildOutput {
     iris: String,
 }
 
+pub(crate) struct GeneratedModule {
+    pub(crate) javascript: Arc<javascript::Module>,
+    pub(crate) source_map: javascript::SourceMap,
+}
+
 impl BuildOutput {
     pub(crate) fn new(directory: PathBuf, iris: String) -> BuildOutput {
         BuildOutput { directory, iris }
@@ -55,9 +61,9 @@ impl BuildOutput {
     pub(crate) fn write(
         &self,
         compilation: &ProjectCompilation,
-        modules: &[Arc<javascript::Module>],
+        modules: &[GeneratedModule],
     ) -> Result<(), OutputError> {
-        if modules.iter().any(|module| module.requires_runtime()) {
+        if modules.iter().any(|module| module.javascript.requires_runtime()) {
             let runtime = self.directory.join(javascript::runtime_filename());
             write_if_changed(&runtime, javascript::runtime_source().as_bytes())?;
         }
@@ -69,12 +75,19 @@ impl BuildOutput {
     fn write_module(
         &self,
         compilation: &ProjectCompilation,
-        module: &javascript::Module,
+        generated: &GeneratedModule,
     ) -> Result<(), OutputError> {
+        let GeneratedModule { javascript: module, source_map } = generated;
         let name = module.name();
         let files = module.files();
+        let source = source_path(compilation, module.file_id());
         let index = self.directory.join(module.filename());
-        write_if_changed(&index, files.index_source().as_bytes())?;
+        let comment = javascript::source_mapping_url_comment();
+        let index_source = format!("{}{comment}", files.index_source());
+        write_if_changed(&index, index_source.as_bytes())?;
+        let source_map_path = self.directory.join(javascript::source_map_module_filename(name));
+        let source_map = source_map.to_json(&source_map_source_url(&source_map_path, &source));
+        write_if_changed(&source_map_path, source_map.as_bytes())?;
         if let Some(source) = files.stylex_theme_source() {
             let path = self.directory.join(javascript::stylex_theme_module_filename(name));
             write_if_changed(&path, source.as_bytes())?;
@@ -87,7 +100,7 @@ impl BuildOutput {
             write_if_changed(&path, foreign.as_bytes())?;
         }
         let path = index.with_file_name(METADATA_FILENAME);
-        let metadata = self.module_metadata(compilation, module);
+        let metadata = self.module_metadata(compilation, module, source);
         let mut content = serde_json::to_vec_pretty(&metadata)
             .map_err(|source| OutputError::Serialize { path: PathBuf::clone(&path), source })?;
         content.push(b'\n');
@@ -98,15 +111,11 @@ impl BuildOutput {
         &'a self,
         compilation: &'a ProjectCompilation,
         module: &javascript::Module,
+        source: PathBuf,
     ) -> ModuleMetadata<'a> {
         let file_id = module.file_id();
         let package = compilation.source_metadata(file_id).and_then(Option::as_ref);
         let package = package.expect("invariant violated: a generated module has no package");
-        let source = compilation.source_path(file_id).and_then(|locator| {
-            let url = Url::parse(&locator).ok()?;
-            url.to_file_path().ok()
-        });
-        let source = source.expect("invariant violated: a generated module has no source path");
         ModuleMetadata {
             version: METADATA_VERSION,
             iris: &self.iris,
@@ -116,6 +125,25 @@ impl BuildOutput {
             foreign: module.files().foreign_kind().map(javascript::foreign_filename),
         }
     }
+}
+
+fn source_path(compilation: &ProjectCompilation, file_id: FileId) -> PathBuf {
+    let source = compilation.source_path(file_id).and_then(|locator| {
+        let url = Url::parse(&locator).ok()?;
+        url.to_file_path().ok()
+    });
+    source.expect("invariant violated: a generated module has no source path")
+}
+
+fn source_map_source_url(source_map: &Path, source: &Path) -> String {
+    let source_url = Url::from_file_path(source)
+        .expect("invariant violated: a generated module source path is not absolute");
+    let same_volume = source_map.components().next() == source.components().next();
+    let relative = Url::from_file_path(source_map)
+        .ok()
+        .filter(|_| same_volume)
+        .and_then(|source_map_url| source_map_url.make_relative(&source_url));
+    relative.unwrap_or_else(|| source_url.to_string())
 }
 
 fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), OutputError> {
@@ -153,4 +181,17 @@ fn replace(path: &Path, content: &[u8]) -> io::Result<()> {
         let _ = fs::remove_file(&temporary);
     }
     replaced
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_map_sources_on_another_volume_are_absolute() {
+        let source_map = Path::new(r"C:\project\output\Main\index.js.map");
+        let source = Path::new(r"D:\project\src\Main.purs");
+        let source_url = source_map_source_url(source_map, source);
+        assert_eq!(source_url, "file:///D:/project/src/Main.purs");
+    }
 }

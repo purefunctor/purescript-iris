@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use stabilizing::StabilizedModule;
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, TextSize};
 
-use crate::module::Module;
+use crate::module::{INDEX_FILENAME, Module};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
@@ -34,6 +34,33 @@ pub struct SourceMap {
 impl SourceMap {
     pub fn mappings(&self) -> &[SourceMapping] {
         &self.mappings
+    }
+
+    pub fn to_json(&self, source: &str) -> String {
+        let tokens = self.mappings.iter().map(|mapping| {
+            let Position { line, column } = mapping.generated;
+            match mapping.source {
+                Some(source) => oxc_sourcemap::Token::new(
+                    line,
+                    column,
+                    source.line,
+                    source.column,
+                    Some(0),
+                    None,
+                ),
+                None => oxc_sourcemap::Token::new(line, column, 0, 0, None, None),
+            }
+        });
+        let source_map = oxc_sourcemap::SourceMap::new(
+            Some(INDEX_FILENAME.into()),
+            Vec::new(),
+            None,
+            vec![source.into()],
+            Vec::new(),
+            tokens.collect(),
+            None,
+        );
+        source_map.to_json_string()
     }
 }
 
