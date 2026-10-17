@@ -1240,7 +1240,7 @@ where
             PatternGuard::Boolean { expression } => {
                 self.expression(expression, evidence_names, type_pretty)
             }
-            PatternGuard::Pattern { binder, expression } => {
+            PatternGuard::Pattern { binder, expression, .. } => {
                 let binder = self.binder(binder, type_pretty)?;
                 let expression = self.expression(expression, evidence_names, type_pretty)?;
                 Ok(binder.append(self.arena.text(" <- ")).append(expression))

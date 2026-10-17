@@ -2714,9 +2714,12 @@ impl Generator<'_> {
             }
             Guard::Pattern { expression: value, pattern } => {
                 let source = *value;
-                let _origin = tree.enter_origin(self.module.storage[source].origin);
-                let value = self.rendered_expression(tree, writer, source, context)?;
-                let value = self.materialize_pattern_value(tree, writer, source, value, context);
+                let value = {
+                    let _origin = tree.enter_origin(self.module.storage[source].origin);
+                    let value = self.rendered_expression(tree, writer, source, context)?;
+                    self.materialize_pattern_value(tree, writer, source, value, context)
+                };
+                let _origin = tree.enter_origin(self.module.storage[*pattern].origin);
                 let mut plan = self.pattern_plan(tree, *pattern, value, None, context)?;
                 let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
                 if let Some(condition) = condition {

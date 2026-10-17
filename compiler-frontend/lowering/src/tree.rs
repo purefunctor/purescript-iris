@@ -288,6 +288,7 @@ pub struct PatternGuarded {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PatternGuard {
+    pub source: PatternGuardId,
     pub binder: Option<BinderId>,
     pub expression: Option<ExpressionId>,
 }

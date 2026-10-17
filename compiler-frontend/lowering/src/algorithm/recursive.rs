@@ -664,17 +664,18 @@ fn lower_pattern_guard(
     context: &Context,
     cst: &cst::PatternGuard,
 ) -> PatternGuard {
+    let source = context.stabilized.lookup_cst(cst).expect_id();
     match cst {
         cst::PatternGuard::PatternGuardBinder(cst) => {
             state.push_binder_scope();
             let binder = cst.binder().map(|cst| lower_binder(state, context, &cst));
             let expression = cst.expression().map(|cst| lower_expression(state, context, &cst));
-            PatternGuard { binder, expression }
+            PatternGuard { source, binder, expression }
         }
         cst::PatternGuard::PatternGuardExpression(cst) => {
             let binder = None;
             let expression = cst.expression().map(|cst| lower_expression(state, context, &cst));
-            PatternGuard { binder, expression }
+            PatternGuard { source, binder, expression }
         }
     }
 }

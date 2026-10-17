@@ -393,10 +393,12 @@ fn guarded_alternative(
             checking_tree::PatternGuard::Boolean { expression } => {
                 Guard::Boolean(convert_expression(context, *expression)?)
             }
-            checking_tree::PatternGuard::Pattern { binder, expression } => Guard::Pattern {
-                expression: convert_expression(context, *expression)?,
-                pattern: convert_pattern(context, *binder)?,
-            },
+            checking_tree::PatternGuard::Pattern { source, binder, expression } => {
+                let expression = convert_expression(context, *expression)?;
+                let pattern = convert_pattern(context, *binder)?;
+                context.storage.set_pattern_origin(pattern, Origin::PatternGuard(*source));
+                Guard::Pattern { expression, pattern }
+            }
         };
         guards.push(guard);
     }

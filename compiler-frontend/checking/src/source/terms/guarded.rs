@@ -166,13 +166,18 @@ where
                 super::application::instantiate_expression(state, context, expression)?;
             let binder = binder::check_binder(state, context, binder_id, expression.type_id)?;
             Ok(tree::PatternGuard::Pattern {
+                source: guard.source,
                 binder: binder.binder,
                 expression: expression.expression,
             })
         } else {
             let binder = binder::infer_binder(state, context, binder_id)?;
             let expression = state.allocate_error_expression(binder.type_id);
-            Ok(tree::PatternGuard::Pattern { binder: binder.binder, expression })
+            Ok(tree::PatternGuard::Pattern {
+                source: guard.source,
+                binder: binder.binder,
+                expression,
+            })
         }
     } else {
         let expression = if let Some(expression) = expression {

@@ -255,7 +255,7 @@ pub struct CaseAlternative {
 #[derive(Debug, PartialEq, Eq)]
 pub enum PatternGuard {
     Boolean { expression: ExpressionId },
-    Pattern { binder: BinderId, expression: ExpressionId },
+    Pattern { source: lowering::PatternGuardId, binder: BinderId, expression: ExpressionId },
 }
 
 #[derive(Debug, PartialEq, Eq)]

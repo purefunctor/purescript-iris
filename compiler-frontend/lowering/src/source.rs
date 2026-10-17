@@ -12,6 +12,7 @@ pub type TypeVariableBindingId = AstId<cst::TypeVariableBinding>;
 pub type CaseBranchId = AstId<cst::CaseBranch>;
 pub type DoStatementId = AstId<cst::DoStatement>;
 pub type LetBindingId = AstId<cst::LetBindingPattern>;
+pub type PatternGuardId = AstId<cst::PatternGuard>;
 
 pub type LetBindingSignatureId = AstId<cst::LetBindingSignature>;
 pub type LetBindingEquationId = AstId<cst::LetBindingEquation>;
