@@ -10,7 +10,7 @@ dictionary convertInt :: forall a. Main.Convert a Prim.Int where
   convert = \_ -> 0
 
 showsConverted :: ?[cannot apply function type] -> Prim.String
-showsConverted = \value -> show {showInt} (convert {convertInt} value)
+showsConverted = \value -> show {error} (convert {error} value)
 
-inferredConverted :: ?[cannot apply function type] -> Prim.Int
-inferredConverted = \value -> convert {convertInt} value
+inferredConverted :: ?[cannot apply function type] -> ?[ignored constraint]
+inferredConverted = \value -> convert {error} value

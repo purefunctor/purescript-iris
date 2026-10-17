@@ -7,6 +7,6 @@ source: tests-integration/src/fixtures.rs
 
 @export wantedShow = \value%2 -> show (<error>) value%2
 
-@export wantedShowArray = \value%3 -> show (showArray (<error>)) value%3
+@export wantedShowArray = \value%3 -> show (<error>) value%3
 
 @export wantedDependency = \value%4 -> convert (<error>) value%4

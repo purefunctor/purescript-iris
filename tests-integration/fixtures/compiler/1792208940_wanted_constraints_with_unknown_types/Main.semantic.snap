@@ -13,7 +13,7 @@ wantedShow :: ?[cannot apply function type] -> Prim.String
 wantedShow = \value -> show {error} value
 
 wantedShowArray :: Prim.Array ?[cannot apply function type] -> Prim.String
-wantedShowArray = \value -> show {showArray {error}} value
+wantedShowArray = \value -> show {error} value
 
 wantedDependency :: ?[cannot apply function type] -> Prim.Int
 wantedDependency = \value -> convert {error} value

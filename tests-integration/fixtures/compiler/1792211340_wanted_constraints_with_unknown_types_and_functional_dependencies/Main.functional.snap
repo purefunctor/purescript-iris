@@ -5,8 +5,6 @@ source: tests-integration/src/fixtures.rs
 
 @export instance convertInt = { convert: \$a%1@(_) -> 0 }
 
-@export showsConverted = \value%2 -> show showInt (convertIntDictConvert value%2)
+@export showsConverted = \value%2 -> show (<error>) (convert (<error>) value%2)
 
-@export inferredConverted = \value%3 -> convertIntDictConvert value%3
-
-convertIntDictConvert = convert convertInt
+@export inferredConverted = \value%3 -> convert (<error>) value%3

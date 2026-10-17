@@ -27,7 +27,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::fd::{compute_closure, get_functional_dependencies};
-use crate::core::{TypeId, toolkit, unification};
+use crate::core::{TypeId, generalise, toolkit, unification};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
 use crate::implication::{GivenConstraint, ImplicationId, Patterns, WantedConstraint};
@@ -186,6 +186,34 @@ where
     Ok(determined.collect())
 }
 
+fn ignore_unknown_wanted<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    work: &mut Work,
+    constraint: &ConstraintInScope,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    let wanted = state.canonicals.type_id(context, constraint.key.wanted);
+    if !toolkit::contains_unknown(state, context, wanted)? {
+        return Ok(false);
+    }
+
+    state.absorb_unknown(wanted);
+    state.checked.evidence.mark_error(constraint.evidence.wanted);
+
+    let unknown = context.unknown("ignored constraint");
+    for argument in determined_arguments(state, context, constraint.key.wanted)? {
+        for id in generalise::unsolved_unifications(state, context, argument)? {
+            let unification = context.queries.intern_type(Type::Unification(id));
+            work.unifications.push((unification, unknown));
+        }
+    }
+
+    Ok(true)
+}
+
 fn wake_constraints(work: &mut Work, stuck: &mut Stuck, state: &mut CheckState) {
     let mut awake = ConstraintSet::default();
 
@@ -251,6 +279,10 @@ where
         let Some(constraint) = work.pop_next(state, context)? else {
             break 'work;
         };
+
+        if ignore_unknown_wanted(state, context, &mut work, &constraint)? {
+            continue 'work;
+        }
 
         let mut blocked = FxHashSet::default();
         let mut blocked_on_skolem = false;
