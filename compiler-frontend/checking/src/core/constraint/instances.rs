@@ -83,6 +83,11 @@ where
         return Ok(());
     };
 
+    if toolkit::contains_unknown(state, context, instance.signature)? {
+        state.absorb_unknown(instance.signature);
+        return Ok(());
+    }
+
     let Some(&current_position) = context.instance_positions.get(&origin) else {
         return Ok(());
     };
