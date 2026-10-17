@@ -72,13 +72,14 @@ impl BuildOutput {
         module: &javascript::Module,
     ) -> Result<(), OutputError> {
         let name = module.name();
+        let files = module.files();
         let index = self.directory.join(module.filename());
-        write_if_changed(&index, module.source().as_bytes())?;
-        if let Some(source) = module.stylex_theme_source() {
+        write_if_changed(&index, files.index_source().as_bytes())?;
+        if let Some(source) = files.stylex_theme_source() {
             let path = self.directory.join(javascript::stylex_theme_module_filename(name));
             write_if_changed(&path, source.as_bytes())?;
         }
-        if let Some(kind) = module.foreign_kind() {
+        if let Some(kind) = files.foreign_kind() {
             let path = self.directory.join(javascript::foreign_module_filename(name, kind));
             let foreign = compilation
                 .source_foreign_content(module.file_id())
@@ -112,7 +113,7 @@ impl BuildOutput {
             package: &package.name,
             editable: package.editable,
             source,
-            foreign: module.foreign_kind().map(javascript::foreign_filename),
+            foreign: module.files().foreign_kind().map(javascript::foreign_filename),
         }
     }
 }

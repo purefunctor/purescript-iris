@@ -27,8 +27,8 @@ use smol_str::{SmolStr, format_smolstr};
 use super::super::names::NameAllocator;
 use crate::error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
 use crate::module::{
-    Module, STYLEX_THEME_FILENAME, foreign_filename, module_filename, runtime_filename,
-    stylex_theme_module_filename,
+    Module, ModuleFiles, STYLEX_THEME_FILENAME, foreign_filename, module_filename,
+    runtime_filename, stylex_theme_module_filename,
 };
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
@@ -443,16 +443,15 @@ impl<'m> Generator<'m> {
             vec![ModuleDiagnostic::InitializerCycle { declarations: initializer_cycle }]
         };
         let requires_runtime = self.runtime_namespace.is_some();
-        let source = writer.finish();
+        let foreign_kind = self.foreign_import.as_ref().map(|foreign_import| foreign_import.kind);
+        let files = ModuleFiles::new(writer.finish(), stylex_theme_source, foreign_kind);
         Ok(Module::new(
             self.module.file_id,
             self.module.name.to_string(),
-            source,
             dependencies,
             diagnostics,
-            self.foreign_import.as_ref().map(|foreign_import| foreign_import.kind),
-            stylex_theme_source,
             requires_runtime,
+            files,
         ))
     }
 
