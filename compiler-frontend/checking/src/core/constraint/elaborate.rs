@@ -141,6 +141,10 @@ where
 
         for crate::core::CheckedSuperclass { source_id, constraint } in class.superclasses {
             let child = SubstituteName::many(state, context, &substitutions, constraint)?;
+            if toolkit::contains_unknown(state, context, child)? {
+                state.absorb_unknown(child);
+                continue;
+            }
             if let Some(child) = canonical::canonicalise(state, context, child)?
                 && seen.insert(child)
             {
