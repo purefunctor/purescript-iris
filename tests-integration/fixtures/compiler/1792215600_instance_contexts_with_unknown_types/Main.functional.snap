@@ -7,6 +7,6 @@ source: tests-integration/src/fixtures.rs
 
 @export instance pick1 = { pick: \$a%3@(_) -> "other" }
 
-@export picksInt = pick (pickInt (<error>)) 1
+@export picksInt = pick (<error>) 1
 
-@export picksString = pick pick1 "string"
+@export picksString = pick (<error>) "string"

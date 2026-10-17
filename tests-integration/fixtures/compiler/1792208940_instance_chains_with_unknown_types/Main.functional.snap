@@ -9,11 +9,11 @@ source: tests-integration/src/fixtures.rs
 
 @export instance pick1 = { pick: \$a%3@(_) -> "other" }
 
-@export picksBoolean = pick pickBoolean true
+@export picksBoolean = pick (<error>) true
 
-@export picksString = pickStringDictPick "string"
+@export picksString = pick (<error>) "string"
 
-@export picksArray = pickStringDictPick [1]
+@export picksArray = pick (<error>) [1]
 
 @export single = \dictionary%4 -> dictionary%4.single
 
@@ -24,5 +24,3 @@ source: tests-integration/src/fixtures.rs
 @export singleInt = single (<error>) 1
 
 @export singleBoolean = single singleBoolean1 true
-
-pickStringDictPick = pick pick1

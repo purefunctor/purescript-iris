@@ -19,6 +19,33 @@ Error! · [InvalidTypeApplication] · Main.purs:27:18
   │                    ╰─────────
   •
 
+Error! · [NoInstanceFound] · Main.purs:15:16
+  •
+  │
+  • No instance found for: Pick Boolean
+  │
+  │   picksBoolean = pick true
+  │                  ╰────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:18:15
+  •
+  │
+  • No instance found for: Pick String
+  │
+  │   picksString = pick "string"
+  │                 ╰────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:21:14
+  •
+  │
+  • No instance found for: Pick (Array Int)
+  │
+  │   picksArray = pick [1]
+  │                ╰───────
+  •
+
 Error! · [NoInstanceFound] · Main.purs:34:13
   •
   │
