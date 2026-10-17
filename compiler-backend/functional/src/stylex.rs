@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::tree::ExpressionId;
+use crate::tree::{ExpressionId, Origin};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StyleXExpression {
@@ -43,6 +43,7 @@ impl StyleXExpression {
 pub struct StyleXConditionalCase {
     pub condition: StyleXCondition,
     pub value: ExpressionId,
+    pub origin: Option<Origin>,
 }
 
 /// The key of a conditional case: a `stylex.when.*` relation, or a condition string such as a

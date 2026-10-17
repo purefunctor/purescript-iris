@@ -267,6 +267,7 @@ impl Generator<'_> {
             value: default.value,
         }];
         for case in cases {
+            let _origin = tree.enter_origin(case.origin);
             let key = match case.condition {
                 StyleXCondition::Expression(condition) => {
                     self.rendered_expression(tree, writer, condition, context)?.value
@@ -294,6 +295,7 @@ impl Generator<'_> {
         case: &StyleXConditionalCase,
         context: &mut FunctionContext,
     ) -> ModuleResult<Option<(ExpressionId, ExpressionId)>> {
+        let _origin = tree.enter_origin(case.origin);
         let key = match case.condition {
             StyleXCondition::Expression(condition) => {
                 let Some(condition) = self.inline_expression(tree, condition, context)? else {

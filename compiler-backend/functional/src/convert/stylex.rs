@@ -220,7 +220,7 @@ where
         condition: StyleXCondition,
         value: ExpressionId,
     ) -> ExpressionId {
-        let case = StyleXConditionalCase { condition, value };
+        let case = StyleXConditionalCase { condition, value, origin: self.origin };
         self.expression(ExpressionKind::StyleX(StyleXExpression::ConditionalCase(case)))
     }
 

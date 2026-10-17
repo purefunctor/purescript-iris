@@ -635,6 +635,7 @@ mod tests {
                         marker: None,
                     },
                     value: expression(2),
+                    origin: None,
                 },
                 StyleXConditionalCase {
                     condition: StyleXCondition::When {
@@ -643,10 +644,12 @@ mod tests {
                         marker: Some(expression(4)),
                     },
                     value: expression(5),
+                    origin: None,
                 },
                 StyleXConditionalCase {
                     condition: StyleXCondition::Expression(expression(6)),
                     value: expression(7),
+                    origin: None,
                 },
             ]
             .into(),
