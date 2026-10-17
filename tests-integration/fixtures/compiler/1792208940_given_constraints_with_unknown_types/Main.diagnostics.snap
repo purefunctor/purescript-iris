@@ -1,0 +1,53 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:5:31
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   givenRigid :: forall a. Show (Int String) => a -> String
+  │                                 ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:6:20
+  •
+  │
+  • No instance found for: Show a
+  │
+  │   givenRigid value = show value
+  │                      ╰─────────
+  • while
+  │
+  │   Show ?[cannot apply function type] is in scope
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:8:24
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   givenConcrete :: Show (Int String) => String
+  │                          ╰─────────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:11:40
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   givenPartial :: forall a. Show (Array (Int String)) => Array a -> String
+  │                                          ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:12:22
+  •
+  │
+  • No instance found for: Show a1
+  │
+  │   givenPartial value = show value
+  │                        ╰─────────
+  • while
+  │
+  │   Show (Array ?[cannot apply function type]) is in scope
+  •

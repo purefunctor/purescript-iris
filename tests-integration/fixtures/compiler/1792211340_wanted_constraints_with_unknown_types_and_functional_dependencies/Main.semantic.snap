@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Convert a b where
+  convert :: a -> b
+
+dictionary convertInt :: forall a. Main.Convert a Prim.Int where
+  convert :: a -> Prim.Int
+  convert = \_ -> 0
+
+showsConverted :: ?[cannot apply function type] -> Prim.String
+showsConverted = \value -> show {showInt} (convert {convertInt} value)
+
+inferredConverted :: ?[cannot apply function type] -> Prim.Int
+inferredConverted = \value -> convert {convertInt} value

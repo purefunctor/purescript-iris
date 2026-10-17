@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Container :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Container a b where
+  superclass showDict :: Data.Show.Show a
+
+interface Constrained :: Prim.Type -> Prim.Constraint
+interface Constrained a where
+
+interface Wrapper :: forall k0. k0 -> Prim.Constraint
+interface Wrapper a where
+  superclass constrainedDict :: Main.Constrained Main.Invalid
+
+showsViaSuperclass :: forall a. Main.Container a ?[cannot apply function type] => a -> Prim.String
+showsViaSuperclass = \{containerDict} -> \value -> show {containerDict.showDict} value
+
+showsViaWrapper :: forall a. Main.Wrapper @Prim.Type a => a -> Prim.String
+showsViaWrapper = \{wrapperDict} -> \value -> show {error} value

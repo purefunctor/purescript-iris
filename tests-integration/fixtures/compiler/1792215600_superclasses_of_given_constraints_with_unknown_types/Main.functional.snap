@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export showsViaSuperclass = \containerADict%0 ->
+  \value%1 -> show (containerADict%0."Show0"()) value%1
+
+@export showsViaWrapper = \wrapperADict%3 -> \value%2 -> show (<error>) value%2

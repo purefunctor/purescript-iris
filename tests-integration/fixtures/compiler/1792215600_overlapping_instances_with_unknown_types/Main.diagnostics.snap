@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:8:18
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   instance Single (Int String)
+  │                    ╰─────────
+  •
+
+Error! · [OverlappingInstances] · Main.purs:8:1
+  •
+  │
+  • Overlapping type class instances found for: Single ?[cannot apply function type]
+  │
+  │   instance Single (Int String)
+  │   ╰───────────────────────────
+  • while
+  │
+  │   forall a. Single a is matching
+  •

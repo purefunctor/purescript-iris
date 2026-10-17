@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Convert :: Prim.Type -> Prim.Type -> Prim.Constraint
+interface Convert a b where
+  convert :: a -> b
+
+dictionary convertIntString :: Main.Convert Prim.Int Prim.String where
+  convert :: Prim.Int -> Prim.String
+  convert = \_ -> "int"
+
+wantedShow :: ?[cannot apply function type] -> Prim.String
+wantedShow = \value -> show {error} value
+
+wantedShowArray :: Prim.Array ?[cannot apply function type] -> Prim.String
+wantedShowArray = \value -> show {showArray {error}} value
+
+wantedDependency :: ?[cannot apply function type] -> Prim.Int
+wantedDependency = \value -> convert {error} value

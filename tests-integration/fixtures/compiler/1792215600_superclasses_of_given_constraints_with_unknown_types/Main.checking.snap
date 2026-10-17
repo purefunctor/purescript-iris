@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+showsViaSuperclass :: forall a. Main.Container a ?[cannot apply function type] => a -> Prim.String
+showsViaWrapper :: forall a. Main.Wrapper @Prim.Type a => a -> Prim.String
+
+Types
+Container :: Prim.Type -> Prim.Type -> Prim.Constraint
+Invalid :: ?[cannot apply function type]
+Constrained :: Prim.Type -> Prim.Constraint
+Wrapper :: forall t0. t0 -> Prim.Constraint
+
+Synonyms
+type Invalid = ?[cannot apply function type]
+
+Classes
+class forall (a :: Prim.Type) (b :: Prim.Type). Data.Show.Show a <= Main.Container a b
+class forall (a :: Prim.Type). Main.Constrained a
+class forall (t0 :: Prim.Type) (a :: t0). Main.Constrained Main.Invalid <= Main.Wrapper @t0 (a :: t0)

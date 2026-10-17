@@ -1,0 +1,13 @@
+import * as Data_Show from "../Data.Show/index.js";
+export function showsViaSuperclass(containerADict) {
+  return (value) => /* @__PURE__ */ Data_Show.show(/* @__PURE__ */ containerADict.Show0())(value);
+}
+export function showsViaWrapper(wrapperADict) {
+  const $closure = (value) => {
+    const $function = Data_Show.show;
+    let $result;
+    throw new Error("Generated code reached a source error");
+    return /* @__PURE__ */ $function($result)(value);
+  };
+  return $closure;
+}

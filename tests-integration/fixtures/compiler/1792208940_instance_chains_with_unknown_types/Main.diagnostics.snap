@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [InvalidTypeApplication] · Main.purs:9:28
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   else instance Pick (Array (Int String)) where
+  │                              ╰─────────
+  •
+
+Error! · [InvalidTypeApplication] · Main.purs:27:18
+  •
+  │
+  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  │
+  │   instance Single (Int String) where
+  │                    ╰─────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:34:13
+  •
+  │
+  • No instance found for: Single Int
+  │
+  │   singleInt = single 1
+  │               ╰───────
+  •

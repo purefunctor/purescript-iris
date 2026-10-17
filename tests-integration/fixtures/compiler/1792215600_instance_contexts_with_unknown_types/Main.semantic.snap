@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Pick :: Prim.Type -> Prim.Constraint
+interface Pick a where
+  pick :: a -> Prim.String
+
+dictionary pickInt ::
+  { showDict :: Data.Show.Show ?[cannot apply function type] } =>
+  Main.Pick Prim.Int
+  where
+  pick :: Prim.Int -> Prim.String
+  pick = \_ -> "int"
+
+dictionary pick1 :: forall a. Main.Pick a where
+  pick :: a -> Prim.String
+  pick = \_ -> "other"
+
+picksInt :: Prim.String
+picksInt = pick {pickInt {error}} 1
+
+picksString :: Prim.String
+picksString = pick {pick1} "string"
