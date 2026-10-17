@@ -13,3 +13,5 @@ representations should be owned; frontend crates must not depend on code generat
 - Run `just t compiler` whenever generated JavaScript, foreign-module validation, or executable
   behavior can change. Update fixture output through `just t compiler <filters> --update-output`,
   then inspect every changed file.
+- Run `just t sourcemap` whenever functional origins, JavaScript rendering, or source position
+  resolution can change where generated code maps. Inspect every changed mapping.

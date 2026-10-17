@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        category: [workspace, support, lowering, resolving, lsp, docs, integration-other]
+        category: [workspace, support, lowering, resolving, lsp, docs, sourcemap, integration-other]
         include:
           - category: compiler
             partition: hash:1/4
@@ -112,7 +112,7 @@ jobs:
           node-version: '22'
 
       - name: Download integration packages
-        if: matrix.category == 'compiler'
+        if: matrix.category == 'compiler' || matrix.category == 'sourcemap'
         uses: actions/download-artifact@v8
         with:
           name: integration-packages-${{ runner.os }}
@@ -138,7 +138,7 @@ jobs:
               ;;
             integration-other)
               cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
-                -E 'package(tests-integration) and not (binary(compiler) or binary(lowering) or binary(resolving) or binary(lsp) or binary(docs))'
+                -E 'package(tests-integration) and not (binary(compiler) or binary(lowering) or binary(resolving) or binary(lsp) or binary(docs) or binary(sourcemap))'
               ;;
             *)
               cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \

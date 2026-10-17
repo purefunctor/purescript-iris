@@ -10,7 +10,7 @@ use std::{env, io};
 use building::QueryEngine;
 use checking::error::ErrorCrumb;
 use files::{FileId, Files};
-use iris_diagnostics::{collect_diagnostics, format_rich_with_path};
+use iris_diagnostics::{Severity, collect_diagnostics, format_rich_with_path};
 use itertools::Itertools;
 use line_index::LineIndex;
 use process_control::{ChildExt, Control};
@@ -424,6 +424,54 @@ pub fn docs(path: &Path) -> FixtureResult {
     let report = crate::generated::docs::report(&loaded.engine, &loaded.files, &snapshot_path)?;
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path);
+    settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
+    settings.bind(|| insta::assert_snapshot!(file, report));
+
+    Ok(())
+}
+
+fn check_source_errors(
+    engine: &QueryEngine,
+    files: &Files,
+    fixture_files: &HashSet<FileId>,
+) -> FixtureResult {
+    let mut fixture_files = fixture_files.iter().copied().collect_vec();
+    fixture_files.sort_by_key(|&id| files.path(id));
+    let mut errors = String::new();
+    for collection in collect_diagnostics(engine, &fixture_files)? {
+        let diagnostics = collection.diagnostics();
+        if !diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error) {
+            continue;
+        }
+        let line_index = LineIndex::new(&collection.content);
+        let path = files.path(collection.file_id);
+        errors.push_str(&format_rich_with_path(
+            diagnostics,
+            &collection.content,
+            &line_index,
+            &path,
+            false,
+        ));
+    }
+    if errors.is_empty() {
+        return Ok(());
+    }
+    Err(invalid_data(format!("fixture has source errors:\n{errors}")).into())
+}
+
+pub fn sourcemap(path: &Path) -> FixtureResult {
+    let folder = fixture_folder(path)?;
+    let file = module_name(path)?;
+    let loaded = crate::load_fixture(folder)?;
+    let Some(id) = loaded.engine.module_file(&file) else {
+        return Err(missing_module(path, &file).into());
+    };
+    check_source_errors(&loaded.engine, &loaded.files, &loaded.fixture_files)?;
+
+    let report = crate::generated::sourcemap::report(&loaded.engine, id)?;
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
     settings.set_omit_expression(true);
     settings.bind(|| insta::assert_snapshot!(file, report));

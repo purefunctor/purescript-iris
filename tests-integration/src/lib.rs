@@ -102,9 +102,13 @@ pub struct LoadedFixture {
     pub prim_directory: TempDir,
 }
 
+fn uses_registry_packages(folder: &Path) -> bool {
+    folder.starts_with("fixtures/compiler/") || folder.starts_with("fixtures/sourcemap/")
+}
+
 pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let packages = if folder.starts_with("fixtures/compiler/") {
+    let packages = if uses_registry_packages(folder) {
         tests_support::prepared_sources(
             manifest.join("packages.json"),
             manifest.join("../target/integration-packages"),

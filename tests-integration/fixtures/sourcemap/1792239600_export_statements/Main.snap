@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | function $delete(value) {
+  | ^ 6:1 delete value = value
+2 |   return value;
+  |   ^ 6:16 value
+3 | }
+  | ^ 6:1 delete value = value
+4 | export { $delete as "delete" };
+  | ^ 6:1 delete value = value
+5 | export { Just, Nothing } from "../Data.Maybe/index.js";
+  | ^ unmapped
