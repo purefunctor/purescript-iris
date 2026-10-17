@@ -162,6 +162,7 @@ pub enum Origin {
     Expression(lowering::ExpressionId),
     Equation(EquationSourceId),
     LocalEquation(lowering::LetBindingEquationId),
+    LetPattern(lowering::LetBindingId),
     Constructor(DataConstructorId),
     Foreign(ForeignValueId),
     ClassMember(ClassMemberId),
@@ -176,6 +177,7 @@ impl Origin {
             Origin::Equation(EquationSourceId::Value(id)) => stabilized.syntax_ptr(id),
             Origin::Equation(EquationSourceId::Instance(id)) => stabilized.syntax_ptr(id),
             Origin::LocalEquation(id) => stabilized.syntax_ptr(id),
+            Origin::LetPattern(id) => stabilized.syntax_ptr(id),
             Origin::Constructor(id) => stabilized.syntax_ptr(id),
             Origin::Foreign(id) => stabilized.syntax_ptr(id),
             Origin::ClassMember(id) => stabilized.syntax_ptr(id),
@@ -301,6 +303,7 @@ pub struct Binding {
     pub parameter: Parameter,
     pub expression: ExpressionId,
     pub source_order: usize,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

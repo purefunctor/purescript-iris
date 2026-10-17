@@ -8,7 +8,8 @@ source: tests-integration/src/fixtures.rs
 3 | export function describe(count) {
   | ^ 6:1 describe count =
 4 |   const doubled = count * (2 | 0) | 0;
-  |   ^ 8:15 count * 2
+  |   ^ 8:5 doubled = count * 2
+  |                   ^ 8:15 count * 2
   |                            ^ 8:23 2
   |                                     ^ 8:15 count * 2
 5 |   if (doubled === (0 | 0)) {

@@ -461,7 +461,8 @@ mod tests {
         let binding = storage.allocate_expression(Expression {
             kind: ExpressionKind::Let {
                 recursive: false,
-                bindings: [Binding { parameter, expression: root, source_order: 0 }].into(),
+                bindings: [Binding { parameter, expression: root, source_order: 0, origin: None }]
+                    .into(),
                 body,
             },
             origin: None,
@@ -532,6 +533,7 @@ mod tests {
                     parameter: Parameter { id: LocalId(0), name: "value".into() },
                     expression: value,
                     source_order: 0,
+                    origin: None,
                 }]
                 .into(),
                 body: negation,

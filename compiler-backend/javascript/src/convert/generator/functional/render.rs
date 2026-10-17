@@ -2352,7 +2352,7 @@ fn render_let(
             if optimized.contains(&identity) {
                 continue;
             }
-            let _origin = tree.enter_origin(generator.module.storage[binding.expression].origin);
+            let _origin = tree.enter_origin(generator.binding_origin(binding));
             match &generator.module.storage[binding.expression].kind {
                 ExpressionKind::Abstraction { parameters, body } => {
                     generator.render_abstraction_binding(
@@ -2382,7 +2382,7 @@ fn render_let(
         return render_lazy_let(&mut renderer, bindings);
     }
     for binding in bindings {
-        let _origin = tree.enter_origin(generator.module.storage[binding.expression].origin);
+        let _origin = tree.enter_origin(generator.binding_origin(binding));
         let name = context.allocate(&binding.parameter.name);
         match &generator.module.storage[binding.expression].kind {
             ExpressionKind::Abstraction { parameters, body } => {
@@ -2435,7 +2435,7 @@ fn render_lazy_let(
         writer.mutable(accessor);
     }
     for (binding, accessor) in bindings.iter().zip(&accessors) {
-        let _origin = tree.enter_origin(generator.module.storage[binding.expression].origin);
+        let _origin = tree.enter_origin(generator.binding_origin(binding));
         let runtime = tree.identifier(runtime);
         let binding_function = tree.member(runtime, "binding");
         let source_name = tree.string(binding.parameter.name.as_str());
@@ -2457,7 +2457,7 @@ fn render_lazy_let(
         )?;
     }
     for ((binding, name), accessor) in bindings.iter().zip(&names).zip(&accessors) {
-        let _origin = tree.enter_origin(generator.module.storage[binding.expression].origin);
+        let _origin = tree.enter_origin(generator.binding_origin(binding));
         let accessor_expression = tree.identifier(accessor);
         let value = tree.call(accessor_expression, Vec::new());
         writer.constant(tree, name, value, false);
@@ -3445,6 +3445,10 @@ impl Generator<'_> {
             .get(&id)
             .map(SmolStr::as_str)
             .expect("invariant violated: JavaScript global has no allocated name")
+    }
+
+    fn binding_origin(&self, binding: &Binding) -> Option<Origin> {
+        binding.origin.or(self.module.storage[binding.expression].origin)
     }
 
     fn module_dependency(&self, file_id: FileId) -> &ModuleDependency {

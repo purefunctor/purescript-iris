@@ -748,6 +748,7 @@ where
                             parameter: Parameter::clone(&parameter),
                             expression: construction,
                             source_order: 0,
+                            origin: None,
                         },
                     });
                     parameter
@@ -773,6 +774,7 @@ where
                             parameter: Parameter::clone(&parameter),
                             expression: construction,
                             source_order: order,
+                            origin: None,
                         },
                     });
                     parameter
@@ -819,6 +821,7 @@ where
                     parameter: Parameter::clone(&parameter),
                     expression: construction,
                     source_order: order,
+                    origin: None,
                 },
             });
             // Dictionary applications are intentionally not simple expressions, so the functional

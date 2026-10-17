@@ -418,10 +418,13 @@ pub(super) fn let_bindings(
     let checked = Arc::clone(&context.checked);
     for chunk in bindings.chunks.iter().rev() {
         match chunk {
-            checking_tree::LetBindingChunk::Pattern { binder, where_expression: value, .. } => {
+            checking_tree::LetBindingChunk::Pattern { source, binder, where_expression: value } => {
                 let value = where_expression(context, value)?;
                 let pattern = convert_pattern(context, *binder)?;
-                body = context.expression(ExpressionKind::LetPattern { pattern, value, body });
+                let origin = Some(Origin::LetPattern(*source));
+                body = context.with_origin(origin, |context| {
+                    context.expression(ExpressionKind::LetPattern { pattern, value, body })
+                });
             }
             checking_tree::LetBindingChunk::PatternError { source, .. } => {
                 return Err(context.unsupported(UnsupportedState::PatternBindingError(*source)));
@@ -443,7 +446,9 @@ pub(super) fn let_bindings(
                         let parameter = context.local_parameter(source)?;
                         let expression = value_declaration(context, &declaration.value)?;
                         let source_order = source_order[&declaration_id];
-                        converted.push(Binding { parameter, expression, source_order });
+                        let origin = declaration.value.equations.first();
+                        let origin = origin.map(|equation| equation_origin(equation.source));
+                        converted.push(Binding { parameter, expression, source_order, origin });
                     }
                     body = context.expression(ExpressionKind::Let {
                         recursive: group.is_recursive(),
