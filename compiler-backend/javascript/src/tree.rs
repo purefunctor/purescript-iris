@@ -5,7 +5,7 @@ use oxc_ast::ast::{
     FormalParameter, FormalParameterKind, FormalParameters, ObjectPropertyKind, PropertyKey,
 };
 use oxc_ast::builder::AstBuilder;
-use oxc_span::SPAN;
+use oxc_span::{SPAN, Span};
 use oxc_syntax::number::NumberBase;
 use oxc_syntax::operator::{
     BinaryOperator as OxcBinaryOperator, LogicalOperator, UnaryOperator as OxcUnaryOperator,
@@ -47,6 +47,10 @@ pub(crate) enum BinaryOperator {
 impl<'a> Tree<'a> {
     pub(crate) fn new(allocator: &'a Allocator) -> Tree<'a> {
         Tree { allocator, builder: AstBuilder::new(allocator), expressions: Arena::new() }
+    }
+
+    fn span(&self) -> Span {
+        SPAN
     }
 
     fn allocate(&mut self, expression: Expression<'a>) -> ExpressionId {
@@ -104,13 +108,13 @@ impl<'a> Tree<'a> {
 
     pub(crate) fn identifier(&mut self, name: impl AsRef<str>) -> ExpressionId {
         let name = self.text(name.as_ref());
-        let expression = Expression::new_identifier(SPAN, name, &self.builder);
+        let expression = Expression::new_identifier(self.span(), name, &self.builder);
         self.allocate(expression)
     }
 
     pub(crate) fn string(&mut self, value: impl AsRef<str>) -> ExpressionId {
         let value = self.text(value.as_ref());
-        let expression = Expression::new_string_literal(SPAN, value, None, &self.builder);
+        let expression = Expression::new_string_literal(self.span(), value, None, &self.builder);
         self.allocate(expression)
     }
 
@@ -118,7 +122,7 @@ impl<'a> Tree<'a> {
         let (value, lone_surrogates) = oxc_string_value(value);
         let value = self.text(&value);
         let expression = Expression::new_string_literal_with_lone_surrogates(
-            SPAN,
+            self.span(),
             value,
             None,
             lone_surrogates,
@@ -132,7 +136,7 @@ impl<'a> Tree<'a> {
         let number = raw.parse().expect("invariant violated: JavaScript number is invalid");
         let raw = self.text(raw).into();
         let expression = Expression::new_numeric_literal(
-            SPAN,
+            self.span(),
             number,
             Some(raw),
             NumberBase::Decimal,
@@ -142,12 +146,12 @@ impl<'a> Tree<'a> {
     }
 
     pub(crate) fn boolean(&mut self, value: bool) -> ExpressionId {
-        let expression = Expression::new_boolean_literal(SPAN, value, &self.builder);
+        let expression = Expression::new_boolean_literal(self.span(), value, &self.builder);
         self.allocate(expression)
     }
 
     pub(crate) fn null(&mut self) -> ExpressionId {
-        let expression = Expression::new_null_literal(SPAN, &self.builder);
+        let expression = Expression::new_null_literal(self.span(), &self.builder);
         self.allocate(expression)
     }
 
@@ -158,7 +162,7 @@ impl<'a> Tree<'a> {
             ArrayExpressionElement::from(expression)
         });
         let elements = ArenaVec::from_iter_in(elements, &allocator);
-        let expression = Expression::new_array_expression(SPAN, elements, &self.builder);
+        let expression = Expression::new_array_expression(self.span(), elements, &self.builder);
         self.allocate(expression)
     }
 
@@ -169,12 +173,17 @@ impl<'a> Tree<'a> {
                 let value = self.expression(value);
                 let computed = name == "__proto__";
                 let key = if property_is_identifier(&name) && !computed {
-                    PropertyKey::new_static_identifier(SPAN, self.text(&name), &self.builder)
+                    PropertyKey::new_static_identifier(self.span(), self.text(&name), &self.builder)
                 } else {
-                    PropertyKey::new_string_literal(SPAN, self.text(&name), None, &self.builder)
+                    PropertyKey::new_string_literal(
+                        self.span(),
+                        self.text(&name),
+                        None,
+                        &self.builder,
+                    )
                 };
                 ObjectPropertyKind::new_object_property(
-                    SPAN,
+                    self.span(),
                     oxc_ast::ast::PropertyKind::Init,
                     key,
                     value,
@@ -185,7 +194,7 @@ impl<'a> Tree<'a> {
                 )
             }
             ObjectProperty::Computed { key, value } => ObjectPropertyKind::new_object_property(
-                SPAN,
+                self.span(),
                 oxc_ast::ast::PropertyKind::Init,
                 PropertyKey::from(self.expression(key)),
                 self.expression(value),
@@ -194,12 +203,14 @@ impl<'a> Tree<'a> {
                 true,
                 &self.builder,
             ),
-            ObjectProperty::Spread(value) => {
-                ObjectPropertyKind::new_spread_property(SPAN, self.expression(value), &self.builder)
-            }
+            ObjectProperty::Spread(value) => ObjectPropertyKind::new_spread_property(
+                self.span(),
+                self.expression(value),
+                &self.builder,
+            ),
         });
         let properties = ArenaVec::from_iter_in(properties, &allocator);
-        let expression = Expression::new_object_expression(SPAN, properties, &self.builder);
+        let expression = Expression::new_object_expression(self.span(), properties, &self.builder);
         self.allocate(expression)
     }
 
@@ -233,7 +244,7 @@ impl<'a> Tree<'a> {
         });
         let arguments = ArenaVec::from_iter_in(arguments, &allocator);
         let expression = Expression::new_call_expression_with_pure(
-            SPAN,
+            self.span(),
             callee,
             None,
             arguments,
@@ -253,19 +264,35 @@ impl<'a> Tree<'a> {
         let property = property.as_ref();
         let expression = if property_is_identifier(property) {
             let property =
-                oxc_ast::ast::IdentifierName::new(SPAN, self.text(property), &self.builder);
-            Expression::new_static_member_expression(SPAN, object, property, false, &self.builder)
+                oxc_ast::ast::IdentifierName::new(self.span(), self.text(property), &self.builder);
+            Expression::new_static_member_expression(
+                self.span(),
+                object,
+                property,
+                false,
+                &self.builder,
+            )
         } else {
-            let property =
-                Expression::new_string_literal(SPAN, self.text(property), None, &self.builder);
-            Expression::new_computed_member_expression(SPAN, object, property, false, &self.builder)
+            let property = Expression::new_string_literal(
+                self.span(),
+                self.text(property),
+                None,
+                &self.builder,
+            );
+            Expression::new_computed_member_expression(
+                self.span(),
+                object,
+                property,
+                false,
+                &self.builder,
+            )
         };
         self.allocate(expression)
     }
 
     pub(crate) fn index(&mut self, object: ExpressionId, index: ExpressionId) -> ExpressionId {
         let expression = Expression::new_computed_member_expression(
-            SPAN,
+            self.span(),
             self.expression(object),
             self.expression(index),
             false,
@@ -279,8 +306,12 @@ impl<'a> Tree<'a> {
             UnaryOperator::LogicalNot => OxcUnaryOperator::LogicalNot,
             UnaryOperator::Negate => OxcUnaryOperator::UnaryNegation,
         };
-        let expression =
-            Expression::new_unary_expression(SPAN, operator, self.expression(value), &self.builder);
+        let expression = Expression::new_unary_expression(
+            self.span(),
+            operator,
+            self.expression(value),
+            &self.builder,
+        );
         self.allocate(expression)
     }
 
@@ -293,18 +324,18 @@ impl<'a> Tree<'a> {
         let left = self.expression(left);
         let right = self.expression(right);
         let binary = |left, operator, right| {
-            Expression::new_binary_expression(SPAN, left, operator, right, &self.builder)
+            Expression::new_binary_expression(self.span(), left, operator, right, &self.builder)
         };
         let expression = match operator {
             BinaryOperator::LogicalAnd => Expression::new_logical_expression(
-                SPAN,
+                self.span(),
                 left,
                 LogicalOperator::And,
                 right,
                 &self.builder,
             ),
             BinaryOperator::LogicalOr => Expression::new_logical_expression(
-                SPAN,
+                self.span(),
                 left,
                 LogicalOperator::Or,
                 right,
@@ -326,7 +357,7 @@ impl<'a> Tree<'a> {
         else_: ExpressionId,
     ) -> ExpressionId {
         let expression = Expression::new_conditional_expression(
-            SPAN,
+            self.span(),
             self.expression(condition),
             self.expression(then),
             self.expression(else_),
@@ -337,10 +368,13 @@ impl<'a> Tree<'a> {
 
     pub(crate) fn arrow(&mut self, parameters: Vec<SmolStr>, body: ExpressionId) -> ExpressionId {
         let parameters = parameters.into_iter().map(|parameter| {
-            let pattern =
-                BindingPattern::new_binding_identifier(SPAN, self.text(&parameter), &self.builder);
+            let pattern = BindingPattern::new_binding_identifier(
+                self.span(),
+                self.text(&parameter),
+                &self.builder,
+            );
             FormalParameter::new(
-                SPAN,
+                self.span(),
                 [],
                 pattern,
                 None,
@@ -354,7 +388,7 @@ impl<'a> Tree<'a> {
         });
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         let parameters = FormalParameters::boxed(
-            SPAN,
+            self.span(),
             FormalParameterKind::ArrowFormalParameters,
             parameters,
             None,
@@ -362,7 +396,7 @@ impl<'a> Tree<'a> {
         );
         let body = ArrowFunctionBody::from(self.expression(body));
         let expression = Expression::new_arrow_function_expression(
-            SPAN,
+            self.span(),
             false,
             None,
             parameters,

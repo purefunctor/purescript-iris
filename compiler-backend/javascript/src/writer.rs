@@ -76,22 +76,26 @@ impl<'a> Writer<'a> {
         Span::empty(attached_to)
     }
 
+    fn span(&self) -> Span {
+        SPAN
+    }
+
     fn text(&self, value: &str) -> &'a str {
         self.allocator.alloc_str(value)
     }
 
     fn binding(&self, name: &str) -> BindingIdentifier<'a> {
-        BindingIdentifier::new(SPAN, self.text(name), &self.builder)
+        BindingIdentifier::new(self.span(), self.text(name), &self.builder)
     }
 
     fn binding_pattern(&self, name: &str) -> BindingPattern<'a> {
-        BindingPattern::new_binding_identifier(SPAN, self.text(name), &self.builder)
+        BindingPattern::new_binding_identifier(self.span(), self.text(name), &self.builder)
     }
 
     fn parameters(&self, parameters: &[SmolStr]) -> oxc_allocator::Box<'a, FormalParameters<'a>> {
         let parameters = parameters.iter().map(|parameter| {
             FormalParameter::new(
-                SPAN,
+                self.span(),
                 [],
                 self.binding_pattern(parameter),
                 None,
@@ -105,7 +109,7 @@ impl<'a> Writer<'a> {
         });
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         FormalParameters::boxed(
-            SPAN,
+            self.span(),
             FormalParameterKind::FormalParameter,
             parameters,
             None,
@@ -118,12 +122,12 @@ impl<'a> Writer<'a> {
         statements: Vec<Statement<'a>>,
     ) -> oxc_allocator::Box<'a, FunctionBody<'a>> {
         let statements = ArenaVec::from_iter_in(statements, &self.allocator);
-        FunctionBody::boxed(SPAN, [], statements, &self.builder)
+        FunctionBody::boxed(self.span(), [], statements, &self.builder)
     }
 
     fn block_statement(&self, statements: Vec<Statement<'a>>) -> Statement<'a> {
         let statements = ArenaVec::from_iter_in(statements, &self.allocator);
-        Statement::new_block_statement(SPAN, statements, &self.builder)
+        Statement::new_block_statement(self.span(), statements, &self.builder)
     }
 
     fn arrow_expression(
@@ -133,13 +137,13 @@ impl<'a> Writer<'a> {
     ) -> Expression<'a> {
         let parameters = self.parameters(parameters);
         let body = ArrowFunctionBody::new_function_body(
-            SPAN,
+            self.span(),
             [],
             ArenaVec::from_iter_in(statements, &self.allocator),
             &self.builder,
         );
         Expression::new_arrow_function_expression(
-            SPAN,
+            self.span(),
             false,
             None,
             parameters,
@@ -157,7 +161,7 @@ impl<'a> Writer<'a> {
         exported: bool,
     ) -> Statement<'a> {
         let declarator = VariableDeclarator::new(
-            SPAN,
+            self.span(),
             self.binding_pattern(name),
             None,
             value,
@@ -166,10 +170,10 @@ impl<'a> Writer<'a> {
         );
         let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
         let declaration =
-            VariableDeclaration::boxed(SPAN, kind, declarations, false, &self.builder);
+            VariableDeclaration::boxed(self.span(), kind, declarations, false, &self.builder);
         if exported {
             Statement::new_export_declaration(
-                SPAN,
+                self.span(),
                 Declaration::VariableDeclaration(declaration),
                 &self.builder,
             )
@@ -180,14 +184,14 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn import_namespace(&mut self, namespace: &str, path: &str) {
         let specifier = ImportDeclarationSpecifier::new_import_namespace_specifier(
-            SPAN,
+            self.span(),
             self.binding(namespace),
             &self.builder,
         );
         let specifiers = ArenaVec::from_array_in([specifier], &self.allocator);
-        let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
+        let source = StringLiteral::new(self.span(), self.text(path), None, &self.builder);
         let statement = Statement::new_import_declaration(
-            SPAN,
+            self.span(),
             Some(specifiers),
             source,
             None,
@@ -202,7 +206,7 @@ impl<'a> Writer<'a> {
         let specifiers = bindings.iter().map(|(imported, local)| {
             let imported = self.module_export_name(imported, false);
             ImportDeclarationSpecifier::new_import_specifier(
-                SPAN,
+                self.span(),
                 imported,
                 self.binding(local),
                 ImportOrExportKind::Value,
@@ -210,9 +214,9 @@ impl<'a> Writer<'a> {
             )
         });
         let specifiers = ArenaVec::from_iter_in(specifiers, &self.allocator);
-        let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
+        let source = StringLiteral::new(self.span(), self.text(path), None, &self.builder);
         let statement = Statement::new_import_declaration(
-            SPAN,
+            self.span(),
             Some(specifiers),
             source,
             None,
@@ -248,14 +252,16 @@ impl<'a> Writer<'a> {
         let properties = names.iter().enumerate().filter_map(|(index, name)| {
             let name = name.as_deref()?;
             let field = format!("_{}", index + 1);
-            let key = PropertyKey::new_static_identifier(SPAN, self.text(&field), &self.builder);
+            let key =
+                PropertyKey::new_static_identifier(self.span(), self.text(&field), &self.builder);
             let value = self.binding_pattern(name);
-            Some(BindingProperty::new(SPAN, key, value, false, false, &self.builder))
+            Some(BindingProperty::new(self.span(), key, value, false, false, &self.builder))
         });
         let properties = ArenaVec::from_iter_in(properties, &self.allocator);
-        let pattern = BindingPattern::new_object_pattern(SPAN, properties, None, &self.builder);
+        let pattern =
+            BindingPattern::new_object_pattern(self.span(), properties, None, &self.builder);
         let declarator = VariableDeclarator::new(
-            SPAN,
+            self.span(),
             pattern,
             None,
             Some(tree.expression(value)),
@@ -264,7 +270,7 @@ impl<'a> Writer<'a> {
         );
         let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
         let declaration = VariableDeclaration::boxed(
-            SPAN,
+            self.span(),
             VariableDeclarationKind::Const,
             declarations,
             false,
@@ -287,35 +293,43 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn assign(&mut self, tree: &mut Tree<'a>, name: &str, value: ExpressionId) {
         let target = AssignmentTarget::new_assignment_target_identifier(
-            SPAN,
+            self.span(),
             self.text(name),
             &self.builder,
         );
         let expression = Expression::new_assignment_expression(
-            SPAN,
+            self.span(),
             AssignmentOperator::Assign,
             target,
             tree.expression(value),
             &self.builder,
         );
-        self.statements.push(Statement::new_expression_statement(SPAN, expression, &self.builder));
+        self.statements.push(Statement::new_expression_statement(
+            self.span(),
+            expression,
+            &self.builder,
+        ));
     }
 
     pub(crate) fn return_expression(&mut self, tree: &mut Tree<'a>, value: ExpressionId) {
         self.statements.push(Statement::new_return_statement(
-            SPAN,
+            self.span(),
             Some(tree.expression(value)),
             &self.builder,
         ));
     }
 
     pub(crate) fn break_label(&mut self, label: &str) {
-        let label = LabelIdentifier::new(SPAN, self.text(label), &self.builder);
-        self.statements.push(Statement::new_break_statement(SPAN, Some(label), &self.builder));
+        let label = LabelIdentifier::new(self.span(), self.text(label), &self.builder);
+        self.statements.push(Statement::new_break_statement(
+            self.span(),
+            Some(label),
+            &self.builder,
+        ));
     }
 
     pub(crate) fn continue_loop(&mut self) {
-        self.statements.push(Statement::new_continue_statement(SPAN, None, &self.builder));
+        self.statements.push(Statement::new_continue_statement(self.span(), None, &self.builder));
     }
 
     pub(crate) fn function<R>(
@@ -328,7 +342,7 @@ impl<'a> Writer<'a> {
         let mut body = self.child();
         let result = render(&mut body);
         let function = Function::boxed(
-            SPAN,
+            self.span(),
             FunctionType::FunctionDeclaration,
             Some(self.binding(name)),
             false,
@@ -343,7 +357,7 @@ impl<'a> Writer<'a> {
         );
         let statement = if exported {
             Statement::new_export_declaration(
-                SPAN,
+                self.span(),
                 Declaration::FunctionDeclaration(function),
                 &self.builder,
             )
@@ -378,7 +392,7 @@ impl<'a> Writer<'a> {
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
         self.statements.push(Statement::new_return_statement(
-            SPAN,
+            self.span(),
             Some(expression),
             &self.builder,
         ));
@@ -395,18 +409,22 @@ impl<'a> Writer<'a> {
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
         let target = AssignmentTarget::new_assignment_target_identifier(
-            SPAN,
+            self.span(),
             self.text(name),
             &self.builder,
         );
         let expression = Expression::new_assignment_expression(
-            SPAN,
+            self.span(),
             AssignmentOperator::Assign,
             target,
             expression,
             &self.builder,
         );
-        self.statements.push(Statement::new_expression_statement(SPAN, expression, &self.builder));
+        self.statements.push(Statement::new_expression_statement(
+            self.span(),
+            expression,
+            &self.builder,
+        ));
         result
     }
 
@@ -421,7 +439,7 @@ impl<'a> Writer<'a> {
         let has_eager_throw = body.has_eager_throw;
         let arrow = self.arrow_expression(&[], body.statements);
         let call = Expression::new_call_expression_with_pure(
-            SPAN,
+            self.span(),
             arrow,
             None,
             [],
@@ -448,26 +466,32 @@ impl<'a> Writer<'a> {
         let body = self.arrow_expression(&[], body.statements);
         let arguments = [Argument::from(name), Argument::from(body)];
         let arguments = ArenaVec::from_array_in(arguments, &self.allocator);
-        let call =
-            Expression::new_call_expression(SPAN, callee, None, arguments, false, &self.builder);
+        let call = Expression::new_call_expression(
+            self.span(),
+            callee,
+            None,
+            arguments,
+            false,
+            &self.builder,
+        );
         let statement = match target {
             BindingCallTarget::Constant(name) => {
                 self.variable_statement(VariableDeclarationKind::Const, name, Some(call), false)
             }
             BindingCallTarget::Assignment(name) => {
                 let target = AssignmentTarget::new_assignment_target_identifier(
-                    SPAN,
+                    self.span(),
                     self.text(name),
                     &self.builder,
                 );
                 let assignment = Expression::new_assignment_expression(
-                    SPAN,
+                    self.span(),
                     AssignmentOperator::Assign,
                     target,
                     call,
                     &self.builder,
                 );
-                Statement::new_expression_statement(SPAN, assignment, &self.builder)
+                Statement::new_expression_statement(self.span(), assignment, &self.builder)
             }
         };
         self.statements.push(statement);
@@ -489,7 +513,7 @@ impl<'a> Writer<'a> {
         let consequent = self.block_statement(then_writer.statements);
         let alternate = self.block_statement(else_writer.statements);
         self.statements.push(Statement::new_if_statement(
-            SPAN,
+            self.span(),
             tree.expression(condition),
             consequent,
             Some(alternate),
@@ -514,7 +538,7 @@ impl<'a> Writer<'a> {
         let consequent = self.block_statement(then_writer.statements);
         let alternate = self.block_statement(else_writer.statements);
         self.statements.push(Statement::new_if_statement(
-            SPAN,
+            self.span(),
             tree.expression(condition),
             consequent,
             Some(alternate),
@@ -534,7 +558,7 @@ impl<'a> Writer<'a> {
         self.has_eager_throw |= body.has_eager_throw;
         let consequent = self.block_statement(body.statements);
         self.statements.push(Statement::new_if_statement(
-            SPAN,
+            self.span(),
             tree.expression(condition),
             consequent,
             None,
@@ -561,8 +585,13 @@ impl<'a> Writer<'a> {
         let result = render(&mut body);
         self.has_eager_throw |= body.has_eager_throw;
         let body = self.block_statement(body.statements);
-        let label = LabelIdentifier::new(SPAN, self.text(label), &self.builder);
-        self.statements.push(Statement::new_labeled_statement(SPAN, label, body, &self.builder));
+        let label = LabelIdentifier::new(self.span(), self.text(label), &self.builder);
+        self.statements.push(Statement::new_labeled_statement(
+            self.span(),
+            label,
+            body,
+            &self.builder,
+        ));
         result
     }
 
@@ -577,7 +606,12 @@ impl<'a> Writer<'a> {
         self.has_eager_throw |= body.has_eager_throw;
         let body = self.block_statement(body.statements);
         let condition = tree.expression(condition);
-        self.statements.push(Statement::new_while_statement(SPAN, condition, body, &self.builder));
+        self.statements.push(Statement::new_while_statement(
+            self.span(),
+            condition,
+            body,
+            &self.builder,
+        ));
         result
     }
 
@@ -605,7 +639,7 @@ impl<'a> Writer<'a> {
         let discriminant = tree.expression(discriminant);
         let switch_cases = ArenaVec::from_iter_in(switch_cases, &self.allocator);
         self.statements.push(Statement::new_switch_statement(
-            SPAN,
+            self.span(),
             discriminant,
             switch_cases,
             &self.builder,
@@ -615,35 +649,41 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn throw_error(&mut self, message: &str) {
         self.has_eager_throw = true;
-        let callee = Expression::new_identifier(SPAN, self.text("Error"), &self.builder);
-        let message = Expression::new_string_literal(SPAN, self.text(message), None, &self.builder);
+        let callee = Expression::new_identifier(self.span(), self.text("Error"), &self.builder);
+        let message =
+            Expression::new_string_literal(self.span(), self.text(message), None, &self.builder);
         let arguments = ArenaVec::from_array_in([Argument::from(message)], &self.allocator);
-        let error = Expression::new_new_expression(SPAN, callee, None, arguments, &self.builder);
-        self.statements.push(Statement::new_throw_statement(SPAN, error, &self.builder));
+        let error =
+            Expression::new_new_expression(self.span(), callee, None, arguments, &self.builder);
+        self.statements.push(Statement::new_throw_statement(self.span(), error, &self.builder));
     }
 
     fn module_export_name(&self, name: &str, reference: bool) -> ModuleExportName<'a> {
         if identifier_is_binding(name) {
             if reference {
-                ModuleExportName::new_identifier_reference(SPAN, self.text(name), &self.builder)
+                ModuleExportName::new_identifier_reference(
+                    self.span(),
+                    self.text(name),
+                    &self.builder,
+                )
             } else {
-                ModuleExportName::new_identifier_name(SPAN, self.text(name), &self.builder)
+                ModuleExportName::new_identifier_name(self.span(), self.text(name), &self.builder)
             }
         } else {
-            ModuleExportName::new_string_literal(SPAN, self.text(name), None, &self.builder)
+            ModuleExportName::new_string_literal(self.span(), self.text(name), None, &self.builder)
         }
     }
 
     pub(crate) fn export(&mut self, local: &str, exported: &str) {
         let specifier = ExportSpecifier::new(
-            SPAN,
+            self.span(),
             self.module_export_name(local, true),
             self.module_export_name(exported, false),
             ImportOrExportKind::Value,
             &self.builder,
         );
         self.statements.push(Statement::new_export_named_declaration(
-            SPAN,
+            self.span(),
             [specifier],
             ImportOrExportKind::Value,
             &self.builder,
@@ -653,7 +693,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn export_from(&mut self, specifiers: Vec<String>, path: &str) {
         let specifiers = specifiers.into_iter().map(|name| {
             ExportSpecifier::new(
-                SPAN,
+                self.span(),
                 self.module_export_name(&name, false),
                 self.module_export_name(&name, false),
                 ImportOrExportKind::Value,
@@ -661,9 +701,9 @@ impl<'a> Writer<'a> {
             )
         });
         let specifiers = ArenaVec::from_iter_in(specifiers, &self.allocator);
-        let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
+        let source = StringLiteral::new(self.span(), self.text(path), None, &self.builder);
         self.statements.push(Statement::new_export_from_declaration(
-            SPAN,
+            self.span(),
             specifiers,
             source,
             ImportOrExportKind::Value,
