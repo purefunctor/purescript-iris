@@ -11,7 +11,7 @@ functional = { version = "0.1.0", path = "../functional" }
 itertools = "0.15.0"
 la-arena = "0.3.1"
 oxc_allocator = "=0.151.0"
-oxc_codegen = { version = "=0.151.0", default-features = false }
+oxc_codegen = { version = "=0.151.0", default-features = false, features = ["sourcemap"] }
 oxc_ast = "=0.151.0"
 oxc_span = "=0.151.0"
 oxc_syntax = "=0.151.0"

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use files::{FileId, ForeignSourceKind};
 
 use crate::ModuleDiagnostic;
+use crate::source_map::OriginMapping;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
@@ -65,6 +66,7 @@ impl Module {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleFiles {
     index_source: Arc<str>,
+    index_mappings: Arc<[OriginMapping]>,
     stylex_theme_source: Option<Arc<str>>,
     foreign_kind: Option<ForeignSourceKind>,
 }
@@ -72,11 +74,13 @@ pub struct ModuleFiles {
 impl ModuleFiles {
     pub(crate) fn new(
         index_source: String,
+        index_mappings: Vec<OriginMapping>,
         stylex_theme_source: Option<String>,
         foreign_kind: Option<ForeignSourceKind>,
     ) -> ModuleFiles {
         ModuleFiles {
             index_source: index_source.into(),
+            index_mappings: index_mappings.into(),
             stylex_theme_source: stylex_theme_source.map(Arc::from),
             foreign_kind,
         }

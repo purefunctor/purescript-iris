@@ -6,6 +6,8 @@
 mod convert;
 mod error;
 mod module;
+mod program_text;
+mod source_map;
 mod tree;
 mod writer;
 

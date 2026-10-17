@@ -1,7 +1,6 @@
 //! Oxc JavaScript program construction and code generation.
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::path::PathBuf;
 
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use oxc_ast::ast::{
@@ -13,36 +12,31 @@ use oxc_ast::ast::{
     VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
-use oxc_ast::{Comment, CommentKind, CommentPosition};
-use oxc_codegen::{Codegen, CodegenOptions, IndentChar};
-use oxc_span::{SPAN, SourceType, Span};
+use oxc_codegen::{Codegen, CodegenOptions, CodegenReturn, IndentChar};
+use oxc_span::{SourceType, Span};
 use oxc_syntax::operator::AssignmentOperator;
 use smol_str::SmolStr;
 
 use crate::convert::identifier_is_binding;
+use crate::program_text::ProgramText;
+use crate::source_map::{OriginMapping, Position};
 use crate::tree::{ExpressionId, Tree};
 
 pub(crate) struct Writer<'a> {
     allocator: &'a Allocator,
     builder: AstBuilder<'a>,
     statements: Vec<Statement<'a>>,
-    comments: Rc<RefCell<Comments>>,
+    program_text: ProgramText,
     has_eager_throw: bool,
 }
 
-#[derive(Default)]
-struct Comments {
-    source_text: String,
-    comments: Vec<Comment>,
-}
-
 impl<'a> Writer<'a> {
-    pub(crate) fn new(allocator: &'a Allocator) -> Writer<'a> {
+    pub(crate) fn new(allocator: &'a Allocator, program_text: ProgramText) -> Writer<'a> {
         Writer {
             allocator,
             builder: AstBuilder::new(allocator),
             statements: Vec::new(),
-            comments: Rc::new(RefCell::new(Comments::default())),
+            program_text,
             has_eager_throw: false,
         }
     }
@@ -52,32 +46,13 @@ impl<'a> Writer<'a> {
             allocator: self.allocator,
             builder: AstBuilder::new(self.allocator),
             statements: Vec::new(),
-            comments: Rc::clone(&self.comments),
+            program_text: ProgramText::clone(&self.program_text),
             has_eager_throw: false,
         }
     }
 
-    fn line_comment(&self, text: &str) -> Span {
-        let mut comments = self.comments.borrow_mut();
-        let start = comments.source_text.len() as u32;
-        comments.source_text.push_str("// ");
-        comments.source_text.push_str(text);
-        let end = comments.source_text.len() as u32;
-        comments.source_text.push('\n');
-        let attached_to = comments.source_text.len() as u32;
-        comments.source_text.push(' ');
-
-        let mut comment = Comment::new(start, end, CommentKind::Line);
-        comment.attached_to = attached_to;
-        comment.position = CommentPosition::Leading;
-        comment.newlines =
-            oxc_ast::ast::CommentNewlines::Leading | oxc_ast::ast::CommentNewlines::Trailing;
-        comments.comments.push(comment);
-        Span::empty(attached_to)
-    }
-
     fn span(&self) -> Span {
-        SPAN
+        self.program_text.span()
     }
 
     fn text(&self, value: &str) -> &'a str {
@@ -625,7 +600,7 @@ impl<'a> Writer<'a> {
         let mut switch_cases = Vec::with_capacity(cases.len());
         let mut has_eager_throw = false;
         for (position, (test, comment)) in cases.into_iter().enumerate() {
-            let span = self.line_comment(&comment);
+            let span = self.program_text.line_comment(&comment);
             let mut body = self.child();
             render(position, tree, &mut body)?;
             has_eager_throw |= body.has_eager_throw;
@@ -715,17 +690,40 @@ impl<'a> Writer<'a> {
     pub(crate) fn blank(&mut self) {}
 
     pub(crate) fn finish(self) -> String {
+        self.generate(None).code
+    }
+
+    pub(crate) fn finish_with_mappings(self) -> (String, Vec<OriginMapping>) {
+        let program_text = ProgramText::clone(&self.program_text);
+        let output = self.generate(Some(PathBuf::new()));
+        let map = output.map.expect("invariant violated: generated code has no source map");
+        let mut mappings = Vec::<OriginMapping>::new();
+        for token in map.get_tokens() {
+            let generated = Position { line: token.get_dst_line(), column: token.get_dst_col() };
+            let origin = program_text.line_origin(token.get_src_line());
+            if mappings.last().is_some_and(|previous| previous.generated == generated) {
+                mappings.pop();
+            }
+            let continues_previous = mappings.last().is_some_and(|previous| {
+                previous.generated.line == generated.line && previous.origin == origin
+            });
+            if !continues_previous {
+                mappings.push(OriginMapping { generated, origin });
+            }
+        }
+        (output.code, mappings)
+    }
+
+    fn generate(self, source_map_path: Option<PathBuf>) -> CodegenReturn<'a> {
         let body = ArenaVec::from_iter_in(self.statements, &self.allocator);
-        let comments = self.comments.as_ref().borrow();
-        let source_text = self.allocator.alloc_str(&comments.source_text);
+        let source_text = self.allocator.alloc_str(&self.program_text.source_text());
         let span = Span::new(0, source_text.len() as u32);
-        let program_comments =
-            ArenaVec::from_iter_in(comments.comments.iter().copied(), &self.allocator);
+        let comments = ArenaVec::from_iter_in(self.program_text.comments(), &self.allocator);
         let program = Program::new(
             span,
             SourceType::mjs(),
             source_text,
-            program_comments,
+            comments,
             None,
             [],
             body,
@@ -734,9 +732,10 @@ impl<'a> Writer<'a> {
         let options = CodegenOptions {
             indent_char: IndentChar::Space,
             indent_width: 2,
+            source_map_path,
             ..CodegenOptions::default()
         };
-        Codegen::new().with_options(options).build(&program).code
+        Codegen::new().with_options(options).build(&program)
     }
 }
 

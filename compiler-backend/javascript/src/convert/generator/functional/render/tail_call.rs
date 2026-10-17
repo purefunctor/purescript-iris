@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use functional::tree::{
-    EffectExpression, ExpressionId, ExpressionKind, GlobalId, LocalId, Module, PatternId,
+    EffectExpression, ExpressionId, ExpressionKind, GlobalId, LocalId, Module, Origin, PatternId,
     PatternKind, RecursiveGroupId,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -22,6 +22,7 @@ pub(super) struct TailCallProfile {
     pub(super) body: ExpressionId,
     pub(super) uncurried: bool,
     pub(super) effect_step: bool,
+    pub(super) origin: Option<Origin>,
 }
 
 pub(super) struct TailCallGroup {
@@ -227,6 +228,7 @@ fn function_profile(
                 body,
                 uncurried: false,
                 effect_step: false,
+                origin: module.storage[expression].origin,
             })
         }
         ExpressionKind::UncurriedAbstraction { parameters, body } => Some(TailCallProfile {
@@ -235,6 +237,7 @@ fn function_profile(
             body: *body,
             uncurried: true,
             effect_step: false,
+            origin: module.storage[expression].origin,
         }),
         ExpressionKind::Error
         | ExpressionKind::Literal { .. }

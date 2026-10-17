@@ -5,12 +5,14 @@ use oxc_ast::ast::{
     FormalParameter, FormalParameterKind, FormalParameters, ObjectPropertyKind, PropertyKey,
 };
 use oxc_ast::builder::AstBuilder;
-use oxc_span::{SPAN, Span};
+use oxc_span::Span;
 use oxc_syntax::number::NumberBase;
 use oxc_syntax::operator::{
     BinaryOperator as OxcBinaryOperator, LogicalOperator, UnaryOperator as OxcUnaryOperator,
 };
 use smol_str::SmolStr;
+
+use crate::program_text::{OriginScope, ProgramText};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ExpressionId(RawIdx);
@@ -19,6 +21,7 @@ pub(crate) struct Tree<'a> {
     allocator: &'a Allocator,
     builder: AstBuilder<'a>,
     expressions: Arena<Option<Expression<'a>>>,
+    program_text: ProgramText,
 }
 
 pub(crate) enum ObjectProperty {
@@ -45,12 +48,17 @@ pub(crate) enum BinaryOperator {
 }
 
 impl<'a> Tree<'a> {
-    pub(crate) fn new(allocator: &'a Allocator) -> Tree<'a> {
-        Tree { allocator, builder: AstBuilder::new(allocator), expressions: Arena::new() }
+    pub(crate) fn new(allocator: &'a Allocator, program_text: ProgramText) -> Tree<'a> {
+        let builder = AstBuilder::new(allocator);
+        Tree { allocator, builder, expressions: Arena::new(), program_text }
+    }
+
+    pub(crate) fn enter_origin(&self, origin: Option<functional::tree::Origin>) -> OriginScope {
+        self.program_text.enter_origin(origin)
     }
 
     fn span(&self) -> Span {
-        SPAN
+        self.program_text.span()
     }
 
     fn allocate(&mut self, expression: Expression<'a>) -> ExpressionId {
@@ -448,11 +456,12 @@ mod tests {
     use oxc_ast::ast::Expression;
 
     use super::{Tree, oxc_string_value};
+    use crate::program_text::ProgramText;
 
     #[test]
     fn duplicated_call_keeps_independent_purity() {
         let allocator = Allocator::default();
-        let mut tree = Tree::new(&allocator);
+        let mut tree = Tree::new(&allocator, ProgramText::new());
         let function = tree.identifier("f");
         let original = tree.pure_call(function, Vec::new());
         let copy = tree.duplicate(&original);
