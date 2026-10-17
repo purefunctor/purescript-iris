@@ -164,6 +164,7 @@ struct DerivedStorage {
     functional:
         Shards<FileId, DerivedState<functional::ModuleResult<Arc<functional::tree::Module>>>>,
     javascript: Shards<FileId, DerivedState<javascript::ModuleResult<Arc<javascript::Module>>>>,
+    source_map: Shards<FileId, DerivedState<javascript::ModuleResult<javascript::SourceMap>>>,
 }
 
 impl Drop for DerivedStorage {
@@ -189,6 +190,7 @@ impl Drop for DerivedStorage {
                 documented,
                 functional,
                 javascript,
+                source_map,
             } = self;
             line_index.drop_in(scope);
             foreign_module.drop_in(scope);
@@ -207,6 +209,7 @@ impl Drop for DerivedStorage {
             documented.drop_in(scope);
             functional.drop_in(scope);
             javascript.drop_in(scope);
+            source_map.drop_in(scope);
         });
     }
 }
@@ -235,7 +238,8 @@ fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
         | QueryKey::Checked(id)
         | QueryKey::Documented(id)
         | QueryKey::Functional(id)
-        | QueryKey::JavaScript(id) => id == file_id,
+        | QueryKey::JavaScript(id)
+        | QueryKey::SourceMap(id) => id == file_id,
         QueryKey::ForeignContent(_)
         | QueryKey::ForeignModule(_)
         | QueryKey::Module(_)
@@ -667,6 +671,7 @@ impl QueryEngine {
                 QueryKey::Documented(k) => derived_changed!(documented, k),
                 QueryKey::Functional(k) => derived_changed!(functional, k),
                 QueryKey::JavaScript(k) => derived_changed!(javascript, k),
+                QueryKey::SourceMap(k) => derived_changed!(source_map, k),
             }
         }
 
@@ -985,6 +990,7 @@ impl QueryEngine {
             documented,
             functional,
             javascript,
+            source_map,
         );
 
         for shard in &self.derived.checked_core.inner {
@@ -1326,6 +1332,26 @@ impl QueryEngine {
         )
     }
 
+    pub fn source_map(
+        &self,
+        id: FileId,
+    ) -> QueryResult<javascript::ModuleResult<javascript::SourceMap>> {
+        self.query(
+            QueryKey::SourceMap(id),
+            id,
+            |derived| &derived.source_map,
+            |this| {
+                let module = this.javascript(id)?;
+                let (parsed, _) = this.parsed(id)?;
+                let stabilized = this.stabilized(id)?;
+                let line_index = this.line_index(id)?;
+                let root = parsed.syntax_node();
+                Ok(module
+                    .map(|module| javascript::source_map(&module, &root, &stabilized, &line_index)))
+            },
+        )
+    }
+
     pub fn documented(&self, id: FileId) -> QueryResult<Arc<DocumentedModule>> {
         self.query(
             QueryKey::Documented(id),
@@ -1546,7 +1572,7 @@ mod tests {
     use crate::prim;
 
     use super::promise::Future;
-    use super::{DerivedState, QueryEngine, QueryKey, SnapshotId, Waiter};
+    use super::{DerivedState, QueryEngine, QueryKey, SnapshotId, Waiter, computed_trace};
 
     #[derive(Debug)]
     struct Trace<'a> {
@@ -2186,6 +2212,41 @@ mod tests {
 
         engine.functional(main).unwrap().unwrap();
         engine.javascript(main).unwrap().unwrap();
+    }
+
+    #[test]
+    fn test_source_map_follows_positions_without_regenerating_javascript() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let main = files.insert("Main.purs", "module Main where\n\nlife = 42");
+        engine.set_content(main, files.content(main));
+        engine.insert_module_file("Main", main);
+
+        let declaration_position = |engine: &QueryEngine| {
+            let source_map = engine.source_map(main).unwrap().unwrap();
+            source_map.mappings().iter().find_map(|mapping| mapping.source)
+        };
+        let changed_at = |engine: &QueryEngine| {
+            let functional = computed_trace(&engine.derived.functional, &main).unwrap();
+            let javascript = computed_trace(&engine.derived.javascript, &main).unwrap();
+            let source_map = computed_trace(&engine.derived.source_map, &main).unwrap();
+            (functional.changed, javascript.changed, source_map.changed)
+        };
+
+        let position_initial = declaration_position(&engine);
+        let (functional_initial, javascript_initial, source_map_initial) = changed_at(&engine);
+        assert_eq!(position_initial, Some(javascript::Position { line: 2, column: 0 }));
+
+        engine.set_content(main, "module Main where\n\n\n  life = 42");
+
+        let position_moved = declaration_position(&engine);
+        let (functional_moved, javascript_moved, source_map_moved) = changed_at(&engine);
+        assert_eq!(position_moved, Some(javascript::Position { line: 3, column: 2 }));
+        assert_eq!(functional_moved, functional_initial);
+        assert_eq!(javascript_moved, javascript_initial);
+        assert!(source_map_moved > source_map_initial);
     }
 
     #[test]
