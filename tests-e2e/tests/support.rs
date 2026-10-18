@@ -171,6 +171,22 @@ impl TestWorkspace {
         frames.collect_vec().join("\n")
     }
 
+    pub fn report(&self, output: &Output) -> String {
+        let status = match output.status.code() {
+            Some(code) => code.to_string(),
+            None => "signal".to_owned(),
+        };
+        let mut report = format!("status: {status}\n");
+        for (name, stream) in [("stdout", &output.stdout), ("stderr", &output.stderr)] {
+            report.push_str(&format!("--- {name}\n"));
+            for line in self.normalize_output(stream).lines() {
+                report.push_str(line);
+                report.push('\n');
+            }
+        }
+        report
+    }
+
     pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {
         let path = self.path().join("spago-calls");
         let source = match fs::read_to_string(path) {
