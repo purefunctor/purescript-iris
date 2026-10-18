@@ -131,6 +131,12 @@ impl LanguageServer {
         server
     }
 
+    pub fn start_with_progress(workspace: &TestWorkspace) -> LanguageServer {
+        let capabilities = json!({"window": {"workDoneProgress": true}});
+        let root = workspace.path();
+        LanguageServer::start_with_capabilities(workspace, "", &["lsp"], root, capabilities)
+    }
+
     pub fn notify(&mut self, method: &str, parameters: Value) {
         self.connection.notify(method, parameters);
     }
@@ -225,6 +231,13 @@ impl LanguageServer {
             let message = self.receive_before(deadline, &waiting_for);
             self.notifications.push(message);
         }
+    }
+
+    #[track_caller]
+    pub fn wait_for_progress(&mut self, kind: &str) -> Value {
+        self.wait_for_notification_matching("$/progress", |notification| {
+            notification["params"]["value"]["kind"] == kind
+        })
     }
 
     #[track_caller]
