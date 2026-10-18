@@ -17,7 +17,7 @@ use functional::tree::{
     BinaryOperator as FunctionalBinaryOperator, Binding, CaseAlternative, Declaration,
     DeclarationKind, EffectExpression, ExpressionId as FunctionalExpressionId, ExpressionKind,
     Global, GlobalId, Guard, GuardedAlternative, LocalId, Module as FunctionalModule,
-    ModuleDependency, Origin, Parameter, PatternId, PatternKind, RecordUpdate,
+    ModuleDependency, Origin, Parameter, PatternId, PatternKind, RecordField, RecordUpdate,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -1585,7 +1585,7 @@ impl Generator<'_> {
                                 );
                             }
                         }
-                        self.render_non_inline_expression(tree, writer, field.expression, context)?
+                        self.render_field_value(tree, writer, field, context)?
                     };
                     rendered_fields.push((field.field.name.clone(), value));
                 }
@@ -1777,6 +1777,22 @@ impl Generator<'_> {
                 unreachable!("invariant violated: atomic functional expression was not inlineable")
             }
         }
+    }
+
+    fn render_field_value<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        field: &RecordField,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<RenderedExpression> {
+        if !is_abstraction(&self.module.storage[field.expression].kind) {
+            return self.render_non_inline_expression(tree, writer, field.expression, context);
+        }
+        let _origin = tree.enter_origin(self.module.storage[field.expression].origin);
+        let source_name = Some(SmolStr::clone(&field.field.name));
+        let value = self.render_closure(tree, writer, field.expression, source_name, context)?;
+        Ok(RenderedExpression { value, pending_evaluation: false })
     }
 
     fn render_short_circuit_expression<'t>(

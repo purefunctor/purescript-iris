@@ -217,10 +217,12 @@ regressions.
 
 Names identify the function that a stack frame belongs to. A function defined by a named
 declaration or local binding carries that PureScript name, and so does each function that it
-returns. The name is on the mappings of the function's header: its `function` keyword, binding, or
-`return`, its parameters, and the call of an immediately invoked arrow. The first mapping of the
-body is unnamed. Lambdas, generated helpers such as dispatchers and captured effects, and functions
-that inlining separates from their binding, such as an inlined local function, carry no name.
+returns. A closure that a record field holds, such as an instance member with several equations,
+carries the field's name, which JavaScript already gives an arrow written inline in a record. The
+name is on the mappings of the function's header: its `function` keyword, binding, or `return`, its
+parameters, and the call of an immediately invoked arrow. The first mapping of the body is unnamed.
+Lambdas, generated helpers such as dispatchers and captured effects, and functions that inlining
+separates from their binding, such as an inlined local function, carry no name.
 
 ## Acceptance Criteria
 

@@ -17,6 +17,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 8:1 instance Describe Colour where
  7 |   const $closure = ($colour) => {
    |   ^ 9:3 describe Red = "red"
+   |         ^ (describe) 9:3 describe Red = "red"
+   |                                 ^ 9:3 describe Red = "red"
  8 |     if ($colour === "Red") {
    |     ^ 9:3 describe Red = "red"
  9 |       return "red";
