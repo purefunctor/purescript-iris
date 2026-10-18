@@ -63,7 +63,9 @@ nestedJoin outer inner =
   if outer then
     let
       captured = foreignValue
-      result = if inner then 1 else 2
+      result = case inner of
+        true -> 1
+        false -> 2
     in addInt captured result
   else 0
 

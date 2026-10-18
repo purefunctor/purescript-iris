@@ -20,27 +20,33 @@ foreign import observed
 stableApplication :: (Int -> Int) -> Boolean -> Int
 stableApplication function condition =
   function
-    if condition then observe "application-then" 1
-    else observe "application-else" 2
+    ( case condition of
+        true -> observe "application-then" 1
+        false -> observe "application-else" 2
+    )
 
 observedApplication :: Boolean -> Int
 observedApplication condition =
   observed.apply
-    if condition then observe "observed-then" 3
-    else observe "observed-else" 4
+    ( case condition of
+        true -> observe "observed-then" 3
+        false -> observe "observed-else" 4
+    )
 
 stableArray :: Int -> Boolean -> Array Int
 stableArray value condition =
   [ value
-  , if condition then observe "array-then" 5
-    else observe "array-else" 6
+  , case condition of
+      true -> observe "array-then" 5
+      false -> observe "array-else" 6
   ]
 
 observedArray :: Boolean -> Array Int
 observedArray condition =
   [ observed.value
-  , if condition then observe "observed-array-then" 7
-    else observe "observed-array-else" 8
+  , case condition of
+      true -> observe "observed-array-then" 7
+      false -> observe "observed-array-else" 8
   ]
 
 stablePure :: Int -> Effect Int
@@ -71,7 +77,8 @@ joinedEffect condition =
 joinedPattern :: Boolean -> Int
 joinedPattern condition =
   case
-    if condition then Box (observe "pattern-then" 11)
-    else Box (observe "pattern-else" 12)
+    case condition of
+      true -> Box (observe "pattern-then" 11)
+      false -> Box (observe "pattern-else" 12)
   of
     Box value -> value

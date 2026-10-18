@@ -44,10 +44,16 @@ export function updateControl(condition) {
     };
     const $record$1 = { ...source.nested };
     let $result;
-    if (condition) {
-      $result = observe("control-then")(30 | 0);
-    } else {
-      $result = observe("control-else")(31 | 0);
+    $case: {
+      if (condition === true) {
+        $result = observe("control-then")(30 | 0);
+        break $case;
+      }
+      if (condition === false) {
+        $result = observe("control-else")(31 | 0);
+        break $case;
+      }
+      throw new Error("Pattern match failure");
     }
     return {
       ...$record,

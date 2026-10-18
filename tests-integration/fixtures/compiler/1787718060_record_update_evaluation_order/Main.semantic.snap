@@ -26,10 +26,9 @@ updateDeep = \_ ->
 
 updateControl :: Prim.Boolean -> Main.Model -> Main.Model
 updateControl = \condition -> \source ->
-  source { first = observe "control-first" 10, nested { value = if condition then
-    observe "control-then" 30
-  else
-    observe "control-else" 31 }, last = observe "control-last" 32 }
+  source { first = observe "control-first" 10, nested { value = case condition of
+    true -> observe "control-then" 30
+    false -> observe "control-else" 31 }, last = observe "control-last" 32 }
 
 updateOpen :: forall row. { first :: Prim.Int | row } -> { first :: Prim.Int | row }
 updateOpen = \source -> source { first = observe "open-first" 40 }

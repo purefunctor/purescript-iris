@@ -8,9 +8,11 @@ source: tests-integration/src/fixtures.rs
 @export foreign constructEffect
 
 @export branchResult = \condition%0 seed%1 ->
-  effect.bind (if condition%0
-    then constructEffect "branch-then" seed%1
-    else constructEffect "branch-else" seed%1)
+  effect.bind (case condition%0 of
+    true ->
+      constructEffect "branch-then" seed%1
+    false ->
+      constructEffect "branch-else" seed%1)
     \selected%2 -> constructEffect "branch-after" selected%2
 
 @export caseResult = \choice%3 seed%4 ->

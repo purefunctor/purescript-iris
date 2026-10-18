@@ -13,22 +13,27 @@ foreign import observed :: { apply :: Prim.Int -> Prim.Int, value :: Prim.Int }
 
 stableApplication :: (Prim.Int -> Prim.Int) -> Prim.Boolean -> Prim.Int
 stableApplication = \function -> \condition ->
-  function if condition then observe "application-then" 1 else observe "application-else" 2
+  function case condition of
+    true -> observe "application-then" 1
+    false -> observe "application-else" 2
 
 observedApplication :: Prim.Boolean -> Prim.Int
 observedApplication = \condition ->
-  observed.apply if condition then observe "observed-then" 3 else observe "observed-else" 4
+  observed.apply case condition of
+    true -> observe "observed-then" 3
+    false -> observe "observed-else" 4
 
 stableArray :: Prim.Int -> Prim.Boolean -> Prim.Array Prim.Int
 stableArray = \value -> \condition ->
-  [value, if condition then observe "array-then" 5 else observe "array-else" 6]
+  [value, case condition of
+    true -> observe "array-then" 5
+    false -> observe "array-else" 6]
 
 observedArray :: Prim.Boolean -> Prim.Array Prim.Int
 observedArray = \condition ->
-  [observed.value, if condition then
-    observe "observed-array-then" 7
-  else
-    observe "observed-array-else" 8]
+  [observed.value, case condition of
+    true -> observe "observed-array-then" 7
+    false -> observe "observed-array-else" 8]
 
 stablePure :: Prim.Int -> Effect.Effect Prim.Int
 stablePure = \value -> pure {applicativeEffect} value
@@ -54,5 +59,7 @@ joinedEffect = \condition ->
 
 joinedPattern :: Prim.Boolean -> Prim.Int
 joinedPattern = \condition ->
-  case if condition then Box (observe "pattern-then" 11) else Box (observe "pattern-else" 12) of
+  case case condition of
+    true -> Box (observe "pattern-then" 11)
+    false -> Box (observe "pattern-else" 12) of
     (Box value) -> value
