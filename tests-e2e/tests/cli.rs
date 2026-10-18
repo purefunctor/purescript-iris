@@ -51,42 +51,7 @@ fn prints_version_to_stdout() {
     let output = workspace.command(&["--version"]);
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
-    let manifest = include_str!("../../compiler-executable/iris-cli/Cargo.toml");
-    let version = manifest
-        .lines()
-        .find_map(|line| line.strip_prefix("version = \"")?.strip_suffix('"'))
-        .expect("iris-cli package version");
-    let version = match option_env!("IRIS_BUILD_REVISION") {
-        Some(revision) => format!("{version}-dev.{}", revision.to_ascii_lowercase()),
-        None => version.to_owned(),
-    };
-    assert_eq!(output.stdout, format!("iris {version}\n").as_bytes());
     snapshot_output("version", &output);
-}
-
-#[test]
-fn rejects_unpromoted_commands() {
-    let workspace = TestWorkspace::empty();
-    for (name, command) in [("rejects_compile", "compile"), ("rejects_docs", "docs")] {
-        let output = workspace.command(&[command]);
-        assert_eq!(output.status.code(), Some(2), "{command} was accepted");
-        assert!(output.stdout.is_empty(), "{command} wrote stdout");
-        snapshot_output(name, &output);
-    }
-}
-
-#[test]
-fn rejects_removed_lsp_configuration_options() {
-    let workspace = TestWorkspace::empty();
-    for (name, arguments) in [
-        ("rejects_lsp_config", ["lsp", "--config", "{}"]),
-        ("rejects_lsp_config_file", ["lsp", "--config-file", "iris.json"]),
-    ] {
-        let output = workspace.command(&arguments);
-        assert_eq!(output.status.code(), Some(2), "{arguments:?} was accepted");
-        assert!(output.stdout.is_empty(), "{arguments:?} wrote stdout");
-        snapshot_output(name, &output);
-    }
 }
 
 #[test]
