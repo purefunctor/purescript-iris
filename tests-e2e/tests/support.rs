@@ -262,6 +262,8 @@ pub fn visible_line_endings(text: &str) -> String {
     text
 }
 
+pub const OPERATING_SYSTEM_ERROR: (&str, &str) = (r": [^:\n]+ \(os error \d+\)", ": [OS ERROR]");
+
 pub fn normalize_process_status(text: &str) -> String {
     static STATUS: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"exit (?:status|code): (-?\d+)").unwrap());

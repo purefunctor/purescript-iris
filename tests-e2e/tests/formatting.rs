@@ -3,7 +3,7 @@ use std::io::Write;
 #[path = "support.rs"]
 mod support;
 
-use support::TestWorkspace;
+use support::{OPERATING_SYSTEM_ERROR, TestWorkspace};
 
 const UNFORMATTED: &str = "module Main where
 
@@ -418,19 +418,18 @@ fn file_mode_is_literal_repeatable_and_independent_of_the_workspace() {
             "src/Main.purs",
         ],
     ]);
-    let operating_system_error = (r"(?m)^(error: could not read [^:]+): .+$", "$1: [ERROR]");
-    insta::with_settings!({filters => vec![operating_system_error]}, {
+    insta::with_settings!({filters => vec![OPERATING_SYSTEM_ERROR]}, {
         insta::assert_snapshot!(commands, @"
         $ iris format --write --file src
         status: 2
         --- stdout
         --- stderr
-        error: could not read src: [ERROR]
+        error: could not read src: [OS ERROR]
         $ iris format --write --file src/*.purs
         status: 2
         --- stdout
         --- stderr
-        error: could not read src/*.purs: [ERROR]
+        error: could not read src/*.purs: [OS ERROR]
         $ iris format --write --file src/Main.purs --file src/[Literal].purs --file src/Main.purs
         status: 0
         --- stdout

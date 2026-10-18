@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use itertools::Itertools;
 
-use super::support::{TestWorkspace, assert_success};
+use super::support::{OPERATING_SYSTEM_ERROR, TestWorkspace, assert_success};
 
 #[test]
 fn watches_a_single_package_with_real_spago() {
@@ -502,10 +502,12 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
     );
     watch.wait_for("output failure", |_, stderr| stderr.contains("Watch build failed:"));
     let settled = run_query(&workspace, "wait");
-    insta::assert_snapshot!(workspace.normalize_output(settled.as_bytes()), @"
-    $ iris watch query wait
-    [0] Build failed: failed to write [WORKSPACE]/output/Main/foreign.js: Is a directory (os error 21)
-    ");
+    insta::with_settings!({filters => vec![OPERATING_SYSTEM_ERROR]}, {
+        insta::assert_snapshot!(workspace.normalize_output(settled.as_bytes()), @"
+        $ iris watch query wait
+        [0] Build failed: failed to write [WORKSPACE]/output/Main/foreign.js: [OS ERROR]
+        ");
+    });
     assert!(!watch.stdout().contains("completed with diagnostics"));
     assert!(workspace.module_metadata("Main").is_some());
 
