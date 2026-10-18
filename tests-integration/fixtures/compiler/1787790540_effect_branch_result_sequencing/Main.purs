@@ -11,8 +11,9 @@ foreign import constructEffect :: forall value. String -> value -> Effect value
 branchResult :: Boolean -> String -> Effect String
 branchResult condition seed = do
   selected <-
-    if condition then constructEffect "branch-then" seed
-    else constructEffect "branch-else" seed
+    case condition of
+      true -> constructEffect "branch-then" seed
+      false -> constructEffect "branch-else" seed
   constructEffect "branch-after" selected
 
 caseResult :: Choice -> String -> Effect String

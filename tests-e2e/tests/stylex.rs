@@ -78,6 +78,19 @@ styles = StyleX.create
 
 inlined = let colour = "green" in StyleX.create { root: { color: colour } }
 
+compact :: Boolean
+compact = true
+
+compactColour = if compact then "teal" else "navy"
+
+compactStyles = StyleX.create
+  { root:
+      { color: if compact then "maroon" else "olive"
+      , borderColor: compactColour
+      , padding: StyleX.conditionalValue 0 [ When.ancestor ":focus" (if compact then 5 else 12) ]
+      }
+  }
+
 staticFunction :: String -> { root :: StyleX.Style }
 staticFunction _ = StyleX.create { root: { color: "orange" } }
 

@@ -1,7 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Warning! · [MissingPatterns] · Main.purs:106:1
+Warning! · [MissingPatterns] · Main.purs:108:1
   •
   │
   • Pattern match is not exhaustive. Missing: None

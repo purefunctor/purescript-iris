@@ -34,16 +34,7 @@ export const escapedLocalAlias = /* @__PURE__ */ (() => {
 export const escapedEtaExpansion = leak((token) => modify(token));
 export const escapedIdentityWrapper = identity(leak(modify));
 export const escapedArrayWrapper = [leak(modify)];
-export const escapedConditionalWrapper = /* @__PURE__ */ (() => {
-  const $closure = (token) => {
-    if (true) {
-      return modify(token);
-    } else {
-      return modify(token);
-    }
-  };
-  return leak($closure);
-})();
+export const escapedConditionalWrapper = leak((token) => true ? modify(token) : modify(token));
 export const escapedUnusedLocal = /* @__PURE__ */ (() => {
   const escaped = leak(modify);
   return 0 | 0;

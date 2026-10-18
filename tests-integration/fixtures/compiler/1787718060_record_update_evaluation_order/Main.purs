@@ -55,8 +55,9 @@ updateControl condition source =
     { first = observe "control-first" 10
     , nested
         { value =
-            if condition then observe "control-then" 30
-            else observe "control-else" 31
+            case condition of
+              true -> observe "control-then" 30
+              false -> observe "control-else" 31
         }
     , last = observe "control-last" 32
     }

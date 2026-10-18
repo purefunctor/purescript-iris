@@ -319,6 +319,22 @@ impl<'a> Tree<'a> {
         self.allocate(expression)
     }
 
+    pub(crate) fn conditional(
+        &mut self,
+        condition: ExpressionId,
+        then: ExpressionId,
+        else_: ExpressionId,
+    ) -> ExpressionId {
+        let expression = Expression::new_conditional_expression(
+            SPAN,
+            self.expression(condition),
+            self.expression(then),
+            self.expression(else_),
+            &self.builder,
+        );
+        self.allocate(expression)
+    }
+
     pub(crate) fn arrow(&mut self, parameters: Vec<SmolStr>, body: ExpressionId) -> ExpressionId {
         let parameters = parameters.into_iter().map(|parameter| {
             let pattern =

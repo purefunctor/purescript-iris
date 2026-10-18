@@ -20,21 +20,7 @@ export function tailRecM(dictionary) {
   return dictionary.tailRecM;
 }
 export function ifM(bindMDict) {
-  const $closure = (mb) => {
-    return (t) => {
-      return (f) => {
-        const $closure$1 = (b) => {
-          if (b) {
-            return t;
-          } else {
-            return f;
-          }
-        };
-        return /* @__PURE__ */ Control_Bind.bind(bindMDict)(mb)($closure$1);
-      };
-    };
-  };
-  return $closure;
+  return (mb) => (t) => (f) => /* @__PURE__ */ Control_Bind.bind(bindMDict)(mb)((b) => b ? t : f);
 }
 export function lift2(applyFDict) {
   return (f) => (fa) => (fb) => /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())(f)(fa))(fb);

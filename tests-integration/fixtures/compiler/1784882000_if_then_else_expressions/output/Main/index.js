@@ -19,24 +19,10 @@ export function inferred(condition) {
   }
 }
 export function constrained(predicateValueDict) {
-  const $closure = (value) => {
-    if (/* @__PURE__ */ predicate(predicateValueDict)(value)) {
-      return 1 | 0;
-    } else {
-      return 2 | 0;
-    }
-  };
-  return $closure;
+  return (value) => /* @__PURE__ */ predicate(predicateValueDict)(value) ? 1 | 0 : 2 | 0;
 }
 export function constrainedBranches(defaultValueDict) {
-  const $closure = (condition) => {
-    if (condition) {
-      return /* @__PURE__ */ defaultValue(defaultValueDict);
-    } else {
-      return /* @__PURE__ */ defaultValue(defaultValueDict);
-    }
-  };
-  return $closure;
+  return (condition) => condition ? /* @__PURE__ */ defaultValue(defaultValueDict) : /* @__PURE__ */ defaultValue(defaultValueDict);
 }
 export function higherRank(condition) {
   if (condition) {
@@ -59,13 +45,7 @@ export function nested(first) {
   };
 }
 export function asArgument(condition) {
-  let $result;
-  if (condition) {
-    $result = 1 | 0;
-  } else {
-    $result = 2 | 0;
-  }
-  return identity($result);
+  return identity(condition ? 1 | 0 : 2 | 0);
 }
 export function identity(value) {
   return value;

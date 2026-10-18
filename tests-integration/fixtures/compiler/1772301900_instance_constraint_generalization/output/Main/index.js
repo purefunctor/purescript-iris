@@ -5,24 +5,10 @@ export function compare(dictionary) {
   return dictionary.compare;
 }
 export function test1(eqDict) {
-  const $closure = (x) => {
-    if (/* @__PURE__ */ eq(eqDict)(x)(x)) {
-      return /* @__PURE__ */ eq(eqDict)(x)(x);
-    } else {
-      return false;
-    }
-  };
-  return $closure;
+  return (x) => /* @__PURE__ */ eq(eqDict)(x)(x) ? /* @__PURE__ */ eq(eqDict)(x)(x) : false;
 }
 export function test2(ordDict) {
   return (eqDict) => {
-    const $closure = (x) => {
-      if (/* @__PURE__ */ eq(eqDict)(x)(x)) {
-        return /* @__PURE__ */ compare(ordDict)(x)(x);
-      } else {
-        return /* @__PURE__ */ compare(ordDict)(x)(x);
-      }
-    };
-    return $closure;
+    return (x) => /* @__PURE__ */ eq(eqDict)(x)(x) ? /* @__PURE__ */ compare(ordDict)(x)(x) : /* @__PURE__ */ compare(ordDict)(x)(x);
   };
 }

@@ -29,7 +29,14 @@ source: tests-integration/src/fixtures.rs
 @export updateControl = \condition%4 source%3 ->
   source%3 {
     first = observe "control-first" 10,
-    nested { value = if condition%4 then observe "control-then" 30 else observe "control-else" 31 },
+    nested {
+      value =
+        case condition%4 of
+          true ->
+            observe "control-then" 30
+          false ->
+            observe "control-else" 31
+    },
     last = observe "control-last" 32
   }
 

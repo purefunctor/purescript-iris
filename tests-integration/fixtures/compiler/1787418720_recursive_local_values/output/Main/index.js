@@ -4,24 +4,10 @@ export function applicationRecursive(token) {
   let $lazy_first;
   let $lazy_second;
   $lazy_first = $runtime.binding("first", () => {
-    const $closure = (condition) => {
-      if (condition) {
-        return $lazy_second()(false);
-      } else {
-        return 1 | 0;
-      }
-    };
-    return observe("first")($closure);
+    return observe("first")((condition) => condition ? $lazy_second()(false) : 1 | 0);
   });
   $lazy_second = $runtime.binding("second", () => {
-    const $closure$1 = (condition$1) => {
-      if (condition$1) {
-        return $lazy_first()(false);
-      } else {
-        return 2 | 0;
-      }
-    };
-    return observe("second")($closure$1);
+    return observe("second")((condition$1) => condition$1 ? $lazy_first()(false) : 2 | 0);
   });
   const first = $lazy_first();
   const second = $lazy_second();
@@ -34,14 +20,7 @@ export function caseRecursive(condition) {
   let $lazy_go;
   $lazy_go = $runtime.binding("go", () => {
     if (condition === true) {
-      const $closure = (current) => {
-        if (current) {
-          return $lazy_go()(false);
-        } else {
-          return 30 | 0;
-        }
-      };
-      return $closure;
+      return (current) => current ? $lazy_go()(false) : 30 | 0;
     }
     if (condition === false) {
       return ($boolean) => 31 | 0;
@@ -87,14 +66,7 @@ export const recordRecursive = /* @__PURE__ */ (() => {
     return { value: $lazy_second() };
   });
   $lazy_second = $runtime.binding("second", () => {
-    const $closure = (condition) => {
-      if (condition) {
-        return $lazy_first().value(false);
-      } else {
-        return 20 | 0;
-      }
-    };
-    return $closure;
+    return (condition) => condition ? $lazy_first().value(false) : 20 | 0;
   });
   const first = $lazy_first();
   const second = $lazy_second();

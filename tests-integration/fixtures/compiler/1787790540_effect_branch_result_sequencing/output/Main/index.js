@@ -4,10 +4,16 @@ export const Second = "Second";
 export function branchResult(condition) {
   return (seed) => {
     let $result;
-    if (condition) {
-      $result = constructEffect("branch-then")(seed);
-    } else {
-      $result = constructEffect("branch-else")(seed);
+    $case: {
+      if (condition === true) {
+        $result = constructEffect("branch-then")(seed);
+        break $case;
+      }
+      if (condition === false) {
+        $result = constructEffect("branch-else")(seed);
+        break $case;
+      }
+      throw new Error("Pattern match failure");
     }
     return () => {
       const selected = $result();

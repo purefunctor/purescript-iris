@@ -1,16 +1,7 @@
 import * as Data_Eq from "../Data.Eq/index.js";
 import * as $runtime from "../runtime.js";
 export function compareTwice(eqADict) {
-  const $closure = (left) => {
-    return (right) => {
-      if (/* @__PURE__ */ Data_Eq.eq(eqADict)(left)(right)) {
-        return /* @__PURE__ */ Data_Eq.eq(eqADict)(right)(left);
-      } else {
-        return false;
-      }
-    };
-  };
-  return $closure;
+  return (left) => (right) => /* @__PURE__ */ Data_Eq.eq(eqADict)(left)(right) ? /* @__PURE__ */ Data_Eq.eq(eqADict)(right)(left) : false;
 }
 export function compareIntsTwice(left) {
   return (right) => {
@@ -153,16 +144,7 @@ export function compareSuperclassTwice(orderedADict) {
 export function lambdaScope(left) {
   return (right) => {
     if (/* @__PURE__ */ eqArrayIntDictEq(left)(right)) {
-      const $closure = (lambdaLeft) => {
-        return (lambdaRight) => {
-          if (/* @__PURE__ */ eqArrayIntDictEq(lambdaLeft)(lambdaRight)) {
-            return /* @__PURE__ */ eqArrayIntDictEq(lambdaRight)(lambdaLeft);
-          } else {
-            return false;
-          }
-        };
-      };
-      return $closure(left)(right);
+      return ((lambdaLeft) => (lambdaRight) => /* @__PURE__ */ eqArrayIntDictEq(lambdaLeft)(lambdaRight) ? /* @__PURE__ */ eqArrayIntDictEq(lambdaRight)(lambdaLeft) : false)(left)(right);
     } else {
       return false;
     }

@@ -45,7 +45,11 @@ source: tests-integration/src/fixtures.rs
 @export nestedJoin = \outer%8 inner%11 ->
   if outer%8
     then let
-      result%10 = if inner%11 then 1 else 2
+      result%10 = case inner%11 of
+        true ->
+          1
+        false ->
+          2
     in addInt foreignValue result%10
     else 0
 

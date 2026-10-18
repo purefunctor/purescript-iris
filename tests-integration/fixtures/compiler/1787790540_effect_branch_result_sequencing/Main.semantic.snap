@@ -11,10 +11,10 @@ foreign import constructEffect :: forall value. Prim.String -> value -> Effect.E
 branchResult :: Prim.Boolean -> Prim.String -> Effect.Effect Prim.String
 branchResult = \condition -> \seed ->
   bind {bindEffect}
-    (if condition then
-      constructEffect "branch-then" seed
-    else
-      constructEffect "branch-else" seed) \selected -> constructEffect "branch-after" selected
+    (case condition of
+      true -> constructEffect "branch-then" seed
+      false -> constructEffect "branch-else" seed) \selected ->
+    constructEffect "branch-after" selected
 
 caseResult :: Main.Choice -> Prim.String -> Effect.Effect Prim.String
 caseResult = \choice -> \seed ->

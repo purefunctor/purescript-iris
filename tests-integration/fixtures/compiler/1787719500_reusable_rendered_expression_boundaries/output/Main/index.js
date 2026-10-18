@@ -6,10 +6,16 @@ export const Box = ($value0) => ({
 export function stableApplication($function) {
   return (condition) => {
     let $result;
-    if (condition) {
-      $result = observe("application-then")(1 | 0);
-    } else {
-      $result = observe("application-else")(2 | 0);
+    $case: {
+      if (condition === true) {
+        $result = observe("application-then")(1 | 0);
+        break $case;
+      }
+      if (condition === false) {
+        $result = observe("application-else")(2 | 0);
+        break $case;
+      }
+      throw new Error("Pattern match failure");
     }
     return $function($result);
   };
@@ -17,20 +23,32 @@ export function stableApplication($function) {
 export function observedApplication(condition) {
   const $function = observed.apply;
   let $result;
-  if (condition) {
-    $result = observe("observed-then")(3 | 0);
-  } else {
-    $result = observe("observed-else")(4 | 0);
+  $case: {
+    if (condition === true) {
+      $result = observe("observed-then")(3 | 0);
+      break $case;
+    }
+    if (condition === false) {
+      $result = observe("observed-else")(4 | 0);
+      break $case;
+    }
+    throw new Error("Pattern match failure");
   }
   return $function($result);
 }
 export function stableArray(value) {
   return (condition) => {
     let $result;
-    if (condition) {
-      $result = observe("array-then")(5 | 0);
-    } else {
-      $result = observe("array-else")(6 | 0);
+    $case: {
+      if (condition === true) {
+        $result = observe("array-then")(5 | 0);
+        break $case;
+      }
+      if (condition === false) {
+        $result = observe("array-else")(6 | 0);
+        break $case;
+      }
+      throw new Error("Pattern match failure");
     }
     return [value, $result];
   };
@@ -38,10 +56,16 @@ export function stableArray(value) {
 export function observedArray(condition) {
   const $element = observed.value;
   let $result;
-  if (condition) {
-    $result = observe("observed-array-then")(7 | 0);
-  } else {
-    $result = observe("observed-array-else")(8 | 0);
+  $case: {
+    if (condition === true) {
+      $result = observe("observed-array-then")(7 | 0);
+      break $case;
+    }
+    if (condition === false) {
+      $result = observe("observed-array-else")(8 | 0);
+      break $case;
+    }
+    throw new Error("Pattern match failure");
   }
   return [$element, $result];
 }
@@ -93,16 +117,22 @@ export function joinedEffect(condition) {
 }
 export function joinedPattern(condition) {
   let $result;
-  if (condition) {
-    $result = {
-      tag: "Box",
-      _1: observe("pattern-then")(11 | 0)
-    };
-  } else {
-    $result = {
-      tag: "Box",
-      _1: observe("pattern-else")(12 | 0)
-    };
+  $case: {
+    if (condition === true) {
+      $result = {
+        tag: "Box",
+        _1: observe("pattern-then")(11 | 0)
+      };
+      break $case;
+    }
+    if (condition === false) {
+      $result = {
+        tag: "Box",
+        _1: observe("pattern-else")(12 | 0)
+      };
+      break $case;
+    }
+    throw new Error("Pattern match failure");
   }
   if ($result.tag === "Box") {
     const { _1: value } = $result;

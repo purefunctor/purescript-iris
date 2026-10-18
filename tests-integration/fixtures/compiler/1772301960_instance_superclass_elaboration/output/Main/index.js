@@ -5,12 +5,5 @@ export function compare(dictionary) {
   return dictionary.compare;
 }
 export function test(ordDict) {
-  const $closure = (x) => {
-    if (/* @__PURE__ */ eq(/* @__PURE__ */ ordDict.Eq0())(x)(x)) {
-      return /* @__PURE__ */ compare(ordDict)(x)(x);
-    } else {
-      return /* @__PURE__ */ compare(ordDict)(x)(x);
-    }
-  };
-  return $closure;
+  return (x) => /* @__PURE__ */ eq(/* @__PURE__ */ ordDict.Eq0())(x)(x) ? /* @__PURE__ */ compare(ordDict)(x)(x) : /* @__PURE__ */ compare(ordDict)(x)(x);
 }

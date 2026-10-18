@@ -10,17 +10,36 @@ source: tests-integration/src/fixtures.rs
 @export foreign observed
 
 @export stableApplication = \function%0 condition%1 ->
-  function%0 (if condition%1 then observe "application-then" 1 else observe "application-else" 2)
+  function%0
+    (case condition%1 of
+      true ->
+        observe "application-then" 1
+      false ->
+        observe "application-else" 2)
 
 @export observedApplication = \condition%2 ->
-  observed.apply (if condition%2 then observe "observed-then" 3 else observe "observed-else" 4)
+  observed.apply
+    (case condition%2 of
+      true ->
+        observe "observed-then" 3
+      false ->
+        observe "observed-else" 4)
 
 @export stableArray = \value%3 condition%4 ->
-  [value%3, if condition%4 then observe "array-then" 5 else observe "array-else" 6]
+  [value%3,
+    case condition%4 of
+      true ->
+        observe "array-then" 5
+      false ->
+        observe "array-else" 6]
 
 @export observedArray = \condition%5 ->
   [observed.value,
-    if condition%5 then observe "observed-array-then" 7 else observe "observed-array-else" 8]
+    case condition%5 of
+      true ->
+        observe "observed-array-then" 7
+      false ->
+        observe "observed-array-else" 8]
 
 @export stablePure = \value%6 -> effect.pure value%6
 
@@ -41,8 +60,10 @@ source: tests-integration/src/fixtures.rs
       else effect.map observed.apply (constructEffect "joined-else" 17)]
 
 @export joinedPattern = \condition%13 ->
-  case if condition%13
-    then { tag: "Box", _1: observe "pattern-then" 11 }
-    else { tag: "Box", _1: observe "pattern-else" 12 } of
+  case case condition%13 of
+    true ->
+      { tag: "Box", _1: observe "pattern-then" 11 }
+    false ->
+      { tag: "Box", _1: observe "pattern-else" 12 } of
     Box value%14 ->
       value%14

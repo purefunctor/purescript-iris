@@ -27,10 +27,16 @@ export function nestedJoin(outer) {
   return (inner) => {
     if (outer) {
       let $result;
-      if (inner) {
-        $result = 1 | 0;
-      } else {
-        $result = 2 | 0;
+      $case: {
+        if (inner === true) {
+          $result = 1 | 0;
+          break $case;
+        }
+        if (inner === false) {
+          $result = 2 | 0;
+          break $case;
+        }
+        throw new Error("Pattern match failure");
       }
       const result = $result;
       return addInt(foreignValue)(result);

@@ -71,6 +71,9 @@ for (const expected of [
   "@media (max-width: 600px)",
   "padding:4px",
   "margin:21px",
+  "color:maroon",
+  "border-color:teal",
+  "padding:5px",
 ]) {
   if (!css.includes(expected)) {
     throw new Error(`StyleX CSS does not contain ${JSON.stringify(expected)}:\n${css}`);
