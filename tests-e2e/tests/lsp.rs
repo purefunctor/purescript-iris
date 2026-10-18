@@ -2,7 +2,6 @@ use std::path::Path;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
 
-use lsp_server::ErrorCode;
 use lsp_types::ProgressToken;
 use serde_json::{Value, json};
 use url::Url;
@@ -209,16 +208,12 @@ value = 0
         .recv_timeout(Duration::from_secs(10))
         .unwrap()
         .unwrap();
-    assert_eq!(
-        edits,
-        json!([{
-            "range": {"start": {"line": 0, "character": 0}, "end": {"line": 2, "character": 10}},
-            "newText": r#"module Main where
+    insta::assert_snapshot!(render_edits(&edits), @r#"
+    --- 0:0-2:10
+    module Main where
 
-value = "😀"
-"#
-        }])
-    );
+    value = "😀"
+    "#);
     server.notify(
         "textDocument/didChange",
         json!({
@@ -232,7 +227,7 @@ value = "😀"
         .recv_timeout(Duration::from_secs(10))
         .unwrap()
         .unwrap();
-    assert_eq!(edits, json!([]));
+    insta::assert_snapshot!(render_edits(&edits), @"<no edits>");
     server.notify(
         "textDocument/didChange",
         json!({
@@ -246,14 +241,13 @@ value=combine firstArgument secondArgument
     let edits = server.connection.request("textDocument/formatting", json!({
         "textDocument": {"uri": uri}, "options": {"tabSize": 4, "insertSpaces": false, "lineWidth": 32}
     })).recv_timeout(Duration::from_secs(10)).unwrap().unwrap();
-    assert_eq!(
-        edits[0]["newText"],
-        "module Main where
+    insta::assert_snapshot!(render_edits(&edits), @"
+    --- 0:0-3:0
+    module Main where
 
-value = combine firstArgument
-    secondArgument
-"
-    );
+    value = combine firstArgument
+        secondArgument
+    ");
     let mut errors = Vec::new();
     for options in [
         json!({"tabSize": 0, "insertSpaces": true}),
@@ -273,7 +267,6 @@ value = combine firstArgument
         let Err(Error::Response(error)) = result else {
             panic!("expected invalid formatting options to be rejected: {result:?}");
         };
-        assert_eq!(error.code, ErrorCode::InvalidParams as i32);
         errors.push(json!({"options": options, "error": error}));
     }
     snapshot_json("formatting_invalid_options", &json!(errors));
@@ -289,9 +282,29 @@ value = combine firstArgument
         .recv_timeout(Duration::from_secs(10))
         .unwrap()
         .unwrap();
-    assert_eq!(edits, Value::Null);
-    assert_eq!(workspace.read("src/Main.purs"), saved);
+    insta::assert_snapshot!(render_edits(&edits), @"<null>");
+    insta::assert_snapshot!(workspace.read("src/Main.purs"), @"
+    module Main where
+    value = 0
+    ");
     server.shutdown();
+}
+
+fn render_edits(edits: &Value) -> String {
+    let Some(edits) = edits.as_array() else {
+        return format!("<{edits}>");
+    };
+    if edits.is_empty() {
+        return "<no edits>".to_owned();
+    }
+    let edits = edits.iter().map(|edit| {
+        let range = &edit["range"];
+        let position = |position: &Value| format!("{}:{}", position["line"], position["character"]);
+        let start = position(&range["start"]);
+        let end = position(&range["end"]);
+        format!("--- {start}-{end}\n{}", edit["newText"].as_str().unwrap())
+    });
+    edits.collect::<Vec<_>>().join("")
 }
 
 #[test]
@@ -343,7 +356,7 @@ fromFreshClone = 42
     let symbols = server.request("workspace/symbol", json!({"query": "fromFreshClone"}));
 
     snapshot_workspace_json("prepared_workspace_symbol", &symbols, &project);
-    workspace.assert_spago_calls("project", &[&["fetch", "-p", "application"]]);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"project: spago "fetch" "-p" "application""#);
     server.shutdown();
 }
 
@@ -388,7 +401,6 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
     let Error::Response(response) = error else {
         panic!("expected a response error after cancellation, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::RequestFailed as i32);
     snapshot_json("workspace_request_while_preparing", &serde_json::to_value(response).unwrap());
 
     spago.wait_for_exit();
@@ -455,7 +467,6 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         .collect::<Vec<_>>();
 
     let second_begin = server.wait_for_progress("begin");
-    assert_ne!(first_begin["params"]["token"], second_begin["params"]["token"]);
     let mut second_spago = control.wait_for_start("spago");
     assert!(!first_spago.is_running(), "first Spago fetch overlapped its retry");
 
@@ -472,32 +483,29 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
             .expect("coalesced workspace request failed after retry");
         assert!(symbols.as_array().unwrap().is_empty());
     }
-    assert!(symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromBuffer"));
-    assert!(!symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == "fromDisk"));
     snapshot_workspace_json("workspace_symbol_after_preparation_retry", &symbols, workspace.path());
     let second_end = server.wait_for_progress("end");
+    let created = server.client.progress_tokens.lock().unwrap().clone();
     snapshot_json(
         "workspace_preparation_retry_progress",
-        &json!([
-            first_begin["params"]["value"],
-            first_end["params"]["value"],
-            second_begin["params"]["value"],
-            second_end["params"]["value"],
-        ]),
+        &json!({
+            "created": created,
+            "progress": [
+                first_begin["params"],
+                first_end["params"],
+                second_begin["params"],
+                second_end["params"],
+            ],
+        }),
     );
-    workspace.assert_spago_calls(
-        "",
-        &[&["fetch", "-p", "application"], &["fetch", "-p", "application"]],
-    );
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"
+    .: spago "fetch" "-p" "application"
+    .: spago "fetch" "-p" "application"
+    "#);
 
     // One progress token per attempt, and the reports of the real preparation stay cancellable
     // with percentages of at most 100.
     let tokens = [&first_begin, &second_begin].map(|begin| begin["params"]["token"].clone());
-    assert_eq!(first_end["params"]["token"], tokens[0]);
-    assert_eq!(second_end["params"]["token"], tokens[1]);
-    let created = server.client.progress_tokens.lock().unwrap().clone();
-    let created = created.iter().map(|token| serde_json::to_value(token).unwrap());
-    assert_eq!(created.collect::<Vec<_>>(), tokens);
     server.collect_notifications();
     let progress =
         server.notifications.iter().filter(|notification| notification["method"] == "$/progress");
@@ -541,7 +549,7 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
     let Error::Response(response) = error else {
         panic!("expected a response error during shutdown, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::ContentModified as i32);
+    snapshot_json("document_symbols_during_shutdown", &serde_json::to_value(response).unwrap());
     let end = server.wait_for_progress("end");
     snapshot_json("shutdown_progress", &end["params"]["value"]);
 
@@ -582,7 +590,10 @@ fn preparation_failure_is_reported_and_rejects_analysis() {
     let Error::Response(response) = error else {
         panic!("expected a response error after failure, got {error:?}");
     };
-    assert_eq!(response.code, ErrorCode::RequestFailed as i32);
+    snapshot_json(
+        "deferred_request_after_preparation_failure",
+        &serde_json::to_value(response).unwrap(),
+    );
 
     let error = server
         .request_once("workspace/symbol", json!({"query": "fromDisk"}))

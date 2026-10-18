@@ -255,7 +255,6 @@ impl LanguageServer {
                 "textDocument/publishDiagnostics",
                 |notification| notification["params"]["uri"] == uri.as_str(),
             );
-            assert_eq!(message["params"]["uri"], uri.as_str());
             assert_eq!(message["params"]["version"], version);
             let diagnostics = message["params"]["diagnostics"].as_array().unwrap();
             snapshot_json("invalid_string_diagnostics", &Value::Array(diagnostics.clone()));
