@@ -212,25 +212,6 @@ impl TestWorkspace {
         });
         calls.collect_vec().join("\n")
     }
-
-    pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {
-        let path = self.path().join("spago-calls");
-        let source = match fs::read_to_string(path) {
-            Ok(source) => source,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(error) => panic!("failed to read Spago call log: {error}"),
-        };
-        let expected_directory = fs::canonicalize(self.path().join(directory)).unwrap();
-        let mut actual_arguments = Vec::new();
-        for line in source.lines() {
-            let mut fields = line.split('\t');
-            let actual_directory = fields.next().unwrap();
-            let actual_directory = fs::canonicalize(actual_directory).unwrap();
-            assert_eq!(actual_directory, expected_directory);
-            actual_arguments.push(fields.collect_vec());
-        }
-        assert_eq!(actual_arguments, expected);
-    }
 }
 
 pub fn workspace_prefixes(workspace: &Path) -> Vec<String> {

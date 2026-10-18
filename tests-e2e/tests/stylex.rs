@@ -135,5 +135,5 @@ conditionalProps enabled = StyleX.props
     let verification =
         Command::new("node").arg(script).arg(workspace.path().join("output")).output().unwrap();
     assert_success(&verification);
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
 }
