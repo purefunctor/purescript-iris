@@ -33,7 +33,7 @@ impl TestCategory {
     pub fn test_targets(&self) -> &'static [&'static str] {
         match self {
             TestCategory::Compiler => &["compiler"],
-            TestCategory::Lowering => &["lowering"],
+            TestCategory::Lowering => &["lowering", "lowering_unit"],
             TestCategory::Resolving => &["resolving"],
             TestCategory::Lsp => &["lsp"],
             TestCategory::Docs => &["docs"],
@@ -43,10 +43,11 @@ impl TestCategory {
     }
 
     pub fn snapshot_path_fragments(&self) -> Vec<String> {
-        vec![
-            format!("tests-integration/fixtures/{}", self.as_str()),
-            format!("tests-integration/tests/snapshots/{}__", self.as_str()),
-        ]
+        let mut fragments = vec![format!("tests-integration/fixtures/{}", self.as_str())];
+        for target in self.test_targets() {
+            fragments.push(format!("tests-integration/tests/snapshots/{target}__"));
+        }
+        fragments
     }
 }
 
