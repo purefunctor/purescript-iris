@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::{BufReader, Read};
 use std::path::Path;
-use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus, Stdio};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
@@ -15,6 +15,7 @@ use lsp_types::{
     WorkDoneProgressCreateParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceFolders,
     WorkspaceFoldersInitializeParams, WorkspaceSymbolParams,
 };
+use process_control::{ChildExt, Control};
 use serde::Serialize;
 use serde_json::{Value, json};
 use url::Url;
@@ -149,7 +150,7 @@ impl LanguageServer {
 
     #[track_caller]
     pub fn request(&mut self, method: &str, parameters: Value) -> Value {
-        for _ in 0..600 {
+        for _ in 0..10 {
             match self.request_once(method, parameters.clone()) {
                 Ok(result) => return result,
                 Err(Error::Response(response))
@@ -157,7 +158,6 @@ impl LanguageServer {
                         || response.code == ErrorCode::RequestCanceled as i32 => {}
                 Err(error) => panic!("{method} request failed: {error}"),
             }
-            thread::sleep(Duration::from_millis(50));
         }
         panic!("request {method} was repeatedly reported as stale");
     }
@@ -185,18 +185,6 @@ impl LanguageServer {
         };
         let parameters = serde_json::to_value(parameters).unwrap();
         self.connection.request("textDocument/documentSymbol", parameters)
-    }
-
-    pub fn wait_for_symbol(&mut self, name: &str, present: bool) {
-        for _ in 0..20 {
-            let symbols = self.request("workspace/symbol", json!({"query": name}));
-            let found = symbols.as_array().unwrap().iter().any(|symbol| symbol["name"] == name);
-            if found == present {
-                return;
-            }
-            thread::sleep(Duration::from_millis(50));
-        }
-        panic!("symbol {name:?} presence did not become {present}");
     }
 
     #[track_caller]
@@ -310,7 +298,12 @@ impl LanguageServer {
             self.connection.wait_for_end_of_input(deadline),
             "invariant violated: timed out stopping language client"
         );
-        let status = wait_for_exit(&mut self.child, deadline)
+        let status = self
+            .child
+            .controlled()
+            .time_limit(deadline.saturating_duration_since(Instant::now()))
+            .wait()
+            .unwrap()
             .expect("invariant violated: timed out stopping language server");
         let unexpected_messages = self.client.unexpected_messages.lock().unwrap();
         assert!(
@@ -540,16 +533,4 @@ fn drain(mut stderr: ChildStderr) -> Arc<Mutex<Vec<u8>>> {
         }
     });
     output
-}
-
-fn wait_for_exit(child: &mut Child, deadline: Instant) -> Option<ExitStatus> {
-    loop {
-        if let Some(status) = child.try_wait().unwrap() {
-            return Some(status);
-        }
-        if Instant::now() >= deadline {
-            return None;
-        }
-        thread::sleep(Duration::from_millis(10));
-    }
 }

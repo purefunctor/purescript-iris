@@ -428,7 +428,8 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
         serde_json::from_value(first_begin["params"]["token"].clone()).unwrap();
     let first_spago = control.wait_for_start("spago");
 
-    let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
+    let source = dunce::canonicalize(workspace.path().join("src/Library.purs")).unwrap();
+    let uri = Url::from_file_path(source).unwrap();
     server.notify(
         "textDocument/didOpen",
         json!({
@@ -509,8 +510,9 @@ fn analysis_request_restarts_cancelled_preparation_and_waits_for_the_workspace()
 
     // Closing the buffer restores the discovered source from disk.
     server.notify("textDocument/didClose", json!({"textDocument": {"uri": uri}}));
-    server.wait_for_symbol("fromDisk", true);
-    server.wait_for_symbol("fromBuffer", false);
+    let symbols = server.request("workspace/symbol", json!({"query": "from"}));
+    let names = symbols.as_array().unwrap().iter().map(|symbol| symbol["name"].as_str().unwrap());
+    insta::assert_snapshot!(names.collect::<Vec<_>>().join("\n"), @"fromDisk");
     server.shutdown();
 }
 
