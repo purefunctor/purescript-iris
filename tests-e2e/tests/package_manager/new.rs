@@ -253,6 +253,7 @@ fn does_not_overwrite_existing_project_files() {
     insta::assert_snapshot!(workspace.summary(), @"
     --- src/Main.purs
     original
+    [no final newline]
     ");
 }
 
@@ -271,6 +272,7 @@ fn does_not_create_a_partial_project_when_a_source_directory_is_a_file() {
     insta::assert_snapshot!(workspace.summary(), @"
     --- src
     original
+    [no final newline]
     ");
 }
 

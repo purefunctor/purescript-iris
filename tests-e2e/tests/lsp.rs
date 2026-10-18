@@ -15,7 +15,10 @@ mod support;
 
 use client::{Error, LanguageServer};
 use spago::SpagoControl;
-use support::{TestWorkspace, normalize_process_status, replace_path_prefix, workspace_prefixes};
+use support::{
+    TestWorkspace, normalize_process_status, replace_path_prefix, visible_line_endings,
+    workspace_prefixes,
+};
 
 fn snapshot_json(name: &str, value: &Value) {
     let mut value = value.clone();
@@ -302,7 +305,7 @@ fn render_edits(edits: &Value) -> String {
         let position = |position: &Value| format!("{}:{}", position["line"], position["character"]);
         let start = position(&range["start"]);
         let end = position(&range["end"]);
-        format!("--- {start}-{end}\n{}", edit["newText"].as_str().unwrap())
+        format!("--- {start}-{end}\n{}", visible_line_endings(edit["newText"].as_str().unwrap()))
     });
     edits.collect::<Vec<_>>().join("")
 }

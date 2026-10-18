@@ -56,10 +56,7 @@ impl TestWorkspace {
             let relative = path.strip_prefix(self.path()).unwrap();
             let relative = relative.to_string_lossy().replace('\\', "/");
             let content = fs::read_to_string(&path).unwrap();
-            summary.push_str(&format!("--- {relative}\n{content}"));
-            if !content.ends_with('\n') {
-                summary.push('\n');
-            }
+            summary.push_str(&format!("--- {relative}\n{}", visible_line_endings(&content)));
         }
         summary
     }
@@ -151,17 +148,19 @@ impl TestWorkspace {
     pub fn normalize_output(&self, output: &[u8]) -> String {
         let prefixes = workspace_prefixes(self.path());
         let output = String::from_utf8_lossy(output);
-        let lines = output.lines().map(|line| {
-            let mut line = line.to_owned();
+        let lines = output.split_inclusive('\n').map(|line| {
+            let content = line.trim_end_matches(['\r', '\n']);
+            let terminator = &line[content.len()..];
+            let mut content = content.to_owned();
             for prefix in &prefixes {
-                line = replace_path_prefix(&line, prefix);
+                content = replace_path_prefix(&content, prefix);
             }
-            if line.contains("[WORKSPACE]") {
-                line = line.replace('\\', "/");
+            if content.contains("[WORKSPACE]") {
+                content = content.replace('\\', "/");
             }
-            normalize_process_status(&line)
+            normalize_process_status(&content) + terminator
         });
-        lines.collect_vec().join("\n")
+        lines.collect()
     }
 
     pub fn workspace_stack_frames(&self, output: &Output) -> String {
@@ -178,11 +177,8 @@ impl TestWorkspace {
         };
         let mut report = format!("status: {status}\n");
         for (name, stream) in [("stdout", &output.stdout), ("stderr", &output.stderr)] {
-            report.push_str(&format!("--- {name}\n"));
-            for line in self.normalize_output(stream).lines() {
-                report.push_str(line);
-                report.push('\n');
-            }
+            let stream = self.normalize_output(stream);
+            report.push_str(&format!("--- {name}\n{}", visible_line_endings(&stream)));
         }
         report
     }
@@ -256,6 +252,14 @@ pub fn replace_path_prefix(value: &str, prefix: &str) -> String {
     }
     result.push_str(remaining);
     result
+}
+
+pub fn visible_line_endings(text: &str) -> String {
+    let mut text = text.replace('\r', "\\r");
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push_str("\n[no final newline]\n");
+    }
+    text
 }
 
 pub fn normalize_process_status(text: &str) -> String {
