@@ -9,6 +9,7 @@ use itertools::Itertools;
 
 pub struct TestWorkspace {
     temporary: tempfile::TempDir,
+    process_temporary: tempfile::TempDir,
     environment: RefCell<Vec<(String, String)>>,
 }
 
@@ -16,6 +17,7 @@ impl TestWorkspace {
     pub fn empty() -> TestWorkspace {
         TestWorkspace {
             temporary: tempfile::tempdir().unwrap(),
+            process_temporary: tempfile::tempdir().unwrap(),
             environment: RefCell::new(Vec::new()),
         }
     }
@@ -92,6 +94,9 @@ impl TestWorkspace {
             .env("IRIS_E2E_SPAGO_LOG", self.path().join("spago-calls"))
             .env("COLUMNS", "120")
             .env("NO_COLOR", "1");
+        for variable in ["TMPDIR", "TMP", "TEMP"] {
+            command.env(variable, self.process_temporary.path());
+        }
         for (key, value) in self.environment.borrow().iter() {
             command.env(key, value);
         }
