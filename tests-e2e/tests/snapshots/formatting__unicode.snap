@@ -1,0 +1,40 @@
+---
+source: tests-e2e/tests/formatting.rs
+---
+$ iris format --file src/Main.purs
+status: 0
+--- stdout
+module Main where
+
+identity :: forall a. a -> a
+identity = \value -> value
+--- stderr
+$ iris format --check --file src/Main.purs
+status: 0
+--- stdout
+--- stderr
+$ iris format --unicode --file src/Main.purs
+status: 0
+--- stdout
+module Main where
+
+identity ∷ ∀ a. a → a
+identity = \value → value
+--- stderr
+$ iris format --unicode --check --file src/Main.purs
+status: 1
+--- stdout
+--- stderr
+src/Main.purs
+$ iris format --unicode --write --file src/Main.purs
+status: 0
+--- stdout
+--- stderr
+$ iris format --unicode --check --file src/Main.purs
+status: 0
+--- stdout
+--- stderr
+$ iris format --check --file src/Main.purs
+status: 0
+--- stdout
+--- stderr
