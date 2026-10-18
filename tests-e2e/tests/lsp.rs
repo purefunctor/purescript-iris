@@ -379,13 +379,7 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
     let token: ProgressToken = serde_json::from_value(begin["params"]["token"].clone()).unwrap();
     let mut spago = control.wait_for_start("spago");
     let mut descendant = control.wait_for_start("descendant");
-
-    for token in [ProgressToken::Int(99), ProgressToken::String("unknown".to_string())] {
-        server.cancel_progress(token);
-    }
     let request = server.request_async("workspace/symbol", json!({"query": "fromDisk"}));
-    assert!(spago.is_running());
-    assert!(descendant.is_running());
 
     server.cancel_progress(token.clone());
     server.cancel_progress(token);
@@ -409,6 +403,33 @@ fn cancels_workspace_preparation_for_the_active_progress_token() {
     assert!(!server.notifications.iter().any(|notification| {
         notification["method"] == "$/progress" && notification["params"]["value"]["kind"] == "end"
     }));
+    server.shutdown();
+}
+
+#[test]
+fn ignores_cancellation_of_unknown_progress_tokens() {
+    let (workspace, control) = gated_workspace();
+    let mut server = LanguageServer::start_with_progress(&workspace);
+    server.wait_for_progress("begin");
+    let mut spago = control.wait_for_start("spago");
+
+    for token in [ProgressToken::Int(99), ProgressToken::String("unknown".to_string())] {
+        server.cancel_progress(token);
+    }
+    let request = server.request_async("workspace/symbol", json!({"query": "fromDisk"}));
+    spago.release();
+
+    let end = server.wait_for_progress("end");
+    snapshot_json("unknown_token_cancellation_progress", &end["params"]["value"]);
+    let symbols = request
+        .recv_timeout(Duration::from_secs(30))
+        .expect("timed out waiting for the workspace request")
+        .expect("workspace request failed after cancelling unknown tokens");
+    snapshot_workspace_json(
+        "workspace_symbol_after_unknown_cancellation",
+        &symbols,
+        workspace.path(),
+    );
     server.shutdown();
 }
 
