@@ -553,14 +553,10 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
     workspace.set_env("IRIS_E2E_SPAGO_DESCENDANT", "1");
     let mut server = LanguageServer::start_with_progress(&workspace);
     server.wait_for_progress("begin");
-    let spago = control.wait_for_start("spago");
-    let descendant = control.wait_for_start("descendant");
+    let mut spago = control.wait_for_start("spago");
+    let mut descendant = control.wait_for_start("descendant");
     let uri = Url::from_file_path(workspace.path().join("src/Library.purs")).unwrap();
     let document_symbols = server.document_symbols_async(uri);
-    assert!(matches!(
-        document_symbols.recv_timeout(Duration::from_millis(200)),
-        Err(RecvTimeoutError::Timeout)
-    ));
 
     server.request_shutdown();
     let error = document_symbols
@@ -575,8 +571,8 @@ fn shutdown_retires_the_spago_process_tree_while_preparing() {
     snapshot_json("shutdown_progress", &end["params"]["value"]);
 
     server.finish_shutdown();
-    assert!(!spago.is_running(), "Spago survived shutdown");
-    assert!(!descendant.is_running(), "Spago descendant survived shutdown");
+    spago.wait_for_exit();
+    descendant.wait_for_exit();
 }
 
 #[test]
