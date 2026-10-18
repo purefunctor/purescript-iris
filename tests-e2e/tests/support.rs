@@ -187,6 +187,24 @@ impl TestWorkspace {
         report
     }
 
+    pub fn spago_calls(&self) -> String {
+        let source = match fs::read_to_string(self.path().join("spago-calls")) {
+            Ok(source) => source,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(error) => panic!("failed to read Spago call log: {error}"),
+        };
+        let root = dunce::canonicalize(self.path()).unwrap();
+        let calls = source.lines().map(|line| {
+            let mut fields = line.split('\t');
+            let directory = dunce::canonicalize(fields.next().unwrap()).unwrap();
+            let directory = directory.strip_prefix(&root).unwrap().to_string_lossy();
+            let directory = if directory.is_empty() { ".".into() } else { directory };
+            let mut arguments = fields.map(|argument| format!("{argument:?}"));
+            format!("{}: spago {}", directory.replace('\\', "/"), arguments.join(" "))
+        });
+        calls.collect_vec().join("\n")
+    }
+
     pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {
         let path = self.path().join("spago-calls");
         let source = match fs::read_to_string(path) {
