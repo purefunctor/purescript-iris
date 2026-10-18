@@ -1,4 +1,4 @@
-use super::support::{TestWorkspace, assert_success};
+use super::support::TestWorkspace;
 
 #[test]
 fn tests_the_configured_module_with_node() {
@@ -31,10 +31,13 @@ foreign import main :: Effect Unit
     );
 
     let output = workspace.command(&["test", "--quiet"]);
-    assert_success(&output);
-    assert!(output.stdout.ends_with(b"\n"));
-    insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"tests ran: from-manifest");
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    tests ran: from-manifest
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
 }
 
 #[test]
@@ -94,6 +97,11 @@ package:
     workspace.write("src/Main.purs", "module Main where\n");
 
     let output = workspace.command(&["test", "--quiet"]);
-    assert!(!output.status.success());
-    workspace.assert_spago_calls("", &[]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    no selected packages contain tests
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }

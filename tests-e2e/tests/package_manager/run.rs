@@ -1,4 +1,4 @@
-use super::support::{TestWorkspace, assert_success};
+use super::support::TestWorkspace;
 
 #[test]
 fn runs_the_configured_module_with_node() {
@@ -30,11 +30,14 @@ foreign import main :: Effect Unit
 
     let output =
         workspace.command(&["run", "--output", "generated", "--quiet", "--", "first", "second"]);
-    assert_success(&output);
-    assert!(output.stdout.ends_with(b"\n"));
-    insta::assert_snapshot!(String::from_utf8_lossy(&output.stdout), @"first,second");
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    first,second
+    --- stderr
+    ");
     assert!(workspace.path().join("generated/Configured/index.js").is_file());
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
 }
 
 #[test]
@@ -102,9 +105,12 @@ foreign import main :: Effect Unit
 
     let output = workspace.command(&["run", "--quiet"]);
 
-    assert_eq!(output.status.code(), Some(7));
-    assert!(output.stdout.is_empty());
-    insta::assert_snapshot!(workspace.normalize_output(&output.stderr), @"Node.js exited with status exit code: 7");
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 7
+    --- stdout
+    --- stderr
+    Node.js exited with status exit code: 7
+    ");
 }
 
 #[test]
@@ -138,15 +144,21 @@ foreign import main :: Effect Unit
 "#,
     );
     let ran = workspace.command(&["run", "--quiet"]);
-    assert_success(&ran);
-    assert!(ran.stdout.ends_with(b"\n"));
-    insta::assert_snapshot!(String::from_utf8_lossy(&ran.stdout), @"ran");
+    insta::assert_snapshot!(workspace.report(&ran), @"
+    status: 0
+    --- stdout
+    ran
+    --- stderr
+    ");
 
     std::fs::remove_file(workspace.path().join("src/Main.purs")).unwrap();
     let output = workspace.command(&["run", "--quiet"]);
 
-    assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
-    insta::assert_snapshot!(String::from_utf8_lossy(&output.stderr), @"module Main is not part of the build");
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    module Main is not part of the build
+    ");
     assert!(workspace.path().join("output/Main/index.js").is_file());
 }
