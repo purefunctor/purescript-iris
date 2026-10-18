@@ -575,14 +575,19 @@ impl WatchProcess {
                 return;
             }
             if let Some(status) = self.child.try_wait().unwrap() {
+                self.stop();
                 panic!(
-                    "watch exited before {description} with status {status}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+                    "watch exited before {description} with status {status}\nstdout:\n{}\nstderr:\n{}",
+                    self.stdout(),
+                    self.stderr()
                 );
             }
             if Instant::now() >= deadline {
                 self.stop();
                 panic!(
-                    "watch did not reach {description} within 30 seconds\nstdout:\n{stdout}\nstderr:\n{stderr}"
+                    "watch did not reach {description} within 30 seconds\nstdout:\n{}\nstderr:\n{}",
+                    self.stdout(),
+                    self.stderr()
                 );
             }
             thread::sleep(Duration::from_millis(20));

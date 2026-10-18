@@ -419,6 +419,11 @@ impl Drop for LanguageServer {
         self.connection.close();
         let _ = self.child.kill();
         let _ = self.child.wait();
+        if thread::panicking()
+            && let Ok(stderr) = self.stderr.lock()
+        {
+            eprintln!("language server stderr:\n{}", String::from_utf8_lossy(&stderr));
+        }
     }
 }
 
