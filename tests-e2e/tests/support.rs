@@ -4,8 +4,11 @@ use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
+use std::sync::LazyLock;
 
 use itertools::Itertools;
+use regex::Regex;
+use url::Url;
 
 pub struct TestWorkspace {
     temporary: tempfile::TempDir,
@@ -143,6 +146,29 @@ impl TestWorkspace {
         summary
     }
 
+    pub fn normalize_output(&self, output: &[u8]) -> String {
+        let prefixes = workspace_prefixes(self.path());
+        let output = String::from_utf8_lossy(output);
+        let lines = output.lines().map(|line| {
+            let mut line = line.to_owned();
+            for prefix in &prefixes {
+                line = replace_path_prefix(&line, prefix);
+            }
+            if line.contains("[WORKSPACE]") {
+                line = line.replace('\\', "/");
+            }
+            normalize_process_status(&line)
+        });
+        lines.collect_vec().join("\n")
+    }
+
+    pub fn workspace_stack_frames(&self, output: &Output) -> String {
+        let stderr = self.normalize_output(&output.stderr);
+        let frames = stderr.lines().map(str::trim);
+        let frames = frames.filter(|line| line.starts_with("at ") && line.contains("[WORKSPACE]"));
+        frames.collect_vec().join("\n")
+    }
+
     pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {
         let path = self.path().join("spago-calls");
         let source = match fs::read_to_string(path) {
@@ -161,6 +187,57 @@ impl TestWorkspace {
         }
         assert_eq!(actual_arguments, expected);
     }
+}
+
+pub fn workspace_prefixes(workspace: &Path) -> Vec<String> {
+    let mut paths = vec![workspace.to_path_buf()];
+    if let Ok(canonical) = dunce::canonicalize(workspace)
+        && canonical != workspace
+    {
+        paths.push(canonical);
+    }
+    let mut prefixes = paths
+        .into_iter()
+        .flat_map(|path| {
+            let native = path.to_string_lossy().trim_end_matches(['/', '\\']).to_string();
+            let slash = native.replace('\\', "/");
+            let uri = Url::from_directory_path(&path)
+                .expect("invariant violated: workspace path is not absolute")
+                .to_string()
+                .trim_end_matches('/')
+                .to_string();
+            [native, slash, uri]
+        })
+        .collect::<Vec<_>>();
+    prefixes
+        .sort_unstable_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
+    prefixes.dedup();
+    prefixes
+}
+
+pub fn replace_path_prefix(value: &str, prefix: &str) -> String {
+    let mut result = String::with_capacity(value.len());
+    let mut remaining = value;
+    while let Some(index) = remaining.find(prefix) {
+        let suffix = &remaining[index + prefix.len()..];
+        let boundary = suffix.is_empty() || suffix.starts_with(['/', '\\']);
+        result.push_str(&remaining[..index]);
+        if boundary {
+            result.push_str("[WORKSPACE]");
+        } else {
+            result.push_str(prefix);
+        }
+        remaining = suffix;
+    }
+    result.push_str(remaining);
+    result
+}
+
+pub fn normalize_process_status(text: &str) -> String {
+    static STATUS: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"exit (?:status|code): (-?\d+)").unwrap());
+
+    STATUS.replace_all(text, "exit code: $1").into_owned()
 }
 
 fn collect_files(directory: &Path, files: &mut Vec<PathBuf>) {

@@ -72,9 +72,12 @@ main = fail Unit
 
     let output = workspace.command(&["test", "--quiet"]);
 
-    let stderr = String::from_utf8_lossy(&output.stderr).replace('\\', "/");
     assert!(!output.status.success());
-    assert!(stderr.contains("test/Test/Main.purs:10:8"), "unmapped stack trace:\n{stderr}");
+    insta::assert_snapshot!(workspace.workspace_stack_frames(&output), @"
+    at fail ([WORKSPACE]/output/Test.Main/foreign.js:1:35)
+    at <anonymous> ([WORKSPACE]/test/Test/Main.purs:10:8)
+    at async [WORKSPACE]/[eval1]:4:16
+    ");
 }
 
 #[test]

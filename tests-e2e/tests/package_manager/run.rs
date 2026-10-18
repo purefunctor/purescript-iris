@@ -66,9 +66,12 @@ main = fail Unit
 
     let output = workspace.command(&["run", "--quiet"]);
 
-    let stderr = String::from_utf8_lossy(&output.stderr).replace('\\', "/");
     assert!(!output.status.success());
-    assert!(stderr.contains("src/Main.purs:10:8"), "unmapped stack trace:\n{stderr}");
+    insta::assert_snapshot!(workspace.workspace_stack_frames(&output), @"
+    at fail ([WORKSPACE]/output/Main/foreign.js:1:35)
+    at <anonymous> ([WORKSPACE]/src/Main.purs:10:8)
+    at async [WORKSPACE]/[eval1]:4:16
+    ");
 }
 
 #[test]
@@ -97,7 +100,7 @@ foreign import main :: Effect Unit
 
     assert_eq!(output.status.code(), Some(7));
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).starts_with("Node.js exited with status "));
+    insta::assert_snapshot!(workspace.normalize_output(&output.stderr), @"Node.js exited with status exit code: 7");
 }
 
 #[test]
