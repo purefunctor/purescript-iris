@@ -7,6 +7,8 @@ source: tests-integration/src/fixtures.rs
   | ^ unmapped
 3 | export function describe(count) {
   | ^ 6:1 describe count =
+  |        ^ (describe) 6:1 describe count =
+  |                                 ^ 6:1 describe count =
 4 |   const doubled = count * (2 | 0) | 0;
   |   ^ 8:5 doubled = count * 2
   |                   ^ 8:15 count * 2

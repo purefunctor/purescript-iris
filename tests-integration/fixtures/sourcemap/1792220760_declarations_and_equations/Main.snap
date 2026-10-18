@@ -21,6 +21,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 3:27 Rectangle Int Int
 10 | export function width($shape) {
    | ^ 6:1 width (Circle radius) = radius
+   |        ^ (width) 6:1 width (Circle radius) = radius
+   |                               ^ 6:1 width (Circle radius) = radius
 11 |   if ($shape.tag === "Circle") {
    |   ^ 6:1 width (Circle radius) = radius
 12 |     const { _1: radius } = $shape;

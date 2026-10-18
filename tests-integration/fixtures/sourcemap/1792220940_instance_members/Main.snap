@@ -7,6 +7,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 6:21 Green
  3 | export function describe(dictionary) {
    | ^ 4:3 describe :: a -> String
+   |        ^ (describe) 4:3 describe :: a -> String
+   |                                      ^ 4:3 describe :: a -> String
  4 |   return dictionary.describe;
    |   ^ 4:3 describe :: a -> String
  5 | }

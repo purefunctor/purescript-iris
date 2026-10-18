@@ -7,8 +7,11 @@ source: tests-integration/src/fixtures.rs
    | ^ unmapped
  3 | export function sumTo(total) {
    | ^ 6:1 sumTo total count
+   |        ^ (sumTo) 6:1 sumTo total count
+   |                              ^ 6:1 sumTo total count
  4 |   return (count) => {
-   |   ^ 6:1 sumTo total count
+   |   ^ (sumTo) 6:1 sumTo total count
+   |                     ^ 6:1 sumTo total count
  5 |     let $argument0 = total;
    |     ^ 6:1 sumTo total count
  6 |     let $argument1 = count;

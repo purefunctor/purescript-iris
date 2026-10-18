@@ -13,6 +13,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 5:13 Pair Int Int
  6 | export function sum(pair) {
    | ^ 10:1 sum pair =
+   |        ^ (sum) 10:1 sum pair =
+   |                           ^ 10:1 sum pair =
  7 |   if (pair.tag === "Pair") {
    |   ^ 12:5 (Pair left right) = pair
    |       ^ 12:25 pair
@@ -34,6 +36,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 10:1 sum pair =
 14 | export function difference(pair) {
    | ^ 17:1 difference pair = case pair of
+   |        ^ (difference) 17:1 difference pair = case pair of
+   |                                  ^ 17:1 difference pair = case pair of
 15 |   if (pair.tag === "Pair") {
    |   ^ 18:3 (Pair left right) -> left - right
    |       ^ 17:24 pair of
@@ -53,6 +57,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 17:1 difference pair = case pair of
 21 | export function first(pair) {
    | ^ 21:1 first pair = case pair of
+   |        ^ (first) 21:1 first pair = case pair of
+   |                             ^ 21:1 first pair = case pair of
 22 |   if (pair.tag === "Pair") {
    |   ^ 22:3 left :& _ -> left
    |       ^ 21:19 pair of

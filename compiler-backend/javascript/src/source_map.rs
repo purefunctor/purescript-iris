@@ -3,6 +3,7 @@ use std::sync::Arc;
 use functional::tree::Origin;
 use line_index::{LineIndex, WideEncoding};
 use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
 use stabilizing::StabilizedModule;
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, TextSize};
 
@@ -14,16 +15,18 @@ pub struct Position {
     pub column: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct OriginMapping {
     pub(crate) generated: Position,
     pub(crate) origin: Option<Origin>,
+    pub(crate) name: Option<SmolStr>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceMapping {
     pub generated: Position,
     pub source: Option<Position>,
+    pub name: Option<SmolStr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,27 +40,29 @@ impl SourceMap {
     }
 
     pub fn to_json(&self, source: &str) -> String {
+        let mut names = Vec::new();
+        let mut name_ids = FxHashMap::default();
         let tokens = self.mappings.iter().map(|mapping| {
             let Position { line, column } = mapping.generated;
-            match mapping.source {
-                Some(source) => oxc_sourcemap::Token::new(
-                    line,
-                    column,
-                    source.line,
-                    source.column,
-                    Some(0),
-                    None,
-                ),
-                None => oxc_sourcemap::Token::new(line, column, 0, 0, None, None),
-            }
+            let Some(source) = mapping.source else {
+                return oxc_sourcemap::Token::new(line, column, 0, 0, None, None);
+            };
+            let name_id = mapping.name.as_deref().map(|name| {
+                *name_ids.entry(name).or_insert_with(|| {
+                    names.push(name.into());
+                    names.len() as u32 - 1
+                })
+            });
+            oxc_sourcemap::Token::new(line, column, source.line, source.column, Some(0), name_id)
         });
+        let tokens = tokens.collect();
         let source_map = oxc_sourcemap::SourceMap::new(
             Some(INDEX_FILENAME.into()),
-            Vec::new(),
+            names,
             None,
             vec![source.into()],
             Vec::new(),
-            tokens.collect(),
+            tokens,
             None,
         );
         source_map.to_json_string()
@@ -78,11 +83,14 @@ pub fn source_map(
                 .entry(origin)
                 .or_insert_with(|| origin_position(origin, root, stabilized, line_index))
         });
+        let name = source.and(mapping.name.clone());
         let continues_previous = mappings.last().is_some_and(|previous| {
-            previous.generated.line == mapping.generated.line && previous.source == source
+            previous.generated.line == mapping.generated.line
+                && previous.source == source
+                && previous.name == name
         });
         if !continues_previous {
-            mappings.push(SourceMapping { generated: mapping.generated, source });
+            mappings.push(SourceMapping { generated: mapping.generated, source, name });
         }
     }
     SourceMap { mappings: mappings.into() }

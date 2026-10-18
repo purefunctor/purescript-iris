@@ -2,7 +2,8 @@
 source: tests-integration/src/fixtures.rs
 ---
 1 | function $delete(value) {
-  | ^ 6:1 delete value = value
+  | ^ (delete) 6:1 delete value = value
+  |                         ^ 6:1 delete value = value
 2 |   return value;
   |   ^ 6:16 value
 3 | }

@@ -7,10 +7,15 @@ source: tests-integration/src/fixtures.rs
    | ^ unmapped
  3 | export function lookup(monadMDict) {
    | ^ 6:1 lookup ask record = do
+   |        ^ (lookup) 6:1 lookup ask record = do
+   |                                    ^ 6:1 lookup ask record = do
  4 |   const $closure = (ask) => {
    |   ^ 6:1 lookup ask record = do
+   |         ^ (lookup) 6:1 lookup ask record = do
+   |                             ^ 6:1 lookup ask record = do
  5 |     return (record) => {
-   |     ^ 6:1 lookup ask record = do
+   |     ^ (lookup) 6:1 lookup ask record = do
+   |                        ^ 6:1 lookup ask record = do
  6 |       const $closure$1 = ($record) => {
    |       ^ 7:3 { value } <- ask
  7 |         const value = $record.value;

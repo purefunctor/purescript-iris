@@ -7,10 +7,15 @@ source: tests-integration/src/fixtures.rs
    | ^ unmapped
  3 | export function showBoth(showADict) {
    | ^ 6:1 showBoth first second =
+   |        ^ (showBoth) 6:1 showBoth first second =
+   |                                     ^ 6:1 showBoth first second =
  4 |   const $closure = (first) => {
    |   ^ 6:1 showBoth first second =
+   |         ^ (showBoth) 6:1 showBoth first second =
+   |                               ^ 6:1 showBoth first second =
  5 |     return (second) => {
-   |     ^ 6:1 showBoth first second =
+   |     ^ (showBoth) 6:1 showBoth first second =
+   |                        ^ 6:1 showBoth first second =
  6 |       const showArrayDict = /* @__PURE__ */ Data_Show.showArray(showADict);
    |       ^ 7:3 show first <> show second
  7 |       return /* @__PURE__ */ semigroupStringDictAppend(/* @__PURE__ */ Data_Show.show(showArrayDict)(first))(/* @__PURE__ */ Data_Show.show(showArrayDict)(second));
@@ -31,8 +36,11 @@ source: tests-integration/src/fixtures.rs
    | ^ 6:1 showBoth first second =
 12 | export function showIntegers(first) {
    | ^ 10:1 showIntegers first second =
+   |        ^ (showIntegers) 10:1 showIntegers first second =
+   |                                     ^ 10:1 showIntegers first second =
 13 |   return (second) => {
-   |   ^ 10:1 showIntegers first second =
+   |   ^ (showIntegers) 10:1 showIntegers first second =
+   |                      ^ 10:1 showIntegers first second =
 14 |     return /* @__PURE__ */ semigroupStringDictAppend(/* @__PURE__ */ showArrayIntDictShow(first))(/* @__PURE__ */ showArrayIntDictShow(second));
    |     ^ 11:3 show first <> show second
    |                                                                                           ^ 11:8 first <> show second

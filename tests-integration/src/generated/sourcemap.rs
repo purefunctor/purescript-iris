@@ -21,8 +21,9 @@ pub fn report(engine: &QueryEngine, id: FileId) -> FixtureResult<String> {
         writeln!(report, "{}", format!("{number:>width$} | {text}").trim_end())?;
         while let Some(mapping) = mappings.next_if(|mapping| mapping.generated.line == line) {
             let indent = " ".repeat(mapping.generated.column as usize);
+            let name = mapping.name.as_ref().map(|name| format!("({name}) ")).unwrap_or_default();
             let source = source_excerpt(&content, &line_index, mapping.source);
-            writeln!(report, "{:width$} | {indent}^ {source}", "")?;
+            writeln!(report, "{:width$} | {indent}^ {name}{source}", "")?;
         }
     }
     Ok(report)

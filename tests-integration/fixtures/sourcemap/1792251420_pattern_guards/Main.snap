@@ -7,8 +7,11 @@ source: tests-integration/src/fixtures.rs
    | ^ unmapped
  3 | export function first(left) {
    | ^ 8:1 first left right
+   |        ^ (first) 8:1 first left right
+   |                             ^ 8:1 first left right
  4 |   return (right) => {
-   |   ^ 8:1 first left right
+   |   ^ (first) 8:1 first left right
+   |                     ^ 8:1 first left right
  5 |     if (left.tag === "Just") {
    |     ^ 9:5 Just value <- left = value
    |         ^ 9:19 left = value

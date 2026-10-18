@@ -94,7 +94,8 @@ Do not split by cursor count; follow the examples in `tests-integration/AGENTS.m
 Use `tests-integration/fixtures/sourcemap/<fixture>/Main.purs` as the entry point. `Main.snap`
 prints each line of the module's generated `index.js`, followed by a caret under each mapped
 column with the 1-based PureScript `line:column` that it maps to and the source text from there to
-the end of its line, or `unmapped`. Add a foreign `Main.js` when the behavior needs foreign imports.
+the end of its line, or `unmapped`. A mapping that names a PureScript function shows the name in
+parentheses before its position. Add a foreign `Main.js` when the behavior needs foreign imports.
 The harness fails a fixture whose modules have errors.
 
 Source map fixtures use `tests-integration/packages.json`, like compiler fixtures. Every generated
@@ -213,6 +214,13 @@ generated for one equation or case alternative must not map to a sibling. Import
 the control flow of the `$tail_` dispatcher shared by mutually recursive top-level functions are
 unmapped; treat other new `unmapped` lines, and mappings into unrelated source lines, as
 regressions.
+
+Names identify the function that a stack frame belongs to. A function defined by a named
+declaration or local binding carries that PureScript name, and so does each function that it
+returns. The name is on the mappings of the function's header: its `function` keyword, binding, or
+`return`, its parameters, and the call of an immediately invoked arrow. The first mapping of the
+body is unnamed. Lambdas, generated helpers such as dispatchers and captured effects, and functions
+that inlining separates from their binding, such as an inlined local function, carry no name.
 
 ## Acceptance Criteria
 

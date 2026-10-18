@@ -61,6 +61,10 @@ impl<'a> Tree<'a> {
         self.program_text.span()
     }
 
+    fn named_span(&self, source_name: Option<SmolStr>) -> Span {
+        self.program_text.named_span(source_name)
+    }
+
     fn allocate(&mut self, expression: Expression<'a>) -> ExpressionId {
         ExpressionId(self.expressions.alloc(Some(expression)).into_raw())
     }
@@ -374,15 +378,20 @@ impl<'a> Tree<'a> {
         self.allocate(expression)
     }
 
-    pub(crate) fn arrow(&mut self, parameters: Vec<SmolStr>, body: ExpressionId) -> ExpressionId {
+    pub(crate) fn arrow(
+        &mut self,
+        source_name: Option<SmolStr>,
+        parameters: Vec<SmolStr>,
+        body: ExpressionId,
+    ) -> ExpressionId {
         let parameters = parameters.into_iter().map(|parameter| {
             let pattern = BindingPattern::new_binding_identifier(
-                self.span(),
+                self.named_span(Option::clone(&source_name)),
                 self.text(&parameter),
                 &self.builder,
             );
             FormalParameter::new(
-                self.span(),
+                self.named_span(Option::clone(&source_name)),
                 [],
                 pattern,
                 None,
@@ -396,7 +405,7 @@ impl<'a> Tree<'a> {
         });
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         let parameters = FormalParameters::boxed(
-            self.span(),
+            self.named_span(Option::clone(&source_name)),
             FormalParameterKind::ArrowFormalParameters,
             parameters,
             None,
@@ -404,7 +413,7 @@ impl<'a> Tree<'a> {
         );
         let body = ArrowFunctionBody::from(self.expression(body));
         let expression = Expression::new_arrow_function_expression(
-            self.span(),
+            self.named_span(source_name),
             false,
             None,
             parameters,

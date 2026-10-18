@@ -3,6 +3,8 @@ source: tests-integration/src/fixtures.rs
 ---
 1 | export function pairSum(pair) {
   | ^ 6:1 pairSum pair =
+  |        ^ (pairSum) 6:1 pairSum pair =
+  |                               ^ 6:1 pairSum pair =
 2 |   const left = pair.left;
   |   ^ 8:5 { left, right } = pair
   |                ^ 8:23 pair

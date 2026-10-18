@@ -58,8 +58,11 @@ foreign import data Effect :: Type -> Type
 
 foreign import fail :: Unit -> Effect Unit
 
+validate' :: Unit -> Effect Unit
+validate' unit = fail unit
+
 main :: Effect Unit
-main = fail Unit
+main = validate' Unit
 "#,
     );
     workspace.write("src/Main.js", "export const fail = () => { throw new Error(\"failed\"); };\n");
@@ -69,7 +72,8 @@ main = fail Unit
     assert!(!output.status.success());
     insta::assert_snapshot!(workspace.workspace_stack_frames(&output), @"
     at fail ([WORKSPACE]/output/Main/foreign.js:1:35)
-    at <anonymous> ([WORKSPACE]/src/Main.purs:10:8)
+    at validate' ([WORKSPACE]/src/Main.purs:10:18)
+    at <anonymous> ([WORKSPACE]/src/Main.purs:13:8)
     at async [WORKSPACE]/[eval1]:4:16
     ");
 }

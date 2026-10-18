@@ -11,6 +11,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 5:12 Box Int
  5 | export function unbox(box) {
    | ^ 8:1 unbox box = helper box
+   |        ^ (unbox) 8:1 unbox box = helper box
+   |                            ^ 8:1 unbox box = helper box
  6 |   const $closure = ($box) => {
    |   ^ 8:13 helper box
  7 |     if ($box.tag === "Box") {
@@ -37,12 +39,16 @@ source: tests-integration/src/fixtures.rs
    | ^ 8:1 unbox box = helper box
 16 | export function size($array) {
    | ^ 13:1 size _ = 0
+   |        ^ (size) 13:1 size _ = 0
+   |                              ^ 13:1 size _ = 0
 17 |   return 0 | 0;
    |   ^ 13:10 0
 18 | }
    | ^ 13:1 size _ = 0
 19 | export function count(values) {
    | ^ 16:1 count values =
+   |        ^ (count) 16:1 count values =
+   |                               ^ 16:1 count values =
 20 |   return size(values);
    |   ^ 20:5 measure values
    |               ^ 20:13 values
@@ -51,6 +57,8 @@ source: tests-integration/src/fixtures.rs
    | ^ 16:1 count values =
 22 | export function distance(composeArgument) {
    | ^ 27:1 distance = Meters >>> Distance
+   |        ^ (distance) 27:1 distance = Meters >>> Distance
+   |                                           ^ 27:1 distance = Meters >>> Distance
 23 |   return /* @__PURE__ */ ((value) => value)(/* @__PURE__ */ ((value$1) => value$1)(composeArgument));
    |   ^ 27:12 Meters >>> Distance
    |                            ^ 27:23 Distance

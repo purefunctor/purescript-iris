@@ -18,7 +18,7 @@ use oxc_syntax::operator::AssignmentOperator;
 use smol_str::SmolStr;
 
 use crate::convert::identifier_is_binding;
-use crate::program_text::ProgramText;
+use crate::program_text::{ProgramNode, ProgramText};
 use crate::source_map::{OriginMapping, Position};
 use crate::tree::{ExpressionId, Tree};
 
@@ -55,6 +55,14 @@ impl<'a> Writer<'a> {
         self.program_text.span()
     }
 
+    fn named_span(&self) -> Span {
+        self.program_text.named_span(self.function_name())
+    }
+
+    pub(crate) fn function_name(&self) -> Option<SmolStr> {
+        self.program_text.function_name()
+    }
+
     fn text(&self, value: &str) -> &'a str {
         self.allocator.alloc_str(value)
     }
@@ -63,16 +71,24 @@ impl<'a> Writer<'a> {
         BindingIdentifier::new(self.span(), self.text(name), &self.builder)
     }
 
+    fn named_binding(&self, name: &str) -> BindingIdentifier<'a> {
+        BindingIdentifier::new(self.named_span(), self.text(name), &self.builder)
+    }
+
     fn binding_pattern(&self, name: &str) -> BindingPattern<'a> {
         BindingPattern::new_binding_identifier(self.span(), self.text(name), &self.builder)
+    }
+
+    fn named_binding_pattern(&self, name: &str) -> BindingPattern<'a> {
+        BindingPattern::new_binding_identifier(self.named_span(), self.text(name), &self.builder)
     }
 
     fn parameters(&self, parameters: &[SmolStr]) -> oxc_allocator::Box<'a, FormalParameters<'a>> {
         let parameters = parameters.iter().map(|parameter| {
             FormalParameter::new(
-                self.span(),
+                self.named_span(),
                 [],
-                self.binding_pattern(parameter),
+                self.named_binding_pattern(parameter),
                 None,
                 None,
                 false,
@@ -84,7 +100,7 @@ impl<'a> Writer<'a> {
         });
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         FormalParameters::boxed(
-            self.span(),
+            self.named_span(),
             FormalParameterKind::FormalParameter,
             parameters,
             None,
@@ -118,7 +134,7 @@ impl<'a> Writer<'a> {
             &self.builder,
         );
         Expression::new_arrow_function_expression(
-            self.span(),
+            self.named_span(),
             false,
             None,
             parameters,
@@ -131,18 +147,12 @@ impl<'a> Writer<'a> {
     fn variable_statement(
         &self,
         kind: VariableDeclarationKind,
-        name: &str,
+        binding: BindingPattern<'a>,
         value: Option<Expression<'a>>,
         exported: bool,
     ) -> Statement<'a> {
-        let declarator = VariableDeclarator::new(
-            self.span(),
-            self.binding_pattern(name),
-            None,
-            value,
-            false,
-            &self.builder,
-        );
+        let declarator =
+            VariableDeclarator::new(self.span(), binding, None, value, false, &self.builder);
         let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
         let declaration =
             VariableDeclaration::boxed(self.span(), kind, declarations, false, &self.builder);
@@ -211,7 +221,7 @@ impl<'a> Writer<'a> {
     ) {
         let statement = self.variable_statement(
             VariableDeclarationKind::Const,
-            name,
+            self.binding_pattern(name),
             Some(tree.expression(value)),
             exported,
         );
@@ -255,14 +265,16 @@ impl<'a> Writer<'a> {
     }
 
     pub(crate) fn mutable(&mut self, name: &str) {
-        let statement = self.variable_statement(VariableDeclarationKind::Let, name, None, false);
+        let binding = self.binding_pattern(name);
+        let statement = self.variable_statement(VariableDeclarationKind::Let, binding, None, false);
         self.statements.push(statement);
     }
 
     pub(crate) fn mutable_value(&mut self, tree: &mut Tree<'a>, name: &str, value: ExpressionId) {
         let value = tree.expression(value);
+        let binding = self.binding_pattern(name);
         let statement =
-            self.variable_statement(VariableDeclarationKind::Let, name, Some(value), false);
+            self.variable_statement(VariableDeclarationKind::Let, binding, Some(value), false);
         self.statements.push(statement);
     }
 
@@ -294,6 +306,14 @@ impl<'a> Writer<'a> {
         ));
     }
 
+    pub(crate) fn return_function(&mut self, tree: &mut Tree<'a>, function: ExpressionId) {
+        self.statements.push(Statement::new_return_statement(
+            self.named_span(),
+            Some(tree.expression(function)),
+            &self.builder,
+        ));
+    }
+
     pub(crate) fn break_label(&mut self, label: &str) {
         let label = LabelIdentifier::new(self.span(), self.text(label), &self.builder);
         self.statements.push(Statement::new_break_statement(
@@ -310,16 +330,18 @@ impl<'a> Writer<'a> {
     pub(crate) fn function<R>(
         &mut self,
         name: &str,
+        source_name: Option<SmolStr>,
         parameters: Vec<SmolStr>,
         exported: bool,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(source_name);
         let mut body = self.child();
         let result = render(&mut body);
         let function = Function::boxed(
-            self.span(),
+            self.named_span(),
             FunctionType::FunctionDeclaration,
-            Some(self.binding(name)),
+            Some(self.named_binding(name)),
             false,
             false,
             false,
@@ -346,14 +368,21 @@ impl<'a> Writer<'a> {
     pub(crate) fn constant_arrow<R>(
         &mut self,
         name: &str,
+        source_name: Option<SmolStr>,
         parameters: Vec<SmolStr>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(source_name);
         let mut body = self.child();
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
-        let statement =
-            self.variable_statement(VariableDeclarationKind::Const, name, Some(expression), false);
+        let binding = self.named_binding_pattern(name);
+        let statement = self.variable_statement(
+            VariableDeclarationKind::Const,
+            binding,
+            Some(expression),
+            false,
+        );
         self.statements.push(statement);
         result
     }
@@ -367,7 +396,7 @@ impl<'a> Writer<'a> {
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
         self.statements.push(Statement::new_return_statement(
-            self.span(),
+            self.named_span(),
             Some(expression),
             &self.builder,
         ));
@@ -380,6 +409,7 @@ impl<'a> Writer<'a> {
         parameters: Vec<SmolStr>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(None);
         let mut body = self.child();
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
@@ -406,15 +436,17 @@ impl<'a> Writer<'a> {
     pub(crate) fn constant_iife<R>(
         &mut self,
         name: &str,
+        source_name: Option<SmolStr>,
         exported: bool,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(source_name);
         let mut body = self.child();
         let result = render(&mut body);
         let has_eager_throw = body.has_eager_throw;
         let arrow = self.arrow_expression(&[], body.statements);
         let call = Expression::new_call_expression_with_pure(
-            self.span(),
+            self.named_span(),
             arrow,
             None,
             [],
@@ -422,8 +454,9 @@ impl<'a> Writer<'a> {
             !has_eager_throw,
             &self.builder,
         );
+        let binding = self.named_binding_pattern(name);
         let statement =
-            self.variable_statement(VariableDeclarationKind::Const, name, Some(call), exported);
+            self.variable_statement(VariableDeclarationKind::Const, binding, Some(call), exported);
         self.statements.push(statement);
         self.has_eager_throw |= has_eager_throw;
         result
@@ -436,6 +469,7 @@ impl<'a> Writer<'a> {
         name: Expression<'a>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(None);
         let mut body = self.child();
         let result = render(&mut body);
         let body = self.arrow_expression(&[], body.statements);
@@ -451,7 +485,8 @@ impl<'a> Writer<'a> {
         );
         let statement = match target {
             BindingCallTarget::Constant(name) => {
-                self.variable_statement(VariableDeclarationKind::Const, name, Some(call), false)
+                let binding = self.binding_pattern(name);
+                self.variable_statement(VariableDeclarationKind::Const, binding, Some(call), false)
             }
             BindingCallTarget::Assignment(name) => {
                 let target = AssignmentTarget::new_assignment_target_identifier(
@@ -700,15 +735,17 @@ impl<'a> Writer<'a> {
         let mut mappings = Vec::<OriginMapping>::new();
         for token in map.get_tokens() {
             let generated = Position { line: token.get_dst_line(), column: token.get_dst_col() };
-            let origin = program_text.line_origin(token.get_src_line());
-            if mappings.last().is_some_and(|previous| previous.generated == generated) {
-                mappings.pop();
+            let ProgramNode { origin, mut name } = program_text.line_node(token.get_src_line());
+            if let Some(previous) = mappings.pop_if(|previous| previous.generated == generated) {
+                name = name.or(previous.name);
             }
             let continues_previous = mappings.last().is_some_and(|previous| {
-                previous.generated.line == generated.line && previous.origin == origin
+                previous.generated.line == generated.line
+                    && previous.origin == origin
+                    && previous.name == name
             });
             if !continues_previous {
-                mappings.push(OriginMapping { generated, origin });
+                mappings.push(OriginMapping { generated, origin, name });
             }
         }
         (output.code, mappings)
