@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | export function offset(value) {
+  | ^ 6:1 offset value =
+  |        ^ (offset) 6:1 offset value =
+  |                               ^ 6:1 offset value =
+2 |   return (1 | 0) + (value * (2 | 0) | 0) | 0;
+  |   ^ 10:5 1 + doubled
+  |                     ^ 8:15 value * 2
+  |                              ^ 8:23 2
+  |                                       ^ 10:9 doubled
+  |                                            ^ 10:5 1 + doubled
+3 | }
+  | ^ 6:1 offset value =

@@ -1,0 +1,76 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export const Pair = ($value0) => ($value1) => ({
+   | ^ 5:13 Pair Int Int
+ 2 |   tag: "Pair",
+   |   ^ 5:13 Pair Int Int
+ 3 |   _1: $value0,
+   |   ^ 5:13 Pair Int Int
+ 4 |   _2: $value1
+   |   ^ 5:13 Pair Int Int
+ 5 | });
+   | ^ 5:13 Pair Int Int
+ 6 | export function sum(pair) {
+   | ^ 10:1 sum pair =
+   |        ^ (sum) 10:1 sum pair =
+   |                           ^ 10:1 sum pair =
+ 7 |   if (pair.tag === "Pair") {
+   |   ^ 12:5 (Pair left right) = pair
+   |       ^ 12:25 pair
+   |            ^ 12:5 (Pair left right) = pair
+ 8 |     const { _1: left, _2: right } = pair;
+   |     ^ 12:5 (Pair left right) = pair
+   |                                     ^ 12:25 pair
+ 9 |     return left + right | 0;
+   |     ^ 14:5 left + right
+   |                   ^ 14:12 right
+   |                           ^ 14:5 left + right
+10 |   } else {
+   |   ^ 12:5 (Pair left right) = pair
+11 |     throw new Error("Pattern match failure");
+   |     ^ 12:5 (Pair left right) = pair
+12 |   }
+   |   ^ 12:5 (Pair left right) = pair
+13 | }
+   | ^ 10:1 sum pair =
+14 | export function difference(pair) {
+   | ^ 17:1 difference pair = case pair of
+   |        ^ (difference) 17:1 difference pair = case pair of
+   |                                  ^ 17:1 difference pair = case pair of
+15 |   if (pair.tag === "Pair") {
+   |   ^ 18:3 (Pair left right) -> left - right
+   |       ^ 17:24 pair of
+   |            ^ 18:3 (Pair left right) -> left - right
+16 |     const { _1: left, _2: right } = pair;
+   |     ^ 18:3 (Pair left right) -> left - right
+   |                                     ^ 17:24 pair of
+17 |     return left - right | 0;
+   |     ^ 18:24 left - right
+   |                   ^ 18:31 right
+   |                           ^ 18:24 left - right
+18 |   }
+   |   ^ 18:3 (Pair left right) -> left - right
+19 |   throw new Error("Pattern match failure");
+   |   ^ 17:19 case pair of
+20 | }
+   | ^ 17:1 difference pair = case pair of
+21 | export function first(pair) {
+   | ^ 21:1 first pair = case pair of
+   |        ^ (first) 21:1 first pair = case pair of
+   |                             ^ 21:1 first pair = case pair of
+22 |   if (pair.tag === "Pair") {
+   |   ^ 22:3 left :& _ -> left
+   |       ^ 21:19 pair of
+   |            ^ 22:3 left :& _ -> left
+23 |     const { _1: left } = pair;
+   |     ^ 22:3 left :& _ -> left
+   |                          ^ 21:19 pair of
+24 |     return left;
+   |     ^ 22:16 left
+25 |   }
+   |   ^ 22:3 left :& _ -> left
+26 |   throw new Error("Pattern match failure");
+   |   ^ 21:14 case pair of
+27 | }
+   | ^ 21:1 first pair = case pair of

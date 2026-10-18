@@ -294,7 +294,7 @@ fn check_guarded<'c, Q>(
                 PatternGuard::Boolean { expression } => {
                     checker.tasks.push(Task::Expression(*expression, crumb));
                 }
-                PatternGuard::Pattern { binder, expression } => {
+                PatternGuard::Pattern { binder, expression, .. } => {
                     checker.tasks.push(Task::Binder(*binder, crumb));
                     checker.tasks.push(Task::Expression(*expression, crumb));
                 }

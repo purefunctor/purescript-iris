@@ -142,7 +142,7 @@ where
     ) -> tree::CaseAlternative {
         let where_expression = tree::WhereExpression::new(body.expression);
         let guarded_expression = tree::GuardedExpression::unconditional(where_expression);
-        tree::CaseAlternative { binders: Arc::from(patterns), guarded_expression }
+        tree::CaseAlternative { source: None, binders: Arc::from(patterns), guarded_expression }
     }
 
     pub fn case(

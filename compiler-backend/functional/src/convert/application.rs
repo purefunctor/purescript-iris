@@ -461,8 +461,18 @@ where
             result_type,
         )?;
         let bindings = [
-            Binding { parameter: argument_parameter, expression: argument, source_order: 0 },
-            Binding { parameter: function_parameter, expression: function, source_order: 1 },
+            Binding {
+                parameter: argument_parameter,
+                expression: argument,
+                source_order: 0,
+                origin: None,
+            },
+            Binding {
+                parameter: function_parameter,
+                expression: function,
+                source_order: 1,
+                origin: None,
+            },
         ];
         Ok(self.expression(ExpressionKind::Let {
             recursive: false,
@@ -492,7 +502,12 @@ where
                 let parameter = self.fresh_parameter(name.into())?;
                 let expression = *function;
                 *function = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
-                bindings.push(Binding { parameter, expression, source_order: bindings.len() });
+                bindings.push(Binding {
+                    parameter,
+                    expression,
+                    source_order: bindings.len(),
+                    origin: None,
+                });
             }
         }
 

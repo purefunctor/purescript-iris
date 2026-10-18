@@ -311,7 +311,11 @@ where
             let where_expression = tree::WhereExpression::new(expression);
             tree::GuardedExpression::unconditional(where_expression)
         };
-        alternatives.push(tree::CaseAlternative { binders: binders.into(), guarded_expression });
+        alternatives.push(tree::CaseAlternative {
+            source: Some(branch.source),
+            binders: binders.into(),
+            guarded_expression,
+        });
     }
 
     let exhaustiveness = exhaustive::check_case_patterns(state, context, &trunk_types, branches)?;

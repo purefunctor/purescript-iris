@@ -4,11 +4,16 @@ use std::ops::Index;
 use std::sync::Arc;
 
 use files::FileId;
-use indexing::{DeriveId, InstanceId, TermItemId, TypeItemId};
+use indexing::{
+    ClassMemberId, DataConstructorId, DeriveId, EquationSourceId, ForeignValueId, InstanceId,
+    TermItemId, TypeItemId,
+};
 use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
 use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
+use stabilizing::StabilizedModule;
+use syntax::SyntaxNodePtr;
 
 use crate::stylex::StyleXExpression;
 
@@ -72,8 +77,33 @@ impl Storage {
         &mut self,
         expression: ExpressionId,
         kind: ExpressionKind,
-    ) -> ExpressionKind {
-        std::mem::replace(&mut self.expressions[expression].kind, kind)
+    ) {
+        self.expressions[expression].kind = kind;
+    }
+
+    pub(crate) fn replace_expression(
+        &mut self,
+        expression: ExpressionId,
+        replacement: ExpressionId,
+    ) {
+        let Expression { kind, origin } = Expression::clone(&self.expressions[replacement]);
+        let expression = &mut self.expressions[expression];
+        expression.kind = kind;
+        expression.origin = origin.or(expression.origin);
+    }
+
+    pub(crate) fn set_pattern_origin(&mut self, pattern: PatternId, origin: Origin) {
+        self.patterns[pattern].origin = Some(origin);
+    }
+
+    pub(crate) fn relocate_expression(
+        &mut self,
+        expression: ExpressionId,
+        replacement: ExpressionKind,
+    ) -> ExpressionId {
+        let origin = self.expressions[expression].origin;
+        let kind = std::mem::replace(&mut self.expressions[expression].kind, replacement);
+        self.expressions.alloc(Expression { kind, origin })
     }
 }
 
@@ -99,6 +129,7 @@ pub struct Declaration {
     pub exported: bool,
     pub recursive_group: Option<RecursiveGroupId>,
     pub kind: DeclarationKind,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -129,6 +160,42 @@ pub enum InstanceIdentity {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GeneratedGlobalId(pub u32);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Origin {
+    Expression(lowering::ExpressionId),
+    CaseBranch(lowering::CaseBranchId),
+    PatternGuard(lowering::PatternGuardId),
+    DoStatement(lowering::DoStatementId),
+    Equation(EquationSourceId),
+    LocalEquation(lowering::LetBindingEquationId),
+    LetPattern(lowering::LetBindingId),
+    Constructor(DataConstructorId),
+    Foreign(ForeignValueId),
+    ClassMember(ClassMemberId),
+    Instance(InstanceId),
+    Derive(DeriveId),
+}
+
+impl Origin {
+    pub fn syntax_ptr(self, stabilized: &StabilizedModule) -> Option<SyntaxNodePtr> {
+        match self {
+            Origin::Expression(id) => stabilized.syntax_ptr(id),
+            Origin::CaseBranch(id) => stabilized.syntax_ptr(id),
+            Origin::PatternGuard(id) => stabilized.syntax_ptr(id),
+            Origin::DoStatement(id) => stabilized.syntax_ptr(id),
+            Origin::Equation(EquationSourceId::Value(id)) => stabilized.syntax_ptr(id),
+            Origin::Equation(EquationSourceId::Instance(id)) => stabilized.syntax_ptr(id),
+            Origin::LocalEquation(id) => stabilized.syntax_ptr(id),
+            Origin::LetPattern(id) => stabilized.syntax_ptr(id),
+            Origin::Constructor(id) => stabilized.syntax_ptr(id),
+            Origin::Foreign(id) => stabilized.syntax_ptr(id),
+            Origin::ClassMember(id) => stabilized.syntax_ptr(id),
+            Origin::Instance(id) => stabilized.syntax_ptr(id),
+            Origin::Derive(id) => stabilized.syntax_ptr(id),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RecursiveGroupId(pub u32);
@@ -174,6 +241,7 @@ pub enum Literal {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expression {
     pub kind: ExpressionKind,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -245,12 +313,14 @@ pub struct Binding {
     pub parameter: Parameter,
     pub expression: ExpressionId,
     pub source_order: usize,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseAlternative {
     pub patterns: Arc<[PatternId]>,
     pub expression: ExpressionId,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,6 +338,7 @@ pub enum Guard {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Pattern {
     pub kind: PatternKind,
+    pub origin: Option<Origin>,
 }
 
 #[derive(Debug, PartialEq, Eq)]

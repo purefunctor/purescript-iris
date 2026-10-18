@@ -2,15 +2,16 @@ use std::sync::Arc;
 
 use checking::evidence::Evidence;
 use checking::tree as checking_tree;
-use indexing::{DeriveItemId, IndexedTermItemKind, InstanceItemId, TermItemId};
+use indexing::{DeriveItemId, EquationSourceId, IndexedTermItemKind, InstanceItemId, TermItemId};
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, format_smolstr};
 
 use crate::error::UnsupportedState;
 use crate::tree::{
-    Binding, CaseAlternative, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Global,
-    GlobalId, Guard, GuardedAlternative, InstanceIdentity, PatternId, PatternKind, RecordField,
+    Binding, CaseAlternative, Declaration, DeclarationKind, Expression, ExpressionId,
+    ExpressionKind, Global, GlobalId, Guard, GuardedAlternative, InstanceIdentity, Origin,
+    PatternId, PatternKind, RecordField,
 };
 
 use super::evidence::evidence_variable;
@@ -34,9 +35,12 @@ pub(super) fn term_declaration(
     };
     let global = Global { id: GlobalId::Term(context.file_id, term_id), item_name };
     let recursive_group = context.recursive_groups.get(&term_id).copied();
+    let origin = term_origin(&indexed.kind);
     if matches!(indexed.kind, IndexedTermItemKind::ClassMember { .. }) {
-        let kind = DeclarationKind::Value(class_member_selector(context, term_id)?);
-        return Ok(Some(Declaration { global, exported, recursive_group, kind }));
+        let selector =
+            context.with_origin(origin, |context| class_member_selector(context, term_id))?;
+        let kind = DeclarationKind::Value(selector);
+        return Ok(Some(Declaration { global, exported, recursive_group, kind, origin }));
     }
     let declaration_id = checked
         .tree
@@ -45,7 +49,8 @@ pub(super) fn term_declaration(
     let declaration = &checked.tree[declaration_id];
     let kind = match &declaration.kind {
         checking_tree::TermDeclarationKind::Value(value) => {
-            DeclarationKind::Value(value_declaration(context, value)?)
+            let value = context.with_origin(origin, |context| value_declaration(context, value))?;
+            DeclarationKind::Value(value)
         }
         checking_tree::TermDeclarationKind::Foreign => DeclarationKind::Foreign,
         checking_tree::TermDeclarationKind::Constructor(constructor) => {
@@ -58,7 +63,20 @@ pub(super) fn term_declaration(
             unreachable!("invariant violated: instance stored as a term declaration")
         }
     };
-    Ok(Some(Declaration { global, exported, recursive_group, kind }))
+    Ok(Some(Declaration { global, exported, recursive_group, kind, origin }))
+}
+
+fn term_origin(kind: &IndexedTermItemKind) -> Option<Origin> {
+    match kind {
+        IndexedTermItemKind::ClassMember { id, .. } => Some(Origin::ClassMember(*id)),
+        IndexedTermItemKind::Constructor { id, .. } => Some(Origin::Constructor(*id)),
+        IndexedTermItemKind::Foreign { id } => Some(Origin::Foreign(*id)),
+        IndexedTermItemKind::Operator { .. } => None,
+        IndexedTermItemKind::Value { equations, .. } => {
+            let equation = equations.first()?;
+            Some(Origin::Equation(EquationSourceId::Value(*equation)))
+        }
+    }
 }
 
 fn class_member_selector(
@@ -78,12 +96,13 @@ pub(super) fn instance_declaration(
 ) -> ConversionResult<Declaration> {
     let indexed = &context.indexed.items[item_id];
     let identity = InstanceIdentity::Declared(context.file_id, indexed.id);
+    let origin = Origin::Instance(indexed.id);
     let declaration_id = context
         .checked
         .tree
         .lookup_instance(item_id)
         .ok_or_else(|| context.unsupported(UnsupportedState::MissingInstanceDeclaration))?;
-    convert_instance_declaration(context, identity, declaration_id)
+    convert_instance_declaration(context, identity, origin, declaration_id)
 }
 
 pub(super) fn derive_declaration(
@@ -92,19 +111,34 @@ pub(super) fn derive_declaration(
 ) -> ConversionResult<Declaration> {
     let indexed = &context.indexed.items[item_id];
     let identity = InstanceIdentity::Derived(context.file_id, indexed.id);
+    let origin = Origin::Derive(indexed.id);
     let declaration_id = context
         .checked
         .tree
         .lookup_derive(item_id)
         .ok_or_else(|| context.unsupported(UnsupportedState::MissingInstanceDeclaration))?;
-    convert_instance_declaration(context, identity, declaration_id)
+    convert_instance_declaration(context, identity, origin, declaration_id)
 }
 
 fn convert_instance_declaration(
     context: &mut Context<'_, impl checking::ExternalQueries>,
     identity: InstanceIdentity,
+    origin: Origin,
     declaration_id: checking_tree::TermDeclarationId,
 ) -> ConversionResult<Declaration> {
+    let value = context
+        .with_origin(Some(origin), |context| instance_dictionary(context, declaration_id))?;
+    let item_name = context.instance_name(identity)?;
+    let global = Global { id: GlobalId::Instance(identity), item_name };
+    let kind = DeclarationKind::Value(value);
+    let origin = Some(origin);
+    Ok(Declaration { global, exported: true, recursive_group: None, kind, origin })
+}
+
+fn instance_dictionary(
+    context: &mut Context<'_, impl checking::ExternalQueries>,
+    declaration_id: checking_tree::TermDeclarationId,
+) -> ConversionResult<ExpressionId> {
     let checked = Arc::clone(&context.checked);
     let declaration = &checked.tree[declaration_id];
     let checking_tree::TermDeclarationKind::Instance(instance) = &declaration.kind else {
@@ -141,11 +175,7 @@ fn convert_instance_declaration(
             Ok(context.expression(ExpressionKind::Record { fields: fields.into() }))
         }
     })?;
-    let value = context.parameter_abstraction(parameters, body);
-    let item_name = context.instance_name(identity)?;
-    let global = Global { id: GlobalId::Instance(identity), item_name };
-    let kind = DeclarationKind::Value(value);
-    Ok(Declaration { global, exported: true, recursive_group: None, kind })
+    Ok(context.parameter_abstraction(parameters, body))
 }
 
 fn member_declaration(
@@ -174,13 +204,38 @@ fn equations(
     let Some(first) = equations.first() else {
         return Err(context.unsupported(UnsupportedState::MissingEquation));
     };
-    if equations.len() == 1 {
-        let body = context
-            .evidence_scope(|context| guarded_expression(context, &first.guarded_expression))?;
-        let patterns = function_patterns(context, &first.binders)?;
-        return Ok(context.abstraction(patterns, body));
-    }
+    let origin = equation_origin(first.source);
+    context.with_origin(Some(origin), |context| {
+        if let [equation] = equations {
+            single_equation(context, equation)
+        } else {
+            multiple_equations(context, equations)
+        }
+    })
+}
 
+fn equation_origin(source: checking_tree::EquationSource) -> Origin {
+    match source {
+        checking_tree::EquationSource::Item(source) => Origin::Equation(source),
+        checking_tree::EquationSource::Local(source) => Origin::LocalEquation(source),
+        checking_tree::EquationSource::Generated { derive, .. } => Origin::Derive(derive),
+    }
+}
+
+fn single_equation(
+    context: &mut Context<'_, impl checking::ExternalQueries>,
+    equation: &checking_tree::Equation,
+) -> ConversionResult<ExpressionId> {
+    let body = context
+        .evidence_scope(|context| guarded_expression(context, &equation.guarded_expression))?;
+    let patterns = function_patterns(context, &equation.binders)?;
+    Ok(context.abstraction(patterns, body))
+}
+
+fn multiple_equations(
+    context: &mut Context<'_, impl checking::ExternalQueries>,
+    equations: &[checking_tree::Equation],
+) -> ConversionResult<ExpressionId> {
     let arity = equations.iter().map(|equation| equation.binders.len()).max().unwrap_or(0);
     let mut parameter_patterns = Vec::with_capacity(arity);
     let mut scrutinees = Vec::with_capacity(arity);
@@ -196,7 +251,8 @@ fn equations(
         };
         let parameter = context.fresh_parameter(name)?;
         let pattern = context.pattern(PatternKind::Variable(parameter.clone()));
-        let scrutinee = context.expression(ExpressionKind::Local { parameter: parameter.clone() });
+        let kind = ExpressionKind::Local { parameter: parameter.clone() };
+        let scrutinee = context.storage.allocate_expression(Expression { kind, origin: None });
         parameter_patterns.push(pattern);
         scrutinees.push(scrutinee);
     }
@@ -204,15 +260,7 @@ fn equations(
     let body = context.evidence_scope(|context| {
         let mut alternatives = Vec::with_capacity(equations.len());
         for equation in equations {
-            let mut patterns = patterns(context, &equation.binders)?;
-            let supplied = patterns.len();
-            while patterns.len() < arity {
-                patterns.push(context.pattern(PatternKind::Wildcard));
-            }
-            let expression = guarded_expression(context, &equation.guarded_expression)?;
-            let remaining_arguments = scrutinees.iter().skip(supplied).copied();
-            let expression = context.application(expression, remaining_arguments)?;
-            alternatives.push(CaseAlternative { patterns: patterns.into(), expression });
+            alternatives.push(equation_alternative(context, equation, arity, &scrutinees)?);
         }
         Ok(context.expression(ExpressionKind::Case {
             scrutinees: scrutinees.into(),
@@ -220,6 +268,26 @@ fn equations(
         }))
     })?;
     Ok(context.abstraction(parameter_patterns, body))
+}
+
+fn equation_alternative(
+    context: &mut Context<'_, impl checking::ExternalQueries>,
+    equation: &checking_tree::Equation,
+    arity: usize,
+    scrutinees: &[ExpressionId],
+) -> ConversionResult<CaseAlternative> {
+    let origin = Some(equation_origin(equation.source));
+    context.with_origin(origin, |context| {
+        let mut patterns = patterns(context, &equation.binders)?;
+        let supplied = patterns.len();
+        while patterns.len() < arity {
+            patterns.push(context.pattern(PatternKind::Wildcard));
+        }
+        let expression = guarded_expression(context, &equation.guarded_expression)?;
+        let remaining_arguments = scrutinees.iter().skip(supplied).copied();
+        let expression = context.application(expression, remaining_arguments)?;
+        Ok(CaseAlternative { patterns: patterns.into(), expression, origin })
+    })
 }
 
 fn declaration_abstraction(
@@ -279,20 +347,22 @@ pub(super) fn function_patterns(
 ) -> ConversionResult<Vec<PatternId>> {
     let mut converted = Vec::with_capacity(binders.len());
     for (position, &binder) in binders.iter().enumerate() {
-        let pattern = convert_pattern(context, binder)?;
+        let mut pattern = convert_pattern(context, binder)?;
         let named = matches!(
             context.storage[pattern].kind,
             PatternKind::Variable(_) | PatternKind::Named { .. }
         );
-        if named {
-            converted.push(pattern);
-            continue;
+        if !named {
+            let fallback = format_smolstr!("argument{position}");
+            let type_id = context.checked.tree[binder].type_id;
+            let name = context.type_parameter_name(type_id, fallback)?;
+            let parameter = context.fresh_parameter(name)?;
+            pattern = context.pattern(PatternKind::Named { parameter, pattern });
         }
-        let fallback = format_smolstr!("argument{position}");
-        let type_id = context.checked.tree[binder].type_id;
-        let name = context.type_parameter_name(type_id, fallback)?;
-        let parameter = context.fresh_parameter(name)?;
-        converted.push(context.pattern(PatternKind::Named { parameter, pattern }));
+        if let Some(statement) = context.checked.tree.lookup_binder_statement(binder) {
+            context.storage.set_pattern_origin(pattern, Origin::DoStatement(statement));
+        }
+        converted.push(pattern);
     }
     Ok(converted)
 }
@@ -323,10 +393,12 @@ fn guarded_alternative(
             checking_tree::PatternGuard::Boolean { expression } => {
                 Guard::Boolean(convert_expression(context, *expression)?)
             }
-            checking_tree::PatternGuard::Pattern { binder, expression } => Guard::Pattern {
-                expression: convert_expression(context, *expression)?,
-                pattern: convert_pattern(context, *binder)?,
-            },
+            checking_tree::PatternGuard::Pattern { source, binder, expression } => {
+                let expression = convert_expression(context, *expression)?;
+                let pattern = convert_pattern(context, *binder)?;
+                context.storage.set_pattern_origin(pattern, Origin::PatternGuard(*source));
+                Guard::Pattern { expression, pattern }
+            }
         };
         guards.push(guard);
     }
@@ -350,10 +422,13 @@ pub(super) fn let_bindings(
     let checked = Arc::clone(&context.checked);
     for chunk in bindings.chunks.iter().rev() {
         match chunk {
-            checking_tree::LetBindingChunk::Pattern { binder, where_expression: value, .. } => {
+            checking_tree::LetBindingChunk::Pattern { source, binder, where_expression: value } => {
                 let value = where_expression(context, value)?;
                 let pattern = convert_pattern(context, *binder)?;
-                body = context.expression(ExpressionKind::LetPattern { pattern, value, body });
+                let origin = Some(Origin::LetPattern(*source));
+                body = context.with_origin(origin, |context| {
+                    context.expression(ExpressionKind::LetPattern { pattern, value, body })
+                });
             }
             checking_tree::LetBindingChunk::PatternError { source, .. } => {
                 return Err(context.unsupported(UnsupportedState::PatternBindingError(*source)));
@@ -375,7 +450,9 @@ pub(super) fn let_bindings(
                         let parameter = context.local_parameter(source)?;
                         let expression = value_declaration(context, &declaration.value)?;
                         let source_order = source_order[&declaration_id];
-                        converted.push(Binding { parameter, expression, source_order });
+                        let origin = declaration.value.equations.first();
+                        let origin = origin.map(|equation| equation_origin(equation.source));
+                        converted.push(Binding { parameter, expression, source_order, origin });
                     }
                     body = context.expression(ExpressionKind::Let {
                         recursive: group.is_recursive(),

@@ -10,6 +10,7 @@ pub enum TestCategory {
     Lsp,
     Docs,
     Formatting,
+    SourceMap,
 }
 
 impl TestCategory {
@@ -21,6 +22,7 @@ impl TestCategory {
             TestCategory::Lsp => "lsp",
             TestCategory::Docs => "docs",
             TestCategory::Formatting => "formatting",
+            TestCategory::SourceMap => "sourcemap",
         }
     }
 
@@ -36,6 +38,7 @@ impl TestCategory {
             TestCategory::Lsp => &["lsp"],
             TestCategory::Docs => &["docs"],
             TestCategory::Formatting => &["formatting"],
+            TestCategory::SourceMap => &["sourcemap"],
         }
     }
 
@@ -58,8 +61,9 @@ impl FromStr for TestCategory {
             "lsp" => Ok(TestCategory::Lsp),
             "docs" => Ok(TestCategory::Docs),
             "formatting" => Ok(TestCategory::Formatting),
+            "sourcemap" => Ok(TestCategory::SourceMap),
             _ => bail!(
-                "unknown test category '{}', expected: compiler (c), lowering (l), resolving (r), lsp, docs, formatting",
+                "unknown test category '{}', expected: compiler (c), lowering (l), resolving (r), lsp, docs, formatting, sourcemap",
                 s
             ),
         }

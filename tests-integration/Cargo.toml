@@ -67,3 +67,7 @@ harness = false
 [[test]]
 name = "formatting"
 harness = false
+
+[[test]]
+name = "sourcemap"
+harness = false

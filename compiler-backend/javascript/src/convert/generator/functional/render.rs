@@ -17,7 +17,7 @@ use functional::tree::{
     BinaryOperator as FunctionalBinaryOperator, Binding, CaseAlternative, Declaration,
     DeclarationKind, EffectExpression, ExpressionId as FunctionalExpressionId, ExpressionKind,
     Global, GlobalId, Guard, GuardedAlternative, LocalId, Module as FunctionalModule,
-    ModuleDependency, Parameter, PatternId, PatternKind, RecordUpdate,
+    ModuleDependency, Origin, Parameter, PatternId, PatternKind, RecordField, RecordUpdate,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -30,6 +30,7 @@ use crate::module::{
     Module, ModuleFiles, STYLEX_THEME_FILENAME, foreign_filename, module_filename,
     runtime_filename, stylex_theme_module_filename,
 };
+use crate::program_text::ProgramText;
 use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
 use crate::writer::{BindingCallTarget, Writer};
 
@@ -103,7 +104,7 @@ enum Destination<'a> {
 }
 
 enum CapturedEffectAction {
-    Expression(ExpressionId),
+    Expression { value: ExpressionId, origin: Option<Origin> },
     Effect(Box<CapturedEffect>),
 }
 
@@ -125,6 +126,11 @@ enum PatternBinding {
     Constructor { names: Vec<Option<SmolStr>>, value: ExpressionId },
 }
 
+enum CaseScrutinee {
+    Reusable(FunctionalExpressionId),
+    Rendered(ExpressionId),
+}
+
 // Pending expressions must be evaluated before rendering an eager later sibling.
 struct RenderedExpression {
     value: ExpressionId,
@@ -133,6 +139,7 @@ struct RenderedExpression {
 
 struct TailCallWrapper<'a> {
     name: &'a str,
+    source_name: Option<SmolStr>,
     group: &'a TailCallGroup,
     profile: &'a TailCallProfile,
     state: usize,
@@ -169,6 +176,7 @@ struct UncurriedParameters<'a> {
 
 struct AbstractionBinding<'a> {
     name: &'a str,
+    source_name: Option<SmolStr>,
     parameters: &'a [PatternId],
     body: FunctionalExpressionId,
     uncurried: bool,
@@ -396,8 +404,9 @@ impl<'m> Generator<'m> {
 
     pub(crate) fn generate(self) -> ModuleResult<Module> {
         let allocator = Allocator::default();
-        let mut tree = Tree::new(&allocator);
-        let mut writer = Writer::new(&allocator);
+        let program_text = ProgramText::new();
+        let mut tree = Tree::new(&allocator, ProgramText::clone(&program_text));
+        let mut writer = Writer::new(&allocator, program_text);
         let declarations = sorted_value_declarations(&self);
         let initializer_cycle = {
             let mut renderer = ModuleRenderer {
@@ -416,7 +425,9 @@ impl<'m> Generator<'m> {
             initializer_cycle
         };
         let stylex_theme_source = if let Some(theme) = &self.stylex_theme {
-            let mut writer = Writer::new(&allocator);
+            let program_text = ProgramText::new();
+            let mut tree = Tree::new(&allocator, ProgramText::clone(&program_text));
+            let mut writer = Writer::new(&allocator, program_text);
             let mut renderer = ModuleRenderer {
                 generator: &self,
                 tree: &mut tree,
@@ -444,7 +455,9 @@ impl<'m> Generator<'m> {
         };
         let requires_runtime = self.runtime_namespace.is_some();
         let foreign_kind = self.foreign_import.as_ref().map(|foreign_import| foreign_import.kind);
-        let files = ModuleFiles::new(writer.finish(), stylex_theme_source, foreign_kind);
+        let (index_source, index_mappings) = writer.finish_with_mappings();
+        let files =
+            ModuleFiles::new(index_source, index_mappings, stylex_theme_source, foreign_kind);
         Ok(Module::new(
             self.module.file_id,
             self.module.name.to_string(),
@@ -564,6 +577,7 @@ fn render_constructors(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let DeclarationKind::Constructor { arity } = declaration.kind else {
             continue;
         };
+        let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(declaration.global.id);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         let expression = constructor_expression(tree, &declaration.global.item_name, arity);
@@ -604,11 +618,13 @@ fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleR
             }
             continue;
         }
+        let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(declaration.global.id);
+        let source_name = declaration_source_name(declaration);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         let mut context = FunctionContext::new(&generator.reserved_module_names);
         let mut function_renderer = generator.renderer(tree, writer, &mut context);
-        render_named_function(&mut function_renderer, name, expression, exported)?;
+        render_named_function(&mut function_renderer, name, source_name, expression, exported)?;
         writer.blank();
     }
     Ok(())
@@ -632,7 +648,7 @@ fn render_global_tail_call_group<'t>(
         let mut dispatcher_parameters = vec![state_name];
         dispatcher_parameters.extend(argument_names.iter().cloned());
         context.tail_calls = Some(tail_calls);
-        writer.function(&group.dispatcher_name, dispatcher_parameters, false, |writer| {
+        writer.function(&group.dispatcher_name, None, dispatcher_parameters, false, |writer| {
             generator.render_tail_call_dispatcher(tree, writer, group, &mut context)
         })?;
         context.tail_calls = None;
@@ -648,12 +664,14 @@ fn render_global_tail_call_group<'t>(
             .iter()
             .find(|declaration| declaration.global.id == global)
             .expect("invariant violated: tail-call profile has no declaration");
+        let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(global);
+        let source_name = declaration_source_name(declaration);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         generator.render_global_tail_call_wrapper(
             tree,
             writer,
-            TailCallWrapper { name, group, profile, state },
+            TailCallWrapper { name, source_name, group, profile, state },
             exported,
             &mut context,
         )?;
@@ -718,6 +736,7 @@ impl Generator<'_> {
         profile: &TailCallProfile,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
+        let _origin = tree.enter_origin(profile.origin);
         self.render_tail_call_parameters(tree, writer, profile, 0, context)
     }
 
@@ -765,14 +784,14 @@ impl Generator<'_> {
         exported: bool,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        let TailCallWrapper { name, group, profile, state } = wrapper;
+        let TailCallWrapper { name, source_name, group, profile, state } = wrapper;
         let arguments = profile
             .parameters
             .iter()
             .map(|pattern| self.allocate_pattern_argument(*pattern, context))
             .collect_vec();
         if profile.uncurried {
-            return writer.function(name, arguments.clone(), exported, |writer| {
+            return writer.function(name, source_name, arguments.clone(), exported, |writer| {
                 self.render_tail_call_wrapper_result(
                     tree,
                     writer,
@@ -784,7 +803,7 @@ impl Generator<'_> {
         let Some((first, remaining)) = arguments.split_first() else {
             unreachable!("invariant violated: curried tail-call function has no parameters")
         };
-        writer.function(name, vec![first.clone()], exported, |writer| {
+        writer.function(name, source_name, vec![first.clone()], exported, |writer| {
             self.render_curried_tail_call_wrapper(
                 tree,
                 writer,
@@ -801,14 +820,15 @@ impl Generator<'_> {
         wrapper: TailCallWrapper<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        let TailCallWrapper { name, group, profile, state } = wrapper;
+        let TailCallWrapper { name, source_name, group, profile, state } = wrapper;
+        let _origin = tree.enter_origin(profile.origin);
         let arguments = profile
             .parameters
             .iter()
             .map(|pattern| self.allocate_pattern_argument(*pattern, context))
             .collect_vec();
         if profile.uncurried {
-            return writer.constant_arrow(name, arguments.clone(), |writer| {
+            return writer.constant_arrow(name, source_name, arguments.clone(), |writer| {
                 self.render_tail_call_wrapper_result(
                     tree,
                     writer,
@@ -820,7 +840,7 @@ impl Generator<'_> {
         let Some((first, remaining)) = arguments.split_first() else {
             unreachable!("invariant violated: curried tail-call function has no parameters")
         };
-        writer.constant_arrow(name, vec![first.clone()], |writer| {
+        writer.constant_arrow(name, source_name, vec![first.clone()], |writer| {
             self.render_curried_tail_call_wrapper(
                 tree,
                 writer,
@@ -931,7 +951,7 @@ impl Generator<'_> {
         let mut dispatcher_parameters = vec![state_name];
         dispatcher_parameters.extend(argument_names.iter().cloned());
         let outer_tail_calls = context.tail_calls.replace(tail_calls);
-        writer.constant_arrow(&group.dispatcher_name, dispatcher_parameters, |writer| {
+        writer.constant_arrow(&group.dispatcher_name, None, dispatcher_parameters, |writer| {
             self.render_tail_call_dispatcher(tree, writer, group, context)
         })?;
         context.tail_calls = outer_tail_calls;
@@ -988,6 +1008,7 @@ impl Generator<'_> {
 fn render_named_function(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     name: &str,
+    source_name: Option<SmolStr>,
     expression: FunctionalExpressionId,
     exported: bool,
 ) -> ModuleResult<()> {
@@ -995,7 +1016,7 @@ fn render_named_function(
     match &generator.module.storage[expression].kind {
         ExpressionKind::Abstraction { parameters, body } => {
             let (argument, parameter) = generator.first_argument(parameters, context);
-            writer.function(name, vec![argument.clone()], exported, |writer| {
+            writer.function(name, source_name, vec![argument.clone()], exported, |writer| {
                 if let Some(parameter) = parameter {
                     generator.render_curried_parameter(
                         tree,
@@ -1018,7 +1039,7 @@ fn render_named_function(
                 .iter()
                 .map(|pattern| generator.allocate_pattern_argument(*pattern, context))
                 .collect_vec();
-            writer.function(name, arguments.clone(), exported, |writer| {
+            writer.function(name, source_name, arguments.clone(), exported, |writer| {
                 generator.render_uncurried_parameters(
                     tree,
                     writer,
@@ -1056,12 +1077,14 @@ impl Generator<'_> {
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
         let CurriedParameter { pattern, argument, remaining, body } = parameter;
+        let _origin = tree.enter_origin(self.module.storage[pattern].origin);
         let value = tree.identifier(argument);
         let plan = self.pattern_plan(tree, pattern, value, Some(argument), context)?;
         self.render_pattern_scope(tree, writer, plan, context, |tree, writer, context| {
             let Some((pattern, remaining)) = remaining.split_first() else {
                 return self.render_expression(tree, writer, body, Destination::Return, context);
             };
+            let _origin = tree.enter_origin(self.module.storage[*pattern].origin);
             let argument = self.allocate_pattern_argument(*pattern, context);
             writer.return_arrow(vec![argument.clone()], |writer| {
                 self.render_curried_parameter(
@@ -1085,6 +1108,7 @@ impl Generator<'_> {
         let Some(pattern) = patterns.get(position).copied() else {
             return self.render_expression(tree, writer, body, Destination::Return, context);
         };
+        let _origin = tree.enter_origin(self.module.storage[pattern].origin);
         let argument = &arguments[position];
         let value = tree.identifier(argument);
         let plan = self.pattern_plan(tree, pattern, value, Some(argument), context)?;
@@ -1109,6 +1133,7 @@ fn render_foreign_declarations(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         if !matches!(declaration.kind, DeclarationKind::Foreign) {
             continue;
         }
+        let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(declaration.global.id);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         let object = tree.identifier(&foreign_import.namespace);
@@ -1134,6 +1159,7 @@ fn render_lazy_initializers(renderer: &mut ModuleRenderer<'_, '_, '_>) -> Module
         let DeclarationKind::Value(expression) = declaration.kind else {
             unreachable!("invariant violated: lazy JavaScript declaration is not a value")
         };
+        let _origin = tree.enter_origin(declaration.origin);
         let name = tree.string(declaration.global.item_name.as_str());
         let runtime = tree.identifier(runtime);
         let binding = tree.member(runtime, "binding");
@@ -1166,7 +1192,9 @@ fn render_value_declarations(
             continue;
         }
 
+        let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(declaration.global.id);
+        let source_name = declaration_source_name(declaration);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         let generated = matches!(declaration.global.id, GlobalId::Generated(_, _));
         if rendered && (!previous_was_generated || !generated) {
@@ -1175,7 +1203,7 @@ fn render_value_declarations(
 
         if cyclic {
             initializer_cycle.push(declaration.global.id);
-            writer.constant_iife(name, exported, |writer| {
+            writer.constant_iife(name, source_name, exported, |writer| {
                 writer.throw_error(INITIALIZER_CYCLE_MESSAGE);
             });
             rendered = true;
@@ -1196,7 +1224,7 @@ fn render_value_declarations(
         if let Some(value) = generator.try_inline_expression(tree, expression, &mut context)? {
             writer.constant(tree, name, value, exported);
         } else {
-            writer.constant_iife(name, exported, |writer| {
+            writer.constant_iife(name, source_name, exported, |writer| {
                 generator.render_expression(
                     tree,
                     writer,
@@ -1225,6 +1253,7 @@ impl Generator<'_> {
         destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
+        let _origin = tree.enter_origin(self.module.storage[expression].origin);
         if matches!(
             destination,
             Destination::Return
@@ -1281,6 +1310,11 @@ impl Generator<'_> {
             }
             ExpressionKind::Effect { effect } if !destination.is_effect() => self
                 .render_effect_expression_destination(tree, writer, effect, destination, context),
+            ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. }
+                if matches!(destination, Destination::Return) =>
+            {
+                self.render_returned_function(tree, writer, expression, context)
+            }
             _ => {
                 if matches!(destination, Destination::TailEffectThunkReturn) {
                     return self
@@ -1509,6 +1543,7 @@ impl Generator<'_> {
         expression: FunctionalExpressionId,
         context: &mut FunctionContext,
     ) -> ModuleResult<RenderedExpression> {
+        let _origin = tree.enter_origin(self.module.storage[expression].origin);
         match &self.module.storage[expression].kind {
             ExpressionKind::Array { elements } => {
                 let mut values = Vec::with_capacity(elements.len());
@@ -1550,7 +1585,7 @@ impl Generator<'_> {
                                 );
                             }
                         }
-                        self.render_non_inline_expression(tree, writer, field.expression, context)?
+                        self.render_field_value(tree, writer, field, context)?
                     };
                     rendered_fields.push((field.field.name.clone(), value));
                 }
@@ -1600,26 +1635,8 @@ impl Generator<'_> {
                 let value = binary_expression(tree, *operator, left.value, right.value);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
-            ExpressionKind::Abstraction { parameters, body } => {
-                let name = context.allocate("$closure");
-                self.render_abstraction_binding(
-                    tree,
-                    writer,
-                    AbstractionBinding { name: &name, parameters, body: *body, uncurried: false },
-                    context,
-                )?;
-                let value = tree.identifier(name);
-                Ok(RenderedExpression { value, pending_evaluation: false })
-            }
-            ExpressionKind::UncurriedAbstraction { parameters, body } => {
-                let name = context.allocate("$closure");
-                self.render_abstraction_binding(
-                    tree,
-                    writer,
-                    AbstractionBinding { name: &name, parameters, body: *body, uncurried: true },
-                    context,
-                )?;
-                let value = tree.identifier(name);
+            ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. } => {
+                let value = self.render_closure(tree, writer, expression, None, context)?;
                 Ok(RenderedExpression { value, pending_evaluation: false })
             }
             ExpressionKind::Application { function, arguments, synthetic } => {
@@ -1760,6 +1777,22 @@ impl Generator<'_> {
                 unreachable!("invariant violated: atomic functional expression was not inlineable")
             }
         }
+    }
+
+    fn render_field_value<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        field: &RecordField,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<RenderedExpression> {
+        if !is_abstraction(&self.module.storage[field.expression].kind) {
+            return self.render_non_inline_expression(tree, writer, field.expression, context);
+        }
+        let _origin = tree.enter_origin(self.module.storage[field.expression].origin);
+        let source_name = Some(SmolStr::clone(&field.field.name));
+        let value = self.render_closure(tree, writer, field.expression, source_name, context)?;
+        Ok(RenderedExpression { value, pending_evaluation: false })
     }
 
     fn render_short_circuit_expression<'t>(
@@ -1933,6 +1966,7 @@ impl Generator<'_> {
         expression: FunctionalExpressionId,
         context: &mut FunctionContext,
     ) -> ModuleResult<Option<ExpressionId>> {
+        let _origin = tree.enter_origin(self.module.storage[expression].origin);
         let expression = match &self.module.storage[expression].kind {
             ExpressionKind::Literal { literal } => {
                 literal_expression(tree, literal, self.module.file_id)?
@@ -1987,7 +2021,7 @@ impl Generator<'_> {
             }
             ExpressionKind::Abstraction { parameters, body } => {
                 let Some(expression) =
-                    self.inline_abstraction(tree, parameters, *body, false, context)?
+                    self.inline_abstraction(tree, parameters, *body, false, None, context)?
                 else {
                     return Ok(None);
                 };
@@ -1995,7 +2029,7 @@ impl Generator<'_> {
             }
             ExpressionKind::UncurriedAbstraction { parameters, body } => {
                 let Some(expression) =
-                    self.inline_abstraction(tree, parameters, *body, true, context)?
+                    self.inline_abstraction(tree, parameters, *body, true, None, context)?
                 else {
                     return Ok(None);
                 };
@@ -2151,6 +2185,7 @@ impl Generator<'_> {
         parameters: &[PatternId],
         body: FunctionalExpressionId,
         uncurried: bool,
+        source_name: Option<SmolStr>,
         context: &mut FunctionContext,
     ) -> ModuleResult<Option<ExpressionId>> {
         let mut arguments = Vec::with_capacity(parameters.len());
@@ -2165,13 +2200,16 @@ impl Generator<'_> {
             return Ok(None);
         };
         if uncurried {
-            body = tree.arrow(arguments, body);
+            body = tree.arrow(source_name, arguments, body);
         } else if arguments.is_empty() {
-            body = tree.arrow(Vec::new(), body);
+            body = tree.arrow(source_name, Vec::new(), body);
         } else {
-            for argument in arguments.into_iter().rev() {
-                body = tree.arrow(vec![argument], body);
+            let outermost = arguments.remove(0);
+            for (pattern, argument) in parameters[1..].iter().zip(arguments).rev() {
+                let _origin = tree.enter_origin(self.module.storage[*pattern].origin);
+                body = tree.arrow(Option::clone(&source_name), vec![argument], body);
             }
+            body = tree.arrow(source_name, vec![outermost], body);
         }
         Ok(Some(body))
     }
@@ -2199,6 +2237,69 @@ impl Generator<'_> {
         }
     }
 
+    fn render_returned_function<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        expression: FunctionalExpressionId,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<()> {
+        let source_name = writer.function_name();
+        if self.expression_can_inline(expression) {
+            let function = self.inline_function(tree, expression, source_name, context)?;
+            writer.return_function(tree, function);
+            return Ok(());
+        }
+        let closure = self.render_closure(tree, writer, expression, source_name, context)?;
+        writer.return_expression(tree, closure);
+        Ok(())
+    }
+
+    fn inline_function(
+        &self,
+        tree: &mut Tree,
+        expression: FunctionalExpressionId,
+        source_name: Option<SmolStr>,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<ExpressionId> {
+        let _origin = tree.enter_origin(self.module.storage[expression].origin);
+        let function = match &self.module.storage[expression].kind {
+            ExpressionKind::Abstraction { parameters, body } => {
+                self.inline_abstraction(tree, parameters, *body, false, source_name, context)?
+            }
+            ExpressionKind::UncurriedAbstraction { parameters, body } => {
+                self.inline_abstraction(tree, parameters, *body, true, source_name, context)?
+            }
+            _ => unreachable!("invariant violated: inline function is not an abstraction"),
+        };
+        let function = function
+            .expect("invariant violated: inline eligibility did not match expression rendering");
+        Ok(function)
+    }
+
+    fn render_closure<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        expression: FunctionalExpressionId,
+        source_name: Option<SmolStr>,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<ExpressionId> {
+        let (parameters, body, uncurried) = match &self.module.storage[expression].kind {
+            ExpressionKind::Abstraction { parameters, body } => (parameters, *body, false),
+            ExpressionKind::UncurriedAbstraction { parameters, body } => (parameters, *body, true),
+            _ => unreachable!("invariant violated: closure is not an abstraction"),
+        };
+        let name = context.allocate("$closure");
+        self.render_abstraction_binding(
+            tree,
+            writer,
+            AbstractionBinding { name: &name, source_name, parameters, body, uncurried },
+            context,
+        )?;
+        Ok(tree.identifier(name))
+    }
+
     fn render_abstraction_binding<'t>(
         &self,
         tree: &mut Tree<'t>,
@@ -2206,7 +2307,7 @@ impl Generator<'_> {
         binding: AbstractionBinding<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        let AbstractionBinding { name, parameters, body, uncurried } = binding;
+        let AbstractionBinding { name, source_name, parameters, body, uncurried } = binding;
         // A recursive call in a nested closure starts a distinct invocation; it cannot continue
         // the loop whose current iteration created that closure.
         let outer_tail_calls = context.tail_calls.take();
@@ -2215,7 +2316,7 @@ impl Generator<'_> {
                 .iter()
                 .map(|pattern| self.allocate_pattern_argument(*pattern, context))
                 .collect_vec();
-            writer.constant_arrow(name, arguments.clone(), |writer| {
+            writer.constant_arrow(name, source_name, arguments.clone(), |writer| {
                 self.render_uncurried_parameters(
                     tree,
                     writer,
@@ -2231,7 +2332,7 @@ impl Generator<'_> {
         } else {
             let (argument, parameter) = self.first_argument(parameters, context);
             let arguments = if parameter.is_some() { vec![argument.clone()] } else { Vec::new() };
-            writer.constant_arrow(name, arguments, |writer| {
+            writer.constant_arrow(name, source_name, arguments, |writer| {
                 if let Some(parameter) = parameter {
                     self.render_curried_parameter(
                         tree,
@@ -2297,9 +2398,12 @@ fn render_let(
                 let mut dispatcher_parameters = vec![state_name];
                 dispatcher_parameters.extend(argument_names.iter().cloned());
                 let outer_tail_calls = context.tail_calls.replace(tail_calls);
-                writer.constant_arrow(&group.dispatcher_name, dispatcher_parameters, |writer| {
-                    generator.render_tail_call_dispatcher(tree, writer, &group, context)
-                })?;
+                writer.constant_arrow(
+                    &group.dispatcher_name,
+                    None,
+                    dispatcher_parameters,
+                    |writer| generator.render_tail_call_dispatcher(tree, writer, &group, context),
+                )?;
                 context.tail_calls = outer_tail_calls;
             }
 
@@ -2314,7 +2418,13 @@ fn render_let(
                 generator.render_local_tail_call_wrapper(
                     tree,
                     writer,
-                    TailCallWrapper { name: &names[position], group: &group, profile, state },
+                    TailCallWrapper {
+                        name: &names[position],
+                        source_name: binding_source_name(&bindings[position]),
+                        group: &group,
+                        profile,
+                        state,
+                    },
                     context,
                 )?;
             }
@@ -2330,12 +2440,20 @@ fn render_let(
             if optimized.contains(&identity) {
                 continue;
             }
+            let _origin = tree.enter_origin(generator.binding_origin(binding));
+            let source_name = binding_source_name(binding);
             match &generator.module.storage[binding.expression].kind {
                 ExpressionKind::Abstraction { parameters, body } => {
                     generator.render_abstraction_binding(
                         tree,
                         writer,
-                        AbstractionBinding { name, parameters, body: *body, uncurried: false },
+                        AbstractionBinding {
+                            name,
+                            source_name,
+                            parameters,
+                            body: *body,
+                            uncurried: false,
+                        },
                         context,
                     )?;
                 }
@@ -2343,7 +2461,13 @@ fn render_let(
                     generator.render_abstraction_binding(
                         tree,
                         writer,
-                        AbstractionBinding { name, parameters, body: *body, uncurried: true },
+                        AbstractionBinding {
+                            name,
+                            source_name,
+                            parameters,
+                            body: *body,
+                            uncurried: true,
+                        },
                         context,
                     )?;
                 }
@@ -2359,14 +2483,29 @@ fn render_let(
         return render_lazy_let(&mut renderer, bindings);
     }
     for binding in bindings {
+        let _origin = tree.enter_origin(generator.binding_origin(binding));
         let name = context.allocate(&binding.parameter.name);
-        match &generator.module.storage[binding.expression].kind {
+        let source_name = binding_source_name(binding);
+        let mut value = binding.expression;
+        while let ExpressionKind::Let { recursive: false, bindings, body } =
+            &generator.module.storage[value].kind
+        {
+            render_let(&mut generator.renderer(tree, writer, context), false, bindings)?;
+            value = *body;
+        }
+        match &generator.module.storage[value].kind {
             ExpressionKind::Abstraction { parameters, body } => {
                 context.bind_direct(&binding.parameter, name.clone());
                 generator.render_abstraction_binding(
                     tree,
                     writer,
-                    AbstractionBinding { name: &name, parameters, body: *body, uncurried: false },
+                    AbstractionBinding {
+                        name: &name,
+                        source_name,
+                        parameters,
+                        body: *body,
+                        uncurried: false,
+                    },
                     context,
                 )?;
             }
@@ -2375,13 +2514,18 @@ fn render_let(
                 generator.render_abstraction_binding(
                     tree,
                     writer,
-                    AbstractionBinding { name: &name, parameters, body: *body, uncurried: true },
+                    AbstractionBinding {
+                        name: &name,
+                        source_name,
+                        parameters,
+                        body: *body,
+                        uncurried: true,
+                    },
                     context,
                 )?;
             }
             _ => {
-                let value =
-                    generator.expression_value(tree, writer, binding.expression, context)?;
+                let value = generator.expression_value(tree, writer, value, context)?;
                 writer.constant(tree, &name, value, false);
                 context.bind_direct(&binding.parameter, name);
             }
@@ -2411,6 +2555,7 @@ fn render_lazy_let(
         writer.mutable(accessor);
     }
     for (binding, accessor) in bindings.iter().zip(&accessors) {
+        let _origin = tree.enter_origin(generator.binding_origin(binding));
         let runtime = tree.identifier(runtime);
         let binding_function = tree.member(runtime, "binding");
         let source_name = tree.string(binding.parameter.name.as_str());
@@ -2432,6 +2577,7 @@ fn render_lazy_let(
         )?;
     }
     for ((binding, name), accessor) in bindings.iter().zip(&names).zip(&accessors) {
+        let _origin = tree.enter_origin(generator.binding_origin(binding));
         let accessor_expression = tree.identifier(accessor);
         let value = tree.call(accessor_expression, Vec::new());
         writer.constant(tree, name, value, false);
@@ -2448,10 +2594,14 @@ fn render_case(
 ) -> ModuleResult<()> {
     let FunctionRenderer { generator, tree, writer, context } = renderer;
     let mut values = Vec::with_capacity(scrutinees.len());
-    for scrutinee in scrutinees {
-        let value = generator.rendered_expression(tree, writer, *scrutinee, context)?;
-        let value = generator.materialize_pattern_value(tree, writer, *scrutinee, value, context);
-        values.push(value);
+    for &scrutinee in scrutinees {
+        if generator.functional_expression_is_reusable(scrutinee, context) {
+            values.push(CaseScrutinee::Reusable(scrutinee));
+            continue;
+        }
+        let value = generator.rendered_expression(tree, writer, scrutinee, context)?;
+        let value = generator.materialize_pattern_value(tree, writer, scrutinee, value, context);
+        values.push(CaseScrutinee::Rendered(value));
     }
     let scrutinees = values;
     match destination {
@@ -2503,15 +2653,21 @@ impl Generator<'_> {
         &self,
         tree: &mut Tree<'t>,
         writer: &mut Writer<'t>,
-        scrutinees: &[ExpressionId],
+        scrutinees: &[CaseScrutinee],
         alternatives: &[CaseAlternative],
         destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
         for alternative in alternatives {
+            let _origin = tree.enter_origin(alternative.origin);
             let mut plan = PatternPlan::default();
-            for (pattern, value) in alternative.patterns.iter().zip(scrutinees) {
-                let value = tree.duplicate(value);
+            for (pattern, scrutinee) in alternative.patterns.iter().zip(scrutinees) {
+                let value = match scrutinee {
+                    CaseScrutinee::Reusable(expression) => self
+                        .inline_expression(tree, *expression, context)?
+                        .expect("invariant violated: a reusable scrutinee cannot be inlined"),
+                    CaseScrutinee::Rendered(value) => tree.duplicate(value),
+                };
                 self.extend_pattern_plan(tree, *pattern, value, None, context, &mut plan)?;
             }
             let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
@@ -2659,6 +2815,7 @@ impl Generator<'_> {
         };
         match guard {
             Guard::Boolean(condition) => {
+                let _origin = tree.enter_origin(self.module.storage[*condition].origin);
                 let condition = self.expression_value(tree, writer, *condition, context)?;
                 writer.if_block(tree, condition, |tree, writer| {
                     self.render_guards(
@@ -2671,8 +2828,12 @@ impl Generator<'_> {
             }
             Guard::Pattern { expression: value, pattern } => {
                 let source = *value;
-                let value = self.rendered_expression(tree, writer, source, context)?;
-                let value = self.materialize_pattern_value(tree, writer, source, value, context);
+                let value = {
+                    let _origin = tree.enter_origin(self.module.storage[source].origin);
+                    let value = self.rendered_expression(tree, writer, source, context)?;
+                    self.materialize_pattern_value(tree, writer, source, value, context)
+                };
+                let _origin = tree.enter_origin(self.module.storage[*pattern].origin);
                 let mut plan = self.pattern_plan(tree, *pattern, value, None, context)?;
                 let condition = combine_conditions(tree, std::mem::take(&mut plan.conditions));
                 if let Some(condition) = condition {
@@ -3044,7 +3205,7 @@ fn effect_expression(
     let effect = capture_effect(renderer, effect)?;
     let FunctionRenderer { generator, tree, writer, context } = renderer;
     let effect_name = context.allocate("$effect");
-    writer.constant_arrow(&effect_name, Vec::new(), |writer| {
+    writer.constant_arrow(&effect_name, None, Vec::new(), |writer| {
         let mut renderer = generator.renderer(tree, writer, context);
         execute_effect(&mut renderer, effect, Destination::Return)
     })?;
@@ -3090,8 +3251,9 @@ fn capture_effect_action(
         return Ok(CapturedEffectAction::Effect(Box::new(effect)));
     }
 
-    let expression = capture_effect_value(renderer, expression, preferred_name)?;
-    Ok(CapturedEffectAction::Expression(expression))
+    let origin = generator.module.storage[expression].origin;
+    let value = capture_effect_value(renderer, expression, preferred_name)?;
+    Ok(CapturedEffectAction::Expression { value, origin })
 }
 
 fn capture_effect_value(
@@ -3100,6 +3262,7 @@ fn capture_effect_value(
     preferred_name: &str,
 ) -> ModuleResult<ExpressionId> {
     let FunctionRenderer { generator, tree, writer, context } = renderer;
+    let _origin = tree.enter_origin(generator.module.storage[expression].origin);
     let expression_is_reusable = generator.functional_expression_is_reusable(expression, context);
     let value = generator.rendered_expression(tree, writer, expression, context)?;
     if expression_is_reusable || rendered_expression_is_reusable(tree, &value) {
@@ -3180,7 +3343,10 @@ fn execute_effect_action_value(
     preferred_name: &str,
 ) -> ModuleResult<ExpressionId> {
     match action {
-        CapturedEffectAction::Expression(action) => Ok(renderer.tree.call(action, Vec::new())),
+        CapturedEffectAction::Expression { value, origin } => {
+            let _origin = renderer.tree.enter_origin(origin);
+            Ok(renderer.tree.call(value, Vec::new()))
+        }
         CapturedEffectAction::Effect(effect) => {
             let name = renderer.context.allocate(preferred_name);
             renderer.writer.mutable(&name);
@@ -3197,8 +3363,9 @@ fn execute_effect_action(
 ) -> ModuleResult<(ExpressionId, SmolStr)> {
     let name = renderer.context.allocate(preferred_name);
     match action {
-        CapturedEffectAction::Expression(action) => {
-            let value = renderer.tree.call(action, Vec::new());
+        CapturedEffectAction::Expression { value, origin } => {
+            let _origin = renderer.tree.enter_origin(origin);
+            let value = renderer.tree.call(value, Vec::new());
             renderer.writer.constant(renderer.tree, &name, value, false);
         }
         CapturedEffectAction::Effect(effect) => {
@@ -3326,7 +3493,7 @@ fn sorted_value_declarations<'m>(generator: &'m Generator<'_>) -> Vec<(&'m Decla
 }
 
 fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
-    let ModuleRenderer { generator, writer, file, .. } = renderer;
+    let ModuleRenderer { generator, tree, writer, file } = renderer;
     let mut rendered = false;
     for declaration in generator.module.declarations.iter() {
         if !file.exports(generator, declaration)
@@ -3334,6 +3501,7 @@ fn render_exports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         {
             continue;
         }
+        let _origin = tree.enter_origin(declaration.origin);
         let local = generator.global_name(declaration.global.id);
         writer.export(local, &declaration.global.item_name);
         rendered = true;
@@ -3402,6 +3570,10 @@ impl Generator<'_> {
             .expect("invariant violated: JavaScript global has no allocated name")
     }
 
+    fn binding_origin(&self, binding: &Binding) -> Option<Origin> {
+        binding.origin.or(self.module.storage[binding.expression].origin)
+    }
+
     fn module_dependency(&self, file_id: FileId) -> &ModuleDependency {
         self.module_dependencies
             .get(&file_id)
@@ -3411,6 +3583,15 @@ impl Generator<'_> {
     fn unsupported(&self, state: UnsupportedState) -> ModuleError {
         ModuleError::Unsupported { file_id: self.module.file_id, state }
     }
+}
+
+fn declaration_source_name(declaration: &Declaration) -> Option<SmolStr> {
+    let source = matches!(declaration.global.id, GlobalId::Term(_, _));
+    source.then(|| SmolStr::clone(&declaration.global.item_name))
+}
+
+fn binding_source_name(binding: &Binding) -> Option<SmolStr> {
+    binding.origin.is_some().then(|| SmolStr::clone(&binding.parameter.name))
 }
 
 fn global_file(id: GlobalId) -> FileId {

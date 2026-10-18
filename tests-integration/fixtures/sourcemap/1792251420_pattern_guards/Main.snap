@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Data_Boolean from "../Data.Boolean/index.js";
+   | ^ unmapped
+ 2 | import * as Data_Maybe from "../Data.Maybe/index.js";
+   | ^ unmapped
+ 3 | export function first(left) {
+   | ^ 8:1 first left right
+   |        ^ (first) 8:1 first left right
+   |                             ^ 8:1 first left right
+ 4 |   return (right) => {
+   |   ^ (first) 8:1 first left right
+   |                     ^ 8:1 first left right
+ 5 |     if (left.tag === "Just") {
+   |     ^ 9:5 Just value <- left = value
+   |         ^ 9:19 left = value
+   |              ^ 9:5 Just value <- left = value
+ 6 |       const { _1: value } = left;
+   |       ^ 9:5 Just value <- left = value
+   |                             ^ 9:19 left = value
+ 7 |       return value;
+   |       ^ 9:26 value
+ 8 |     }
+   |     ^ 9:5 Just value <- left = value
+ 9 |     if (right.tag === "Just") {
+   |     ^ 10:5 (Just value) <- right = value
+   |         ^ 10:21 right = value
+   |               ^ 10:5 (Just value) <- right = value
+10 |       const { _1: value$1 } = right;
+   |       ^ 10:5 (Just value) <- right = value
+   |                               ^ 10:21 right = value
+11 |       return value$1;
+   |       ^ 10:29 value
+12 |     }
+   |     ^ 10:5 (Just value) <- right = value
+13 |     if (Data_Boolean.otherwise) {
+   |     ^ 11:5 otherwise = 0
+14 |       return 0 | 0;
+   |       ^ 11:17 0
+15 |     }
+   |     ^ 11:5 otherwise = 0
+16 |     throw new Error("Pattern match failure");
+   |     ^ 8:1 first left right
+17 |   };
+   |   ^ 8:1 first left right
+18 | }
+   | ^ 8:1 first left right

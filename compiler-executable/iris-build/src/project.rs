@@ -341,6 +341,7 @@ fn execute_module(
         .map_err(|_| ProjectFailure::ModuleUrl { path: PathBuf::clone(&module) })?
         .to_string();
     let status = Command::new("node")
+        .arg("--enable-source-maps")
         .arg("--input-type=module")
         .arg("--eval")
         .arg(NODE_RUNNER)

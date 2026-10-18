@@ -5,8 +5,8 @@ use smol_str::format_smolstr;
 
 use crate::error::UnsupportedState;
 use crate::tree::{
-    CaseAlternative, ExpressionId, ExpressionKind, Literal, PatternId, PatternKind, RecordField,
-    RecordPatternField, RecordUpdate,
+    CaseAlternative, ExpressionId, ExpressionKind, Literal, Origin, PatternId, PatternKind,
+    RecordField, RecordPatternField, RecordUpdate,
 };
 
 use super::declaration::{function_patterns, guarded_expression, let_bindings};
@@ -14,6 +14,21 @@ use super::evidence::evidence_variable;
 use super::{BindingSource, Context, ConversionResult};
 
 pub(super) fn convert_expression(
+    context: &mut Context<'_, impl checking::ExternalQueries>,
+    expression_id: checking_tree::ExpressionId,
+) -> ConversionResult<ExpressionId> {
+    let origin = context.checked.tree[expression_id].source.map(expression_origin);
+    context.with_origin(origin, |context| convert_expression_kind(context, expression_id))
+}
+
+fn expression_origin(source: checking_tree::ExpressionSource) -> Origin {
+    match source {
+        checking_tree::ExpressionSource::Expression(id) => Origin::Expression(id),
+        checking_tree::ExpressionSource::DoStatement(id) => Origin::DoStatement(id),
+    }
+}
+
+fn convert_expression_kind(
     context: &mut Context<'_, impl checking::ExternalQueries>,
     expression_id: checking_tree::ExpressionId,
 ) -> ConversionResult<ExpressionId> {
@@ -156,9 +171,13 @@ fn case_alternative(
     context: &mut Context<'_, impl checking::ExternalQueries>,
     alternative: &checking_tree::CaseAlternative,
 ) -> ConversionResult<CaseAlternative> {
-    let patterns = patterns(context, &alternative.binders)?;
-    let expression = guarded_expression(context, &alternative.guarded_expression)?;
-    Ok(CaseAlternative { patterns: patterns.into(), expression })
+    let origin = alternative.source.map(Origin::CaseBranch);
+    let origin = origin.or(context.origin);
+    context.with_origin(origin, |context| {
+        let patterns = patterns(context, &alternative.binders)?;
+        let expression = guarded_expression(context, &alternative.guarded_expression)?;
+        Ok(CaseAlternative { patterns: patterns.into(), expression, origin })
+    })
 }
 
 fn expressions(

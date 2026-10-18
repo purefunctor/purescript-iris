@@ -49,6 +49,8 @@ batch before starting another. Do not bulk-split fixtures and postpone output re
   Review the report that owns the contract: checking types, diagnostics for every fixture-owned
   module with stable relative paths, recovery semantic trees, or successful/explicitly rejected
   functional trees. Use runtime verification only when execution is the contract.
+- Use the `sourcemap` category for the source positions that generated JavaScript maps back to,
+  and the `compiler` category for the generated JavaScript itself.
 - Use real registry modules for library dependencies rather than handwritten stand-ins or vendored
   copies. Deliberately malformed or substituted registry modules must declare their reason through
   the existing fixture replacement mechanism.

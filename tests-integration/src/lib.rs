@@ -4,7 +4,6 @@ pub mod generated;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
 use building::QueryEngine;
 use files::{FileId, Files, ForeignFiles, ForeignSourceKind};
@@ -15,12 +14,10 @@ use url::Url;
 
 use crate::fixtures::FixtureResult;
 
-static PRIM_DIRECTORY: LazyLock<TempDir> =
-    LazyLock::new(|| TempDir::new().expect("invariant violated: failed to create PRIM_DIRECTORY"));
-
-fn configure_materialized_prim(engine: &QueryEngine, files: &mut Files) {
+fn configure_materialized_prim(engine: &QueryEngine, files: &mut Files) -> TempDir {
+    let directory = TempDir::new().expect("invariant violated: failed to create Prim directory");
     for (name, content) in MODULE_MAP {
-        let path = PRIM_DIRECTORY.path().join(format!("{name}.purs"));
+        let path = directory.path().join(format!("{name}.purs"));
         fs::write(&path, content).expect("invariant violated: failed to materialize Prim module");
 
         let uri = Url::from_file_path(path)
@@ -30,6 +27,7 @@ fn configure_materialized_prim(engine: &QueryEngine, files: &mut Files) {
         engine.set_content(id, *content);
         engine.insert_module_file(name, id);
     }
+    directory
 }
 
 fn load_file(
@@ -97,20 +95,20 @@ fn load_folder(folder: &Path) -> FixtureResult<Vec<PathBuf>> {
     Ok(glob(&pattern)?.collect::<Result<Vec<_>, _>>()?)
 }
 
-pub fn load_compiler(folder: &Path) -> FixtureResult<(QueryEngine, Files)> {
-    let loaded = load_fixture(folder)?;
-    Ok((loaded.engine, loaded.files))
-}
-
 pub struct LoadedFixture {
     pub engine: QueryEngine,
     pub files: Files,
     pub fixture_files: HashSet<FileId>,
+    pub prim_directory: TempDir,
+}
+
+fn uses_registry_packages(folder: &Path) -> bool {
+    folder.starts_with("fixtures/compiler/") || folder.starts_with("fixtures/sourcemap/")
 }
 
 pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let packages = if folder.starts_with("fixtures/compiler/") {
+    let packages = if uses_registry_packages(folder) {
         tests_support::prepared_sources(
             manifest.join("packages.json"),
             manifest.join("../target/integration-packages"),
@@ -126,7 +124,7 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
     let mut engine = QueryEngine::default();
     let mut files = Files::default();
     let mut foreign_files = ForeignFiles::default();
-    configure_materialized_prim(&engine, &mut files);
+    let prim_directory = configure_materialized_prim(&engine, &mut files);
 
     let mut registry_files = HashSet::new();
     for package in packages {
@@ -175,5 +173,5 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
         ))
         .into());
     }
-    Ok(LoadedFixture { engine, files, fixture_files })
+    Ok(LoadedFixture { engine, files, fixture_files, prim_directory })
 }

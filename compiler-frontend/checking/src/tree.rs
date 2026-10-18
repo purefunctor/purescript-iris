@@ -34,6 +34,7 @@ pub struct CheckedTree {
     types: ArenaMap<TypeItemId, TypeDeclarationId>,
     lets: ArenaMap<LetBindingNameGroupId, LocalDeclarationId>,
     sections: FxHashMap<lowering::ExpressionId, BinderId>,
+    binder_statements: ArenaMap<BinderId, lowering::DoStatementId>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -246,6 +247,7 @@ pub struct GuardedAlternative {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CaseAlternative {
+    pub source: Option<lowering::CaseBranchId>,
     pub binders: Arc<[BinderId]>,
     pub guarded_expression: GuardedExpression,
 }
@@ -253,7 +255,7 @@ pub struct CaseAlternative {
 #[derive(Debug, PartialEq, Eq)]
 pub enum PatternGuard {
     Boolean { expression: ExpressionId },
-    Pattern { binder: BinderId, expression: ExpressionId },
+    Pattern { source: lowering::PatternGuardId, binder: BinderId, expression: ExpressionId },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -341,6 +343,13 @@ pub enum RecordBinderField {
 pub struct Expression {
     pub type_id: TypeId,
     pub kind: ExpressionKind,
+    pub source: Option<ExpressionSource>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExpressionSource {
+    Expression(lowering::ExpressionId),
+    DoStatement(lowering::DoStatementId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -396,6 +405,14 @@ impl CheckedTree {
         self.arena.expressions[expression].type_id = type_id;
     }
 
+    pub(crate) fn attribute_expression(
+        &mut self,
+        expression: ExpressionId,
+        source: ExpressionSource,
+    ) {
+        self.arena.expressions[expression].source.get_or_insert(source);
+    }
+
     pub fn allocate_binder(&mut self, binder: Binder) -> BinderId {
         self.arena.binders.alloc(binder)
     }
@@ -415,6 +432,18 @@ impl CheckedTree {
 
     pub fn lookup_section_binder(&self, source: lowering::ExpressionId) -> Option<BinderId> {
         self.sections.get(&source).copied()
+    }
+
+    pub(crate) fn insert_binder_statement(
+        &mut self,
+        binder: BinderId,
+        statement: lowering::DoStatementId,
+    ) {
+        self.binder_statements.insert(binder, statement);
+    }
+
+    pub fn lookup_binder_statement(&self, binder: BinderId) -> Option<lowering::DoStatementId> {
+        self.binder_statements.get(binder).copied()
     }
 
     pub fn insert_term(&mut self, source: TermItemId, term: TermDeclaration) -> TermDeclarationId {

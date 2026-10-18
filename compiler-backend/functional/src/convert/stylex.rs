@@ -220,7 +220,7 @@ where
         condition: StyleXCondition,
         value: ExpressionId,
     ) -> ExpressionId {
-        let case = StyleXConditionalCase { condition, value };
+        let case = StyleXConditionalCase { condition, value, origin: self.origin };
         self.expression(ExpressionKind::StyleX(StyleXExpression::ConditionalCase(case)))
     }
 
@@ -268,7 +268,7 @@ where
         let body = self.expression(ExpressionKind::Record { fields });
 
         let Some(parameter) = parameter else { return Ok(Some(body)) };
-        let binding = Binding { parameter, expression: argument, source_order: 0 };
+        let binding = Binding { parameter, expression: argument, source_order: 0, origin: None };
 
         Ok(Some(self.expression(ExpressionKind::Let {
             recursive: false,

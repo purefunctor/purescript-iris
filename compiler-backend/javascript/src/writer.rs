@@ -1,7 +1,6 @@
 //! Oxc JavaScript program construction and code generation.
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::path::PathBuf;
 
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use oxc_ast::ast::{
@@ -13,36 +12,31 @@ use oxc_ast::ast::{
     VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
-use oxc_ast::{Comment, CommentKind, CommentPosition};
-use oxc_codegen::{Codegen, CodegenOptions, IndentChar};
-use oxc_span::{SPAN, SourceType, Span};
+use oxc_codegen::{Codegen, CodegenOptions, CodegenReturn, IndentChar};
+use oxc_span::{SourceType, Span};
 use oxc_syntax::operator::AssignmentOperator;
 use smol_str::SmolStr;
 
 use crate::convert::identifier_is_binding;
+use crate::program_text::{ProgramNode, ProgramText};
+use crate::source_map::{OriginMapping, Position};
 use crate::tree::{ExpressionId, Tree};
 
 pub(crate) struct Writer<'a> {
     allocator: &'a Allocator,
     builder: AstBuilder<'a>,
     statements: Vec<Statement<'a>>,
-    comments: Rc<RefCell<Comments>>,
+    program_text: ProgramText,
     has_eager_throw: bool,
 }
 
-#[derive(Default)]
-struct Comments {
-    source_text: String,
-    comments: Vec<Comment>,
-}
-
 impl<'a> Writer<'a> {
-    pub(crate) fn new(allocator: &'a Allocator) -> Writer<'a> {
+    pub(crate) fn new(allocator: &'a Allocator, program_text: ProgramText) -> Writer<'a> {
         Writer {
             allocator,
             builder: AstBuilder::new(allocator),
             statements: Vec::new(),
-            comments: Rc::new(RefCell::new(Comments::default())),
+            program_text,
             has_eager_throw: false,
         }
     }
@@ -52,28 +46,21 @@ impl<'a> Writer<'a> {
             allocator: self.allocator,
             builder: AstBuilder::new(self.allocator),
             statements: Vec::new(),
-            comments: Rc::clone(&self.comments),
+            program_text: ProgramText::clone(&self.program_text),
             has_eager_throw: false,
         }
     }
 
-    fn line_comment(&self, text: &str) -> Span {
-        let mut comments = self.comments.borrow_mut();
-        let start = comments.source_text.len() as u32;
-        comments.source_text.push_str("// ");
-        comments.source_text.push_str(text);
-        let end = comments.source_text.len() as u32;
-        comments.source_text.push('\n');
-        let attached_to = comments.source_text.len() as u32;
-        comments.source_text.push(' ');
+    fn span(&self) -> Span {
+        self.program_text.span()
+    }
 
-        let mut comment = Comment::new(start, end, CommentKind::Line);
-        comment.attached_to = attached_to;
-        comment.position = CommentPosition::Leading;
-        comment.newlines =
-            oxc_ast::ast::CommentNewlines::Leading | oxc_ast::ast::CommentNewlines::Trailing;
-        comments.comments.push(comment);
-        Span::empty(attached_to)
+    fn named_span(&self) -> Span {
+        self.program_text.named_span(self.function_name())
+    }
+
+    pub(crate) fn function_name(&self) -> Option<SmolStr> {
+        self.program_text.function_name()
     }
 
     fn text(&self, value: &str) -> &'a str {
@@ -81,19 +68,27 @@ impl<'a> Writer<'a> {
     }
 
     fn binding(&self, name: &str) -> BindingIdentifier<'a> {
-        BindingIdentifier::new(SPAN, self.text(name), &self.builder)
+        BindingIdentifier::new(self.span(), self.text(name), &self.builder)
+    }
+
+    fn named_binding(&self, name: &str) -> BindingIdentifier<'a> {
+        BindingIdentifier::new(self.named_span(), self.text(name), &self.builder)
     }
 
     fn binding_pattern(&self, name: &str) -> BindingPattern<'a> {
-        BindingPattern::new_binding_identifier(SPAN, self.text(name), &self.builder)
+        BindingPattern::new_binding_identifier(self.span(), self.text(name), &self.builder)
+    }
+
+    fn named_binding_pattern(&self, name: &str) -> BindingPattern<'a> {
+        BindingPattern::new_binding_identifier(self.named_span(), self.text(name), &self.builder)
     }
 
     fn parameters(&self, parameters: &[SmolStr]) -> oxc_allocator::Box<'a, FormalParameters<'a>> {
         let parameters = parameters.iter().map(|parameter| {
             FormalParameter::new(
-                SPAN,
+                self.named_span(),
                 [],
-                self.binding_pattern(parameter),
+                self.named_binding_pattern(parameter),
                 None,
                 None,
                 false,
@@ -105,7 +100,7 @@ impl<'a> Writer<'a> {
         });
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         FormalParameters::boxed(
-            SPAN,
+            self.named_span(),
             FormalParameterKind::FormalParameter,
             parameters,
             None,
@@ -118,12 +113,12 @@ impl<'a> Writer<'a> {
         statements: Vec<Statement<'a>>,
     ) -> oxc_allocator::Box<'a, FunctionBody<'a>> {
         let statements = ArenaVec::from_iter_in(statements, &self.allocator);
-        FunctionBody::boxed(SPAN, [], statements, &self.builder)
+        FunctionBody::boxed(self.span(), [], statements, &self.builder)
     }
 
     fn block_statement(&self, statements: Vec<Statement<'a>>) -> Statement<'a> {
         let statements = ArenaVec::from_iter_in(statements, &self.allocator);
-        Statement::new_block_statement(SPAN, statements, &self.builder)
+        Statement::new_block_statement(self.span(), statements, &self.builder)
     }
 
     fn arrow_expression(
@@ -133,13 +128,13 @@ impl<'a> Writer<'a> {
     ) -> Expression<'a> {
         let parameters = self.parameters(parameters);
         let body = ArrowFunctionBody::new_function_body(
-            SPAN,
+            self.span(),
             [],
             ArenaVec::from_iter_in(statements, &self.allocator),
             &self.builder,
         );
         Expression::new_arrow_function_expression(
-            SPAN,
+            self.named_span(),
             false,
             None,
             parameters,
@@ -152,24 +147,18 @@ impl<'a> Writer<'a> {
     fn variable_statement(
         &self,
         kind: VariableDeclarationKind,
-        name: &str,
+        binding: BindingPattern<'a>,
         value: Option<Expression<'a>>,
         exported: bool,
     ) -> Statement<'a> {
-        let declarator = VariableDeclarator::new(
-            SPAN,
-            self.binding_pattern(name),
-            None,
-            value,
-            false,
-            &self.builder,
-        );
+        let declarator =
+            VariableDeclarator::new(self.span(), binding, None, value, false, &self.builder);
         let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
         let declaration =
-            VariableDeclaration::boxed(SPAN, kind, declarations, false, &self.builder);
+            VariableDeclaration::boxed(self.span(), kind, declarations, false, &self.builder);
         if exported {
             Statement::new_export_declaration(
-                SPAN,
+                self.span(),
                 Declaration::VariableDeclaration(declaration),
                 &self.builder,
             )
@@ -180,14 +169,14 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn import_namespace(&mut self, namespace: &str, path: &str) {
         let specifier = ImportDeclarationSpecifier::new_import_namespace_specifier(
-            SPAN,
+            self.span(),
             self.binding(namespace),
             &self.builder,
         );
         let specifiers = ArenaVec::from_array_in([specifier], &self.allocator);
-        let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
+        let source = StringLiteral::new(self.span(), self.text(path), None, &self.builder);
         let statement = Statement::new_import_declaration(
-            SPAN,
+            self.span(),
             Some(specifiers),
             source,
             None,
@@ -202,7 +191,7 @@ impl<'a> Writer<'a> {
         let specifiers = bindings.iter().map(|(imported, local)| {
             let imported = self.module_export_name(imported, false);
             ImportDeclarationSpecifier::new_import_specifier(
-                SPAN,
+                self.span(),
                 imported,
                 self.binding(local),
                 ImportOrExportKind::Value,
@@ -210,9 +199,9 @@ impl<'a> Writer<'a> {
             )
         });
         let specifiers = ArenaVec::from_iter_in(specifiers, &self.allocator);
-        let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
+        let source = StringLiteral::new(self.span(), self.text(path), None, &self.builder);
         let statement = Statement::new_import_declaration(
-            SPAN,
+            self.span(),
             Some(specifiers),
             source,
             None,
@@ -232,7 +221,7 @@ impl<'a> Writer<'a> {
     ) {
         let statement = self.variable_statement(
             VariableDeclarationKind::Const,
-            name,
+            self.binding_pattern(name),
             Some(tree.expression(value)),
             exported,
         );
@@ -248,14 +237,16 @@ impl<'a> Writer<'a> {
         let properties = names.iter().enumerate().filter_map(|(index, name)| {
             let name = name.as_deref()?;
             let field = format!("_{}", index + 1);
-            let key = PropertyKey::new_static_identifier(SPAN, self.text(&field), &self.builder);
+            let key =
+                PropertyKey::new_static_identifier(self.span(), self.text(&field), &self.builder);
             let value = self.binding_pattern(name);
-            Some(BindingProperty::new(SPAN, key, value, false, false, &self.builder))
+            Some(BindingProperty::new(self.span(), key, value, false, false, &self.builder))
         });
         let properties = ArenaVec::from_iter_in(properties, &self.allocator);
-        let pattern = BindingPattern::new_object_pattern(SPAN, properties, None, &self.builder);
+        let pattern =
+            BindingPattern::new_object_pattern(self.span(), properties, None, &self.builder);
         let declarator = VariableDeclarator::new(
-            SPAN,
+            self.span(),
             pattern,
             None,
             Some(tree.expression(value)),
@@ -264,7 +255,7 @@ impl<'a> Writer<'a> {
         );
         let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
         let declaration = VariableDeclaration::boxed(
-            SPAN,
+            self.span(),
             VariableDeclarationKind::Const,
             declarations,
             false,
@@ -274,63 +265,83 @@ impl<'a> Writer<'a> {
     }
 
     pub(crate) fn mutable(&mut self, name: &str) {
-        let statement = self.variable_statement(VariableDeclarationKind::Let, name, None, false);
+        let binding = self.binding_pattern(name);
+        let statement = self.variable_statement(VariableDeclarationKind::Let, binding, None, false);
         self.statements.push(statement);
     }
 
     pub(crate) fn mutable_value(&mut self, tree: &mut Tree<'a>, name: &str, value: ExpressionId) {
         let value = tree.expression(value);
+        let binding = self.binding_pattern(name);
         let statement =
-            self.variable_statement(VariableDeclarationKind::Let, name, Some(value), false);
+            self.variable_statement(VariableDeclarationKind::Let, binding, Some(value), false);
         self.statements.push(statement);
     }
 
     pub(crate) fn assign(&mut self, tree: &mut Tree<'a>, name: &str, value: ExpressionId) {
         let target = AssignmentTarget::new_assignment_target_identifier(
-            SPAN,
+            self.span(),
             self.text(name),
             &self.builder,
         );
         let expression = Expression::new_assignment_expression(
-            SPAN,
+            self.span(),
             AssignmentOperator::Assign,
             target,
             tree.expression(value),
             &self.builder,
         );
-        self.statements.push(Statement::new_expression_statement(SPAN, expression, &self.builder));
+        self.statements.push(Statement::new_expression_statement(
+            self.span(),
+            expression,
+            &self.builder,
+        ));
     }
 
     pub(crate) fn return_expression(&mut self, tree: &mut Tree<'a>, value: ExpressionId) {
         self.statements.push(Statement::new_return_statement(
-            SPAN,
+            self.span(),
             Some(tree.expression(value)),
             &self.builder,
         ));
     }
 
+    pub(crate) fn return_function(&mut self, tree: &mut Tree<'a>, function: ExpressionId) {
+        self.statements.push(Statement::new_return_statement(
+            self.named_span(),
+            Some(tree.expression(function)),
+            &self.builder,
+        ));
+    }
+
     pub(crate) fn break_label(&mut self, label: &str) {
-        let label = LabelIdentifier::new(SPAN, self.text(label), &self.builder);
-        self.statements.push(Statement::new_break_statement(SPAN, Some(label), &self.builder));
+        let label = LabelIdentifier::new(self.span(), self.text(label), &self.builder);
+        self.statements.push(Statement::new_break_statement(
+            self.span(),
+            Some(label),
+            &self.builder,
+        ));
     }
 
     pub(crate) fn continue_loop(&mut self) {
-        self.statements.push(Statement::new_continue_statement(SPAN, None, &self.builder));
+        self.statements.push(Statement::new_continue_statement(self.span(), None, &self.builder));
     }
 
     pub(crate) fn function<R>(
         &mut self,
         name: &str,
+        source_name: Option<SmolStr>,
         parameters: Vec<SmolStr>,
         exported: bool,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(source_name);
         let mut body = self.child();
         let result = render(&mut body);
         let function = Function::boxed(
-            SPAN,
+            self.named_span(),
             FunctionType::FunctionDeclaration,
-            Some(self.binding(name)),
+            Some(self.named_binding(name)),
             false,
             false,
             false,
@@ -343,7 +354,7 @@ impl<'a> Writer<'a> {
         );
         let statement = if exported {
             Statement::new_export_declaration(
-                SPAN,
+                self.span(),
                 Declaration::FunctionDeclaration(function),
                 &self.builder,
             )
@@ -357,14 +368,21 @@ impl<'a> Writer<'a> {
     pub(crate) fn constant_arrow<R>(
         &mut self,
         name: &str,
+        source_name: Option<SmolStr>,
         parameters: Vec<SmolStr>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(source_name);
         let mut body = self.child();
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
-        let statement =
-            self.variable_statement(VariableDeclarationKind::Const, name, Some(expression), false);
+        let binding = self.named_binding_pattern(name);
+        let statement = self.variable_statement(
+            VariableDeclarationKind::Const,
+            binding,
+            Some(expression),
+            false,
+        );
         self.statements.push(statement);
         result
     }
@@ -378,7 +396,7 @@ impl<'a> Writer<'a> {
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
         self.statements.push(Statement::new_return_statement(
-            SPAN,
+            self.named_span(),
             Some(expression),
             &self.builder,
         ));
@@ -391,37 +409,44 @@ impl<'a> Writer<'a> {
         parameters: Vec<SmolStr>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(None);
         let mut body = self.child();
         let result = render(&mut body);
         let expression = self.arrow_expression(&parameters, body.statements);
         let target = AssignmentTarget::new_assignment_target_identifier(
-            SPAN,
+            self.span(),
             self.text(name),
             &self.builder,
         );
         let expression = Expression::new_assignment_expression(
-            SPAN,
+            self.span(),
             AssignmentOperator::Assign,
             target,
             expression,
             &self.builder,
         );
-        self.statements.push(Statement::new_expression_statement(SPAN, expression, &self.builder));
+        self.statements.push(Statement::new_expression_statement(
+            self.span(),
+            expression,
+            &self.builder,
+        ));
         result
     }
 
     pub(crate) fn constant_iife<R>(
         &mut self,
         name: &str,
+        source_name: Option<SmolStr>,
         exported: bool,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(source_name);
         let mut body = self.child();
         let result = render(&mut body);
         let has_eager_throw = body.has_eager_throw;
         let arrow = self.arrow_expression(&[], body.statements);
         let call = Expression::new_call_expression_with_pure(
-            SPAN,
+            self.named_span(),
             arrow,
             None,
             [],
@@ -429,8 +454,9 @@ impl<'a> Writer<'a> {
             !has_eager_throw,
             &self.builder,
         );
+        let binding = self.named_binding_pattern(name);
         let statement =
-            self.variable_statement(VariableDeclarationKind::Const, name, Some(call), exported);
+            self.variable_statement(VariableDeclarationKind::Const, binding, Some(call), exported);
         self.statements.push(statement);
         self.has_eager_throw |= has_eager_throw;
         result
@@ -443,31 +469,39 @@ impl<'a> Writer<'a> {
         name: Expression<'a>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
+        let _function_name = self.program_text.enter_function_name(None);
         let mut body = self.child();
         let result = render(&mut body);
         let body = self.arrow_expression(&[], body.statements);
         let arguments = [Argument::from(name), Argument::from(body)];
         let arguments = ArenaVec::from_array_in(arguments, &self.allocator);
-        let call =
-            Expression::new_call_expression(SPAN, callee, None, arguments, false, &self.builder);
+        let call = Expression::new_call_expression(
+            self.span(),
+            callee,
+            None,
+            arguments,
+            false,
+            &self.builder,
+        );
         let statement = match target {
             BindingCallTarget::Constant(name) => {
-                self.variable_statement(VariableDeclarationKind::Const, name, Some(call), false)
+                let binding = self.binding_pattern(name);
+                self.variable_statement(VariableDeclarationKind::Const, binding, Some(call), false)
             }
             BindingCallTarget::Assignment(name) => {
                 let target = AssignmentTarget::new_assignment_target_identifier(
-                    SPAN,
+                    self.span(),
                     self.text(name),
                     &self.builder,
                 );
                 let assignment = Expression::new_assignment_expression(
-                    SPAN,
+                    self.span(),
                     AssignmentOperator::Assign,
                     target,
                     call,
                     &self.builder,
                 );
-                Statement::new_expression_statement(SPAN, assignment, &self.builder)
+                Statement::new_expression_statement(self.span(), assignment, &self.builder)
             }
         };
         self.statements.push(statement);
@@ -489,7 +523,7 @@ impl<'a> Writer<'a> {
         let consequent = self.block_statement(then_writer.statements);
         let alternate = self.block_statement(else_writer.statements);
         self.statements.push(Statement::new_if_statement(
-            SPAN,
+            self.span(),
             tree.expression(condition),
             consequent,
             Some(alternate),
@@ -514,7 +548,7 @@ impl<'a> Writer<'a> {
         let consequent = self.block_statement(then_writer.statements);
         let alternate = self.block_statement(else_writer.statements);
         self.statements.push(Statement::new_if_statement(
-            SPAN,
+            self.span(),
             tree.expression(condition),
             consequent,
             Some(alternate),
@@ -534,7 +568,7 @@ impl<'a> Writer<'a> {
         self.has_eager_throw |= body.has_eager_throw;
         let consequent = self.block_statement(body.statements);
         self.statements.push(Statement::new_if_statement(
-            SPAN,
+            self.span(),
             tree.expression(condition),
             consequent,
             None,
@@ -561,8 +595,13 @@ impl<'a> Writer<'a> {
         let result = render(&mut body);
         self.has_eager_throw |= body.has_eager_throw;
         let body = self.block_statement(body.statements);
-        let label = LabelIdentifier::new(SPAN, self.text(label), &self.builder);
-        self.statements.push(Statement::new_labeled_statement(SPAN, label, body, &self.builder));
+        let label = LabelIdentifier::new(self.span(), self.text(label), &self.builder);
+        self.statements.push(Statement::new_labeled_statement(
+            self.span(),
+            label,
+            body,
+            &self.builder,
+        ));
         result
     }
 
@@ -577,7 +616,12 @@ impl<'a> Writer<'a> {
         self.has_eager_throw |= body.has_eager_throw;
         let body = self.block_statement(body.statements);
         let condition = tree.expression(condition);
-        self.statements.push(Statement::new_while_statement(SPAN, condition, body, &self.builder));
+        self.statements.push(Statement::new_while_statement(
+            self.span(),
+            condition,
+            body,
+            &self.builder,
+        ));
         result
     }
 
@@ -591,7 +635,7 @@ impl<'a> Writer<'a> {
         let mut switch_cases = Vec::with_capacity(cases.len());
         let mut has_eager_throw = false;
         for (position, (test, comment)) in cases.into_iter().enumerate() {
-            let span = self.line_comment(&comment);
+            let span = self.program_text.line_comment(&comment);
             let mut body = self.child();
             render(position, tree, &mut body)?;
             has_eager_throw |= body.has_eager_throw;
@@ -605,7 +649,7 @@ impl<'a> Writer<'a> {
         let discriminant = tree.expression(discriminant);
         let switch_cases = ArenaVec::from_iter_in(switch_cases, &self.allocator);
         self.statements.push(Statement::new_switch_statement(
-            SPAN,
+            self.span(),
             discriminant,
             switch_cases,
             &self.builder,
@@ -615,35 +659,41 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn throw_error(&mut self, message: &str) {
         self.has_eager_throw = true;
-        let callee = Expression::new_identifier(SPAN, self.text("Error"), &self.builder);
-        let message = Expression::new_string_literal(SPAN, self.text(message), None, &self.builder);
+        let callee = Expression::new_identifier(self.span(), self.text("Error"), &self.builder);
+        let message =
+            Expression::new_string_literal(self.span(), self.text(message), None, &self.builder);
         let arguments = ArenaVec::from_array_in([Argument::from(message)], &self.allocator);
-        let error = Expression::new_new_expression(SPAN, callee, None, arguments, &self.builder);
-        self.statements.push(Statement::new_throw_statement(SPAN, error, &self.builder));
+        let error =
+            Expression::new_new_expression(self.span(), callee, None, arguments, &self.builder);
+        self.statements.push(Statement::new_throw_statement(self.span(), error, &self.builder));
     }
 
     fn module_export_name(&self, name: &str, reference: bool) -> ModuleExportName<'a> {
         if identifier_is_binding(name) {
             if reference {
-                ModuleExportName::new_identifier_reference(SPAN, self.text(name), &self.builder)
+                ModuleExportName::new_identifier_reference(
+                    self.span(),
+                    self.text(name),
+                    &self.builder,
+                )
             } else {
-                ModuleExportName::new_identifier_name(SPAN, self.text(name), &self.builder)
+                ModuleExportName::new_identifier_name(self.span(), self.text(name), &self.builder)
             }
         } else {
-            ModuleExportName::new_string_literal(SPAN, self.text(name), None, &self.builder)
+            ModuleExportName::new_string_literal(self.span(), self.text(name), None, &self.builder)
         }
     }
 
     pub(crate) fn export(&mut self, local: &str, exported: &str) {
         let specifier = ExportSpecifier::new(
-            SPAN,
+            self.span(),
             self.module_export_name(local, true),
             self.module_export_name(exported, false),
             ImportOrExportKind::Value,
             &self.builder,
         );
         self.statements.push(Statement::new_export_named_declaration(
-            SPAN,
+            self.span(),
             [specifier],
             ImportOrExportKind::Value,
             &self.builder,
@@ -653,7 +703,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn export_from(&mut self, specifiers: Vec<String>, path: &str) {
         let specifiers = specifiers.into_iter().map(|name| {
             ExportSpecifier::new(
-                SPAN,
+                self.span(),
                 self.module_export_name(&name, false),
                 self.module_export_name(&name, false),
                 ImportOrExportKind::Value,
@@ -661,9 +711,9 @@ impl<'a> Writer<'a> {
             )
         });
         let specifiers = ArenaVec::from_iter_in(specifiers, &self.allocator);
-        let source = StringLiteral::new(SPAN, self.text(path), None, &self.builder);
+        let source = StringLiteral::new(self.span(), self.text(path), None, &self.builder);
         self.statements.push(Statement::new_export_from_declaration(
-            SPAN,
+            self.span(),
             specifiers,
             source,
             ImportOrExportKind::Value,
@@ -675,17 +725,42 @@ impl<'a> Writer<'a> {
     pub(crate) fn blank(&mut self) {}
 
     pub(crate) fn finish(self) -> String {
+        self.generate(None).code
+    }
+
+    pub(crate) fn finish_with_mappings(self) -> (String, Vec<OriginMapping>) {
+        let program_text = ProgramText::clone(&self.program_text);
+        let output = self.generate(Some(PathBuf::new()));
+        let map = output.map.expect("invariant violated: generated code has no source map");
+        let mut mappings = Vec::<OriginMapping>::new();
+        for token in map.get_tokens() {
+            let generated = Position { line: token.get_dst_line(), column: token.get_dst_col() };
+            let ProgramNode { origin, mut name } = program_text.line_node(token.get_src_line());
+            if let Some(previous) = mappings.pop_if(|previous| previous.generated == generated) {
+                name = name.or(previous.name);
+            }
+            let continues_previous = mappings.last().is_some_and(|previous| {
+                previous.generated.line == generated.line
+                    && previous.origin == origin
+                    && previous.name == name
+            });
+            if !continues_previous {
+                mappings.push(OriginMapping { generated, origin, name });
+            }
+        }
+        (output.code, mappings)
+    }
+
+    fn generate(self, source_map_path: Option<PathBuf>) -> CodegenReturn<'a> {
         let body = ArenaVec::from_iter_in(self.statements, &self.allocator);
-        let comments = self.comments.as_ref().borrow();
-        let source_text = self.allocator.alloc_str(&comments.source_text);
+        let source_text = self.allocator.alloc_str(&self.program_text.source_text());
         let span = Span::new(0, source_text.len() as u32);
-        let program_comments =
-            ArenaVec::from_iter_in(comments.comments.iter().copied(), &self.allocator);
+        let comments = ArenaVec::from_iter_in(self.program_text.comments(), &self.allocator);
         let program = Program::new(
             span,
             SourceType::mjs(),
             source_text,
-            program_comments,
+            comments,
             None,
             [],
             body,
@@ -694,9 +769,10 @@ impl<'a> Writer<'a> {
         let options = CodegenOptions {
             indent_char: IndentChar::Space,
             indent_width: 2,
+            source_map_path,
             ..CodegenOptions::default()
         };
-        Codegen::new().with_options(options).build(&program).code
+        Codegen::new().with_options(options).build(&program)
     }
 }
 

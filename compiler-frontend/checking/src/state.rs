@@ -330,7 +330,7 @@ impl CheckState {
         type_id: TypeId,
         kind: tree::ExpressionKind,
     ) -> tree::ExpressionId {
-        let expression = tree::Expression { type_id, kind };
+        let expression = tree::Expression { type_id, kind, source: None };
         self.checked.tree.allocate_expression(expression)
     }
 

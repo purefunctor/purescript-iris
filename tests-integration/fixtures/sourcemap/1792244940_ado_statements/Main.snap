@@ -1,0 +1,75 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Control_Apply from "../Control.Apply/index.js";
+   | ^ unmapped
+ 2 | import * as Data_Functor from "../Data.Functor/index.js";
+   | ^ unmapped
+ 3 | export function combine(applyFDict) {
+   | ^ 6:1 combine left right effect = ado
+   |        ^ (combine) 6:1 combine left right effect = ado
+   |                                     ^ 6:1 combine left right effect = ado
+ 4 |   return (left) => (right) => (effect) => /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())((a) => (b) => ($unit) => a + b | 0)(left))(right))(effect);
+   |   ^ (combine) 6:1 combine left right effect = ado
+   |                                           ^ 6:29 ado
+   |                                                                                           ^ 8:3 b <- right
+   |                                                                                                                                           ^ 7:3 a <- left
+   |                                                                                                                                                                                                                           ^ 8:3 b <- right
+   |                                                                                                                                                                                                                                  ^ 9:3 effect
+   |                                                                                                                                                                                                                                            ^ 10:6 a + b
+   |                                                                                                                                                                                                                                                ^ 10:10 b
+   |                                                                                                                                                                                                                                                    ^ 10:6 a + b
+   |                                                                                                                                                                                                                                                     ^ 7:3 a <- left
+   |                                                                                                                                                                                                                                                       ^ 7:8 left
+   |                                                                                                                                                                                                                                                           ^ 7:3 a <- left
+   |                                                                                                                                                                                                                                                            ^ 8:3 b <- right
+   |                                                                                                                                                                                                                                                              ^ 8:8 right
+   |                                                                                                                                                                                                                                                                   ^ 8:3 b <- right
+   |                                                                                                                                                                                                                                                                    ^ 6:29 ado
+   |                                                                                                                                                                                                                                                                      ^ 9:3 effect
+   |                                                                                                                                                                                                                                                                            ^ 6:29 ado
+ 5 | }
+   | ^ 6:1 combine left right effect = ado
+ 6 | export function records(applyFDict) {
+   | ^ 13:1 records left right = ado
+   |        ^ (records) 13:1 records left right = ado
+   |                                     ^ 13:1 records left right = ado
+ 7 |   const $closure = (left) => {
+   |   ^ 13:1 records left right = ado
+   |         ^ (records) 13:1 records left right = ado
+   |                              ^ 13:1 records left right = ado
+ 8 |     return (right) => {
+   |     ^ (records) 13:1 records left right = ado
+   |                       ^ 13:1 records left right = ado
+ 9 |       const $closure$1 = ($record) => {
+   |       ^ 14:3 { x } <- left
+10 |         const x = $record.x;
+   |         ^ 14:3 { x } <- left
+11 |         return ($record$1) => {
+   |         ^ 15:3 { y } <- right
+12 |           const y = $record$1.y;
+   |           ^ 15:3 { y } <- right
+13 |           return x + y | 0;
+   |           ^ 16:6 x + y
+   |                      ^ 16:10 y
+   |                          ^ 16:6 x + y
+14 |         };
+   |         ^ 15:3 { y } <- right
+15 |       };
+   |       ^ 14:3 { x } <- left
+16 |       return /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())($closure$1)(left))(right);
+   |       ^ 13:22 ado
+   |                                                              ^ 14:3 { x } <- left
+   |                                                                                                                                                  ^ 14:12 left
+   |                                                                                                                                                      ^ 14:3 { x } <- left
+   |                                                                                                                                                       ^ 13:22 ado
+   |                                                                                                                                                         ^ 15:12 right
+   |                                                                                                                                                              ^ 13:22 ado
+17 |     };
+   |     ^ 13:1 records left right = ado
+18 |   };
+   |   ^ 13:1 records left right = ado
+19 |   return $closure;
+   |   ^ 13:1 records left right = ado
+20 | }
+   | ^ 13:1 records left right = ado

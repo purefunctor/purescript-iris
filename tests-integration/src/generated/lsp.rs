@@ -2,6 +2,7 @@ mod nominal;
 pub mod render;
 
 use std::fmt::Write;
+use std::path::Path;
 
 use building::QueryEngine;
 use files::{FileId, Files};
@@ -193,7 +194,7 @@ fn extract_requests(content: &str) -> Vec<Request> {
     requests.into_iter().map(|(_, request)| request).collect()
 }
 
-pub fn report(engine: &QueryEngine, files: &Files, id: FileId) -> String {
+pub fn report(engine: &QueryEngine, files: &Files, id: FileId, prim_directory: &Path) -> String {
     let uri = {
         let path = files.path(id);
         Uri::parse(&path).unwrap()
@@ -262,7 +263,7 @@ pub fn report(engine: &QueryEngine, files: &Files, id: FileId) -> String {
         }
     }
 
-    redact_paths(result)
+    redact_paths(result, prim_directory)
 }
 
 fn dispatch_diagnostics(result: &mut String, engine: &QueryEngine, files: &Files, file_id: FileId) {
@@ -872,16 +873,15 @@ fn render_symbol_information(symbol: SymbolInformation) -> String {
     )
 }
 
-fn redact_paths(mut result: String) -> String {
+fn redact_paths(mut result: String, prim_directory: &Path) -> String {
     let manifest_directory = env!("CARGO_MANIFEST_DIR");
-    let temporary_directory = crate::PRIM_DIRECTORY.path();
 
     let manifest_directory_url = url::Url::from_file_path(manifest_directory).unwrap();
-    let temporary_directory_url = url::Url::from_file_path(temporary_directory).unwrap();
+    let prim_directory_url = url::Url::from_file_path(prim_directory).unwrap();
 
     for (url, redacted) in [
         (manifest_directory_url, "file:///tests-integration"),
-        (temporary_directory_url, "file:///temporary-directory"),
+        (prim_directory_url, "file:///temporary-directory"),
     ] {
         let uri = url.to_string();
         result = result.replace(&uri, redacted);

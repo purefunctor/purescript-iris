@@ -108,22 +108,17 @@ fn inline_bindings(
     }) {
         let binding = bindings.remove(position);
         for remaining in &bindings {
-            substitute_local(
-                storage,
-                remaining.expression,
-                binding.parameter.id,
-                binding.expression,
-            );
+            substitute_local(storage, remaining.expression, &binding);
         }
-        substitute_local(storage, body, binding.parameter.id, binding.expression);
+        substitute_local(storage, body, &binding);
     }
 
-    let replacement = if bindings.is_empty() {
-        storage[body].kind.clone()
+    if bindings.is_empty() {
+        storage.replace_expression(expression, body);
     } else {
-        ExpressionKind::Let { recursive: false, bindings: bindings.into(), body }
-    };
-    storage.replace_expression_kind(expression, replacement);
+        let replacement = ExpressionKind::Let { recursive: false, bindings: bindings.into(), body };
+        storage.replace_expression_kind(expression, replacement);
+    }
     fold_literal_negation(storage, expression);
 }
 
@@ -202,18 +197,18 @@ pub fn local_uses(storage: &Storage, expression: ExpressionId, parameter: LocalI
     uses
 }
 
-fn substitute_local(
-    storage: &mut Storage,
-    expression: ExpressionId,
-    parameter: LocalId,
-    replacement: ExpressionId,
-) {
+fn substitute_local(storage: &mut Storage, expression: ExpressionId, binding: &Binding) {
+    let parameter = binding.parameter.id;
     let mut pending = vec![expression];
     while let Some(expression) = pending.pop() {
         let kind = &storage[expression].kind;
         if matches!(kind, ExpressionKind::Local { parameter: local } if local.id == parameter) {
-            let replacement = ExpressionKind::clone(&storage[replacement].kind);
-            storage.replace_expression_kind(expression, replacement);
+            if binding.origin.is_some() {
+                let replacement = ExpressionKind::clone(&storage[binding.expression].kind);
+                storage.replace_expression_kind(expression, replacement);
+            } else {
+                storage.replace_expression(expression, binding.expression);
+            }
             continue;
         }
         let children_start = pending.len();
@@ -422,6 +417,11 @@ mod tests {
         ExpressionId::from_raw(index.into())
     }
 
+    fn value_binding(expression: ExpressionId) -> Binding {
+        let parameter = Parameter { id: LocalId(0), name: "value".into() };
+        Binding { parameter, expression, source_order: 0, origin: None }
+    }
+
     fn visited_children(kind: &ExpressionKind) -> Vec<ExpressionId> {
         let mut children = Vec::new();
         for_each_expression_child(kind, |child| children.push(child));
@@ -432,13 +432,15 @@ mod tests {
         let mut storage = Storage::default();
         let replacement = storage.allocate_expression(Expression {
             kind: ExpressionKind::Literal { literal: Literal::Integer(42) },
+            origin: None,
         });
         let local =
             ExpressionKind::Local { parameter: Parameter { id: LocalId(0), name: "value".into() } };
-        let mut root = storage.allocate_expression(Expression { kind: local });
+        let mut root = storage.allocate_expression(Expression { kind: local, origin: None });
         for _ in 0..depth {
             root = storage.allocate_expression(Expression {
                 kind: ExpressionKind::Array { elements: [root].into() },
+                origin: None,
             });
         }
         (storage, root, replacement)
@@ -449,19 +451,22 @@ mod tests {
         let (mut storage, root, replacement) = nested_arrays(100_000);
         inline_simple_bindings(&mut storage, root, &FxHashSet::default());
         assert_eq!(local_uses(&storage, root, LocalId(0)), 1);
-        substitute_local(&mut storage, root, LocalId(0), replacement);
+        substitute_local(&mut storage, root, &value_binding(replacement));
         assert_eq!(local_uses(&storage, root, LocalId(0)), 0);
 
         let parameter = Parameter { id: LocalId(1), name: "bound".into() };
         let body = storage.allocate_expression(Expression {
             kind: ExpressionKind::Local { parameter: Parameter::clone(&parameter) },
+            origin: None,
         });
         let binding = storage.allocate_expression(Expression {
             kind: ExpressionKind::Let {
                 recursive: false,
-                bindings: [Binding { parameter, expression: root, source_order: 0 }].into(),
+                bindings: [Binding { parameter, expression: root, source_order: 0, origin: None }]
+                    .into(),
                 body,
             },
+            origin: None,
         });
         inline_simple_bindings(&mut storage, binding, &FxHashSet::default());
         assert_eq!(storage[binding].kind, storage[root].kind);
@@ -476,6 +481,7 @@ mod tests {
             kind: ExpressionKind::Global {
                 global: crate::tree::Global { id: global, item_name: "recursive".into() },
             },
+            origin: None,
         });
         let recursive_globals = FxHashSet::from_iter([global]);
         assert!(is_simple_expression(&storage, body, &FxHashSet::default()));
@@ -484,7 +490,7 @@ mod tests {
             ExpressionKind::Abstraction { parameters: [].into(), body },
             ExpressionKind::UncurriedAbstraction { parameters: [].into(), body },
         ] {
-            let abstraction = storage.allocate_expression(Expression { kind });
+            let abstraction = storage.allocate_expression(Expression { kind, origin: None });
             assert!(is_simple_expression(&storage, abstraction, &recursive_globals));
         }
     }
@@ -494,6 +500,7 @@ mod tests {
         let (mut storage, shared, _) = nested_arrays(3);
         let root = storage.allocate_expression(Expression {
             kind: ExpressionKind::Array { elements: [shared, shared, shared].into() },
+            origin: None,
         });
         assert_eq!(local_uses(&storage, root, LocalId(0)), 3);
         assert_eq!(local_uses(&storage, root, LocalId(1)), 0);
@@ -506,8 +513,9 @@ mod tests {
             kind: ExpressionKind::Local {
                 parameter: Parameter { id: LocalId(0), name: "target".into() },
             },
+            origin: None,
         });
-        substitute_local(&mut storage, target, LocalId(0), replacement);
+        substitute_local(&mut storage, target, &value_binding(replacement));
         assert_eq!(storage[target].kind, storage[replacement].kind);
         assert_eq!(local_uses(&storage, target, LocalId(0)), 1);
     }
@@ -517,6 +525,7 @@ mod tests {
         let (mut storage, local, value) = nested_arrays(0);
         let negation = storage.allocate_expression(Expression {
             kind: ExpressionKind::Unary { operator: UnaryOperator::IntegerNegate, value: local },
+            origin: None,
         });
         let binding = storage.allocate_expression(Expression {
             kind: ExpressionKind::Let {
@@ -525,16 +534,20 @@ mod tests {
                     parameter: Parameter { id: LocalId(0), name: "value".into() },
                     expression: value,
                     source_order: 0,
+                    origin: None,
                 }]
                 .into(),
                 body: negation,
             },
+            origin: None,
         });
         let later_negation = storage.allocate_expression(Expression {
             kind: ExpressionKind::Unary { operator: UnaryOperator::IntegerNegate, value: local },
+            origin: None,
         });
         let root = storage.allocate_expression(Expression {
             kind: ExpressionKind::Array { elements: [binding, negation, later_negation].into() },
+            origin: None,
         });
         let mut visited = FxHashSet::default();
         optimize_expression(&mut storage, root, &FxHashSet::default(), &mut visited);
@@ -564,12 +577,13 @@ mod tests {
         }
         let root = storage.allocate_expression(Expression {
             kind: ExpressionKind::RecordUpdate { record: replacement, updates },
+            origin: None,
         });
 
         assert_eq!(visited_children(&storage[root].kind), vec![replacement, local]);
         inline_simple_bindings(&mut storage, root, &FxHashSet::default());
         assert_eq!(local_uses(&storage, root, LocalId(0)), 1);
-        substitute_local(&mut storage, root, LocalId(0), replacement);
+        substitute_local(&mut storage, root, &value_binding(replacement));
         assert_eq!(local_uses(&storage, root, LocalId(0)), 0);
 
         // Retained levels keep recursive Arc destruction out of this traversal test.
@@ -621,6 +635,7 @@ mod tests {
                         marker: None,
                     },
                     value: expression(2),
+                    origin: None,
                 },
                 StyleXConditionalCase {
                     condition: StyleXCondition::When {
@@ -629,10 +644,12 @@ mod tests {
                         marker: Some(expression(4)),
                     },
                     value: expression(5),
+                    origin: None,
                 },
                 StyleXConditionalCase {
                     condition: StyleXCondition::Expression(expression(6)),
                     value: expression(7),
+                    origin: None,
                 },
             ]
             .into(),

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use files::{FileId, ForeignSourceKind};
 
 use crate::ModuleDiagnostic;
+use crate::source_map::OriginMapping;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
@@ -65,6 +66,7 @@ impl Module {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleFiles {
     index_source: Arc<str>,
+    index_mappings: Arc<[OriginMapping]>,
     stylex_theme_source: Option<Arc<str>>,
     foreign_kind: Option<ForeignSourceKind>,
 }
@@ -72,11 +74,13 @@ pub struct ModuleFiles {
 impl ModuleFiles {
     pub(crate) fn new(
         index_source: String,
+        index_mappings: Vec<OriginMapping>,
         stylex_theme_source: Option<String>,
         foreign_kind: Option<ForeignSourceKind>,
     ) -> ModuleFiles {
         ModuleFiles {
             index_source: index_source.into(),
+            index_mappings: index_mappings.into(),
             stylex_theme_source: stylex_theme_source.map(Arc::from),
             foreign_kind,
         }
@@ -84,6 +88,10 @@ impl ModuleFiles {
 
     pub fn index_source(&self) -> &str {
         &self.index_source
+    }
+
+    pub(crate) fn index_mappings(&self) -> &[OriginMapping] {
+        &self.index_mappings
     }
 
     /// The module's StyleX theme definitions, written to [`stylex_theme_module_filename`].
@@ -105,8 +113,20 @@ pub fn runtime_source() -> &'static str {
 }
 
 pub fn module_filename(module_name: &str) -> String {
-    format!("{module_name}/index.js")
+    format!("{module_name}/{INDEX_FILENAME}")
 }
+
+pub fn source_map_module_filename(module_name: &str) -> String {
+    format!("{module_name}/{SOURCE_MAP_FILENAME}")
+}
+
+pub fn source_mapping_url_comment() -> String {
+    format!("//# sourceMappingURL={SOURCE_MAP_FILENAME}\n")
+}
+
+pub(crate) const INDEX_FILENAME: &str = "index.js";
+
+pub(crate) const SOURCE_MAP_FILENAME: &str = "index.js.map";
 
 /// StyleX accepts `defineVars`, `defineConsts`, and `defineMarker` only in files named
 /// `*.stylex.js`, which its default module resolution recognizes without configuration.

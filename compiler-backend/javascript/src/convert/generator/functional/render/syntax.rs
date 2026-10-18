@@ -142,7 +142,7 @@ pub(super) fn constructor_expression(tree: &mut Tree, name: &str, arity: usize) 
     }
     let mut expression = tree.object(properties);
     for argument in arguments.into_iter().rev() {
-        expression = tree.arrow(vec![argument], expression);
+        expression = tree.arrow(None, vec![argument], expression);
     }
     expression
 }
@@ -154,7 +154,7 @@ pub(super) fn synthesized_evidence_expression(
     match evidence {
         SynthesizedEvidence::IsSymbol(symbol) => {
             let symbol = tree.string_utf16(symbol.as_utf16());
-            let reflect = tree.arrow(vec![SmolStr::new_static("$proxy")], symbol);
+            let reflect = tree.arrow(None, vec![SmolStr::new_static("$proxy")], symbol);
             tree.object(vec![ObjectProperty::Field {
                 name: SmolStr::new_static("reflectSymbol"),
                 value: reflect,
@@ -174,7 +174,7 @@ pub(super) fn synthesized_evidence_expression(
                     tree.string(tag)
                 }
             };
-            let reflect = tree.arrow(vec![SmolStr::new_static("$proxy")], value);
+            let reflect = tree.arrow(None, vec![SmolStr::new_static("$proxy")], value);
             tree.object(vec![ObjectProperty::Field {
                 name: SmolStr::new_static("reflectType"),
                 value: reflect,

@@ -38,6 +38,47 @@ foreign import main :: Effect Unit
 }
 
 #[test]
+fn maps_stack_traces_to_purescript_sources() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Unit = Unit
+
+foreign import data Effect :: Type -> Type
+
+foreign import fail :: Unit -> Effect Unit
+
+validate' :: Unit -> Effect Unit
+validate' unit = fail unit
+
+main :: Effect Unit
+main = validate' Unit
+"#,
+    );
+    workspace.write("src/Main.js", "export const fail = () => { throw new Error(\"failed\"); };\n");
+
+    let output = workspace.command(&["run", "--quiet"]);
+
+    assert!(!output.status.success());
+    insta::assert_snapshot!(workspace.workspace_stack_frames(&output), @"
+    at fail ([WORKSPACE]/output/Main/foreign.js:1:35)
+    at validate' ([WORKSPACE]/src/Main.purs:10:18)
+    at <anonymous> ([WORKSPACE]/src/Main.purs:13:8)
+    at async [WORKSPACE]/[eval1]:4:16
+    ");
+}
+
+#[test]
 fn preserves_the_node_exit_code() {
     let workspace = TestWorkspace::empty();
     workspace.write(
@@ -63,7 +104,7 @@ foreign import main :: Effect Unit
 
     assert_eq!(output.status.code(), Some(7));
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).starts_with("Node.js exited with status "));
+    insta::assert_snapshot!(workspace.normalize_output(&output.stderr), @"Node.js exited with status exit code: 7");
 }
 
 #[test]

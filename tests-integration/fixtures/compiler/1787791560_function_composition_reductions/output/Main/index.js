@@ -9,8 +9,9 @@ export function composeOrder($boolean) {
 export function partiallyComposedOrder($boolean) {
   const composeOuter = observe("outer")((value) => value);
   const composeInner = observe("inner")((value$1) => value$1);
-  const $result = (composeArgument) => /* @__PURE__ */ composeOuter(/* @__PURE__ */ composeInner(composeArgument));
-  const composedFunction = $result;
+  const composedFunction = (composeArgument) => {
+    return /* @__PURE__ */ composeOuter(/* @__PURE__ */ composeInner(composeArgument));
+  };
   return composedFunction(observe("argument")(42 | 0));
 }
 export function flippedComposeOrder($boolean) {
@@ -22,8 +23,9 @@ export function flippedComposeOrder($boolean) {
 export function partiallyFlippedComposedOrder($boolean) {
   const composeInner = observe("inner")((value) => value);
   const composeOuter = observe("outer")((value$1) => value$1);
-  const $result = (composeArgument) => /* @__PURE__ */ composeOuter(/* @__PURE__ */ composeInner(composeArgument));
-  const composedFunction = $result;
+  const composedFunction = (composeArgument) => {
+    return /* @__PURE__ */ composeOuter(/* @__PURE__ */ composeInner(composeArgument));
+  };
   return composedFunction(observe("argument")(42 | 0));
 }
 export const observe = $foreign["observe"];

@@ -6,6 +6,8 @@
 mod convert;
 mod error;
 mod module;
+mod program_text;
+mod source_map;
 mod tree;
 mod writer;
 
@@ -15,8 +17,10 @@ pub use convert::convert_module;
 pub use error::{ModuleDiagnostic, ModuleError, ModuleResult, UnsupportedState};
 pub use module::{
     Module, ModuleFiles, foreign_filename, foreign_module_filename, module_filename,
-    runtime_filename, runtime_source, stylex_theme_module_filename,
+    runtime_filename, runtime_source, source_map_module_filename, source_mapping_url_comment,
+    stylex_theme_module_filename,
 };
+pub use source_map::{Position, SourceMap, SourceMapping, source_map};
 
 use building_types::QueryResult;
 use files::{FileId, ForeignFileId};

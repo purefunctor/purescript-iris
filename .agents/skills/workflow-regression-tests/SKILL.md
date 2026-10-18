@@ -1,6 +1,6 @@
 ---
 name: workflow-regression-tests
-description: "Workflow for producing auditable Git or jj history for a known compiler bug fix. Use when a compiler fix needs a failing integration-test fixture followed by a fix commit that updates the same compiler, lowering, resolving, or LSP report."
+description: "Workflow for producing auditable Git or jj history for a known compiler bug fix. Use when a compiler fix needs a failing integration-test fixture followed by a fix commit that updates the same compiler, lowering, resolving, LSP, or source map report."
 ---
 
 # Workflow: Regression Tests
@@ -34,6 +34,7 @@ Use the category that owns the observable regression:
 | `lowering`  | `l`   | Lowered core output, equation/binder shape, or source-to-core links                              |
 | `resolving` | `r`   | Name resolution, imports, exports, qualification, re-exports, or resolver diagnostics            |
 | `lsp`       | -     | Hover, definition, completion, import edits, or editor-facing source positions                   |
+| `sourcemap` | -     | The source positions that generated JavaScript maps back to                                      |
 
 Use the `workflow-integration-tests` skill for fixture authoring details. Use the command reference at `.agents/skills/workflow-integration-tests/reference/compiler-scripts.md` for runner syntax, filters, snapshots, and trace debugging.
 
@@ -79,6 +80,8 @@ Snapshot expectations differ by category:
   semantic report contains recovery trees, and its functional report contains a
   successful tree or explicit rejection.
 - `lsp` snapshots `Main.purs` only.
+- `sourcemap` enters through `Main.purs`; its report lists the generated JavaScript with the
+  source position of each mapped column.
 - `lowering` and `resolving` snapshot every `.purs` file in the fixture.
 
 Accept the snapshot in the failing fixture commit:

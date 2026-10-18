@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{fmt, fs, thread};
 
@@ -15,7 +15,6 @@ use lsp_types::{
     WorkDoneProgressCreateParams, WorkDoneProgressParams, WorkspaceFolder, WorkspaceFolders,
     WorkspaceFoldersInitializeParams, WorkspaceSymbolParams,
 };
-use regex::Regex;
 use serde::Serialize;
 use serde_json::{Value, json};
 use url::Url;
@@ -23,11 +22,11 @@ use url::Url;
 #[path = "support.rs"]
 mod support;
 
-use support::TestWorkspace;
+use support::{TestWorkspace, normalize_process_status, replace_path_prefix, workspace_prefixes};
 
 fn snapshot_json(name: &str, value: &Value) {
     let mut value = value.clone();
-    normalize_process_status(&mut value);
+    normalize_process_statuses(&mut value);
     insta::with_settings!({omit_expression => true}, {
         insta::assert_snapshot!(name, serde_json::to_string_pretty(&value).unwrap());
     });
@@ -38,32 +37,6 @@ fn snapshot_workspace_json(name: &str, value: &Value, workspace: &Path) {
     let workspace_prefixes = workspace_prefixes(workspace);
     normalize_workspace_paths(&mut value, &workspace_prefixes);
     snapshot_json(name, &value);
-}
-
-fn workspace_prefixes(workspace: &Path) -> Vec<String> {
-    let mut paths = vec![workspace.to_path_buf()];
-    if let Ok(canonical) = dunce::canonicalize(workspace)
-        && canonical != workspace
-    {
-        paths.push(canonical);
-    }
-    let mut prefixes = paths
-        .into_iter()
-        .flat_map(|path| {
-            let native = path.to_string_lossy().trim_end_matches(['/', '\\']).to_string();
-            let slash = native.replace('\\', "/");
-            let uri = Url::from_directory_path(&path)
-                .expect("invariant violated: workspace path is not absolute")
-                .to_string()
-                .trim_end_matches('/')
-                .to_string();
-            [native, slash, uri]
-        })
-        .collect::<Vec<_>>();
-    prefixes
-        .sort_unstable_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
-    prefixes.dedup();
-    prefixes
 }
 
 fn normalize_workspace_paths(value: &mut Value, workspace_prefixes: &[String]) {
@@ -90,33 +63,12 @@ fn normalize_workspace_paths(value: &mut Value, workspace_prefixes: &[String]) {
     }
 }
 
-fn replace_path_prefix(value: &str, prefix: &str) -> String {
-    let mut result = String::with_capacity(value.len());
-    let mut remaining = value;
-    while let Some(index) = remaining.find(prefix) {
-        let suffix = &remaining[index + prefix.len()..];
-        let boundary = suffix.is_empty() || suffix.starts_with(['/', '\\']);
-        result.push_str(&remaining[..index]);
-        if boundary {
-            result.push_str("[WORKSPACE]");
-        } else {
-            result.push_str(prefix);
-        }
-        remaining = suffix;
-    }
-    result.push_str(remaining);
-    result
-}
-
-fn normalize_process_status(value: &mut Value) {
-    static STATUS: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"exit (?:status|code): (-?\d+)").unwrap());
-
+fn normalize_process_statuses(value: &mut Value) {
     match value {
-        Value::Array(values) => values.iter_mut().for_each(normalize_process_status),
-        Value::Object(fields) => fields.values_mut().for_each(normalize_process_status),
+        Value::Array(values) => values.iter_mut().for_each(normalize_process_statuses),
+        Value::Object(fields) => fields.values_mut().for_each(normalize_process_statuses),
         Value::String(string) => {
-            *string = STATUS.replace_all(string, "exit code: $1").into_owned();
+            *string = normalize_process_status(string);
         }
         Value::Bool(_) | Value::Null | Value::Number(_) => {}
     }
@@ -132,7 +84,7 @@ fn snapshot_normalization_preserves_path_boundaries_and_platform_status_details(
         "signal: 15",
     ]);
     normalize_workspace_paths(&mut value, &[r"C:\workspace".to_string()]);
-    normalize_process_status(&mut value);
+    normalize_process_statuses(&mut value);
 
     let lines = value.as_array().unwrap().iter().map(|value| value.as_str().unwrap());
     insta::assert_snapshot!(lines.collect::<Vec<_>>().join("\n"), @r"

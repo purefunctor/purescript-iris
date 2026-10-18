@@ -19,8 +19,7 @@ export const validLocalEval = /* @__PURE__ */ (() => {
 })();
 export const validNestedLocalEval = /* @__PURE__ */ (() => {
   const inner = mkEval("Spec");
-  const $result = inner;
-  const outer = $result;
+  const outer = inner;
   return consumeIdentity(outer);
 })();
 export const escapedLocalEvidence = /* @__PURE__ */ (() => {

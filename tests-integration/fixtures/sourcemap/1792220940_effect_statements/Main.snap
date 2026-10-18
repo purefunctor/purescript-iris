@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as $foreign from "./foreign.js";
+  | ^ unmapped
+2 | export const record = $foreign["record"];
+  | ^ 7:1 foreign import record :: String -> Effect Unit
+3 | export const main = /* @__PURE__ */ (() => {
+  | ^ 10:1 main = do
+  |              ^ (main) 10:1 main = do
+  |                                            ^ 10:1 main = do
+4 |   const $action = record("start");
+  |   ^ 11:3 record "start"
+  |                          ^ 11:10 "start"
+  |                                 ^ 11:3 record "start"
+5 |   return () => {
+  |   ^ (main) 10:8 do
+  |                ^ 10:8 do
+6 |     const $unit = $action();
+  |     ^ 11:3 record "start"
+7 |     return record("Iris")();
+  |     ^ 13:3 record name
+  |                   ^ 12:16 "Iris"
+  |                         ^ 13:3 record name
+8 |   };
+  |   ^ 10:8 do
+9 | })();
+  | ^ 10:1 main = do
+  |   ^ (main) 10:1 main = do

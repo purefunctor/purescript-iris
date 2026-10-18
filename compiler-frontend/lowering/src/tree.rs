@@ -59,6 +59,7 @@ pub enum RecordUpdate {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CaseBranch {
+    pub source: CaseBranchId,
     pub binders: Arc<[BinderId]>,
     pub guarded_expression: Option<GuardedExpression>,
 }
@@ -287,6 +288,7 @@ pub struct PatternGuarded {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PatternGuard {
+    pub source: PatternGuardId,
     pub binder: Option<BinderId>,
     pub expression: Option<ExpressionId>,
 }

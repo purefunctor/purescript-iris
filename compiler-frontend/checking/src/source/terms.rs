@@ -100,6 +100,8 @@ where
         let checked = check_expression_quiet(state, context, expression, expected)?;
         let checked = retain_expression_judgment(state, checked);
         state.checked.node_types.expressions.insert(expression, checked.type_id);
+        let source = tree::ExpressionSource::Expression(expression);
+        state.checked.tree.attribute_expression(checked.expression, source);
         Ok(checked)
     })
 }
@@ -331,6 +333,8 @@ where
         let inferred = infer_expression_quiet(state, context, expression)?;
         let inferred = retain_expression_judgment(state, inferred);
         state.checked.node_types.expressions.insert(expression, inferred.type_id);
+        let source = tree::ExpressionSource::Expression(expression);
+        state.checked.tree.attribute_expression(inferred.expression, source);
         Ok(inferred)
     })
 }

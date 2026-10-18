@@ -10,7 +10,7 @@ use std::{env, io};
 use building::QueryEngine;
 use checking::error::ErrorCrumb;
 use files::{FileId, Files};
-use iris_diagnostics::{collect_diagnostics, format_rich_with_path};
+use iris_diagnostics::{Severity, collect_diagnostics, format_rich_with_path};
 use itertools::Itertools;
 use line_index::LineIndex;
 use process_control::{ChildExt, Control};
@@ -285,24 +285,24 @@ pub fn compiler(path: &Path) -> FixtureResult {
     let folder = fixture_folder(path)?;
     let fixture = snapshot_path(folder);
     let file = module_name(path)?;
-    let crate::LoadedFixture { engine, files, fixture_files } = crate::load_fixture(folder)?;
-    let Some(id) = engine.module_file(&file) else {
+    let loaded = crate::load_fixture(folder)?;
+    let Some(id) = loaded.engine.module_file(&file) else {
         return Err(missing_module(path, &file).into());
     };
 
-    let checking_report = crate::generated::basic::report_checked(&engine, id);
-    let semantic_report = crate::generated::semantic::report(&engine, id);
-    let functional_report = match engine.functional(id)? {
+    let checking_report = crate::generated::basic::report_checked(&loaded.engine, id);
+    let semantic_report = crate::generated::semantic::report(&loaded.engine, id);
+    let functional_report = match loaded.engine.functional(id)? {
         Ok(module) => functional::pretty::render(&module),
         Err(_) => format!("Module {file} rejected; see {file}.diagnostics.snap"),
     };
-    let mut diagnostic_files = fixture_files.iter().copied().collect_vec();
-    diagnostic_files.sort_by_key(|&id| files.path(id));
-    check_declaration_crumbs(&engine, &diagnostic_files)?;
-    let collected = collect_diagnostics(&engine, &diagnostic_files)?;
+    let mut diagnostic_files = loaded.fixture_files.iter().copied().collect_vec();
+    diagnostic_files.sort_by_key(|&id| loaded.files.path(id));
+    check_declaration_crumbs(&loaded.engine, &diagnostic_files)?;
+    let collected = collect_diagnostics(&loaded.engine, &diagnostic_files)?;
     let mut diagnostics_report = String::new();
     for collection in &collected {
-        let source = Url::parse(&files.path(collection.file_id))?
+        let source = Url::parse(&loaded.files.path(collection.file_id))?
             .to_file_path()
             .map_err(|()| invalid_data("fixture source URL is not a file"))?;
         let relative = source.strip_prefix(&fixture)?;
@@ -337,11 +337,11 @@ pub fn compiler(path: &Path) -> FixtureResult {
     let output = generated.path().join("output");
     std::fs::create_dir(&output)?;
     let mut expected_paths = BTreeSet::new();
-    match javascript_modules(&engine, id)? {
+    match javascript_modules(&loaded.engine, id)? {
         Ok(modules) => {
-            modules.write_to(&files, &output)?;
+            modules.write_to(&loaded.files, &output)?;
             for module in &modules.modules {
-                if !fixture_files.contains(&module.file_id()) {
+                if !loaded.fixture_files.contains(&module.file_id()) {
                     continue;
                 }
                 let module_files = module.files();
@@ -379,12 +379,12 @@ pub fn compiler(path: &Path) -> FixtureResult {
 pub fn lowering(path: &Path) -> FixtureResult {
     let folder = fixture_folder(path)?;
     let file = module_name(path)?;
-    let (engine, _) = crate::load_compiler(folder)?;
-    let Some(id) = engine.module_file(&file) else {
+    let loaded = crate::load_fixture(folder)?;
+    let Some(id) = loaded.engine.module_file(&file) else {
         return Err(missing_module(path, &file).into());
     };
 
-    let report = crate::generated::basic::report_lowered(&engine, id, &file);
+    let report = crate::generated::basic::report_lowered(&loaded.engine, id, &file);
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
@@ -400,12 +400,12 @@ pub fn resolving(path: &Path) -> FixtureResult {
     let display_path = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| {
         invalid_data(format!("invariant violated: invalid fixture file name: {}", path.display()))
     })?;
-    let (engine, _) = crate::load_compiler(folder)?;
-    let Some(id) = engine.module_file(&file) else {
+    let loaded = crate::load_fixture(folder)?;
+    let Some(id) = loaded.engine.module_file(&file) else {
         return Err(missing_module(path, &file).into());
     };
 
-    let report = crate::generated::basic::report_resolved(&engine, id, &file, display_path);
+    let report = crate::generated::basic::report_resolved(&loaded.engine, id, &file, display_path);
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
@@ -418,12 +418,60 @@ pub fn resolving(path: &Path) -> FixtureResult {
 pub fn docs(path: &Path) -> FixtureResult {
     let folder = fixture_folder(path)?;
     let file = module_name(path)?;
-    let (engine, files) = crate::load_compiler(folder)?;
+    let loaded = crate::load_fixture(folder)?;
     let snapshot_path = snapshot_path(folder);
 
-    let report = crate::generated::docs::report(&engine, &files, &snapshot_path)?;
+    let report = crate::generated::docs::report(&loaded.engine, &loaded.files, &snapshot_path)?;
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path);
+    settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
+    settings.bind(|| insta::assert_snapshot!(file, report));
+
+    Ok(())
+}
+
+fn check_source_errors(
+    engine: &QueryEngine,
+    files: &Files,
+    fixture_files: &HashSet<FileId>,
+) -> FixtureResult {
+    let mut fixture_files = fixture_files.iter().copied().collect_vec();
+    fixture_files.sort_by_key(|&id| files.path(id));
+    let mut errors = String::new();
+    for collection in collect_diagnostics(engine, &fixture_files)? {
+        let diagnostics = collection.diagnostics();
+        if !diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error) {
+            continue;
+        }
+        let line_index = LineIndex::new(&collection.content);
+        let path = files.path(collection.file_id);
+        errors.push_str(&format_rich_with_path(
+            diagnostics,
+            &collection.content,
+            &line_index,
+            &path,
+            false,
+        ));
+    }
+    if errors.is_empty() {
+        return Ok(());
+    }
+    Err(invalid_data(format!("fixture has source errors:\n{errors}")).into())
+}
+
+pub fn sourcemap(path: &Path) -> FixtureResult {
+    let folder = fixture_folder(path)?;
+    let file = module_name(path)?;
+    let loaded = crate::load_fixture(folder)?;
+    let Some(id) = loaded.engine.module_file(&file) else {
+        return Err(missing_module(path, &file).into());
+    };
+    check_source_errors(&loaded.engine, &loaded.files, &loaded.fixture_files)?;
+
+    let report = crate::generated::sourcemap::report(&loaded.engine, id)?;
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);
     settings.set_omit_expression(true);
     settings.bind(|| insta::assert_snapshot!(file, report));
@@ -434,7 +482,7 @@ pub fn docs(path: &Path) -> FixtureResult {
 pub fn lsp(path: &Path) -> FixtureResult {
     let folder = fixture_folder(path)?;
     let file = module_name(path)?;
-    let (engine, files) = crate::load_compiler(folder)?;
+    let loaded = crate::load_fixture(folder)?;
     let source_path = snapshot_path(folder).join(path.file_name().ok_or_else(|| {
         invalid_data(format!("fixture path has no file name: {}", path.display()))
     })?);
@@ -444,11 +492,16 @@ pub fn lsp(path: &Path) -> FixtureResult {
             source_path.display()
         ))
     })?;
-    let id = files.id(source_url.as_str()).ok_or_else(|| {
+    let id = loaded.files.id(source_url.as_str()).ok_or_else(|| {
         invalid_data(format!("fixture source was not loaded: {}", source_path.display()))
     })?;
 
-    let report = crate::generated::lsp::report(&engine, &files, id);
+    let report = crate::generated::lsp::report(
+        &loaded.engine,
+        &loaded.files,
+        id,
+        loaded.prim_directory.path(),
+    );
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(snapshot_path(folder));
     settings.set_prepend_module_to_snapshot(false);

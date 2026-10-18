@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export const Red = "Red";
+   | ^ 6:15 Red | Green
+ 2 | export const Green = "Green";
+   | ^ 6:21 Green
+ 3 | export function describe(dictionary) {
+   | ^ 4:3 describe :: a -> String
+   |        ^ (describe) 4:3 describe :: a -> String
+   |                                      ^ 4:3 describe :: a -> String
+ 4 |   return dictionary.describe;
+   |   ^ 4:3 describe :: a -> String
+ 5 | }
+   | ^ 4:3 describe :: a -> String
+ 6 | export const describeColour = /* @__PURE__ */ (() => {
+   | ^ 8:1 instance Describe Colour where
+ 7 |   const $closure = ($colour) => {
+   |   ^ 9:3 describe Red = "red"
+   |         ^ (describe) 9:3 describe Red = "red"
+   |                                 ^ 9:3 describe Red = "red"
+ 8 |     if ($colour === "Red") {
+   |     ^ 9:3 describe Red = "red"
+ 9 |       return "red";
+   |       ^ 9:18 "red"
+10 |     }
+   |     ^ 9:3 describe Red = "red"
+11 |     if ($colour === "Green") {
+   |     ^ 10:3 describe Green = "green"
+12 |       return "green";
+   |       ^ 10:20 "green"
+13 |     }
+   |     ^ 10:3 describe Green = "green"
+14 |     throw new Error("Pattern match failure");
+   |     ^ 9:3 describe Red = "red"
+15 |   };
+   |   ^ 9:3 describe Red = "red"
+16 |   return { describe: $closure };
+   |   ^ 8:1 instance Describe Colour where
+   |                      ^ 9:3 describe Red = "red"
+   |                               ^ 8:1 instance Describe Colour where
+17 | })();
+   | ^ 8:1 instance Describe Colour where

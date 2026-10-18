@@ -24,8 +24,8 @@ use crate::optimize::inline_simple_bindings;
 use crate::tree::{
     Declaration, DeclarationKind, Expression, ExpressionId, ExpressionKind, Field, FieldIdentity,
     GeneratedGlobalId, Global, GlobalId, IndirectModuleExports, InstanceIdentity, LocalId, Module,
-    ModuleDependency, ModuleSurface, Parameter, Pattern, PatternId, PatternKind, RecursiveGroupId,
-    Storage, SuperclassIdentity,
+    ModuleDependency, ModuleSurface, Origin, Parameter, Pattern, PatternId, PatternKind,
+    RecursiveGroupId, Storage, SuperclassIdentity,
 };
 
 use self::declaration::{derive_declaration, instance_declaration, term_declaration};
@@ -101,6 +101,7 @@ struct Context<'c, Q> {
     evidence_hoisting: EvidenceHoisting,
     instance_names: RefCell<checking_tree::pretty::InstanceNames>,
 
+    origin: Option<Origin>,
     storage: Storage,
 }
 
@@ -165,6 +166,7 @@ where
             evidence_hoisting: EvidenceHoisting::default(),
             instance_names: RefCell::new(checking_tree::pretty::InstanceNames::default()),
 
+            origin: None,
             storage: Storage::default(),
         })
     }
@@ -495,11 +497,25 @@ where
     }
 
     fn expression(&mut self, kind: ExpressionKind) -> ExpressionId {
-        self.storage.allocate_expression(Expression { kind })
+        self.storage.allocate_expression(Expression { kind, origin: self.origin })
+    }
+
+    fn with_origin<T>(
+        &mut self,
+        origin: Option<Origin>,
+        convert: impl FnOnce(&mut Context<'c, Q>) -> T,
+    ) -> T {
+        let Some(origin) = origin else {
+            return convert(self);
+        };
+        let enclosing = self.origin.replace(origin);
+        let converted = convert(self);
+        self.origin = enclosing;
+        converted
     }
 
     fn pattern(&mut self, kind: PatternKind) -> PatternId {
-        self.storage.allocate_pattern(Pattern { kind })
+        self.storage.allocate_pattern(Pattern { kind, origin: self.origin })
     }
 
     fn label_field(&self, label: SmolStr) -> Field {

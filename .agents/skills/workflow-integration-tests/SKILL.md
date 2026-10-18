@@ -1,6 +1,6 @@
 ---
 name: workflow-integration-tests
-description: "Workflow for adding and updating Iris integration-test fixtures for unified compiler, lowering, resolving, and LSP behavior. Use when creating compiler integration tests, reviewing snapshots or generated JavaScript, or using `just t <category>`."
+description: "Workflow for adding and updating Iris integration-test fixtures for unified compiler, lowering, resolving, LSP, and source map behavior. Use when creating compiler integration tests, reviewing snapshots, generated JavaScript, or source maps, or using `just t <category>`."
 ---
 
 # Workflow: Iris Integration Tests
@@ -17,6 +17,7 @@ Use the command reference at `reference/compiler-scripts.md` for test runner syn
 | `lowering`  | `l`   | Lowered core output, binding/equation structure, source-to-core name links                        | every `.purs` file                                           |
 | `resolving` | `r`   | Name resolution, imports, exports, qualification, duplicate-name diagnostics                      | every `.purs` file                                           |
 | `lsp`       | -     | Hover, definition, completion, import edits, source locations in LSP reports                      | `Main.purs` only                                             |
+| `sourcemap` | -     | Source positions that generated JavaScript maps back to                                           | `Main.purs`, `Main.snap`, optional foreign `Main.js`         |
 
 When a behavior spans phases, test the earliest category that directly owns the behavior. Add a later-phase fixture only if the later report is the clearest way to make the regression reviewable.
 
@@ -87,6 +88,19 @@ Multiple cursors may observe one coherent unit, such as document highlights acro
 a binding's use, signature, and definition. Keep that context together. A small
 set of related hover examples can also remain together without a request dependency.
 Do not split by cursor count; follow the examples in `tests-integration/AGENTS.md`.
+
+#### Source map fixtures
+
+Use `tests-integration/fixtures/sourcemap/<fixture>/Main.purs` as the entry point. `Main.snap`
+prints each line of the module's generated `index.js`, followed by a caret under each mapped
+column with the 1-based PureScript `line:column` that it maps to and the source text from there to
+the end of its line, or `unmapped`. A mapping that names a PureScript function shows the name in
+parentheses before its position. Add a foreign `Main.js` when the behavior needs foreign imports.
+The harness fails a fixture whose modules have errors.
+
+Source map fixtures use `tests-integration/packages.json`, like compiler fixtures. Every generated
+line appears in the report, so keep the module to the declarations that show the mapping under
+test. Generated JavaScript itself belongs in compiler fixtures.
 
 ### 3. Run and review
 
@@ -192,6 +206,24 @@ Check local/imported/exported references, qualification, hidden imports, re-expo
 
 Check hover text, definitions, completions, edits, and reported positions. Review both the source excerpt and the resulting LSP payload.
 
+### Source maps
+
+Check that each mapping points at the construct that generated the code: the declaration,
+equation, local binding, case alternative, guard, do or ado statement, or expression. Code
+generated for one equation or case alternative must not map to a sibling. Imports, re-exports, and
+the control flow of the `$tail_` dispatcher shared by mutually recursive top-level functions are
+unmapped; treat other new `unmapped` lines, and mappings into unrelated source lines, as
+regressions.
+
+Names identify the function that a stack frame belongs to. A function defined by a named
+declaration or local binding carries that PureScript name, and so does each function that it
+returns. A closure that a record field holds, such as an instance member with several equations,
+carries the field's name, which JavaScript already gives an arrow written inline in a record. The
+name is on the mappings of the function's header: its `function` keyword, binding, or `return`, its
+parameters, and the call of an immediately invoked arrow. The first mapping of the body is unnamed.
+Lambdas, generated helpers such as dispatchers and captured effects, and functions that inlining
+separates from their binding, such as an inlined local function, carry no name.
+
 ## Acceptance Criteria
 
 Before accepting, verify:
@@ -202,6 +234,7 @@ Before accepting, verify:
    - Lowering owns lowered core/source-link behavior
    - Resolving owns name/import/export behavior
    - LSP owns editor-facing reports
+   - Source maps own the source positions that generated JavaScript maps back to
 
 2. **The fixture is narrow**
    - One small, coherent unit whose source and expected results are easy to hold in working memory

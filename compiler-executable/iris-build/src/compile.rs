@@ -17,7 +17,7 @@ use url::Url;
 
 use super::compilation::{CompilationState, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
-use super::output::{BuildOutput, OutputError};
+use super::output::{BuildOutput, GeneratedModule, OutputError};
 use super::ownership::SourcePackage;
 use super::packages::DiscoveredPackage;
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
@@ -58,7 +58,7 @@ pub(crate) type ProjectCompilation = CompilationState<(), Option<SourcePackage>>
 pub(crate) enum Compiled {
     NoInputs,
     Diagnostics,
-    Succeeded(Vec<Arc<javascript::Module>>),
+    Succeeded(Vec<GeneratedModule>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -262,7 +262,7 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, Compile
     } else {
         let modules = collect_modules(&compilation, &report.sources)?;
         output.write(&compilation, &modules)?;
-        Some(modules.iter().map(|module| module.name().to_owned()).collect())
+        Some(modules.iter().map(|module| module.javascript.name().to_owned()).collect())
     };
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
     events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });
@@ -430,22 +430,33 @@ fn display_source_path(source_path: &str, root: &Path) -> String {
 fn collect_modules(
     compilation: &ProjectCompilation,
     sources: &[FileId],
-) -> Result<Vec<Arc<javascript::Module>>, CompileError> {
+) -> Result<Vec<GeneratedModule>, CompileError> {
     let mut pending = sources.to_vec();
     let mut visited = HashSet::new();
     let mut modules = Vec::new();
     while !pending.is_empty() {
         let frontier = pending.drain(..).filter(|file_id| visited.insert(*file_id));
         let frontier = frontier.collect_vec();
-        let generated = frontier.par_iter().map(|&file_id| {
-            let module = compilation.snapshot().javascript(file_id)?.ok();
-            Ok::<_, CompileError>(module)
-        });
+        let generated = frontier.par_iter().map(|&file_id| generated_module(compilation, file_id));
         let generated = generated.collect::<Result<Vec<_>, _>>()?;
         for module in generated.into_iter().flatten() {
-            pending.extend(module.dependencies().iter().copied());
+            pending.extend(module.javascript.dependencies().iter().copied());
             modules.push(module);
         }
     }
     Ok(modules)
+}
+
+fn generated_module(
+    compilation: &ProjectCompilation,
+    file_id: FileId,
+) -> Result<Option<GeneratedModule>, CompileError> {
+    let engine = compilation.snapshot();
+    let Ok(javascript) = engine.javascript(file_id)? else {
+        return Ok(None);
+    };
+    let source_map = engine
+        .source_map(file_id)?
+        .expect("invariant violated: a generated module has no source map");
+    Ok(Some(GeneratedModule { javascript, source_map }))
 }

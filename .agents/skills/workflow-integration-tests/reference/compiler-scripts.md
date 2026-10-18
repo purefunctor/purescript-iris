@@ -25,6 +25,7 @@ just t compiler --update-output [filters...] # Update generated JavaScript fixtu
 | lowering | l | Lowering tests |
 | resolving | r | Resolver tests |
 | lsp | - | LSP tests |
+| sourcemap | - | Source map tests |
 
 ### Snapshot commands
 
