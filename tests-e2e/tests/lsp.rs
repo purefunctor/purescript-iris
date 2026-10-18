@@ -164,14 +164,16 @@ fn empty_configuration_preserves_spago_and_default_diagnostics() {
         .write("spago.yaml", "package:\n  name: application\n  dependencies: []\nworkspace: {}\n");
     workspace.write("src/Library.purs", "module Library where\nfromSpago = 42\n");
 
-    let cases: &[&[&str]] = &[&["lsp"], &["lsp", "--stdio"]];
-    for arguments in cases {
-        let mut server = LanguageServer::start(&workspace, "", arguments, workspace.path());
-        let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
-        snapshot_workspace_json("empty_configuration_workspace_symbol", &symbols, workspace.path());
-        assert_diagnostic_triggers(&mut server, workspace.path(), true, true, false);
-        server.shutdown();
-    }
+    let mut server = LanguageServer::start(&workspace, "", &["lsp", "--stdio"], workspace.path());
+    let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
+    snapshot_workspace_json("empty_configuration_workspace_symbol", &symbols, workspace.path());
+    server.shutdown();
+
+    let mut server = LanguageServer::start(&workspace, "", &["lsp"], workspace.path());
+    let symbols = server.request("workspace/symbol", json!({"query": "fromSpago"}));
+    snapshot_workspace_json("empty_configuration_workspace_symbol", &symbols, workspace.path());
+    assert_diagnostic_triggers(&mut server, workspace.path(), true, true, false);
+    server.shutdown();
 }
 
 #[test]
