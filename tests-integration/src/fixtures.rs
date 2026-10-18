@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
-use std::{env, io};
+use std::{env, fmt, io};
 
 use building::QueryEngine;
 use checking::error::ErrorCrumb;
@@ -17,6 +17,22 @@ use process_control::{ChildExt, Control};
 use url::Url;
 
 pub type FixtureResult<T = ()> = Result<T, Box<dyn Error>>;
+
+struct FixtureFailure(String);
+
+impl fmt::Debug for FixtureFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl fmt::Display for FixtureFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl Error for FixtureFailure {}
 
 fn invalid_data(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.into())
@@ -231,7 +247,7 @@ fn verify_output(expected: &Path, generated_files: &BTreeMap<PathBuf, String>) -
          `just t compiler {fixture_name} --update-output` to update fixture output",
         expected.display()
     );
-    Err(invalid_data(message).into())
+    Err(FixtureFailure(message).into())
 }
 
 fn run_javascript_verification(folder: &Path, workspace: &Path) -> FixtureResult {
@@ -249,7 +265,10 @@ fn run_javascript_verification(folder: &Path, workspace: &Path) -> FixtureResult
         .current_dir(workspace)
         .stdout(Stdio::from(stdout.try_clone()?))
         .stderr(Stdio::from(stderr.try_clone()?))
-        .spawn()?;
+        .spawn()
+        .map_err(|error| {
+            FixtureFailure(format!("failed to start Node for {}: {error}", script.display()))
+        })?;
     let status = child
         .controlled()
         .time_limit(JAVASCRIPT_VERIFICATION_TIMEOUT)
@@ -261,7 +280,7 @@ fn run_javascript_verification(folder: &Path, workspace: &Path) -> FixtureResult
             JAVASCRIPT_VERIFICATION_TIMEOUT.as_secs(),
             script.display()
         );
-        return Err(invalid_data(message).into());
+        return Err(FixtureFailure(message).into());
     };
     if status.success() {
         return Ok(());
@@ -278,7 +297,7 @@ fn run_javascript_verification(folder: &Path, workspace: &Path) -> FixtureResult
         String::from_utf8_lossy(&stdout_bytes),
         String::from_utf8_lossy(&stderr_bytes)
     );
-    Err(invalid_data(message).into())
+    Err(FixtureFailure(message).into())
 }
 
 pub fn compiler(path: &Path) -> FixtureResult {
@@ -457,7 +476,7 @@ fn check_source_errors(
     if errors.is_empty() {
         return Ok(());
     }
-    Err(invalid_data(format!("fixture has source errors:\n{errors}")).into())
+    Err(FixtureFailure(format!("fixture has source errors:\n{errors}")).into())
 }
 
 pub fn sourcemap(path: &Path) -> FixtureResult {
