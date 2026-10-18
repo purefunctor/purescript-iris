@@ -44,12 +44,14 @@ fn formatting(path: &Path) -> datatest_stable::Result<()> {
     }
     let expected = syntax_structure(parsed.syntax_node());
     let config = Config::default();
+    let loaded;
     let assert_semantics = if errors.is_empty()
         && !matches!(
             formatting::format_with_config(source, &config),
             Err(FormatError::InvalidSource(_))
         ) {
-        let assert_semantics = semantic_preservation(path)?;
+        loaded = tests_integration::load_fixture(path.parent().unwrap())?;
+        let assert_semantics = semantic_preservation(path, &loaded)?;
         comment_boundaries(source, &lexed, &layout, &expected, &assert_semantics)?;
         Some(assert_semantics)
     } else {
@@ -133,11 +135,12 @@ fn formatting(path: &Path) -> datatest_stable::Result<()> {
 
 fn semantic_preservation(
     path: &Path,
+    loaded: &tests_integration::LoadedFixture,
 ) -> datatest_stable::Result<impl Fn(&str, &[&str]) -> datatest_stable::Result<()>> {
-    let (engine, files) = tests_integration::load_compiler(path.parent().unwrap())?;
+    let engine = &loaded.engine;
     let absolute_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
     let uri = url::Url::from_file_path(absolute_path).unwrap();
-    let id = files.id(uri.as_str()).unwrap();
+    let id = loaded.files.id(uri.as_str()).unwrap();
 
     Ok(move |source: &str, outputs: &[&str]| {
         engine.set_content(id, source);
