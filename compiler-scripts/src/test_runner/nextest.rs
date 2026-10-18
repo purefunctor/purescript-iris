@@ -31,6 +31,9 @@ pub fn build_nextest_command(category: TestCategory, args: &RunArgs) -> Command 
     }
 
     cmd.env("INSTA_FORCE_PASS", "1");
+    cmd.env("INSTA_UPDATE", "new");
+    cmd.env_remove("INSTA_FORCE_UPDATE");
+    cmd.env_remove("INSTA_FORCE_UPDATE_SNAPSHOTS");
     cmd.env_remove(UPDATE_JAVASCRIPT_OUTPUT);
     if matches!(category, TestCategory::Compiler) && args.update_output {
         cmd.env(UPDATE_JAVASCRIPT_OUTPUT, "1");
