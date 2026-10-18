@@ -26,6 +26,7 @@ pub fn run_category(category: TestCategory, args: &RunArgs) -> anyhow::Result<bo
     ui::print_next_actions(NextActionsArgs {
         category_name: category.as_str(),
         filters: &args.filters,
+        exclusions: &args.exclude,
         tests_passed,
         pending_count: pending_result.count,
         excluded_count: pending_result.excluded_count,
@@ -36,28 +37,25 @@ pub fn run_category(category: TestCategory, args: &RunArgs) -> anyhow::Result<bo
     Ok(tests_passed)
 }
 
-pub fn accept_category(
-    category: TestCategory,
-    filters: &[String],
-    confirm: bool,
-) -> anyhow::Result<bool> {
-    let snapshots = pending::collect_pending_snapshots(category, filters)?;
+pub fn accept_category(category: TestCategory, args: &RunArgs) -> anyhow::Result<bool> {
+    let (snapshots, _) = pending::collect_selected_snapshots(category, args)?;
 
     if snapshots.is_empty() {
         println!("{}", style("No pending snapshots found.").dim());
         return Ok(true);
     }
 
-    if !confirm && filters.is_empty() {
+    if !args.confirm && args.filters.is_empty() {
         println!("{} pending snapshot(s) in {}", snapshots.len(), style(category.as_str()).cyan());
         println!();
         for info in &snapshots {
             println!("  {}", style(&info.short_path).dim());
         }
         println!();
+        let exclusions = ui::exclusion_arguments(&args.exclude);
         println!(
             "To accept all, run: {}",
-            style(format!("just t {} --accept --confirm", category.as_str())).cyan()
+            style(format!("just t {}{} --accept --confirm", category.as_str(), exclusions)).cyan()
         );
         return Ok(false);
     }
@@ -69,8 +67,8 @@ pub fn accept_category(
     Ok(result.failed == 0)
 }
 
-pub fn reject_category(category: TestCategory, filters: &[String]) -> anyhow::Result<bool> {
-    let snapshots = pending::collect_pending_snapshots(category, filters)?;
+pub fn reject_category(category: TestCategory, args: &RunArgs) -> anyhow::Result<bool> {
+    let (snapshots, _) = pending::collect_selected_snapshots(category, args)?;
 
     if snapshots.is_empty() {
         println!("{}", style("No pending snapshots found.").dim());

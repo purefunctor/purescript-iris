@@ -39,7 +39,7 @@ For safety, unfiltered `--accept` requires `--confirm`.
 
 ### Exclusion filters
 
-Hide snapshots ephemerally during a session:
+Hide snapshots ephemerally during a session. `--accept` and `--reject` also skip excluded snapshots:
 
 ```bash
 just t <category> --exclude "pattern"              # Single exclusion

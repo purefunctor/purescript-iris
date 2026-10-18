@@ -38,7 +38,7 @@ impl SnapshotInfo {
 }
 
 /// Collect pending snapshots for a category, optionally filtered.
-pub fn collect_pending_snapshots(
+fn collect_pending_snapshots(
     category: TestCategory,
     filters: &[String],
 ) -> anyhow::Result<Vec<SnapshotInfo>> {
@@ -127,10 +127,10 @@ fn apply_exclusions(
     (visible, excluded.len())
 }
 
-pub fn process_pending_snapshots(
+pub fn collect_selected_snapshots(
     category: TestCategory,
     args: &RunArgs,
-) -> anyhow::Result<PendingResult> {
+) -> anyhow::Result<(Vec<SnapshotInfo>, usize)> {
     let snapshots = collect_pending_snapshots(category, &args.filters)?;
 
     // Apply exclusion filters
@@ -143,6 +143,15 @@ pub fn process_pending_snapshots(
             style(format!("info: excluded {} snapshot(s) by pattern", excluded_count)).dim()
         );
     }
+
+    Ok((visible, excluded_count))
+}
+
+pub fn process_pending_snapshots(
+    category: TestCategory,
+    args: &RunArgs,
+) -> anyhow::Result<PendingResult> {
+    let (visible, excluded_count) = collect_selected_snapshots(category, args)?;
 
     let pending_count = visible.len();
     let mut total_lines_changed = 0;
