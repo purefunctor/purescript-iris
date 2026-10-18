@@ -96,7 +96,9 @@ impl TestWorkspace {
             .env("IRIS_E2E_SPAGO", spago_executable())
             .env("IRIS_E2E_SPAGO_LOG", self.path().join("spago-calls"))
             .env("COLUMNS", "120")
-            .env("NO_COLOR", "1");
+            .env("NO_COLOR", "1")
+            .env_remove("FORCE_COLOR")
+            .env_remove("NODE_OPTIONS");
         for variable in ["TMPDIR", "TMP", "TEMP"] {
             command.env(variable, self.process_temporary.path());
         }
