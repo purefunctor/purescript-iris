@@ -2390,7 +2390,14 @@ fn render_let(
     for binding in bindings {
         let _origin = tree.enter_origin(generator.binding_origin(binding));
         let name = context.allocate(&binding.parameter.name);
-        match &generator.module.storage[binding.expression].kind {
+        let mut value = binding.expression;
+        while let ExpressionKind::Let { recursive: false, bindings, body } =
+            &generator.module.storage[value].kind
+        {
+            render_let(&mut generator.renderer(tree, writer, context), false, bindings)?;
+            value = *body;
+        }
+        match &generator.module.storage[value].kind {
             ExpressionKind::Abstraction { parameters, body } => {
                 context.bind_direct(&binding.parameter, name.clone());
                 generator.render_abstraction_binding(
@@ -2410,8 +2417,7 @@ fn render_let(
                 )?;
             }
             _ => {
-                let value =
-                    generator.expression_value(tree, writer, binding.expression, context)?;
+                let value = generator.expression_value(tree, writer, value, context)?;
                 writer.constant(tree, &name, value, false);
                 context.bind_direct(&binding.parameter, name);
             }
