@@ -27,22 +27,7 @@ export function branches($boolean) {
   return $closure;
 }
 export function interleaved(showADict) {
-  const $closure = (value) => {
-    const $closure$1 = (eqBDict) => {
-      const $closure$2 = (left) => {
-        return (right) => {
-          if (/* @__PURE__ */ Data_Eq.eq(eqBDict)(left)(right)) {
-            return /* @__PURE__ */ Data_Show.show(showADict)(value);
-          } else {
-            return "different";
-          }
-        };
-      };
-      return $closure$2;
-    };
-    return $closure$1;
-  };
-  return $closure;
+  return (value) => (eqBDict) => (left) => (right) => /* @__PURE__ */ Data_Eq.eq(eqBDict)(left)(right) ? /* @__PURE__ */ Data_Show.show(showADict)(value) : "different";
 }
 const categoryFunctionDictIdentity = /* @__PURE__ */ Control_Category.identity(Control_Category.categoryFn);
 const semigroupStringDictAppend = /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupString);

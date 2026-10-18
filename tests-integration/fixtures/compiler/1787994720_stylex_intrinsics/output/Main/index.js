@@ -4,14 +4,7 @@ export function buttonPropsArray(highlighted) {
 }
 export function selectedProps(included) {
   return (alternate) => {
-    const $stylexConditional = () => {
-      if (alternate) {
-        return styles.button;
-      } else {
-        return styles.label;
-      }
-    };
-    return $stylex.props(included && $stylexConditional());
+    return $stylex.props(included && (alternate ? styles.button : styles.label));
   };
 }
 export const animation = $stylex.keyframes({

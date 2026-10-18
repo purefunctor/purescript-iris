@@ -1705,6 +1705,20 @@ impl Generator<'_> {
             ExpressionKind::StyleX(stylex) => {
                 self.render_stylex_expression(tree, writer, stylex, context)
             }
+            ExpressionKind::IfThenElse { condition, then, else_ }
+                if self.expression_can_inline(*then) && self.expression_can_inline(*else_) =>
+            {
+                let condition = self.expression_value(tree, writer, *condition, context)?;
+                let then = self.inline_expression(tree, *then, context)?;
+                let else_ = self.inline_expression(tree, *else_, context)?;
+                let (Some(then), Some(else_)) = (then, else_) else {
+                    unreachable!(
+                        "invariant violated: inline eligibility did not match expression rendering"
+                    )
+                };
+                let value = tree.conditional(condition, then, else_);
+                Ok(RenderedExpression { value, pending_evaluation: true })
+            }
             ExpressionKind::Effect { effect } => {
                 let mut renderer = self.renderer(tree, writer, context);
                 let value = effect_expression(&mut renderer, effect)?;
@@ -1836,8 +1850,12 @@ impl Generator<'_> {
                     }
                 })
                 .is_err(),
+            ExpressionKind::IfThenElse { condition, then, else_ } => {
+                self.expression_rendering_is_eager(*condition, context)
+                    || !self.expression_can_inline(*then)
+                    || !self.expression_can_inline(*else_)
+            }
             ExpressionKind::Error
-            | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -2029,9 +2047,20 @@ impl Generator<'_> {
                 synthesized_evidence_expression(tree, evidence)
             }
             ExpressionKind::TrivialEvidence => tree.object(Vec::new()),
+            ExpressionKind::IfThenElse { condition, then, else_ } => {
+                let Some(condition) = self.inline_expression(tree, *condition, context)? else {
+                    return Ok(None);
+                };
+                let Some(then) = self.inline_expression(tree, *then, context)? else {
+                    return Ok(None);
+                };
+                let Some(else_) = self.inline_expression(tree, *else_, context)? else {
+                    return Ok(None);
+                };
+                tree.conditional(condition, then, else_)
+            }
             ExpressionKind::Error
             | ExpressionKind::RecordUpdate { .. }
-            | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -2090,9 +2119,13 @@ impl Generator<'_> {
                     if self.expression_can_inline(child) { Ok(()) } else { Err(()) }
                 })
                 .is_ok(),
+            ExpressionKind::IfThenElse { condition, then, else_ } => {
+                self.expression_can_inline(*condition)
+                    && self.expression_can_inline(*then)
+                    && self.expression_can_inline(*else_)
+            }
             ExpressionKind::Error
             | ExpressionKind::RecordUpdate { .. }
-            | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }

@@ -38,23 +38,5 @@ export function second($boolean$1) {
 }
 export const later = 42 | 0;
 export const forward = later;
-export const recursiveValue = /* @__PURE__ */ (() => {
-  const $closure = (value) => {
-    if (value) {
-      return 3 | 0;
-    } else {
-      return recursivePeer.run(true);
-    }
-  };
-  return { run: $closure };
-})();
-export const recursivePeer = /* @__PURE__ */ (() => {
-  const $closure = (value) => {
-    if (value) {
-      return 4 | 0;
-    } else {
-      return recursiveValue.run(true);
-    }
-  };
-  return { run: $closure };
-})();
+export const recursiveValue = { run: (value) => value ? 3 | 0 : recursivePeer.run(true) };
+export const recursivePeer = { run: (value) => value ? 4 | 0 : recursiveValue.run(true) };

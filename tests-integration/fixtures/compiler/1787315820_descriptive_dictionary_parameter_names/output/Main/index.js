@@ -40,18 +40,7 @@ export function duplicateEqual(equalValueDict) {
   };
 }
 export function parameterCollision(equalValueDict) {
-  const $closure = (equalValueDict$1) => {
-    return (left) => {
-      return (right) => {
-        if (equalValueDict$1) {
-          return /* @__PURE__ */ equal(equalValueDict)(left)(right);
-        } else {
-          return false;
-        }
-      };
-    };
-  };
-  return $closure;
+  return (equalValueDict$1) => (left) => (right) => equalValueDict$1 ? /* @__PURE__ */ equal(equalValueDict)(left)(right) : false;
 }
 export function isAvailable(availableDict) {
   return /* @__PURE__ */ available(availableDict);
