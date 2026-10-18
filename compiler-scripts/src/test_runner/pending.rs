@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::{env, fs};
 
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use console::style;
 use insta::Snapshot;
 use serde::Deserialize;
@@ -46,9 +46,15 @@ pub fn collect_pending_snapshots(
         .arg("insta")
         .arg("pending-snapshots")
         .arg("--as-json")
-        .stderr(Stdio::null())
         .output()
         .context("failed to run cargo insta")?;
+    if !pending_output.status.success() {
+        bail!(
+            "cargo insta pending-snapshots failed with {}:\n{}",
+            pending_output.status,
+            String::from_utf8_lossy(&pending_output.stderr).trim_end()
+        );
+    }
 
     let pending = String::from_utf8_lossy(&pending_output.stdout);
     let pending = pending.trim();
@@ -64,12 +70,9 @@ pub fn collect_pending_snapshots(
             continue;
         }
 
-        let snapshot_path = if let Ok(snapshot) = serde_json::from_str::<PendingSnapshotJson>(line)
-        {
-            snapshot.path
-        } else {
-            continue;
-        };
+        let snapshot: PendingSnapshotJson = serde_json::from_str(line)
+            .with_context(|| format!("unexpected cargo insta output: {line}"))?;
+        let snapshot_path = snapshot.path;
 
         if !path_fragments.iter().any(|f| snapshot_path.contains(f)) {
             continue;
