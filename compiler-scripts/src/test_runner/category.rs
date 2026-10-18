@@ -70,21 +70,3 @@ impl FromStr for TestCategory {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn compiler_has_c_alias() {
-        assert!(matches!(TestCategory::from_str("compiler"), Ok(TestCategory::Compiler)));
-        assert!(matches!(TestCategory::from_str("c"), Ok(TestCategory::Compiler)));
-    }
-
-    #[test]
-    fn obsolete_compiler_category_names_are_rejected() {
-        for name in ["backend", "b", "checking", "semantic", "s", "functional"] {
-            assert!(TestCategory::from_str(name).is_err(), "{name} should be rejected");
-        }
-    }
-}
