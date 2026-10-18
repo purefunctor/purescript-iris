@@ -187,6 +187,14 @@ impl TestWorkspace {
         report
     }
 
+    pub fn transcript(&self, commands: &[&[&str]]) -> String {
+        let reports = commands.iter().map(|arguments| {
+            let output = self.command(arguments);
+            format!("$ iris {}\n{}", arguments.join(" "), self.report(&output))
+        });
+        reports.collect()
+    }
+
     pub fn spago_calls(&self) -> String {
         let source = match fs::read_to_string(self.path().join("spago-calls")) {
             Ok(source) => source,

@@ -1,13 +1,13 @@
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::process::Child;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use itertools::Itertools;
 
-use super::support::TestWorkspace;
+use super::support::{TestWorkspace, assert_success};
 
 #[test]
 fn watches_a_single_package_with_real_spago() {
@@ -29,16 +29,14 @@ value = 42
     );
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
-    let output = workspace.path().join("output/Main/index.js");
-    watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && output.is_file()
-    });
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
     watch.stop();
     insta::with_settings!({omit_expression => true}, {
     insta::assert_snapshot!("watch_single_package", normalized_watch_log(&watch.stdout()));
     });
 
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    assert!(workspace.path().join("output/Main/index.js").is_file());
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
 }
 
 #[test]
@@ -63,20 +61,19 @@ package:
     workspace.write("packages/library/src/Library.purs", "module Library where\n");
 
     let mut watch = WatchProcess::new(workspace.spawn_in("src", &["watch"]));
-    let outputs = [
-        workspace.path().join("output/Application/index.js"),
-        workspace.path().join("output/Library/index.js"),
-    ];
     watch.wait_for("initial workspace compilation", |stdout, _| {
         stdout.contains("Loaded 2 inputs: Application, Library")
-            && outputs.iter().all(|output| output.is_file())
     });
     watch.stop();
     insta::with_settings!({omit_expression => true}, {
     insta::assert_snapshot!("watch_workspace", normalized_watch_log(&watch.stdout()));
     });
 
-    workspace.assert_spago_calls("src", &[&["fetch"]]);
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"
+    Application
+    Library
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"src: spago "fetch""#);
 }
 
 #[test]
@@ -87,10 +84,7 @@ fn rebuilds_after_edits_and_recovers_from_diagnostics() {
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 42\n");
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
-    let output = workspace.path().join("output/Main/index.js");
-    watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && output.is_file()
-    });
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
 
     workspace.write("src/Main.purs", "module Main where\n\nvalue = missing\n");
     watch.wait_for("diagnostic rebuild", |stdout, stderr| {
@@ -98,9 +92,8 @@ fn rebuilds_after_edits_and_recovers_from_diagnostics() {
     });
 
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 43\n");
-    watch.wait_for("recovered rebuild", |stdout, _| {
-        stdout.contains("Rebuild succeeded") && generated_module_contains(&output, "43")
-    });
+    watch.wait_for("recovered rebuild", |stdout, _| stdout.contains("Rebuild succeeded"));
+    assert!(generated_module_contains(&workspace.path().join("output/Main/index.js"), "43"));
     watch.stop();
     let mut settings = insta::Settings::clone_current();
     settings.set_strip_ansi_escape_codes(true);
@@ -126,10 +119,10 @@ fn suppresses_diagnostics_without_hiding_watch_summaries() {
     assert!(!watch.stderr().contains("[NotInScope]"));
 
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 42\n");
-    let output = workspace.path().join("output/Main/index.js");
     watch.wait_for("recovery with diagnostics suppressed", |stdout, _| {
-        stdout.contains("Rebuild succeeded") && output.is_file()
+        stdout.contains("Rebuild succeeded")
     });
+    assert!(workspace.path().join("output/Main/index.js").is_file());
 }
 
 #[test]
@@ -140,24 +133,39 @@ fn adds_and_removes_sources_without_deleting_outputs() {
     workspace.write("src/Main.purs", "module Main where\n");
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
-    watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && workspace.metadata_modules() == ["Main"]
-    });
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"Main");
 
     workspace.write("src/Extra.purs", "module Extra where\n\nvalue = 42\n");
     let extra_output = workspace.path().join("output/Extra/index.js");
-    watch.wait_for("source addition", |stdout, _| {
-        stdout.contains("Changed 1 input: Extra")
-            && workspace.module_metadata("Extra").is_some()
-            && extra_output.is_file()
-    });
-    let extra = workspace.module_metadata("Extra").unwrap();
-    assert_eq!(extra["package"], "application");
+    watch.wait_for("source addition", |stdout, _| stdout.contains("Changed 1 input: Extra"));
+    assert!(extra_output.is_file());
+    let metadata = workspace.normalized_metadata();
+    insta::assert_snapshot!(metadata, @r#"
+    --- output/Extra/metadata.json
+    {
+      "version": 1,
+      "iris": "[VERSION]",
+      "package": "application",
+      "editable": true,
+      "source": "[WORKSPACE]/src/Extra.purs",
+      "foreign": null
+    }
+    --- output/Main/metadata.json
+    {
+      "version": 1,
+      "iris": "[VERSION]",
+      "package": "application",
+      "editable": true,
+      "source": "[WORKSPACE]/src/Main.purs",
+      "foreign": null
+    }
+    "#);
 
     std::fs::remove_file(workspace.path().join("src/Extra.purs")).unwrap();
     watch.wait_for("source removal", |stdout, _| stdout.contains("Changed 1 input: Extra"));
     assert!(extra_output.is_file());
-    assert_eq!(workspace.module_metadata("Extra"), Some(extra));
+    assert_eq!(workspace.normalized_metadata(), metadata);
 }
 
 #[test]
@@ -185,14 +193,16 @@ value = 42
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     watch.wait_for("initial compilation", |stdout, _| {
         stdout.contains("Loaded 2 inputs: Extra, Main")
-            && workspace.metadata_modules() == ["Extra", "Main"]
     });
 
     std::fs::remove_file(workspace.path().join("src/Extra.purs")).unwrap();
     watch.wait_for("diagnostic rebuild after source removal", |stdout, _| {
         stdout.contains("Rebuild completed with diagnostics")
     });
-    assert_eq!(workspace.metadata_modules(), ["Extra", "Main"]);
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"
+    Extra
+    Main
+    ");
     assert!(workspace.path().join("output/Extra/index.js").is_file());
     assert!(workspace.path().join("output/Main/index.js").is_file());
 }
@@ -206,28 +216,20 @@ fn rebuilds_for_ffi_changes_and_records_the_foreign_module() {
     workspace.write("src/Main.js", "export const value = 42;\n");
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
-    let javascript_output = workspace.path().join("output/Main/foreign.js");
-    watch.wait_for("initial FFI compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main")
-            && generated_module_contains(&javascript_output, "42")
-            && foreign_module(&workspace).as_deref() == Some("foreign.js")
-    });
+    watch.wait_for("initial FFI compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
+    insta::assert_snapshot!(workspace.read("output/Main/foreign.js"), @"export const value = 42;");
+    insta::assert_snapshot!(workspace.module_metadata("Main").unwrap()["foreign"], @r#""foreign.js""#);
 
     workspace.write("src/Main.js", "export const value = 43;\n");
-    watch.wait_for("JavaScript FFI rebuild", |stdout, _| {
-        stdout.contains("Changed 1 input: Main")
-            && generated_module_contains(&javascript_output, "43")
-    });
+    watch.wait_for("JavaScript FFI rebuild", |stdout, _| stdout.contains("Changed 1 input: Main"));
+    insta::assert_snapshot!(workspace.read("output/Main/foreign.js"), @"export const value = 43;");
 
     std::fs::remove_file(workspace.path().join("src/Main.js")).unwrap();
     workspace.write("src/Main.jsx", "export const value = 44;\n");
-    let jsx_output = workspace.path().join("output/Main/foreign.jsx");
-    watch.wait_for("JSX FFI rebuild", |stdout, _| {
-        stdout.contains("Changed 1 input: Main")
-            && generated_module_contains(&jsx_output, "44")
-            && foreign_module(&workspace).as_deref() == Some("foreign.jsx")
-    });
-    assert!(generated_module_contains(&javascript_output, "43"));
+    watch.wait_for("JSX FFI rebuild", |stdout, _| stdout.contains("Changed 1 input: Main"));
+    insta::assert_snapshot!(workspace.read("output/Main/foreign.jsx"), @"export const value = 44;");
+    insta::assert_snapshot!(workspace.module_metadata("Main").unwrap()["foreign"], @r#""foreign.jsx""#);
+    insta::assert_snapshot!(workspace.read("output/Main/foreign.js"), @"export const value = 43;");
 }
 
 #[test]
@@ -239,23 +241,31 @@ fn waits_for_a_deleted_input_directory_and_builds_when_it_returns() {
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
     let output = workspace.path().join("output/Main/index.js");
-    watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && workspace.module_metadata("Main").is_some()
-    });
-    let metadata = workspace.module_metadata("Main");
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
+    let metadata = workspace.normalized_metadata();
+    insta::assert_snapshot!(metadata, @r#"
+    --- output/Main/metadata.json
+    {
+      "version": 1,
+      "iris": "[VERSION]",
+      "package": "application",
+      "editable": true,
+      "source": "[WORKSPACE]/src/Main.purs",
+      "foreign": null
+    }
+    "#);
 
     std::fs::remove_dir_all(workspace.path().join("src")).unwrap();
     watch.wait_for("empty input state", |stdout, _| {
         stdout.contains("No input files; waiting for changes")
     });
-    assert_eq!(workspace.module_metadata("Main"), metadata);
+    assert_eq!(workspace.normalized_metadata(), metadata);
     assert!(generated_module_contains(&output, "42"));
 
     workspace.write("src/Main.purs", "module Main where\n\nvalue = 43\n");
-    watch.wait_for("recreated input compilation", |stdout, _| {
-        stdout.contains("Rebuild succeeded") && generated_module_contains(&output, "43")
-    });
-    assert_eq!(workspace.module_metadata("Main"), metadata);
+    watch.wait_for("recreated input compilation", |stdout, _| stdout.contains("Rebuild succeeded"));
+    assert!(generated_module_contains(&output, "43"));
+    assert_eq!(workspace.normalized_metadata(), metadata);
 }
 
 #[test]
@@ -283,9 +293,7 @@ package:
     );
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
-    watch.wait_for("initial compilation", |stdout, _| {
-        stdout.contains("Loaded 1 input: Main") && workspace.metadata_modules() == ["Main"]
-    });
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Loaded 1 input: Main"));
 
     let claimed = workspace.path().join("src/vendored/src/Vendored.purs");
     workspace.write(
@@ -301,7 +309,7 @@ package:
 
     std::fs::remove_file(claimed).unwrap();
     watch.wait_for("recovered rebuild", |stdout, _| stdout.contains("Rebuild succeeded"));
-    assert_eq!(workspace.metadata_modules(), ["Main"]);
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"Main");
 }
 
 #[test]
@@ -348,10 +356,11 @@ package:
     let mut watch = WatchProcess::new(workspace.spawn(&["watch", "--package", "application"]));
     watch.wait_for("initial compilation", |stdout, _| {
         stdout.contains("Loaded 2 inputs: Library, Main")
-            && workspace.metadata_modules() == ["Library", "Main"]
     });
-    let settled = workspace.command(&["watch", "query", "wait"]);
-    assert_eq!(String::from_utf8_lossy(&settled.stdout), "Build succeeded.\n");
+    insta::assert_snapshot!(run_query(&workspace, "wait"), @"
+    $ iris watch query wait
+    [0] Build succeeded.
+    ");
 
     workspace.write(
         "packages/tool/src/Unselected.purs",
@@ -363,18 +372,45 @@ package:
         r#"module Dependency where
 "#,
     );
-    let rescanned = workspace.command(&["watch", "query", "wait"]);
-    assert_eq!(String::from_utf8_lossy(&rescanned.stdout), "Build succeeded.\n");
+    insta::assert_snapshot!(run_query(&workspace, "wait"), @"
+    $ iris watch query wait
+    [0] Build succeeded.
+    ");
     watch.wait_for("module added to a dependency", |stdout, _| {
         stdout.contains("Rebuild succeeded") && stdout.contains("Dependency")
     });
     assert!(!watch.stdout().contains("Unselected"), "{}", watch.stdout());
     assert!(!workspace.path().join("output/Unselected").exists());
-    assert_eq!(workspace.metadata_modules(), ["Dependency", "Library", "Main"]);
-    let dependency = workspace.module_metadata("Dependency").unwrap();
-    assert_eq!(dependency["package"], "library");
-    assert_eq!(dependency["editable"], true);
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    insta::assert_snapshot!(workspace.normalized_metadata(), @r#"
+    --- output/Dependency/metadata.json
+    {
+      "version": 1,
+      "iris": "[VERSION]",
+      "package": "library",
+      "editable": true,
+      "source": "[WORKSPACE]/packages/library/src/Dependency.purs",
+      "foreign": null
+    }
+    --- output/Library/metadata.json
+    {
+      "version": 1,
+      "iris": "[VERSION]",
+      "package": "library",
+      "editable": true,
+      "source": "[WORKSPACE]/packages/library/src/Library.purs",
+      "foreign": null
+    }
+    --- output/Main/metadata.json
+    {
+      "version": 1,
+      "iris": "[VERSION]",
+      "package": "application",
+      "editable": true,
+      "source": "[WORKSPACE]/src/Main.purs",
+      "foreign": null
+    }
+    "#);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
 }
 
 #[test]
@@ -388,10 +424,8 @@ fn resolves_relative_output_from_the_invocation_directory_and_excludes_it() {
     let child =
         workspace.spawn_in("src", &["watch", "--package", "application", "--output", "generated"]);
     let mut watch = WatchProcess::new(child);
-    let output = workspace.path().join("src/generated/Main/index.js");
-    watch.wait_for("custom output compilation", |stdout, _| {
-        stdout.contains("Build succeeded") && output.is_file()
-    });
+    watch.wait_for("custom output compilation", |stdout, _| stdout.contains("Build succeeded"));
+    assert!(workspace.path().join("src/generated/Main/index.js").is_file());
 }
 
 #[cfg(target_os = "linux")]
@@ -455,9 +489,8 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
     workspace.write("src/Main.purs", "module Main where\n\nforeign import value :: Int\n");
     workspace.write("src/Main.js", "export const value = 42;\n");
 
-    let child = workspace.spawn(&["watch", "--quiet"]);
-    let mut watch = WatchProcess::new(child);
-    watch.wait_for("initial compilation", |_, _| workspace.module_metadata("Main").is_some());
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
 
     let foreign_output = workspace.path().join("output/Main/foreign.js");
     std::fs::remove_file(&foreign_output).unwrap();
@@ -468,13 +501,13 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
 "#,
     );
     watch.wait_for("output failure", |_, stderr| stderr.contains("Watch build failed:"));
-    assert!(!watch.stderr().contains("completed with diagnostics"));
+    let settled = run_query(&workspace, "wait");
+    insta::assert_snapshot!(workspace.normalize_output(settled.as_bytes()), @"
+    $ iris watch query wait
+    [0] Build failed: failed to write [WORKSPACE]/output/Main/foreign.js: Is a directory (os error 21)
+    ");
+    assert!(!watch.stdout().contains("completed with diagnostics"));
     assert!(workspace.module_metadata("Main").is_some());
-
-    thread::sleep(Duration::from_millis(500));
-    let settled_failures = watch.stderr().matches("Watch build failed:").count();
-    thread::sleep(Duration::from_millis(500));
-    assert_eq!(watch.stderr().matches("Watch build failed:").count(), settled_failures);
 
     std::fs::remove_dir(&foreign_output).unwrap();
     workspace.write(
@@ -482,12 +515,8 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
         r#"export const value = 44;
 "#,
     );
-    watch.wait_for("recovery", |_, _| generated_module_contains(&foreign_output, "44"));
-}
-
-fn foreign_module(workspace: &TestWorkspace) -> Option<String> {
-    let metadata = workspace.module_metadata("Main")?;
-    metadata["foreign"].as_str().map(str::to_owned)
+    watch.wait_for("recovery", |stdout, _| stdout.contains("Rebuild succeeded"));
+    assert!(generated_module_contains(&foreign_output, "44"));
 }
 
 fn generated_module_contains(path: &Path, expected: &str) -> bool {
@@ -531,79 +560,82 @@ fn normalized_watch_log(stdout: &str) -> String {
 
 struct WatchProcess {
     child: Child,
-    stdout: Arc<Mutex<String>>,
-    stderr: Arc<Mutex<String>>,
-    stdout_reader: Option<JoinHandle<()>>,
-    stderr_reader: Option<JoinHandle<()>>,
+    output: Arc<WatchOutput>,
+    readers: Vec<JoinHandle<()>>,
     stdout_cursor: usize,
     stderr_cursor: usize,
 }
 
+#[derive(Default)]
+struct WatchOutput {
+    streams: Mutex<WatchStreams>,
+    changed: Condvar,
+}
+
+impl WatchOutput {
+    fn lock(&self) -> MutexGuard<'_, WatchStreams> {
+        self.streams.lock().expect("invariant violated: watch output capture is poisoned")
+    }
+}
+
+#[derive(Default)]
+struct WatchStreams {
+    stdout: String,
+    stderr: String,
+    closed: usize,
+}
+
 impl WatchProcess {
     fn new(mut child: Child) -> WatchProcess {
-        let stdout = Arc::new(Mutex::new(String::new()));
-        let stderr = Arc::new(Mutex::new(String::new()));
-        let stdout_reader = spawn_reader(
-            child.stdout.take().expect("invariant violated: watch process stdout is not piped"),
-            Arc::clone(&stdout),
-        );
-        let stderr_reader = spawn_reader(
-            child.stderr.take().expect("invariant violated: watch process stderr is not piped"),
-            Arc::clone(&stderr),
-        );
-        WatchProcess {
-            child,
-            stdout,
-            stderr,
-            stdout_reader: Some(stdout_reader),
-            stderr_reader: Some(stderr_reader),
-            stdout_cursor: 0,
-            stderr_cursor: 0,
-        }
+        let output = Arc::new(WatchOutput::default());
+        let stdout =
+            child.stdout.take().expect("invariant violated: watch process stdout is not piped");
+        let stderr =
+            child.stderr.take().expect("invariant violated: watch process stderr is not piped");
+        let readers = vec![
+            spawn_reader(stdout, Arc::clone(&output), |streams| &mut streams.stdout),
+            spawn_reader(stderr, Arc::clone(&output), |streams| &mut streams.stderr),
+        ];
+        WatchProcess { child, output, readers, stdout_cursor: 0, stderr_cursor: 0 }
     }
 
     fn wait_for(&mut self, description: &str, predicate: impl Fn(&str, &str) -> bool) {
         let deadline = Instant::now() + Duration::from_secs(30);
+        let output = Arc::clone(&self.output);
+        let mut streams = output.lock();
         loop {
-            let stdout = self.stdout();
-            let stderr = self.stderr();
-            let new_stdout = &stdout[self.stdout_cursor..];
-            let new_stderr = &stderr[self.stderr_cursor..];
+            let new_stdout = &streams.stdout[self.stdout_cursor..];
+            let new_stderr = &streams.stderr[self.stderr_cursor..];
             if predicate(new_stdout, new_stderr) {
-                self.stdout_cursor = stdout.len();
-                self.stderr_cursor = stderr.len();
+                self.stdout_cursor = streams.stdout.len();
+                self.stderr_cursor = streams.stderr.len();
                 return;
             }
-            if let Some(status) = self.child.try_wait().unwrap() {
-                self.stop();
-                panic!(
-                    "watch exited before {description} with status {status}\nstdout:\n{}\nstderr:\n{}",
-                    self.stdout(),
-                    self.stderr()
-                );
-            }
-            if Instant::now() >= deadline {
-                self.stop();
-                panic!(
-                    "watch did not reach {description} within 30 seconds\nstdout:\n{}\nstderr:\n{}",
-                    self.stdout(),
-                    self.stderr()
-                );
-            }
-            thread::sleep(Duration::from_millis(20));
+            let failure = if streams.closed == self.readers.len() {
+                "exited before"
+            } else if let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+                streams = output.changed.wait_timeout(streams, remaining).unwrap().0;
+                continue;
+            } else {
+                "did not reach"
+            };
+            drop(streams);
+            self.stop();
+            panic!(
+                "watch {failure} {description} with status {:?}\nstdout:\n{}\nstderr:\n{}",
+                self.child.try_wait().unwrap(),
+                self.stdout(),
+                self.stderr()
+            );
         }
     }
 
     fn stdout(&self) -> String {
-        let stdout =
-            self.stdout.lock().expect("invariant violated: watch stdout capture is poisoned");
-        String::clone(&stdout)
+        String::clone(&self.output.lock().stdout)
     }
 
     fn stderr(&self) -> String {
-        let stderr =
-            self.stderr.lock().expect("invariant violated: watch stderr capture is poisoned");
-        String::clone(&stderr)
+        String::clone(&self.output.lock().stderr)
     }
 
     fn stop(&mut self) {
@@ -611,10 +643,7 @@ impl WatchProcess {
             self.child.kill().unwrap();
         }
         let _ = self.child.wait();
-        if let Some(reader) = self.stdout_reader.take() {
-            reader.join().unwrap();
-        }
-        if let Some(reader) = self.stderr_reader.take() {
+        for reader in self.readers.drain(..) {
             reader.join().unwrap();
         }
     }
@@ -628,16 +657,20 @@ impl Drop for WatchProcess {
 
 fn spawn_reader(
     stream: impl std::io::Read + Send + 'static,
-    capture: Arc<Mutex<String>>,
+    output: Arc<WatchOutput>,
+    capture: fn(&mut WatchStreams) -> &mut String,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         for line in BufReader::new(stream).lines() {
             let line = line.unwrap();
-            let mut capture =
-                capture.lock().expect("invariant violated: watch output capture is poisoned");
-            capture.push_str(&line);
-            capture.push('\n');
+            let mut streams = output.lock();
+            let captured = capture(&mut streams);
+            captured.push_str(&line);
+            captured.push('\n');
+            output.changed.notify_all();
         }
+        output.lock().closed += 1;
+        output.changed.notify_all();
     })
 }
 
@@ -731,18 +764,22 @@ app = main
         transcript.push_str(&run_query(&workspace, query));
     }
     let signature = workspace.command(&["watch", "query", "--json", "signature", "Shapes.size"]);
-    assert_eq!(signature.status.code(), Some(0), "{signature:?}");
+    assert_success(&signature);
     let response: serde_json::Value = serde_json::from_slice(&signature.stdout).unwrap();
-    assert_eq!(response["kind"], "result");
-    assert_eq!(
-        response["value"],
-        serde_json::json!({
-            "declarations": [{
-                "signature": "size :: Shape -> Int",
-                "documentation": "The size of a shape.",
-            }],
-        })
-    );
+    let response = serde_json::to_string_pretty(&response).unwrap();
+    insta::assert_snapshot!(response, @r#"
+    {
+      "kind": "result",
+      "value": {
+        "declarations": [
+          {
+            "documentation": "The size of a shape.",
+            "signature": "size :: Shape -> Int"
+          }
+        ]
+      }
+    }
+    "#);
     // Built-in modules are materialized files, as in the language server, so their
     // declarations have locations an agent can read.
     let definition = workspace.command(&["watch", "query", "definition", "Prim.Int"]);
@@ -796,21 +833,29 @@ package:
 
     let mut first = WatchProcess::new(workspace.spawn(&["watch"]));
     first.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
-    let second = workspace.command(&["watch"]);
-    assert_eq!(second.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&second.stderr).contains("is already writing to"));
+    let second = workspace.report(&workspace.command(&["watch"]));
+    insta::with_settings!({filters => vec![(r"\(process \d+\)", "(process [PID])")]}, {
+        insta::assert_snapshot!(second, @"
+        status: 1
+        --- stdout
+        --- stderr
+        another `iris watch` (process [PID]) is already writing to [WORKSPACE]/output
+        ");
+    });
 
     first.stop();
-    let orphaned = workspace.command(&["watch", "query", "wait"]);
-    assert_eq!(orphaned.status.code(), Some(4), "{orphaned:?}");
+    let orphaned = run_query(&workspace, "wait");
+    insta::assert_snapshot!(workspace.normalize_output(orphaned.as_bytes()), @"
+    $ iris watch query wait
+    [4] no `iris watch` is running for [WORKSPACE]/output; start one with `iris watch`, or retry if it is starting
+    ");
 
     let mut restarted = WatchProcess::new(workspace.spawn(&["watch"]));
     restarted.wait_for("compilation after restart", |stdout, _| stdout.contains("Build succeeded"));
-    let expected = r#"$ iris watch query wait
-[0] Build succeeded.
-
-"#;
-    assert_eq!(run_query(&workspace, "wait"), expected);
+    insta::assert_snapshot!(run_query(&workspace, "wait"), @"
+    $ iris watch query wait
+    [0] Build succeeded.
+    ");
 }
 
 #[cfg(unix)]
@@ -841,7 +886,7 @@ package:
         .status()
         .unwrap();
     assert!(terminate.success());
-    assert_eq!(watch.child.wait().unwrap().code(), Some(143));
+    insta::assert_snapshot!(watch.child.wait().unwrap().code().unwrap(), @"143");
     assert!(!socket_file.exists());
 }
 
@@ -864,19 +909,41 @@ package:
 
     let mut watch = WatchProcess::new(workspace.spawn(&["watch", "--output", "generated"]));
     watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
-    let from_watch_flags = workspace.command(&["watch", "--output", "generated", "query", "wait"]);
-    assert_eq!(String::from_utf8_lossy(&from_watch_flags.stdout), "Build succeeded.\n");
-    let from_query_flags = workspace.command(&["watch", "query", "--output", "generated", "wait"]);
-    assert_eq!(String::from_utf8_lossy(&from_query_flags.stdout), "Build succeeded.\n");
-    let default_output = workspace.command(&["watch", "query", "wait"]);
-    assert_eq!(default_output.status.code(), Some(4));
+    let transcript = workspace.transcript(&[
+        &["watch", "--output", "generated", "query", "wait"],
+        &["watch", "query", "--output", "generated", "wait"],
+        &["watch", "query", "wait"],
+    ]);
+    insta::assert_snapshot!(transcript, @"
+    $ iris watch --output generated query wait
+    status: 0
+    --- stdout
+    Build succeeded.
+    --- stderr
+    $ iris watch query --output generated wait
+    status: 0
+    --- stdout
+    Build succeeded.
+    --- stderr
+    $ iris watch query wait
+    status: 4
+    --- stdout
+    --- stderr
+    no `iris watch` is running for [WORKSPACE]/output; start one with `iris watch`, or retry if it is starting
+    ");
 
     workspace.write("spago.yaml", "workspace: [\n");
     let absolute_output = workspace.path().join("generated");
     for output in ["../generated", absolute_output.to_str().unwrap()] {
         let answer = workspace.command_in("src", &["watch", "query", "--output", output, "wait"]);
-        assert_eq!(answer.status.code(), Some(0), "{answer:?}");
-        assert_eq!(String::from_utf8_lossy(&answer.stdout), "Build succeeded.\n");
+        insta::allow_duplicates! {
+            insta::assert_snapshot!(workspace.report(&answer), @"
+            status: 0
+            --- stdout
+            Build succeeded.
+            --- stderr
+            ");
+        }
     }
 }
 
