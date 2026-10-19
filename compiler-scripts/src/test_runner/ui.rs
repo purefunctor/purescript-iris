@@ -83,6 +83,7 @@ pub fn display_new_snapshot(snap_new: &Path, short_path: &str, show_diff: bool) 
 pub struct NextActionsArgs<'a> {
     pub category_name: &'a str,
     pub filters: &'a [String],
+    pub exclusions: &'a [String],
     pub tests_passed: bool,
     pub pending_count: usize,
     pub excluded_count: usize,
@@ -94,6 +95,7 @@ pub fn print_next_actions(args: NextActionsArgs<'_>) {
     let NextActionsArgs {
         category_name,
         filters,
+        exclusions,
         tests_passed,
         pending_count,
         excluded_count,
@@ -103,6 +105,7 @@ pub fn print_next_actions(args: NextActionsArgs<'_>) {
 
     let ran_all = filters.is_empty();
     let filters_str = if ran_all { String::new() } else { format!(" {}", filters.join(" ")) };
+    let selection = format!("{filters_str}{}", exclusion_arguments(exclusions));
 
     let input = DecisionInput {
         tests_passed,
@@ -118,13 +121,14 @@ pub fn print_next_actions(args: NextActionsArgs<'_>) {
             println!("{}", style("All tests passed, no pending snapshots.").green());
         }
         Outcome::Failure(decision) => {
-            render_failure(&decision, category_name, &filters_str);
+            render_failure(&decision, category_name, &selection);
         }
         Outcome::Pending(decision) => {
             render_pending(
                 &decision,
                 category_name,
-                &filters_str,
+                &selection,
+                ran_all,
                 pending_count,
                 excluded_count,
                 total_lines_changed,
@@ -133,7 +137,7 @@ pub fn print_next_actions(args: NextActionsArgs<'_>) {
     }
 }
 
-fn render_failure(decision: &FailureDecision, category_name: &str, filters_str: &str) {
+fn render_failure(decision: &FailureDecision, category_name: &str, selection: &str) {
     println!("{}", style("-".repeat(60)).dim());
     println!();
     println!("{}", style("Tests failed.").red());
@@ -141,7 +145,7 @@ fn render_failure(decision: &FailureDecision, category_name: &str, filters_str: 
     if decision.show_verbose_hint {
         println!(
             "  Next: {}",
-            style(format!("just t {}{} --verbose", category_name, filters_str)).cyan()
+            style(format!("just t {}{} --verbose", category_name, selection)).cyan()
         );
     }
 
@@ -160,7 +164,8 @@ fn render_failure(decision: &FailureDecision, category_name: &str, filters_str: 
 fn render_pending(
     decision: &PendingDecision,
     category_name: &str,
-    filters_str: &str,
+    selection: &str,
+    ran_all: bool,
     pending_count: usize,
     excluded_count: usize,
     total_lines_changed: usize,
@@ -185,8 +190,8 @@ fn render_pending(
 
     match decision.next_action {
         NextAction::AcceptOrReject => {
-            let accept_cmd = format_accept_reject_cmd(category_name, filters_str, "accept");
-            let reject_cmd = format_accept_reject_cmd(category_name, filters_str, "reject");
+            let accept_cmd = format_accept_reject_cmd(category_name, selection, ran_all, "accept");
+            let reject_cmd = format_accept_reject_cmd(category_name, selection, ran_all, "reject");
             println!("  Next: {}", style(&accept_cmd).green());
             println!("    Or: {}", style(&reject_cmd).red());
         }
@@ -197,7 +202,7 @@ fn render_pending(
         NextAction::ShowDiff => {
             println!(
                 "  Next: {}",
-                style(format!("just t {}{} --diff", category_name, filters_str)).cyan()
+                style(format!("just t {}{} --diff", category_name, selection)).cyan()
             );
         }
     }
@@ -205,14 +210,19 @@ fn render_pending(
     println!();
 }
 
-fn format_accept_reject_cmd(category_name: &str, filters_str: &str, action: &str) -> String {
-    if filters_str.is_empty() {
-        if action == "accept" {
-            format!("just t {} --accept --confirm", category_name)
-        } else {
-            format!("just t {} --reject", category_name)
-        }
+fn format_accept_reject_cmd(
+    category_name: &str,
+    selection: &str,
+    ran_all: bool,
+    action: &str,
+) -> String {
+    if ran_all && action == "accept" {
+        format!("just t {}{} --accept --confirm", category_name, selection)
     } else {
-        format!("just t {}{} --{}", category_name, filters_str, action)
+        format!("just t {}{} --{}", category_name, selection, action)
     }
+}
+
+pub fn exclusion_arguments(patterns: &[String]) -> String {
+    patterns.iter().map(|pattern| format!(" --exclude {pattern:?}")).collect()
 }

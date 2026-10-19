@@ -5,7 +5,7 @@ description: "Workflow for adding and updating Iris integration-test fixtures fo
 
 # Workflow: Iris Integration Tests
 
-Use the command reference at `reference/compiler-scripts.md` for test runner syntax, snapshot workflows, filters, and trace debugging.
+Use the command reference at `reference/compiler-scripts.md` for test runner syntax, snapshot workflows, and filters.
 
 **Language:** Fixtures use PureScript syntax, not Haskell.
 

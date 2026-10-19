@@ -84,9 +84,9 @@ fn main() {
     }
 
     let result = if cli.args.accept {
-        accept_category(cli.category, &cli.args.filters, cli.args.confirm)
+        accept_category(cli.category, &cli.args)
     } else if cli.args.reject {
-        reject_category(cli.category, &cli.args.filters)
+        reject_category(cli.category, &cli.args)
     } else {
         run_category(cli.category, &cli.args)
     };

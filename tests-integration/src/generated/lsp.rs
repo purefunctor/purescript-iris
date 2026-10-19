@@ -9,7 +9,7 @@ use files::{FileId, Files};
 use iris_analysis as analyzer;
 use iris_analysis::completion::SuggestionsCache;
 use iris_analysis::position::PositionEncoding;
-use iris_analysis::{AnalyzerCapabilities, AnalyzerHost};
+use iris_analysis::{AnalyzerCapabilities, AnalyzerError, AnalyzerHost};
 use itertools::Itertools;
 use line_index::{LineIndex, TextSize};
 use lsp_types::{
@@ -271,9 +271,12 @@ fn dispatch_diagnostics(result: &mut String, engine: &QueryEngine, files: &Files
     let host = IntegrationAnalyzerHost { queries: engine, files };
     let capabilities = AnalyzerCapabilities::default();
     let context = analyzer::AnalyzerContext::new(&host, encoding, capabilities);
-    let Ok(collected) = analyzer::diagnostics::implementation(&context, file_id) else {
-        writeln!(result, "<error>").unwrap();
-        return;
+    let collected = match analyzer::diagnostics::implementation(&context, file_id) {
+        Ok(collected) => collected,
+        Err(error) => {
+            writeln!(result, "<error> {error}").unwrap();
+            return;
+        }
     };
     if collected.diagnostics.is_empty() {
         writeln!(result, "<empty>").unwrap();
@@ -306,10 +309,8 @@ fn dispatch_semantic_tokens(
     let host = IntegrationAnalyzerHost { queries: engine, files };
     let capabilities = AnalyzerCapabilities::default().with_change_annotations();
     let context = analyzer::AnalyzerContext::new(&host, encoding, capabilities);
-    let Ok(Some(SemanticTokens { data, .. })) =
-        analyzer::semantic_tokens::implementation(&context, uri)
-    else {
-        writeln!(result, "<empty>").unwrap();
+    let response = analyzer::semantic_tokens::implementation(&context, uri);
+    let Some(SemanticTokens { data, .. }) = answered(result, response) else {
         return;
     };
 
@@ -564,9 +565,8 @@ fn dispatch_cursor(
 
     match cursor {
         CursorKind::GotoDefinition => {
-            if let Ok(Some(response)) =
-                analyzer::definition::implementation(&context, uri, position)
-            {
+            let response = analyzer::definition::implementation(&context, uri, position);
+            if let Some(response) = answered(result, response) {
                 match response {
                     DefinitionResponse::Definition(Definition::Location(location)) => {
                         let location = render_location(location);
@@ -578,15 +578,14 @@ fn dispatch_cursor(
                     }
                     DefinitionResponse::DefinitionLinkList(_) => (),
                 }
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
         CursorKind::Hover | CursorKind::HoverPlainText => {
             let file_id = host.file_id(uri.as_str()).expect("hover URI references a loaded file");
             let content = engine.content(file_id).unwrap();
             let positions = analyzer::position::PositionConverter::new(&content, encoding);
-            if let Ok(Some(response)) = analyzer::hover::implementation(&context, uri, position) {
+            let response = analyzer::hover::implementation(&context, uri, position);
+            if let Some(response) = answered(result, response) {
                 let range = response.range.and_then(|range| {
                     positions
                         .protocol_position_to_utf8(range.start)
@@ -619,8 +618,6 @@ fn dispatch_cursor(
                     }
                     _ => panic!("hover must use MarkupContent"),
                 }
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
         CursorKind::CodeAction => {
@@ -631,27 +628,27 @@ fn dispatch_cursor(
                 trigger_kind: Some(CodeActionTriggerKind::Invoked),
             };
 
-            if let Ok(Some(response)) =
-                analyzer::code_action::implementation(&context, uri, range, action_context)
-            {
+            let response =
+                analyzer::code_action::implementation(&context, uri, range, action_context);
+            if let Some(response) = answered(result, response) {
                 writeln!(result, "{}", render_code_action_response(response)).unwrap();
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
         CursorKind::Completion | CursorKind::CompletionCached => {
-            if let Ok(Some(response)) =
-                analyzer::completion::implementation(&context, cache, uri, position)
-            {
+            let response = analyzer::completion::implementation(&context, cache, uri, position);
+            if let Some(response) = answered(result, response) {
                 match response {
                     CompletionResponse::CompletionItemList(items)
                     | CompletionResponse::CompletionList(CompletionList { items, .. }) => {
-                        let items: Vec<_> = items
-                            .into_iter()
-                            .filter_map(|item| {
-                                analyzer::completion::resolve::implementation(engine, item).ok()
-                            })
-                            .collect();
+                        let items = items.into_iter().map(|item| {
+                            match analyzer::completion::resolve::implementation(engine, item) {
+                                Ok(item) | Err((AnalyzerError::NonFatal, item)) => item,
+                                Err((error, item)) => {
+                                    panic!("failed to resolve completion {}: {error}", item.label)
+                                }
+                            }
+                        });
+                        let items = items.collect_vec();
 
                         let has_values =
                             items.iter().any(|item| item.kind == Some(CompletionItemKind::Value));
@@ -671,25 +668,19 @@ fn dispatch_cursor(
                         writeln!(result, "{table}").unwrap();
                     }
                 }
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
         CursorKind::DocumentSymbols => {
-            if let Ok(Some(response)) = analyzer::symbols::document(&context, uri) {
+            let response = analyzer::symbols::document(&context, uri);
+            if let Some(response) = answered(result, response) {
                 writeln!(result, "{}", render_document_symbols_response(response)).unwrap();
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
         CursorKind::References => {
-            if let Ok(Some(location)) =
-                analyzer::references::implementation(&context, uri, position)
-            {
+            let response = analyzer::references::implementation(&context, uri, position);
+            if let Some(location) = answered(result, response) {
                 let location = location.into_iter().map(render_location).join("\n");
                 writeln!(result, "{location}").unwrap();
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
         CursorKind::Rename => {
@@ -703,7 +694,7 @@ fn dispatch_cursor(
             let context = analyzer::AnalyzerContext::new(&host, encoding, capabilities);
             let response =
                 analyzer::rename::implementation(&context, uri.clone(), position, new_name.clone());
-            if let Ok(Some(edit)) = response {
+            if let Some(edit) = answered(result, response) {
                 let annotated = edit.change_annotations.is_some();
                 let edit = render_rename_edit(edit, files, encoding);
                 writeln!(result, "{edit}").unwrap();
@@ -719,29 +710,28 @@ fn dispatch_cursor(
                         writeln!(result, "\nWithout change annotations: {error}").unwrap();
                     }
                 }
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
         }
-        CursorKind::PrepareRename => match analyzer::rename::prepare(&context, uri, position) {
-            Ok(Some(PrepareRenameResult::Range(range))) => {
-                writeln!(result, "{}", render_range(range)).unwrap();
+        CursorKind::PrepareRename => {
+            let response = analyzer::rename::prepare(&context, uri, position);
+            match answered(result, response) {
+                Some(PrepareRenameResult::Range(range)) => {
+                    writeln!(result, "{}", render_range(range)).unwrap();
+                }
+                Some(PrepareRenameResult::PrepareRenamePlaceholder(PrepareRenamePlaceholder {
+                    range,
+                    placeholder,
+                })) => {
+                    writeln!(result, "{} {placeholder}", render_range(range)).unwrap();
+                }
+                Some(PrepareRenameResult::PrepareRenameDefaultBehavior(
+                    PrepareRenameDefaultBehavior { default_behavior },
+                )) => {
+                    writeln!(result, "default behavior: {default_behavior}").unwrap();
+                }
+                None => {}
             }
-            Ok(Some(PrepareRenameResult::PrepareRenamePlaceholder(PrepareRenamePlaceholder {
-                range,
-                placeholder,
-            }))) => {
-                writeln!(result, "{} {placeholder}", render_range(range)).unwrap();
-            }
-            Ok(Some(PrepareRenameResult::PrepareRenameDefaultBehavior(
-                PrepareRenameDefaultBehavior { default_behavior },
-            ))) => {
-                writeln!(result, "default behavior: {default_behavior}").unwrap();
-            }
-            Ok(None) | Err(_) => {
-                writeln!(result, "<empty>").unwrap();
-            }
-        },
+        }
         CursorKind::DocumentHighlight => {
             let render_highlight = |h: DocumentHighlight| -> String {
                 format!(
@@ -753,14 +743,25 @@ fn dispatch_cursor(
                 )
             };
 
-            if let Ok(Some(highlights)) =
-                analyzer::document_highlight::implementation(&context, uri, position)
-            {
+            let response = analyzer::document_highlight::implementation(&context, uri, position);
+            if let Some(highlights) = answered(result, response) {
                 let highlights = highlights.into_iter().map(render_highlight).join("\n");
                 writeln!(result, "{highlights}").unwrap();
-            } else {
-                writeln!(result, "<empty>").unwrap();
             }
+        }
+    }
+}
+
+fn answered<T>(result: &mut String, response: Result<Option<T>, AnalyzerError>) -> Option<T> {
+    match response {
+        Ok(Some(response)) => Some(response),
+        Ok(None) | Err(AnalyzerError::NonFatal) => {
+            writeln!(result, "<empty>").unwrap();
+            None
+        }
+        Err(error) => {
+            writeln!(result, "<error> {error}").unwrap();
+            None
         }
     }
 }
@@ -839,11 +840,11 @@ fn dispatch_workspace_symbols(
         Ok(Some(_)) => {
             writeln!(result, "<unsupported>").unwrap();
         }
-        Ok(None) => {
+        Ok(None) | Err(AnalyzerError::NonFatal) => {
             writeln!(result, "<none>").unwrap();
         }
-        Err(_) => {
-            writeln!(result, "<empty>").unwrap();
+        Err(error) => {
+            writeln!(result, "<error> {error}").unwrap();
         }
     }
 }

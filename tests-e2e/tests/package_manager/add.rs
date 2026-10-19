@@ -28,7 +28,7 @@ fn adds_a_workspace_dependency_with_real_spago() {
     let output = workspace.command(&["add", "--package", "application", "library"]);
     assert_success(&output);
     assert!(workspace.path().join("spago.lock").is_file());
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application", "library"]]);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application" "library""#);
 
     insta::assert_snapshot!(workspace.read("packages/application/spago.yaml"), @r#"
     package:
@@ -70,8 +70,7 @@ fn adds_a_workspace_dependency_with_local_spago() {
     let output = command.output().unwrap();
     assert_success(&output);
     assert!(workspace.path().join("spago.lock").is_file());
-    workspace
-        .assert_spago_calls("packages/application", &[&["fetch", "-p", "application", "library"]]);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"packages/application: spago "fetch" "-p" "application" "library""#);
 
     insta::assert_snapshot!(workspace.read("packages/application/spago.yaml"), @r#"
     package:

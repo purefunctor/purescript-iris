@@ -14,6 +14,8 @@ use support::{TestWorkspace, assert_success};
 /// the installed release cannot update itself.
 const PREVIOUS_RELEASE: &str = "0.1.5";
 
+const ATTESTATION: &str = r"(?m)^(?:(?:Verifying GitHub release attestation|warning: GitHub release attestation verification skipped .*|warning: A GitHub CLI with attestation support is not installed; .*|warning: Install or update gh .*)\n)+";
+
 /// Copies the Iris under test into the workspace, so that updating it leaves the build untouched.
 fn install_iris(workspace: &TestWorkspace) -> PathBuf {
     let directory = workspace.path().join("bin");
@@ -45,22 +47,25 @@ fn replaces_the_running_executable_with_a_release() {
     let current = version(&executable);
 
     let output = update_to_previous_release(&executable);
-    assert_success(&output);
-    let replaced = format!(
-        "Replaced Iris {current} with Iris {PREVIOUS_RELEASE} at {}.",
-        executable.display()
-    );
-    let restart = format!(
-        "Restart `iris watch` and editor language servers to use Iris {}.",
-        PREVIOUS_RELEASE
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout.lines().collect_vec(), [replaced, restart]);
-    let warning = format!(
-        "warning: Iris {PREVIOUS_RELEASE} cannot update itself; run the installer to update it."
-    );
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_eq!(stderr.lines().last(), Some(warning.as_str()));
+    let mut settings = insta::Settings::clone_current();
+    settings.add_filter(&regex::escape(&current), "[CURRENT]");
+    settings.add_filter(r"(?m)^(Downloading iris \S+ for )\S+$", "${1}[TARGET]");
+    settings.add_filter(ATTESTATION, "[ATTESTATION]\n");
+    if cfg!(windows) {
+        settings.add_filter(r"iris\.exe\b", "iris");
+    }
+    settings.bind(|| {
+        insta::assert_snapshot!(workspace.report(&output), @"
+        status: 0
+        --- stdout
+        Replaced Iris [CURRENT] with Iris 0.1.5 at [WORKSPACE]/bin/iris.
+        Restart `iris watch` and editor language servers to use Iris 0.1.5.
+        --- stderr
+        Downloading iris v0.1.5 for [TARGET]
+        [ATTESTATION]
+        warning: Iris 0.1.5 cannot update itself; run the installer to update it.
+        ");
+    });
     assert_eq!(version(&executable), PREVIOUS_RELEASE);
 
     // Windows cannot delete the running executable, so it remains beside the new one.
@@ -96,12 +101,12 @@ fn reports_an_installation_directory_it_cannot_write_to() {
     let output = update_to_previous_release(&executable);
     fs::set_permissions(directory, fs::Permissions::from_mode(0o755)).unwrap();
 
-    assert_eq!(output.status.code(), Some(1));
-    let error = format!(
-        "cannot write to {}; update Iris with the permissions it was installed with\n",
-        directory.display()
-    );
-    assert_eq!(String::from_utf8_lossy(&output.stderr), error);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    cannot write to [WORKSPACE]/bin; update Iris with the permissions it was installed with
+    ");
     assert_eq!(version(&executable), current);
 }
 
@@ -112,12 +117,15 @@ fn reports_the_latest_canary_without_installing_it() {
     let current = version(&executable);
 
     let output = run(&executable, &["self", "update", "--check", "--canary"]);
-    assert_eq!(output.status.code(), Some(100), "{output:?}");
-    let pattern = format!(
-        r"^Iris \d+\.\d+\.\d+-dev\.[0-9a-f]{{12}} is available; this is Iris {}\.\n$",
-        regex::escape(&current)
-    );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(regex::Regex::new(&pattern).unwrap().is_match(&stdout), "{stdout}");
+    let canary = (r"\d+\.\d+\.\d+-dev\.[0-9a-f]{12} is available", "[CANARY] is available");
+    let current_version = regex::escape(&current);
+    insta::with_settings!({filters => vec![canary, (current_version.as_str(), "[CURRENT]")]}, {
+        insta::assert_snapshot!(workspace.report(&output), @"
+        status: 100
+        --- stdout
+        Iris [CANARY] is available; this is Iris [CURRENT].
+        --- stderr
+        ");
+    });
     assert_eq!(version(&executable), current);
 }

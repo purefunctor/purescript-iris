@@ -1,0 +1,39 @@
+---
+source: tests-e2e/tests/formatting.rs
+---
+$ iris format --file src/Main.purs
+status: 0
+--- stdout
+module Main where
+
+value = combine firstArgument secondArgument
+--- stderr
+$ iris format --width 32 --file src/Main.purs
+status: 0
+--- stdout
+module Main where
+
+value = combine firstArgument
+  secondArgument
+--- stderr
+$ iris format --width 32 --indent 4 --file src/Main.purs
+status: 0
+--- stdout
+module Main where
+
+value = combine firstArgument
+    secondArgument
+--- stderr
+$ iris format --width 32 --indent 4 --write --file src/Main.purs
+status: 0
+--- stdout
+--- stderr
+$ iris format --width 32 --indent 4 --check --file src/Main.purs
+status: 0
+--- stdout
+--- stderr
+$ iris format --check --file src/Main.purs
+status: 1
+--- stdout
+--- stderr
+src/Main.purs

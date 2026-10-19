@@ -36,7 +36,7 @@ Use the category that owns the observable regression:
 | `lsp`       | -     | Hover, definition, completion, import edits, or editor-facing source positions                   |
 | `sourcemap` | -     | The source positions that generated JavaScript maps back to                                      |
 
-Use the `workflow-integration-tests` skill for fixture authoring details. Use the command reference at `.agents/skills/workflow-integration-tests/reference/compiler-scripts.md` for runner syntax, filters, snapshots, and trace debugging.
+Use the `workflow-integration-tests` skill for fixture authoring details. Use the command reference at `.agents/skills/workflow-integration-tests/reference/compiler-scripts.md` for runner syntax, filters, and snapshots.
 
 Before either workflow, choose small, coherent units of behavior as required by
 `tests-integration/AGENTS.md`. Keep the setup and expected results easy to hold in

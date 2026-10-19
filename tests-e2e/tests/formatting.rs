@@ -1,10 +1,9 @@
 use std::io::Write;
-use std::process::Stdio;
 
 #[path = "support.rs"]
 mod support;
 
-use support::TestWorkspace;
+use support::{OPERATING_SYSTEM_ERROR, TestWorkspace};
 
 const UNFORMATTED: &str = "module Main where
 
@@ -26,28 +25,24 @@ value="""first
 second"""
 "#
     .replace('\n', "\r\n");
-    let formatted = r#"module Main where
-
-{- A block comment.
-   With another line. -}
-value = """first
-second"""
-"#
-    .replace("first\nsecond", "first\r\nsecond");
     for arguments in [&["format", "--file", "-"][..], &["format", "--file", "-", "--file", "-"][..]]
     {
-        let mut child = workspace
-            .command_builder("", arguments)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+        let mut child = workspace.spawn(arguments);
         child.stdin.take().unwrap().write_all(unformatted.as_bytes()).unwrap();
         let output = child.wait_with_output().unwrap();
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        assert_eq!(output.stdout, formatted.as_bytes());
-        assert!(output.stderr.is_empty());
+        insta::allow_duplicates! {
+            insta::assert_snapshot!(workspace.report(&output), @r#"
+            status: 0
+            --- stdout
+            module Main where
+
+            {- A block comment.
+               With another line. -}
+            value = """first\r
+            second"""
+            --- stderr
+            "#);
+        }
     }
 }
 
@@ -55,73 +50,76 @@ second"""
 fn previews_a_file_without_writing_and_rejects_ambiguous_modes() {
     let workspace = TestWorkspace::empty();
     workspace.write("src/Main.purs", UNFORMATTED);
-    let other = "module Other where
+    workspace.write(
+        "src/Other.purs",
+        "module Other where
 value=2
-";
-    workspace.write("src/Other.purs", other);
+",
+    );
     let preview = workspace.command(&["format", "--file", "src/Main.purs"]);
-    assert!(preview.status.success());
-    assert_eq!(preview.stdout, FORMATTED.as_bytes());
-    let mut diagnostics = String::new();
-    for arguments in [
-        &["format", "--write", "--check"][..],
-        &["format", "--write", "--file", "-"][..],
-        &["format", "src/Main.purs"][..],
-        &["format", "--file", "src/Main.purs", "--file", "src/Other.purs"][..],
-        &["format", "--width", "0"][..],
-        &["format", "--indent", "0"][..],
-        &["format", "--indent", "65536"][..],
-    ] {
-        let output = workspace.command(arguments);
-        assert_eq!(output.status.code(), Some(2));
-        assert!(output.stdout.is_empty());
-        diagnostics.push_str(&String::from_utf8(output.stderr).unwrap());
-    }
-    insta::assert_snapshot!(diagnostics);
-    assert_eq!(workspace.read("src/Main.purs"), UNFORMATTED);
-    assert_eq!(workspace.read("src/Other.purs"), other);
-    workspace.assert_spago_calls("", &[]);
+    insta::assert_snapshot!(workspace.report(&preview), @"
+    status: 0
+    --- stdout
+    module Main where
+
+    value = 1
+    --- stderr
+    ");
+    let rejections = workspace.transcript(&[
+        &["format", "--write", "--check"],
+        &["format", "--write", "--file", "-"],
+        &["format", "src/Main.purs"],
+        &["format", "--file", "src/Main.purs", "--file", "src/Other.purs"],
+        &["format", "--width", "0"],
+        &["format", "--indent", "0"],
+        &["format", "--indent", "65536"],
+    ]);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("rejects_ambiguous_modes", rejections);
+    });
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- src/Main.purs
+    module Main where
+
+    value=1
+    --- src/Other.purs
+    module Other where
+    value=2
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
 fn wires_unicode_to_preview_write_and_check() {
     let workspace = TestWorkspace::empty();
-    let source = r#"module Main where
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
 
 identity :: forall a. a -> a
 identity = \value -> value
-"#;
-    workspace.write("src/Main.purs", source);
-    let preview = workspace.command(&["format", "--file", "src/Main.purs"]);
-    assert!(preview.status.success(), "{}", String::from_utf8_lossy(&preview.stderr));
-    assert_eq!(preview.stdout, source.as_bytes());
-    assert!(workspace.command(&["format", "--check", "--file", "src/Main.purs"]).status.success());
-    let preview = workspace.command(&["format", "--unicode", "--file", "src/Main.purs"]);
-    assert!(preview.status.success(), "{}", String::from_utf8_lossy(&preview.stderr));
-    let preview = String::from_utf8(preview.stdout).unwrap();
-    assert!(preview.contains("identity ∷"));
-    assert_eq!(workspace.read("src/Main.purs"), source);
-    assert_eq!(
-        workspace
-            .command(&["format", "--unicode", "--check", "--file", "src/Main.purs"])
-            .status
-            .code(),
-        Some(1)
+"#,
     );
-    assert!(
-        workspace
-            .command(&["format", "--unicode", "--write", "--file", "src/Main.purs"])
-            .status
-            .success()
-    );
-    assert_eq!(workspace.read("src/Main.purs"), preview);
-    for arguments in [
-        &["format", "--unicode", "--check", "--file", "src/Main.purs"][..],
-        &["format", "--check", "--file", "src/Main.purs"][..],
-    ] {
-        assert!(workspace.command(arguments).status.success());
-    }
-    workspace.assert_spago_calls("", &[]);
+    let commands = workspace.transcript(&[
+        &["format", "--file", "src/Main.purs"],
+        &["format", "--check", "--file", "src/Main.purs"],
+        &["format", "--unicode", "--file", "src/Main.purs"],
+        &["format", "--unicode", "--check", "--file", "src/Main.purs"],
+        &["format", "--unicode", "--write", "--file", "src/Main.purs"],
+        &["format", "--unicode", "--check", "--file", "src/Main.purs"],
+        &["format", "--check", "--file", "src/Main.purs"],
+    ]);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("unicode", commands);
+    });
+    insta::assert_snapshot!(workspace.summary(), @r"
+    --- src/Main.purs
+    module Main where
+
+    identity ∷ ∀ a. a → a
+    identity = \value → value
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
@@ -132,83 +130,74 @@ fn wires_width_and_indent_to_preview_stdin_write_and_check() {
 value=combine firstArgument secondArgument
 ";
     workspace.write("src/Main.purs", source);
-    let defaults = workspace.command(&["format", "--file", "src/Main.purs"]);
-    assert!(defaults.status.success());
-    let narrow = workspace.command(&["format", "--width", "32", "--file", "src/Main.purs"]);
-    assert!(narrow.status.success());
-    let preview =
-        workspace.command(&["format", "--width", "32", "--indent", "4", "--file", "src/Main.purs"]);
-    assert!(preview.status.success(), "{}", String::from_utf8_lossy(&preview.stderr));
-    assert_ne!(narrow.stdout, defaults.stdout, "--width must reach the formatter");
-    assert_ne!(preview.stdout, narrow.stdout, "--indent must reach the formatter");
-    let preview = String::from_utf8(preview.stdout).unwrap();
-    assert_eq!(workspace.read("src/Main.purs"), source);
-
-    let mut child = workspace
-        .command_builder("", &["format", "--width", "32", "--indent", "4", "--file", "-"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+    let mut child = workspace.spawn(&["format", "--width", "32", "--indent", "4", "--file", "-"]);
     child.stdin.take().unwrap().write_all(source.as_bytes()).unwrap();
-    let output = child.wait_with_output().unwrap();
-    assert!(output.status.success());
-    assert_eq!(output.stdout, preview.as_bytes());
+    let standard_input = child.wait_with_output().unwrap();
+    insta::assert_snapshot!(workspace.report(&standard_input), @"
+    status: 0
+    --- stdout
+    module Main where
 
-    assert!(
-        workspace
-            .command(&[
-                "format",
-                "--width",
-                "32",
-                "--indent",
-                "4",
-                "--write",
-                "--file",
-                "src/Main.purs"
-            ])
-            .status
-            .success()
-    );
-    assert_eq!(workspace.read("src/Main.purs"), preview);
-    assert!(
-        workspace
-            .command(&[
-                "format",
-                "--width",
-                "32",
-                "--indent",
-                "4",
-                "--check",
-                "--file",
-                "src/Main.purs"
-            ])
-            .status
-            .success()
-    );
-    assert_eq!(
-        workspace.command(&["format", "--check", "--file", "src/Main.purs"]).status.code(),
-        Some(1)
-    );
-    workspace.assert_spago_calls("", &[]);
+    value = combine firstArgument
+        secondArgument
+    --- stderr
+    ");
+    let commands = workspace.transcript(&[
+        &["format", "--file", "src/Main.purs"],
+        &["format", "--width", "32", "--file", "src/Main.purs"],
+        &["format", "--width", "32", "--indent", "4", "--file", "src/Main.purs"],
+        &["format", "--width", "32", "--indent", "4", "--write", "--file", "src/Main.purs"],
+        &["format", "--width", "32", "--indent", "4", "--check", "--file", "src/Main.purs"],
+        &["format", "--check", "--file", "src/Main.purs"],
+    ]);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("width_and_indent", commands);
+    });
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- src/Main.purs
+    module Main where
+
+    value = combine firstArgument
+        secondArgument
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
 fn writes_checks_and_is_idempotent() {
     let workspace = TestWorkspace::empty();
     workspace.write("src/Main.purs", UNFORMATTED);
-    let check = workspace.command(&["format", "--check", "--file", "src/Main.purs"]);
-    assert_eq!(check.status.code(), Some(1));
-    assert!(check.stdout.is_empty());
-    let stderr = String::from_utf8(check.stderr).unwrap().replace('\\', "/");
-    insta::assert_snapshot!("check_dirty", stderr);
-    assert!(workspace.command(&["format", "--write", "--file", "src/Main.purs"]).status.success());
-    let formatted = workspace.read("src/Main.purs");
-    assert_eq!(formatted, FORMATTED);
-    assert!(workspace.command(&["format", "--check", "--file", "src/Main.purs"]).status.success());
-    assert!(workspace.command(&["format", "--write", "--file", "src/Main.purs"]).status.success());
-    assert_eq!(workspace.read("src/Main.purs"), formatted);
+    let commands = workspace.transcript(&[
+        &["format", "--check", "--file", "src/Main.purs"],
+        &["format", "--write", "--file", "src/Main.purs"],
+        &["format", "--check", "--file", "src/Main.purs"],
+        &["format", "--write", "--file", "src/Main.purs"],
+    ]);
+    insta::assert_snapshot!(commands, @"
+    $ iris format --check --file src/Main.purs
+    status: 1
+    --- stdout
+    --- stderr
+    src/Main.purs
+    $ iris format --write --file src/Main.purs
+    status: 0
+    --- stdout
+    --- stderr
+    $ iris format --check --file src/Main.purs
+    status: 0
+    --- stdout
+    --- stderr
+    $ iris format --write --file src/Main.purs
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- src/Main.purs
+    module Main where
+
+    value = 1
+    ");
 }
 
 #[test]
@@ -224,13 +213,36 @@ workspace: {}
     );
     workspace.write("src/AValid.purs", UNFORMATTED);
     workspace.write("src/ZInvalid.purs", "module");
-    for arguments in [
-        &["format"][..],
-        &["format", "--write", "--file", "src/AValid.purs", "--file", "src/ZInvalid.purs"][..],
-    ] {
-        assert_eq!(workspace.command(arguments).status.code(), Some(2));
-        assert_eq!(workspace.read("src/AValid.purs"), UNFORMATTED);
-    }
+    let commands = workspace.transcript(&[
+        &["format"],
+        &["format", "--write", "--file", "src/AValid.purs", "--file", "src/ZInvalid.purs"],
+    ]);
+    insta::assert_snapshot!(commands, @"
+    $ iris format
+    status: 2
+    --- stdout
+    --- stderr
+    error: [WORKSPACE]/src/ZInvalid.purs: cannot format: 1:7: Expected UPPER
+    $ iris format --write --file src/AValid.purs --file src/ZInvalid.purs
+    status: 2
+    --- stdout
+    --- stderr
+    error: src/ZInvalid.purs: cannot format: 1:7: Expected UPPER
+    ");
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- spago.yaml
+    package:
+      name: application
+      dependencies: []
+    workspace: {}
+    --- src/AValid.purs
+    module Main where
+
+    value=1
+    --- src/ZInvalid.purs
+    module
+    [no final newline]
+    ");
 }
 
 #[test]
@@ -307,28 +319,28 @@ workspace: {}
     for path in excluded {
         workspace.write(path, UNFORMATTED);
     }
+    let unformatted = workspace.summary();
     let check = workspace.command_in("packages/first/src", &["format", "--check"]);
-    assert_eq!(check.status.code(), Some(1));
-    assert!(check.stdout.is_empty());
-    let stderr = String::from_utf8(check.stderr).unwrap().replace('\\', "/");
-    let root = dunce::canonicalize(workspace.path()).unwrap().to_string_lossy().replace('\\', "/");
-    insta::assert_snapshot!("check_workspace", stderr.replace(&format!("{root}/"), ""));
-    for path in sources {
-        assert_eq!(workspace.read(path), UNFORMATTED);
-    }
+    assert_eq!(workspace.summary(), unformatted);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("check_workspace", workspace.report(&check));
+    });
     let write = workspace.command_in("packages/first/src", &["format"]);
-    support::assert_success(&write);
-    assert!(write.stdout.is_empty());
-    assert!(write.stderr.is_empty());
-    for path in sources {
-        assert_eq!(workspace.read(path), FORMATTED);
-    }
-    for path in excluded {
-        assert_eq!(workspace.read(path), UNFORMATTED);
-    }
-    support::assert_success(&workspace.command(&["format", "--check"]));
-    assert!(!workspace.path().join("spago.lock").exists());
-    workspace.assert_spago_calls("", &[]);
+    insta::assert_snapshot!(workspace.report(&write), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    let check = workspace.command(&["format", "--check"]);
+    insta::assert_snapshot!(workspace.report(&check), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("formatted_workspace", workspace.summary());
+    });
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
@@ -349,12 +361,40 @@ workspace: {}
     workspace.write("project[12]/test/spago.yaml", "workspace: {}\n");
     workspace.write("project[12]/test/src/Isolated.purs", UNFORMATTED);
     let output = workspace.command_in("project[12]", &["format"]);
-    support::assert_success(&output);
-    assert_eq!(workspace.read("project1/src/Main.purs"), UNFORMATTED);
-    assert_eq!(workspace.read("project[12]/src/Main.purs"), FORMATTED);
-    assert_eq!(workspace.read("project[12]/src/.purs"), FORMATTED);
-    assert_eq!(workspace.read("project[12]/src/Directory.purs/Nested.purs"), FORMATTED);
-    assert_eq!(workspace.read("project[12]/test/src/Isolated.purs"), UNFORMATTED);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- project1/src/Main.purs
+    module Main where
+
+    value=1
+    --- project[12]/spago.yaml
+    package:
+      name: application
+      dependencies: []
+    workspace: {}
+    --- project[12]/src/.purs
+    module Main where
+
+    value = 1
+    --- project[12]/src/Directory.purs/Nested.purs
+    module Main where
+
+    value = 1
+    --- project[12]/src/Main.purs
+    module Main where
+
+    value = 1
+    --- project[12]/test/spago.yaml
+    workspace: {}
+    --- project[12]/test/src/Isolated.purs
+    module Main where
+
+    value=1
+    ");
 }
 
 #[test]
@@ -364,28 +404,55 @@ fn file_mode_is_literal_repeatable_and_independent_of_the_workspace() {
     workspace.write("src/Main.purs", UNFORMATTED);
     workspace.write("src/[Literal].purs", UNFORMATTED);
     workspace.write("src/Unrequested.purs", "module");
-    for path in ["src", "src/*.purs"] {
-        assert_eq!(
-            workspace.command(&["format", "--write", "--file", path]).status.code(),
-            Some(2)
-        );
-        assert_eq!(workspace.read("src/Main.purs"), UNFORMATTED);
-    }
-    let write = workspace.command(&[
-        "format",
-        "--write",
-        "--file",
-        "src/Main.purs",
-        "--file",
-        "src/[Literal].purs",
-        "--file",
-        "src/Main.purs",
+    let commands = workspace.transcript(&[
+        &["format", "--write", "--file", "src"],
+        &["format", "--write", "--file", "src/*.purs"],
+        &[
+            "format",
+            "--write",
+            "--file",
+            "src/Main.purs",
+            "--file",
+            "src/[Literal].purs",
+            "--file",
+            "src/Main.purs",
+        ],
     ]);
-    support::assert_success(&write);
-    assert_eq!(workspace.read("src/Main.purs"), FORMATTED);
-    assert_eq!(workspace.read("src/[Literal].purs"), FORMATTED);
-    assert_eq!(workspace.read("src/Unrequested.purs"), "module");
-    workspace.assert_spago_calls("", &[]);
+    insta::with_settings!({filters => vec![OPERATING_SYSTEM_ERROR]}, {
+        insta::assert_snapshot!(commands, @"
+        $ iris format --write --file src
+        status: 2
+        --- stdout
+        --- stderr
+        error: could not read src: [OS ERROR]
+        $ iris format --write --file src/*.purs
+        status: 2
+        --- stdout
+        --- stderr
+        error: could not read src/*.purs: [OS ERROR]
+        $ iris format --write --file src/Main.purs --file src/[Literal].purs --file src/Main.purs
+        status: 0
+        --- stdout
+        --- stderr
+        ");
+    });
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- spago.yaml
+    invalid: [manifest
+    [no final newline]
+    --- src/Main.purs
+    module Main where
+
+    value = 1
+    --- src/Unrequested.purs
+    module
+    [no final newline]
+    --- src/[Literal].purs
+    module Main where
+
+    value = 1
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
@@ -393,15 +460,18 @@ fn workspace_mode_requires_a_spago_workspace_instead_of_reading_stdin() {
     let workspace = TestWorkspace::empty();
     workspace.write("src/Main.purs", UNFORMATTED);
     let output = workspace.command(&["format"]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
-    let stderr = String::from_utf8(output.stderr).unwrap();
-    let root = dunce::canonicalize(workspace.path()).unwrap();
-    insta::assert_snapshot!(
-        "missing_workspace",
-        stderr.replace(root.to_str().unwrap(), "[workspace]")
-    );
-    assert_eq!(workspace.read("src/Main.purs"), UNFORMATTED);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 2
+    --- stdout
+    --- stderr
+    error: no Spago workspace found from [WORKSPACE]
+    ");
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- src/Main.purs
+    module Main where
+
+    value=1
+    ");
 }
 
 #[cfg(unix)]
@@ -416,8 +486,14 @@ fn skips_discovered_symlinks_and_refuses_to_replace_explicit_file_links() {
     symlink("../targets/Source.purs", workspace.path().join("src/ZLinked.purs")).unwrap();
 
     let preview = workspace.command(&["format", "--file", "src/ZLinked.purs"]);
-    assert!(preview.status.success());
-    assert_eq!(preview.stdout, FORMATTED.as_bytes());
+    insta::assert_snapshot!(workspace.report(&preview), @"
+    status: 0
+    --- stdout
+    module Main where
+
+    value = 1
+    --- stderr
+    ");
     let write = workspace.command(&[
         "format",
         "--write",
@@ -426,10 +502,26 @@ fn skips_discovered_symlinks_and_refuses_to_replace_explicit_file_links() {
         "--file",
         "src/ZLinked.purs",
     ]);
-    assert_eq!(write.status.code(), Some(2));
-    insta::assert_snapshot!("refuse_symlink_write", String::from_utf8(write.stderr).unwrap());
-    assert_eq!(workspace.read("src/Main.purs"), UNFORMATTED);
-    assert_eq!(workspace.read("targets/Source.purs"), UNFORMATTED);
+    insta::assert_snapshot!(workspace.report(&write), @"
+    status: 2
+    --- stdout
+    --- stderr
+    error: refusing to replace symlink src/ZLinked.purs
+    ");
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- src/Main.purs
+    module Main where
+
+    value=1
+    --- src/ZLinked.purs
+    module Main where
+
+    value=1
+    --- targets/Source.purs
+    module Main where
+
+    value=1
+    ");
     assert!(fs::symlink_metadata(workspace.path().join("src/ZLinked.purs")).unwrap().is_symlink());
 
     workspace.write(
@@ -442,11 +534,41 @@ workspace: {}
     );
     symlink("../targets", workspace.path().join("src/linked-directory")).unwrap();
     symlink("targets", workspace.path().join("test")).unwrap();
-    support::assert_success(&workspace.command(&["format"]));
-    assert_eq!(workspace.read("src/Main.purs"), FORMATTED);
-    assert_eq!(workspace.read("targets/Source.purs"), UNFORMATTED);
+    let output = workspace.command(&["format"]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.summary(), @"
+    --- spago.yaml
+    package:
+      name: application
+      dependencies: []
+    workspace: {}
+    --- src/Main.purs
+    module Main where
+
+    value = 1
+    --- src/ZLinked.purs
+    module Main where
+
+    value=1
+    --- src/linked-directory/Source.purs
+    module Main where
+
+    value=1
+    --- targets/Source.purs
+    module Main where
+
+    value=1
+    --- test/Source.purs
+    module Main where
+
+    value=1
+    ");
     assert!(fs::symlink_metadata(workspace.path().join("src/ZLinked.purs")).unwrap().is_symlink());
-    workspace.assert_spago_calls("", &[]);
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[cfg(unix)]
@@ -463,9 +585,24 @@ fn writes_preserve_file_identity_permissions_and_hard_links() {
         workspace.write("Main.purs", UNFORMATTED);
         fs::set_permissions(&path, fs::Permissions::from_mode(mode)).unwrap();
         let original = fs::metadata(&path).unwrap();
-        assert!(workspace.command(&["format", "--write", "--file", "Main.purs"]).status.success());
-        assert_eq!(workspace.read("Main.purs"), FORMATTED);
-        assert_eq!(workspace.read("Linked.purs"), FORMATTED);
+        let output = workspace.command(&["format", "--write", "--file", "Main.purs"]);
+        insta::allow_duplicates! {
+            insta::assert_snapshot!(workspace.report(&output), @"
+            status: 0
+            --- stdout
+            --- stderr
+            ");
+            insta::assert_snapshot!(workspace.summary(), @"
+            --- Linked.purs
+            module Main where
+
+            value = 1
+            --- Main.purs
+            module Main where
+
+            value = 1
+            ");
+        }
         let formatted = fs::metadata(&path).unwrap();
         assert_eq!(formatted.permissions().mode() & 0o7777, mode);
         assert_eq!(formatted.uid(), original.uid());
@@ -473,10 +610,6 @@ fn writes_preserve_file_identity_permissions_and_hard_links() {
         assert_eq!(formatted.dev(), original.dev());
         assert_eq!(formatted.ino(), original.ino());
     }
-    let entries = fs::read_dir(workspace.path()).unwrap().map(|entry| entry.unwrap().file_name());
-    let mut entries = entries.collect::<Vec<_>>();
-    entries.sort();
-    assert_eq!(entries, ["Linked.purs", "Main.purs"]);
 }
 
 #[cfg(target_os = "linux")]

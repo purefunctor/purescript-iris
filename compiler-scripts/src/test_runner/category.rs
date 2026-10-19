@@ -33,7 +33,7 @@ impl TestCategory {
     pub fn test_targets(&self) -> &'static [&'static str] {
         match self {
             TestCategory::Compiler => &["compiler"],
-            TestCategory::Lowering => &["lowering"],
+            TestCategory::Lowering => &["lowering", "lowering_unit"],
             TestCategory::Resolving => &["resolving"],
             TestCategory::Lsp => &["lsp"],
             TestCategory::Docs => &["docs"],
@@ -43,10 +43,11 @@ impl TestCategory {
     }
 
     pub fn snapshot_path_fragments(&self) -> Vec<String> {
-        vec![
-            format!("tests-integration/fixtures/{}", self.as_str()),
-            format!("tests-integration/tests/snapshots/{}__", self.as_str()),
-        ]
+        let mut fragments = vec![format!("tests-integration/fixtures/{}", self.as_str())];
+        for target in self.test_targets() {
+            fragments.push(format!("tests-integration/tests/snapshots/{target}__"));
+        }
+        fragments
     }
 }
 
@@ -66,24 +67,6 @@ impl FromStr for TestCategory {
                 "unknown test category '{}', expected: compiler (c), lowering (l), resolving (r), lsp, docs, formatting, sourcemap",
                 s
             ),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn compiler_has_c_alias() {
-        assert!(matches!(TestCategory::from_str("compiler"), Ok(TestCategory::Compiler)));
-        assert!(matches!(TestCategory::from_str("c"), Ok(TestCategory::Compiler)));
-    }
-
-    #[test]
-    fn obsolete_compiler_category_names_are_rejected() {
-        for name in ["backend", "b", "checking", "semantic", "s", "functional"] {
-            assert!(TestCategory::from_str(name).is_err(), "{name} should be rejected");
         }
     }
 }

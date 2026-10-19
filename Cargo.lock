@@ -4123,6 +4123,7 @@ dependencies = [
  "iris-cli",
  "itertools 0.15.0",
  "lsp-server",
+ "process_control",
  "regex",
  "serde",
  "serde_json",

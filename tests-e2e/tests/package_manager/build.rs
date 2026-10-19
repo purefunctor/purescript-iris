@@ -1,22 +1,10 @@
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::Command;
 use std::time::{Duration, SystemTime};
 
 use super::support::{TestWorkspace, assert_success};
-
-fn snapshot_output(name: &str, output: &Output) {
-    let status = output.status.code().map_or_else(|| "signal".to_owned(), |code| code.to_string());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    insta::with_settings!({omit_expression => true}, {
-        insta::assert_snapshot!(
-            name,
-            format!("status: {status}\n--- stdout\n{stdout}--- stderr\n{stderr}")
-        );
-    });
-}
 
 #[test]
 fn builds_the_selected_workspace_package() {
@@ -47,10 +35,13 @@ value = 42
 
     let output = workspace.command_in("packages/application/src", &["build", "--quiet"]);
 
-    assert_success(&output);
-    assert!(workspace.path().join("output/Main/index.js").is_file());
-    assert!(!workspace.path().join("output/Library/index.js").exists());
-    workspace.assert_spago_calls("packages/application/src", &[&["fetch", "-p", "application"]]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"Main");
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"packages/application/src: spago "fetch" "-p" "application""#);
 }
 
 #[test]
@@ -90,10 +81,16 @@ library = 42
 
     let output = workspace.command_in("src", &["build", "--quiet"]);
 
-    assert_success(&output);
-    assert!(workspace.path().join("output/Application/index.js").is_file());
-    assert!(workspace.path().join("output/Library/index.js").is_file());
-    workspace.assert_spago_calls("src", &[&["fetch"]]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"
+    Application
+    Library
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"src: spago "fetch""#);
 }
 
 #[test]
@@ -122,19 +119,38 @@ value = unit
 
     let output = workspace.command(&["build", "--quiet"]);
 
-    assert_success(&output);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
     let lock: serde_json::Value = serde_json::from_str(&workspace.read("spago.lock")).unwrap();
     let selected_version = lock["packages"]["prelude"]["version"].as_str().unwrap();
     assert_ne!(selected_version, "999.0.0");
     assert!(workspace.path().join("output/Main/index.js").is_file());
     assert!(!workspace.path().join("output/Stale/index.js").exists());
-    let prelude = workspace.module_metadata("Prelude").unwrap();
+    let mut prelude = workspace.module_metadata("Prelude").unwrap();
     let package = dunce::canonicalize(workspace.path()).unwrap();
     let package = package.join(format!(".spago/p/prelude-{selected_version}"));
-    assert_eq!(prelude["package"], "prelude");
-    assert_eq!(prelude["editable"], false);
     assert_eq!(Path::new(prelude["source"].as_str().unwrap()), package.join("src/Prelude.purs"));
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "application"]]);
+    let source = workspace.normalize_output(prelude["source"].as_str().unwrap().as_bytes());
+    prelude["source"] = source.into();
+    prelude["iris"] = "[VERSION]".into();
+    let prelude = serde_json::to_string_pretty(&prelude).unwrap();
+    let selected_version = format!("prelude-{}", regex::escape(selected_version));
+    insta::with_settings!({filters => vec![(selected_version.as_str(), "prelude-[SELECTED]")]}, {
+        insta::assert_snapshot!(prelude, @r#"
+        {
+          "editable": false,
+          "foreign": null,
+          "iris": "[VERSION]",
+          "package": "prelude",
+          "source": "[WORKSPACE]/.spago/p/prelude-[SELECTED]/src/Prelude.purs",
+          "version": 1
+        }
+        "#);
+    });
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
 }
 
 #[test]
@@ -159,11 +175,13 @@ package:
 
     let output = workspace.command(&["build", "--quiet", "--package", "ignored"]);
 
-    assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
-    assert!(output.stderr.ends_with(b"\n"));
-    insta::assert_snapshot!(String::from_utf8_lossy(&output.stderr), @"workspace package 'ignored' was not found; available packages: application");
-    workspace.assert_spago_calls("", &[]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    workspace package 'ignored' was not found; available packages: application
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
@@ -195,11 +213,13 @@ package:
 
     let output = workspace.command(&["build", "--quiet", "--package", "child"]);
 
-    assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
-    assert!(output.stderr.ends_with(b"\n"));
-    insta::assert_snapshot!(String::from_utf8_lossy(&output.stderr), @"workspace package 'child' was not found; available packages: application");
-    workspace.assert_spago_calls("", &[]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    workspace package 'child' was not found; available packages: application
+    ");
+    insta::assert_snapshot!(workspace.spago_calls(), @"");
 }
 
 #[test]
@@ -223,7 +243,11 @@ broken = missing
 
     let output = workspace.command(&["build", "--quiet", "--no-diagnostics"]);
 
-    snapshot_output("suppressed_error_diagnostics", &output);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    ");
 }
 
 #[test]
@@ -248,7 +272,9 @@ value = if true then 1
 
     let output = workspace.command(&["build", "--quiet"]);
 
-    snapshot_output("parse_error_diagnostics", &output);
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("parse_error_diagnostics", workspace.report(&output));
+    });
     assert!(!workspace.path().join("output/Main/index.js").exists());
 }
 
@@ -281,16 +307,18 @@ failure = fail Unit
     assert_success(&workspace.command(&["build", "--quiet"]));
     let source_map = workspace.read("output/Main/index.js.map");
     let source_map: serde_json::Value = serde_json::from_str(&source_map).unwrap();
-    assert_eq!(source_map["sources"], serde_json::json!(["../../src/Main.purs"]));
+    insta::assert_snapshot!(source_map["sources"], @r#"["../../src/Main.purs"]"#);
     let output = Command::new("node")
         .args(["--enable-source-maps", "main.mjs"])
-        .current_dir(workspace.path())
+        .current_dir(dunce::canonicalize(workspace.path()).unwrap())
         .output()
         .unwrap();
 
-    let stderr = String::from_utf8_lossy(&output.stderr).replace('\\', "/");
     assert!(!output.status.success());
-    assert!(stderr.contains("src/Main.purs:8:11"), "unmapped stack trace:\n{stderr}");
+    insta::assert_snapshot!(workspace.workspace_stack_frames(&output), @"
+    at fail ([WORKSPACE]/output/Main/foreign.js:1:35)
+    at <anonymous> ([WORKSPACE]/src/Main.purs:8:11)
+    ");
 }
 
 #[test]
@@ -345,15 +373,25 @@ foreign import render :: Int -> Int
 
     let output = workspace.command(&["build", "--quiet", "--package", "library"]);
 
-    assert_success(&output);
-    assert_eq!(workspace.metadata_modules(), ["Library", "Library.Types"]);
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"
+    Library
+    Library.Types
+    ");
     assert!(!workspace.path().join("output/Main").exists());
 
     assert_success(&workspace.command(&["build", "--quiet"]));
     insta::with_settings!({omit_expression => true}, {
         insta::assert_snapshot!("module_metadata", workspace.normalized_metadata());
     });
-    workspace.assert_spago_calls("", &[&["fetch", "-p", "library"], &["fetch"]]);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"
+    .: spago "fetch" "-p" "library"
+    .: spago "fetch"
+    "#);
 }
 
 #[test]
@@ -389,7 +427,11 @@ value = missing
 "#,
     );
     let failed = workspace.command(&["build", "--quiet", "--no-diagnostics"]);
-    assert_eq!(failed.status.code(), Some(1));
+    insta::assert_snapshot!(workspace.report(&failed), @"
+    status: 1
+    --- stdout
+    --- stderr
+    ");
     assert!(!workspace.path().join("output/Extra").exists());
 
     let metadata_path = workspace.path().join("output/Main/metadata.json");
@@ -423,7 +465,7 @@ foreign import value :: Int
 "#,
     );
     assert_success(&workspace.command(&["build", "--quiet"]));
-    assert_eq!(workspace.module_metadata("Main").unwrap()["foreign"], "foreign.js");
+    insta::assert_snapshot!(workspace.module_metadata("Main").unwrap()["foreign"], @r#""foreign.js""#);
     let mut read = String::new();
     reader.read_to_string(&mut read).unwrap();
     assert_eq!(read, previous, "a build rewrote the metadata of Main in place");

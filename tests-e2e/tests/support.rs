@@ -56,10 +56,7 @@ impl TestWorkspace {
             let relative = path.strip_prefix(self.path()).unwrap();
             let relative = relative.to_string_lossy().replace('\\', "/");
             let content = fs::read_to_string(&path).unwrap();
-            summary.push_str(&format!("--- {relative}\n{content}"));
-            if !content.ends_with('\n') {
-                summary.push('\n');
-            }
+            summary.push_str(&format!("--- {relative}\n{}", visible_line_endings(&content)));
         }
         summary
     }
@@ -96,7 +93,9 @@ impl TestWorkspace {
             .env("IRIS_E2E_SPAGO", spago_executable())
             .env("IRIS_E2E_SPAGO_LOG", self.path().join("spago-calls"))
             .env("COLUMNS", "120")
-            .env("NO_COLOR", "1");
+            .env("NO_COLOR", "1")
+            .env_remove("FORCE_COLOR")
+            .env_remove("NODE_OPTIONS");
         for variable in ["TMPDIR", "TMP", "TEMP"] {
             command.env(variable, self.process_temporary.path());
         }
@@ -149,17 +148,19 @@ impl TestWorkspace {
     pub fn normalize_output(&self, output: &[u8]) -> String {
         let prefixes = workspace_prefixes(self.path());
         let output = String::from_utf8_lossy(output);
-        let lines = output.lines().map(|line| {
-            let mut line = line.to_owned();
+        let lines = output.split_inclusive('\n').map(|line| {
+            let content = line.trim_end_matches(['\r', '\n']);
+            let terminator = &line[content.len()..];
+            let mut content = content.to_owned();
             for prefix in &prefixes {
-                line = replace_path_prefix(&line, prefix);
+                content = replace_path_prefix(&content, prefix);
             }
-            if line.contains("[WORKSPACE]") {
-                line = line.replace('\\', "/");
+            if content.contains("[WORKSPACE]") {
+                content = content.replace('\\', "/");
             }
-            normalize_process_status(&line)
+            normalize_process_status(&content) + terminator
         });
-        lines.collect_vec().join("\n")
+        lines.collect()
     }
 
     pub fn workspace_stack_frames(&self, output: &Output) -> String {
@@ -169,23 +170,43 @@ impl TestWorkspace {
         frames.collect_vec().join("\n")
     }
 
-    pub fn assert_spago_calls(&self, directory: &str, expected: &[&[&str]]) {
-        let path = self.path().join("spago-calls");
-        let source = match fs::read_to_string(path) {
+    pub fn report(&self, output: &Output) -> String {
+        let status = match output.status.code() {
+            Some(code) => code.to_string(),
+            None => "signal".to_owned(),
+        };
+        let mut report = format!("status: {status}\n");
+        for (name, stream) in [("stdout", &output.stdout), ("stderr", &output.stderr)] {
+            let stream = self.normalize_output(stream);
+            report.push_str(&format!("--- {name}\n{}", visible_line_endings(&stream)));
+        }
+        report
+    }
+
+    pub fn transcript(&self, commands: &[&[&str]]) -> String {
+        let reports = commands.iter().map(|arguments| {
+            let output = self.command(arguments);
+            format!("$ iris {}\n{}", arguments.join(" "), self.report(&output))
+        });
+        reports.collect()
+    }
+
+    pub fn spago_calls(&self) -> String {
+        let source = match fs::read_to_string(self.path().join("spago-calls")) {
             Ok(source) => source,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
             Err(error) => panic!("failed to read Spago call log: {error}"),
         };
-        let expected_directory = fs::canonicalize(self.path().join(directory)).unwrap();
-        let mut actual_arguments = Vec::new();
-        for line in source.lines() {
+        let root = dunce::canonicalize(self.path()).unwrap();
+        let calls = source.lines().map(|line| {
             let mut fields = line.split('\t');
-            let actual_directory = fields.next().unwrap();
-            let actual_directory = fs::canonicalize(actual_directory).unwrap();
-            assert_eq!(actual_directory, expected_directory);
-            actual_arguments.push(fields.collect_vec());
-        }
-        assert_eq!(actual_arguments, expected);
+            let directory = dunce::canonicalize(fields.next().unwrap()).unwrap();
+            let directory = directory.strip_prefix(&root).unwrap().to_string_lossy();
+            let directory = if directory.is_empty() { ".".into() } else { directory };
+            let mut arguments = fields.map(|argument| format!("{argument:?}"));
+            format!("{}: spago {}", directory.replace('\\', "/"), arguments.join(" "))
+        });
+        calls.collect_vec().join("\n")
     }
 }
 
@@ -232,6 +253,16 @@ pub fn replace_path_prefix(value: &str, prefix: &str) -> String {
     result.push_str(remaining);
     result
 }
+
+pub fn visible_line_endings(text: &str) -> String {
+    let mut text = text.replace('\r', "\\r");
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push_str("\n[no final newline]\n");
+    }
+    text
+}
+
+pub const OPERATING_SYSTEM_ERROR: (&str, &str) = (r": [^:\n]+ \(os error \d+\)", ": [OS ERROR]");
 
 pub fn normalize_process_status(text: &str) -> String {
     static STATUS: LazyLock<Regex> =

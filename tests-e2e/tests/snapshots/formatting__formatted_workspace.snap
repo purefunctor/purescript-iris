@@ -1,0 +1,87 @@
+---
+source: tests-e2e/tests/formatting.rs
+---
+--- .spago/p/dependency/spago.yaml
+package:
+  name: dependency
+  dependencies: []
+--- .spago/p/dependency/src/Dependency.purs
+module Main where
+
+value=1
+--- nested/spago.yaml
+package:
+  name: nested
+workspace: {}
+--- nested/src/Main.purs
+module Main where
+
+value=1
+--- node_modules/dependency/spago.yaml
+package:
+  name: node-dependency
+  dependencies: []
+--- node_modules/dependency/src/Dependency.purs
+module Main where
+
+value=1
+--- output/Generated.purs
+module Main where
+
+value=1
+--- packages/first/spago.yaml
+package:
+  name: first
+  dependencies: [unfetched]
+--- packages/first/src/Inner/Foo.purs
+module Main where
+
+value = 1
+--- packages/first/src/Inner/spago.yaml
+package:
+  name: inner-member
+  dependencies: []
+--- packages/first/src/Inner/src/Inside.purs
+module Main where
+
+value = 1
+--- packages/first/src/Main.purs
+module Main where
+
+value = 1
+--- packages/first/src/ManifestOnly/Leaf.purs
+module Main where
+
+value = 1
+--- packages/first/src/ManifestOnly/spago.yaml
+{}
+--- packages/first/src/nested-workspace/spago.yaml
+package:
+  name: inner
+workspace: {}
+--- packages/first/src/nested-workspace/src/Main.purs
+module Main where
+
+value=1
+--- packages/first/test/nested/Test.purs
+module Main where
+
+value = 1
+--- packages/second/spago.yaml
+package:
+  name: second
+  dependencies: [unfetched]
+--- packages/second/src/Main.purs
+module Main where
+
+value = 1
+--- packages/second/test/Test.purs
+module Main where
+
+value = 1
+--- spago.yaml
+workspace: {}
+--- src/Unowned.purs
+module Main where
+
+value=1

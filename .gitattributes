@@ -1,1 +1,3 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
 *.snap linguist-generated=true
