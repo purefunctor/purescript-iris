@@ -29,9 +29,10 @@ coverage-html:
 @integration *args="": integration-prepare
   cargo nextest run -p tests-integration "$@" --status-level=fail --final-status-level=fail --failure-output=final
 
-[doc("Install end-to-end test tools")]
+[doc("Install end-to-end test tools and populate the Spago registry cache")]
 @e2e-prepare:
   pnpm --dir tests-e2e/tools install --frozen-lockfile
+  node tests-e2e/tools/prepare-spago.mjs
 
 [doc("Run end-to-end tests")]
 @e2e *args="":
