@@ -8,7 +8,7 @@ type Synonym a = a
 --           $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 k0
@@ -22,7 +22,7 @@ class Example a
 --            $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 k0

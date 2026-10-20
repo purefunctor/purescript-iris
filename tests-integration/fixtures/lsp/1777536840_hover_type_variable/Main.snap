@@ -8,7 +8,7 @@ identity :: forall a. a -> a
 --                    $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 Type

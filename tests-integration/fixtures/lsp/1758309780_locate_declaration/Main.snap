@@ -8,7 +8,7 @@ foreign import data Effect :: Type -> Type
 --                  $ @ %
 ```
 
-Range: <none>
+Range: "Effect"
 
 ```purescript
 Effect :: Type -> Type
@@ -46,7 +46,7 @@ effectEffectEffect = 123
 -- $ @ %
 ```
 
-Range: <none>
+Range: "effectEffectEffect"
 
 ```purescript
 effectEffectEffect :: Int

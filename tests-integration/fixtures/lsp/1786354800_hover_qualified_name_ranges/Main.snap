@@ -92,7 +92,7 @@ recordAccess = record.value
 --                   $
 ```
 
-Range: <none>
+Range: ".value"
 
 ```purescript
 Int

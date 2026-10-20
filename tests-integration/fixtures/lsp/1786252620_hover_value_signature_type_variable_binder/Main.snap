@@ -8,7 +8,7 @@ apply :: forall (constructor :: Type -> Type). constructor Int -> constructor In
 --               $
 ```
 
-Range: <none>
+Range: "constructor"
 
 ```purescript
 Type -> Type

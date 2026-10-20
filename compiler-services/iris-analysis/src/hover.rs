@@ -1,3 +1,5 @@
+use std::iter;
+
 use building_types::QueryProxy;
 use checking::core::pretty::{Pretty, PrettyConfig};
 use checking::evidence::InstanceCandidateOrigin;
@@ -10,9 +12,10 @@ use lowering::{
 use lsp_types::*;
 use smol_str::ToSmolStr;
 use syntax::ast::{AstNode, AstPtr};
-use syntax::{SyntaxKind, SyntaxToken, TextRange, TextSize, cst};
+use syntax::{SyntaxKind, SyntaxNode, TextRange, TextSize, cst};
 
 use crate::extract::AnnotationSyntaxRange;
+use crate::locate::LocatedSyntax;
 use crate::position::PositionConverter;
 use crate::{AnalyzerContext, AnalyzerError, AnalyzerQueries, extract, locate, position};
 
@@ -34,9 +37,10 @@ pub fn implementation(
     let position = positions.protocol_position_to_utf8(position).ok_or(AnalyzerError::NonFatal)?;
 
     let offset = positions.utf8_position_to_offset(position).ok_or(AnalyzerError::NonFatal)?;
-    let (located, token) = locate::locate_with_token(engine, current_file, &positions, position)?;
-    let range =
-        hover_range(token, offset).and_then(|range| positions.text_range_to_protocol(range));
+    let (located, syntax) = locate::locate_with_syntax(engine, current_file, &positions, position)?;
+    let range = syntax
+        .and_then(|syntax| hover_range(&syntax, offset))
+        .and_then(|range| positions.text_range_to_protocol(range));
     let format = &context.capabilities().hover_format();
 
     let hover = match located {
@@ -139,27 +143,18 @@ fn hover_instance_signature(
     Ok(Some(render_hover(format, Some(value), None)))
 }
 
-fn hover_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<TextRange> {
-    let token = token?;
-    let range =
-        if is_literal(token.kind()) { Some(token.text_range()) } else { hover_name_range(&token) };
-    range.filter(|range| range.contains_inclusive(offset))
+fn hover_range(syntax: &LocatedSyntax, offset: TextSize) -> Option<TextRange> {
+    let range = hover_name_range(syntax).or_else(|| significant_range(&syntax.node))?;
+    range.contains_inclusive(offset).then_some(range)
 }
 
-fn is_literal(kind: SyntaxKind) -> bool {
-    matches!(
-        kind,
-        SyntaxKind::STRING
-            | SyntaxKind::RAW_STRING
-            | SyntaxKind::CHAR
-            | SyntaxKind::INTEGER
-            | SyntaxKind::NUMBER
-    )
-}
+fn hover_name_range(syntax: &LocatedSyntax) -> Option<TextRange> {
+    let LocatedSyntax { token, node: located } = syntax;
+    let mut parent_ancestors = token.parent_ancestors();
+    let mut ancestors = iter::from_fn(|| parent_ancestors.next().filter(|node| node != located))
+        .chain(iter::once(located.clone()));
 
-fn hover_name_range(token: &SyntaxToken) -> Option<TextRange> {
-    let mut ancestors = token.parent_ancestors();
-    ancestors.find_map(|node| {
+    let name_range = ancestors.find_map(|node| {
         let kind = node.kind();
         if cst::ModuleName::can_cast(kind) {
             Some(node.text_range())
@@ -176,7 +171,24 @@ fn hover_name_range(token: &SyntaxToken) -> Option<TextRange> {
         } else {
             None
         }
-    })
+    });
+
+    let is_name = matches!(
+        token.kind(),
+        SyntaxKind::LOWER | SyntaxKind::UPPER | SyntaxKind::OPERATOR | SyntaxKind::OPERATOR_NAME
+    );
+
+    name_range.or_else(|| is_name.then(|| token.text_range()))
+}
+
+fn significant_range(node: &SyntaxNode) -> Option<TextRange> {
+    let mut tokens = node.tokens().filter(|token| {
+        let annotation = token.parent().kind() == SyntaxKind::Annotation;
+        !annotation && !token.text_range().is_empty()
+    });
+    let first = tokens.next()?.text_range();
+    let last = tokens.last().map_or(first, |token| token.text_range());
+    Some(first.cover(last))
 }
 
 fn hover_module_name(

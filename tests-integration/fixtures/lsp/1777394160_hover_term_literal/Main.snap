@@ -50,7 +50,7 @@ array = [ 1, 2, 3 ]
 --      $
 ```
 
-Range: <none>
+Range: "[ 1, 2, 3 ]"
 
 ```purescript
 Array Int
@@ -64,7 +64,7 @@ record = { life }
 --       $
 ```
 
-Range: <none>
+Range: "{ life }"
 
 ```purescript
 { life :: Int }

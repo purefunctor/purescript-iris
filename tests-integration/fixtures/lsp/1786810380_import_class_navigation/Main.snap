@@ -8,7 +8,7 @@ import Library (class Render)
 --                    $@
 ```
 
-Range: <none>
+Range: "Render"
 
 ```purescript
 Render :: Type -> Constraint
