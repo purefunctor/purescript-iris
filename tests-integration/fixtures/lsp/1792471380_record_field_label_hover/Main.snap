@@ -1,0 +1,127 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Hover at Position { line: 2, character: 12 }
+
+```
+literal = { name: "Iris", nested: { value: 42 } }
+--          $             $         $
+```
+
+Range: <none>
+
+```purescript
+{ name :: String, nested :: { value :: Int } }
+```
+
+
+Hover at Position { line: 2, character: 26 }
+
+```
+literal = { name: "Iris", nested: { value: 42 } }
+--          $             $         $
+```
+
+Range: <none>
+
+```purescript
+{ name :: String, nested :: { value :: Int } }
+```
+
+
+Hover at Position { line: 2, character: 36 }
+
+```
+literal = { name: "Iris", nested: { value: 42 } }
+--          $             $         $
+```
+
+Range: <none>
+
+```purescript
+{ value :: Int }
+```
+
+
+Hover at Position { line: 5, character: 19 }
+
+```
+update = literal { name = 'I', nested { value = true } }
+--                 $           $        $
+```
+
+Range: <none>
+
+```purescript
+{ name :: Char, nested :: { value :: Boolean } }
+```
+
+
+Hover at Position { line: 5, character: 31 }
+
+```
+update = literal { name = 'I', nested { value = true } }
+--                 $           $        $
+```
+
+Range: <none>
+
+```purescript
+{ name :: Char, nested :: { value :: Boolean } }
+```
+
+
+Hover at Position { line: 5, character: 40 }
+
+```
+update = literal { name = 'I', nested { value = true } }
+--                 $           $        $
+```
+
+Range: <none>
+
+```purescript
+{ name :: Char, nested :: { value :: Boolean } }
+```
+
+
+Hover at Position { line: 8, character: 9 }
+
+```
+binder { name: label, nested: { value } } = label
+--       $            $         $
+```
+
+Range: <none>
+
+```purescript
+{ name :: t0, nested :: { value :: t1 | (t2 :: Row Type) } | (t3 :: Row Type) }
+```
+
+
+Hover at Position { line: 8, character: 22 }
+
+```
+binder { name: label, nested: { value } } = label
+--       $            $         $
+```
+
+Range: <none>
+
+```purescript
+{ name :: t0, nested :: { value :: t1 | (t2 :: Row Type) } | (t3 :: Row Type) }
+```
+
+
+Hover at Position { line: 8, character: 32 }
+
+```
+binder { name: label, nested: { value } } = label
+--       $            $         $
+```
+
+Range: <none>
+
+```purescript
+t0
+```
