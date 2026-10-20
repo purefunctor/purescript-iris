@@ -22,7 +22,7 @@ fromLiteral "hello" = "hello"
 --          $
 ```
 
-Range: <none>
+Range: "\"hello\""
 
 ```purescript
 String

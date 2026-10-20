@@ -3,7 +3,7 @@ module Main where
 life = 42
 --     $
 
-hello = "world"
+hello = "hello world"
 --       $
 
 colon = ':'

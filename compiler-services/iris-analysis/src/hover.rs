@@ -10,7 +10,7 @@ use lowering::{
 use lsp_types::*;
 use smol_str::ToSmolStr;
 use syntax::ast::{AstNode, AstPtr};
-use syntax::{SyntaxToken, TextRange, TextSize, cst};
+use syntax::{SyntaxKind, SyntaxToken, TextRange, TextSize, cst};
 
 use crate::extract::AnnotationSyntaxRange;
 use crate::position::PositionConverter;
@@ -36,7 +36,7 @@ pub fn implementation(
     let offset = positions.utf8_position_to_offset(position).ok_or(AnalyzerError::NonFatal)?;
     let (located, token) = locate::locate_with_token(engine, current_file, &positions, position)?;
     let range =
-        hover_name_range(token, offset).and_then(|range| positions.text_range_to_protocol(range));
+        hover_range(token, offset).and_then(|range| positions.text_range_to_protocol(range));
     let format = &context.capabilities().hover_format();
 
     let hover = match located {
@@ -139,10 +139,27 @@ fn hover_instance_signature(
     Ok(Some(render_hover(format, Some(value), None)))
 }
 
-fn hover_name_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<TextRange> {
+fn hover_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<TextRange> {
     let token = token?;
+    let range =
+        if is_literal(token.kind()) { Some(token.text_range()) } else { hover_name_range(&token) };
+    range.filter(|range| range.contains_inclusive(offset))
+}
+
+fn is_literal(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::STRING
+            | SyntaxKind::RAW_STRING
+            | SyntaxKind::CHAR
+            | SyntaxKind::INTEGER
+            | SyntaxKind::NUMBER
+    )
+}
+
+fn hover_name_range(token: &SyntaxToken) -> Option<TextRange> {
     let mut ancestors = token.parent_ancestors();
-    let range = ancestors.find_map(|node| {
+    ancestors.find_map(|node| {
         let kind = node.kind();
         if cst::ModuleName::can_cast(kind) {
             Some(node.text_range())
@@ -159,8 +176,7 @@ fn hover_name_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<Text
         } else {
             None
         }
-    });
-    range.filter(|range| range.contains_inclusive(offset))
+    })
 }
 
 fn hover_module_name(
