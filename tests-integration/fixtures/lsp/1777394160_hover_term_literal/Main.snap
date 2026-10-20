@@ -8,7 +8,7 @@ life = 42
 --     $
 ```
 
-Range: <none>
+Range: "42"
 
 ```purescript
 Int
@@ -18,11 +18,11 @@ Int
 Hover at Position { line: 5, character: 9 }
 
 ```
-hello = "world"
+hello = "hello world"
 --       $
 ```
 
-Range: <none>
+Range: "\"hello world\""
 
 ```purescript
 String
@@ -36,7 +36,7 @@ colon = ':'
 --       $
 ```
 
-Range: <none>
+Range: "':'"
 
 ```purescript
 Char

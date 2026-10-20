@@ -8,7 +8,7 @@ type Life = 42
 --          $
 ```
 
-Range: <none>
+Range: "42"
 
 ```purescript
 Int
@@ -22,7 +22,7 @@ type Hello = "World"
 --           $
 ```
 
-Range: <none>
+Range: "\"World\""
 
 ```purescript
 Symbol
