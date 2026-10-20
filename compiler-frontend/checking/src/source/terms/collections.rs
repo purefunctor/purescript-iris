@@ -258,6 +258,7 @@ struct ElaboratedRecordField {
 fn elaborate_record_field<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
+    field: lowering::RecordFieldId,
     name: &SmolStr,
     value: lowering::ExpressionId,
     mode: RecordMode<'_>,
@@ -274,6 +275,8 @@ where
         let inferred = infer_record_field_expression(state, context, value)?;
         (inferred.field_type, inferred.elaborated.expression)
     };
+
+    state.checked.node_types.record_fields.insert(field, id);
 
     let checked = tree::RecordExpressionField::Field { label: SmolStr::clone(&label), expression };
     Ok(ElaboratedRecordField { row: RowField { label, id }, checked })
@@ -324,12 +327,12 @@ where
 
     for field in record.iter() {
         let field = match field {
-            lowering::ExpressionRecordItem::RecordField { name, value } => {
+            lowering::ExpressionRecordItem::RecordField { id, name, value } => {
                 let (Some(name), Some(value)) = (name, value) else {
                     complete = false;
                     continue;
                 };
-                elaborate_record_field(state, context, name, *value, mode)?
+                elaborate_record_field(state, context, *id, name, *value, mode)?
             }
             lowering::ExpressionRecordItem::RecordPun { id, name, resolution } => {
                 let (Some(name), Some(resolution)) = (name, resolution) else {
@@ -430,7 +433,7 @@ where
 
     for update in updates {
         match update {
-            lowering::RecordUpdate::Leaf { name, expression } => {
+            lowering::RecordUpdate::Leaf { id, name, expression } => {
                 let Some(name) = name else {
                     checked_updates.push(tree::RecordExpressionUpdate::Error);
                     continue;
@@ -446,6 +449,7 @@ where
                     let expression = super::allocate_error_expression(state, output_id);
                     (output_id, expression.expression)
                 };
+                state.checked.node_types.record_updates.insert(*id, output_id);
 
                 let update = tree::RecordExpressionUpdate::Leaf {
                     label: SmolStr::clone(&label),
@@ -456,7 +460,7 @@ where
                 input_fields.push(RowField { label: label.clone(), id: input_id });
                 output_fields.push(RowField { label, id: output_id });
             }
-            lowering::RecordUpdate::Branch { name, updates } => {
+            lowering::RecordUpdate::Branch { id, name, updates } => {
                 let Some(name) = name else {
                     checked_updates.push(tree::RecordExpressionUpdate::Error);
                     continue;
@@ -476,6 +480,7 @@ where
 
                 let out_row = context.intern_row(branch_output_fields, Some(tail));
                 let out_id = context.intern_application(context.prim.record, out_row);
+                state.checked.node_types.record_updates.insert(*id, out_id);
 
                 input_fields.push(RowField { label: label.clone(), id: in_id });
                 output_fields.push(RowField { label: label.clone(), id: out_id });

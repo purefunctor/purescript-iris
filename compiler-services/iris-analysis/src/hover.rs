@@ -53,6 +53,12 @@ pub fn implementation(
         locate::Located::RecordAccessLabel(label_id) => {
             hover_record_access_label(engine, current_file, label_id, format)
         }
+        locate::Located::RecordField(field_id) => {
+            hover_record_field(engine, current_file, field_id, format)
+        }
+        locate::Located::RecordUpdate(update_id) => {
+            hover_record_update(engine, current_file, update_id, format)
+        }
         locate::Located::Type(type_id) => hover_type(engine, current_file, type_id, format),
         locate::Located::TypeVariableBinding(binding_id) => {
             hover_type_variable_binding(engine, current_file, binding_id, format)
@@ -140,6 +146,14 @@ fn hover_name_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<Text
         let kind = node.kind();
         if cst::ModuleName::can_cast(kind) {
             Some(node.text_range())
+        } else if cst::LabelName::can_cast(kind) {
+            let parent = node.parent()?.kind();
+            let record_label = cst::RecordField::can_cast(parent)
+                || cst::RecordPun::can_cast(parent)
+                || cst::RecordAccessLabel::can_cast(parent)
+                || cst::RecordUpdate::can_cast(parent);
+            let label = cst::LabelName::cast(node).filter(|_| record_label)?;
+            Some(label.text()?.text_range())
         } else if let Some(qualified) = cst::QualifiedName::cast(node) {
             position::qualified_name_text_range(&qualified)
         } else {
@@ -338,6 +352,30 @@ fn hover_record_access_label(
     let label_type = checked.node_types.lookup_record_access_label(label_id);
     let label_type = label_type.ok_or(AnalyzerError::NonFatal)?;
     hover_checked_type(engine, current_file, label_type, format)
+}
+
+fn hover_record_field(
+    engine: &impl AnalyzerQueries,
+    current_file: FileId,
+    field_id: lowering::RecordFieldId,
+    format: &MarkupKind,
+) -> Result<Option<Hover>, AnalyzerError> {
+    let checked = engine.checked(current_file)?;
+    let field_type = checked.node_types.lookup_record_field(field_id);
+    let field_type = field_type.ok_or(AnalyzerError::NonFatal)?;
+    hover_checked_type(engine, current_file, field_type, format)
+}
+
+fn hover_record_update(
+    engine: &impl AnalyzerQueries,
+    current_file: FileId,
+    update_id: lowering::RecordUpdateId,
+    format: &MarkupKind,
+) -> Result<Option<Hover>, AnalyzerError> {
+    let checked = engine.checked(current_file)?;
+    let update_type = checked.node_types.lookup_record_update(update_id);
+    let update_type = update_type.ok_or(AnalyzerError::NonFatal)?;
+    hover_checked_type(engine, current_file, update_type, format)
 }
 
 fn hover_let(

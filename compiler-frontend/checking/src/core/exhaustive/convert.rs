@@ -166,7 +166,7 @@ where
     let mut provided_patterns = FxHashMap::default();
     for element in record.iter() {
         match element {
-            lowering::BinderRecordItem::RecordField { name, value } => {
+            lowering::BinderRecordItem::RecordField { name, value, .. } => {
                 let Some(name) = name.clone() else {
                     continue;
                 };

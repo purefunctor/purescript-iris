@@ -91,6 +91,8 @@ pub fn implementation(
         }
         locate::Located::InstanceMember(_, _) => Ok(None),
         locate::Located::RecordAccessLabel(_) => Ok(None),
+        locate::Located::RecordField(_) => Ok(None),
+        locate::Located::RecordUpdate(_) => Ok(None),
         locate::Located::TypeVariableBinding(binding_id) => {
             references_type_variable(context, current_file, binding_id)
         }

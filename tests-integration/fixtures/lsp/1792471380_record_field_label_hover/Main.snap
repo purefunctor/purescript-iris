@@ -1,0 +1,127 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Hover at Position { line: 2, character: 12 }
+
+```
+literal = { name: "Iris", nested: { value: 42 } }
+--          $             $         $
+```
+
+Range: "name"
+
+```purescript
+String
+```
+
+
+Hover at Position { line: 2, character: 26 }
+
+```
+literal = { name: "Iris", nested: { value: 42 } }
+--          $             $         $
+```
+
+Range: "nested"
+
+```purescript
+{ value :: Int }
+```
+
+
+Hover at Position { line: 2, character: 36 }
+
+```
+literal = { name: "Iris", nested: { value: 42 } }
+--          $             $         $
+```
+
+Range: "value"
+
+```purescript
+Int
+```
+
+
+Hover at Position { line: 5, character: 19 }
+
+```
+update = literal { name = 'I', nested { value = true } }
+--                 $           $        $
+```
+
+Range: "name"
+
+```purescript
+Char
+```
+
+
+Hover at Position { line: 5, character: 31 }
+
+```
+update = literal { name = 'I', nested { value = true } }
+--                 $           $        $
+```
+
+Range: "nested"
+
+```purescript
+{ value :: Boolean }
+```
+
+
+Hover at Position { line: 5, character: 40 }
+
+```
+update = literal { name = 'I', nested { value = true } }
+--                 $           $        $
+```
+
+Range: "value"
+
+```purescript
+Boolean
+```
+
+
+Hover at Position { line: 8, character: 9 }
+
+```
+binder { name: label, nested: { value } } = label
+--       $            $         $
+```
+
+Range: "name"
+
+```purescript
+t0
+```
+
+
+Hover at Position { line: 8, character: 22 }
+
+```
+binder { name: label, nested: { value } } = label
+--       $            $         $
+```
+
+Range: "nested"
+
+```purescript
+{ value :: t0 | (t1 :: Row Type) }
+```
+
+
+Hover at Position { line: 8, character: 32 }
+
+```
+binder { name: label, nested: { value } } = label
+--       $            $         $
+```
+
+Range: "value"
+
+```purescript
+t0
+```

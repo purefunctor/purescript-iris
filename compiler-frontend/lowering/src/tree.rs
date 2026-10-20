@@ -23,7 +23,7 @@ pub enum StringKind {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BinderRecordItem {
-    RecordField { name: Option<SmolStr>, value: Option<BinderId> },
+    RecordField { id: RecordFieldId, name: Option<SmolStr>, value: Option<BinderId> },
     RecordPun { id: RecordPunId, name: Option<SmolStr> },
 }
 
@@ -53,8 +53,8 @@ pub enum ExpressionArgument {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RecordUpdate {
-    Leaf { name: Option<SmolStr>, expression: Option<ExpressionId> },
-    Branch { name: Option<SmolStr>, updates: Arc<[RecordUpdate]> },
+    Leaf { id: RecordUpdateId, name: Option<SmolStr>, expression: Option<ExpressionId> },
+    Branch { id: RecordUpdateId, name: Option<SmolStr>, updates: Arc<[RecordUpdate]> },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -73,7 +73,7 @@ pub enum DoStatement {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ExpressionRecordItem {
-    RecordField { name: Option<SmolStr>, value: Option<ExpressionId> },
+    RecordField { id: RecordFieldId, name: Option<SmolStr>, value: Option<ExpressionId> },
     RecordPun { id: RecordPunId, name: Option<SmolStr>, resolution: Option<TermVariableResolution> },
 }
 
