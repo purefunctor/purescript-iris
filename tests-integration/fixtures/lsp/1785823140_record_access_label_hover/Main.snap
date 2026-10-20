@@ -8,7 +8,7 @@ access = record.nested.value
 --              $      $
 ```
 
-Range: <none>
+Range: "nested"
 
 ```purescript
 { value :: Int }
@@ -22,7 +22,7 @@ access = record.nested.value
 --              $      $
 ```
 
-Range: <none>
+Range: "value"
 
 ```purescript
 Int

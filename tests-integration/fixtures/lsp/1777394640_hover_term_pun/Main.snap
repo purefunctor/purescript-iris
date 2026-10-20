@@ -8,7 +8,7 @@ inferred { argument } = { argument }
 --         $              $
 ```
 
-Range: <none>
+Range: "argument"
 
 ```purescript
 t0
@@ -22,7 +22,7 @@ inferred { argument } = { argument }
 --         $              $
 ```
 
-Range: <none>
+Range: "argument"
 
 ```purescript
 t0
@@ -36,7 +36,7 @@ checked { argument } = { argument }
 --        $              $
 ```
 
-Range: <none>
+Range: "argument"
 
 ```purescript
 ofCourse
@@ -50,7 +50,7 @@ checked { argument } = { argument }
 --        $              $
 ```
 
-Range: <none>
+Range: "argument"
 
 ```purescript
 ofCourse

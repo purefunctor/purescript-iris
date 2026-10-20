@@ -146,6 +146,14 @@ fn hover_name_range(token: Option<SyntaxToken>, offset: TextSize) -> Option<Text
         let kind = node.kind();
         if cst::ModuleName::can_cast(kind) {
             Some(node.text_range())
+        } else if cst::LabelName::can_cast(kind) {
+            let parent = node.parent()?.kind();
+            let record_label = cst::RecordField::can_cast(parent)
+                || cst::RecordPun::can_cast(parent)
+                || cst::RecordAccessLabel::can_cast(parent)
+                || cst::RecordUpdate::can_cast(parent);
+            let label = cst::LabelName::cast(node).filter(|_| record_label)?;
+            Some(label.text()?.text_range())
         } else if let Some(qualified) = cst::QualifiedName::cast(node) {
             position::qualified_name_text_range(&qualified)
         } else {
