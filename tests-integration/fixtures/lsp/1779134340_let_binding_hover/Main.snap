@@ -8,7 +8,7 @@ equation = let life = 42 in life
 --             $
 ```
 
-Range: <none>
+Range: "life"
 
 ```purescript
 Int
@@ -22,7 +22,7 @@ Hover at Position { line: 7, character: 4 }
 --  $
 ```
 
-Range: <none>
+Range: "life"
 
 ```purescript
 Int

@@ -28,7 +28,7 @@ Hover at Position { line: 3, character: 7 }
 -- % @ $
 ```
 
-Range: <none>
+Range: "eqEqEqEq"
 
 ```purescript
 eqEqEqEq :: forall @a. Eq a => a -> a -> Boolean

@@ -8,7 +8,7 @@ Hover at Position { line: 6, character: 3 }
 -- $ @
 ```
 
-Range: <none>
+Range: "execute"
 
 ```purescript
 execute :: forall @a. Alpha a => a -> Int
@@ -32,7 +32,7 @@ Hover at Position { line: 10, character: 3 }
 -- $ @
 ```
 
-Range: <none>
+Range: "execute"
 
 ```purescript
 execute :: forall @a. Beta a => a -> Int

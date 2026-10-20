@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Hover at Position { line: 4, character: 2 }
+
+```
+  if flag
+--$
+```
+
+Range: "if flag\n--$\n    then 1\n    else 2"
+
+```purescript
+Int
+```
+
+
+Hover at Position { line: 10, character: 2 }
+
+```
+  case value of
+--$
+```
+
+Range: "case value of\n--$\n    0 -> \"zero\"\n    _ -> \"other\""
+
+```purescript
+String
+```
+
+
+Hover at Position { line: 16, character: 2 }
+
+```
+  let
+--$
+```
+
+Range: "let\n--$\n    life = 42\n  in\n    life"
+
+```purescript
+Int
+```

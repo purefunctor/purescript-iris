@@ -8,7 +8,7 @@ instance Convert Int String
 -- $
 ```
 
-Range: <none>
+Range: "instance Convert Int String"
 
 ```purescript
 convertIntString :: Convert Int String
@@ -22,7 +22,7 @@ instance Convert (Int :+: String) Boolean
 -- $
 ```
 
-Range: <none>
+Range: "instance Convert (Int :+: String) Boolean"
 
 ```purescript
 convertPairIntStringBoolean :: Convert (Pair Int String) Boolean
@@ -36,7 +36,7 @@ instance Convert value value
 -- $
 ```
 
-Range: <none>
+Range: "instance Convert value value"
 
 ```purescript
 convert :: forall value. Convert value value
@@ -50,7 +50,7 @@ instance Convert value (value :+: value)
 -- $
 ```
 
-Range: <none>
+Range: "instance Convert value (value :+: value)"
 
 ```purescript
 convertPair :: forall value. Convert value (Pair value value)

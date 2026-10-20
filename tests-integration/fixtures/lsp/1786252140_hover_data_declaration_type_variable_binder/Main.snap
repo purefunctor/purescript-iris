@@ -8,7 +8,7 @@ newtype Identity a = Identity a
 --               $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 Type
@@ -22,7 +22,7 @@ data Proxy a = Proxy
 --         $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 kind

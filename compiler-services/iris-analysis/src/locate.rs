@@ -239,16 +239,21 @@ pub fn locate(
     positions: &PositionConverter<'_>,
     position: Utf8Position,
 ) -> Result<Located, AnalyzerError> {
-    let (located, _) = locate_with_token(engine, id, positions, position)?;
+    let (located, _) = locate_with_syntax(engine, id, positions, position)?;
     Ok(located)
 }
 
-pub(crate) fn locate_with_token(
+pub(crate) struct LocatedSyntax {
+    pub(crate) token: SyntaxToken,
+    pub(crate) node: SyntaxNode,
+}
+
+pub(crate) fn locate_with_syntax(
     engine: &impl AnalyzerQueries,
     id: FileId,
     positions: &PositionConverter<'_>,
     position: Utf8Position,
-) -> Result<(Located, Option<SyntaxToken>), AnalyzerError> {
+) -> Result<(Located, Option<LocatedSyntax>), AnalyzerError> {
     let (parsed, _) = engine.parsed(id)?;
     let stabilized = engine.stabilized(id)?;
     let indexed = engine.indexed(id)?;
@@ -263,10 +268,7 @@ pub(crate) fn locate_with_token(
 
     Ok(match token {
         TokenAtOffset::None => (Located::Nothing, None),
-        TokenAtOffset::Single(token) => {
-            let located = locate_single(&stabilized, &indexed, &lowered, &token);
-            (located, Some(token))
-        }
+        TokenAtOffset::Single(token) => locate_single(&stabilized, &indexed, &lowered, token),
         TokenAtOffset::Between(left, right) => {
             locate_between(&stabilized, &indexed, &lowered, left, right)
         }
@@ -277,12 +279,16 @@ fn locate_single(
     stabilized: &StabilizedModule,
     indexed: &IndexedModule,
     lowered: &LoweredModule,
-    token: &SyntaxToken,
-) -> Located {
-    token
-        .parent_ancestors()
-        .find_map(|node| locate_node(stabilized, indexed, lowered, node))
-        .unwrap_or(Located::Nothing)
+    token: SyntaxToken,
+) -> (Located, Option<LocatedSyntax>) {
+    let located = token.parent_ancestors().find_map(|node| {
+        let located = locate_node(stabilized, indexed, lowered, SyntaxNode::clone(&node))?;
+        Some((located, node))
+    });
+    match located {
+        Some((located, node)) => (located, Some(LocatedSyntax { token, node })),
+        None => (Located::Nothing, None),
+    }
 }
 
 fn locate_node(
@@ -466,16 +472,16 @@ fn locate_between(
     lowered: &LoweredModule,
     left: SyntaxToken,
     right: SyntaxToken,
-) -> (Located, Option<SyntaxToken>) {
-    let left_located = locate_single(stabilized, indexed, lowered, &left);
-    let right_located = locate_single(stabilized, indexed, lowered, &right);
+) -> (Located, Option<LocatedSyntax>) {
+    let (left_located, left_syntax) = locate_single(stabilized, indexed, lowered, left);
+    let (right_located, right_syntax) = locate_single(stabilized, indexed, lowered, right);
     match (&left_located, &right_located) {
         // If left/right share an ancestor;
-        (_, _) if left_located == right_located => (right_located, Some(right)),
-        (_, Located::Nothing) => (left_located, Some(left)),
-        (Located::Nothing, _) => (right_located, Some(right)),
+        (_, _) if left_located == right_located => (right_located, right_syntax),
+        (_, Located::Nothing) => (left_located, left_syntax),
+        (Located::Nothing, _) => (right_located, right_syntax),
         // otherwise, lean towards the right.
-        (_, _) => (right_located, Some(right)),
+        (_, _) => (right_located, right_syntax),
     }
 }
 

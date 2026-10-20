@@ -8,7 +8,7 @@ else instance second :: Example Second
 --            $@%&/?
 ```
 
-Range: <none>
+Range: "second"
 
 ```purescript
 second :: Example @Type Second

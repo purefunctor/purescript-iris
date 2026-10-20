@@ -8,7 +8,7 @@ class TypeEq a b result | a b -> result where
 --                        $ $    $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 kind
@@ -22,7 +22,7 @@ class TypeEq a b result | a b -> result where
 --                        $ $    $
 ```
 
-Range: <none>
+Range: "b"
 
 ```purescript
 kind
@@ -36,7 +36,7 @@ class TypeEq a b result | a b -> result where
 --                        $ $    $
 ```
 
-Range: <none>
+Range: "result"
 
 ```purescript
 Boolean

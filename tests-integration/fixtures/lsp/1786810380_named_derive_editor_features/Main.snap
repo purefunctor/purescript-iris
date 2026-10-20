@@ -8,7 +8,7 @@ derive instance derivedWrap :: Wrap Box
 --              $@%&/?
 ```
 
-Range: <none>
+Range: "derivedWrap"
 
 ```purescript
 derivedWrap :: Wrap @Type Box

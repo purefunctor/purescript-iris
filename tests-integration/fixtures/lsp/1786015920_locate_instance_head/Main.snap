@@ -8,7 +8,7 @@ class Functor f
 --    $ @ %
 ```
 
-Range: <none>
+Range: "Functor"
 
 ```purescript
 Functor :: forall t0. t0 -> Constraint

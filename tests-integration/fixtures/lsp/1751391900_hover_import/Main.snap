@@ -22,7 +22,7 @@ import Lib (life, Maybe(..), (+),  type (++))
 --      $    $     $          $          $
 ```
 
-Range: <none>
+Range: "life"
 
 ```purescript
 life :: Int
@@ -36,7 +36,7 @@ import Lib (life, Maybe(..), (+),  type (++))
 --      $    $     $          $          $
 ```
 
-Range: <none>
+Range: "Maybe"
 
 ```purescript
 Maybe :: Type -> Type
@@ -50,7 +50,7 @@ import Lib (life, Maybe(..), (+),  type (++))
 --      $    $     $          $          $
 ```
 
-Range: <none>
+Range: "(+)"
 
 ```purescript
 + :: Int -> Int -> Int
@@ -64,7 +64,7 @@ import Lib (life, Maybe(..), (+),  type (++))
 --      $    $     $          $          $
 ```
 
-Range: <none>
+Range: "(++)"
 
 ```purescript
 ++ :: Type -> Type -> Type
@@ -106,7 +106,7 @@ just :: forall a. a -> Maybe a
 --                      $    $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 Type

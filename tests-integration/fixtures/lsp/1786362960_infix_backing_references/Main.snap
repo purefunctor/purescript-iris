@@ -88,7 +88,7 @@ infixl 6 combine as <+>
 --       @$%&?/     $@
 ```
 
-Range: <none>
+Range: "<+>"
 
 ```purescript
 <+> :: forall t0 t1. t0 -> t1 -> t0
@@ -192,7 +192,7 @@ infixl 6 type Wrapped as :+:
 --            @$%&?/     $@
 ```
 
-Range: <none>
+Range: ":+:"
 
 ```purescript
 :+: :: Type

@@ -8,7 +8,7 @@ class InferredTypeEq a b (result :: Boolean) | a b -> result
 --                   $ $  $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 k0
@@ -22,7 +22,7 @@ class InferredTypeEq a b (result :: Boolean) | a b -> result
 --                   $ $  $
 ```
 
-Range: <none>
+Range: "b"
 
 ```purescript
 k0
@@ -36,7 +36,7 @@ class InferredTypeEq a b (result :: Boolean) | a b -> result
 --                   $ $  $
 ```
 
-Range: <none>
+Range: "result"
 
 ```purescript
 Boolean
@@ -50,7 +50,7 @@ instance InferredTypeEq a a True
 --                      $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 k0
@@ -64,7 +64,7 @@ instance InferredTypeEq a a True
 --                      $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 k0
@@ -78,7 +78,7 @@ else instance InferredTypeEq a b False
 --                           $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 k0
@@ -92,7 +92,7 @@ else instance InferredTypeEq a b False
 --                           $ $
 ```
 
-Range: <none>
+Range: "b"
 
 ```purescript
 k0
@@ -106,7 +106,7 @@ class ExplicitTypeEq a b result | a b -> result
 --                   $ $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 kind
@@ -120,7 +120,7 @@ class ExplicitTypeEq a b result | a b -> result
 --                   $ $ $
 ```
 
-Range: <none>
+Range: "b"
 
 ```purescript
 kind
@@ -134,7 +134,7 @@ class ExplicitTypeEq a b result | a b -> result
 --                   $ $ $
 ```
 
-Range: <none>
+Range: "result"
 
 ```purescript
 Boolean
@@ -148,7 +148,7 @@ instance ExplicitTypeEq a a True
 --                      $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 kind
@@ -162,7 +162,7 @@ instance ExplicitTypeEq a a True
 --                      $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 kind
@@ -176,7 +176,7 @@ else instance ExplicitTypeEq a b False
 --                           $ $
 ```
 
-Range: <none>
+Range: "a"
 
 ```purescript
 kind
@@ -190,7 +190,7 @@ else instance ExplicitTypeEq a b False
 --                           $ $
 ```
 
-Range: <none>
+Range: "b"
 
 ```purescript
 kind

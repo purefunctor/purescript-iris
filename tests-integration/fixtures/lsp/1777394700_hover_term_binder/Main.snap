@@ -8,7 +8,7 @@ fromBinder argument = argument
 --         $
 ```
 
-Range: <none>
+Range: "argument"
 
 ```purescript
 t0
@@ -36,7 +36,7 @@ fromArray [ element ] = [ element ]
 --        $
 ```
 
-Range: <none>
+Range: "[ element ]"
 
 ```purescript
 Array t0
@@ -50,7 +50,7 @@ fromRecord { element } = { element }
 --         $
 ```
 
-Range: <none>
+Range: "{ element }"
 
 ```purescript
 { element :: t0 | (t1 :: Row Type) }
