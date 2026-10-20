@@ -432,7 +432,7 @@ where
                 infer_record_binder(state, context, binder_id, record)?
             };
             let complete = record.iter().all(|item| match item {
-                lowering::BinderRecordItem::RecordField { name, value } => {
+                lowering::BinderRecordItem::RecordField { name, value, .. } => {
                     name.is_some() && value.is_some()
                 }
                 lowering::BinderRecordItem::RecordPun { name, .. } => name.is_some(),
@@ -529,7 +529,7 @@ where
 }
 
 enum PatternItem {
-    Field(lowering::BinderId),
+    Field(lowering::RecordFieldId, lowering::BinderId),
     Pun(lowering::RecordPunId),
 }
 
@@ -537,11 +537,11 @@ fn collect_pattern_items(record: &[lowering::BinderRecordItem]) -> Vec<(SmolStr,
     let mut items = Vec::new();
     for field in record {
         match field {
-            lowering::BinderRecordItem::RecordField { name, value } => {
+            lowering::BinderRecordItem::RecordField { id, name, value } => {
                 let Some(name) = name else { continue };
                 let Some(value) = value else { continue };
                 let name = SmolStr::clone(name);
-                items.push((name, PatternItem::Field(*value)));
+                items.push((name, PatternItem::Field(*id, *value)));
             }
             lowering::BinderRecordItem::RecordPun { id, name } => {
                 let Some(name) = name else { continue };
@@ -566,7 +566,8 @@ where
     Q: ExternalQueries,
 {
     match *item {
-        PatternItem::Field(binder_id) => {
+        PatternItem::Field(field_id, binder_id) => {
+            state.checked.node_types.record_fields.insert(field_id, expected_type);
             let binder = if elaborating {
                 check_binder(state, context, binder_id, expected_type)?
             } else {
@@ -598,10 +599,11 @@ where
 
     for field in record {
         match field {
-            lowering::BinderRecordItem::RecordField { name, value } => {
+            lowering::BinderRecordItem::RecordField { id, name, value } => {
                 let Some(label) = name else { continue };
                 let Some(binder_id) = value else { continue };
                 let binder = infer_binder(state, context, *binder_id)?;
+                state.checked.node_types.record_fields.insert(*id, binder.type_id);
                 fields.push(RowField { label: SmolStr::clone(label), id: binder.type_id });
                 checked_fields.push(tree::RecordBinderField::Field {
                     label: SmolStr::clone(label),

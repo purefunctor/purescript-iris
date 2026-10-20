@@ -11,7 +11,7 @@ literal = { name: "Iris", nested: { value: 42 } }
 Range: <none>
 
 ```purescript
-{ name :: String, nested :: { value :: Int } }
+String
 ```
 
 
@@ -25,7 +25,7 @@ literal = { name: "Iris", nested: { value: 42 } }
 Range: <none>
 
 ```purescript
-{ name :: String, nested :: { value :: Int } }
+{ value :: Int }
 ```
 
 
@@ -39,7 +39,7 @@ literal = { name: "Iris", nested: { value: 42 } }
 Range: <none>
 
 ```purescript
-{ value :: Int }
+Int
 ```
 
 
@@ -53,7 +53,7 @@ update = literal { name = 'I', nested { value = true } }
 Range: <none>
 
 ```purescript
-{ name :: Char, nested :: { value :: Boolean } }
+Char
 ```
 
 
@@ -67,7 +67,7 @@ update = literal { name = 'I', nested { value = true } }
 Range: <none>
 
 ```purescript
-{ name :: Char, nested :: { value :: Boolean } }
+{ value :: Boolean }
 ```
 
 
@@ -81,7 +81,7 @@ update = literal { name = 'I', nested { value = true } }
 Range: <none>
 
 ```purescript
-{ name :: Char, nested :: { value :: Boolean } }
+Boolean
 ```
 
 
@@ -95,7 +95,7 @@ binder { name: label, nested: { value } } = label
 Range: <none>
 
 ```purescript
-{ name :: t0, nested :: { value :: t1 | (t2 :: Row Type) } | (t3 :: Row Type) }
+t0
 ```
 
 
@@ -109,7 +109,7 @@ binder { name: label, nested: { value } } = label
 Range: <none>
 
 ```purescript
-{ name :: t0, nested :: { value :: t1 | (t2 :: Row Type) } | (t3 :: Row Type) }
+{ value :: t0 | (t1 :: Row Type) }
 ```
 
 

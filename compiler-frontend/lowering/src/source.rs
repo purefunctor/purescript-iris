@@ -4,7 +4,9 @@ use syntax::cst;
 pub type BinderId = AstId<cst::Binder>;
 pub type ExpressionId = AstId<cst::Expression>;
 pub type RecordAccessLabelId = AstId<cst::RecordAccessLabel>;
+pub type RecordFieldId = AstId<cst::RecordField>;
 pub type RecordPunId = AstId<cst::RecordPun>;
+pub type RecordUpdateId = AstId<cst::RecordUpdate>;
 
 pub type TypeId = AstId<cst::Type>;
 pub type TypeVariableBindingId = AstId<cst::TypeVariableBinding>;

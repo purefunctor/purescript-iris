@@ -102,6 +102,8 @@ pub fn implementation(
         locate::Located::ModuleName(_)
         | locate::Located::InstanceMember(_, _)
         | locate::Located::RecordAccessLabel(_)
+        | locate::Located::RecordField(_)
+        | locate::Located::RecordUpdate(_)
         | locate::Located::Nothing => Ok(None),
     }
 }

@@ -192,12 +192,13 @@ fn lower_binder_kind(
         cst::Binder::BinderRecord(cst) => {
             let lower_item = |i| match i {
                 cst::RecordItem::RecordField(cst) => {
+                    let id = context.stabilized.lookup_cst(&cst).expect_id();
                     let name = cst.name().and_then(|cst| {
                         let token = cst.text()?;
                         string_text(context.source, token)
                     });
                     let value = cst.binder().map(|cst| lower_binder(state, context, &cst));
-                    BinderRecordItem::RecordField { name, value }
+                    BinderRecordItem::RecordField { id, name, value }
                 }
                 cst::RecordItem::RecordPun(cst) => {
                     let id = context.stabilized.lookup_cst(&cst).expect_id();
@@ -558,12 +559,13 @@ fn lower_expression_kind(
         cst::Expression::ExpressionRecord(cst) => {
             let lower_item = |state: &mut State, cst| match cst {
                 cst::RecordItem::RecordField(cst) => {
+                    let id = context.stabilized.lookup_cst(&cst).expect_id();
                     let name = cst.name().and_then(|cst| {
                         let token = cst.text()?;
                         string_text(context.source, token)
                     });
                     let value = cst.expression().map(|cst| lower_expression(state, context, &cst));
-                    ExpressionRecordItem::RecordField { name, value }
+                    ExpressionRecordItem::RecordField { id, name, value }
                 }
                 cst::RecordItem::RecordPun(cst) => {
                     let id = context.stabilized.lookup_cst(&cst).expect_id();
@@ -973,23 +975,27 @@ fn lower_record_updates(
     cst: &cst::RecordUpdates,
 ) -> Arc<[RecordUpdate]> {
     cst.children()
-        .map(|cst| match cst {
-            cst::RecordUpdate::RecordUpdateLeaf(cst) => {
-                let name = cst.name().and_then(|cst| {
-                    let token = cst.text()?;
-                    string_text(context.source, token)
-                });
-                let expression = cst.expression().map(|cst| lower_expression(state, context, &cst));
-                RecordUpdate::Leaf { name, expression }
-            }
-            cst::RecordUpdate::RecordUpdateBranch(cst) => {
-                let name = cst.name().and_then(|cst| {
-                    let token = cst.text()?;
-                    string_text(context.source, token)
-                });
-                let updates =
-                    recover! { lower_record_updates(state, context, &cst.record_updates()?) };
-                RecordUpdate::Branch { name, updates }
+        .map(|cst| {
+            let id = context.stabilized.lookup_cst(&cst).expect_id();
+            match cst {
+                cst::RecordUpdate::RecordUpdateLeaf(cst) => {
+                    let name = cst.name().and_then(|cst| {
+                        let token = cst.text()?;
+                        string_text(context.source, token)
+                    });
+                    let expression =
+                        cst.expression().map(|cst| lower_expression(state, context, &cst));
+                    RecordUpdate::Leaf { id, name, expression }
+                }
+                cst::RecordUpdate::RecordUpdateBranch(cst) => {
+                    let name = cst.name().and_then(|cst| {
+                        let token = cst.text()?;
+                        string_text(context.source, token)
+                    });
+                    let updates =
+                        recover! { lower_record_updates(state, context, &cst.record_updates()?) };
+                    RecordUpdate::Branch { id, name, updates }
+                }
             }
         })
         .collect()
