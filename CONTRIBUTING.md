@@ -22,7 +22,8 @@ resulting changes into the relevant commits in the branch.
 Run `just t compiler` (alias `just t c`) for the unified compiler integration
 category. It prepares the registry package set pinned in
 [`tests-integration/packages.json`](tests-integration/packages.json)
-before starting the fixture runner. Node.js 22 is required for JavaScript
+before starting the fixture runner. Runs write snapshots and generated JavaScript
+in place, so review changed expectations with `git diff`. Node.js 22 is required for JavaScript
 execution. Lowering, resolving, and LSP are unchanged and do not load registry
 packages.
 
@@ -62,7 +63,7 @@ An optional `verify.mjs` is staged beside a fresh temporary `output/` containing
 the complete generated program. Use imports such as `./output/Main/index.js` and
 Node built-ins. The runner supplies ESM configuration; fixtures do not need a
 `package.json`. Verification never executes tracked goldens. It must pass before
-`just t compiler --update-output` writes new goldens.
+`just t compiler` writes new goldens.
 
 Use real package modules rather than local library stand-ins. Tests that must
 deliberately replace a compiler-known module can declare the module and its reason

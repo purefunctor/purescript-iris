@@ -41,7 +41,7 @@ jobs:
       - name: Archive test binaries
         run: >-
           cargo nextest archive --workspace
-          --exclude tests-e2e --exclude tests-compatibility --exclude compiler-scripts
+          --exclude tests-e2e --exclude tests-compatibility
           --locked --archive-file nextest-${{ runner.os }}.tar.zst
 
       - name: Upload test binaries

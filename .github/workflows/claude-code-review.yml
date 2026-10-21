@@ -86,7 +86,8 @@ jobs:
             - `just format --check` for formatting.
             - `just licenses`, then `git status` to see whether THIRDPARTY.toml
               changed.
-            - `git status` after integration runs for pending `.snap.new` files.
+            - `git status` after integration runs; runs rewrite expectations in
+              place, so changed `.snap` or `output/` files mean they are stale.
 
             Only report issues you are confident are real. Do not report
             pre-existing issues or style preferences AGENTS.md does not state.
