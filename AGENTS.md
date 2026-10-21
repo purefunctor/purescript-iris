@@ -1,37 +1,4 @@
-## Humans
-
-Thank you for taking interest in contributing to Iris. We welcome contributions assisted by
-agentic coding tools that follow these principles:
-
-- **Justify your contribution.** As an external contributor, understand the problem your pull
-  request solves and explain from the outset why it is worth solving in Iris, why your
-  approach is appropriate, and how you verified it. Be prepared to discuss the tradeoffs and respond
-  to review. Agents may help implement the change and write its description; responsibility for
-  understanding and justifying the contribution remains yours. This expectation addresses external
-  contributions, not a separate approval process for work directed by the project's author or
-  maintainers.
-- **Improve quality, not quantity.** Iris is a fast-moving project, but its maintainers are
-  only human. We want to build a compiler for posterity, one that can withstand the test of time.
-  Shipping features quickly can be tempting, but you should use those time savings to invest in
-  improving quality.
-
-PRs may be declined if these principles are not upheld.
-
-## Agents
-
-`AGENTS.md` and `.agents` are the canonical agent guidance. Use the relevant skills in
-`.agents/skills` for task-specific workflows, `CONTRIBUTING.md` for contribution details, and the
-repository's tooling for command discovery. These instructions supply maintainer intent rather than
-a source-code map.
-
-For purs–Iris generated-JavaScript comparisons, use
-[the JavaScript output and differential-review guide](documentation/javascript-output.md).
-
-Apply workflows to the requested task, not as invitations to expand its scope. Explicit user
-instructions take precedence over repository skill guidelines. If an instruction blocks requested
-work, identify the exact instruction and the decision needed; continue independent authorized work.
-
-## The author's ethos
+## Ethos
 
 ### Correctness
 
@@ -39,29 +6,16 @@ work, identify the exact instruction and the decision needed; continue independe
 - Avoid escape hatches and temporary fixes.
 - Use the type system to encode correctness.
 
-Trace a bug through the places that contribute to it instead of patching only the point where it
-becomes visible. Consider whether those causes call for a design change. Avoid fixes that hide the
-symptom while leaving its cause in place.
-
 ### Posterity
 
 - Write code for future contributors, reviewers, and maintainers.
 - Write code that you will understand 10 years later.
 - Write code that you will not hate 10 years later.
 
-Posterity is about the act of authoring code for future human readers. It is not a requirement to
-cover all bases or anticipate every future use case and failure mode.
-
-Human readers rely on working memory and reasoning about parts of a system, rather than ingesting
-the whole codebase at once. Design the system and its implementation so a reader can understand a
-part with a manageable amount of context. Make responsibilities and relationships clear in the code
-to support that reasoning. Delivering the requested behavior is not sufficient if the resulting
-design and code are difficult for people to understand and maintain.
-
 ### Clarity
 
 - Code should be self-documenting. Comments should say 'why', not 'what'.
-- Never write narrative inline comments unless it is used to clarify intent.
+- Never write narrative inline comments unless they are used to clarify intent.
 - Never use abbreviated names for functions, variables, types, modules, etc.
 
 ### Simplicity
@@ -70,38 +24,30 @@ design and code are difficult for people to understand and maintain.
 - Write abstractions if they improve clarity or reduce real complexity.
 - Write abstractions if they make repeated work easier for humans.
 
-## Applying the principles
+## In context of work
 
-Fix the cause in the layer that owns it. The requested behavior determines the scope, not the size
-of the diff. Large refactorings are welcome when they address the causes of a bug within that scope.
-Use the existing snapshot tests to check for unintended behavior changes during refactoring.
+Always fix the root cause. Investigate the systems that contribute to a bug instead of patching only
+the point where it becomes visible. Thoughtfully consider whether the bug fix constitutes a design
+change, at which point it should be raised to the user for a discussion.
 
-Correctness and posterity do not authorize fixing unrelated discoveries or adding guarantees the
-feature does not need. Existing code establishes conventions, not necessarily correct behavior.
-Resolve routine implementation details from the source; ask when unresolved language or product
-intent would change the outcome rather than silently choosing new behavior.
+Posterity is the act of authoring code for future readers, human and agent alike. It is not a
+requirement to anticipate every failure mode and to address them. In particular, human developers
+strongly rely on working memory and local understanding of a large system. Implement systems such
+that future readers can understand them with a manageable amount of context. Make responsibilities
+and relationships clear in the code to support that reasoning. Delivering on the task is not
+sufficient if the resulting design and code artefacts are difficult for people to understand and
+maintain.
 
-### Necessity and proportionality
-
-For new features, start with the requested use case. Add behavior and safeguards when they are
-necessary for that use, with complexity proportionate to the benefit. Defer speculative requirements
-until experience shows they are needed.
-
-Unlike established type-checker semantics, a new feature's support requirements often become clear
-through use. Derive tests from the agreed behavior and extend coverage as experience reveals new
-needs. Writing a test for an imagined scenario does not make supporting that scenario necessary.
-
-### Formatter filesystem boundary
-
-The formatter operates on trusted workspace paths. CLI writes intentionally use `std::fs::write`
-with ordinary OS semantics. Symlink preflight is a convenience safeguard, not a security boundary.
-Concurrent path substitution, atomic replacement, and custom platform metadata management are
-outside the formatter's scope; their absence is not a formatter correctness defect.
+For new features, start with the requested use case. Add behaviour and safeguards when they become
+necessary for such use, thoughtfully considering the proportion between complexity and benefit.
+Following through to correctness and posterity does not authorise fixing unrelated discoveries. When
+surfacing these discoveries, thoughtfully rank them by decreasing priority and relevance to the task
+at hand.
 
 ## Code style
 
-In addition to the author's ethos, follow the project's existing conventions for variable names,
-argument ordering, module organisation, and formatting.
+In addition to the ethos, follow the project's existing conventions for variable names, argument
+ordering, module organisation, and formatting.
 
 For example:
 
@@ -162,66 +108,34 @@ let content = content.clone();
 let file_id = files.insert(uri, content);
 ```
 
-## Comments
+### Comments
 
-Agents must not write new comments in any form: `//` and `/* */` comments, `///` and `/** */`
-item documentation, or `//!` and `/*! */` module documentation. Comments and documentation in Iris
-are written by humans.
+Agents must not write new comments in any form: `//` and `/* */` comments, `///` and `/** */` item
+documentation, or `//!` and `/*! */` module documentation. Comments and documentation in Iris are
+written by humans.
 
-## Test ownership
+## Tests and verification
 
-Choose the test level by the behavior under test, not by how easy it is to add a Rust `#[test]`.
+Thoughtfully create tests by the behaviour under test, not by how easy it is to add a Rust
+`#[test]`. Aligned with our warning about correctness and posterity, do not blindly chase test
+coverage to the point that you write tautologies or change detector tests for constants.
 
-- Unit tests belong beside small algorithms and data structures within a subsystem. Construct local
-  data directly when the invariant can be tested without loading source and driving compiler stages;
-  functional-dependency closure and pattern-matrix operations are examples.
-- Source-file behavior through compiler APIs belongs in `tests-integration`: loading, parsing,
-  resolving, checking, code generation, and editor analysis. Use the existing fixture harness
-  instead of assembling a second compiler pipeline inside a unit test.
-- CLI, Spago, shell/process, and development-environment behavior belongs in `tests-e2e`.
+Unit tests belong beside small algorithms and data structures within a subsystem. Construct fixture
+data directly when the invariant can be tested without driving the full compiler engine. You can see
+this in the functional dependency closure computation and exhaustiveness checker algorithms.
 
-Each `tests-integration` fixture must cover one small, coherent unit of behavior, especially in the
-`compiler` category. Keep its source and expected results easy to hold in working memory. A few
-closely related examples or cursors may belong together; do not split mechanically by their count.
-Split when understanding the fixture requires tracking unrelated behavior or too much context.
-Preserve context that makes the behavior meaningful. Follow `tests-integration/AGENTS.md` before
-generating snapshots.
+Testing internal behaviour such as the compiler belongs in the `tests-integration` crate. Testing
+external behaviour such as the command line belongs in the `tests-e2e` crate.
 
-Do not add a unit test that repeats a fixture's behavioral coverage. Tests at multiple levels should
-protect distinct contracts, such as a local algorithm invariant and its integration into
-compilation. Choose tests for their regression value and maintenance cost, not test counts or line
-coverage.
+## Commits
 
-## Verification
-
-Choose checks by affected behavior, not just changed paths. Scale verification to the change; after
-required checks pass, broaden or repeat them only for new changes, failures, or unresolved concerns.
-
-- Check changed Rust crates with `cargo check -p <crate-name> --tests`; package scope is mandatory.
-- Run crate unit tests with `cargo nextest run -p <crate-name>`.
-- Use `just t <category> [filters...]` for integration tests. Before pushing a change that affects
-  integration tests, run every affected category without filters and confirm that each passes with
-  no pending snapshots. Filtered runs are for iteration, not the final gate.
-- Never edit `.snap` files or generated JavaScript goldens by hand. Regenerate them through their
-  owning commands and inspect every changed expectation. Accept only changes that describe the
-  intended behavior, including deliberately recorded buggy behavior in a regression-test commit.
-- Snapshots record observed behavior; passing or accepting them does not establish semantic
-  correctness. Check the result against the intended behavior.
-- Use `just format` for Rust formatting; it requires nightly and sets the required import
-  granularity.
-
-## Commits and merge commits
-
-Commits must be atomic units of work. Branches land on `main` through merge commits that retain
-branch history; curate the branch into a reviewable story before merging it.
-
-Before merging a branch, run `just format` and `just licenses`, then squash any resulting changes
-into the relevant commits in the branch.
+Commits must be atomic units of work. Branches land on `main` through merge commits. Thoughtfully
+curate branches into reviewable stories before publishing them. Always run `just format` and
+`just licenses` before merging a branch, and squash any resulting changes into the relevant commits.
 
 ### Commit format
 
-Regular commits use a short imperative, sentence-case subject naming the behavior or subsystem, not
-the merge commit subject format:
+Commit titles are short, imperative, and sentence-cased:
 
 ```text
 Add failing test case for overlapping instances
@@ -229,13 +143,12 @@ Fix inference for do expressions with final let
 Implement local name completions
 ```
 
-### Merge commit subject format
+### Merge commit format
 
-Merge commit subjects use `[category] description`. Choose the narrowest established category for
-the primary subsystem or project area, consulting recent merge commits on `main` when necessary. Use
-crate names such as `checking` or `analyzer`, or broader areas such as `lsp`; use `agents` for agent
-configuration, `meta` for repository-wide maintenance, and `ci` for CI changes. Do not use change
-types such as `fix`, vague categories such as `misc`, or multiple categories.
+Merge commit titles use `[category] description`. Thoughtfully choose from established categories,
+consulting recent merge commits on `main` where necessary. Use crate names when changes are local to
+the crates themselves; `agents` for agent configuration; `meta` for repository-wide maintenance; and
+`ci` for changes. Do not use conventional commit qualifiers such as `fix` or `feat`.
 
 Good merge commit subjects:
 
