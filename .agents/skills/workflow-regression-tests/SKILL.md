@@ -9,7 +9,7 @@ Use this when the fix is known and needs an auditable regression test. The Jujut
 
 The goal is an auditable two-commit history:
 
-1. **Failing fixture commit**: add the fixture and accept a snapshot that captures the current undesirable behavior.
+1. **Failing fixture commit**: add the fixture and commit a snapshot that captures the current undesirable behavior.
 2. **Fix commit**: keep the compiler fix and update the same snapshot so the undesirable behavior disappears or changes to the desired output.
 
 This makes the regression visible in version control before the fix removes it.
@@ -36,7 +36,7 @@ Use the category that owns the observable regression:
 | `lsp`       | -     | Hover, definition, completion, import edits, or editor-facing source positions                   |
 | `sourcemap` | -     | The source positions that generated JavaScript maps back to                                      |
 
-Use the `workflow-integration-tests` skill for fixture authoring details. Use the command reference at `.agents/skills/workflow-integration-tests/reference/compiler-scripts.md` for runner syntax, filters, and snapshots.
+Use the `workflow-integration-tests` skill for fixture authoring details, running tests, and reviewing snapshots. Runs write snapshots in place, so `git diff` is the snapshot review and committing is acceptance.
 
 Before either workflow, choose small, coherent units of behavior as required by
 `tests-integration/AGENTS.md`. Keep the setup and expected results easy to hold in
@@ -65,13 +65,7 @@ Use the existing commit message style when a more specific noun reads better, su
 
 ### 2. Add the regression fixture
 
-Create a fixture in the selected category with a descriptive name:
-
-```bash
-just t <category> --create "<descriptive name>"
-```
-
-Write a focused PureScript fixture that reproduces one behavior. Use `Main.purs` by default; add supporting modules only when imports, exports, qualification, or LSP candidates are part of the regression.
+Create `tests-integration/fixtures/<category>/<unix-timestamp>_<descriptive_name>/` and write a focused PureScript fixture that reproduces one behavior. Use `Main.purs` by default; add supporting modules only when imports, exports, qualification, or LSP candidates are part of the regression.
 
 Snapshot expectations differ by category:
 
@@ -84,10 +78,10 @@ Snapshot expectations differ by category:
   source position of each mapped column.
 - `lowering` and `resolving` snapshot every `.purs` file in the fixture.
 
-Accept the snapshot in the failing fixture commit:
+Generate the snapshot in the failing fixture commit:
 
 ```bash
-just t <category> NNN --accept
+just t <category> NNN
 ```
 
 The snapshot should intentionally encode the bug: the wrong error, missing type, bad constraint, incorrect semantic tree, incorrect lowered output, wrong resolution target, incorrect LSP response, unexpected `???`, or other undesirable current behavior. Do not try to make this commit green by changing compiler behavior; its purpose is to record the failure before the fix.
@@ -103,13 +97,8 @@ jj edit <fix-change-id>
 Run the same fixture and inspect the snapshot change:
 
 ```bash
-just t <category> NNN --diff
-```
-
-Accept the updated snapshot:
-
-```bash
-just t <category> NNN --accept
+just t <category> NNN
+jj diff
 ```
 
 The diff should show the undesirable behavior being removed or replaced by the correct behavior. This is commonly a deleted `Diagnostics` section or a targeted type/constraint change in the same snapshot added by the previous commit.
@@ -122,12 +111,11 @@ If the fix is already present in the working tree or local history, stop and dec
 
 ### 1. Commit the failing fixture
 
-Start from a clean feature branch where the bug still reproduces. Create the fixture and accept the snapshot of the undesirable behavior:
+Start from a clean feature branch where the bug still reproduces. Create the fixture and generate the snapshot of the undesirable behavior:
 
 ```bash
 git status --short
-just t <category> --create "<descriptive name>"
-just t <category> NNN --accept
+just t <category> NNN
 ```
 
 Review and commit only the new fixture:
@@ -140,11 +128,10 @@ git commit -m "Add failing test case for <bug>"
 
 ### 2. Apply the fix and update the snapshot
 
-Implement the compiler fix only after the failing fixture commit exists. Run the same fixture and inspect the change before accepting it:
+Implement the compiler fix only after the failing fixture commit exists. Run the same fixture to update the snapshot in place:
 
 ```bash
-just t <category> NNN --diff
-just t <category> NNN --accept
+just t <category> NNN
 ```
 
 Review and commit the compiler changes together with the updated snapshot:
@@ -163,14 +150,5 @@ Before finishing, verify:
 - The fix commit snapshot changes only what the fix should change.
 - Unexpected `???` does not appear unless it is the regression being documented.
 - Error kinds, locations, inferred types, constraints, semantic nodes, lowered bindings, resolved references, and LSP payloads are intentional for the selected category.
-- Each fixture covers a small, coherent unit that is easy to understand as a whole. Split overloaded fixtures before accepting snapshots or committing, while preserving meaningful context.
+- Each fixture covers a small, coherent unit that is easy to understand as a whole. Split overloaded fixtures before committing, while preserving meaningful context.
 - For `lowering` and `resolving`, every changed module snapshot in the fixture is expected.
-
-## Useful commands
-
-```bash
-just t <category> NNN           # Run fixture
-just t <category> NNN --diff    # Inspect snapshot diff
-just t <category> NNN --accept  # Accept fixture snapshot
-just t <category> NNN --reject  # Reject fixture snapshot
-```

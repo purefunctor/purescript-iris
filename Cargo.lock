@@ -464,21 +464,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "compiler-scripts"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "console",
- "heck",
- "insta",
- "serde",
- "serde_json",
- "similar 3.2.0",
- "tests-support",
-]
-
-[[package]]
 name = "console"
 version = "0.16.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

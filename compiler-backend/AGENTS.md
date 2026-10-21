@@ -11,7 +11,7 @@ representations should be owned; frontend crates must not depend on code generat
 - Report unsupported frontend states explicitly rather than silently emitting incorrect JavaScript.
 - Keep pretty-printers useful for diagnosing intermediate functional trees.
 - Run `just t compiler` whenever generated JavaScript, foreign-module validation, or executable
-  behavior can change. Update fixture output through `just t compiler <filters> --update-output`,
-  then inspect every changed file.
+  behavior can change. It rewrites fixture output in place; inspect every changed
+  file with `git diff`.
 - Run `just t sourcemap` whenever functional origins, JavaScript rendering, or source position
   resolution can change where generated code maps. Inspect every changed mapping.

@@ -244,7 +244,7 @@ fn verify_output(expected: &Path, generated_files: &BTreeMap<PathBuf, String>) -
         })?;
     let message = format!(
         "generated JavaScript differs from {}:\n  {changes}\nrun \
-         `just t compiler {fixture_name} --update-output` to update fixture output",
+         `just t compiler {fixture_name}` to update fixture output",
         expected.display()
     );
     Err(FixtureFailure(message).into())

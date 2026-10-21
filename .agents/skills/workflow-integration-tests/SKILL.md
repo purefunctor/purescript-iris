@@ -5,7 +5,9 @@ description: "Workflow for adding and updating Iris integration-test fixtures fo
 
 # Workflow: Iris Integration Tests
 
-Use the command reference at `reference/compiler-scripts.md` for test runner syntax, snapshot workflows, and filters.
+Integration tests are plain `cargo nextest` tests over insta snapshots, and git is the review tool.
+Runs write snapshots and generated JavaScript in place; `git diff` shows what changed, `git restore`
+rejects it, and committing accepts it.
 
 **Language:** Fixtures use PureScript syntax, not Haskell.
 
@@ -31,11 +33,8 @@ a descriptive name. Read `tests-integration/AGENTS.md` for the split criteria. A
 simple related examples may belong together; sharing a feature, bug, or fix alone
 does not justify combining cases.
 
-```bash
-just t <category> --create "descriptive name"
-```
-
-The CLI picks the next timestamped fixture number, creates the folder under `tests-integration/fixtures/<category>/`, and writes a `Main.purs` template.
+Create `tests-integration/fixtures/<category>/<unix-timestamp>_<snake_case_name>/Main.purs`, for
+example with `$(date +%s)` as the prefix. The fixture number used in filters is that timestamp.
 
 Tests are auto-discovered by the datatest harnesses in `tests-integration/tests/`.
 
@@ -102,28 +101,40 @@ Source map fixtures use `tests-integration/packages.json`, like compiler fixture
 line appears in the report, so keep the module to the declarations that show the mapping under
 test. Generated JavaScript itself belongs in compiler fixtures.
 
-### 3. Run and review
+### 3. Run
+
+`just t <category> [filters...]` prepares registry packages, runs the category's nextest targets
+with `INSTA_UPDATE=always IRIS_UPDATE_JAVASCRIPT_OUTPUT=1`, and prints `git status` for
+`tests-integration`. Filters are ordinary nextest filters, such as a fixture timestamp or name
+fragment. Running nextest directly is equivalent:
 
 ```bash
-just t <category> NNN MMM
+just integration-prepare
+INSTA_UPDATE=always IRIS_UPDATE_JAVASCRIPT_OUTPUT=1 \
+  cargo nextest run -p tests-integration --test <target> [filters...]
 ```
 
-When an intentional compiler change affects generated JavaScript, review the reported files and update only the relevant fixtures:
+| Category    | Alias | Nextest targets             |
+| ----------- | ----- | --------------------------- |
+| `compiler`  | `c`   | `compiler`                  |
+| `lowering`  | `l`   | `lowering`, `lowering_unit` |
+| `resolving` | `r`   | `resolving`                 |
+| `lsp`       | -     | `lsp`                       |
+| `docs`      | -     | `docs`                      |
+| `formatting`| -     | `formatting`                |
+| `sourcemap` | -     | `sourcemap`                 |
 
-```bash
-just t compiler NNN --update-output
-```
+A failing `verify.mjs` or harness check fails the run without writing goldens.
 
-Ordinary compiler runs must remain read-only. Do not set `IRIS_UPDATE_JAVASCRIPT_OUTPUT` directly; `compiler-scripts` owns that implementation detail.
+### 4. Review
 
-### 4. Accept or reject snapshots
+Every changed expectation is an ordinary working-tree change. Review it with `git diff` and
+`git status` (new fixtures appear as untracked files), discard unwanted changes with
+`git restore` or `git clean`, and commit the intended ones. Keep unrelated expectation changes
+staged or committed before a run so the diff shows only what the run produced.
 
-```bash
-just t <category> NNN --diff         # Inspect a fixture diff
-just t <category> NNN --accept       # Accept a specific fixture
-just t <category> NNN --reject       # Reject a specific fixture
-just t <category> --accept --confirm # Accept all pending snapshots
-```
+Fixture snapshots live inside the fixture directory; lowering unit snapshots live in
+`tests-integration/tests/snapshots/`. Deleting a fixture means deleting its directory.
 
 ## Multi-File Tests
 
