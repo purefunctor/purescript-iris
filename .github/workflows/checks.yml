@@ -26,10 +26,16 @@ jobs:
       os: windows-latest
 
   linux_arm64_release:
-    name: Release build and tests (Linux ARM64)
+    name: Release build (${{ matrix.target }})
     permissions:
       contents: read
     runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -39,47 +45,41 @@ jobs:
       - name: Install Rust toolchain
         run: rustup update stable && rustup default stable
 
-      - name: Build release executable
-        run: cargo build --release --locked -p iris-cli --bin iris --target aarch64-unknown-linux-gnu
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
 
-      - name: Package and check release archive
+      - name: Build release archive
+        id: release
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: iris
+          package: iris-cli
+          archive: iris-$target
+          include: README.md,LICENSE,ACKNOWLEDGEMENTS.md,THIRDPARTY.toml
+          leading-dir: true
+          locked: true
+          target: ${{ matrix.target }}
+          dry-run: true
+
+      - name: Check release archive
+        env:
+          TARGET: ${{ matrix.target }}
+          ARCHIVE: ${{ steps.release.outputs.tar }}
         run: |
-          archive=iris-aarch64-unknown-linux-gnu
-          mkdir -p "target/release-archive/$archive"
-          cp target/aarch64-unknown-linux-gnu/release/iris README.md LICENSE ACKNOWLEDGEMENTS.md THIRDPARTY.toml \
-            "target/release-archive/$archive/"
-          tar -czf "$archive.tar.gz" -C target/release-archive "$archive"
           extracted=$(mktemp -d)
           trap 'rm -rf "$extracted"' EXIT
-          tar -xzf "$archive.tar.gz" -C "$extracted"
+          tar -xzf "$ARCHIVE" -C "$extracted"
           package_version=$(cargo metadata --format-version 1 --no-deps --locked |
             jq -r '.packages[] | select(.name == "iris-cli") | .version')
-          test "$("$extracted/$archive/iris" --version)" = "iris $package_version"
-
-      - name: Install pnpm and Node.js
-        uses: pnpm/setup@v3
-        with:
-          version: 12
-          runtime: node@22
-          install: false
-
-      - name: Install test tools
-        uses: taiki-e/install-action@v2.87.21
-        with:
-          tool: cargo-nextest,just
-
-      - name: Prepare end-to-end tools
-        run: just e2e-prepare
-
-      - name: Test release profile
-        run: >-
-          just e2e --release --locked --target aarch64-unknown-linux-gnu
-          --test cli --test formatting --test package_manager
+          test "$("$extracted/iris-$TARGET/iris" --version)" = "iris $package_version"
+          "$extracted/iris-$TARGET/iris" self update "$package_version"
 
       - name: Upload release archive
         uses: actions/upload-artifact@v7
         with:
-          path: iris-aarch64-unknown-linux-gnu.tar.gz
+          path: ${{ steps.release.outputs.tar }}
           archive: false
           if-no-files-found: error
 

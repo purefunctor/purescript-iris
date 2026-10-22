@@ -101,6 +101,10 @@ pub fn release_target() -> Option<&'static str> {
         Some("x86_64-unknown-linux-gnu")
     } else if cfg!(all(target_os = "linux", target_arch = "x86_64", target_env = "musl")) {
         Some("x86_64-unknown-linux-musl")
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64", target_env = "gnu")) {
+        Some("aarch64-unknown-linux-gnu")
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64", target_env = "musl")) {
+        Some("aarch64-unknown-linux-musl")
     } else if cfg!(all(target_os = "macos", any(target_arch = "x86_64", target_arch = "aarch64"))) {
         Some("universal-apple-darwin")
     } else if cfg!(all(target_os = "windows", target_arch = "x86_64", target_env = "msvc")) {

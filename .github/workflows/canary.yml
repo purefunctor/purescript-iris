@@ -114,6 +114,12 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
 
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+
           - os: macos-latest
             target: universal-apple-darwin
 
