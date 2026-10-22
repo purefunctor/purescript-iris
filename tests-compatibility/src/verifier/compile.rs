@@ -280,7 +280,17 @@ fn collect_file(
             });
             if checked.errors.is_empty() {
                 match engine.javascript(file_id) {
-                    Ok(Ok(_)) => {}
+                    Ok(Ok(module)) => {
+                        with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
+                            for diagnostic in module.diagnostics() {
+                                report.diagnostics.extend(convert_diagnostics(
+                                    metadata,
+                                    CompilationStage::JavaScript,
+                                    diagnostic.to_diagnostics(&ctx),
+                                ));
+                            }
+                        });
+                    }
                     Ok(Err(error)) => {
                         let diagnostic = Diagnostic::error(
                             "JavaScriptError",
@@ -564,8 +574,8 @@ mod tests {
             .find(|diagnostic| diagnostic.stage == CompilationStage::JavaScript)
             .expect("JavaScript generation diagnostic");
 
-        assert_eq!(diagnostic.code, "JavaScriptError");
-        assert!(diagnostic.message.contains("top-level value initializers form a cycle"));
+        assert_eq!(diagnostic.code, "JavaScriptInitializerCycle");
+        assert_eq!(diagnostic.message, "This declaration is cyclic with other declarations");
     }
 
     #[test]
