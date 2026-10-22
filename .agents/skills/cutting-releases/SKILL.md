@@ -5,7 +5,7 @@ description: "Cuts Iris GitHub releases through the version-bump PR, merge commi
 
 # Cutting Iris Releases
 
-Use this workflow for stable `purescript-iris` releases. A pushed stable `v*` tag triggers `.github/workflows/release.yml`, which creates the GitHub release, builds and attests four archives, and tests the installers on Linux, macOS, and Windows. Automated `v<version>-dev.<revision>` canaries are owned by `.github/workflows/canary.yml`; do not use this manual workflow to prepare or repair them.
+Use this workflow for stable `purescript-iris` releases. A pushed stable `v*` tag triggers `.github/workflows/release.yml`, which creates the GitHub release, builds and attests six archives, and tests the installers on Linux, macOS, and Windows. Automated `v<version>-dev.<revision>` canaries are owned by `.github/workflows/canary.yml`; do not use this manual workflow to prepare or repair them.
 
 Merging and pushing the release tag are shared, high-impact actions. Obtain explicit approval before each unless the user has already authorized that stage. Never move or delete a published release tag to repair a failed workflow.
 
@@ -15,7 +15,7 @@ Merging and pushing the release tag are shared, high-impact actions. Obtain expl
 
 - Stable tags match `v<major>.<minor>.<patch>`, and canary tags match `v<version>-dev.<12-character revision>`. The executable's `--version` prints `iris <tag without v>`.
 - The latest stable release is the release GitHub marks latest, read from the `/releases/latest` redirect. Canaries are published prereleases created with `--latest=false`.
-- Each release has an archive per target named `iris-<target>.tar.gz`, or `iris-<target>.zip` on Windows, for `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `universal-apple-darwin`, and `x86_64-pc-windows-msvc`.
+- Each release has an archive per target named `iris-<target>.tar.gz`, or `iris-<target>.zip` on Windows, for `x86_64-unknown-linux-gnu`, `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-gnu`, `aarch64-unknown-linux-musl`, `universal-apple-darwin`, and `x86_64-pc-windows-msvc`.
 - Each archive has a leading `iris-<target>/` directory containing exactly one `iris` or `iris.exe` executable, and has a GitHub build-provenance attestation.
 
 ## 1. Establish the release range
@@ -125,7 +125,7 @@ gh run watch <run-id> --exit-status --interval 10
 Success requires:
 
 - The GitHub release was created.
-- GNU Linux, musl Linux, universal macOS, and Windows archives were uploaded.
+- GNU and musl Linux archives for x86_64 and aarch64, universal macOS, and Windows archives were uploaded.
 - Every archive received build-provenance attestation.
 - Installer tests passed on Linux, macOS, and Windows.
 
@@ -165,7 +165,7 @@ Run the same script with the existing tag and its immediately preceding release 
 
 ## 7. Final verification
 
-Confirm the release is published, notes remain present, the tag points to the intended merge commit, and all four assets exist:
+Confirm the release is published, notes remain present, the tag points to the intended merge commit, and all six assets exist:
 
 ```bash
 gh release view "$tag" \
