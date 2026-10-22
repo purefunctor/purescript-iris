@@ -41,6 +41,10 @@ fn update_to_previous_release(executable: &Path) -> Output {
 }
 
 #[test]
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    ignore = "Iris 0.1.5 has no Linux ARM64 release archive"
+)]
 fn replaces_the_running_executable_with_a_release() {
     let workspace = TestWorkspace::empty();
     let executable = install_iris(&workspace);
@@ -77,6 +81,10 @@ fn replaces_the_running_executable_with_a_release() {
 
 #[cfg(unix)]
 #[test]
+#[cfg_attr(
+    all(target_os = "linux", target_arch = "aarch64"),
+    ignore = "Iris 0.1.5 has no Linux ARM64 release archive"
+)]
 fn replaces_the_file_that_a_symbolic_link_points_to() {
     let workspace = TestWorkspace::empty();
     let executable = install_iris(&workspace);
