@@ -21,6 +21,7 @@ impl<T> Slot<T> {
 enum State<T> {
     Empty,
     Full(T),
+    Transferred,
     Dead,
 }
 
@@ -28,6 +29,13 @@ impl<T> State<T> {
     fn is_empty(&self) -> bool {
         matches!(self, State::Empty)
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Resolution<T> {
+    Fulfilled(T),
+    Transferred,
+    Abandoned,
 }
 
 /// The read side of an asynchronous computation.
@@ -40,7 +48,7 @@ pub(crate) struct Future<T> {
 #[derive(Debug)]
 pub(crate) struct Promise<T> {
     slot: Arc<Slot<T>>,
-    fulfilled: bool,
+    resolved: bool,
 }
 
 impl<T> Future<T> {
@@ -48,7 +56,7 @@ impl<T> Future<T> {
     pub(crate) fn new() -> (Future<T>, Promise<T>) {
         let slot = Arc::new(Slot::new());
         let future = Future { slot: Arc::clone(&slot) };
-        let promise = Promise { slot: Arc::clone(&slot), fulfilled: false };
+        let promise = Promise { slot: Arc::clone(&slot), resolved: false };
         (future, promise)
     }
 
@@ -59,8 +67,8 @@ impl<T> Future<T> {
     /// This function will panic if the corresponding [`Promise`] is fulfilled
     /// as [`State::Empty`], which is an invariant violation. [`Promise::fulfill`]
     /// and the [`Drop`] implementation guarantees that the [`Future`] always
-    /// sees either [`State::Full`] or [`State::Dead`].
-    pub(crate) fn wait(self) -> Option<T> {
+    /// sees either [`State::Full`], [`State::Transferred`], or [`State::Dead`].
+    pub(crate) fn wait(self) -> Resolution<T> {
         let mut guard = self.slot.state.lock();
         if guard.is_empty() {
             self.slot.condvar.wait(&mut guard);
@@ -69,16 +77,22 @@ impl<T> Future<T> {
             State::Empty => {
                 unreachable!("invariant violated: Promise fulfilled with State::Empty")
             }
-            State::Full(value) => Some(value),
-            State::Dead => None,
+            State::Full(value) => Resolution::Fulfilled(value),
+            State::Transferred => Resolution::Transferred,
+            State::Dead => Resolution::Abandoned,
         }
     }
 }
 
 impl<T> Promise<T> {
     pub(crate) fn fulfill(mut self, value: T) {
-        self.fulfilled = true;
+        self.resolved = true;
         self.transition(State::Full(value));
+    }
+
+    pub(crate) fn transfer(mut self) {
+        self.resolved = true;
+        self.transition(State::Transferred);
     }
 
     fn transition(&mut self, state: State<T>) {
@@ -90,7 +104,7 @@ impl<T> Promise<T> {
 
 impl<T> Drop for Promise<T> {
     fn drop(&mut self) {
-        if !self.fulfilled {
+        if !self.resolved {
             self.transition(State::Dead);
         }
     }
@@ -98,26 +112,33 @@ impl<T> Drop for Promise<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Future;
+    use super::{Future, Resolution};
 
     #[test]
     fn test_future_promise() {
         let (future, promise) = Future::new();
         promise.fulfill(123);
-        assert_eq!(future.wait(), Some(123));
+        assert_eq!(future.wait(), Resolution::Fulfilled(123));
+    }
+
+    #[test]
+    fn test_future_promise_transfers() {
+        let (future, promise) = Future::<()>::new();
+        promise.transfer();
+        assert_eq!(future.wait(), Resolution::Transferred);
     }
 
     #[test]
     fn test_future_promise_is_dead() {
         let (future, _) = Future::<()>::new();
-        assert_eq!(future.wait(), None);
+        assert_eq!(future.wait(), Resolution::Abandoned);
     }
 
     #[test]
     fn test_future_promise_dies() {
         let (future, _) = Future::<()>::new();
         std::thread::spawn(move || {
-            assert_eq!(future.wait(), None);
+            assert_eq!(future.wait(), Resolution::Abandoned);
         });
     }
 
@@ -125,6 +146,6 @@ mod tests {
     fn test_future_promise_fulfills() {
         let (future, promise) = Future::<()>::new();
         std::thread::spawn(|| promise.fulfill(()));
-        std::thread::spawn(move || assert_eq!(future.wait(), Some(())));
+        std::thread::spawn(move || assert_eq!(future.wait(), Resolution::Fulfilled(())));
     }
 }

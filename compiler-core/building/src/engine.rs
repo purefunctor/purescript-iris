@@ -46,7 +46,7 @@ use lock_api::{RawRwLock, RawRwLockRecursive};
 use lowering::{GroupedModule, LoweredModule};
 use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard};
 use parsing::FullParsedModule;
-use promise::{Future, Promise};
+use promise::{Future, Promise, Resolution};
 use resolving::{ExportedModule, ResolvedModule};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use stabilizing::StabilizedModule;
@@ -353,6 +353,11 @@ impl LocalState {
         frame.verifying = verifying;
     }
 
+    fn is_verifying(local: &RefCell<LocalStateInner>) -> bool {
+        let inner = local.borrow();
+        inner.frames.iter().any(|frame| frame.verifying)
+    }
+
     fn stack(local: &RefCell<LocalStateInner>) -> Arc<[QueryKey]> {
         let inner = local.borrow();
         let stack = inner.frames.iter().map(|frame| frame.query);
@@ -517,10 +522,14 @@ impl QueryEngine {
                 let mut guard = shard.write();
                 if let Entry::Occupied(o) = guard.entry(key) {
                     if let DerivedState::InProgress { id, waiters } = o.remove() {
-                        let waiters = waiters.into_inner();
-                        self.remove_waiter_edges(id, &waiters);
-                        drop(guard);
-                        drop(waiters);
+                        let mut waiters = waiters.into_inner();
+                        if let Some(heir) = waiters.pop() {
+                            self.hand_off_waiter_edges(id, heir.id, &waiters);
+                            let waiters = Mutex::new(waiters);
+                            guard.insert(key, DerivedState::InProgress { id: heir.id, waiters });
+                            drop(guard);
+                            heir.promise.transfer();
+                        }
                     } else {
                         unreachable!("invariant violated: expected InProgress");
                     }
@@ -572,6 +581,21 @@ impl QueryEngine {
         let mut graph = self.control.global.graph.lock();
         for waiter in waiters {
             graph.remove_edge(waiter.id, to_id);
+        }
+    }
+
+    fn hand_off_waiter_edges<T>(
+        &self,
+        from_id: SnapshotId,
+        heir_id: SnapshotId,
+        waiters: &[Waiter<T>],
+    ) {
+        let mut graph = self.control.global.graph.lock();
+        graph.remove_edge(heir_id, from_id);
+        for waiter in waiters {
+            graph.remove_edge(waiter.id, from_id);
+            let added = graph.add_edge(waiter.id, heir_id);
+            assert!(added, "invariant violated: heir has no outgoing edge");
         }
     }
 
@@ -688,6 +712,10 @@ impl QueryEngine {
         waiters: &Mutex<Vec<Waiter<T>>>,
         local: &RefCell<LocalStateInner>,
     ) -> QueryResult<Future<T>> {
+        if LocalState::is_verifying(local) {
+            return Err(QueryError::Unverifiable);
+        }
+
         {
             let mut graph = self.control.global.graph.lock();
             let stack = LocalState::stack(local);
@@ -700,6 +728,31 @@ impl QueryEngine {
         let waiter = Waiter { id: self.control.id, promise };
         waiters.lock().push(waiter);
         Ok(future)
+    }
+
+    fn wait_core<K, V, ShardsFn, ComputeFn>(
+        &self,
+        key: K,
+        shards: &ShardsFn,
+        compute: &ComputeFn,
+        revision: usize,
+        future: Future<V>,
+        local: &RefCell<LocalStateInner>,
+    ) -> QueryResult<V>
+    where
+        K: Hash + Eq + Copy,
+        ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
+        ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
+        V: Eq + Clone,
+    {
+        match future.wait() {
+            Resolution::Fulfilled(computed) => Ok(computed),
+            Resolution::Transferred => {
+                LocalState::mark_in_progress(local);
+                self.compute_core(key, shards, compute, revision, None, local)
+            }
+            Resolution::Abandoned => Err(QueryError::Cancelled),
+        }
     }
 
     fn query_core<K, V, ShardsFn, ComputeFn>(
@@ -743,7 +796,7 @@ impl QueryEngine {
                     // Remember that Future::wait blocks the current thread!
                     drop(guard);
 
-                    return future.wait().ok_or(QueryError::Cancelled);
+                    return self.wait_core(key, shards, compute, revision, future, local);
                 }
                 _ => (),
             }
@@ -774,7 +827,7 @@ impl QueryEngine {
                     // Remember that Future::wait blocks the current thread!
                     drop(guard);
 
-                    future.wait().ok_or(QueryError::Cancelled)
+                    self.wait_core(key, shards, compute, revision, future, local)
                 }
                 DerivedState::Computed { computed, trace, dependencies } => {
                     let computed = V::clone(computed);
@@ -796,13 +849,17 @@ impl QueryEngine {
                     }
 
                     let verify = || self.verify_core(&dependencies, revision);
-                    let latest = LocalState::with_verifying(local, verify)?;
+                    let unchanged = match LocalState::with_verifying(local, verify) {
+                        Ok(latest) => trace.built >= latest,
+                        Err(QueryError::Unverifiable) => false,
+                        Err(error) => return Err(error),
+                    };
 
                     // If the cached value was built more recently the the
                     // latest change, we can update its built timestamp to
                     // the current revision. This allows the query to hit
                     // the fastest path if it's called in the same revision.
-                    if trace.built >= latest {
+                    if unchanged {
                         let trace = Trace { built: revision, ..trace };
                         self.fulfill_and_store(
                             key,
@@ -1566,8 +1623,7 @@ mod tests {
     use std::fmt::Debug;
     use std::panic::{AssertUnwindSafe, catch_unwind};
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::mpsc;
-    use std::sync::{Arc, Barrier};
+    use std::sync::{Arc, Barrier, mpsc};
     use std::time::Duration;
 
     use building_types::{QueryError, QueryResult};
@@ -2866,6 +2922,32 @@ mod tests {
     }
 
     #[test]
+    fn test_flipped_import_is_not_a_cycle() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let main = files.insert("Main.purs", "module Main where\n\nimport Lib (b)\n\na = 123");
+        let library = files.insert("Lib.purs", "module Lib where\n\nb = 123");
+
+        engine.set_content(main, files.content(main));
+        engine.set_content(library, files.content(library));
+        engine.insert_module_file("Main", main);
+        engine.insert_module_file("Lib", library);
+
+        engine.resolved(main).unwrap();
+        engine.resolved(library).unwrap();
+
+        engine.set_content(main, "module Main where\n\na = 123");
+        engine.set_content(library, "module Lib where\n\nimport Main (a)\n\nb = 123");
+
+        let resolved = engine.resolved(main).unwrap();
+        assert!(!resolved.unqualified.contains_key("Lib"));
+        let resolved = engine.resolved(library).unwrap();
+        assert!(resolved.unqualified.contains_key("Main"));
+    }
+
+    #[test]
     fn test_panicking_query_releases_in_progress() {
         let mut engine = QueryEngine::default();
         let mut files = Files::default();
@@ -2899,6 +2981,56 @@ mod tests {
 
         let result = receiver.recv_timeout(Duration::from_secs(5));
         assert_eq!(result, Ok(engine.parsed(child)));
+    }
+
+    #[test]
+    fn test_failed_query_hands_off_to_waiter() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let parent = files.insert("./src/Parent.purs", "module Parent where");
+        let child = files.insert("./src/Child.purs", "module Child where");
+        engine.set_content(child, files.content(child));
+
+        let has_waiter = |engine: &QueryEngine| {
+            let shard = engine.derived.parsed.shard(&parent).read();
+            match shard.get(&parent) {
+                Some(DerivedState::InProgress { waiters, .. }) => !waiters.lock().is_empty(),
+                _ => false,
+            }
+        };
+
+        let (failing, waiting) = (engine.snapshot(), engine.snapshot());
+        let barrier = Barrier::new(2);
+        let (failed, waited) = std::thread::scope(|scope| {
+            let failed = scope.spawn(|| {
+                failing.query(
+                    QueryKey::Parsed(parent),
+                    parent,
+                    |derived| &derived.parsed,
+                    |engine| {
+                        barrier.wait();
+                        while !has_waiter(engine) {
+                            std::thread::yield_now();
+                        }
+                        Err(QueryError::MissingContent { file_id: parent })
+                    },
+                )
+            });
+            barrier.wait();
+            let waited = waiting.query(
+                QueryKey::Parsed(parent),
+                parent,
+                |derived| &derived.parsed,
+                |engine| engine.parsed(child),
+            );
+            (failed.join().unwrap(), waited)
+        });
+        drop((failing, waiting));
+
+        assert_eq!(failed, Err(QueryError::MissingContent { file_id: parent }));
+        assert_eq!(waited, engine.parsed(child));
     }
 
     #[test]
