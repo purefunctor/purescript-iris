@@ -28,6 +28,7 @@ mod promise;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::hash::{BuildHasher, Hash};
+use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
@@ -506,25 +507,28 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
-        self.control.local.with_query(query, |local| {
+        let result = self.control.local.with_query(query, |local| {
+            let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                self.query_core(key, &shards, &compute, local)
+            }));
             // If query execution fails at any given point, clean up the state.
-            self.query_core(key, &shards, &compute, local).inspect_err(|_| {
-                if LocalState::is_in_progress(local) {
-                    let shard = shards(&self.derived).shard(&key);
-                    let mut guard = shard.write();
-                    if let Entry::Occupied(o) = guard.entry(key) {
-                        if let DerivedState::InProgress { id, waiters } = o.remove() {
-                            let waiters = waiters.into_inner();
-                            self.remove_waiter_edges(id, &waiters);
-                            drop(guard);
-                            drop(waiters);
-                        } else {
-                            unreachable!("invariant violated: expected InProgress");
-                        }
+            if !matches!(result, Ok(Ok(_))) && LocalState::is_in_progress(local) {
+                let shard = shards(&self.derived).shard(&key);
+                let mut guard = shard.write();
+                if let Entry::Occupied(o) = guard.entry(key) {
+                    if let DerivedState::InProgress { id, waiters } = o.remove() {
+                        let waiters = waiters.into_inner();
+                        self.remove_waiter_edges(id, &waiters);
+                        drop(guard);
+                        drop(waiters);
+                    } else {
+                        unreachable!("invariant violated: expected InProgress");
                     }
                 }
-            })
-        })
+            }
+            result
+        });
+        result.unwrap_or_else(|payload| panic::resume_unwind(payload))
     }
 
     /// Fulfills the promises of an [`DerivedState::InProgress`] query and
@@ -1560,8 +1564,11 @@ impl foreign_javascript::ForeignQueries for QueryEngine {
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
+    use std::panic::{AssertUnwindSafe, catch_unwind};
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::mpsc;
     use std::sync::{Arc, Barrier};
+    use std::time::Duration;
 
     use building_types::{QueryError, QueryResult};
     use files::{FileId, Files, ForeignFiles, ForeignSourceKind};
@@ -2856,6 +2863,42 @@ mod tests {
                 .into()
             })
         );
+    }
+
+    #[test]
+    fn test_panicking_query_releases_in_progress() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let parent = files.insert("./src/Parent.purs", "module Parent where");
+        let child = files.insert("./src/Child.purs", "module Child where");
+        engine.set_content(child, files.content(child));
+
+        let panicked = catch_unwind(AssertUnwindSafe(|| {
+            engine.query(
+                QueryKey::Parsed(parent),
+                parent,
+                |derived| &derived.parsed,
+                |_| panic!("compute panicked"),
+            )
+        }));
+        assert!(panicked.is_err());
+
+        let snapshot = engine.snapshot();
+        let (sender, receiver) = mpsc::channel();
+        std::thread::spawn(move || {
+            let result = snapshot.query(
+                QueryKey::Parsed(parent),
+                parent,
+                |derived| &derived.parsed,
+                |engine| engine.parsed(child),
+            );
+            let _ = sender.send(result);
+        });
+
+        let result = receiver.recv_timeout(Duration::from_secs(5));
+        assert_eq!(result, Ok(engine.parsed(child)));
     }
 
     #[test]
