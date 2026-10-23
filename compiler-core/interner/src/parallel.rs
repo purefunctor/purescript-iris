@@ -16,7 +16,7 @@ use std::num::NonZeroU32;
 use parking_lot::Mutex;
 use rustc_hash::FxBuildHasher;
 
-use crate::Id;
+use crate::{Id, id_from_index};
 
 pub struct Interner<T, M = ()>
 where
@@ -93,7 +93,7 @@ where
         }
 
         let index = self.arena.push((value, metadata));
-        let candidate = unsafe { NonZeroU32::new_unchecked(index as u32 + 1) };
+        let candidate = id_from_index(index);
 
         match table.try_insert(hash, candidate) {
             Ok(_) => Id::new(candidate),
@@ -117,7 +117,7 @@ where
         }
 
         let index = self.arena.push((value, metadata));
-        let candidate = unsafe { NonZeroU32::new_unchecked(index as u32 + 1) };
+        let candidate = id_from_index(index);
 
         overflow.push((hash, candidate));
         Id::new(candidate)

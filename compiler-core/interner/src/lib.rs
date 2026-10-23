@@ -89,11 +89,8 @@ impl<T: Eq + Hash> Interner<T> {
             self.table.find(hash, |&id| arena_equivalent(&self.inner, id, &value)).copied();
 
         let id = existing.unwrap_or_else(|| {
+            let id = id_from_index(self.inner.len());
             self.inner.push(value);
-            let index = self.inner.len();
-            // SAFETY: Vec::push ensures that the subsequent Vec::len
-            // returns a non-zero value to be used as a 1-based index.
-            let id = unsafe { NonZeroU32::new_unchecked(index as u32) };
             self.table.insert_unique(hash, id, |&id| arena_hasher(&self.inner, id));
             id
         });
@@ -127,6 +124,12 @@ impl<T> ops::Index<Id<T>> for Interner<T> {
 }
 
 #[inline]
+pub(crate) fn id_from_index(index: usize) -> NonZeroU32 {
+    let id = u32::try_from(index).ok().and_then(|index| NonZeroU32::MIN.checked_add(index));
+    id.unwrap_or_else(|| panic!("interner capacity overflow: {index} is not a valid index"))
+}
+
+#[inline]
 fn arena_index<T>(arena: &[T], id: NonZeroU32) -> Option<&T> {
     let index = id.get() as usize;
     arena.get(index - 1)
@@ -154,7 +157,27 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::Interner;
+    use std::num::NonZeroU32;
+
+    use super::{Interner, id_from_index};
+
+    #[test]
+    fn test_id_from_index() {
+        assert_eq!(id_from_index(0), NonZeroU32::MIN);
+        assert_eq!(id_from_index(u32::MAX as usize - 1), NonZeroU32::MAX);
+    }
+
+    #[test]
+    #[should_panic(expected = "interner capacity overflow")]
+    fn test_id_from_index_overflow() {
+        id_from_index(u32::MAX as usize);
+    }
+
+    #[test]
+    #[should_panic(expected = "interner capacity overflow")]
+    fn test_id_from_index_truncation() {
+        id_from_index(u32::MAX as usize + 1);
+    }
 
     #[test]
     fn test_basic() {

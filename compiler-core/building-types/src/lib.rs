@@ -42,6 +42,8 @@ pub enum QueryError {
     Cycle { stack: Arc<[QueryKey]> },
     #[error("Missing content for {file_id:?}")]
     MissingContent { file_id: FileId },
+    #[error("Dependency cannot be verified while another snapshot computes it")]
+    Unverifiable,
 }
 
 pub type QueryResult<T> = Result<T, QueryError>;
