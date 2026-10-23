@@ -65,10 +65,10 @@ TLC writes its logs, including counterexample traces, to `target/tla/runs/intern
 Compare the covered files with the sync commit:
 
 ```bash
-git diff f1adf9538a24d7bb0b903148965409d017cfb9ac -- \
+git diff 753da5fcaa8edd7a04013dc5ddbe86d451e8627a -- \
   compiler-core/interner/src/parallel.rs compiler-core/interner/Cargo.toml
-git diff f1adf9538a24d7bb0b903148965409d017cfb9ac -- compiler-core/interner/src/lib.rs | rg -A6 'fn id_from_index'
-git diff f1adf9538a24d7bb0b903148965409d017cfb9ac -- Cargo.lock | rg -A3 'name = "(boxcar|papaya|seize|parking_lot)"'
+git diff 753da5fcaa8edd7a04013dc5ddbe86d451e8627a -- compiler-core/interner/src/lib.rs | rg -A6 'fn id_from_index'
+git diff 753da5fcaa8edd7a04013dc5ddbe86d451e8627a -- Cargo.lock | rg -A3 'name = "(boxcar|papaya|seize|parking_lot)"'
 ```
 
 If the diff touches a function in the coverage table, the model may no longer describe the code.
@@ -76,7 +76,7 @@ Update the model first, then run the check.
 
 ## Coverage record
 
-Sync commit: `f1adf9538a24d7bb0b903148965409d017cfb9ac`. At this commit, the model describes the
+Sync commit: `753da5fcaa8edd7a04013dc5ddbe86d451e8627a`. At this commit, the model describes the
 code below. Move the sync commit forward only after you confirm that the model still describes the
 code at the new commit.
 
