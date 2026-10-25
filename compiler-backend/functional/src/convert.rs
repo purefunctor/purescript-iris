@@ -87,9 +87,9 @@ struct Context<'c, Q> {
     dependencies: FxHashMap<FileId, Dependency>,
     indexed_dependencies: RefCell<FxHashMap<FileId, Arc<indexing::IndexedModule>>>,
     stylex_modules: OnceCell<StyleXModules>,
-    /// Whether a term of a virtual StyleX module was referenced, the only source of StyleX
+    /// The virtual StyleX modules whose terms were referenced, the only source of StyleX
     /// intrinsics and expressions.
-    references_stylex_module: bool,
+    referenced_stylex_modules: FxHashSet<FileId>,
     thunk_modules: OnceCell<[Option<FileId>; 2]>,
     canonical_thunk_instances: RefCell<FxHashMap<(FileId, indexing::InstanceId), bool>>,
 
@@ -154,7 +154,7 @@ where
             dependencies: FxHashMap::default(),
             indexed_dependencies: RefCell::default(),
             stylex_modules: OnceCell::new(),
-            references_stylex_module: false,
+            referenced_stylex_modules: FxHashSet::default(),
             thunk_modules: OnceCell::new(),
             canonical_thunk_instances: RefCell::default(),
 
@@ -695,7 +695,7 @@ where
             return Ok(());
         }
         if self.module_is_virtual(file_id) {
-            self.references_stylex_module = true;
+            self.referenced_stylex_modules.insert(file_id);
             return Ok(());
         }
         let module_name = self.source_module_name(file_id)?;

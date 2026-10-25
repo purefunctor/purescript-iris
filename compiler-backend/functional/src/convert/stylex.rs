@@ -195,7 +195,7 @@ where
         let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id)? else {
             return Ok(None);
         };
-        self.references_stylex_module = true;
+        self.referenced_stylex_modules.insert(file_id);
         let StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)) = intrinsic else {
             return Ok(None);
         };
@@ -303,7 +303,7 @@ where
         declarations: &[Declaration],
     ) -> ConversionResult<FxHashSet<GlobalId>> {
         // StyleX intrinsics and expressions only arise from references to the virtual modules.
-        if !self.references_stylex_module && !self.module_is_virtual(self.file_id) {
+        if self.referenced_stylex_modules.is_empty() && !self.module_is_virtual(self.file_id) {
             return Ok(FxHashSet::default());
         }
         let mut bindings = StyleXStaticBindings::default();
