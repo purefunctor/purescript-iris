@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Data_Eq from "../Data.Eq/index.js";
+  | ^ 3:1 import Data.Eq (class Eq, eq)
+2 | import * as $foreign from "./foreign.js";
+  | ^ 5:1 foreign import seed :: Int
+3 | import * as $runtime from "../runtime.js";
+  | ^ unmapped
+4 | export const seed = $foreign["seed"];
+  | ^ 5:1 foreign import seed :: Int
+5 | const $lazy_eqRecursive = $runtime.binding("eqRecursive", () => {
+  | ^ 9:1 instance eqRecursive :: Eq Recursive where
+6 |   return { eq: (left) => (right) => /* @__PURE__ */ Data_Eq.eq($lazy_eqRecursive())(left)(right) };
+  |   ^ 9:1 instance eqRecursive :: Eq Recursive where
+  |                 ^ 10:3 eq left right = eq left right
+  |                                     ^ 10:19 eq left right
+  |                                                                                     ^ 10:22 left right
+  |                                                                                         ^ 10:19 eq left right
+  |                                                                                           ^ 10:27 right
+  |                                                                                                ^ 10:19 eq left right
+  |                                                                                                  ^ 9:1 instance eqRecursive :: Eq Recursive where
+7 | });
+  | ^ 9:1 instance eqRecursive :: Eq Recursive where
+8 | export const eqRecursive = $lazy_eqRecursive();
+  | ^ 9:1 instance eqRecursive :: Eq Recursive where

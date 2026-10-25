@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as $stylex from "@stylexjs/stylex";
+  | ^ 3:1 import Iris.StyleX.When as When
+2 | export const styles = $stylex.create({ root: { color: {
+  | ^ 8:1 styles = StyleX.create
+  |                       ^ 8:10 StyleX.create
+  |                                      ^ 9:3 { root: { color: StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+  |                                              ^ 9:11 { color: StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+  |                                                       ^ 9:20 StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+3 |   default: "blue",
+  |   ^ 9:20 StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+  |            ^ 9:44 "blue" [ When.ancestor ":hover" "red" ] } }
+4 |   [$stylex.when.ancestor(":hover")]: "red"
+  |    ^ 9:53 When.ancestor ":hover" "red" ] } }
+  |                          ^ 9:67 ":hover" "red" ] } }
+  |                                  ^ 9:53 When.ancestor ":hover" "red" ] } }
+  |                                      ^ 9:76 "red" ] } }
+5 | } } });
+  | ^ 9:20 StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+  |   ^ 9:11 { color: StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+  |     ^ 9:3 { root: { color: StyleX.conditionalValue "blue" [ When.ancestor ":hover" "red" ] } }
+  |      ^ 8:10 StyleX.create

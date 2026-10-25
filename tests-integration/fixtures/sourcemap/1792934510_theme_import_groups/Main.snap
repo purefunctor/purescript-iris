@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Tokens from "../Tokens/index.js";
+  | ^ 3:1 import Tokens (label)
+2 | import { variables as Tokens_variables } from "../Tokens/index.stylex.js";
+  | ^ 3:1 import Tokens (label)
+3 | import * as $stylex from "@stylexjs/stylex";
+  | ^ 5:1 import Iris.StyleX as StyleX
+4 | export const caption = Tokens.label(3 | 0);
+  | ^ 8:1 caption = label 3
+  |                        ^ 8:11 label 3
+  |                                     ^ 8:17 3
+  |                                          ^ 8:11 label 3
+5 | export const styles = $stylex.create({ root: { color: Tokens_variables.accent } });
+  | ^ 10:1 styles = StyleX.create { root: { color: variables.accent } }
+  |                       ^ 10:10 StyleX.create { root: { color: variables.accent } }
+  |                                      ^ 10:24 { root: { color: variables.accent } }
+  |                                              ^ 10:32 { color: variables.accent } }
+  |                                                       ^ 10:41 variables.accent } }
+  |                                                                               ^ 10:32 { color: variables.accent } }
+  |                                                                                 ^ 10:24 { root: { color: variables.accent } }
+  |                                                                                  ^ 10:10 StyleX.create { root: { color: variables.accent } }

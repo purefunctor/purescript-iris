@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Config from "../Config/index.js";
+  | ^ 5:1 import Config (value)
+2 | import * as Data_Show from "../Data.Show/index.js";
+  | ^ 3:1 import Prelude
+3 | import * as Library from "../Library/index.js";
+  | ^ unmapped
+4 | const selected = Config.value;
+  | ^ 8:1 selected = value
+  |                  ^ 8:12 value
+5 | export const described = /* @__PURE__ */ Data_Show.show(Library.showPair)(selected);
+  | ^ 11:1 described = show selected
+  |                          ^ 11:13 show selected
+  |                                                                           ^ 11:18 selected
+  |                                                                                   ^ 11:13 show selected
