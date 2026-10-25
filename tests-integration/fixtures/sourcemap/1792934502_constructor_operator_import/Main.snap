@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Library from "../Library/index.js";
+  | ^ 3:1 import Operators ((/\))
+2 | export const pair = Library.Pair;
+  | ^ 5:1 pair = (/\)
+  |                     ^ 5:8 (/\)

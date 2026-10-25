@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Config from "../Config/index.js";
+  | ^ 5:1 import Config (value)
+2 | import * as Data_Show from "../Data.Show/index.js";
+  | ^ 3:1 import Prelude
+3 | import * as Library from "../Library/index.js";
+  | ^ 4:1 import Facade (Box)
+4 | export const described = /* @__PURE__ */ Data_Show.show(Library.showBox)(Config.value);
+  | ^ 8:1 described = show value
+  |                          ^ 8:13 show value
+  |                                                                          ^ 8:18 value
+  |                                                                                      ^ 8:13 show value

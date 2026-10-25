@@ -2,7 +2,7 @@
 source: tests-integration/src/fixtures.rs
 ---
 1 | import * as $foreign from "./foreign.js";
-  | ^ unmapped
+  | ^ 7:1 foreign import record :: String -> Effect Unit
 2 | export const record = $foreign["record"];
   | ^ 7:1 foreign import record :: String -> Effect Unit
 3 | export const main = /* @__PURE__ */ (() => {

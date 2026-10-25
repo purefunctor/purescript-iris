@@ -13,7 +13,9 @@ use building_types::{QueryError, QueryResult};
 use checking::evidence::{EvidenceBinderId, InstanceCandidateOrigin};
 use checking::tree as checking_tree;
 use files::FileId;
-use indexing::{IndexedTermItemKind, IndexedTypeItemKind, OrderedTermItemId, TermItemId};
+use indexing::{
+    ImportId, ImportKind, IndexedTermItemKind, IndexedTypeItemKind, OrderedTermItemId, TermItemId,
+};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::{SmolStr, format_smolstr};
@@ -87,9 +89,9 @@ struct Context<'c, Q> {
     dependencies: FxHashMap<FileId, Dependency>,
     indexed_dependencies: RefCell<FxHashMap<FileId, Arc<indexing::IndexedModule>>>,
     stylex_modules: OnceCell<StyleXModules>,
-    /// Whether a term of a virtual StyleX module was referenced, the only source of StyleX
+    /// The virtual StyleX modules whose terms were referenced, the only source of StyleX
     /// intrinsics and expressions.
-    references_stylex_module: bool,
+    referenced_stylex_modules: FxHashSet<FileId>,
     thunk_modules: OnceCell<[Option<FileId>; 2]>,
     canonical_thunk_instances: RefCell<FxHashMap<(FileId, indexing::InstanceId), bool>>,
 
@@ -154,7 +156,7 @@ where
             dependencies: FxHashMap::default(),
             indexed_dependencies: RefCell::default(),
             stylex_modules: OnceCell::new(),
-            references_stylex_module: false,
+            referenced_stylex_modules: FxHashSet::default(),
             thunk_modules: OnceCell::new(),
             canonical_thunk_instances: RefCell::default(),
 
@@ -207,9 +209,18 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
     // StyleX consumes the emitted expressions, including literals substituted for local bindings.
     let stylex_theme_imports = context.validate_stylex_uses(&declarations)?;
 
+    let resolved = context.queries.resolved(context.file_id)?;
+    let import_statements = import_statements(&context, &resolved)?;
+    let stylex_import = context
+        .referenced_stylex_modules
+        .iter()
+        .filter_map(|file_id| import_statements.get(file_id).copied())
+        .min();
+
     let dependencies = context.dependencies.iter().map(|(&file_id, dependency)| ModuleDependency {
         file_id,
         module_name: SmolStr::clone(&dependency.module_name),
+        import: import_statements.get(&file_id).copied(),
     });
     let mut dependencies = dependencies.collect_vec();
     dependencies.sort_by(|left, right| {
@@ -223,8 +234,56 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
         surface,
         declarations: declarations.into(),
         stylex_theme_imports,
+        stylex_import,
         storage: context.storage,
     })
+}
+
+fn import_statements(
+    context: &Context<'_, impl checking::ExternalQueries>,
+    resolved: &resolving::ResolvedModule,
+) -> QueryResult<FxHashMap<FileId, ImportId>> {
+    let unqualified = resolved.unqualified.values().flatten();
+    let qualified = resolved.qualified.values().flatten();
+    let mut direct = FxHashMap::default();
+    let mut reexporting = FxHashMap::default();
+    for import in unqualified.chain(qualified) {
+        insert_earliest_import(&mut direct, import.file, import.id);
+        for (_, file_id, term_id, kind) in import.iter_terms() {
+            if matches!(kind, ImportKind::Hidden) {
+                continue;
+            }
+            insert_earliest_import(&mut reexporting, file_id, import.id);
+            if let Some((target_file_id, _)) = context.term_operator_target(file_id, term_id)? {
+                insert_earliest_import(&mut reexporting, target_file_id, import.id);
+            }
+        }
+        for (_, file_id, type_id, kind) in import.iter_types() {
+            if matches!(kind, ImportKind::Hidden) {
+                continue;
+            }
+            insert_earliest_import(&mut reexporting, file_id, import.id);
+            if let Some((target_file_id, _)) = context.type_operator_target(file_id, type_id)? {
+                insert_earliest_import(&mut reexporting, target_file_id, import.id);
+            }
+        }
+        for (_, file_id, _, kind) in import.iter_classes() {
+            if !matches!(kind, ImportKind::Hidden) {
+                insert_earliest_import(&mut reexporting, file_id, import.id);
+            }
+        }
+    }
+    reexporting.extend(direct);
+    Ok(reexporting)
+}
+
+fn insert_earliest_import(
+    statements: &mut FxHashMap<FileId, ImportId>,
+    file_id: FileId,
+    import: ImportId,
+) {
+    let statement = statements.entry(file_id).or_insert(import);
+    *statement = ImportId::min(*statement, import);
 }
 
 struct RuntimeExports {
@@ -624,6 +683,48 @@ where
         }
     }
 
+    fn lowered_module(&self, file_id: FileId) -> QueryResult<Arc<lowering::LoweredModule>> {
+        if file_id == self.file_id {
+            Ok(Arc::clone(&self.lowered))
+        } else {
+            self.queries.lowered(file_id)
+        }
+    }
+
+    fn term_operator_target(
+        &self,
+        file_id: FileId,
+        term_id: TermItemId,
+    ) -> QueryResult<Option<(FileId, TermItemId)>> {
+        let indexed = self.indexed_module(file_id)?;
+        if !matches!(indexed.items[term_id].kind, IndexedTermItemKind::Operator { .. }) {
+            return Ok(None);
+        }
+        let lowered = self.lowered_module(file_id)?;
+        let resolution = lowered.tree.get_term_item_kind(term_id).and_then(|kind| match kind {
+            lowering::TermItemKind::Operator { resolution, .. } => *resolution,
+            _ => None,
+        });
+        Ok(resolution)
+    }
+
+    fn type_operator_target(
+        &self,
+        file_id: FileId,
+        type_id: indexing::TypeItemId,
+    ) -> QueryResult<Option<(FileId, indexing::TypeItemId)>> {
+        let indexed = self.indexed_module(file_id)?;
+        if !matches!(indexed.items[type_id].kind, IndexedTypeItemKind::Operator { .. }) {
+            return Ok(None);
+        }
+        let lowered = self.lowered_module(file_id)?;
+        let resolution = lowered.tree.get_type_item_kind(type_id).and_then(|kind| match kind {
+            lowering::TypeItemKind::Operator { resolution, .. } => *resolution,
+            _ => None,
+        });
+        Ok(resolution)
+    }
+
     fn type_item_name(
         &self,
         file_id: FileId,
@@ -695,7 +796,7 @@ where
             return Ok(());
         }
         if self.module_is_virtual(file_id) {
-            self.references_stylex_module = true;
+            self.referenced_stylex_modules.insert(file_id);
             return Ok(());
         }
         let module_name = self.source_module_name(file_id)?;

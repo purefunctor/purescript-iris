@@ -481,47 +481,51 @@ impl<'m> Generator<'m> {
 }
 
 fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
-    let ModuleRenderer { generator, writer, file, .. } = renderer;
+    let ModuleRenderer { generator, tree, writer, file } = renderer;
     if let OutputFile::StyleXTheme(theme) = file {
-        render_named_imports(generator, writer, theme.imports.iter().copied());
-        if let Some(namespace) = &generator.stylex_namespace {
-            writer.import_namespace(namespace, "@stylexjs/stylex");
-        }
+        render_named_imports(generator, tree, writer, theme.imports.iter().copied());
+        render_stylex_import(generator, tree, writer);
         writer.blank();
         return;
     }
-    let mut files = generator
+    let mut dependencies = generator
         .external_module_namespaces
         .keys()
-        .map(|&file_id| {
-            let dependency = generator.module_dependency(file_id);
-            (file_id, dependency.module_name.as_str())
-        })
+        .map(|&file_id| (file_id, generator.module_dependency(file_id)))
         .collect_vec();
-    files.sort_by_key(|(_, module_name)| *module_name);
-    for (file_id, module_name) in files {
+    dependencies.sort_by_key(|(_, dependency)| dependency.module_name.as_str());
+    for (file_id, dependency) in dependencies {
+        let _origin = tree.enter_origin(dependency.import.map(Origin::Import));
         let namespace = &generator.external_module_namespaces[&file_id];
-        let path = format!("../{}", module_filename(module_name));
+        let path = format!("../{}", module_filename(&dependency.module_name));
         writer.import_namespace(namespace, &path);
     }
-    render_named_imports(generator, writer, generator.external_named_imports.keys().copied());
+    render_named_imports(generator, tree, writer, generator.external_named_imports.keys().copied());
     if let Some(theme) = &generator.stylex_theme {
         let definitions = generator
             .module
             .declarations
             .iter()
             .filter(|declaration| theme.definitions.contains(&declaration.global.id))
-            .map(|declaration| {
-                let local = generator.global_name(declaration.global.id);
-                (declaration.global.item_name.as_str(), local)
-            });
-        let definitions = definitions.collect_vec();
-        writer.import_named(&definitions, &format!("./{STYLEX_THEME_FILENAME}"));
+            .collect_vec();
+        let first_definition = definitions.first().and_then(|declaration| declaration.origin);
+        let _origin = tree.enter_origin(first_definition);
+        let bindings = definitions.iter().map(|declaration| {
+            let local = generator.global_name(declaration.global.id);
+            (declaration.global.item_name.as_str(), local)
+        });
+        let bindings = bindings.collect_vec();
+        writer.import_named(&bindings, &format!("./{STYLEX_THEME_FILENAME}"));
     }
-    if let Some(namespace) = &generator.stylex_namespace {
-        writer.import_namespace(namespace, "@stylexjs/stylex");
-    }
+    render_stylex_import(generator, tree, writer);
     if let Some(foreign_import) = &generator.foreign_import {
+        let first_foreign_declaration = generator
+            .module
+            .declarations
+            .iter()
+            .find(|declaration| matches!(declaration.kind, DeclarationKind::Foreign))
+            .and_then(|declaration| declaration.origin);
+        let _origin = tree.enter_origin(first_foreign_declaration);
         let path = format!("./{}", foreign_filename(foreign_import.kind));
         writer.import_namespace(&foreign_import.namespace, &path);
     }
@@ -539,10 +543,19 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
     }
 }
 
+fn render_stylex_import(generator: &Generator<'_>, tree: &mut Tree<'_>, writer: &mut Writer<'_>) {
+    let Some(namespace) = &generator.stylex_namespace else {
+        return;
+    };
+    let _origin = tree.enter_origin(generator.module.stylex_import.map(Origin::Import));
+    writer.import_namespace(namespace, "@stylexjs/stylex");
+}
+
 /// StyleX resolves an imported theme value only when the import names the defining module's
 /// theme file. Other values are imported from the module itself, which re-exports its theme.
 fn render_named_imports(
     generator: &Generator<'_>,
+    tree: &mut Tree<'_>,
     writer: &mut Writer<'_>,
     globals: impl Iterator<Item = GlobalId>,
 ) {
@@ -561,11 +574,12 @@ fn render_named_imports(
         (generator.module_dependency(file_id).module_name.as_str(), theme)
     });
     for ((file_id, theme), mut bindings) in groups {
-        let module_name = &generator.module_dependency(file_id).module_name;
+        let dependency = generator.module_dependency(file_id);
+        let _origin = tree.enter_origin(dependency.import.map(Origin::Import));
         let filename = if theme {
-            stylex_theme_module_filename(module_name)
+            stylex_theme_module_filename(&dependency.module_name)
         } else {
-            module_filename(module_name)
+            module_filename(&dependency.module_name)
         };
         bindings.sort_unstable();
         writer.import_named(&bindings, &format!("../{filename}"));

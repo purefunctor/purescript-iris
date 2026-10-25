@@ -2,7 +2,7 @@
 source: tests-integration/src/fixtures.rs
 ---
 1 | import * as $stylex from "@stylexjs/stylex";
-  | ^ unmapped
+  | ^ 3:1 import Iris.StyleX as StyleX
 2 | export const styles = $stylex.create({ root: { padding: {
   | ^ 6:1 styles = StyleX.create
   |                       ^ 6:10 StyleX.create

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Library from "../Library/index.js";
+  | ^ 4:1 import Facade (select) as Qualified
+2 | export const chosen = Library.select(3 | 0)(9 | 0);
+  | ^ 8:1 chosen = Qualified.select 3 9
+  |                       ^ 8:10 Qualified.select 3 9
+  |                                      ^ 8:27 3 9
+  |                                           ^ 8:10 Qualified.select 3 9
+  |                                             ^ 8:29 9
+  |                                                  ^ 8:10 Qualified.select 3 9

@@ -2,9 +2,9 @@
 source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Control_Apply from "../Control.Apply/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  2 | import * as Data_Functor from "../Data.Functor/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  3 | export function combine(applyFDict) {
    | ^ 6:1 combine left right effect = ado
    |        ^ (combine) 6:1 combine left right effect = ado

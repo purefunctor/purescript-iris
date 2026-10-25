@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Config from "../Config/index.js";
+  | ^ 4:1 import Config (limit)
+2 | import * as Data_Maybe from "../Data.Maybe/index.js";
+  | ^ unmapped
+3 | import * as Data_Show from "../Data.Show/index.js";
+  | ^ 3:1 import Prelude
+4 | export const described = /* @__PURE__ */ Data_Show.show(/* @__PURE__ */ Data_Maybe.showMaybe(Data_Show.showInt))(Config.limit);
+  | ^ 7:1 described = show limit
+  |                          ^ 7:13 show limit
+  |                                                                                                                  ^ 7:18 limit
+  |                                                                                                                              ^ 7:13 show limit

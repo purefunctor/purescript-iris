@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Control_Category from "../Control.Category/index.js";
+  | ^ 3:1 import Prelude
+2 | import * as Data_Maybe from "../Data.Maybe/index.js";
+  | ^ 5:1 import Data.Maybe hiding (fromMaybe)
+3 | import * as Data_Show from "../Data.Show/index.js";
+  | ^ 4:1 import Data.Show (class Show)
+4 | export const described = /* @__PURE__ */ Data_Show.show(Data_Show.showInt);
+  | ^ 8:1 described = show
+  |                          ^ 8:13 show
+5 | export const fallback = Data_Maybe.maybe(0 | 0)(/* @__PURE__ */ Control_Category.identity(Control_Category.categoryFn));
+  | ^ 11:1 fallback = maybe 0 identity
+  |                         ^ 11:12 maybe 0 identity
+  |                                          ^ 11:18 0 identity
+  |                                               ^ 11:12 maybe 0 identity
+  |                                                 ^ 11:20 identity
+  |                                                                                                                       ^ 11:12 maybe 0 identity

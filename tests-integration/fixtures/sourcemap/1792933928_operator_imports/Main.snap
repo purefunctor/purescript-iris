@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Underlying from "../Underlying/index.js";
+  | ^ 3:1 import Operators ((<#>))
+2 | export const chosen = Underlying.select(3 | 0)(9 | 0);
+  | ^ 6:1 chosen = 3 <#> 9
+  |                       ^ 6:10 3 <#> 9
+  |                                                ^ 6:16 9
+  |                                                     ^ 6:10 3 <#> 9

@@ -93,7 +93,14 @@ fixtures.
 
 Each mapping must point at the construct that generated the code: the declaration, equation, local
 binding, case alternative, guard, do or ado statement, or expression. Code for one equation or case
-alternative must not map to a sibling. Imports, re-exports, and the control flow of the `$tail_`
+alternative must not map to a sibling. A module import maps to the first import statement that
+names the module, even one that imports nothing from it, and otherwise to the first statement that
+re-exports one of its items, such as `import Prelude`, or that brings into scope a term or type
+operator resolving to one of its items. A module that no import statement provides, such as one
+reached only through an instance on an imported value's type, stays unmapped. The `./foreign.js`
+and `./index.stylex.js` imports map to the first `foreign import` or theme definition they serve,
+and the `@stylexjs/stylex` import maps to the first import of a StyleX module whose functions the
+generated code calls. Re-exports, the `../runtime.js` import, and the control flow of the `$tail_`
 dispatcher are unmapped; treat other new `unmapped` lines as regressions.
 
 A function defined by a named declaration or local binding carries its PureScript name, and so does
