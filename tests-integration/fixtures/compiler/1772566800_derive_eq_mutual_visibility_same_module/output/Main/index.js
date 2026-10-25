@@ -31,7 +31,7 @@ export const eqDuration = /* @__PURE__ */ (() => {
         const { _1: left0, _2: left1 } = left;
         const { _1: right0, _2: right1 } = right;
         if (/* @__PURE__ */ Data_Eq.eq(eqDurationComponent)(left0)(right0)) {
-          if (/* @__PURE__ */ Data_Eq.eq(Data_Eq.eqInt)(left1)(right1)) {
+          if (left1 === right1) {
             return true;
           } else {
             return false;

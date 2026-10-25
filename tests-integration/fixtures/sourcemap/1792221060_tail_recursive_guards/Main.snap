@@ -3,54 +3,52 @@ source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Data_Boolean from "../Data.Boolean/index.js";
    | ^ unmapped
- 2 | import * as Data_Ord from "../Data.Ord/index.js";
-   | ^ unmapped
- 3 | export function sumTo(total) {
+ 2 | export function sumTo(total) {
    | ^ 6:1 sumTo total count
    |        ^ (sumTo) 6:1 sumTo total count
    |                              ^ 6:1 sumTo total count
- 4 |   return (count) => {
+ 3 |   return (count) => {
    |   ^ (sumTo) 6:1 sumTo total count
    |                     ^ 6:1 sumTo total count
- 5 |     let $argument0 = total;
+ 4 |     let $argument0 = total;
    |     ^ 6:1 sumTo total count
- 6 |     let $argument1 = count;
+ 5 |     let $argument1 = count;
    |     ^ 6:1 sumTo total count
- 7 |     while (true) {
+ 6 |     while (true) {
    |     ^ 6:1 sumTo total count
- 8 |       const $currentArgument0 = $argument0;
+ 7 |       const $currentArgument0 = $argument0;
    |       ^ 6:1 sumTo total count
- 9 |       const $currentArgument1 = $argument1;
+ 8 |       const $currentArgument1 = $argument1;
    |       ^ 6:1 sumTo total count
-10 |       if (/* @__PURE__ */ Data_Ord.lessThanOrEq(Data_Ord.ordInt)($currentArgument1)(0 | 0)) {
+ 9 |       if ($currentArgument1 <= (0 | 0)) {
    |       ^ 7:5 count <= 0 = total
-   |                                                                                     ^ 7:14 0 = total
-   |                                                                                          ^ 7:5 count <= 0 = total
-11 |         return $currentArgument0;
+   |                                 ^ 7:14 0 = total
+   |                                         ^ 7:5 count <= 0 = total
+10 |         return $currentArgument0;
    |         ^ 7:18 total
-12 |       }
+11 |       }
    |       ^ 7:5 count <= 0 = total
-13 |       if (Data_Boolean.otherwise) {
+12 |       if (Data_Boolean.otherwise) {
    |       ^ 8:5 otherwise = sumTo (total + count) (count - 1)
-14 |         $argument0 = $currentArgument0 + $currentArgument1 | 0;
+13 |         $argument0 = $currentArgument0 + $currentArgument1 | 0;
    |         ^ 8:17 sumTo (total + count) (count - 1)
    |                      ^ 8:24 total + count) (count - 1)
    |                                          ^ 8:32 count) (count - 1)
    |                                                              ^ 8:24 total + count) (count - 1)
-15 |         $argument1 = $currentArgument1 - (1 | 0) | 0;
+14 |         $argument1 = $currentArgument1 - (1 | 0) | 0;
    |         ^ 8:17 sumTo (total + count) (count - 1)
    |                      ^ 8:40 count - 1)
    |                                           ^ 8:48 1)
    |                                                    ^ 8:40 count - 1)
-16 |         continue;
+15 |         continue;
    |         ^ 8:17 sumTo (total + count) (count - 1)
-17 |       }
+16 |       }
    |       ^ 8:5 otherwise = sumTo (total + count) (count - 1)
-18 |       throw new Error("Pattern match failure");
+17 |       throw new Error("Pattern match failure");
    |       ^ 6:1 sumTo total count
-19 |     }
+18 |     }
    |     ^ 6:1 sumTo total count
-20 |   };
+19 |   };
    |   ^ 6:1 sumTo total count
-21 | }
+20 | }
    | ^ 6:1 sumTo total count

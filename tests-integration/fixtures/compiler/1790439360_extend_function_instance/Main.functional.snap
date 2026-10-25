@@ -1,16 +1,10 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = extendFunctionStringDictExtend (\f%0 -> f%0 "B")
-  (\s%1 -> semigroupStringDictAppend s%1 "!")
-  "A"
+@export test = extendFunctionStringDictExtend (\f%0 -> f%0 "B") (\s%1 -> string.append s%1 "!") "A"
 
-@export test' = extendFunctionStringDictExtend (\f%2 -> f%2 "B")
-  (\s%3 -> semigroupStringDictAppend s%3 "!")
-  "A"
+@export test' = extendFunctionStringDictExtend (\f%2 -> f%2 "B") (\s%3 -> string.append s%3 "!") "A"
 
 extendFunctionStringDict = extendFn semigroupString
-
-semigroupStringDictAppend = append semigroupString
 
 extendFunctionStringDictExtend = extend extendFunctionStringDict

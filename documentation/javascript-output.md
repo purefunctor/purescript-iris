@@ -41,16 +41,26 @@ all of its arguments and the canonical Prelude instance. A partial application, 
 with `let` or passed through `flip`, and a generic or custom dictionary still call the Prelude
 function or class member.
 
-| PureScript          | Operand types | JavaScript                     |
-| ------------------- | ------------- | ------------------------------ |
-| `not`, `&&`, `\|\|` | `Boolean`     | `!`, `&&`, `\|\|`              |
-| `+`, `-`, `*`       | `Int`         | `left + right \| 0`, and so on |
-| `negate`            | `Int`         | `-value \| 0`                  |
-| `negate`            | `Number`      | `-value`                       |
+| PureScript          | Operand types                                | JavaScript                            |
+| ------------------- | -------------------------------------------- | ------------------------------------- |
+| `not`, `&&`, `\|\|` | `Boolean`                                    | `!`, `&&`, `\|\|`                     |
+| `+`, `-`, `*`       | `Int`                                        | `left + right \| 0`, and so on        |
+| `negate`            | `Int`                                        | `-value \| 0`                         |
+| `negate`            | `Number`                                     | `-value`                              |
+| `+`, `-`, `*`, `/`  | `Number`                                     | `+`, `-`, `*`, `/`                    |
+| `<>`                | `String`                                     | `+`                                   |
+| `==`, `/=`          | `Boolean`, `Int`, `Number`, `Char`, `String` | `===`, `!==`                          |
+| `<`, `<=`           | `Boolean`, `Int`, `Number`, `Char`, `String` | `<`, `<=`                             |
+| `>`, `>=`           | `Boolean`, `Int`, `Char`, `String`           | `>`, `>=`                             |
+| `>`, `>=`           | `Number`                                     | `!(left <= right)`, `!(left < right)` |
 
 - `&&` and `||` evaluate the right operand only when the left operand does not decide the result. A
   call to `conj` or `disj` that Iris does not inline evaluates both operands. purs inlines these
   operators the same way.
+- Each comparison and arithmetic operator returns the same result as the Prelude function or class
+  member it replaces. Prelude's `Number` `compare` returns `GT` when either operand is `NaN`, so
+  `greaterThan` and `greaterThanOrEq` return `true`. The negated forms for `Number` `>` and `>=`
+  keep that result. purs and purescript-backend-optimizer emit `>` and `>=`, which return `false`.
 - `Number` `negate` is the exception. It matches purs and purescript-backend-optimizer instead of
   Prelude's definition, `zero - value`. Negating positive zero gives negative zero, and negating
   negative zero gives positive zero, also when Iris folds a literal. Source `-0.0` resolves through
@@ -141,15 +151,17 @@ output, foreign files, and runtime helpers together.
 Review generated output first. These tracked outputs are examples, not complete contracts.
 Regenerate output for the exact inputs under review.
 
-| Behavior                     | Example output                                                                                                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Data constructors            | [1784637780_data_declarations](../tests-integration/fixtures/compiler/1784637780_data_declarations/output/Main/index.js)                                           |
-| Newtypes                     | [1787506320_direct_newtype_constructor_application](../tests-integration/fixtures/compiler/1787506320_direct_newtype_constructor_application/output/Main/index.js) |
-| Instance dictionaries        | [1787392080_cyclic_instance_dictionaries](../tests-integration/fixtures/compiler/1787392080_cyclic_instance_dictionaries/output/Main/index.js)                     |
-| Record updates               | [1784906340_record_update_expressions](../tests-integration/fixtures/compiler/1784906340_record_update_expressions/output/Main/index.js)                           |
-| Boolean and `Int` operations | [1787547540_known_primitive_operations](../tests-integration/fixtures/compiler/1787547540_known_primitive_operations/output/Main/index.js)                         |
-| Effect actions               | [1787673600_effect_do_thunks](../tests-integration/fixtures/compiler/1787673600_effect_do_thunks/output/Main/index.js)                                             |
-| StyleX integration           | [1787994720_stylex_intrinsics](../tests-integration/fixtures/compiler/1787994720_stylex_intrinsics/output/Main/index.js)                                           |
+| Behavior                         | Example output                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Data constructors                | [1784637780_data_declarations](../tests-integration/fixtures/compiler/1784637780_data_declarations/output/Main/index.js)                                           |
+| Newtypes                         | [1787506320_direct_newtype_constructor_application](../tests-integration/fixtures/compiler/1787506320_direct_newtype_constructor_application/output/Main/index.js) |
+| Instance dictionaries            | [1787392080_cyclic_instance_dictionaries](../tests-integration/fixtures/compiler/1787392080_cyclic_instance_dictionaries/output/Main/index.js)                     |
+| Record updates                   | [1784906340_record_update_expressions](../tests-integration/fixtures/compiler/1784906340_record_update_expressions/output/Main/index.js)                           |
+| Boolean and `Int` operations     | [1787547540_known_primitive_operations](../tests-integration/fixtures/compiler/1787547540_known_primitive_operations/output/Main/index.js)                         |
+| Comparisons                      | [1792887683_known_primitive_comparisons](../tests-integration/fixtures/compiler/1792887683_known_primitive_comparisons/output/Main/index.js)                       |
+| `Number` and `String` operations | [1792887743_known_number_and_string_operations](../tests-integration/fixtures/compiler/1792887743_known_number_and_string_operations/output/Main/index.js)         |
+| Effect actions                   | [1787673600_effect_do_thunks](../tests-integration/fixtures/compiler/1787673600_effect_do_thunks/output/Main/index.js)                                             |
+| StyleX integration               | [1787994720_stylex_intrinsics](../tests-integration/fixtures/compiler/1787994720_stylex_intrinsics/output/Main/index.js)                                           |
 
 When output is surprising, read the implementation.
 

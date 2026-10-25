@@ -5,46 +5,49 @@ source: tests-integration/src/fixtures.rs
 
 @export foreign readTrace
 
-@export booleanEqual = \left%0 right%1 -> eq eqBoolean left%0 right%1
+@export booleanEqual = \left%0 right%1 -> boolean.equal left%0 right%1
 
-@export integerEqual = \left%2 right%3 -> eq eqInt left%2 right%3
+@export integerEqual = \left%2 right%3 -> integer.equal left%2 right%3
 
-@export numberEqual = \left%4 right%5 -> eq eqNumber left%4 right%5
+@export numberEqual = \left%4 right%5 -> number.equal left%4 right%5
 
-@export charNotEqual = \left%6 right%7 -> notEq eqChar left%6 right%7
+@export charNotEqual = \left%6 right%7 -> char.not_equal left%6 right%7
 
-@export stringNotEqual = \left%8 right%9 -> notEq eqString left%8 right%9
+@export stringNotEqual = \left%8 right%9 -> string.not_equal left%8 right%9
 
-@export booleanLessThan = \left%10 right%11 -> lessThan ordBoolean left%10 right%11
+@export booleanLessThan = \left%10 right%11 -> boolean.less_than left%10 right%11
 
-@export integerLessThanOrEqual = \left%12 right%13 -> lessThanOrEq ordInt left%12 right%13
+@export integerLessThanOrEqual = \left%12 right%13 -> integer.less_than_or_equal left%12 right%13
 
-@export charGreaterThan = \left%14 right%15 -> greaterThan ordChar left%14 right%15
+@export charGreaterThan = \left%14 right%15 -> char.greater_than left%14 right%15
 
-@export stringGreaterThanOrEqual = \left%16 right%17 -> greaterThanOrEq ordString left%16 right%17
+@export stringGreaterThanOrEqual = \left%16 right%17 ->
+  string.greater_than_or_equal left%16 right%17
 
-@export numberNotEqual = \left%18 right%19 -> notEq eqNumber left%18 right%19
+@export numberNotEqual = \left%18 right%19 -> number.not_equal left%18 right%19
 
-@export numberLessThan = \left%20 right%21 -> lessThan ordNumber left%20 right%21
+@export numberLessThan = \left%20 right%21 -> number.less_than left%20 right%21
 
-@export numberLessThanOrEqual = \left%22 right%23 -> lessThanOrEq ordNumber left%22 right%23
+@export numberLessThanOrEqual = \left%22 right%23 -> number.less_than_or_equal left%22 right%23
 
-@export numberGreaterThan = \left%24 right%25 -> greaterThan ordNumber left%24 right%25
+@export numberGreaterThan = \left%24 right%25 ->
+  boolean.not (number.less_than_or_equal left%24 right%25)
 
-@export numberGreaterThanOrEqual = \left%26 right%27 -> greaterThanOrEq ordNumber left%26 right%27
+@export numberGreaterThanOrEqual = \left%26 right%27 ->
+  boolean.not (number.less_than left%26 right%27)
 
 @export numberNotGreaterThan = \left%28 right%29 ->
-  boolean.not (greaterThan ordNumber left%28 right%29)
+  boolean.not (boolean.not (number.less_than_or_equal left%28 right%29))
 
 @export integerBetween = \low%30 high%32 value%31 ->
-  boolean.and (lessThanOrEq ordInt low%30 value%31) (lessThan ordInt value%31 high%32)
+  boolean.and (integer.less_than_or_equal low%30 value%31) (integer.less_than value%31 high%32)
 
-@export comparisonOrder = \$boolean%33@(_) -> lessThan ordInt (observe "left" 1) (observe "right" 2)
+@export comparisonOrder = \$boolean%33@(_) ->
+  integer.less_than (observe "left" 1) (observe "right" 2)
 
 @export comparisonCaseOrder = \left%34 flag%35 ->
-  greaterThan ordNumber (observe "left" left%34)
-    (case observe "flag" flag%35 of
-      true ->
-        observe "right" 1.0
-      false ->
-        observe "right" 2.0)
+  boolean.not (number.less_than_or_equal (observe "left" left%34) (case observe "flag" flag%35 of
+    true ->
+      observe "right" 1.0
+    false ->
+      observe "right" 2.0))

@@ -3,11 +3,11 @@ source: tests-integration/src/fixtures.rs
 ---
 @export sharedAppend = \value%2 ->
   let
-    doubled%1 = append semigroupString value%2 value%2
+    doubled%1 = string.append value%2 value%2
   in \$unit%0@(_) -> doubled%1
 
 @export sharedEqual = \left%5 right%6 ->
   let
-    matches%4 = eq eqString left%5 right%6
+    matches%4 = string.equal left%5 right%6
   in \value%3 ->
     if matches%4 then value%3 else 0

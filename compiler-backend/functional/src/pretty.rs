@@ -4,10 +4,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
-    BinaryOperator, Declaration, DeclarationKind, EffectExpression, ExpressionId, ExpressionKind,
-    Field, GlobalId, Guard, IndirectModuleExports, Literal, Module, Parameter, PatternId,
-    PatternKind, RecordUpdate, ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence,
-    UnaryOperator,
+    BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression, ExpressionId,
+    ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module, Parameter,
+    PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence, ReflectableOrdering,
+    SynthesizedEvidence, UnaryOperator,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -159,16 +159,40 @@ impl<'a> Printer<'a, '_> {
                 self.arena.text(operator).append(" ").append(value)
             }
             ExpressionKind::Binary { operator, left, right } => {
-                let operator = match operator {
-                    BinaryOperator::BooleanAnd => "boolean.and",
-                    BinaryOperator::BooleanOr => "boolean.or",
-                    BinaryOperator::IntegerAdd => "integer.add",
-                    BinaryOperator::IntegerSubtract => "integer.subtract",
-                    BinaryOperator::IntegerMultiply => "integer.multiply",
+                let (operand, operation) = match operator {
+                    BinaryOperator::BooleanAnd => ("boolean", "and"),
+                    BinaryOperator::BooleanOr => ("boolean", "or"),
+                    BinaryOperator::IntegerAdd => ("integer", "add"),
+                    BinaryOperator::IntegerSubtract => ("integer", "subtract"),
+                    BinaryOperator::IntegerMultiply => ("integer", "multiply"),
+                    BinaryOperator::NumberAdd => ("number", "add"),
+                    BinaryOperator::NumberSubtract => ("number", "subtract"),
+                    BinaryOperator::NumberMultiply => ("number", "multiply"),
+                    BinaryOperator::NumberDivide => ("number", "divide"),
+                    BinaryOperator::StringAppend => ("string", "append"),
+                    BinaryOperator::Comparison { operand, comparison } => {
+                        let operand = match operand {
+                            PrimitiveType::Boolean => "boolean",
+                            PrimitiveType::Integer => "integer",
+                            PrimitiveType::Number => "number",
+                            PrimitiveType::Char => "char",
+                            PrimitiveType::String => "string",
+                        };
+                        let comparison = match comparison {
+                            Comparison::Equal => "equal",
+                            Comparison::NotEqual => "not_equal",
+                            Comparison::LessThan => "less_than",
+                            Comparison::LessThanOrEqual => "less_than_or_equal",
+                            Comparison::GreaterThan => "greater_than",
+                            Comparison::GreaterThanOrEqual => "greater_than_or_equal",
+                        };
+                        (operand, comparison)
+                    }
                 };
                 let left = self.expression_at(*left, ExpressionPrecedence::Atom);
                 let right = self.expression_at(*right, ExpressionPrecedence::Atom);
-                self.arena.text(operator).append(" ").append(left).append(" ").append(right)
+                let operator = self.arena.text(format!("{operand}.{operation}"));
+                operator.append(" ").append(left).append(" ").append(right)
             }
             ExpressionKind::Constructor { global } | ExpressionKind::Global { global } => {
                 self.arena.text(global.item_name.to_string())

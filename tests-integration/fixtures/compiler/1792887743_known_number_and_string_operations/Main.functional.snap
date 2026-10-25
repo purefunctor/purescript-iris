@@ -5,31 +5,30 @@ source: tests-integration/src/fixtures.rs
 
 @export foreign readTrace
 
-@export numberAdd = \left%0 right%1 -> semiringNumberDictAdd left%0 right%1
+@export numberAdd = \left%0 right%1 -> number.add left%0 right%1
 
-@export numberSubtract = \left%2 right%3 -> ringNumberDictSub left%2 right%3
+@export numberSubtract = \left%2 right%3 -> number.subtract left%2 right%3
 
-@export numberMultiply = \left%4 right%5 -> mul semiringNumber left%4 right%5
+@export numberMultiply = \left%4 right%5 -> number.multiply left%4 right%5
 
-@export numberDivide = \left%6 right%7 -> euclideanRingNumberDictDiv left%6 right%7
+@export numberDivide = \left%6 right%7 -> number.divide left%6 right%7
 
 @export numberSubtractGrouped = \first%8 second%9 third%10 ->
-  ringNumberDictSub first%8 (ringNumberDictSub second%9 third%10)
+  number.subtract first%8 (number.subtract second%9 third%10)
 
 @export numberAddGrouped = \first%11 second%12 third%13 ->
-  semiringNumberDictAdd first%11 (semiringNumberDictAdd second%12 third%13)
+  number.add first%11 (number.add second%12 third%13)
 
-@export stringAppend = \left%14 right%15 -> semigroupStringDictAppend left%14 right%15
+@export stringAppend = \left%14 right%15 -> string.append left%14 right%15
 
 @export stringAppendGrouped = \first%16 second%17 third%18 ->
-  semigroupStringDictAppend first%16 (semigroupStringDictAppend second%17 third%18)
+  string.append first%16 (string.append second%17 third%18)
 
-@export numberAddOrder = \$boolean%19@(_) ->
-  semiringNumberDictAdd (observe "left" 20.0) (observe "right" 22.0)
+@export numberAddOrder = \$boolean%19@(_) -> number.add (observe "left" 20.0) (observe "right" 22.0)
 
-@export partiallyAppliedDivide = euclideanRingNumberDictDiv 1.0
+@export partiallyAppliedDivide = div euclideanRingNumber 1.0
 
-@export partiallyAppliedAppend = semigroupStringDictAppend "prefix"
+@export partiallyAppliedAppend = append semigroupString "prefix"
 
 @export integerDivide = \left%20 right%21 -> div euclideanRingInt left%20 right%21
 
@@ -37,11 +36,3 @@ source: tests-integration/src/fixtures.rs
 
 @export genericAppend = \semigroupValueDict%24 ->
   \left%25 right%26 -> append semigroupValueDict%24 left%25 right%26
-
-semiringNumberDictAdd = add semiringNumber
-
-ringNumberDictSub = sub ringNumber
-
-euclideanRingNumberDictDiv = div euclideanRingNumber
-
-semigroupStringDictAppend = append semigroupString

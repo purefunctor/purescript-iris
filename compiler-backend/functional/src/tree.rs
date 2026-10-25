@@ -286,6 +286,31 @@ pub enum BinaryOperator {
     IntegerAdd,
     IntegerSubtract,
     IntegerMultiply,
+    NumberAdd,
+    NumberSubtract,
+    NumberMultiply,
+    NumberDivide,
+    StringAppend,
+    Comparison { operand: PrimitiveType, comparison: Comparison },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveType {
+    Boolean,
+    Integer,
+    Number,
+    Char,
+    String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Comparison {
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

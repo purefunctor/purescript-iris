@@ -7,11 +7,47 @@ use itertools::Itertools;
 use smol_str::format_smolstr;
 
 use crate::tree::{
-    BinaryOperator, Binding, EffectExpression, ExpressionId, ExpressionKind, GlobalId,
-    InstanceIdentity, Literal, Parameter, PatternKind, RecordField, UnaryOperator,
+    BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId, ExpressionKind, GlobalId,
+    InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType, RecordField, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
+
+const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
+    ("Data.HeytingAlgebra", "conj", "heytingAlgebraBoolean", BinaryOperator::BooleanAnd),
+    ("Data.HeytingAlgebra", "disj", "heytingAlgebraBoolean", BinaryOperator::BooleanOr),
+    ("Data.Semiring", "add", "semiringInt", BinaryOperator::IntegerAdd),
+    ("Data.Ring", "sub", "ringInt", BinaryOperator::IntegerSubtract),
+    ("Data.Semiring", "mul", "semiringInt", BinaryOperator::IntegerMultiply),
+    ("Data.Semiring", "add", "semiringNumber", BinaryOperator::NumberAdd),
+    ("Data.Ring", "sub", "ringNumber", BinaryOperator::NumberSubtract),
+    ("Data.Semiring", "mul", "semiringNumber", BinaryOperator::NumberMultiply),
+    ("Data.EuclideanRing", "div", "euclideanRingNumber", BinaryOperator::NumberDivide),
+    ("Data.Semigroup", "append", "semigroupString", BinaryOperator::StringAppend),
+];
+
+const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
+    ("eqBoolean", PrimitiveType::Boolean),
+    ("eqInt", PrimitiveType::Integer),
+    ("eqNumber", PrimitiveType::Number),
+    ("eqChar", PrimitiveType::Char),
+    ("eqString", PrimitiveType::String),
+];
+
+const ORD_INSTANCES: &[(&str, PrimitiveType)] = &[
+    ("ordBoolean", PrimitiveType::Boolean),
+    ("ordInt", PrimitiveType::Integer),
+    ("ordNumber", PrimitiveType::Number),
+    ("ordChar", PrimitiveType::Char),
+    ("ordString", PrimitiveType::String),
+];
+
+const ORD_FUNCTIONS: &[(&str, Comparison)] = &[
+    ("lessThan", Comparison::LessThan),
+    ("lessThanOrEq", Comparison::LessThanOrEqual),
+    ("greaterThan", Comparison::GreaterThan),
+    ("greaterThanOrEq", Comparison::GreaterThanOrEqual),
+];
 
 struct ClassMemberApplication<'a> {
     class: (FileId, TypeItemId),
@@ -198,7 +234,7 @@ where
     }
 
     fn known_operator_application(
-        &self,
+        &mut self,
         function: ExpressionId,
         arguments: &[ExpressionId],
     ) -> QueryResult<Option<ExpressionKind>> {
@@ -214,20 +250,6 @@ where
                 operator: UnaryOperator::BooleanNot,
                 value: *value,
             }));
-        }
-        for (member, operator) in
-            [("conj", BinaryOperator::BooleanAnd), ("disj", BinaryOperator::BooleanOr)]
-        {
-            if let Some([left, right]) = self.known_instance_member_arguments(
-                function,
-                arguments,
-                "Data.HeytingAlgebra",
-                member,
-                "Data.HeytingAlgebra",
-                "heytingAlgebraBoolean",
-            )? {
-                return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
-            }
         }
         if self.known_term(function, "Data.Ring", "negate")?
             && let [dictionary, value] = arguments
@@ -245,47 +267,67 @@ where
                 }));
             }
         }
-        if let Some([left, right]) = self.known_instance_member_arguments(
-            function,
-            arguments,
-            "Data.Semiring",
-            "add",
-            "Data.Semiring",
-            "semiringInt",
-        )? {
-            return Ok(Some(ExpressionKind::Binary {
-                operator: BinaryOperator::IntegerAdd,
-                left: *left,
-                right: *right,
-            }));
+        for &(module_name, member_name, instance_name, operator) in BINARY_INSTANCE_MEMBERS {
+            if let Some([left, right]) = self.known_instance_member_arguments(
+                function,
+                arguments,
+                module_name,
+                member_name,
+                module_name,
+                instance_name,
+            )? {
+                return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
+            }
         }
-        if let Some([left, right]) = self.known_instance_member_arguments(
-            function,
-            arguments,
-            "Data.Ring",
-            "sub",
-            "Data.Ring",
-            "ringInt",
-        )? {
-            return Ok(Some(ExpressionKind::Binary {
-                operator: BinaryOperator::IntegerSubtract,
-                left: *left,
-                right: *right,
-            }));
+        if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
+            self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?
+            && let Some(operand) = self.known_primitive_instance(record, "Data.Eq", EQ_INSTANCES)?
+        {
+            let operator = BinaryOperator::Comparison { operand, comparison: Comparison::Equal };
+            return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
         }
-        if let Some([left, right]) = self.known_instance_member_arguments(
-            function,
-            arguments,
-            "Data.Semiring",
-            "mul",
-            "Data.Semiring",
-            "semiringInt",
-        )? {
-            return Ok(Some(ExpressionKind::Binary {
-                operator: BinaryOperator::IntegerMultiply,
-                left: *left,
-                right: *right,
-            }));
+        if self.known_term(function, "Data.Eq", "notEq")?
+            && let [dictionary, left, right] = arguments
+            && let Some(operand) =
+                self.known_primitive_instance(*dictionary, "Data.Eq", EQ_INSTANCES)?
+        {
+            let operator = BinaryOperator::Comparison { operand, comparison: Comparison::NotEqual };
+            return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
+        }
+        for &(function_name, comparison) in ORD_FUNCTIONS {
+            if self.known_term(function, "Data.Ord", function_name)?
+                && let [dictionary, left, right] = arguments
+                && let Some(operand) =
+                    self.known_primitive_instance(*dictionary, "Data.Ord", ORD_INSTANCES)?
+            {
+                let negated = match (operand, comparison) {
+                    (PrimitiveType::Number, Comparison::GreaterThan) => {
+                        Some(Comparison::LessThanOrEqual)
+                    }
+                    (PrimitiveType::Number, Comparison::GreaterThanOrEqual) => {
+                        Some(Comparison::LessThan)
+                    }
+                    _ => None,
+                };
+                let Some(negated) = negated else {
+                    let operator = BinaryOperator::Comparison { operand, comparison };
+                    return Ok(Some(ExpressionKind::Binary {
+                        operator,
+                        left: *left,
+                        right: *right,
+                    }));
+                };
+                let operator = BinaryOperator::Comparison { operand, comparison: negated };
+                let value = self.expression(ExpressionKind::Binary {
+                    operator,
+                    left: *left,
+                    right: *right,
+                });
+                return Ok(Some(ExpressionKind::Unary {
+                    operator: UnaryOperator::BooleanNot,
+                    value,
+                }));
+            }
         }
         Ok(None)
     }
@@ -665,6 +707,20 @@ where
         };
         Ok(global.item_name == instance_name
             && self.source_module_name(instance_file)? == module_name)
+    }
+
+    fn known_primitive_instance(
+        &self,
+        expression: ExpressionId,
+        module_name: &str,
+        instances: &[(&str, PrimitiveType)],
+    ) -> QueryResult<Option<PrimitiveType>> {
+        for &(instance_name, operand) in instances {
+            if self.known_named_instance(expression, module_name, instance_name)? {
+                return Ok(Some(operand));
+            }
+        }
+        Ok(None)
     }
 
     fn known_thunk_instance(
