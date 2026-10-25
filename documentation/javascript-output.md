@@ -1,144 +1,164 @@
 # JavaScript output: runtime representations and differential reviews
 
-This is a guide to the **JavaScript Iris emits**, not to the compiler's internal
-architecture or to a stable cross-compiler ABI. It describes what to look for in
-`output/<Module>/index.js` when reviewing output against purs. These shapes are
-current output conventions, not a promise that purs produces the same shapes or
-that future Iris backends will use them. Iris JavaScript targets ES2022 and Node.js
-22 or newer.
+This guide describes the JavaScript that Iris emits. It does not describe the compiler's internal
+architecture or a stable cross-compiler ABI. Use it to know what to look for in
+`output/<Module>/index.js` when you review output against purs. The shapes below are current Iris
+conventions. purs can produce different shapes, and future Iris backends need not use these ones.
+Iris JavaScript targets ES2022 and Node.js 22 or newer.
 
 ## Values and calls
 
-### Data, newtypes, and primitives
+### Runtime representations
 
-- A nullary data constructor, including a singleton nullary constructor such as
-  `Proxy`, is a **string containing its constructor name**, not a JavaScript
-  constructor instance. A fully applied constructor with arguments is a plain
-  object with a string `tag` and positional `_1`, `_2`, … properties. Unapplied
-  and partially applied constructors are curried functions that eventually
-  produce that object. Pattern matches compare a nullary string or an object's
-  `tag`, then read positional properties. Check both the producer and all
-  consumers before judging a representation difference.
-- A newtype has **no runtime wrapper**: direct construction and matching use
-  the underlying value, and a first-class newtype constructor acts as identity.
-  Erasure does not imply that arbitrary foreign values satisfy its source type.
-- Records are plain objects and arrays are JavaScript arrays. Record selection
-  reads a property; an update creates a new object using spread and replacement
-  properties (also for nested updates). A field named `__proto__` is emitted as
-  a computed property rather than a prototype-setting object-literal key.
-  Spread copies only own enumerable properties: FFI-produced objects with
-  inherited or non-enumerable fields need separate scrutiny.
-- `Int` literals and recognized arithmetic use JavaScript numbers coerced to
-  32-bit integers with bitwise operations. `Number` uses JavaScript numbers;
-  `String` and `Char` use JavaScript strings; `Boolean` uses JavaScript booleans.
-  Do not read a `| 0` as a different source-level numeric type.
-- Recognized canonical Prelude `Data.Ring.negate` on `Number` emits unary
-  JavaScript `-`, matching purs and purescript-backend-optimizer. Literal
-  folding preserves the sign change: negating positive zero yields negative
-  zero, and negating negative zero yields positive zero. Source `-0.0` resolves
-  through `negate` and evaluates to negative zero; `1.0 / (-0.0)` is
-  `-Infinity` (see [issue #614](https://github.com/purefunctor/purescript-iris/issues/614)).
-  This optimization is distinct from evaluating Prelude's generic definition
-  `zero - value`: `0.0 - 0.0` is positive zero. Generic or custom `Ring`
-  dictionaries retain their own `negate` behavior.
+| PureScript value                                            | JavaScript value                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Nullary data constructor, including singletons like `Proxy` | String that contains the constructor name                                |
+| Fully applied constructor with arguments                    | Plain object with a string `tag` and positional `_1`, `_2`, … properties |
+| Unapplied or partially applied constructor                  | Curried function that returns that object                                |
+| Newtype                                                     | The underlying value, with no wrapper                                    |
+| First-class newtype constructor                             | Identity function                                                        |
+| Record                                                      | Plain object                                                             |
+| `Array`                                                     | JavaScript array                                                         |
+| `Int`                                                       | JavaScript number, coerced to 32 bits with `\| 0`                        |
+| `Number`                                                    | JavaScript number                                                        |
+| `String` and `Char`                                         | JavaScript string                                                        |
+| `Boolean`                                                   | JavaScript boolean                                                       |
+
+- Pattern matches compare a nullary string or an object's `tag`, then read the positional
+  properties. Check the producer and every consumer before you judge a representation difference.
+- Newtype erasure does not mean that an arbitrary foreign value satisfies the newtype's source type.
+- Record selection reads a property. A record update, including a nested update, creates a new
+  object from a spread and replacement properties. Iris emits a field named `__proto__` as a
+  computed property, so the field does not set the prototype. Spread copies only own enumerable
+  properties, so review FFI objects with inherited or non-enumerable fields separately.
+- `| 0` marks `Int` literals and `Int` arithmetic. It does not mean a different source-level numeric
+  type.
+
+### Inlined primitive operations
+
+Iris emits a JavaScript operator instead of a call when a Prelude operation is applied directly to
+all of its arguments and the canonical Prelude instance. A partial application, an operator bound
+with `let` or passed through `flip`, and a generic or custom dictionary still call the Prelude
+function or class member.
+
+| PureScript          | Operand types | JavaScript                     |
+| ------------------- | ------------- | ------------------------------ |
+| `not`, `&&`, `\|\|` | `Boolean`     | `!`, `&&`, `\|\|`              |
+| `+`, `-`, `*`       | `Int`         | `left + right \| 0`, and so on |
+| `negate`            | `Int`         | `-value \| 0`                  |
+| `negate`            | `Number`      | `-value`                       |
+
+- `&&` and `||` evaluate the right operand only when the left operand does not decide the result. A
+  call to `conj` or `disj` that Iris does not inline evaluates both operands. purs inlines these
+  operators the same way.
+- `Number` `negate` is the exception. It matches purs and purescript-backend-optimizer instead of
+  Prelude's definition, `zero - value`. Negating positive zero gives negative zero, and negating
+  negative zero gives positive zero, also when Iris folds a literal. Source `-0.0` resolves through
+  `negate` and evaluates to negative zero, so `1.0 / (-0.0)` is `-Infinity`
+  ([issue #614](https://github.com/purefunctor/purescript-iris/issues/614)). Prelude's `0.0 - 0.0`
+  is positive zero. Generic or custom `Ring` dictionaries keep their own `negate` behavior.
 
 ### Functions, dictionaries, and effects
 
-- Ordinary PureScript functions and applications are curried; output commonly
-  contains one call or arrow per argument. Recognized `Data.Function.Uncurried`
-  `mkFn`/`runFn` uses can instead yield multi-argument JavaScript calls/functions.
-  Selected standard-library applications (including integer, number and boolean
-  operations, composition, identity, and coercions) can disappear into direct
-  expressions. Do not expect one emitted call per source-level call.
-- Class instance dictionaries are objects with member properties; superclass
-  entries are zero-argument functions returning dictionaries. Class member
-  selectors read a property from a dictionary. Synthesized `IsSymbol` and
-  `Reflectable` evidence supplies `reflectSymbol` and `reflectType` functions;
-  trivial evidence is an empty object. Repeated closed dictionaries or member
-  selections can be shared in generated module-level values, moving their
-  construction or property read to module initialization. Other evidence may
-  be shared locally or left inline. Even a simple single-use `let` property
-  read can move into a lambda. Compare *when* a field is read, not merely how
-  many textual reads appear in each file.
-- Effects are zero-argument action functions. For recognized canonical `Effect`
-  or `Control.Monad.ST.Internal` instance operations, generated output may
-  combine pure, bind, `discardUnit`-based discard, map, or apply without calling
-  each combinator. Operands may be captured or evaluated when the action is
-  constructed; the action body runs when the thunk is invoked. Inspect both
-  moments before calling a difference in evaluation order harmless. Similar
-  user-defined monads are not automatically recognized.
+- PureScript functions and applications are curried, so output usually has one call or arrow per
+  argument. Recognized `Data.Function.Uncurried` `mkFn` and `runFn` uses emit multi-argument
+  functions and calls instead. Some standard-library applications become direct expressions: the
+  operations above, composition, identity, and coercions. Do not expect one emitted call per
+  source-level call.
+- A class instance dictionary is an object with one property per member. A superclass entry is a
+  zero-argument function that returns the superclass dictionary. A class member selector reads a
+  property from a dictionary. Synthesized `IsSymbol` and `Reflectable` evidence has `reflectSymbol`
+  and `reflectType` functions. Trivial evidence is an empty object.
+- Iris can share a repeated closed dictionary or member selection as a generated module-level value.
+  This moves its construction or property read to module initialization. Iris shares other evidence
+  locally or leaves it inline, and can move even a single-use `let` property read into a lambda.
+  Compare when each field is read, not how many reads appear in each file.
+- An effect is a zero-argument action function. For recognized canonical `Effect` and
+  `Control.Monad.ST.Internal` instances, Iris can combine `pure`, `bind`, `discardUnit`-based
+  discard, `map`, and `apply` without calling each combinator. Iris can capture or evaluate operands
+  when it builds the action, and runs the action body when the thunk is called. Inspect both moments
+  before you call an evaluation-order difference harmless. Iris does not recognize similar
+  user-defined monads.
 
 ## Modules, control flow, and integrations
 
-- Each PureScript module is emitted as an ES module at `<Module>/index.js`.
-  References to other modules become imports, and exports may be forwarded.
-  Foreign declarations read exports from adjacent `foreign.js` or `foreign.jsx`.
-  Export-name validation does not validate a foreign value's runtime shape or
-  its claimed PureScript type.
-- Top-level functions can appear apart from ordered top-level values. A value
-  initializer may be a direct expression or an immediately invoked function.
-  When all cyclic top-level initializers are instance dictionaries, generated
-  code can use memoizing lazy bindings from `runtime.js`; recursive local
-  non-function values can use these too. Other cyclic top-level initializers
-  cause a diagnostic and emit an initializer that throws when the module loads.
-  Not every module imports `runtime.js`.
-- Cases and guards become branches and pattern tests; non-exhaustive execution
-  can throw a pattern-match error. Tail-recursive functions may use loops or
-  state dispatch rather than recursive calls. Output may materialize intermediate
-  values to preserve evaluation order even when neighboring expressions inline.
-- Recognized `Iris.StyleX` operations can import `@stylexjs/stylex` and call its
-  APIs directly. The virtual Iris StyleX modules are not ordinary runtime
-  imports. Inspect the actual output and dependencies when reviewing this path.
+- Iris emits each PureScript module as an ES module at `<Module>/index.js`. References to other
+  modules become imports, and exports can be forwarded. Foreign declarations read exports from the
+  adjacent `foreign.js` or `foreign.jsx`. Iris validates export names, not a foreign value's runtime
+  shape or its declared PureScript type.
+- Top-level functions can appear apart from the ordered top-level values. A value initializer is a
+  direct expression or an immediately invoked function.
+- If every initializer in a top-level cycle is an instance dictionary, Iris uses memoizing lazy
+  bindings from `runtime.js`. Recursive local non-function values use them too. Any other top-level
+  cycle produces a diagnostic and an initializer that throws when the module loads. Only modules
+  that need `runtime.js` import it.
+- Cases and guards become branches and pattern tests. A non-exhaustive match can throw a
+  pattern-match error at run time. Tail-recursive functions can become loops or state dispatch. Iris
+  can bind intermediate values to keep evaluation order, even when neighboring expressions are
+  inlined.
+- Recognized `Iris.StyleX` operations can import `@stylexjs/stylex` and call its APIs directly. The
+  virtual Iris StyleX modules are not runtime imports. Inspect the actual output and dependencies
+  when you review this path.
 
 ## Reviewing purs against Iris
 
-These representations are **not interchangeable across generated trees**. A
-different `Proxy` shape or a different point of reading a Bind field, as in the
+The two compilers' representations do not mix. A different `Proxy` shape, or a different point at
+which a `Bind` field is read, as in the
 [Control.Bind investigation in issue #559](https://github.com/purefunctor/purescript-iris/issues/559),
-is neither by itself a demonstrated compiler bug nor a blanket exemption. Keep
-each compiler's output, foreign files, and runtime helpers internally consistent.
+does not by itself show a compiler bug, and it is not a blanket exemption. Keep each compiler's
+output, foreign files, and runtime helpers together.
 
-1. Pin both compiler versions, dependency set, source and FFI revisions, build
-   options, and entry point. Hash both generated files for every corresponding
-   module pair, plus relevant foreign files and runtime helpers. Trace callers,
-   imports, producers, and consumers, not just corresponding declarations.
-   Re-review when inputs, hashes, or relevant guidance change. If a project
-   maintains accepted known differences, check an entry's pins and hashes;
-   never treat it as an exemption for new output.
-2. Classify each pair as **reviewed** (with scope and evidence), **inconclusive**
-   (with missing evidence), or **unreviewed**. Explain what differs in shape,
-   identity, evaluation timing, and valid-program observability. Foreign code,
-   unsafe coercion, cross-tree mixing, and mutable/impure dictionaries require
-   separate treatment rather than an unqualified equivalence claim.
-3. Before claiming a semantic mismatch, independently reason out a
-   discriminating **valid PureScript** witness and the expected observation for
-   each compiler. Execute it with each compiler's own consistent output and FFI;
-   preserve both generated trees, observations, and failure logs. Matching
-   observations cover only the exercised cases, not equivalence. Do not silently
-   accept or update goldens to settle a differential finding.
+1. Pin both compiler versions, the dependency set, the source and FFI revisions, the build options,
+   and the entry point. Hash both generated files for each corresponding module pair, and the
+   relevant foreign files and runtime helpers. Trace callers, imports, producers, and consumers, not
+   only the corresponding declarations. Review again when inputs, hashes, or relevant guidance
+   change. If a project keeps a list of accepted differences, check each entry's pins and hashes. An
+   entry never exempts new output.
+2. Classify each module pair and explain how the pair differs in shape, identity, evaluation timing,
+   and what a valid program can observe. Foreign code, unsafe coercion, mixed trees, and mutable or
+   impure dictionaries need separate treatment, not a plain equivalence claim.
+
+   | Classification | Record with it         |
+   | -------------- | ---------------------- |
+   | Reviewed       | The scope and evidence |
+   | Inconclusive   | The missing evidence   |
+   | Unreviewed     | Nothing further        |
+
+3. Before you claim a semantic mismatch, work out a valid PureScript program that tells the
+   compilers apart, and the result you expect from each. Run it with each compiler's own output and
+   FFI. Keep both generated trees, the results, and any failure logs. Matching results cover only
+   the cases you ran. They do not prove equivalence. Do not accept or update goldens to settle a
+   difference.
 
 ## Where to check these claims
 
-Review **generated output first**. Representative tracked outputs include
-[data constructors](../tests-integration/fixtures/compiler/1784637780_data_declarations/output/Main/index.js),
-[newtypes](../tests-integration/fixtures/compiler/1787506320_direct_newtype_constructor_application/output/Main/index.js),
-[instance dictionaries](../tests-integration/fixtures/compiler/1787392080_cyclic_instance_dictionaries/output/Main/index.js),
-[record updates](../tests-integration/fixtures/compiler/1784906340_record_update_expressions/output/Main/index.js),
-[Effect actions](../tests-integration/fixtures/compiler/1787673600_effect_do_thunks/output/Main/index.js), and
-[StyleX integration](../tests-integration/fixtures/compiler/1787994720_stylex_intrinsics/output/Main/index.js).
-These are examples, not exhaustive contracts; regenerate output for the exact
-inputs under review.
+Review generated output first. These tracked outputs are examples, not complete contracts.
+Regenerate output for the exact inputs under review.
 
-For implementation context when output is surprising, consult
-[constructor/literal emission](../compiler-backend/javascript/src/convert/generator/functional/render/syntax.rs),
-[newtype lowering](../compiler-backend/functional/src/convert/expression.rs),
-[dictionary creation](../compiler-backend/functional/src/convert/declaration.rs),
-[evidence sharing](../compiler-backend/functional/src/convert/evidence.rs),
-[let inlining](../compiler-backend/functional/src/optimize.rs),
-[call recognition](../compiler-backend/functional/src/convert/application.rs),
-[initializers, patterns, effects and exports](../compiler-backend/javascript/src/convert/generator/functional/render.rs),
-[cycle selection](../compiler-backend/javascript/src/convert/generator/functional/render/structure.rs),
-[record emission](../compiler-backend/javascript/src/tree.rs),
-[StyleX lowering](../compiler-backend/functional/src/convert/stylex.rs), and
-[foreign validation](../compiler-backend/foreign-javascript/src/lib.rs).
+| Behavior                     | Example output                                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Data constructors            | [1784637780_data_declarations](../tests-integration/fixtures/compiler/1784637780_data_declarations/output/Main/index.js)                                           |
+| Newtypes                     | [1787506320_direct_newtype_constructor_application](../tests-integration/fixtures/compiler/1787506320_direct_newtype_constructor_application/output/Main/index.js) |
+| Instance dictionaries        | [1787392080_cyclic_instance_dictionaries](../tests-integration/fixtures/compiler/1787392080_cyclic_instance_dictionaries/output/Main/index.js)                     |
+| Record updates               | [1784906340_record_update_expressions](../tests-integration/fixtures/compiler/1784906340_record_update_expressions/output/Main/index.js)                           |
+| Boolean and `Int` operations | [1787547540_known_primitive_operations](../tests-integration/fixtures/compiler/1787547540_known_primitive_operations/output/Main/index.js)                         |
+| Effect actions               | [1787673600_effect_do_thunks](../tests-integration/fixtures/compiler/1787673600_effect_do_thunks/output/Main/index.js)                                             |
+| StyleX integration           | [1787994720_stylex_intrinsics](../tests-integration/fixtures/compiler/1787994720_stylex_intrinsics/output/Main/index.js)                                           |
+
+When output is surprising, read the implementation.
+
+| Topic                                        | Source                                                                                                     |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Constructor, literal, and operator emission  | [render/syntax.rs](../compiler-backend/javascript/src/convert/generator/functional/render/syntax.rs)       |
+| Newtype lowering                             | [convert/expression.rs](../compiler-backend/functional/src/convert/expression.rs)                          |
+| Dictionary creation                          | [convert/declaration.rs](../compiler-backend/functional/src/convert/declaration.rs)                        |
+| Evidence sharing                             | [convert/evidence.rs](../compiler-backend/functional/src/convert/evidence.rs)                              |
+| Let inlining and literal folding             | [optimize.rs](../compiler-backend/functional/src/optimize.rs)                                              |
+| Call and primitive operation recognition     | [convert/application.rs](../compiler-backend/functional/src/convert/application.rs)                        |
+| Initializers, patterns, effects, and exports | [render.rs](../compiler-backend/javascript/src/convert/generator/functional/render.rs)                     |
+| Cycle selection                              | [render/structure.rs](../compiler-backend/javascript/src/convert/generator/functional/render/structure.rs) |
+| Record emission                              | [tree.rs](../compiler-backend/javascript/src/tree.rs)                                                      |
+| StyleX lowering                              | [convert/stylex.rs](../compiler-backend/functional/src/convert/stylex.rs)                                  |
+| Foreign validation                           | [foreign-javascript/src/lib.rs](../compiler-backend/foreign-javascript/src/lib.rs)                         |
+
 For fixtures and golden regeneration, see [CONTRIBUTING.md](../CONTRIBUTING.md).
