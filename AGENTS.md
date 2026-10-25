@@ -127,6 +127,13 @@ this in the functional dependency closure computation and exhaustiveness checker
 Testing internal behaviour such as the compiler belongs in the `tests-integration` crate. Testing
 external behaviour such as the command line belongs in the `tests-e2e` crate.
 
+### Preflight checks
+
+Before shipping a change, perform a preflight check. You can push to a remote branch to build and
+test the project against other supported platforms using CI. You may skip preflight checks if you
+are confident that the change does not need cross-platform verification; tell the user if you chose
+not to and why. Delete the remote branches you create once the changes ship.
+
 ## Commits
 
 Commits must be atomic units of work. Branches land on `main` through merge commits. Thoughtfully
