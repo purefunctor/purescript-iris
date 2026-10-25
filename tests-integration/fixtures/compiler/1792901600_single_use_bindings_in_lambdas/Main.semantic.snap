@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+sharedIntegerAdd :: Prim.Int -> Prim.Int -> Prim.Int -> Prim.Int
+sharedIntegerAdd = \left -> \right ->
+  let
+    total :: Prim.Int
+    total = add {semiringInt} left right
+  in
+    \value -> add {semiringInt} total value
+
+sharedRecord :: Prim.Int -> Data.Unit.Unit -> { value :: Prim.Int }
+sharedRecord = \value ->
+  let
+    record :: { value :: Prim.Int }
+    record = { value }
+  in
+    \_ -> record
+
+directUse :: Prim.Int -> Prim.Int -> Prim.Int
+directUse = \left -> \right ->
+  let
+    total :: Prim.Int
+    total = add {semiringInt} left right
+  in
+    mul {semiringInt} total 2
+
+branchUse :: Prim.Boolean -> Prim.Int -> Prim.Int -> Prim.Int
+branchUse = \flag -> \left -> \right ->
+  let
+    total :: Prim.Int
+    total = add {semiringInt} left right
+  in
+    if flag then total else 0

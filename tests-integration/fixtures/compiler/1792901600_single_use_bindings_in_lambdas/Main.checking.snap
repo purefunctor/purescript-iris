@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sharedIntegerAdd :: Prim.Int -> Prim.Int -> Prim.Int -> Prim.Int
+sharedRecord :: Prim.Int -> Data.Unit.Unit -> { value :: Prim.Int }
+directUse :: Prim.Int -> Prim.Int -> Prim.Int
+branchUse :: Prim.Boolean -> Prim.Int -> Prim.Int -> Prim.Int
+
+Types

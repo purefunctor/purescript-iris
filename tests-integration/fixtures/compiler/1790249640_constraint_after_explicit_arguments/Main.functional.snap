@@ -11,10 +11,10 @@ source: tests-integration/src/fixtures.rs
   (\section60%2 -> integer.add section60%2 5)
 
 @export after = \prefix%3 ->
-  \showADict%4 -> \value%5 -> semigroupStringDictAppend prefix%3 (show showADict%4 value%5)
+  \showADict%4 -> \value%5 -> string.append prefix%3 (show showADict%4 value%5)
 
 @export before = \showADict%7 ->
-  \prefix%6 value%8 -> semigroupStringDictAppend prefix%6 (show showADict%7 value%8)
+  \prefix%6 value%8 -> string.append prefix%6 (show showADict%7 value%8)
 
 @export direct = after "value=" showInt 42
 
@@ -29,7 +29,7 @@ source: tests-integration/src/fixtures.rs
     \$a%10 ->
       case $boolean%9, $a%10 of
         true, value%11 ->
-          semigroupStringDictAppend "true=" (show showADict%12 value%11)
+          string.append "true=" (show showADict%12 value%11)
         false, _ ->
           after "false=" showADict%12 $a%10
 
@@ -40,11 +40,9 @@ source: tests-integration/src/fixtures.rs
         if eq eqBDict%13 left%14 right%15 then show showADict%16 value%17 else "different"
 
 @export local = (\prefix%19 ->
-  \showADict%20 -> \value%21 -> semigroupStringDictAppend prefix%19 (show showADict%20 value%21))
+  \showADict%20 -> \value%21 -> string.append prefix%19 (show showADict%20 value%21))
   "local="
   showInt
   13
 
 categoryFunctionDictIdentity = identity categoryFn
-
-semigroupStringDictAppend = append semigroupString

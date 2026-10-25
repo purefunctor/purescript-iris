@@ -3,39 +3,37 @@ source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Data_Functor from "../Data.Functor/index.js";
    | ^ unmapped
- 2 | import * as Data_Semigroup from "../Data.Semigroup/index.js";
+ 2 | import * as Data_Show from "../Data.Show/index.js";
    | ^ unmapped
- 3 | import * as Data_Show from "../Data.Show/index.js";
-   | ^ unmapped
- 4 | function scale_(factor) {
+ 3 | function scale_(factor) {
    | ^ (scale') 6:1 scale' factor value = factor * value
    |                         ^ 6:1 scale' factor value = factor * value
- 5 |   return (value) => {
+ 4 |   return (value) => {
    |   ^ (scale') 6:1 scale' factor value = factor * value
    |                     ^ 6:1 scale' factor value = factor * value
- 6 |     return factor * value | 0;
+ 5 |     return factor * value | 0;
    |     ^ 6:23 factor * value
    |                     ^ 6:32 value
    |                             ^ 6:23 factor * value
- 7 |   };
+ 6 |   };
    |   ^ 6:1 scale' factor value = factor * value
- 8 | }
+ 7 | }
    | ^ 6:1 scale' factor value = factor * value
- 9 | export function offsets(value) {
+ 8 | export function offsets(value) {
    | ^ 9:1 offsets value = shift value + shift (value + 1)
    |        ^ (offsets) 9:1 offsets value = shift value + shift (value + 1)
    |                                ^ 9:1 offsets value = shift value + shift (value + 1)
-10 |   const shift = (amount) => {
+ 9 |   const shift = (amount) => {
    |   ^ 11:3 shift amount = amount + 10
    |         ^ (shift) 11:3 shift amount = amount + 10
    |                             ^ 11:3 shift amount = amount + 10
-11 |     return amount + (10 | 0) | 0;
+10 |     return amount + (10 | 0) | 0;
    |     ^ 11:18 amount + 10
    |                      ^ 11:27 10
    |                                ^ 11:18 amount + 10
-12 |   };
+11 |   };
    |   ^ 11:3 shift amount = amount + 10
-13 |   return shift(value) + shift(value + (1 | 0) | 0) | 0;
+12 |   return shift(value) + shift(value + (1 | 0) | 0) | 0;
    |   ^ 9:17 shift value + shift (value + 1)
    |                ^ 9:23 value + shift (value + 1)
    |                     ^ 9:17 shift value + shift (value + 1)
@@ -45,72 +43,72 @@ source: tests-integration/src/fixtures.rs
    |                                                 ^ 9:38 value + 1)
    |                                                  ^ 9:31 shift (value + 1)
    |                                                      ^ 9:17 shift value + shift (value + 1)
-14 | }
+13 | }
    | ^ 9:1 offsets value = shift value + shift (value + 1)
-15 | export function countdown(start) {
+14 | export function countdown(start) {
    | ^ 14:1 countdown start = go start 0
    |        ^ (countdown) 14:1 countdown start = go start 0
    |                                  ^ 14:1 countdown start = go start 0
-16 |   const go = ($int) => {
+15 |   const go = ($int) => {
    |   ^ 16:3 go 0 total = total
    |         ^ (go) 16:3 go 0 total = total
    |                        ^ 16:3 go 0 total = total
-17 |     return ($int$1) => {
+16 |     return ($int$1) => {
    |     ^ (go) 16:3 go 0 total = total
    |                        ^ 16:3 go 0 total = total
-18 |       let $argument0 = $int;
+17 |       let $argument0 = $int;
    |       ^ 16:3 go 0 total = total
-19 |       let $argument1 = $int$1;
+18 |       let $argument1 = $int$1;
    |       ^ 16:3 go 0 total = total
-20 |       while (true) {
+19 |       while (true) {
    |       ^ 16:3 go 0 total = total
-21 |         const $currentArgument0 = $argument0;
+20 |         const $currentArgument0 = $argument0;
    |         ^ 16:3 go 0 total = total
-22 |         const $currentArgument1 = $argument1;
+21 |         const $currentArgument1 = $argument1;
    |         ^ 16:3 go 0 total = total
-23 |         if ($currentArgument0 === (0 | 0)) {
+22 |         if ($currentArgument0 === (0 | 0)) {
    |         ^ 16:3 go 0 total = total
-24 |           const total = $currentArgument1;
+23 |           const total = $currentArgument1;
    |           ^ 16:3 go 0 total = total
-25 |           return total;
+24 |           return total;
    |           ^ 16:16 total
-26 |         }
+25 |         }
    |         ^ 16:3 go 0 total = total
-27 |         const count = $currentArgument0;
+26 |         const count = $currentArgument0;
    |         ^ 17:3 go count total = go (count - 1) (total + count)
-28 |         const total$1 = $currentArgument1;
+27 |         const total$1 = $currentArgument1;
    |         ^ 17:3 go count total = go (count - 1) (total + count)
-29 |         $argument0 = count - (1 | 0) | 0;
+28 |         $argument0 = count - (1 | 0) | 0;
    |         ^ 17:20 go (count - 1) (total + count)
    |                      ^ 17:24 count - 1) (total + count)
    |                               ^ 17:32 1) (total + count)
    |                                        ^ 17:24 count - 1) (total + count)
-30 |         $argument1 = total$1 + count | 0;
+29 |         $argument1 = total$1 + count | 0;
    |         ^ 17:20 go (count - 1) (total + count)
    |                      ^ 17:36 total + count)
    |                                ^ 17:44 count)
    |                                        ^ 17:36 total + count)
-31 |         continue;
+30 |         continue;
    |         ^ 17:20 go (count - 1) (total + count)
-32 |       }
+31 |       }
    |       ^ 16:3 go 0 total = total
-33 |     };
+32 |     };
    |     ^ 16:3 go 0 total = total
-34 |   };
+33 |   };
    |   ^ 16:3 go 0 total = total
-35 |   return go(start)(0 | 0);
+34 |   return go(start)(0 | 0);
    |   ^ 14:19 go start 0
    |             ^ 14:22 start 0
    |                  ^ 14:19 go start 0
    |                    ^ 14:28 0
    |                         ^ 14:19 go start 0
-36 | }
+35 | }
    | ^ 14:1 countdown start = go start 0
-37 | export function increments(values) {
+36 | export function increments(values) {
    | ^ 20:1 increments values = map (\value -> value + 1) values
    |        ^ (increments) 20:1 increments values = map (\value -> value + 1) values
    |                                    ^ 20:1 increments values = map (\value -> value + 1) values
-38 |   return /* @__PURE__ */ Data_Functor.map(Data_Functor.functorArray)((value) => value + (1 | 0) | 0)(values);
+37 |   return /* @__PURE__ */ Data_Functor.map(Data_Functor.functorArray)((value) => value + (1 | 0) | 0)(values);
    |   ^ 20:21 map (\value -> value + 1) values
    |                                                                       ^ 20:26 \value -> value + 1) values
    |                                                                                 ^ 20:36 value + 1) values
@@ -119,43 +117,38 @@ source: tests-integration/src/fixtures.rs
    |                                                                                                    ^ 20:21 map (\value -> value + 1) values
    |                                                                                                      ^ 20:47 values
    |                                                                                                            ^ 20:21 map (\value -> value + 1) values
-39 | }
+38 | }
    | ^ 20:1 increments values = map (\value -> value + 1) values
-40 | export function describe(showADict) {
+39 | export function describe(showADict) {
    | ^ 23:1 describe first second = show first <> " and " <> show second
    |        ^ (describe) 23:1 describe first second = show first <> " and " <> show second
    |                                     ^ 23:1 describe first second = show first <> " and " <> show second
-41 |   return (first) => (second) => /* @__PURE__ */ semigroupStringDictAppend(/* @__PURE__ */ Data_Show.show(showADict)(first))(/* @__PURE__ */ semigroupStringDictAppend(" and ")(/* @__PURE__ */ Data_Show.show(showADict)(second)));
+40 |   return (first) => (second) => /* @__PURE__ */ Data_Show.show(showADict)(first) + (" and " + /* @__PURE__ */ Data_Show.show(showADict)(second));
    |   ^ (describe) 23:1 describe first second = show first <> " and " <> show second
    |                                 ^ 23:25 show first <> " and " <> show second
-   |                                                                                                                     ^ 23:30 first <> " and " <> show second
-   |                                                                                                                          ^ 23:25 show first <> " and " <> show second
-   |                                                                                                                                                                       ^ 23:39 " and " <> show second
-   |                                                                                                                                                                              ^ 23:25 show first <> " and " <> show second
-   |                                                                                                                                                                                ^ 23:50 show second
-   |                                                                                                                                                                                                                          ^ 23:55 second
-   |                                                                                                                                                                                                                                ^ 23:50 show second
-   |                                                                                                                                                                                                                                 ^ 23:25 show first <> " and " <> show second
-42 | }
+   |                                                                           ^ 23:30 first <> " and " <> show second
+   |                                                                                ^ 23:25 show first <> " and " <> show second
+   |                                                                                     ^ 23:39 " and " <> show second
+   |                                                                                               ^ 23:50 show second
+   |                                                                                                                                         ^ 23:55 second
+   |                                                                                                                                               ^ 23:50 show second
+41 | }
    | ^ 23:1 describe first second = show first <> " and " <> show second
-43 | export function exclaim(showADict) {
+42 | export function exclaim(showADict) {
    | ^ 26:1 exclaim = show >>> \text -> text <> "!"
    |        ^ (exclaim) 26:1 exclaim = show >>> \text -> text <> "!"
    |                                    ^ 26:1 exclaim = show >>> \text -> text <> "!"
-44 |   const composeInner = /* @__PURE__ */ Data_Show.show(showADict);
+43 |   const composeInner = /* @__PURE__ */ Data_Show.show(showADict);
    |   ^ 26:11 show >>> \text -> text <> "!"
-45 |   return (composeArgument) => /* @__PURE__ */ ((text) => /* @__PURE__ */ semigroupStringDictAppend(text)("!"))(/* @__PURE__ */ composeInner(composeArgument));
+44 |   return (composeArgument) => /* @__PURE__ */ ((text) => text + "!")(/* @__PURE__ */ composeInner(composeArgument));
    |   ^ (exclaim) 26:11 show >>> \text -> text <> "!"
    |                               ^ 26:11 show >>> \text -> text <> "!"
    |                                                 ^ 26:20 \text -> text <> "!"
    |                                                          ^ 26:29 text <> "!"
-   |                                                                                                          ^ 26:37 "!"
-   |                                                                                                             ^ 26:29 text <> "!"
-   |                                                                                                               ^ 26:20 \text -> text <> "!"
-   |                                                                                                                ^ 26:11 show >>> \text -> text <> "!"
-46 | }
+   |                                                                 ^ 26:37 "!"
+   |                                                                     ^ 26:20 \text -> text <> "!"
+   |                                                                      ^ 26:11 show >>> \text -> text <> "!"
+45 | }
    | ^ 26:1 exclaim = show >>> \text -> text <> "!"
-47 | const semigroupStringDictAppend = /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupString);
-   | ^ 23:25 show first <> " and " <> show second
-48 | export { scale_ as "scale'" };
+46 | export { scale_ as "scale'" };
    | ^ 6:1 scale' factor value = factor * value

@@ -1,0 +1,65 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+booleanEqual :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+booleanEqual = \left -> \right -> eq {eqBoolean} left right
+
+integerEqual :: Prim.Int -> Prim.Int -> Prim.Boolean
+integerEqual = \left -> \right -> eq {eqInt} left right
+
+numberEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberEqual = \left -> \right -> eq {eqNumber} left right
+
+charNotEqual :: Prim.Char -> Prim.Char -> Prim.Boolean
+charNotEqual = \left -> \right -> notEq {eqChar} left right
+
+stringNotEqual :: Prim.String -> Prim.String -> Prim.Boolean
+stringNotEqual = \left -> \right -> notEq {eqString} left right
+
+booleanLessThan :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+booleanLessThan = \left -> \right -> lessThan {ordBoolean} left right
+
+integerLessThanOrEqual :: Prim.Int -> Prim.Int -> Prim.Boolean
+integerLessThanOrEqual = \left -> \right -> lessThanOrEq {ordInt} left right
+
+charGreaterThan :: Prim.Char -> Prim.Char -> Prim.Boolean
+charGreaterThan = \left -> \right -> greaterThan {ordChar} left right
+
+stringGreaterThanOrEqual :: Prim.String -> Prim.String -> Prim.Boolean
+stringGreaterThanOrEqual = \left -> \right -> greaterThanOrEq {ordString} left right
+
+numberNotEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberNotEqual = \left -> \right -> notEq {eqNumber} left right
+
+numberLessThan :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberLessThan = \left -> \right -> lessThan {ordNumber} left right
+
+numberLessThanOrEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberLessThanOrEqual = \left -> \right -> lessThanOrEq {ordNumber} left right
+
+numberGreaterThan :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberGreaterThan = \left -> \right -> greaterThan {ordNumber} left right
+
+numberGreaterThanOrEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberGreaterThanOrEqual = \left -> \right -> greaterThanOrEq {ordNumber} left right
+
+numberNotGreaterThan :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberNotGreaterThan = \left -> \right ->
+  not {heytingAlgebraBoolean} (greaterThan {ordNumber} left right)
+
+integerBetween :: Prim.Int -> Prim.Int -> Prim.Int -> Prim.Boolean
+integerBetween = \low -> \high -> \value ->
+  conj {heytingAlgebraBoolean} (lessThanOrEq {ordInt} low value) (lessThan {ordInt} value high)
+
+comparisonOrder :: Prim.Boolean -> Prim.Boolean
+comparisonOrder = \_ -> lessThan {ordInt} (observe "left" 1) (observe "right" 2)
+
+comparisonCaseOrder :: Prim.Number -> Prim.Boolean -> Prim.Boolean
+comparisonCaseOrder = \left -> \flag ->
+  greaterThan {ordNumber} (observe "left" left) case observe "flag" flag of
+    true -> observe "right" 1.0
+    false -> observe "right" 2.0

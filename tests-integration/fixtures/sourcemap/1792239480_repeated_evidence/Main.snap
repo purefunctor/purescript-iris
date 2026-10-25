@@ -1,61 +1,55 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
- 1 | import * as Data_Semigroup from "../Data.Semigroup/index.js";
+ 1 | import * as Data_Show from "../Data.Show/index.js";
    | ^ unmapped
- 2 | import * as Data_Show from "../Data.Show/index.js";
-   | ^ unmapped
- 3 | export function showBoth(showADict) {
+ 2 | export function showBoth(showADict) {
    | ^ 6:1 showBoth first second =
    |        ^ (showBoth) 6:1 showBoth first second =
    |                                     ^ 6:1 showBoth first second =
- 4 |   const $closure = (first) => {
+ 3 |   const $closure = (first) => {
    |   ^ 6:1 showBoth first second =
    |         ^ (showBoth) 6:1 showBoth first second =
    |                               ^ 6:1 showBoth first second =
- 5 |     return (second) => {
+ 4 |     return (second) => {
    |     ^ (showBoth) 6:1 showBoth first second =
    |                        ^ 6:1 showBoth first second =
- 6 |       const showArrayDict = /* @__PURE__ */ Data_Show.showArray(showADict);
+ 5 |       const showArrayDict = /* @__PURE__ */ Data_Show.showArray(showADict);
    |       ^ 7:3 show first <> show second
- 7 |       return /* @__PURE__ */ semigroupStringDictAppend(/* @__PURE__ */ Data_Show.show(showArrayDict)(first))(/* @__PURE__ */ Data_Show.show(showArrayDict)(second));
+ 6 |       return /* @__PURE__ */ Data_Show.show(showArrayDict)(first) + /* @__PURE__ */ Data_Show.show(showArrayDict)(second);
    |       ^ 7:3 show first <> show second
-   |                                                                                                      ^ 7:8 first <> show second
-   |                                                                                                           ^ 7:3 show first <> show second
-   |                                                                                                              ^ 7:17 show second
-   |                                                                                                                                                            ^ 7:22 second
-   |                                                                                                                                                                  ^ 7:17 show second
-   |                                                                                                                                                                   ^ 7:3 show first <> show second
- 8 |     };
+   |                                                            ^ 7:8 first <> show second
+   |                                                                 ^ 7:3 show first <> show second
+   |                                                                     ^ 7:17 show second
+   |                                                                                                                   ^ 7:22 second
+   |                                                                                                                         ^ 7:17 show second
+ 7 |     };
    |     ^ 6:1 showBoth first second =
- 9 |   };
+ 8 |   };
    |   ^ 6:1 showBoth first second =
-10 |   return $closure;
+ 9 |   return $closure;
    |   ^ 6:1 showBoth first second =
-11 | }
+10 | }
    | ^ 6:1 showBoth first second =
-12 | export function showIntegers(first) {
+11 | export function showIntegers(first) {
    | ^ 10:1 showIntegers first second =
    |        ^ (showIntegers) 10:1 showIntegers first second =
    |                                     ^ 10:1 showIntegers first second =
-13 |   return (second) => {
+12 |   return (second) => {
    |   ^ (showIntegers) 10:1 showIntegers first second =
    |                      ^ 10:1 showIntegers first second =
-14 |     return /* @__PURE__ */ semigroupStringDictAppend(/* @__PURE__ */ showArrayIntDictShow(first))(/* @__PURE__ */ showArrayIntDictShow(second));
+13 |     return /* @__PURE__ */ showArrayIntDictShow(first) + /* @__PURE__ */ showArrayIntDictShow(second);
    |     ^ 11:3 show first <> show second
-   |                                                                                           ^ 11:8 first <> show second
-   |                                                                                                ^ 11:3 show first <> show second
-   |                                                                                                   ^ 11:17 show second
-   |                                                                                                                                        ^ 11:22 second
-   |                                                                                                                                              ^ 11:17 show second
-   |                                                                                                                                               ^ 11:3 show first <> show second
-15 |   };
+   |                                                 ^ 11:8 first <> show second
+   |                                                      ^ 11:3 show first <> show second
+   |                                                          ^ 11:17 show second
+   |                                                                                               ^ 11:22 second
+   |                                                                                                     ^ 11:17 show second
+14 |   };
    |   ^ 10:1 showIntegers first second =
-16 | }
+15 | }
    | ^ 10:1 showIntegers first second =
-17 | const semigroupStringDictAppend = /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupString);
-   | ^ 7:3 show first <> show second
-18 | const showArrayIntDict = /* @__PURE__ */ Data_Show.showArray(Data_Show.showInt);
+16 | const showArrayIntDict = /* @__PURE__ */ Data_Show.showArray(Data_Show.showInt);
    | ^ 11:3 show first <> show second
-19 | const showArrayIntDictShow = /* @__PURE__ */ Data_Show.show(showArrayIntDict);
+17 | const showArrayIntDictShow = /* @__PURE__ */ Data_Show.show(showArrayIntDict);
    | ^ 11:3 show first <> show second

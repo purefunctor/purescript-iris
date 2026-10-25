@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+booleanEqual :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+integerEqual :: Prim.Int -> Prim.Int -> Prim.Boolean
+numberEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+charNotEqual :: Prim.Char -> Prim.Char -> Prim.Boolean
+stringNotEqual :: Prim.String -> Prim.String -> Prim.Boolean
+booleanLessThan :: Prim.Boolean -> Prim.Boolean -> Prim.Boolean
+integerLessThanOrEqual :: Prim.Int -> Prim.Int -> Prim.Boolean
+charGreaterThan :: Prim.Char -> Prim.Char -> Prim.Boolean
+stringGreaterThanOrEqual :: Prim.String -> Prim.String -> Prim.Boolean
+numberNotEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberLessThan :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberLessThanOrEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberGreaterThan :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberGreaterThanOrEqual :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberNotGreaterThan :: Prim.Number -> Prim.Number -> Prim.Boolean
+integerBetween :: Prim.Int -> Prim.Int -> Prim.Int -> Prim.Boolean
+comparisonOrder :: Prim.Boolean -> Prim.Boolean
+comparisonCaseOrder :: Prim.Number -> Prim.Boolean -> Prim.Boolean
+
+Types

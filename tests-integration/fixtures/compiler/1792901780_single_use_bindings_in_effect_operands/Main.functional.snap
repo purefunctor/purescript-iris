@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export nestedBind = \left%2 right%3 ->
+  effect.bind (let
+    total%1 = integer.add left%2 right%3
+  in effect.bind (effect.pure unit) \$unit%0 -> effect.pure total%1)
+    \value%4 -> effect.pure value%4
+
+@export nestedMap = \left%7 right%8 ->
+  effect.map
+    categoryFunctionDictIdentity
+    (let
+      total%6 = integer.add left%7 right%8
+    in effect.bind (effect.pure unit) \$unit%5 -> effect.pure total%6)
+
+@export nestedApply = \left%11 right%12 ->
+  effect.apply
+    (effect.pure categoryFunctionDictIdentity)
+    (let
+      total%10 = integer.add left%11 right%12
+    in effect.bind (effect.pure unit) \$unit%9 -> effect.pure total%10)
+
+categoryFunctionDictIdentity = identity categoryFn

@@ -1,12 +1,13 @@
 import * as Data_Eq from "../Data.Eq/index.js";
-export function compareInts(left) {
+export function compareArrays(left) {
   return (right) => {
-    if (/* @__PURE__ */ eqIntDictEq(left)(right)) {
-      return /* @__PURE__ */ eqIntDictEq(right)(left);
+    if (/* @__PURE__ */ eqArrayIntDictEq(left)(right)) {
+      return /* @__PURE__ */ eqArrayIntDictEq(right)(left);
     } else {
       return false;
     }
   };
 }
-const eqIntDictEq = /* @__PURE__ */ Data_Eq.eq(Data_Eq.eqInt);
-export const initialized = compareInts(1 | 0)(1 | 0);
+const eqArrayIntDict = /* @__PURE__ */ Data_Eq.eqArray(Data_Eq.eqInt);
+const eqArrayIntDictEq = /* @__PURE__ */ Data_Eq.eq(eqArrayIntDict);
+export const initialized = compareArrays([1 | 0])([1 | 0]);

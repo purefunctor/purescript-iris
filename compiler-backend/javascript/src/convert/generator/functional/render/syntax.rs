@@ -2,8 +2,8 @@
 
 use files::FileId;
 use functional::tree::{
-    BinaryOperator as FunctionalBinaryOperator, Literal, ReflectableEvidence, ReflectableOrdering,
-    SynthesizedEvidence, UnaryOperator as FunctionalUnaryOperator,
+    BinaryOperator as FunctionalBinaryOperator, Comparison, Literal, ReflectableEvidence,
+    ReflectableOrdering, SynthesizedEvidence, UnaryOperator as FunctionalUnaryOperator,
 };
 use itertools::Itertools;
 use smol_str::{SmolStr, format_smolstr};
@@ -87,6 +87,27 @@ pub(super) fn binary_expression(
         }
         FunctionalBinaryOperator::IntegerMultiply => {
             integer_binary_expression(tree, BinaryOperator::Multiply, left, right)
+        }
+        FunctionalBinaryOperator::NumberAdd | FunctionalBinaryOperator::StringAppend => {
+            tree.binary(BinaryOperator::Add, left, right)
+        }
+        FunctionalBinaryOperator::NumberSubtract => {
+            tree.binary(BinaryOperator::Subtract, left, right)
+        }
+        FunctionalBinaryOperator::NumberMultiply => {
+            tree.binary(BinaryOperator::Multiply, left, right)
+        }
+        FunctionalBinaryOperator::NumberDivide => tree.binary(BinaryOperator::Divide, left, right),
+        FunctionalBinaryOperator::Comparison { comparison, .. } => {
+            let operator = match comparison {
+                Comparison::Equal => BinaryOperator::StrictEqual,
+                Comparison::NotEqual => BinaryOperator::StrictNotEqual,
+                Comparison::LessThan => BinaryOperator::LessThan,
+                Comparison::LessThanOrEqual => BinaryOperator::LessThanOrEqual,
+                Comparison::GreaterThan => BinaryOperator::GreaterThan,
+                Comparison::GreaterThanOrEqual => BinaryOperator::GreaterThanOrEqual,
+            };
+            tree.binary(operator, left, right)
         }
     }
 }

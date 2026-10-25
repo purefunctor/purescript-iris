@@ -6,7 +6,7 @@ source: tests-integration/src/fixtures.rs
     if eq eqADict%0 left%1 right%2 then eq eqADict%0 right%2 left%1 else false
 
 @export compareIntsTwice = \left%3 right%4 ->
-  if eqIntDictEq left%3 right%4 then eqIntDictEq right%4 left%3 else false
+  if integer.equal left%3 right%4 then integer.equal right%4 left%3 else false
 
 @export compareArraysTwice = \left%5 right%6 ->
   if eqArrayIntDictEq left%5 right%6 then eqArrayIntDictEq right%6 left%5 else false
@@ -85,16 +85,14 @@ source: tests-integration/src/fixtures.rs
     false, left%55, right%56 ->
       eqArrayIntDictEq right%56 left%55
 
-@export firstComparison = eqIntDictEq 1 2
+@export firstComparison = integer.equal 1 2
 
-@export secondComparison = eqIntDictEq 3 4
+@export secondComparison = integer.equal 3 4
 
 @export instance eqRecursive = { eq: \left%57 right%58 -> eq eqRecursive left%57 right%58 }
 
 @export compareRecursiveTwice = \left%59 right%60 ->
   if eq eqRecursive left%59 right%60 then eq eqRecursive right%60 left%59 else false
-
-eqIntDictEq = eq eqInt
 
 eqArrayIntDict = eqArray eqInt
 

@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+nestedBind :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+nestedMap :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+nestedApply :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+
+Types

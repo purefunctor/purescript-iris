@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export partiallyAppliedEqual = eq eqInt 1
+
+@export partiallyAppliedLessThan = lessThan ordInt 1
+
+@export genericEqual = \eqValueDict%0 -> \left%1 right%2 -> eq eqValueDict%0 left%1 right%2
+
+@export genericLessThan = \ordValueDict%3 ->
+  \left%4 right%5 -> lessThan ordValueDict%3 left%4 right%5
+
+@export unitEqual = \left%6 right%7 -> eq eqUnit left%6 right%7
+
+@export wrappedEqual = \left%8 right%9 -> eq eqInt left%8 right%9
+
+@export wrappedGreaterThan = \left%10 right%11 -> greaterThan ordInt left%10 right%11
+
+@export lookalikeLessThan = \left%12 right%13 -> lessThan left%12 right%13

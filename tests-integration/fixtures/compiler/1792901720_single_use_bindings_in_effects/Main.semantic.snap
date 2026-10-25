@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+sharedEffect :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+sharedEffect = \left -> \right ->
+  let
+    total :: Prim.Int
+    total = add {semiringInt} left right
+  in
+    bind {bindEffect} (pure {applicativeEffect} unit) \_ -> pure {applicativeEffect} total
+
+runningBind :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+runningBind = \left -> \right ->
+  bind {bindEffect} (pure {applicativeEffect} unit) \_ ->
+    let
+      total :: Prim.Int
+      total = add {semiringInt} left right
+    in
+      pure {applicativeEffect} total

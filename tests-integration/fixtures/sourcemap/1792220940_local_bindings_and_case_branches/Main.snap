@@ -1,36 +1,33 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-1 | import * as Data_Semigroup from "../Data.Semigroup/index.js";
+1 | import * as Data_Show from "../Data.Show/index.js";
   | ^ unmapped
-2 | import * as Data_Show from "../Data.Show/index.js";
-  | ^ unmapped
-3 | export function describe(count) {
+2 | export function describe(count) {
   | ^ 6:1 describe count =
   |        ^ (describe) 6:1 describe count =
   |                                 ^ 6:1 describe count =
-4 |   const doubled = count * (2 | 0) | 0;
+3 |   const doubled = count * (2 | 0) | 0;
   |   ^ 8:5 doubled = count * 2
   |                   ^ 8:15 count * 2
   |                            ^ 8:23 2
   |                                     ^ 8:15 count * 2
-5 |   if (doubled === (0 | 0)) {
+4 |   if (doubled === (0 | 0)) {
   |   ^ 11:7 0 -> "none"
   |       ^ 10:10 doubled of
   |                    ^ 11:7 0 -> "none"
-6 |     return "none";
+5 |     return "none";
   |     ^ 11:12 "none"
-7 |   }
+6 |   }
   |   ^ 11:7 0 -> "none"
-8 |   return ((value) => /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupString)("count ")(/* @__PURE__ */ Data_Show.show(Data_Show.showInt)(value)))(doubled);
+7 |   return ((value) => "count " + /* @__PURE__ */ Data_Show.show(Data_Show.showInt)(value))(doubled);
   |   ^ 12:12 label doubled
   |                      ^ 14:17 "count " <> show value
-  |                                                                                                      ^ 14:29 show value
-  |                                                                                                                                                        ^ 14:34 value
-  |                                                                                                                                                             ^ 14:29 show value
-  |                                                                                                                                                              ^ 14:17 "count " <> show value
-  |                                                                                                                                                                ^ 12:12 label doubled
-  |                                                                                                                                                                 ^ 12:18 doubled
-  |                                                                                                                                                                        ^ 12:12 label doubled
-9 | }
+  |                                 ^ 14:29 show value
+  |                                                                                   ^ 14:34 value
+  |                                                                                        ^ 14:29 show value
+  |                                                                                          ^ 12:12 label doubled
+  |                                                                                           ^ 12:18 doubled
+  |                                                                                                  ^ 12:12 label doubled
+8 | }
   | ^ 6:1 describe count =

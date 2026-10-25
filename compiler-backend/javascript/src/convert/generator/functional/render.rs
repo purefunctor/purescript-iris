@@ -12,7 +12,9 @@ use files::{FileId, ForeignSourceKind};
 use functional::initializers::{
     cyclic_initializers, initializer_components, initializer_postorder,
 };
-use functional::optimize::{for_each_expression_child, local_uses};
+use functional::optimize::{
+    EffectPosition, for_each_expression_child, local_is_captured, local_uses,
+};
 use functional::tree::{
     BinaryOperator as FunctionalBinaryOperator, Binding, CaseAlternative, Declaration,
     DeclarationKind, EffectExpression, ExpressionId as FunctionalExpressionId, ExpressionKind,
@@ -3292,6 +3294,13 @@ fn execute_effect(
             if let CapturedEffectAction::Effect(effect) = &action
                 && let CapturedEffect::Pure { value } = effect.as_ref()
                 && local_uses(&renderer.generator.module.storage, body, parameter.id) <= 1
+                && (renderer.tree.expression_is_atomic(value)
+                    || !local_is_captured(
+                        &renderer.generator.module.storage,
+                        body,
+                        EffectPosition::Executed,
+                        parameter.id,
+                    ))
             {
                 let value = renderer.tree.duplicate(value);
                 renderer.context.bind_inline(&parameter, value);

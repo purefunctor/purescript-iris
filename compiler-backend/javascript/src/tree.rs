@@ -39,12 +39,18 @@ pub(crate) enum UnaryOperator {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum BinaryOperator {
     StrictEqual,
+    StrictNotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
     BitwiseOr,
     LogicalAnd,
     LogicalOr,
     Add,
     Subtract,
     Multiply,
+    Divide,
 }
 
 impl<'a> Tree<'a> {
@@ -354,10 +360,22 @@ impl<'a> Tree<'a> {
                 &self.builder,
             ),
             BinaryOperator::StrictEqual => binary(left, OxcBinaryOperator::StrictEquality, right),
+            BinaryOperator::StrictNotEqual => {
+                binary(left, OxcBinaryOperator::StrictInequality, right)
+            }
+            BinaryOperator::LessThan => binary(left, OxcBinaryOperator::LessThan, right),
+            BinaryOperator::LessThanOrEqual => {
+                binary(left, OxcBinaryOperator::LessEqualThan, right)
+            }
+            BinaryOperator::GreaterThan => binary(left, OxcBinaryOperator::GreaterThan, right),
+            BinaryOperator::GreaterThanOrEqual => {
+                binary(left, OxcBinaryOperator::GreaterEqualThan, right)
+            }
             BinaryOperator::BitwiseOr => binary(left, OxcBinaryOperator::BitwiseOR, right),
             BinaryOperator::Add => binary(left, OxcBinaryOperator::Addition, right),
             BinaryOperator::Subtract => binary(left, OxcBinaryOperator::Subtraction, right),
             BinaryOperator::Multiply => binary(left, OxcBinaryOperator::Multiplication, right),
+            BinaryOperator::Divide => binary(left, OxcBinaryOperator::Division, right),
         };
         self.allocate(expression)
     }

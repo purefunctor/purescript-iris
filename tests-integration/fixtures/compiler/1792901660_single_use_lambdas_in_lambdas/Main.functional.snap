@@ -1,0 +1,4 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export sharedFunction = \offset%3 -> \value%0 -> (\value%2 -> integer.add value%2 offset%3) value%0

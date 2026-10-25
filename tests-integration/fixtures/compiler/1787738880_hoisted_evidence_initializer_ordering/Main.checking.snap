@@ -2,7 +2,7 @@
 source: tests-integration/src/fixtures.rs
 ---
 Terms
-compareInts :: Prim.Int -> Prim.Int -> Prim.Boolean
+compareArrays :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Boolean
 initialized :: Prim.Boolean
 
 Types
