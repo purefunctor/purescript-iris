@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import { variables as Tokens_variables } from "../Tokens/index.stylex.js";
+  | ^ 5:1 import Tokens (variables)
+2 | import { spacing } from "./index.stylex.js";
+  | ^ 9:1 spacing = StyleX.defineConsts { gap: "8px" }
+3 | import * as $stylex from "@stylexjs/stylex";
+  | ^ 4:1 import Iris.StyleX as StyleX
+4 | export const styles = $stylex.create({ root: {
+  | ^ 11:1 styles = StyleX.create { root: { color: variables.accent, padding: spacing.gap } }
+  |                       ^ 11:10 StyleX.create { root: { color: variables.accent, padding: spacing.gap } }
+  |                                      ^ 11:24 { root: { color: variables.accent, padding: spacing.gap } }
+  |                                              ^ 11:32 { color: variables.accent, padding: spacing.gap } }
+5 |   color: Tokens_variables.accent,
+  |   ^ 11:32 { color: variables.accent, padding: spacing.gap } }
+  |          ^ 11:41 variables.accent, padding: spacing.gap } }
+6 |   padding: spacing.gap
+  |   ^ 11:32 { color: variables.accent, padding: spacing.gap } }
+  |            ^ 11:68 spacing.gap } }
+7 | } });
+  | ^ 11:32 { color: variables.accent, padding: spacing.gap } }
+  |   ^ 11:24 { root: { color: variables.accent, padding: spacing.gap } }
+  |    ^ 11:10 StyleX.create { root: { color: variables.accent, padding: spacing.gap } }
+8 | export { spacing } from "./index.stylex.js";
+  | ^ unmapped

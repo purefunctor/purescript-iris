@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use files::FileId;
 use indexing::{
-    ClassMemberId, DataConstructorId, DeriveId, EquationSourceId, ForeignValueId, InstanceId,
-    TermItemId, TypeItemId,
+    ClassMemberId, DataConstructorId, DeriveId, EquationSourceId, ForeignValueId, ImportId,
+    InstanceId, TermItemId, TypeItemId,
 };
 use la_arena::{Arena, Idx};
 use lowering::TypeId as SourceTypeId;
@@ -30,6 +30,7 @@ pub struct Module {
     /// Imported `defineVars`, `defineConsts`, and `defineMarker` values that StyleX evaluates
     /// statically, which it resolves only through imports of the defining module's theme file.
     pub stylex_theme_imports: FxHashSet<GlobalId>,
+    pub stylex_import: Option<ImportId>,
     pub storage: Storage,
 }
 
@@ -48,6 +49,7 @@ pub struct IndirectModuleExports {
 pub struct ModuleDependency {
     pub file_id: FileId,
     pub module_name: SmolStr,
+    pub import: Option<ImportId>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -175,6 +177,7 @@ pub enum Origin {
     ClassMember(ClassMemberId),
     Instance(InstanceId),
     Derive(DeriveId),
+    Import(ImportId),
 }
 
 impl Origin {
@@ -193,6 +196,7 @@ impl Origin {
             Origin::ClassMember(id) => stabilized.syntax_ptr(id),
             Origin::Instance(id) => stabilized.syntax_ptr(id),
             Origin::Derive(id) => stabilized.syntax_ptr(id),
+            Origin::Import(id) => stabilized.syntax_ptr(id),
         }
     }
 }

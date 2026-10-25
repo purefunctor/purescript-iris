@@ -2,7 +2,7 @@
 source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Data_Boolean from "../Data.Boolean/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  2 | export function sumTo(total) {
    | ^ 6:1 sumTo total count
    |        ^ (sumTo) 6:1 sumTo total count

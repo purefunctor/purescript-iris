@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as $foreign from "./foreign.js";
+  | ^ 3:1 foreign import greet :: String -> String
+2 | export const greet = $foreign["greet"];
+  | ^ 3:1 foreign import greet :: String -> String
+3 | export const farewell = $foreign["farewell"];
+  | ^ 5:1 foreign import farewell :: String -> String
+4 | export const main = greet("Iris");
+  | ^ 8:1 main = greet "Iris"
+  |                     ^ 8:8 greet "Iris"
+  |                           ^ 8:14 "Iris"
+  |                                 ^ 8:8 greet "Iris"

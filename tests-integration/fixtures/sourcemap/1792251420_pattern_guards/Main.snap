@@ -2,9 +2,9 @@
 source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Data_Boolean from "../Data.Boolean/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  2 | import * as Data_Maybe from "../Data.Maybe/index.js";
-   | ^ unmapped
+   | ^ 5:1 import Data.Maybe (Maybe(..))
  3 | export function first(left) {
    | ^ 8:1 first left right
    |        ^ (first) 8:1 first left right

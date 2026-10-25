@@ -2,7 +2,7 @@
 source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Data_Show from "../Data.Show/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  2 | export function showBoth(showADict) {
    | ^ 6:1 showBoth first second =
    |        ^ (showBoth) 6:1 showBoth first second =

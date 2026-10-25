@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as Data_Maybe from "../Data.Maybe/index.js";
+  | ^ 5:1 import Data.Maybe (Maybe(..))
+2 | import * as Data_Show from "../Data.Show/index.js";
+  | ^ 3:1 import Prelude
+3 | export function describe(value) {
+  | ^ 9:1 describe value = Maybe.maybe "none" show value
+  |        ^ (describe) 9:1 describe value = Maybe.maybe "none" show value
+  |                                 ^ 9:1 describe value = Maybe.maybe "none" show value
+4 |   return Data_Maybe.maybe("none")(/* @__PURE__ */ Data_Show.show(Data_Show.showInt))(value);
+  |   ^ 9:18 Maybe.maybe "none" show value
+  |                           ^ 9:30 "none" show value
+  |                                 ^ 9:18 Maybe.maybe "none" show value
+  |                                   ^ 9:37 show value
+  |                                                                                    ^ 9:18 Maybe.maybe "none" show value
+  |                                                                                      ^ 9:42 value
+  |                                                                                           ^ 9:18 Maybe.maybe "none" show value
+5 | }
+  | ^ 9:1 describe value = Maybe.maybe "none" show value
+6 | export const present = {
+  | ^ 12:1 present = Just 1
+  |                        ^ 12:11 Just 1
+7 |   tag: "Just",
+  |   ^ 12:11 Just 1
+8 |   _1: 1 | 0
+  |   ^ 12:11 Just 1
+  |       ^ 12:16 1
+9 | };
+  | ^ 12:11 Just 1

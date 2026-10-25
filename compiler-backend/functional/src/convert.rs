@@ -13,7 +13,9 @@ use building_types::{QueryError, QueryResult};
 use checking::evidence::{EvidenceBinderId, InstanceCandidateOrigin};
 use checking::tree as checking_tree;
 use files::FileId;
-use indexing::{IndexedTermItemKind, IndexedTypeItemKind, OrderedTermItemId, TermItemId};
+use indexing::{
+    ImportId, ImportKind, IndexedTermItemKind, IndexedTypeItemKind, OrderedTermItemId, TermItemId,
+};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::{SmolStr, format_smolstr};
@@ -207,9 +209,18 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
     // StyleX consumes the emitted expressions, including literals substituted for local bindings.
     let stylex_theme_imports = context.validate_stylex_uses(&declarations)?;
 
+    let resolved = context.queries.resolved(context.file_id)?;
+    let import_statements = import_statements(&resolved);
+    let stylex_import = context
+        .referenced_stylex_modules
+        .iter()
+        .filter_map(|file_id| import_statements.get(file_id).copied())
+        .min();
+
     let dependencies = context.dependencies.iter().map(|(&file_id, dependency)| ModuleDependency {
         file_id,
         module_name: SmolStr::clone(&dependency.module_name),
+        import: import_statements.get(&file_id).copied(),
     });
     let mut dependencies = dependencies.collect_vec();
     dependencies.sort_by(|left, right| {
@@ -223,8 +234,38 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
         surface,
         declarations: declarations.into(),
         stylex_theme_imports,
+        stylex_import,
         storage: context.storage,
     })
+}
+
+fn import_statements(resolved: &resolving::ResolvedModule) -> FxHashMap<FileId, ImportId> {
+    let unqualified = resolved.unqualified.values().flatten();
+    let qualified = resolved.qualified.values().flatten();
+    let mut direct = FxHashMap::default();
+    let mut reexporting = FxHashMap::default();
+    for import in unqualified.chain(qualified) {
+        insert_earliest_import(&mut direct, import.file, import.id);
+        let terms = import.iter_terms().map(|(_, file_id, _, kind)| (file_id, kind));
+        let types = import.iter_types().map(|(_, file_id, _, kind)| (file_id, kind));
+        let classes = import.iter_classes().map(|(_, file_id, _, kind)| (file_id, kind));
+        for (file_id, kind) in terms.chain(types).chain(classes) {
+            if !matches!(kind, ImportKind::Hidden) {
+                insert_earliest_import(&mut reexporting, file_id, import.id);
+            }
+        }
+    }
+    reexporting.extend(direct);
+    reexporting
+}
+
+fn insert_earliest_import(
+    statements: &mut FxHashMap<FileId, ImportId>,
+    file_id: FileId,
+    import: ImportId,
+) {
+    let statement = statements.entry(file_id).or_insert(import);
+    *statement = ImportId::min(*statement, import);
 }
 
 struct RuntimeExports {

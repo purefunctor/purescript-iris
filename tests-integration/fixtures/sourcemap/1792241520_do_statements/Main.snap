@@ -2,9 +2,9 @@
 source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Control_Applicative from "../Control.Applicative/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  2 | import * as Control_Bind from "../Control.Bind/index.js";
-   | ^ unmapped
+   | ^ 3:1 import Prelude
  3 | export function lookup(monadMDict) {
    | ^ 6:1 lookup ask record = do
    |        ^ (lookup) 6:1 lookup ask record = do
