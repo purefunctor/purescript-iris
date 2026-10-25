@@ -1,0 +1,51 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+numberAdd :: Prim.Number -> Prim.Number -> Prim.Number
+numberAdd = \left -> \right -> add {semiringNumber} left right
+
+numberSubtract :: Prim.Number -> Prim.Number -> Prim.Number
+numberSubtract = \left -> \right -> sub {ringNumber} left right
+
+numberMultiply :: Prim.Number -> Prim.Number -> Prim.Number
+numberMultiply = \left -> \right -> mul {semiringNumber} left right
+
+numberDivide :: Prim.Number -> Prim.Number -> Prim.Number
+numberDivide = \left -> \right -> div {euclideanRingNumber} left right
+
+numberSubtractGrouped :: Prim.Number -> Prim.Number -> Prim.Number -> Prim.Number
+numberSubtractGrouped = \first -> \second -> \third ->
+  sub {ringNumber} first (sub {ringNumber} second third)
+
+numberAddGrouped :: Prim.Number -> Prim.Number -> Prim.Number -> Prim.Number
+numberAddGrouped = \first -> \second -> \third ->
+  add {semiringNumber} first (add {semiringNumber} second third)
+
+stringAppend :: Prim.String -> Prim.String -> Prim.String
+stringAppend = \left -> \right -> append {semigroupString} left right
+
+stringAppendGrouped :: Prim.String -> Prim.String -> Prim.String -> Prim.String
+stringAppendGrouped = \first -> \second -> \third ->
+  append {semigroupString} first (append {semigroupString} second third)
+
+numberAddOrder :: Prim.Boolean -> Prim.Number
+numberAddOrder = \_ -> add {semiringNumber} (observe "left" 20.0) (observe "right" 22.0)
+
+partiallyAppliedDivide :: Prim.Number -> Prim.Number
+partiallyAppliedDivide = div {euclideanRingNumber} 1.0
+
+partiallyAppliedAppend :: Prim.String -> Prim.String
+partiallyAppliedAppend = append {semigroupString} "prefix"
+
+integerDivide :: Prim.Int -> Prim.Int -> Prim.Int
+integerDivide = \left -> \right -> div {euclideanRingInt} left right
+
+arrayAppend :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+arrayAppend = \left -> \right -> append {semigroupArray} left right
+
+genericAppend :: forall value. Data.Semigroup.Semigroup value => value -> value -> value
+genericAppend = \{semigroupDict} -> \left -> \right -> append {semigroupDict} left right

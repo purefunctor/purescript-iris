@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+partiallyAppliedEqual :: Prim.Int -> Prim.Boolean
+partiallyAppliedLessThan :: Prim.Int -> Prim.Boolean
+genericEqual :: forall value. Data.Eq.Eq value => value -> value -> Prim.Boolean
+genericLessThan :: forall value. Data.Ord.Ord value => value -> value -> Prim.Boolean
+unitEqual :: Data.Unit.Unit -> Data.Unit.Unit -> Prim.Boolean
+wrappedEqual :: Lookalike.Wrapped -> Lookalike.Wrapped -> Prim.Boolean
+wrappedGreaterThan :: Lookalike.Wrapped -> Lookalike.Wrapped -> Prim.Boolean
+lookalikeLessThan :: Prim.Int -> Prim.Int -> Prim.Boolean
+
+Types

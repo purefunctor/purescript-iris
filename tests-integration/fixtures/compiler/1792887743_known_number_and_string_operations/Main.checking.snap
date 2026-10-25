@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+numberAdd :: Prim.Number -> Prim.Number -> Prim.Number
+numberSubtract :: Prim.Number -> Prim.Number -> Prim.Number
+numberMultiply :: Prim.Number -> Prim.Number -> Prim.Number
+numberDivide :: Prim.Number -> Prim.Number -> Prim.Number
+numberSubtractGrouped :: Prim.Number -> Prim.Number -> Prim.Number -> Prim.Number
+numberAddGrouped :: Prim.Number -> Prim.Number -> Prim.Number -> Prim.Number
+stringAppend :: Prim.String -> Prim.String -> Prim.String
+stringAppendGrouped :: Prim.String -> Prim.String -> Prim.String -> Prim.String
+numberAddOrder :: Prim.Boolean -> Prim.Number
+partiallyAppliedDivide :: Prim.Number -> Prim.Number
+partiallyAppliedAppend :: Prim.String -> Prim.String
+integerDivide :: Prim.Int -> Prim.Int -> Prim.Int
+arrayAppend :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+genericAppend :: forall value. Data.Semigroup.Semigroup value => value -> value -> value
+
+Types

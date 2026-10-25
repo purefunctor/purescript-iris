@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+partiallyAppliedEqual :: Prim.Int -> Prim.Boolean
+partiallyAppliedEqual = eq {eqInt} 1
+
+partiallyAppliedLessThan :: Prim.Int -> Prim.Boolean
+partiallyAppliedLessThan = lessThan {ordInt} 1
+
+genericEqual :: forall value. Data.Eq.Eq value => value -> value -> Prim.Boolean
+genericEqual = \{eqDict} -> \left -> \right -> eq {eqDict} left right
+
+genericLessThan :: forall value. Data.Ord.Ord value => value -> value -> Prim.Boolean
+genericLessThan = \{ordDict} -> \left -> \right -> lessThan {ordDict} left right
+
+unitEqual :: Data.Unit.Unit -> Data.Unit.Unit -> Prim.Boolean
+unitEqual = \left -> \right -> eq {eqUnit} left right
+
+wrappedEqual :: Lookalike.Wrapped -> Lookalike.Wrapped -> Prim.Boolean
+wrappedEqual = \left -> \right -> eq {eqInt} left right
+
+wrappedGreaterThan :: Lookalike.Wrapped -> Lookalike.Wrapped -> Prim.Boolean
+wrappedGreaterThan = \left -> \right -> greaterThan {ordInt} left right
+
+lookalikeLessThan :: Prim.Int -> Prim.Int -> Prim.Boolean
+lookalikeLessThan = \left -> \right -> lessThan left right

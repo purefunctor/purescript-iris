@@ -1,0 +1,50 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign readTrace
+
+@export booleanEqual = \left%0 right%1 -> eq eqBoolean left%0 right%1
+
+@export integerEqual = \left%2 right%3 -> eq eqInt left%2 right%3
+
+@export numberEqual = \left%4 right%5 -> eq eqNumber left%4 right%5
+
+@export charNotEqual = \left%6 right%7 -> notEq eqChar left%6 right%7
+
+@export stringNotEqual = \left%8 right%9 -> notEq eqString left%8 right%9
+
+@export booleanLessThan = \left%10 right%11 -> lessThan ordBoolean left%10 right%11
+
+@export integerLessThanOrEqual = \left%12 right%13 -> lessThanOrEq ordInt left%12 right%13
+
+@export charGreaterThan = \left%14 right%15 -> greaterThan ordChar left%14 right%15
+
+@export stringGreaterThanOrEqual = \left%16 right%17 -> greaterThanOrEq ordString left%16 right%17
+
+@export numberNotEqual = \left%18 right%19 -> notEq eqNumber left%18 right%19
+
+@export numberLessThan = \left%20 right%21 -> lessThan ordNumber left%20 right%21
+
+@export numberLessThanOrEqual = \left%22 right%23 -> lessThanOrEq ordNumber left%22 right%23
+
+@export numberGreaterThan = \left%24 right%25 -> greaterThan ordNumber left%24 right%25
+
+@export numberGreaterThanOrEqual = \left%26 right%27 -> greaterThanOrEq ordNumber left%26 right%27
+
+@export numberNotGreaterThan = \left%28 right%29 ->
+  boolean.not (greaterThan ordNumber left%28 right%29)
+
+@export integerBetween = \low%30 high%32 value%31 ->
+  boolean.and (lessThanOrEq ordInt low%30 value%31) (lessThan ordInt value%31 high%32)
+
+@export comparisonOrder = \$boolean%33@(_) -> lessThan ordInt (observe "left" 1) (observe "right" 2)
+
+@export comparisonCaseOrder = \left%34 flag%35 ->
+  greaterThan ordNumber (observe "left" left%34)
+    (case observe "flag" flag%35 of
+      true ->
+        observe "right" 1.0
+      false ->
+        observe "right" 2.0)

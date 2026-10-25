@@ -1,9 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export compareInts = \left%0 right%1 ->
-  if eqIntDictEq left%0 right%1 then eqIntDictEq right%1 left%0 else false
+@export compareArrays = \left%0 right%1 ->
+  if eqArrayIntDictEq left%0 right%1 then eqArrayIntDictEq right%1 left%0 else false
 
-@export initialized = compareInts 1 1
+@export initialized = compareArrays [1] [1]
 
-eqIntDictEq = eq eqInt
+eqArrayIntDict = eqArray eqInt
+
+eqArrayIntDictEq = eq eqArrayIntDict

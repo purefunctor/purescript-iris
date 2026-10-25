@@ -1,9 +1,9 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-compareInts :: Prim.Int -> Prim.Int -> Prim.Boolean
-compareInts = \left -> \right ->
-  if eq {eqInt} left right then eq {eqInt} right left else false
+compareArrays :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Boolean
+compareArrays = \left -> \right ->
+  if eq {eqArray {eqInt}} left right then eq {eqArray {eqInt}} right left else false
 
 initialized :: Prim.Boolean
-initialized = compareInts 1 1
+initialized = compareArrays [1] [1]

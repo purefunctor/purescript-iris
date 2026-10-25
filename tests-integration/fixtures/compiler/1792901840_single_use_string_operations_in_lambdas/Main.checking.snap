@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sharedAppend :: Prim.String -> Data.Unit.Unit -> Prim.String
+sharedEqual :: Prim.String -> Prim.String -> Prim.Int -> Prim.Int
+
+Types
