@@ -36,8 +36,7 @@ source: tests-integration/src/fixtures.rs
 @export numberGreaterThanOrEqual = \left%26 right%27 ->
   boolean.not (number.less_than left%26 right%27)
 
-@export numberNotGreaterThan = \left%28 right%29 ->
-  boolean.not (boolean.not (number.less_than_or_equal left%28 right%29))
+@export numberNotGreaterThan = \left%28 right%29 -> number.less_than_or_equal left%28 right%29
 
 @export integerBetween = \low%30 high%32 value%31 ->
   boolean.and (integer.less_than_or_equal low%30 value%31) (integer.less_than value%31 high%32)

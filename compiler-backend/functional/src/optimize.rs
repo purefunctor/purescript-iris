@@ -96,10 +96,10 @@ fn optimize_expression(
                 pending[children_start..].reverse();
             }
             Pending::Fold { expression } => {
-                fold_literal_negation(storage, expression);
+                fold_negation(storage, expression);
             }
             Pending::Inline { expression, bindings, body, effect_position } => {
-                if !fold_literal_negation(storage, expression) {
+                if !fold_negation(storage, expression) {
                     let scope = LetScope { bindings: &bindings, body, effect_position };
                     inline_bindings(storage, expression, scope, recursive_globals);
                 }
@@ -140,14 +140,21 @@ fn inline_bindings(
         let replacement = ExpressionKind::Let { recursive: false, bindings: bindings.into(), body };
         storage.replace_expression_kind(expression, replacement);
     }
-    fold_literal_negation(storage, expression);
+    fold_negation(storage, expression);
 }
 
-fn fold_literal_negation(storage: &mut Storage, expression: ExpressionId) -> bool {
+fn fold_negation(storage: &mut Storage, expression: ExpressionId) -> bool {
     let (operator, value) = match &storage[expression].kind {
         ExpressionKind::Unary { operator, value } => (*operator, *value),
         _ => return false,
     };
+    if operator == UnaryOperator::BooleanNot
+        && let ExpressionKind::Unary { operator: UnaryOperator::BooleanNot, value: negated } =
+            storage[value].kind
+    {
+        storage.replace_expression(expression, negated);
+        return true;
+    }
     let Some(literal) = folded_negation(storage, operator, value) else {
         return false;
     };

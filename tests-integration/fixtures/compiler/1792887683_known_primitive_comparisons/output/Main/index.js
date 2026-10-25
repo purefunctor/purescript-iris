@@ -71,7 +71,7 @@ export function numberGreaterThanOrEqual(left) {
 }
 export function numberNotGreaterThan(left) {
   return (right) => {
-    return !!(left <= right);
+    return left <= right;
   };
 }
 export function integerBetween(low) {
