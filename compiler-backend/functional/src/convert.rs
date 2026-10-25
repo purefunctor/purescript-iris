@@ -210,7 +210,7 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
     let stylex_theme_imports = context.validate_stylex_uses(&declarations)?;
 
     let resolved = context.queries.resolved(context.file_id)?;
-    let import_statements = import_statements(&resolved);
+    let import_statements = import_statements(&context, &resolved)?;
     let stylex_import = context
         .referenced_stylex_modules
         .iter()
@@ -239,24 +239,35 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
     })
 }
 
-fn import_statements(resolved: &resolving::ResolvedModule) -> FxHashMap<FileId, ImportId> {
+fn import_statements(
+    context: &Context<'_, impl checking::ExternalQueries>,
+    resolved: &resolving::ResolvedModule,
+) -> QueryResult<FxHashMap<FileId, ImportId>> {
     let unqualified = resolved.unqualified.values().flatten();
     let qualified = resolved.qualified.values().flatten();
     let mut direct = FxHashMap::default();
     let mut reexporting = FxHashMap::default();
     for import in unqualified.chain(qualified) {
         insert_earliest_import(&mut direct, import.file, import.id);
-        let terms = import.iter_terms().map(|(_, file_id, _, kind)| (file_id, kind));
+        for (_, file_id, term_id, kind) in import.iter_terms() {
+            if matches!(kind, ImportKind::Hidden) {
+                continue;
+            }
+            insert_earliest_import(&mut reexporting, file_id, import.id);
+            if let Some((target_file_id, _)) = context.term_operator_target(file_id, term_id)? {
+                insert_earliest_import(&mut reexporting, target_file_id, import.id);
+            }
+        }
         let types = import.iter_types().map(|(_, file_id, _, kind)| (file_id, kind));
         let classes = import.iter_classes().map(|(_, file_id, _, kind)| (file_id, kind));
-        for (file_id, kind) in terms.chain(types).chain(classes) {
+        for (file_id, kind) in types.chain(classes) {
             if !matches!(kind, ImportKind::Hidden) {
                 insert_earliest_import(&mut reexporting, file_id, import.id);
             }
         }
     }
     reexporting.extend(direct);
-    reexporting
+    Ok(reexporting)
 }
 
 fn insert_earliest_import(
@@ -663,6 +674,31 @@ where
             self.indexed_dependencies.borrow_mut().insert(file_id, Arc::clone(&indexed));
             Ok(indexed)
         }
+    }
+
+    fn lowered_module(&self, file_id: FileId) -> QueryResult<Arc<lowering::LoweredModule>> {
+        if file_id == self.file_id {
+            Ok(Arc::clone(&self.lowered))
+        } else {
+            self.queries.lowered(file_id)
+        }
+    }
+
+    fn term_operator_target(
+        &self,
+        file_id: FileId,
+        term_id: TermItemId,
+    ) -> QueryResult<Option<(FileId, TermItemId)>> {
+        let indexed = self.indexed_module(file_id)?;
+        if !matches!(indexed.items[term_id].kind, IndexedTermItemKind::Operator { .. }) {
+            return Ok(None);
+        }
+        let lowered = self.lowered_module(file_id)?;
+        let resolution = lowered.tree.get_term_item_kind(term_id).and_then(|kind| match kind {
+            lowering::TermItemKind::Operator { resolution, .. } => *resolution,
+            _ => None,
+        });
+        Ok(resolution)
     }
 
     fn type_item_name(
