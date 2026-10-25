@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+sharedFunction :: Prim.Int -> Prim.Int -> Prim.Int
+sharedFunction = \offset ->
+  let
+    shift :: Prim.Int -> Prim.Int
+    shift = \value -> add {semiringInt} value offset
+  in
+    \value -> shift value

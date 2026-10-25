@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+nestedBind :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+nestedBind = \left -> \right ->
+  bind {bindEffect}
+    (let
+      total :: Prim.Int
+      total = add {semiringInt} left right
+    in
+      bind {bindEffect} (pure {applicativeEffect} unit) \_ ->
+        pure {applicativeEffect} total) \value -> pure {applicativeEffect} value
+
+nestedMap :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+nestedMap = \left -> \right ->
+  map {functorEffect} (identity {categoryFn}) let
+    total :: Prim.Int
+    total = add {semiringInt} left right
+  in
+    bind {bindEffect} (pure {applicativeEffect} unit) \_ -> pure {applicativeEffect} total
+
+nestedApply :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+nestedApply = \left -> \right ->
+  apply {applyEffect} (pure {applicativeEffect} (identity {categoryFn})) let
+    total :: Prim.Int
+    total = add {semiringInt} left right
+  in
+    bind {bindEffect} (pure {applicativeEffect} unit) \_ -> pure {applicativeEffect} total

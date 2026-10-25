@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sharedFunction :: Prim.Int -> Prim.Int -> Prim.Int
+
+Types

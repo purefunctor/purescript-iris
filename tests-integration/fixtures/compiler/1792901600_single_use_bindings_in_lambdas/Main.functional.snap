@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export sharedIntegerAdd = \left%2 right%3 ->
+  \value%0 -> integer.add (integer.add left%2 right%3) value%0
+
+@export sharedRecord = \value%6 -> \$unit%4@(_) -> { value: value%6 }
+
+@export directUse = \left%8 right%9 -> integer.multiply (integer.add left%8 right%9) 2
+
+@export branchUse = \flag%10 left%12 right%13 ->
+  if flag%10 then integer.add left%12 right%13 else 0

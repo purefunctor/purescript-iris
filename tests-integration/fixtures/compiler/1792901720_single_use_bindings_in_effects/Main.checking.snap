@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sharedEffect :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+runningBind :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+
+Types

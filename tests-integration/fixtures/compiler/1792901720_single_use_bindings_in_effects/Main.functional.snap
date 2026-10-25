@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export sharedEffect = \left%2 right%3 ->
+  effect.bind (effect.pure unit) \$unit%0 -> effect.pure (integer.add left%2 right%3)
+
+@export runningBind = \left%6 right%7 ->
+  effect.bind (effect.pure unit) \$unit%4 -> effect.pure (integer.add left%6 right%7)
