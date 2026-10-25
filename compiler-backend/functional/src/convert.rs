@@ -258,9 +258,16 @@ fn import_statements(
                 insert_earliest_import(&mut reexporting, target_file_id, import.id);
             }
         }
-        let types = import.iter_types().map(|(_, file_id, _, kind)| (file_id, kind));
-        let classes = import.iter_classes().map(|(_, file_id, _, kind)| (file_id, kind));
-        for (file_id, kind) in types.chain(classes) {
+        for (_, file_id, type_id, kind) in import.iter_types() {
+            if matches!(kind, ImportKind::Hidden) {
+                continue;
+            }
+            insert_earliest_import(&mut reexporting, file_id, import.id);
+            if let Some((target_file_id, _)) = context.type_operator_target(file_id, type_id)? {
+                insert_earliest_import(&mut reexporting, target_file_id, import.id);
+            }
+        }
+        for (_, file_id, _, kind) in import.iter_classes() {
             if !matches!(kind, ImportKind::Hidden) {
                 insert_earliest_import(&mut reexporting, file_id, import.id);
             }
@@ -696,6 +703,23 @@ where
         let lowered = self.lowered_module(file_id)?;
         let resolution = lowered.tree.get_term_item_kind(term_id).and_then(|kind| match kind {
             lowering::TermItemKind::Operator { resolution, .. } => *resolution,
+            _ => None,
+        });
+        Ok(resolution)
+    }
+
+    fn type_operator_target(
+        &self,
+        file_id: FileId,
+        type_id: indexing::TypeItemId,
+    ) -> QueryResult<Option<(FileId, indexing::TypeItemId)>> {
+        let indexed = self.indexed_module(file_id)?;
+        if !matches!(indexed.items[type_id].kind, IndexedTypeItemKind::Operator { .. }) {
+            return Ok(None);
+        }
+        let lowered = self.lowered_module(file_id)?;
+        let resolution = lowered.tree.get_type_item_kind(type_id).and_then(|kind| match kind {
+            lowering::TypeItemKind::Operator { resolution, .. } => *resolution,
             _ => None,
         });
         Ok(resolution)
