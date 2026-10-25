@@ -1,10 +1,12 @@
 export function sharedIntegerAdd(left) {
   return (right) => {
-    return (value) => (left + right | 0) + value | 0;
+    const total = left + right | 0;
+    return (value) => total + value | 0;
   };
 }
 export function sharedRecord(value) {
-  return ($unit) => ({ value });
+  const record = { value };
+  return ($unit) => record;
 }
 export function directUse(left) {
   return (right) => {

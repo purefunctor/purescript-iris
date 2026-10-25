@@ -69,10 +69,16 @@ function or class member.
   zero-argument function that returns the superclass dictionary. A class member selector reads a
   property from a dictionary. Synthesized `IsSymbol` and `Reflectable` evidence has `reflectSymbol`
   and `reflectType` functions. Trivial evidence is an empty object.
+- Iris substitutes a `let` binding into its single use only when the use runs at most as often as
+  the binding. A use inside a lambda, or inside an `Effect` action that is constructed rather than
+  run in place, keeps the binding, so a returned closure or action does not repeat the work on each
+  call. Literals, constructors, locals, evidence, and non-recursive globals are substituted
+  everywhere. A single-use lambda is substituted even into a lambda, as purescript-backend-optimizer
+  does, so composition such as `f >>> g` stays a direct expression.
 - Iris can share a repeated closed dictionary or member selection as a generated module-level value.
   This moves its construction or property read to module initialization. Iris shares other evidence
-  locally or leaves it inline, and can move even a single-use `let` property read into a lambda.
-  Compare when each field is read, not how many reads appear in each file.
+  locally or leaves it inline. Compare when each field is read, not how many reads appear in each
+  file.
 - An effect is a zero-argument action function. For recognized canonical `Effect` and
   `Control.Monad.ST.Internal` instances, Iris can combine `pure`, `bind`, `discardUnit`-based
   discard, `map`, and `apply` without calling each combinator. Iris can capture or evaluate operands

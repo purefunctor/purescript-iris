@@ -56,55 +56,76 @@ fn optimize_expression(
     visited: &mut FxHashSet<ExpressionId>,
 ) {
     enum Pending {
-        Enter(ExpressionId),
-        Fold(ExpressionId),
-        Inline(ExpressionId, Arc<[Binding]>, ExpressionId),
+        Enter {
+            expression: ExpressionId,
+            effect_position: EffectPosition,
+        },
+        Fold {
+            expression: ExpressionId,
+        },
+        Inline {
+            expression: ExpressionId,
+            bindings: Arc<[Binding]>,
+            body: ExpressionId,
+            effect_position: EffectPosition,
+        },
     }
 
-    let mut pending = vec![Pending::Enter(expression)];
+    let effect_position = EffectPosition::Constructed;
+    let mut pending = vec![Pending::Enter { expression, effect_position }];
     while let Some(work) = pending.pop() {
         match work {
-            Pending::Enter(expression) => {
+            Pending::Enter { expression, effect_position } => {
                 if !visited.insert(expression) {
                     continue;
                 }
                 let kind = &storage[expression].kind;
                 if let ExpressionKind::Let { recursive: false, bindings, body } = kind {
                     // Inlining uses the entry-time bindings even if descendants mutate storage.
-                    pending.push(Pending::Inline(expression, Arc::clone(bindings), *body));
+                    let bindings = Arc::clone(bindings);
+                    let body = *body;
+                    pending.push(Pending::Inline { expression, bindings, body, effect_position });
                 } else {
-                    pending.push(Pending::Fold(expression));
+                    pending.push(Pending::Fold { expression });
                 }
                 let children_start = pending.len();
-                for_each_expression_child(kind, |child| pending.push(Pending::Enter(child)));
+                for_each_evaluated_child(kind, effect_position, |child, evaluation| {
+                    let effect_position = evaluation.effect_position;
+                    pending.push(Pending::Enter { expression: child, effect_position });
+                });
                 pending[children_start..].reverse();
             }
-            Pending::Fold(expression) => {
+            Pending::Fold { expression } => {
                 fold_literal_negation(storage, expression);
             }
-            Pending::Inline(expression, bindings, body) => {
+            Pending::Inline { expression, bindings, body, effect_position } => {
                 if !fold_literal_negation(storage, expression) {
-                    inline_bindings(storage, expression, &bindings, body, recursive_globals);
+                    let scope = LetScope { bindings: &bindings, body, effect_position };
+                    inline_bindings(storage, expression, scope, recursive_globals);
                 }
             }
         }
     }
 }
 
+#[derive(Clone, Copy)]
+struct LetScope<'a> {
+    bindings: &'a [Binding],
+    body: ExpressionId,
+    effect_position: EffectPosition,
+}
+
 fn inline_bindings(
     storage: &mut Storage,
     expression: ExpressionId,
-    bindings: &[Binding],
-    body: ExpressionId,
+    scope: LetScope<'_>,
     recursive_globals: &FxHashSet<GlobalId>,
 ) {
+    let LetScope { bindings, body, effect_position } = scope;
     let mut bindings = bindings.to_vec();
     while let Some(position) = bindings.iter().position(|binding| {
-        let uses = binding_uses(storage, &bindings, body, binding.parameter.id);
-        uses > 0
-            && (is_trivial_expression(storage, binding.expression, recursive_globals)
-                || uses == 1
-                    && is_simple_expression(storage, binding.expression, recursive_globals))
+        let scope = LetScope { bindings: &bindings, body, effect_position };
+        should_inline_binding(storage, scope, binding, recursive_globals)
     }) {
         let binding = bindings.remove(position);
         for remaining in &bindings {
@@ -168,6 +189,26 @@ fn negated_number(value: &str) -> SmolStr {
     }
 }
 
+fn should_inline_binding(
+    storage: &Storage,
+    scope: LetScope<'_>,
+    binding: &Binding,
+    recursive_globals: &FxHashSet<GlobalId>,
+) -> bool {
+    let parameter = binding.parameter.id;
+    let uses = binding_uses(storage, scope.bindings, scope.body, parameter);
+    if uses == 0 {
+        return false;
+    }
+    if is_trivial_expression(storage, binding.expression, recursive_globals) {
+        return true;
+    }
+    if uses > 1 || !is_simple_expression(storage, binding.expression, recursive_globals) {
+        return false;
+    }
+    is_abstraction(storage, binding.expression) || !binding_is_captured(storage, scope, parameter)
+}
+
 fn binding_uses(
     storage: &Storage,
     bindings: &[Binding],
@@ -179,6 +220,126 @@ fn binding_uses(
         .map(|binding| local_uses(storage, binding.expression, parameter))
         .sum::<usize>();
     binding_uses + local_uses(storage, body, parameter)
+}
+
+fn is_abstraction(storage: &Storage, expression: ExpressionId) -> bool {
+    matches!(
+        storage[expression].kind,
+        ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. }
+    )
+}
+
+fn binding_is_captured(storage: &Storage, scope: LetScope<'_>, parameter: LocalId) -> bool {
+    let mut expressions = scope.bindings.iter().map(|binding| binding.expression);
+    expressions.any(|expression| {
+        local_is_captured(storage, expression, EffectPosition::Constructed, parameter)
+    }) || local_is_captured(storage, scope.body, scope.effect_position, parameter)
+}
+
+pub fn local_is_captured(
+    storage: &Storage,
+    expression: ExpressionId,
+    effect_position: EffectPosition,
+    parameter: LocalId,
+) -> bool {
+    let mut pending = vec![(expression, effect_position, false)];
+    while let Some((expression, effect_position, captured)) = pending.pop() {
+        let kind = &storage[expression].kind;
+        if matches!(kind, ExpressionKind::Local { parameter: local } if local.id == parameter) {
+            if captured {
+                return true;
+            }
+            continue;
+        }
+        for_each_evaluated_child(kind, effect_position, |child, evaluation| {
+            pending.push((child, evaluation.effect_position, captured || evaluation.captured));
+        });
+    }
+    false
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum EffectPosition {
+    Executed,
+    Constructed,
+}
+
+#[derive(Clone, Copy)]
+pub struct ChildEvaluation {
+    pub captured: bool,
+    pub effect_position: EffectPosition,
+}
+
+pub fn for_each_evaluated_child(
+    kind: &ExpressionKind,
+    effect_position: EffectPosition,
+    mut visit: impl FnMut(ExpressionId, ChildEvaluation),
+) {
+    let value = ChildEvaluation { captured: false, effect_position: EffectPosition::Constructed };
+    let continuation = ChildEvaluation { captured: false, effect_position };
+    match kind {
+        ExpressionKind::Abstraction { body, .. }
+        | ExpressionKind::UncurriedAbstraction { body, .. } => {
+            visit(
+                *body,
+                ChildEvaluation { captured: true, effect_position: EffectPosition::Constructed },
+            );
+        }
+        ExpressionKind::Effect { effect } => {
+            let captured = effect_position == EffectPosition::Constructed;
+            let value = ChildEvaluation { captured, effect_position: EffectPosition::Constructed };
+            let action = ChildEvaluation { captured, effect_position };
+            let step = ChildEvaluation { captured, effect_position: EffectPosition::Executed };
+            match effect {
+                EffectExpression::Pure(expression) => visit(*expression, value),
+                EffectExpression::Bind { action: bound, body, .. } => {
+                    visit(*bound, action);
+                    visit(*body, step);
+                }
+                EffectExpression::Map { function, action: mapped } => {
+                    visit(*function, value);
+                    visit(*mapped, action);
+                }
+                EffectExpression::Apply { function_action, argument_action } => {
+                    visit(*function_action, action);
+                    visit(*argument_action, action);
+                }
+            }
+        }
+        ExpressionKind::Let { bindings, body, .. } => {
+            for binding in bindings.iter() {
+                visit(binding.expression, value);
+            }
+            visit(*body, continuation);
+        }
+        ExpressionKind::LetPattern { value: bound, body, .. } => {
+            visit(*bound, value);
+            visit(*body, continuation);
+        }
+        ExpressionKind::IfThenElse { condition, then, else_ } => {
+            visit(*condition, value);
+            visit(*then, continuation);
+            visit(*else_, continuation);
+        }
+        ExpressionKind::Case { scrutinees, alternatives } => {
+            for &scrutinee in scrutinees.iter() {
+                visit(scrutinee, value);
+            }
+            for alternative in alternatives.iter() {
+                visit(alternative.expression, continuation);
+            }
+        }
+        ExpressionKind::Guarded { alternatives } => {
+            for alternative in alternatives.iter() {
+                for guard in alternative.guards.iter() {
+                    let (Guard::Boolean(expression) | Guard::Pattern { expression, .. }) = guard;
+                    visit(*expression, value);
+                }
+                visit(alternative.expression, continuation);
+            }
+        }
+        _ => for_each_expression_child(kind, |child| visit(child, value)),
+    }
 }
 
 pub fn local_uses(storage: &Storage, expression: ExpressionId, parameter: LocalId) -> usize {
