@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+multipleScrutinees :: Prim.Int -> Prim.Int -> Prim.Int
+multipleScrutinees = \a -> \b ->
+  case a, b of
+    x, x -> x
+
+singleScrutinee :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+singleScrutinee = \p ->
+  case p of
+    (Pair x x) -> x
+
+separateBranches :: Prim.Int -> Prim.Int -> Prim.Int
+separateBranches = \a -> \b ->
+  case a, b of
+    0, x -> x
+    x, _ -> x

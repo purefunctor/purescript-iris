@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotUnify] · Main.purs:7:19
+  •
+  │
+  • Cannot unify 'Int' with 'String'
+  │
+  │   pun = \x { x } -> x
+  │                     ╰
+  •

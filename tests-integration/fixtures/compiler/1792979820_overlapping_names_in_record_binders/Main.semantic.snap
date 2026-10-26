@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+punAndArgument :: { x :: Prim.Int } -> Prim.Int -> Prim.Int
+punAndArgument = \{ x } -> \x -> x
+
+punAndField :: { a :: Prim.Int, x :: Prim.Int } -> Prim.Int
+punAndField = \{ a: x, x } -> x
+
+fields :: { a :: Prim.Int, b :: Prim.Int } -> Prim.Int
+fields = \{ a: x, b: x } -> x

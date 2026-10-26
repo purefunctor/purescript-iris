@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export withinGuard = \t%0 ->
+  | Tuple x%1 x%2 <- t%0 -> x%2
+  | otherwise -> 0
+
+@export shadowsArgument = \x%5 t%3 ->
+  | Tuple x%4 _ <- t%3 -> x%4
+  | otherwise -> 0

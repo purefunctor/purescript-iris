@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+topLevel :: Prim.Int -> Prim.Int -> Prim.Int
+whereBound :: Prim.Int -> Prim.Int
+combine :: forall @a. Main.Combine a => a -> a -> a
+
+Types
+Combine :: Prim.Type -> Prim.Constraint
+
+Classes
+class forall (a :: Prim.Type). Main.Combine a
+  combine :: forall @a. Main.Combine a => a -> a -> a
+
+Instances
+instance Main.Combine Prim.Int

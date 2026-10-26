@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+variables :: Prim.Int -> Prim.String -> Prim.String
+variables = \x x -> x
+
+pun :: Prim.Int -> { x :: Prim.String } -> Prim.String
+pun = \x { x } -> x

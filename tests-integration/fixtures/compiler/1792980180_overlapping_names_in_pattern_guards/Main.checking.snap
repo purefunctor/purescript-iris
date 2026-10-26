@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+withinGuard :: Data.Tuple.Tuple Prim.Int Prim.Int -> Prim.Int
+shadowsArgument :: Prim.Int -> Data.Tuple.Tuple Prim.Int Prim.Int -> Prim.Int
+
+Types

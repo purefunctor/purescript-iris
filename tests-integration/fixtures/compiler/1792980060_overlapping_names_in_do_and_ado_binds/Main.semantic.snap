@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+doBind :: Effect.Effect (Data.Tuple.Tuple Prim.Int Prim.Int) -> Effect.Effect Prim.Int
+doBind = \action -> bind {bindEffect} action \(Tuple x x) -> pure {applicativeEffect} x
+
+adoBind :: Effect.Effect (Data.Tuple.Tuple Prim.Int Prim.Int) -> Effect.Effect Prim.Int
+adoBind = \action -> map {functorEffect} (\(Tuple x x) -> x) action
+
+successiveBinds :: Effect.Effect Prim.Int -> Effect.Effect Prim.Int
+successiveBinds = \action ->
+  bind {bindEffect} action \x ->
+    bind {bindEffect} (pure {applicativeEffect} (add {semiringInt} x 1)) \x ->
+      pure {applicativeEffect} x

@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Combine :: Prim.Type -> Prim.Constraint
+interface Combine a where
+  combine :: a -> a -> a
+
+topLevel :: Prim.Int -> Prim.Int -> Prim.Int
+topLevel = \x -> \x -> x
+
+whereBound :: Prim.Int -> Prim.Int
+whereBound = \a -> go a a
+  where
+  go :: Prim.Int -> Prim.Int -> Prim.Int
+  go = \y -> \y -> y
+
+dictionary combineInt :: Main.Combine Prim.Int where
+  combine :: Prim.Int -> Prim.Int -> Prim.Int
+  combine = \z -> \z -> z

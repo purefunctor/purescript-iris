@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+variables :: Prim.Int -> Prim.String -> Prim.String
+pun :: Prim.Int -> { x :: Prim.String } -> Prim.String
+
+Types

@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+withinBinder :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+withinBinder = \(Pair x x) -> x
