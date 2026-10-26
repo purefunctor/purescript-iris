@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotUnify] · Main.purs:10:3
+  •
+  │
+  • Cannot unify 'Unit' with '?6 -> ?7'
+  │
+  │     pure unit
+  │     ╰────────
+  •
