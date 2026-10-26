@@ -1,20 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [NotInScope] · Main.purs:4:11
-  •
-  │
-  • '--' is not in scope
-  │
-  │   answer = (-- the answer
-  │             ╰─
-  •
 
-Error! · [NotInScope] · Main.purs:4:14
-  •
-  │
-  • 'the' is not in scope
-  │
-  │   answer = (-- the answer
-  │                ╰──
-  •

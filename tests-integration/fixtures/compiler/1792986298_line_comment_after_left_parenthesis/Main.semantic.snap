@@ -2,4 +2,4 @@
 source: tests-integration/src/fixtures.rs
 ---
 answer :: Prim.Int
-answer = <error>
+answer = 42

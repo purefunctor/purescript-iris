@@ -1,3 +1,1 @@
-export const answer = (() => {
-  throw new Error("Generated code reached a source error");
-})();
+export const answer = 42 | 0;

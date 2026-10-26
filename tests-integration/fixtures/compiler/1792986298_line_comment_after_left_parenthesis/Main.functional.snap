@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export recursive[0] answer = <error>
+@export answer = 42

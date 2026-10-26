@@ -9,28 +9,7 @@ annotation : ""
   position : Position { line: 1, column: 1 }
      error : None
 
-annotation : ""
- qualifier : ""
-      kind : OPERATOR
-      text : "--"
-  position : Position { line: 1, column: 2 }
-     error : None
-
-annotation : " "
- qualifier : ""
-      kind : LOWER
-      text : "the"
-  position : Position { line: 1, column: 5 }
-     error : None
-
-annotation : " "
- qualifier : ""
-      kind : LOWER
-      text : "answer"
-  position : Position { line: 1, column: 9 }
-     error : None
-
-annotation : "\n  "
+annotation : "-- the answer\n  "
  qualifier : ""
       kind : INTEGER
       text : "42"
