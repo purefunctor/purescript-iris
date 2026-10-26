@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+answer :: Prim.Int
+answer = 42

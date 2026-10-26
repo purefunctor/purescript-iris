@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+main :: Effect.Effect Data.Unit.Unit
+main =
+  discard {discardUnit} {bindEffect} (pure {applicativeEffect} unit) \_ ->
+    apply (pure {applicativeEffect}) unit

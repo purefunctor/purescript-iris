@@ -1,4 +1,4 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-cannot format: 3:7: incomplete syntax in Qualifier
+cannot format: 3:5: incomplete syntax in Qualifier

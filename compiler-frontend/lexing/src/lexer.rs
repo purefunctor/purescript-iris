@@ -311,7 +311,7 @@ impl Lexer<'_> {
     }
 
     fn take_operator_name_or_left_parenthesis(&mut self) {
-        let lp_position = self.current_position;
+        let lp_position = self.qualifier_position;
         self.take();
 
         let lp_token = self.consumed() as u32;
@@ -322,7 +322,11 @@ impl Lexer<'_> {
             position: lp_position,
         };
 
-        if !self.first().is_operator() {
+        let line_comment = self.first() == '-'
+            && self.second() == '-'
+            && self.chars.clone().find(|character| !character.is_operator()) != Some(')');
+
+        if !self.first().is_operator() || line_comment {
             return self.lexed.push(SyntaxKind::LEFT_PARENTHESIS, lp_info, None);
         }
 

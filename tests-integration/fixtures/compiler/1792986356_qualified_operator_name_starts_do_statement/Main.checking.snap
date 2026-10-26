@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+main :: Effect.Effect Data.Unit.Unit
+
+Types
