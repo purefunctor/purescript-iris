@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [OverlappingBinderNames] · Main.purs:7:6
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │     x, x -> x
+  │        ╰
+  │
+  • First bound here
+  │
+  │     x, x -> x
+  │     ╰
+  •
+
+Error! · [OverlappingBinderNames] · Main.purs:11:10
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │     Pair x x -> x
+  │            ╰
+  │
+  • First bound here
+  │
+  │     Pair x x -> x
+  │          ╰
+  •

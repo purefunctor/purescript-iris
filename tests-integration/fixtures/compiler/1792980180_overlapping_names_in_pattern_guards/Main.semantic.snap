@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+withinGuard :: Data.Tuple.Tuple Prim.Int Prim.Int -> Prim.Int
+withinGuard = \t ->
+  | (Tuple x x) <- t -> x
+  | otherwise -> 0
+
+shadowsArgument :: Prim.Int -> Data.Tuple.Tuple Prim.Int Prim.Int -> Prim.Int
+shadowsArgument = \x -> \t ->
+  | (Tuple x _) <- t -> x
+  | otherwise -> 0

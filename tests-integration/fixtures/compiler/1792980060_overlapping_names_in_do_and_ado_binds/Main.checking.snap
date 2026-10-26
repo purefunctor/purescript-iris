@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+doBind :: Effect.Effect (Data.Tuple.Tuple Prim.Int Prim.Int) -> Effect.Effect Prim.Int
+adoBind :: Effect.Effect (Data.Tuple.Tuple Prim.Int Prim.Int) -> Effect.Effect Prim.Int
+successiveBinds :: Effect.Effect Prim.Int -> Effect.Effect Prim.Int
+
+Types

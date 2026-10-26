@@ -1,0 +1,72 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [OverlappingBinderNames] · Main.purs:8:27
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   acrossArguments x (Pair _ x) = x
+  │                             ╰
+  │
+  • First bound here
+  │
+  │   acrossArguments x (Pair _ x) = x
+  │                   ╰
+  •
+
+Error! · [OverlappingBinderNames] · Main.purs:11:21
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   constructor (Pair x x) = x
+  │                       ╰
+  │
+  • First bound here
+  │
+  │   constructor (Pair x x) = x
+  │                     ╰
+  •
+
+Error! · [OverlappingBinderNames] · Main.purs:14:16
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   operator (x /\ x) = x
+  │                  ╰
+  │
+  • First bound here
+  │
+  │   operator (x /\ x) = x
+  │             ╰
+  •
+
+Error! · [OverlappingBinderNames] · Main.purs:17:11
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   array [x, x] = x
+  │             ╰
+  │
+  • First bound here
+  │
+  │   array [x, x] = x
+  │          ╰
+  •
+
+Error! · [OverlappingBinderNames] · Main.purs:21:15
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   named x@(Pair x _) = 0
+  │                 ╰
+  │
+  • First bound here
+  │
+  │   named x@(Pair x _) = 0
+  │         ╰───────────
+  •

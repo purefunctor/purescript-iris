@@ -384,6 +384,28 @@ impl ToDiagnostics for LoweringError {
                 )]
             }
 
+            LoweringError::OverlappingBinderNames { name, duplicate, existing } => {
+                let span = |source| {
+                    let ptr = match source {
+                        lowering::BinderNameSource::Binder(id) => context.stabilized.syntax_ptr(id),
+                        lowering::BinderNameSource::RecordPun(id) => {
+                            context.stabilized.syntax_ptr(id)
+                        }
+                    };
+                    context.span_from_syntax_ptr(&ptr?)
+                };
+                let Some(duplicate) = span(*duplicate) else { return Vec::new() };
+
+                let message = format!("Name '{name}' is bound more than once");
+                let mut diagnostic =
+                    Diagnostic::error("OverlappingBinderNames", message, duplicate, "lowering");
+                if let Some(existing) = span(*existing) {
+                    diagnostic = diagnostic.with_related(existing, "First bound here");
+                }
+
+                vec![diagnostic]
+            }
+
             LoweringError::RecursiveSynonym(group) => convert_recursive_group(
                 context,
                 &group.group,

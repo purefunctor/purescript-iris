@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export topLevel = \x%1 x%0 -> x%0
+
+@export whereBound = \a%3 -> (\y%5 y%4 -> y%4) a%3 a%3
+
+@export combine = \dictionary%6 -> dictionary%6.combine
+
+@export instance combineInt = { combine: \z%8 z%7 -> z%7 }

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export letIn = \t%1 ->
+  let
+    Tuple x%2 x%0 = t%1
+  in x%0
+
+@export whereBound = \t%4 ->
+  let
+    Tuple x%5 x%3 = t%4
+  in x%3

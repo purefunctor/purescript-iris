@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+letIn :: Data.Tuple.Tuple Prim.Int Prim.Int -> Prim.Int
+letIn = \t ->
+  let
+    (Tuple x x) = t
+  in
+    x
+
+whereBound :: Data.Tuple.Tuple Prim.Int Prim.Int -> Prim.Int
+whereBound = \t -> x
+  where
+  (Tuple x x) = t

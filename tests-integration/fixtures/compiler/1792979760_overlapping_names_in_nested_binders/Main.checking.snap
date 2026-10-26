@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Pair :: forall @a @b. a -> b -> Main.Pair a b
+/\ :: forall @a @b. a -> b -> Main.Pair a b
+acrossArguments :: Prim.Int -> Main.Pair Prim.Int Prim.Int -> Prim.Int
+constructor :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+operator :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+array :: Prim.Array Prim.Int -> Prim.Int
+named :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+
+Types
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+
+Roles
+Pair = [Representational, Representational]

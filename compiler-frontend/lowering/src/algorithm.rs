@@ -151,21 +151,30 @@ impl State {
         self.nodes.let_node.insert(id, node);
     }
 
-    fn insert_binder(&mut self, name: &str, id: BinderId) {
+    fn insert_binder_name(&mut self, name: &str, source: BinderNameSource) {
         let Some(node) = self.graph_scope else { return };
-        let GraphNode::Binder { binders, .. } = &mut self.graph.inner[node] else { return };
+        let GraphNode::Binder { binders, puns, .. } = &mut self.graph.inner[node] else { return };
+
+        let existing = binders
+            .get(name)
+            .map(|&id| BinderNameSource::Binder(id))
+            .or_else(|| puns.get(name).map(|&id| BinderNameSource::RecordPun(id)));
 
         let name = SmolStr::from(name);
-        binders.insert(name, id);
-    }
+        match source {
+            BinderNameSource::Binder(id) => {
+                binders.insert(SmolStr::clone(&name), id);
+            }
+            BinderNameSource::RecordPun(id) => {
+                puns.insert(SmolStr::clone(&name), id);
+                self.nodes.record_pun_node.insert(id, node);
+            }
+        }
 
-    fn insert_record_pun(&mut self, name: &str, id: RecordPunId) {
-        let Some(node) = self.graph_scope else { return };
-        let GraphNode::Binder { puns, .. } = &mut self.graph.inner[node] else { return };
-
-        let name = SmolStr::from(name);
-        puns.insert(name, id);
-        self.nodes.record_pun_node.insert(id, node);
+        if let Some(existing) = existing {
+            let error = LoweringError::OverlappingBinderNames { name, duplicate: source, existing };
+            self.errors.push(error);
+        }
     }
 
     fn insert_bound_variable(&mut self, name: &str, id: TypeVariableBindingId) {

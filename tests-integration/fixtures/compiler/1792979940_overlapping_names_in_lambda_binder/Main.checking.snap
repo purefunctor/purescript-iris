@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Pair :: forall @a @b. a -> b -> Main.Pair a b
+withinBinder :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+
+Types
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+
+Roles
+Pair = [Representational, Representational]

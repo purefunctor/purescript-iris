@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+acrossArguments :: Prim.Int -> Main.Pair Prim.Int Prim.Int -> Prim.Int
+acrossArguments = \x -> \(Pair _ x) -> x
+
+constructor :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+constructor = \(Pair x x) -> x
+
+operator :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+operator = \(Pair x x) -> x
+
+array :: Prim.Array Prim.Int -> Prim.Int
+array = \[x, x] -> x
+array = \_ -> 0
+
+named :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+named = \x@(Pair x _) -> 0
