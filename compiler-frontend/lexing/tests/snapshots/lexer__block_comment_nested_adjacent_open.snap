@@ -1,0 +1,10 @@
+---
+source: compiler-frontend/lexing/tests/lexer.rs
+description: "{-{--}-} answer\n"
+---
+annotation : "{-{--}-} answer\n"
+ qualifier : ""
+      kind : END_OF_FILE
+      text : ""
+  position : Position { line: 2, column: 1 }
+     error : None

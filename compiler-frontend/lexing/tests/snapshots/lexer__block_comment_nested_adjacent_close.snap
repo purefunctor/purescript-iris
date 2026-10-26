@@ -1,0 +1,31 @@
+---
+source: compiler-frontend/lexing/tests/lexer.rs
+description: "module Main where\n{- {- x -}-}\nanswer = 42\n"
+---
+annotation : ""
+ qualifier : ""
+      kind : MODULE
+      text : "module"
+  position : Position { line: 1, column: 1 }
+     error : None
+
+annotation : " "
+ qualifier : ""
+      kind : UPPER
+      text : "Main"
+  position : Position { line: 1, column: 8 }
+     error : None
+
+annotation : " "
+ qualifier : ""
+      kind : WHERE
+      text : "where"
+  position : Position { line: 1, column: 13 }
+     error : None
+
+annotation : "\n{- {- x -}-}\nanswer = 42\n"
+ qualifier : ""
+      kind : END_OF_FILE
+      text : ""
+  position : Position { line: 4, column: 1 }
+     error : None
