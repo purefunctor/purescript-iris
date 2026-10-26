@@ -1,0 +1,3 @@
+module Main where
+{- {- x -}-}
+answer = 42
