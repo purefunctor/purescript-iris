@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export main = <error>
+@export main = effect.bind (effect.pure unit) \$unit%0 -> effect.pure unit

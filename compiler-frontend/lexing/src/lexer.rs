@@ -311,7 +311,7 @@ impl Lexer<'_> {
     }
 
     fn take_operator_name_or_left_parenthesis(&mut self) {
-        let lp_position = self.current_position;
+        let lp_position = self.qualifier_position;
         self.take();
 
         let lp_token = self.consumed() as u32;
