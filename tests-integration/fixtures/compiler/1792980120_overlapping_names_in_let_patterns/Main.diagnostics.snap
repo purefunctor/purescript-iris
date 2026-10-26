@@ -1,4 +1,30 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [OverlappingBinderNames] · Main.purs:6:23
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   letIn t = let Tuple x x = t in x
+  │                         ╰
+  │
+  • First bound here
+  │
+  │   letIn t = let Tuple x x = t in x
+  │                       ╰
+  •
 
+Error! · [OverlappingBinderNames] · Main.purs:11:11
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │     Tuple x x = t
+  │             ╰
+  │
+  • First bound here
+  │
+  │     Tuple x x = t
+  │           ╰
+  •

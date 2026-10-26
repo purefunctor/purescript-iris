@@ -156,7 +156,7 @@ fn lower_binder_kind(
                 SmolStr::from(text)
             });
             if let Some(name) = &variable {
-                state.insert_binder(name, id);
+                state.insert_binder_name(name, BinderNameSource::Binder(id));
             }
             BinderKind::Variable { variable }
         }
@@ -166,7 +166,7 @@ fn lower_binder_kind(
                 SmolStr::from(text)
             });
             if let Some(name) = &named {
-                state.insert_binder(name, id);
+                state.insert_binder_name(name, BinderNameSource::Binder(id));
             }
             let binder = cst.binder().map(|cst| lower_binder(state, context, &cst));
             BinderKind::Named { named, binder }
@@ -209,7 +209,7 @@ fn lower_binder_kind(
                     });
 
                     if let Some(name) = &name {
-                        state.insert_record_pun(name, id);
+                        state.insert_binder_name(name, BinderNameSource::RecordPun(id));
                     }
 
                     BinderRecordItem::RecordPun { id, name }
@@ -328,11 +328,13 @@ fn lower_expression_kind(
             ExpressionKind::LetIn { bindings, expression }
         }),
         cst::Expression::ExpressionLambda(cst) => state.with_scope(|state| {
-            state.push_binder_scope();
             let binders = recover! {
                 cst.function_binders()?
                     .children()
-                    .map(|cst| lower_binder(state, context, &cst))
+                    .map(|cst| {
+                        state.push_binder_scope();
+                        lower_binder(state, context, &cst)
+                    })
                     .collect()
             };
             let expression = cst.expression().map(|cst| lower_expression(state, context, &cst));

@@ -1,13 +1,23 @@
 use std::sync::Arc;
 
 use indexing::TypeItemId;
+use smol_str::SmolStr;
 use stabilizing::AstId;
 use syntax::cst;
+
+use crate::source::{BinderId, RecordPunId};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum LoweringError {
     NotInScope(NotInScope),
-    InvalidStringEscape { source: StringLiteralSource },
+    InvalidStringEscape {
+        source: StringLiteralSource,
+    },
+    OverlappingBinderNames {
+        name: SmolStr,
+        duplicate: BinderNameSource,
+        existing: BinderNameSource,
+    },
     RecursiveSynonym(RecursiveGroup),
     RecursiveKinds(RecursiveGroup),
 }
@@ -17,6 +27,12 @@ pub enum StringLiteralSource {
     Expression(AstId<cst::ExpressionString>),
     Binder(AstId<cst::BinderString>),
     Type(AstId<cst::TypeString>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinderNameSource {
+    Binder(BinderId),
+    RecordPun(RecordPunId),
 }
 
 #[derive(Debug, PartialEq, Eq)]

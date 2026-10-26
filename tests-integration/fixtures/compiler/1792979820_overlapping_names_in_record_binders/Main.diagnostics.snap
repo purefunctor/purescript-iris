@@ -1,4 +1,44 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [OverlappingBinderNames] · Main.purs:4:22
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   punAndArgument { x } x = x
+  │                        ╰
+  │
+  • First bound here
+  │
+  │   punAndArgument { x } x = x
+  │                    ╰
+  •
 
+Error! · [OverlappingBinderNames] · Main.purs:7:21
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   punAndField { x, a: x } = x
+  │                       ╰
+  │
+  • First bound here
+  │
+  │   punAndField { x, a: x } = x
+  │                 ╰
+  •
+
+Error! · [OverlappingBinderNames] · Main.purs:10:19
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   fields { a: x, b: x } = x
+  │                     ╰
+  │
+  • First bound here
+  │
+  │   fields { a: x, b: x } = x
+  │               ╰
+  •

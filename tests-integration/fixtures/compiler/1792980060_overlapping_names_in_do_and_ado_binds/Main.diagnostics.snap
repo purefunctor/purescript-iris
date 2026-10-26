@@ -1,4 +1,30 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [OverlappingBinderNames] · Main.purs:10:11
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │     Tuple x x <- action
+  │             ╰
+  │
+  • First bound here
+  │
+  │     Tuple x x <- action
+  │           ╰
+  •
 
+Error! · [OverlappingBinderNames] · Main.purs:15:11
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │     Tuple x x <- action
+  │             ╰
+  │
+  • First bound here
+  │
+  │     Tuple x x <- action
+  │           ╰
+  •

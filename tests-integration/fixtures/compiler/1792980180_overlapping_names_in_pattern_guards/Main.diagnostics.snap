@@ -1,4 +1,16 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-
+Error! · [OverlappingBinderNames] · Main.purs:9:13
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │     | Tuple x x <- t = x
+  │               ╰
+  │
+  • First bound here
+  │
+  │     | Tuple x x <- t = x
+  │             ╰
+  •

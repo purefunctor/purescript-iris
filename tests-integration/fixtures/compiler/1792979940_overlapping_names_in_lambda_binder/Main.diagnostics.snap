@@ -1,4 +1,16 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-
+Error! · [OverlappingBinderNames] · Main.purs:6:25
+  •
+  │
+  • Name 'x' is bound more than once
+  │
+  │   withinBinder = \(Pair x x) -> x
+  │                           ╰
+  │
+  • First bound here
+  │
+  │   withinBinder = \(Pair x x) -> x
+  │                         ╰
+  •

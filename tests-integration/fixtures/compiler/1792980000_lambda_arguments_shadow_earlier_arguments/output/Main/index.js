@@ -6,6 +6,6 @@ export function variables(x) {
 export function pun(x) {
   return ($record) => {
     const x$1 = $record.x;
-    return x;
+    return x$1;
   };
 }

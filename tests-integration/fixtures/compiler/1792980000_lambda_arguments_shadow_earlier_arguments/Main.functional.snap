@@ -3,4 +3,4 @@ source: tests-integration/src/fixtures.rs
 ---
 @export variables = \x%0 x%1 -> x%1
 
-@export pun = \x%2 $record%4@({ x: x%3 }) -> x%2
+@export pun = \x%2 $record%4@({ x: x%3 }) -> x%3
