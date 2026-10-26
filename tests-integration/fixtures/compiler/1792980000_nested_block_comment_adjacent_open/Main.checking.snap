@@ -2,5 +2,6 @@
 source: tests-integration/src/fixtures.rs
 ---
 Terms
+answer :: Prim.Int
 
 Types

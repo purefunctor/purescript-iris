@@ -2,7 +2,14 @@
 source: compiler-frontend/lexing/tests/lexer.rs
 description: "{-{--}-} answer\n"
 ---
-annotation : "{-{--}-} answer\n"
+annotation : "{-{--}-} "
+ qualifier : ""
+      kind : LOWER
+      text : "answer"
+  position : Position { line: 1, column: 10 }
+     error : None
+
+annotation : "\n"
  qualifier : ""
       kind : END_OF_FILE
       text : ""

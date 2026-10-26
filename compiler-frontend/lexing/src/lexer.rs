@@ -198,7 +198,7 @@ impl Lexer<'_> {
         self.take();
         self.take();
         let mut level = 1;
-        while !self.is_eof() {
+        while level > 0 && !self.is_eof() {
             match (self.first(), self.second()) {
                 ('{', '-') => {
                     level += 1;
@@ -210,12 +210,10 @@ impl Lexer<'_> {
                     self.take();
                     self.take();
                 }
-                _ => (),
+                _ => {
+                    self.take();
+                }
             }
-            if level == 0 {
-                break;
-            }
-            self.take();
         }
     }
 

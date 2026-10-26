@@ -23,7 +23,28 @@ annotation : " "
   position : Position { line: 1, column: 13 }
      error : None
 
-annotation : "\n{- {- x -}-}\nanswer = 42\n"
+annotation : "\n{- {- x -}-}\n"
+ qualifier : ""
+      kind : LOWER
+      text : "answer"
+  position : Position { line: 3, column: 1 }
+     error : None
+
+annotation : " "
+ qualifier : ""
+      kind : EQUAL
+      text : "="
+  position : Position { line: 3, column: 8 }
+     error : None
+
+annotation : " "
+ qualifier : ""
+      kind : INTEGER
+      text : "42"
+  position : Position { line: 3, column: 10 }
+     error : None
+
+annotation : "\n"
  qualifier : ""
       kind : END_OF_FILE
       text : ""
