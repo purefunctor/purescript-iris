@@ -1,0 +1,59 @@
+---
+source: compiler-frontend/lexing/tests/lexer.rs
+description: "(-- the answer\n  42)\n(--)\n"
+---
+annotation : ""
+ qualifier : ""
+      kind : LEFT_PARENTHESIS
+      text : "("
+  position : Position { line: 1, column: 1 }
+     error : None
+
+annotation : ""
+ qualifier : ""
+      kind : OPERATOR
+      text : "--"
+  position : Position { line: 1, column: 2 }
+     error : None
+
+annotation : " "
+ qualifier : ""
+      kind : LOWER
+      text : "the"
+  position : Position { line: 1, column: 5 }
+     error : None
+
+annotation : " "
+ qualifier : ""
+      kind : LOWER
+      text : "answer"
+  position : Position { line: 1, column: 9 }
+     error : None
+
+annotation : "\n  "
+ qualifier : ""
+      kind : INTEGER
+      text : "42"
+  position : Position { line: 2, column: 3 }
+     error : None
+
+annotation : ""
+ qualifier : ""
+      kind : RIGHT_PARENTHESIS
+      text : ")"
+  position : Position { line: 2, column: 5 }
+     error : None
+
+annotation : "\n"
+ qualifier : ""
+      kind : OPERATOR_NAME
+      text : "(--)"
+  position : Position { line: 3, column: 1 }
+     error : None
+
+annotation : "\n"
+ qualifier : ""
+      kind : END_OF_FILE
+      text : ""
+  position : Position { line: 4, column: 1 }
+     error : None
