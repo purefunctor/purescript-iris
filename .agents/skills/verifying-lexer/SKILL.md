@@ -50,8 +50,7 @@ compiler-frontend/lexing/verification/check-lexer.sh
 The script uses `.agents/scripts/tlc.sh` to install Temurin 21.0.12 through mise and download
 SHA-256-checked `tla2tools.jar` 1.7.4 to `target/tla/`. The run takes about 2 minutes on 16 cores.
 It prints one `pass` line for each scenario and one `caught` line for each mutant, then ends with
-`All results as expected` and exits with status 0. Until the [known findings](#known-findings) are
-fixed, the `names` and `all` scenarios print `FAIL` and the script exits with status 1.
+`All results as expected` and exits with status 0.
 
 - `pass` means that no source string in that scenario breaks a property.
 - `caught` means that a mutant of the model fails the property that guards it.
@@ -76,32 +75,12 @@ lengths, and `Alphabets` in `Lexer.tla` sets the characters.
 | `names`    | `A a . ( ) + - _ ' ? space`     | 6      | 1,948,717 | Qualifiers, operator names, holes, `_`, and operators after `(`.         |
 | `all`      | Every character in `Characters` | 4      | 245,411   | Every branch of `take_token_impl` next to every other.                   |
 
-### Known findings
-
-At the sync commit, the `names` and `all` scenarios fail on two bugs in the real code. Until they
-are fixed, these two failures are expected, and any other failure is new.
-
-- **`AnnotationsAreTrivia` on `(--`.** `take_operator_name_or_left_parenthesis` lexes a `--` after
-  `(` as an operator, so `foo = (-- the answer` yields `OPERATOR "--"`, `LOWER "the"`, and
-  `LOWER "answer"`. `purs` lexes `(` and then a line comment, because its `leftParen` falls back to
-  `TokLeftParen` when the operator characters are not followed by `)`. `(--)` is an operator name in
-  both.
-- **`PositionsMatchOffsets` on `A.(`.** `take_operator_name_or_left_parenthesis` takes the position
-  of `(` from `current_position`, after the qualifier, instead of `qualifier_position`, so a
-  qualified `(` or operator name such as `Prelude.(+)` is placed after its qualifier. In
-  `main = do\n  foo\n  Prelude.(+) 1 2`, layout then emits no `LAYOUT_SEPARATOR` before
-  `Prelude.(+)`, and the third line continues the call to `foo`.
-
-TLC stops at the first violation, so the second finding hides behind the first in `names` and `all`.
-With both fixed in a scratch copy of the model, every scenario passed. When you fix one, remove it
-from this list.
-
 ## Decide whether the change touches the verified code
 
 Compare the covered files with the sync commit:
 
 ```bash
-git diff 857c44934377037ff4804dc49925df07e9a5e49d -- \
+git diff 7ffe0720dc4d7382ab30d88a9119078d99aa719b -- \
   compiler-frontend/lexing/src/lexer.rs compiler-frontend/lexing/src/categories.rs \
   compiler-frontend/lexing/src/lexed.rs compiler-frontend/lexing/src/lib.rs
 ```
@@ -112,7 +91,7 @@ until `Lexer.tla` has the matching change.
 
 ## Coverage record
 
-Sync commit: `857c44934377037ff4804dc49925df07e9a5e49d`. At this commit, the model describes the
+Sync commit: `7ffe0720dc4d7382ab30d88a9119078d99aa719b`. At this commit, the model describes the
 code below. Move the sync commit forward only after you confirm that the model still describes the
 code at the new commit.
 
@@ -135,6 +114,16 @@ shorter length (comments 7, strings 6, numbers 5, names 5, all 3: 453,065 source
 token's kind, annotation, qualifier, and token offsets, position, and error with TLC's state dump.
 All 453,065 sources agreed. A model with the `qualifier_keeps_position` mutant differed on 40,941 of
 the 177,156 `names` sources, which shows that the comparison can fail.
+
+At commit `857c44934`, the same check found two bugs in `take_operator_name_or_left_parenthesis`: a
+`--` after `(` was lexed as an operator instead of a line comment, which broke
+`AnnotationsAreTrivia`, and a qualified `(` took its position after the qualifier, which broke
+`PositionsMatchOffsets`. Commits `7e4e6b11e` and `7ffe0720d` fixed them, and a second comparison of
+the `names` and `all` sources (188,311 sources) agreed with the fixed code.
+
+The properties do not guard the `)` lookahead in that fix. Without it, `(--)` lexes as `(` and a
+line comment, which is still trivia by `TriviaEnd`. The
+`compiler-frontend/lexing/tests/lexer/line_comment_after_left_parenthesis.txt` snapshot covers it.
 
 ### Abstractions and bounds
 
@@ -159,13 +148,15 @@ the 177,156 `names` sources, which shows that the comparison can fail.
 The `Mutant` constant in `Lexer.tla` selects a mutant. `mutants` in `check-lexer.sh` lists each
 mutant with the scenario, the length, and the property that must catch it.
 
-| Mutant                                 | Code change it stands for                                                                                          | Caught by               |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------- |
-| `block_comment_takes_after_delimiter`  | `take_annotation_block_comment` takes one more character after `{-` and `-}`, as it did before commit `068d35be9`. | `AnnotationsAreTrivia`  |
-| `underscore_takes_nothing`             | `_` pushes `UNDERSCORE` without `take`.                                                                            | `LexTerminates`         |
-| `operator_annotation_from_parenthesis` | The operator after `(` reuses the parenthesis's annotation instead of starting at the parenthesis's end.           | `TokensCoverSource`     |
-| `qualifier_keeps_position`             | `take_qualifier` restores its checkpoint without restoring `current_position`.                                     | `PositionsMatchOffsets` |
-| `raw_string_opens_with_four_quotes`    | `take_string` sends five quotes to `unreachable!()` instead of `take_raw_string`.                                  | `NeverPanics`           |
+| Mutant                                 | Code change it stands for                                                                                            | Caught by               |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `block_comment_takes_after_delimiter`  | `take_annotation_block_comment` takes one more character after `{-` and `-}`, as it did before commit `068d35be9`.   | `AnnotationsAreTrivia`  |
+| `underscore_takes_nothing`             | `_` pushes `UNDERSCORE` without `take`.                                                                              | `LexTerminates`         |
+| `operator_annotation_from_parenthesis` | The operator after `(` reuses the parenthesis's annotation instead of starting at the parenthesis's end.             | `TokensCoverSource`     |
+| `qualifier_keeps_position`             | `take_qualifier` restores its checkpoint without restoring `current_position`.                                       | `PositionsMatchOffsets` |
+| `raw_string_opens_with_four_quotes`    | `take_string` sends five quotes to `unreachable!()` instead of `take_raw_string`.                                    | `NeverPanics`           |
+| `parenthesis_ignores_line_comment`     | `take_operator_name_or_left_parenthesis` takes a `--` after `(` as an operator, as it did before commit `7e4e6b11e`. | `AnnotationsAreTrivia`  |
+| `parenthesis_position_after_qualifier` | `(` takes its position from `current_position`, after the qualifier, as it did before commit `7ffe0720d`.            | `PositionsMatchOffsets` |
 
 ## When the check fails
 

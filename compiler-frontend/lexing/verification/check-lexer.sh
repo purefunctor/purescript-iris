@@ -26,6 +26,8 @@ mutants=(
   "operator_annotation_from_parenthesis names 3 TokensCoverSource"
   "qualifier_keeps_position names 3 PositionsMatchOffsets"
   "raw_string_opens_with_four_quotes strings 5 NeverPanics"
+  "parenthesis_ignores_line_comment names 3 AnnotationsAreTrivia"
+  "parenthesis_position_after_qualifier names 3 PositionsMatchOffsets"
 )
 
 write_config() {

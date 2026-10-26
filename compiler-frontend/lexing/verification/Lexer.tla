@@ -9,7 +9,9 @@ Mutants == {
     "underscore_takes_nothing",
     "operator_annotation_from_parenthesis",
     "qualifier_keeps_position",
-    "raw_string_opens_with_four_quotes"
+    "raw_string_opens_with_four_quotes",
+    "parenthesis_ignores_line_comment",
+    "parenthesis_position_after_qualifier"
 }
 
 ASSUME Mutant \in Mutants
@@ -171,13 +173,22 @@ TakeOperator(lexer) ==
 
 TakeOperatorNameOrLeftParenthesis(lexer) ==
     LET parenthesis == Take(lexer)
+        parenthesisPosition ==
+            IF Mutant = "parenthesis_position_after_qualifier"
+            THEN lexer.position
+            ELSE lexer.qualifierPosition
         parenthesisInfo ==
             [annotation |-> lexer.annotation,
              qualifier |-> lexer.qualifier,
              token |-> Consumed(parenthesis),
-             position |-> lexer.position]
+             position |-> parenthesisPosition]
+        lineComment ==
+            /\ Mutant # "parenthesis_ignores_line_comment"
+            /\ First(parenthesis) = "-"
+            /\ Second(parenthesis) = "-"
+            /\ First(TakeWhile(parenthesis, OperatorCharacter)) # ")"
     IN
-    IF First(parenthesis) \notin OperatorCharacter THEN
+    IF First(parenthesis) \notin OperatorCharacter \/ lineComment THEN
         PushInfo(parenthesis, "LEFT_PARENTHESIS", parenthesisInfo, "None")
     ELSE
         LET operator == TakeWhile(parenthesis, OperatorCharacter)
@@ -200,7 +211,7 @@ TakeOperatorNameOrLeftParenthesis(lexer) ==
                     [annotation |-> parenthesisInfo.annotation,
                      qualifier |-> parenthesisInfo.qualifier,
                      token |-> Consumed(closed),
-                     position |-> lexer.position]
+                     position |-> parenthesisPosition]
                 nameKind ==
                     IF operatorKind = "DOUBLE_PERIOD"
                     THEN "DOUBLE_PERIOD_OPERATOR_NAME"
