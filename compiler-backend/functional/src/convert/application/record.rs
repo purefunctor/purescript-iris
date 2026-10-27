@@ -48,6 +48,12 @@ where
                 self.expression(ExpressionKind::RecordUpdate { record, updates: updates.into() });
             return Ok(Some(self.bound_operands(bindings, updated)));
         }
+        if self.known_term(function, "Record", "delete")?
+            && let [symbol, first, second, proxy, record] = *arguments
+            && let Some(field) = self.known_record_label(symbol, &[first, second], proxy)
+        {
+            return Ok(Some(self.expression(ExpressionKind::RecordDelete { record, field })));
+        }
         Ok(None)
     }
 

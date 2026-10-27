@@ -500,7 +500,7 @@ fn oxc_string_value(value: &[u16]) -> (String, bool) {
     (encoded, true)
 }
 
-fn property_is_identifier(name: &str) -> bool {
+pub(crate) fn property_is_identifier(name: &str) -> bool {
     let mut characters = name.chars();
     let Some(initial) = characters.next() else {
         return false;

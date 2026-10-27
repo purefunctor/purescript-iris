@@ -245,6 +245,7 @@ fn function_profile(
         | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
         | ExpressionKind::RecordUpdate { .. }
+        | ExpressionKind::RecordDelete { .. }
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
@@ -342,6 +343,7 @@ fn collect_tail_edges(
         | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
         | ExpressionKind::RecordUpdate { .. }
+        | ExpressionKind::RecordDelete { .. }
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
@@ -389,6 +391,7 @@ fn application_head(module: &Module, expression: ExpressionId) -> Option<Applica
         | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
         | ExpressionKind::RecordUpdate { .. }
+        | ExpressionKind::RecordDelete { .. }
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }

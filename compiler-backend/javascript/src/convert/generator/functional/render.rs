@@ -18,7 +18,7 @@ use functional::optimize::{
 use functional::tree::{
     ArrayElement as FunctionalArrayElement, BinaryOperator as FunctionalBinaryOperator, Binding,
     CaseAlternative, Declaration, DeclarationKind, EffectExpression,
-    ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
+    ExpressionId as FunctionalExpressionId, ExpressionKind, Field, Global, GlobalId, Guard,
     GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
     PatternId, PatternKind, RecordField, RecordUpdate,
 };
@@ -1651,6 +1651,10 @@ impl Generator<'_> {
                     self.record_update_expression(tree, writer, *record, updates, context)?;
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
+            ExpressionKind::RecordDelete { record, field } => {
+                let value = self.record_delete_expression(tree, writer, *record, field, context)?;
+                Ok(RenderedExpression { value, pending_evaluation: false })
+            }
             ExpressionKind::Project { record, field } => {
                 let record = self.rendered_expression(tree, writer, *record, context)?;
                 let value = tree.member(record.value, field.name.as_str());
@@ -1965,6 +1969,7 @@ impl Generator<'_> {
                     || !self.expression_can_inline(*else_)
             }
             ExpressionKind::Error
+            | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -1995,6 +2000,7 @@ impl Generator<'_> {
             | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }
             | ExpressionKind::Binary { .. }
@@ -2197,6 +2203,7 @@ impl Generator<'_> {
             }
             ExpressionKind::Error
             | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -2266,6 +2273,7 @@ impl Generator<'_> {
             }
             ExpressionKind::Error
             | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -3294,6 +3302,21 @@ impl Generator<'_> {
         }
         Ok(tree.object(properties))
     }
+
+    fn record_delete_expression<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        record: FunctionalExpressionId,
+        field: &Field,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<ExpressionId> {
+        let record = self.expression_value(tree, writer, record, context)?;
+        let deleted = context.allocate("$deleted");
+        let name = context.allocate("$record");
+        writer.constant_object_rest(tree, &field.name, &deleted, &name, record);
+        Ok(tree.identifier(name))
+    }
 }
 
 fn rendered_expression_is_reusable(tree: &Tree, expression: &RenderedExpression) -> bool {
@@ -3753,7 +3776,9 @@ fn collect_expression_references(
             collect_expression_references(module, *record, seen, globals);
             collect_update_references(module, updates, seen, globals);
         }
-        ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
+        ExpressionKind::Project { record, .. }
+        | ExpressionKind::RecordDelete { record, .. }
+        | ExpressionKind::Unary { value: record, .. } => {
             collect_expression_references(module, *record, seen, globals);
         }
         ExpressionKind::Binary { left, right, .. }
@@ -3980,7 +4005,9 @@ fn collect_expression_children(
             collect_expression_globals(module, *record, false, globals);
             collect_update_globals(module, updates, false, globals);
         }
-        ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
+        ExpressionKind::Project { record, .. }
+        | ExpressionKind::RecordDelete { record, .. }
+        | ExpressionKind::Unary { value: record, .. } => {
             collect_expression_globals(module, *record, false, globals);
         }
         ExpressionKind::Binary { left, right, .. }

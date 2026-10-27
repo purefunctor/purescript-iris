@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionBody, AssignmentTarget, BindingIdentifier, BindingPattern,
-    BindingProperty, Declaration, ExportSpecifier, Expression, FormalParameter,
+    BindingProperty, BindingRestElement, Declaration, ExportSpecifier, Expression, FormalParameter,
     FormalParameterKind, FormalParameters, Function, FunctionBody, FunctionType,
     ImportDeclarationSpecifier, ImportOrExportKind, LabelIdentifier, ModuleExportName, Program,
     PropertyKey, Statement, StringLiteral, SwitchCase, VariableDeclaration,
@@ -20,7 +20,7 @@ use smol_str::SmolStr;
 use crate::convert::identifier_is_binding;
 use crate::program_text::{ProgramNode, ProgramText};
 use crate::source_map::{OriginMapping, Position};
-use crate::tree::{ExpressionId, Tree};
+use crate::tree::{ExpressionId, Tree, property_is_identifier};
 
 pub(crate) struct Writer<'a> {
     allocator: &'a Allocator,
@@ -245,6 +245,46 @@ impl<'a> Writer<'a> {
         let properties = ArenaVec::from_iter_in(properties, &self.allocator);
         let pattern =
             BindingPattern::new_object_pattern(self.span(), properties, None, &self.builder);
+        let declarator = VariableDeclarator::new(
+            self.span(),
+            pattern,
+            None,
+            Some(tree.expression(value)),
+            false,
+            &self.builder,
+        );
+        let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
+        let declaration = VariableDeclaration::boxed(
+            self.span(),
+            VariableDeclarationKind::Const,
+            declarations,
+            false,
+            &self.builder,
+        );
+        self.statements.push(Statement::VariableDeclaration(declaration));
+    }
+
+    pub(crate) fn constant_object_rest(
+        &mut self,
+        tree: &mut Tree<'a>,
+        field: &str,
+        field_name: &str,
+        rest_name: &str,
+        value: ExpressionId,
+    ) {
+        let key = if property_is_identifier(field) {
+            PropertyKey::new_static_identifier(self.span(), self.text(field), &self.builder)
+        } else {
+            PropertyKey::new_string_literal(self.span(), self.text(field), None, &self.builder)
+        };
+        let field_pattern = self.binding_pattern(field_name);
+        let property =
+            BindingProperty::new(self.span(), key, field_pattern, false, false, &self.builder);
+        let properties = ArenaVec::from_array_in([property], &self.allocator);
+        let rest =
+            BindingRestElement::boxed(self.span(), self.binding_pattern(rest_name), &self.builder);
+        let pattern =
+            BindingPattern::new_object_pattern(self.span(), properties, Some(rest), &self.builder);
         let declarator = VariableDeclarator::new(
             self.span(),
             pattern,

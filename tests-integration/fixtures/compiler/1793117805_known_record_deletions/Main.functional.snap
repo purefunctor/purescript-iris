@@ -5,15 +5,9 @@ source: tests-integration/src/fixtures.rs
 
 @export foreign readTrace
 
-@export delete = \record%0 ->
-  delete (symbol "x") <trivial evidence> <trivial evidence> "Proxy" record%0
+@export delete = \record%0 -> record.delete x record%0
 
-@export deleteQuoted = \record%1 ->
-  delete (symbol "first name") <trivial evidence> <trivial evidence> "Proxy" record%1
+@export deleteQuoted = \record%1 -> record.delete "first name" record%1
 
 @export deleteOrder = \record%2 ->
-  {
-    first: observe "first" 1,
-    rest:
-      delete (symbol "x") <trivial evidence> <trivial evidence> "Proxy" (observe "record" record%2)
-  }
+  { first: observe "first" 1, rest: record.delete x (observe "record" record%2) }
