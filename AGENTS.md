@@ -30,6 +30,11 @@ Always fix the root cause. Investigate the systems that contribute to a bug inst
 the point where it becomes visible. Thoughtfully consider whether the bug fix constitutes a design
 change, at which point it should be raised to the user for a discussion.
 
+Treat the first explanation for a finding as a hypothesis. Investigate the behavior and its impact,
+and ask whether a rule applies elsewhere before proposing a fix. When raising a finding, explain why
+it may matter, distinguish observations from hypotheses, and state what has not been checked. A
+difference from another implementation is evidence to investigate, not by itself proof of a defect.
+
 Posterity is the act of authoring code for future readers, human and agent alike. It is not a
 requirement to anticipate every failure mode and to address them. In particular, human developers
 strongly rely on working memory and local understanding of a large system. Implement systems such
