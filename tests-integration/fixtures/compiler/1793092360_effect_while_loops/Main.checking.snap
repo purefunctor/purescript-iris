@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+hasNext :: Effect.Effect Prim.Boolean
+next :: Effect.Effect Data.Unit.Unit
+countdown :: Prim.Int -> Effect.Effect (Prim.Array Prim.Int)
+countUntil :: Prim.Int -> Effect.Effect Prim.Int
+drain :: Effect.Effect Data.Unit.Unit
+doubleUntil :: Prim.Int -> Prim.Int
+
+Types
