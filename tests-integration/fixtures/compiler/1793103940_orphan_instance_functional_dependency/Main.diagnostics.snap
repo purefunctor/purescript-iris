@@ -1,4 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-
+Error! · [OrphanInstance] · Subject.purs:10:1
+  •
+  │
+  • Orphan instance found for: Convert Int Subject
+  │
+  │   instance Convert Int Subject where
+  │   ╰─────────────────────────────────
+  •

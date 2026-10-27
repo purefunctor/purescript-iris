@@ -372,6 +372,10 @@ where
             let given = zonk_types(state, context, &given)?.unwrap_or(given);
             ErrorKind::NoInstanceFound { given, constraint }
         }
+        ErrorKind::OrphanInstance { constraint } => {
+            let constraint = zonk(state, context, constraint)?;
+            ErrorKind::OrphanInstance { constraint }
+        }
         ErrorKind::OverlappingInstances { constraint, instances } => {
             let constraint = zonk(state, context, constraint)?;
             let instances = zonk_types(state, context, &instances)?.unwrap_or(instances);

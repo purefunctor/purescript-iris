@@ -55,6 +55,60 @@ Error! · [CannotDeriveForType] · Main.purs:14:1
   │   ╰──────────────────────────────────
   •
 
+Error! · [OrphanInstance] · Main.purs:7:1
+  •
+  │
+  • Orphan instance found for: Eq (ImportedStructural a)
+  │
+  │   derive instance Eq a => Eq (ImportedStructural a)
+  │   ╰────────────────────────────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:8:1
+  •
+  │
+  • Orphan instance found for: Ord (ImportedStructural a1)
+  │
+  │   derive instance Ord a => Ord (ImportedStructural a)
+  │   ╰──────────────────────────────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:10:1
+  •
+  │
+  • Orphan instance found for: Eq1 ImportedLifted
+  │
+  │   derive instance Eq1 ImportedLifted
+  │   ╰─────────────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:11:1
+  •
+  │
+  • Orphan instance found for: Ord1 ImportedLifted
+  │
+  │   derive instance Ord1 ImportedLifted
+  │   ╰──────────────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:13:1
+  •
+  │
+  • Orphan instance found for: Eq1 ImportedOpaque
+  │
+  │   derive instance Eq1 ImportedOpaque
+  │   ╰─────────────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:14:1
+  •
+  │
+  • Orphan instance found for: Ord1 ImportedOpaque
+  │
+  │   derive instance Ord1 ImportedOpaque
+  │   ╰──────────────────────────────────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
   │

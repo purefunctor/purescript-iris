@@ -122,6 +122,9 @@ pub enum ErrorKind {
         given: Arc<[TypeId]>,
         constraint: TypeId,
     },
+    OrphanInstance {
+        constraint: TypeId,
+    },
     OverlappingInstances {
         constraint: TypeId,
         instances: Arc<[TypeId]>,

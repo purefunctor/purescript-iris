@@ -28,6 +28,15 @@ Error! · [CannotDeriveForType] · Main.purs:27:1
   │   ╰─────────────────────────────
   •
 
+Error! · [OrphanInstance] · Main.purs:17:1
+  •
+  │
+  • Orphan instance found for: Eq1 ImportedAlias
+  │
+  │   derive instance Eq1 ImportedAlias
+  │   ╰────────────────────────────────
+  •
+
 Error! · [NoInstanceFound] · Main.purs:21:1
   •
   │

@@ -10,6 +10,15 @@ Error! · [CannotDeriveForType] · Main.purs:5:1
   │   ╰─────────────────────────────────────
   •
 
+Error! · [OrphanInstance] · Main.purs:5:1
+  •
+  │
+  • Orphan instance found for: Generic (Int -> Int) t0
+  │
+  │   derive instance Generic (Int -> Int) _
+  │   ╰─────────────────────────────────────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
   │

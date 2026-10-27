@@ -9,3 +9,12 @@ Error! · [NoInstanceFound] · Main.purs:8:8
   │   test = describe Subject
   │          ╰───────────────
   •
+
+Error! · [OrphanInstance] · Orphan.purs:6:1
+  •
+  │
+  • Orphan instance found for: Describe Subject
+  │
+  │   instance Describe Subject where
+  │   ╰──────────────────────────────
+  •
