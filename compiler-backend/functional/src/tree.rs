@@ -301,6 +301,7 @@ pub enum UnaryOperator {
     IntegerComplement,
     NumberNegate,
     ArrayLength,
+    ObjectKeys,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -323,6 +324,7 @@ pub enum BinaryOperator {
     NumberMultiply,
     NumberDivide,
     StringAppend,
+    ObjectMember,
     Comparison { operand: PrimitiveType, comparison: Comparison },
 }
 

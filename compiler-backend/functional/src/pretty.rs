@@ -187,6 +187,7 @@ impl<'a> Printer<'a, '_> {
                     UnaryOperator::IntegerComplement => "integer.complement",
                     UnaryOperator::NumberNegate => "number.negate",
                     UnaryOperator::ArrayLength => "array.length",
+                    UnaryOperator::ObjectKeys => "object.keys",
                 };
                 let value = self.expression_at(*value, ExpressionPrecedence::Atom);
                 self.arena.text(operator).append(" ").append(value)
@@ -213,6 +214,7 @@ impl<'a> Printer<'a, '_> {
                     BinaryOperator::NumberMultiply => ("number", "multiply"),
                     BinaryOperator::NumberDivide => ("number", "divide"),
                     BinaryOperator::StringAppend => ("string", "append"),
+                    BinaryOperator::ObjectMember => ("object", "member"),
                     BinaryOperator::Comparison { operand, comparison } => {
                         let operand = match operand {
                             PrimitiveType::Boolean => "boolean",

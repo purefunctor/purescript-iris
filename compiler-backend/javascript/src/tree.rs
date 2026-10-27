@@ -65,6 +65,7 @@ pub(crate) enum BinaryOperator {
     Subtract,
     Multiply,
     Divide,
+    In,
 }
 
 impl<'a> Tree<'a> {
@@ -456,6 +457,7 @@ impl<'a> Tree<'a> {
             BinaryOperator::Subtract => binary(left, OxcBinaryOperator::Subtraction, right),
             BinaryOperator::Multiply => binary(left, OxcBinaryOperator::Multiplication, right),
             BinaryOperator::Divide => binary(left, OxcBinaryOperator::Division, right),
+            BinaryOperator::In => binary(left, OxcBinaryOperator::In, right),
         };
         self.allocate(expression)
     }

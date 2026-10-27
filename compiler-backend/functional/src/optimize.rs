@@ -187,7 +187,8 @@ fn folded_negation(
             | UnaryOperator::IntegerNegate
             | UnaryOperator::IntegerComplement
             | UnaryOperator::NumberNegate
-            | UnaryOperator::ArrayLength,
+            | UnaryOperator::ArrayLength
+            | UnaryOperator::ObjectKeys,
             _,
         ) => None,
     }

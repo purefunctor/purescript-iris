@@ -1749,7 +1749,7 @@ impl Generator<'_> {
                         }
                         self.render_non_inline_expression(tree, writer, *index, context)?
                     };
-                let value = tree.index(value.value, index.value);
+                let value = tree.property(value.value, index.value);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. } => {
@@ -2195,7 +2195,7 @@ impl Generator<'_> {
                 let Some(index) = self.inline_expression(tree, *index, context)? else {
                     return Ok(None);
                 };
-                tree.index(value, index)
+                tree.property(value, index)
             }
             ExpressionKind::Constructor { global } => self.global_expression(tree, global)?,
             ExpressionKind::Global { global } => self.global_expression(tree, global)?,
