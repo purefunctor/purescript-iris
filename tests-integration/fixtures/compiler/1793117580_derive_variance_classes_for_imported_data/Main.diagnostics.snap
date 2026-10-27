@@ -1,29 +1,40 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [OrphanInstance] · Main.purs:9:1
+Error! · [CannotDeriveForType] · Main.purs:9:1
   •
   │
-  • Orphan instance found for: Functor Box
+  • Cannot derive for type: Box
   │
   │   derive instance Functor Box
   │   ╰──────────────────────────
   •
 
-Error! · [OrphanInstance] · Main.purs:11:1
+Error! · [CannotDeriveForType] · Main.purs:11:1
   •
   │
-  • Orphan instance found for: Foldable Box
+  • Cannot derive for type: Box
   │
   │   derive instance Foldable Box
   │   ╰───────────────────────────
   •
 
-Error! · [OrphanInstance] · Main.purs:13:1
+Error! · [CannotDeriveForType] · Main.purs:13:1
   •
   │
-  • Orphan instance found for: Bifunctor Pair
+  • Cannot derive for type: Pair
   │
   │   derive instance Bifunctor Pair
   │   ╰─────────────────────────────
+  •
+
+Error! · [FunctionalCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The checked representation of an instance declaration is unavailable.
+  │
+  │   module Main where
+  │   ╰────────────────
   •

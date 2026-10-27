@@ -44,6 +44,27 @@ enum DeriveDispatch {
     Unsupported,
 }
 
+impl DeriveDispatch {
+    fn arity(self) -> Option<usize> {
+        match self {
+            DeriveDispatch::Newtype | DeriveDispatch::Generic => Some(2),
+            DeriveDispatch::Unsupported => None,
+            _ => Some(1),
+        }
+    }
+
+    fn accepts_foreign_data(self) -> bool {
+        matches!(self, DeriveDispatch::Eq1 | DeriveDispatch::Ord1)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct DerivedData {
+    derived_type: TypeId,
+    data_file: FileId,
+    data_id: TypeItemId,
+}
+
 #[derive(Clone, Copy)]
 pub(super) enum DeriveStrategy {
     FieldConstraints {

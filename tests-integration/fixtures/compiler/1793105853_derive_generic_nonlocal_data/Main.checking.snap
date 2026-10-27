@@ -7,10 +7,8 @@ Types
 Opaque :: Prim.Type
 
 Derived
-derive Data.Generic.Rep.Generic
-  Lib.Wrapper
-  (Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument Prim.Int))
-derive Data.Generic.Rep.Generic Main.Opaque Data.Generic.Rep.NoConstructors
+derive forall t0. Data.Generic.Rep.Generic Lib.Wrapper t0
+derive forall t0. Data.Generic.Rep.Generic Main.Opaque t0
 
 Roles
 Opaque = []

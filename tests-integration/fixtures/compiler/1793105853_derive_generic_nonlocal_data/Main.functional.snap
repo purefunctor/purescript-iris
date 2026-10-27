@@ -1,28 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export instance genericWrapperConstructorArgumentInt = {
-  to:
-    \representation%0 ->
-      case representation%0 of
-        field0%1 ->
-          { tag: "Wrapper", _1: field0%1 },
-  from:
-    \value%2 ->
-      case value%2 of
-        Wrapper field0%3 ->
-          field0%3
-}
-
-@export instance genericOpaqueNoConstructors = {
-  to:
-    \value%4 ->
-      case value%4 of
-        _ ->
-          to genericOpaqueNoConstructors value%4,
-  from:
-    \value%5 ->
-      case value%5 of
-        _ ->
-          from genericOpaqueNoConstructors value%5
-}
+Module Main rejected; see Main.diagnostics.snap

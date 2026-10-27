@@ -1,4 +1,3 @@
-use building_types::QueryResult;
 use files::FileId;
 use indexing::TypeItemId;
 
@@ -7,24 +6,24 @@ use crate::context::CheckContext;
 use crate::error::ErrorKind;
 use crate::state::CheckState;
 
-use super::{DeriveStrategy, tools};
+use super::{DeriveStrategy, DerivedData};
 
 pub fn check_derive_eq1<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     class_file: FileId,
     class_id: TypeItemId,
-    arguments: &[crate::core::TypeId],
-) -> QueryResult<Option<DeriveStrategy>>
+    derived: DerivedData,
+) -> Option<DeriveStrategy>
 where
     Q: ExternalQueries,
 {
     let Some(eq) = context.known_types.eq else {
         state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
-        return Ok(None);
+        return None;
     };
 
-    check_derive_delegate_constraint(state, context, class_file, class_id, arguments, eq)
+    Some(DeriveStrategy::DelegateConstraint { derived_type: derived.derived_type, class: eq })
 }
 
 pub fn check_derive_ord1<Q>(
@@ -32,44 +31,15 @@ pub fn check_derive_ord1<Q>(
     context: &CheckContext<Q>,
     class_file: FileId,
     class_id: TypeItemId,
-    arguments: &[crate::core::TypeId],
-) -> QueryResult<Option<DeriveStrategy>>
+    derived: DerivedData,
+) -> Option<DeriveStrategy>
 where
     Q: ExternalQueries,
 {
     let Some(ord) = context.known_types.ord else {
         state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
-        return Ok(None);
+        return None;
     };
 
-    check_derive_delegate_constraint(state, context, class_file, class_id, arguments, ord)
-}
-
-fn check_derive_delegate_constraint<Q>(
-    state: &mut CheckState,
-    context: &CheckContext<Q>,
-    class_file: FileId,
-    class_id: TypeItemId,
-    arguments: &[crate::core::TypeId],
-    class: (FileId, TypeItemId),
-) -> QueryResult<Option<DeriveStrategy>>
-where
-    Q: ExternalQueries,
-{
-    let [derived_type] = arguments else {
-        state.insert_error(ErrorKind::DeriveInvalidArity {
-            class_file,
-            class_id,
-            expected: 1,
-            actual: arguments.len(),
-        });
-        return Ok(None);
-    };
-
-    if tools::extract_local_type_constructor(state, context, *derived_type)?.is_none() {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: *derived_type });
-        return Ok(None);
-    }
-
-    Ok(Some(DeriveStrategy::DelegateConstraint { derived_type: *derived_type, class }))
+    Some(DeriveStrategy::DelegateConstraint { derived_type: derived.derived_type, class: ord })
 }

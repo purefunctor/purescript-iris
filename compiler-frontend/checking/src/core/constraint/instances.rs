@@ -88,7 +88,15 @@ where
         return Ok(());
     }
 
-    if let Some(constraint) = orphan_instance_head(state, context, instance)? {
+    let derives_from_data = match item_id {
+        InstanceSourceItemId::Instance(_) => false,
+        InstanceSourceItemId::Derive(item_id) => {
+            context.lowered.tree.get_derive_item(item_id).is_some_and(|item| !item.newtype)
+        }
+    };
+
+    if !derives_from_data && let Some(constraint) = orphan_instance_head(state, context, instance)?
+    {
         state.insert_error(ErrorKind::OrphanInstance { constraint });
         return Ok(());
     }

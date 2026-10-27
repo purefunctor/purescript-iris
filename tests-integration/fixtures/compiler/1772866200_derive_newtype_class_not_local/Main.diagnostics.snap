@@ -1,19 +1,10 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [NonLocalNewtype] · Main.purs:6:1
+Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Expected a local newtype, got: Wrapper
-  │
-  │   derive instance Newtype Wrapper _
-  │   ╰────────────────────────────────
-  •
-
-Error! · [OrphanInstance] · Main.purs:6:1
-  •
-  │
-  • Orphan instance found for: Newtype Wrapper t0
+  • Cannot derive for type: Wrapper
   │
   │   derive instance Newtype Wrapper _
   │   ╰────────────────────────────────
