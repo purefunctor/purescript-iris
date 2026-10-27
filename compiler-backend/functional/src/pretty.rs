@@ -5,10 +5,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
     ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
-    EffectPrimitive, ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports,
-    Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate,
-    ReferenceModifyResult, ReferenceWriteResult, ReflectableEvidence, ReflectableOrdering,
-    SynthesizedEvidence, UnaryOperator,
+    EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind, Field, GlobalId, Guard,
+    IndirectModuleExports, Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType,
+    RecordUpdate, ReferenceModifyResult, ReferenceWriteResult, ReflectableEvidence,
+    ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -563,6 +563,15 @@ impl<'a> Printer<'a, '_> {
                     },
                 };
                 self.effect_operation(name, primitive.operands())
+            }
+            EffectExpression::Loop(effect_loop) => {
+                let name = match effect_loop {
+                    EffectLoop::Range { .. } => "effect.forRange",
+                    EffectLoop::Each { .. } => "effect.forEach",
+                    EffectLoop::While { .. } => "effect.while",
+                    EffectLoop::Until { .. } => "effect.until",
+                };
+                self.effect_operation(name, effect_loop.operands())
             }
         }
     }

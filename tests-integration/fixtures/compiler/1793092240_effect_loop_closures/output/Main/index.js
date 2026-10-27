@@ -1,16 +1,13 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
-import * as Effect from "../Effect/index.js";
 export function elementClosures(values) {
   const $value = [];
   return () => {
     const closures = { value: $value };
-    const $closure = (value) => {
-      return () => {
-        closures.value = [...closures.value, ($unit) => value];
-      };
-    };
-    const $action = Effect.foreachE(values)($closure);
-    const $unit$1 = $action();
+    const $length = values.length;
+    for (let $index = 0; $index < $length; $index++) {
+      const value = values[$index];
+      closures.value = [...closures.value, ($unit) => value];
+    }
     return closures.value;
   };
 }
@@ -18,13 +15,9 @@ export const rangeClosures = /* @__PURE__ */ (() => {
   const $value = [];
   return () => {
     const closures = { value: $value };
-    const $closure = (index) => {
-      return () => {
-        closures.value = [...closures.value, ($unit) => index];
-      };
-    };
-    const $action = Effect.forE(0 | 0)(3 | 0)($closure);
-    const $unit$1 = $action();
+    for (let index = 0 | 0; index < (3 | 0); index++) {
+      closures.value = [...closures.value, ($unit) => index];
+    }
     return closures.value;
   };
 })();
@@ -33,13 +26,9 @@ export const stateClosures = /* @__PURE__ */ (() => {
   const $value = [];
   const $effect = () => {
     const closures = { value: $value };
-    const $closure = (index) => {
-      return () => {
-        return closures.value = [...closures.value, ($unit) => index];
-      };
-    };
-    const $action = Control_Monad_ST_Internal.for(5 | 0)(8 | 0)($closure);
-    const $unit$1 = $action();
+    for (let index = 5 | 0; index < (8 | 0); index++) {
+      closures.value = [...closures.value, ($unit) => index];
+    }
     return closures.value;
   };
   return $function($effect);

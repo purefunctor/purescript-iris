@@ -41,7 +41,7 @@ use crate::tree::{
 use crate::writer::{BindingCallTarget, Writer};
 
 use self::effect_operation::{
-    CapturedOperation, capture_primitive, execute_operation, render_operation_result,
+    CapturedOperation, capture_loop, capture_primitive, execute_operation, render_operation_result,
 };
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
@@ -111,6 +111,8 @@ enum Destination<'a> {
     EffectAssign(&'a str),
     AssignAndBreak { name: &'a str, label: &'a str },
     EffectAssignAndBreak { name: &'a str, label: &'a str },
+    Continue,
+    EffectContinue,
 }
 
 enum CapturedEffectAction {
@@ -256,11 +258,13 @@ impl<'a> Destination<'a> {
             Destination::AssignAndBreak { name, label } => {
                 Destination::EffectAssignAndBreak { name, label }
             }
+            Destination::Continue => Destination::EffectContinue,
             Destination::TailEffectThunkReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
-            | Destination::EffectAssignAndBreak { .. } => {
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination is already indirect")
             }
         }
@@ -274,11 +278,13 @@ impl<'a> Destination<'a> {
             Destination::EffectAssignAndBreak { name, label } => {
                 Destination::AssignAndBreak { name, label }
             }
+            Destination::EffectContinue => Destination::Continue,
             Destination::Return
             | Destination::TailEffectThunkReturn
             | Destination::TailEffectReturn
             | Destination::Assign(_)
-            | Destination::AssignAndBreak { .. } => {
+            | Destination::AssignAndBreak { .. }
+            | Destination::Continue => {
                 unreachable!("invariant violated: value destination is already direct")
             }
         }
@@ -291,6 +297,7 @@ impl<'a> Destination<'a> {
                 | Destination::EffectTailEffectReturn
                 | Destination::EffectAssign(_)
                 | Destination::EffectAssignAndBreak { .. }
+                | Destination::EffectContinue
         )
     }
 }
@@ -1384,11 +1391,18 @@ impl Generator<'_> {
                 writer.assign(tree, name, value);
                 writer.break_label(label);
             }
+            Destination::Continue => {
+                if !tree.expression_is_atomic(&value) {
+                    writer.evaluate(tree, value);
+                }
+                writer.continue_loop();
+            }
             Destination::TailEffectThunkReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
-            | Destination::EffectAssignAndBreak { .. } => {
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination was not rendered directly")
             }
         }
@@ -1453,11 +1467,16 @@ impl Generator<'_> {
                 })?;
                 Some(label)
             }
+            Destination::Continue => {
+                writer.continue_loop();
+                None
+            }
             Destination::TailEffectReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
-            | Destination::EffectAssignAndBreak { .. } => {
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination returned an effect thunk")
             }
         };
@@ -2751,7 +2770,9 @@ fn render_case(
         | Destination::EffectReturn
         | Destination::EffectTailEffectReturn
         | Destination::AssignAndBreak { .. }
-        | Destination::EffectAssignAndBreak { .. } => generator.render_case_alternatives(
+        | Destination::EffectAssignAndBreak { .. }
+        | Destination::Continue
+        | Destination::EffectContinue => generator.render_case_alternatives(
             tree,
             writer,
             &scrutinees,
@@ -2875,7 +2896,9 @@ fn render_guarded(
         | Destination::EffectReturn
         | Destination::EffectTailEffectReturn
         | Destination::AssignAndBreak { .. }
-        | Destination::EffectAssignAndBreak { .. } => {
+        | Destination::EffectAssignAndBreak { .. }
+        | Destination::Continue
+        | Destination::EffectContinue => {
             generator.render_guard_alternatives(
                 tree,
                 writer,
@@ -3455,6 +3478,10 @@ fn capture_effect(
             let operation = capture_primitive(renderer, primitive)?;
             Ok(CapturedEffect::Operation { operation, origin: None })
         }
+        EffectExpression::Loop(effect_loop) => {
+            let operation = capture_loop(renderer, effect_loop)?;
+            Ok(CapturedEffect::Operation { operation, origin: None })
+        }
     }
 }
 
@@ -3978,6 +4005,11 @@ fn collect_expression_references(
                     collect_expression_references(module, operand, seen, globals);
                 }
             }
+            EffectExpression::Loop(effect_loop) => {
+                for operand in effect_loop.operands() {
+                    collect_expression_references(module, operand, seen, globals);
+                }
+            }
         },
     }
 }
@@ -4207,6 +4239,11 @@ fn collect_expression_children(
             }
             EffectExpression::Primitive(primitive) => {
                 for operand in primitive.operands() {
+                    collect_expression_globals(module, operand, false, globals);
+                }
+            }
+            EffectExpression::Loop(effect_loop) => {
+                for operand in effect_loop.operands() {
                     collect_expression_globals(module, operand, false, globals);
                 }
             }

@@ -1,15 +1,19 @@
 use functional::optimize::{EffectPosition, local_is_captured, local_uses};
 use functional::tree::{
-    EffectPrimitive, ExpressionId as FunctionalExpressionId, ExpressionKind, Parameter,
+    EffectLoop, EffectPrimitive, ExpressionId as FunctionalExpressionId, ExpressionKind, Parameter,
     PatternKind, ReferenceModifyResult, ReferenceWriteResult,
 };
 
-use super::{Destination, FunctionRenderer, capture_effect_value};
+use super::{
+    CapturedEffectAction, Destination, FunctionRenderer, capture_effect_action,
+    capture_effect_value, execute_effect, execute_effect_action_value,
+};
 use crate::error::ModuleResult;
-use crate::tree::{ExpressionId, ObjectProperty};
+use crate::tree::{ExpressionId, ObjectProperty, UnaryOperator};
 
 pub(super) enum CapturedOperation {
     Primitive(CapturedPrimitive),
+    Loop(CapturedLoop),
 }
 
 pub(super) enum CapturedPrimitive {
@@ -29,6 +33,13 @@ pub(super) enum CapturedPrimitive {
         reference: ExpressionId,
         result: ReferenceModifyResult,
     },
+}
+
+pub(super) enum CapturedLoop {
+    Range { start: ExpressionId, end: ExpressionId, body: CapturedFunction },
+    Each { array: ExpressionId, body: CapturedFunction },
+    While { condition: CapturedEffectAction, body: CapturedEffectAction },
+    Until { condition: CapturedEffectAction },
 }
 
 pub(super) enum CapturedFunction {
@@ -61,6 +72,35 @@ pub(super) fn capture_primitive(
         }
     };
     Ok(CapturedOperation::Primitive(primitive))
+}
+
+pub(super) fn capture_loop(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    effect_loop: &EffectLoop,
+) -> ModuleResult<CapturedOperation> {
+    let effect_loop = match effect_loop {
+        EffectLoop::Range { start, end, body } => {
+            let start = capture_effect_value(renderer, *start, "$start")?;
+            let end = capture_stable_value(renderer, *end, "$end")?;
+            let body = capture_function(renderer, *body, "$body")?;
+            CapturedLoop::Range { start, end, body }
+        }
+        EffectLoop::Each { array, body } => {
+            let array = capture_stable_value(renderer, *array, "$array")?;
+            let body = capture_function(renderer, *body, "$body")?;
+            CapturedLoop::Each { array, body }
+        }
+        EffectLoop::While { condition, body } => {
+            let condition = capture_effect_action(renderer, *condition, "$condition")?;
+            let body = capture_effect_action(renderer, *body, "$body")?;
+            CapturedLoop::While { condition, body }
+        }
+        EffectLoop::Until { condition } => {
+            let condition = capture_effect_action(renderer, *condition, "$condition")?;
+            CapturedLoop::Until { condition }
+        }
+    };
+    Ok(CapturedOperation::Loop(effect_loop))
 }
 
 fn capture_stable_value(
@@ -118,6 +158,10 @@ pub(super) fn execute_operation(
 ) -> ModuleResult<Option<ExpressionId>> {
     match operation {
         CapturedOperation::Primitive(primitive) => execute_primitive(renderer, primitive),
+        CapturedOperation::Loop(effect_loop) => {
+            execute_loop(renderer, effect_loop)?;
+            Ok(None)
+        }
     }
 }
 
@@ -129,6 +173,7 @@ pub(super) fn render_operation_result(
     let FunctionRenderer { generator, tree, writer, .. } = renderer;
     match (result, destination) {
         (None, Destination::Return) => writer.return_undefined(),
+        (None, Destination::Continue) => writer.continue_loop(),
         (result, destination) => {
             let value = result.unwrap_or_else(|| tree.undefined());
             generator.render_destination(tree, writer, value, destination);
@@ -211,4 +256,139 @@ fn apply_function(
             generator.expression_value(tree, writer, body, context)
         }
     }
+}
+
+fn execute_loop(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    effect_loop: CapturedLoop,
+) -> ModuleResult<()> {
+    let FunctionRenderer { generator, tree, writer, context } = renderer;
+    match effect_loop {
+        CapturedLoop::Range { start, end, body } => {
+            let index = match &body {
+                CapturedFunction::Abstraction { parameter: Some(parameter), .. } => {
+                    context.allocate(&parameter.name)
+                }
+                CapturedFunction::Abstraction { parameter: None, .. }
+                | CapturedFunction::Value(_) => context.allocate("$index"),
+            };
+            writer.for_loop(tree, &index, start, end, |tree, writer| {
+                let mut renderer = generator.renderer(tree, writer, context);
+                let argument = renderer.tree.identifier(&index);
+                execute_loop_body(&mut renderer, body, argument)
+            })
+        }
+        CapturedLoop::Each { array, body } => {
+            let length = context.allocate("$length");
+            let array_length = tree.duplicate(&array);
+            let array_length = tree.member(array_length, "length");
+            writer.constant(tree, &length, array_length, false);
+            let index = context.allocate("$index");
+            let start = tree.number("0");
+            let end = tree.identifier(&length);
+            writer.for_loop(tree, &index, start, end, |tree, writer| {
+                let mut renderer = generator.renderer(tree, writer, context);
+                let position = renderer.tree.identifier(&index);
+                let element = renderer.tree.index(array, position);
+                execute_loop_body(&mut renderer, body, element)
+            })
+        }
+        CapturedLoop::While { condition, body } => {
+            let mut renderer = generator.renderer(tree, writer, context);
+            execute_conditional_loop(&mut renderer, condition, false, Some(body))
+        }
+        CapturedLoop::Until { condition } => {
+            let mut renderer = generator.renderer(tree, writer, context);
+            execute_conditional_loop(&mut renderer, condition, true, None)
+        }
+    }
+}
+
+fn execute_loop_body(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    body: CapturedFunction,
+    argument: ExpressionId,
+) -> ModuleResult<()> {
+    let FunctionRenderer { generator, tree, writer, context } = renderer;
+    match body {
+        CapturedFunction::Abstraction { parameter, body } => {
+            if let Some(parameter) = parameter {
+                let name = match tree.expression_identifier(&argument) {
+                    Some(name) => name.into(),
+                    None => {
+                        let name = context.allocate(&parameter.name);
+                        writer.constant(tree, &name, argument, false);
+                        name
+                    }
+                };
+                context.bind_direct(&parameter, name);
+            }
+            generator.render_expression(tree, writer, body, Destination::EffectContinue, context)
+        }
+        CapturedFunction::Value(function) => {
+            let action = tree.call(function, vec![argument]);
+            let value = tree.call(action, Vec::new());
+            generator.render_destination(tree, writer, value, Destination::Continue);
+            Ok(())
+        }
+    }
+}
+
+fn execute_conditional_loop(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    condition: CapturedEffectAction,
+    until: bool,
+    body: Option<CapturedEffectAction>,
+) -> ModuleResult<()> {
+    let FunctionRenderer { generator, tree, writer, context } = renderer;
+    match condition {
+        CapturedEffectAction::Expression { value, origin } => {
+            let condition = {
+                let _origin = tree.enter_origin(origin);
+                tree.call(value, Vec::new())
+            };
+            let condition =
+                if until { tree.unary(UnaryOperator::LogicalNot, condition) } else { condition };
+            writer.while_loop(tree, condition, |tree, writer| {
+                let mut renderer = generator.renderer(tree, writer, context);
+                execute_loop_action(&mut renderer, body)
+            })
+        }
+        CapturedEffectAction::Effect(effect) => {
+            let always = tree.boolean(true);
+            writer.while_loop(tree, always, |tree, writer| {
+                let mut renderer = generator.renderer(tree, writer, context);
+                let action = CapturedEffectAction::Effect(effect);
+                let condition = execute_effect_action_value(&mut renderer, action, "$condition")?;
+                let FunctionRenderer { tree, writer, .. } = &mut renderer;
+                let exit = if until {
+                    condition
+                } else {
+                    tree.unary(UnaryOperator::LogicalNot, condition)
+                };
+                writer.if_block(tree, exit, |_, writer| writer.break_loop());
+                execute_loop_action(&mut renderer, body)
+            })
+        }
+    }
+}
+
+fn execute_loop_action(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    action: Option<CapturedEffectAction>,
+) -> ModuleResult<()> {
+    match action {
+        None => {}
+        Some(CapturedEffectAction::Expression { value, origin }) => {
+            let FunctionRenderer { generator, tree, writer, .. } = renderer;
+            let _origin = tree.enter_origin(origin);
+            let value = tree.call(value, Vec::new());
+            generator.render_destination(tree, writer, value, Destination::Continue);
+        }
+        Some(CapturedEffectAction::Effect(effect)) => {
+            execute_effect(renderer, *effect, Destination::Continue)?;
+        }
+    }
+    renderer.writer.remove_trailing_continue();
+    Ok(())
 }

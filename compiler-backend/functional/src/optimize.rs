@@ -7,8 +7,8 @@ use rustc_hash::FxHashSet;
 use smol_str::{SmolStr, format_smolstr};
 
 use crate::tree::{
-    Binding, EffectExpression, ExpressionId, ExpressionKind, GlobalId, Guard, Literal, LocalId,
-    RecordUpdate, Storage, UnaryOperator,
+    Binding, EffectExpression, EffectLoop, ExpressionId, ExpressionKind, GlobalId, Guard, Literal,
+    LocalId, RecordUpdate, Storage, UnaryOperator,
 };
 
 pub fn inline_simple_bindings(
@@ -320,6 +320,25 @@ pub fn for_each_evaluated_child(
                         visit(operand, value);
                     }
                 }
+                EffectExpression::Loop(effect_loop) => {
+                    let repeated = ChildEvaluation { captured: true, effect_position };
+                    match effect_loop {
+                        EffectLoop::Range { start, end, body } => {
+                            visit(*start, value);
+                            visit(*end, value);
+                            visit(*body, repeated);
+                        }
+                        EffectLoop::Each { array, body } => {
+                            visit(*array, value);
+                            visit(*body, repeated);
+                        }
+                        EffectLoop::While { condition, body } => {
+                            visit(*condition, repeated);
+                            visit(*body, repeated);
+                        }
+                        EffectLoop::Until { condition } => visit(*condition, repeated),
+                    }
+                }
             }
         }
         ExpressionKind::Let { bindings, body, .. } => {
@@ -576,6 +595,11 @@ pub fn try_for_each_expression_child<Error>(
             }
             EffectExpression::Primitive(primitive) => {
                 for operand in primitive.operands() {
+                    visit(operand)?;
+                }
+            }
+            EffectExpression::Loop(effect_loop) => {
+                for operand in effect_loop.operands() {
                     visit(operand)?;
                 }
             }
