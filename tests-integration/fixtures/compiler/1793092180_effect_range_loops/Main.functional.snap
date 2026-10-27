@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export sumRange = \start%1 end%2 ->
+  effect.bind (effect.newReference 0)
+    \total%0 -> effect.bind (forE (traced "start" start%1) (traced "end" end%2)
+      (\index%3 ->
+        effect.modifyReference (\section91%4 -> integer.add section91%4 index%3) total%0))
+      \$unit%5 -> effect.readReference total%0
+
+@export addTo = \total%8 index%7 ->
+  effect.modifyReference (\section125%6 -> integer.add section125%6 index%7) total%8
+
+@export sumWithFunction = \end%10 ->
+  effect.bind (effect.newReference 0)
+    \total%9 -> effect.bind (forE 0 end%10 (addTo total%9))
+      \$unit%11 -> effect.readReference total%9
+
+@export productRange = \end%13 ->
+  run
+    (effect.bind (effect.newReference 1)
+      \total%12 -> effect.bind (for 1 end%13
+        (\index%14 ->
+          effect.modifyReferenceState
+            (\section210%15 -> integer.multiply section210%15 index%14)
+            total%12))
+        \$unit%16 -> effect.readReference total%12)

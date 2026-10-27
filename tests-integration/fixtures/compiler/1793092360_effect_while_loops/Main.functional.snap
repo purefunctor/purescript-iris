@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign hasNext
+
+@export foreign next
+
+@export countdown = \start%0 ->
+  effect.bind (effect.newReference start%0)
+    \counter%1 -> effect.bind (effect.newReference [])
+      \seen%2 -> effect.bind (whileE
+        (effect.map
+          (\section77%3 -> integer.greater_than section77%3 0)
+          (effect.readReference counter%1))
+        (effect.bind (effect.readReference counter%1)
+          \current%4 -> effect.bind (effect.modifyReference
+            (\section105%5 -> [...section105%5, current%4])
+            seen%2)
+            \$unit%6 -> effect.writeReference (integer.subtract current%4 1) counter%1))
+        \$unit%7 -> effect.readReference seen%2
+
+@export countUntil = \limit%11 ->
+  effect.bind (effect.newReference 0)
+    \counter%8 -> effect.bind (untilE
+      (effect.bind (effect.modifyReferenceState
+        (\section165%9 -> integer.add section165%9 1)
+        counter%8)
+        \count%10 -> effect.pure (integer.greater_than_or_equal count%10 limit%11)))
+      \$unit%12 -> effect.readReference counter%8
+
+@export drain = whileE hasNext next
+
+@export doubleUntil = \limit%15 ->
+  run
+    (effect.bind (effect.newReference 1)
+      \value%13 -> effect.bind (while
+        (effect.map
+          (\section233%14 -> integer.less_than section233%14 limit%15)
+          (effect.readReference value%13))
+        (effect.modifyReferenceState (\section252%16 -> integer.multiply section252%16 2) value%13))
+        \$unit%17 -> effect.readReference value%13)
