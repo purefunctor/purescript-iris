@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+results :: Effect.Effect Main.Results
+increment :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+
+Types
+Results :: Prim.Type
+
+Synonyms
+type Results = { final :: Prim.Int
+, modified :: Prim.Int
+, modifiedUnit :: Data.Unit.Unit
+, modifiedValue :: Prim.String
+, written :: Data.Unit.Unit
+}

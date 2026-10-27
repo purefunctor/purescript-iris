@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export results = effect.bind (new 1)
+  \ref%0 -> effect.bind (write 2 ref%0)
+    \written%1 -> effect.bind (modify (\section67%2 -> integer.add section67%2 10) ref%0)
+      \modified%3 -> effect.bind (modify_ (\section81%4 -> integer.multiply section81%4 2) ref%0)
+        \modifiedUnit%5 -> effect.bind (modify'
+          (\state%6 -> { state: integer.add state%6 1, value: show showInt state%6 })
+          ref%0)
+          \modifiedValue%7 -> effect.bind (read ref%0)
+            \final%8 -> effect.pure {
+              written: written%1,
+              modified: modified%3,
+              modifiedUnit: modifiedUnit%5,
+              modifiedValue: modifiedValue%7,
+              final: final%8
+            }
+
+@export increment = \ref%10 -> modify_ (\count%9 -> integer.add count%9 1) ref%10

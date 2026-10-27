@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+results :: Main.Results
+results =
+  run
+    (bind {bindST} (new 1) \ref ->
+      bind {bindST} (write 2 ref) \written ->
+        bind {bindST} (modify (\v63 -> add {semiringInt} v63 10) ref) \modified ->
+          bind {bindST}
+            (modify' (\state -> { state: mul {semiringInt} state 2, value: show {showInt} state })
+              ref) \modifiedValue ->
+            bind {bindST} (read ref) \final ->
+              pure {applicativeST} { written, modified, modifiedValue, final })

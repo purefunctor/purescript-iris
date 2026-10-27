@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+results :: Effect.Effect Main.Results
+results =
+  bind {bindEffect} (new 1) \ref ->
+    bind {bindEffect} (write 2 ref) \written ->
+      bind {bindEffect} (modify (\v67 -> add {semiringInt} v67 10) ref) \modified ->
+        bind {bindEffect} (modify_ (\v81 -> mul {semiringInt} v81 2) ref) \modifiedUnit ->
+          bind {bindEffect}
+            (modify' (\state -> { state: add {semiringInt} state 1, value: show {showInt} state })
+              ref) \modifiedValue ->
+            bind {bindEffect} (read ref) \final ->
+              pure {applicativeEffect} { written, modified, modifiedUnit, modifiedValue, final }
+
+increment :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+increment = \ref -> modify_ (\count -> add {semiringInt} count 1) ref
