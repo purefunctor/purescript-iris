@@ -12,6 +12,8 @@ use super::compile::ProjectCompilation;
 
 const METADATA_VERSION: u32 = 1;
 const METADATA_FILENAME: &str = "metadata.json";
+const PACKAGE_FILENAME: &str = "package.json";
+const PACKAGE_SOURCE: &str = "{\"type\":\"module\"}\n";
 
 #[derive(Debug, Error)]
 pub enum OutputError {
@@ -67,6 +69,8 @@ impl BuildOutput {
             let runtime = self.directory.join(javascript::runtime_filename());
             write_if_changed(&runtime, javascript::runtime_source().as_bytes())?;
         }
+        let package = self.directory.join(PACKAGE_FILENAME);
+        write_if_changed(&package, PACKAGE_SOURCE.as_bytes())?;
         let module_writes = modules.par_iter().map(|module| self.write_module(compilation, module));
         let module_writes = module_writes.collect::<Vec<_>>();
         module_writes.into_iter().collect()

@@ -41,6 +41,39 @@ foreign import main :: Effect Unit
 }
 
 #[test]
+fn runs_output_modules_as_esm_in_a_commonjs_workspace() {
+    let workspace = TestWorkspace::empty();
+    workspace.write("package.json", "{\"type\":\"commonjs\"}\n");
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+data Unit = Unit
+foreign import data Effect :: Type -> Type
+foreign import main :: Effect Unit
+"#,
+    );
+    workspace.write("src/Main.js", "export const main = () => console.log(\"loaded\");\n");
+
+    let output = workspace.command(&["run", "--quiet"]);
+
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    loaded
+    --- stderr
+    ");
+}
+
+#[test]
 fn maps_stack_traces_to_purescript_sources() {
     let workspace = TestWorkspace::empty();
     workspace.write(
