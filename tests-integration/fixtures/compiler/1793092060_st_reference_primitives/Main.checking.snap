@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+results :: Main.Results
+
+Types
+Results :: Prim.Type
+
+Synonyms
+type Results = { final :: Prim.Int, modified :: Prim.Int, modifiedValue :: Prim.String, written :: Prim.Int }
