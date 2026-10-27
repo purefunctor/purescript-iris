@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+delete :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String }
+delete = \record -> delete {isSymbol("x")} {trivial} {trivial} Proxy record
+
+deleteQuoted :: { first name :: Prim.String, y :: Prim.String } -> { y :: Prim.String }
+deleteQuoted = \record -> delete {isSymbol("first name")} {trivial} {trivial} Proxy record
+
+deleteOrder :: { x :: Prim.Int, y :: Prim.String } -> { first :: Prim.Int, rest :: { y :: Prim.String } }
+deleteOrder = \record ->
+  { first: observe "first" 1, rest: delete {isSymbol("x")} {trivial} {trivial} Proxy
+    (observe "record" record) }
