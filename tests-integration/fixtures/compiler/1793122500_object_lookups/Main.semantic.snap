@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+member :: Prim.String -> Foreign.Object.Object Prim.Int -> Prim.Boolean
+member = \key -> \object -> member key object
+
+keys :: Foreign.Object.Object Prim.Int -> Prim.Array Prim.String
+keys = \object -> keys object
+
+index :: Prim.String -> Foreign.Object.Object Prim.Int -> Prim.Int
+index = \key -> \object -> unsafeIndex object key
+
+indexLiteral :: Foreign.Object.Object Prim.Int -> Prim.Int
+indexLiteral = \object -> add {semiringInt} (unsafeIndex object "a") (unsafeIndex object "b-c")
