@@ -308,6 +308,8 @@ pub enum BinaryOperator {
     IntegerAdd,
     IntegerSubtract,
     IntegerMultiply,
+    IntegerDivide,
+    IntegerModulo,
     IntegerAnd,
     IntegerOr,
     IntegerXor,

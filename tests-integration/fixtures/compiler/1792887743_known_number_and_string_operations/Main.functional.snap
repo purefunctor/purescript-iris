@@ -30,7 +30,7 @@ source: tests-integration/src/fixtures.rs
 
 @export partiallyAppliedAppend = append semigroupString "prefix"
 
-@export integerDivide = \left%20 right%21 -> div euclideanRingInt left%20 right%21
+@export integerDivide = \left%20 right%21 -> integer.divide left%20 right%21
 
 @export arrayAppend = \left%22 right%23 -> [...left%22, ...right%23]
 
