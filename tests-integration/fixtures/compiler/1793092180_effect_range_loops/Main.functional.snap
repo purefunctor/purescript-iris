@@ -21,13 +21,12 @@ source: tests-integration/src/fixtures.rs
       \$unit%11 -> effect.readReference total%9
 
 @export productRange = \end%13 ->
-  run
-    (effect.bind (effect.newReference 1)
-      \total%12 -> effect.bind (effect.forRange
-        1
-        end%13
-        (\index%14 ->
-          effect.modifyReferenceState
-            (\section210%15 -> integer.multiply section210%15 index%14)
-            total%12))
-        \$unit%16 -> effect.readReference total%12)
+  uncurried.call effect.bind (effect.newReference 1)
+    \total%12 -> effect.bind (effect.forRange
+      1
+      end%13
+      (\index%14 ->
+        effect.modifyReferenceState
+          (\section210%15 -> integer.multiply section210%15 index%14)
+          total%12))
+      \$unit%16 -> effect.readReference total%12()

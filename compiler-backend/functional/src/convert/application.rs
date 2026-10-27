@@ -159,6 +159,9 @@ where
                 synthetic,
             }));
         }
+        if let Some(expression) = self.known_effect_runner(known_function, &known_arguments)? {
+            return Ok(expression);
+        }
         if self.known_term(known_function, "Data.Function", "apply")?
             && let [function, argument] = known_arguments.as_slice()
         {

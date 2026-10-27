@@ -26,13 +26,12 @@ source: tests-integration/src/fixtures.rs
       \$unit%12 -> effect.readReference seen%10
 
 @export sumState = \values%14 ->
-  run
-    (effect.bind (effect.newReference 0)
-      \total%13 -> effect.bind (effect.forEach
-        values%14
-        (\value%15 ->
-          void functorST
-            (effect.modifyReferenceState
-              (\section256%16 -> integer.add section256%16 value%15)
-              total%13)))
-        \$unit%17 -> effect.readReference total%13)
+  uncurried.call effect.bind (effect.newReference 0)
+    \total%13 -> effect.bind (effect.forEach
+      values%14
+      (\value%15 ->
+        void functorST
+          (effect.modifyReferenceState
+            (\section256%16 -> integer.add section256%16 value%15)
+            total%13)))
+      \$unit%17 -> effect.readReference total%13()

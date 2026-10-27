@@ -31,11 +31,10 @@ source: tests-integration/src/fixtures.rs
 @export drain = effect.while hasNext next
 
 @export doubleUntil = \limit%15 ->
-  run
-    (effect.bind (effect.newReference 1)
-      \value%13 -> effect.bind (effect.while
-        (effect.map
-          (\section233%14 -> integer.less_than section233%14 limit%15)
-          (effect.readReference value%13))
-        (effect.modifyReferenceState (\section252%16 -> integer.multiply section252%16 2) value%13))
-        \$unit%17 -> effect.readReference value%13)
+  uncurried.call effect.bind (effect.newReference 1)
+    \value%13 -> effect.bind (effect.while
+      (effect.map
+        (\section233%14 -> integer.less_than section233%14 limit%15)
+        (effect.readReference value%13))
+      (effect.modifyReferenceState (\section252%16 -> integer.multiply section252%16 2) value%13))
+      \$unit%17 -> effect.readReference value%13()

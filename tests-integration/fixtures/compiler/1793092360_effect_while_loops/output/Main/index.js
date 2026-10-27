@@ -1,4 +1,3 @@
-import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
 import * as $foreign from "./foreign.js";
 export function countdown(start) {
   return () => {
@@ -36,21 +35,17 @@ export function countUntil(limit) {
   };
 }
 export function doubleUntil(limit) {
-  const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
-    const value = { value: 1 | 0 };
-    const $function$1 = (section233) => section233 < limit;
-    while (true) {
-      let $condition;
-      $condition = $function$1(value.value);
-      if (!$condition) {
-        break;
-      }
-      value.value = value.value * (2 | 0) | 0;
+  const value = { value: 1 | 0 };
+  const $function = (section233) => section233 < limit;
+  while (true) {
+    let $condition;
+    $condition = $function(value.value);
+    if (!$condition) {
+      break;
     }
-    return value.value;
-  };
-  return $function($effect);
+    value.value = value.value * (2 | 0) | 0;
+  }
+  return value.value;
 }
 export const hasNext = $foreign["hasNext"];
 export const next = $foreign["next"];

@@ -1,11 +1,11 @@
 use building_types::QueryResult;
 
 use crate::tree::{
-    EffectExpression, EffectLoop, EffectPrimitive, ExpressionId, ReferenceModifyResult,
-    ReferenceWriteResult,
+    EffectExpression, EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind,
+    ReferenceModifyResult, ReferenceWriteResult,
 };
 
-use super::super::Context;
+use super::super::{Context, ConversionResult};
 
 const EFFECT_REFERENCE: &str = "Effect.Ref";
 const STATE_THREAD: &str = "Control.Monad.ST.Internal";
@@ -103,5 +103,27 @@ where
             return Ok(Some(EffectLoop::Until { condition }));
         }
         Ok(None)
+    }
+
+    pub(super) fn known_effect_runner(
+        &mut self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        if (self.known_term(function, STATE_THREAD, "run")?
+            || self.known_term(function, "Effect.Unsafe", "unsafePerformEffect")?)
+            && let [effect] = *arguments
+        {
+            return Ok(Some(self.run_effect(effect)));
+        }
+        Ok(None)
+    }
+
+    fn run_effect(&mut self, effect: ExpressionId) -> ExpressionId {
+        self.expression(ExpressionKind::UncurriedApplication {
+            function: effect,
+            arguments: [].into(),
+            synthetic: false,
+        })
     }
 }

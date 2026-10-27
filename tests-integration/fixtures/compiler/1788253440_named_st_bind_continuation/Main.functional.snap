@@ -6,4 +6,4 @@ source: tests-integration/src/fixtures.rs
 @export namedBind = \$unit%2@(_) ->
   effect.bind (effect.pure unit) \bindValue%1 -> namedContinuation bindValue%1
 
-@export runNamedBind = \$unit%3@(_) -> run (namedBind unit)
+@export runNamedBind = \$unit%3@(_) -> uncurried.call namedBind unit()

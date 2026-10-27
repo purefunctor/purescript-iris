@@ -1,17 +1,15 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export performed = unsafePerformEffect
-  (effect.bind (effect.newReference 20)
-    \ref%0 -> effect.modifyReferenceState (\section61%1 -> integer.add section61%1 1) ref%0)
+@export performed = uncurried.call effect.bind (effect.newReference 20)
+  \ref%0 -> effect.modifyReferenceState (\section61%1 -> integer.add section61%1 1) ref%0()
 
 @export doubled = \value%2 ->
-  run
-    (effect.bind (effect.newReference value%2)
-      \ref%3 -> effect.modifyReferenceState (\section96%4 -> integer.multiply section96%4 2) ref%3)
+  uncurried.call effect.bind (effect.newReference value%2)
+    \ref%3 -> effect.modifyReferenceState (\section96%4 -> integer.multiply section96%4 2) ref%3()
 
-@export offset = \value%5 -> integer.add 1 (run (effect.pure value%5))
+@export offset = \value%5 -> integer.add 1 (uncurried.call effect.pure value%5())
 
-@export performedAction = \action%6 -> unsafePerformEffect action%6
+@export performedAction = \action%6 -> uncurried.call action%6()
 
-@export runAction = \action%7 -> run action%7
+@export runAction = \action%7 -> uncurried.call action%7()

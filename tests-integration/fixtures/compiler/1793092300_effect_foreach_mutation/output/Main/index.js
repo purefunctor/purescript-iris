@@ -39,21 +39,17 @@ export function visitWithFunction(values) {
   };
 }
 export function sumState(values) {
-  const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
-    const total = { value: 0 | 0 };
-    const $length = values.length;
-    for (let $index = 0; $index < $length; $index++) {
-      const value = values[$index];
-      const $function$1 = Data_Functor.void(Control_Monad_ST_Internal.functorST);
-      const $effect$1 = () => {
-        return total.value = total.value + value | 0;
-      };
-      (/* @__PURE__ */ $function$1($effect$1))();
-    }
-    return total.value;
-  };
-  return $function($effect);
+  const total = { value: 0 | 0 };
+  const $length = values.length;
+  for (let $index = 0; $index < $length; $index++) {
+    const value = values[$index];
+    const $function = Data_Functor.void(Control_Monad_ST_Internal.functorST);
+    const $effect = () => {
+      return total.value = total.value + value | 0;
+    };
+    (/* @__PURE__ */ $function($effect))();
+  }
+  return total.value;
 }
 export const push = $foreign["push"];
 export const poke = $foreign["poke"];
