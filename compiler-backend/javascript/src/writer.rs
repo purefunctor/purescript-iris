@@ -5,16 +5,16 @@ use std::path::PathBuf;
 use oxc_allocator::{Allocator, Vec as ArenaVec};
 use oxc_ast::ast::{
     Argument, ArrowFunctionBody, AssignmentTarget, BindingIdentifier, BindingPattern,
-    BindingProperty, BindingRestElement, Declaration, ExportSpecifier, Expression, FormalParameter,
-    FormalParameterKind, FormalParameters, Function, FunctionBody, FunctionType,
-    ImportDeclarationSpecifier, ImportOrExportKind, LabelIdentifier, ModuleExportName, Program,
-    PropertyKey, Statement, StringLiteral, SwitchCase, VariableDeclaration,
-    VariableDeclarationKind, VariableDeclarator,
+    BindingProperty, BindingRestElement, Declaration, ExportSpecifier, Expression,
+    ForStatementInit, FormalParameter, FormalParameterKind, FormalParameters, Function,
+    FunctionBody, FunctionType, ImportDeclarationSpecifier, ImportOrExportKind, LabelIdentifier,
+    ModuleExportName, Program, PropertyKey, SimpleAssignmentTarget, Statement, StringLiteral,
+    SwitchCase, VariableDeclaration, VariableDeclarationKind, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_codegen::{Codegen, CodegenOptions, CodegenReturn, IndentChar};
 use oxc_span::{SourceType, Span};
-use oxc_syntax::operator::AssignmentOperator;
+use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use smol_str::SmolStr;
 
 use crate::convert::identifier_is_binding;
@@ -369,6 +369,19 @@ impl<'a> Writer<'a> {
         self.statements.push(Statement::new_continue_statement(self.span(), None, &self.builder));
     }
 
+    pub(crate) fn remove_trailing_continue(&mut self) {
+        if matches!(
+            self.statements.last(),
+            Some(Statement::ContinueStatement(statement)) if statement.label.is_none()
+        ) {
+            self.statements.pop();
+        }
+    }
+
+    pub(crate) fn break_loop(&mut self) {
+        self.statements.push(Statement::new_break_statement(self.span(), None, &self.builder));
+    }
+
     pub(crate) fn return_undefined(&mut self) {
         self.statements.push(Statement::new_return_statement(self.span(), None, &self.builder));
     }
@@ -673,6 +686,67 @@ impl<'a> Writer<'a> {
         self.statements.push(Statement::new_while_statement(
             self.span(),
             condition,
+            body,
+            &self.builder,
+        ));
+        result
+    }
+
+    pub(crate) fn for_loop<R>(
+        &mut self,
+        tree: &mut Tree<'a>,
+        index: &str,
+        start: ExpressionId,
+        end: ExpressionId,
+        render: impl FnOnce(&mut Tree<'a>, &mut Writer<'a>) -> R,
+    ) -> R {
+        let mut body = self.child();
+        let result = render(tree, &mut body);
+        body.remove_trailing_continue();
+        self.has_eager_throw |= body.has_eager_throw;
+        let body = self.block_statement(body.statements);
+        let declarator = VariableDeclarator::new(
+            self.span(),
+            self.binding_pattern(index),
+            None,
+            Some(tree.expression(start)),
+            false,
+            &self.builder,
+        );
+        let declarations = ArenaVec::from_array_in([declarator], &self.allocator);
+        let initializer = ForStatementInit::VariableDeclaration(VariableDeclaration::boxed(
+            self.span(),
+            VariableDeclarationKind::Let,
+            declarations,
+            false,
+            &self.builder,
+        ));
+        let index_reference =
+            Expression::new_identifier(self.span(), self.text(index), &self.builder);
+        let test = Expression::new_binary_expression(
+            self.span(),
+            index_reference,
+            BinaryOperator::LessThan,
+            tree.expression(end),
+            &self.builder,
+        );
+        let target = SimpleAssignmentTarget::new_assignment_target_identifier(
+            self.span(),
+            self.text(index),
+            &self.builder,
+        );
+        let update = Expression::new_update_expression(
+            self.span(),
+            UpdateOperator::Increment,
+            false,
+            target,
+            &self.builder,
+        );
+        self.statements.push(Statement::new_for_statement(
+            self.span(),
+            Some(initializer),
+            Some(test),
+            Some(update),
             body,
             &self.builder,
         ));

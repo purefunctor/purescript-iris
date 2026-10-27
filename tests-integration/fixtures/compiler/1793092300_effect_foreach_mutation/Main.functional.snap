@@ -7,7 +7,8 @@ source: tests-integration/src/fixtures.rs
 
 @export visit = \values%1 ->
   effect.bind (effect.newReference [])
-    \seen%0 -> effect.bind (foreachE values%1
+    \seen%0 -> effect.bind (effect.forEach
+      values%1
       (\value%2 ->
         effect.bind (when applicativeEffect (integer.equal value%2 1) (poke values%1 2 99))
           \$unit%3 -> effect.bind (push values%1 value%2)
@@ -21,13 +22,14 @@ source: tests-integration/src/fixtures.rs
 
 @export visitWithFunction = \values%11 ->
   effect.bind (effect.newReference [])
-    \seen%10 -> effect.bind (foreachE values%11 (record seen%10))
+    \seen%10 -> effect.bind (effect.forEach values%11 (record seen%10))
       \$unit%12 -> effect.readReference seen%10
 
 @export sumState = \values%14 ->
   run
     (effect.bind (effect.newReference 0)
-      \total%13 -> effect.bind (foreach values%14
+      \total%13 -> effect.bind (effect.forEach
+        values%14
         (\value%15 ->
           void functorST
             (effect.modifyReferenceState

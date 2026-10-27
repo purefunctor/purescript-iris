@@ -352,6 +352,7 @@ pub enum EffectExpression {
     Map { function: ExpressionId, action: ExpressionId },
     Apply { function_action: ExpressionId, argument_action: ExpressionId },
     Primitive(EffectPrimitive),
+    Loop(EffectLoop),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -387,6 +388,14 @@ pub enum ReferenceModifyResult {
     Record,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EffectLoop {
+    Range { start: ExpressionId, end: ExpressionId, body: ExpressionId },
+    Each { array: ExpressionId, body: ExpressionId },
+    While { condition: ExpressionId, body: ExpressionId },
+    Until { condition: ExpressionId },
+}
+
 impl EffectPrimitive {
     pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
         let (first, second) = match self {
@@ -398,6 +407,18 @@ impl EffectPrimitive {
             }
         };
         std::iter::once(first).chain(second)
+    }
+}
+
+impl EffectLoop {
+    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
+        let (first, second, third) = match self {
+            EffectLoop::Range { start, end, body } => (*start, Some(*end), Some(*body)),
+            EffectLoop::Each { array, body } => (*array, Some(*body), None),
+            EffectLoop::While { condition, body } => (*condition, Some(*body), None),
+            EffectLoop::Until { condition } => (*condition, None, None),
+        };
+        std::iter::once(first).chain(second).chain(third)
     }
 }
 

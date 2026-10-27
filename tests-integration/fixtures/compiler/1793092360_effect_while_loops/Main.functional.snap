@@ -8,7 +8,7 @@ source: tests-integration/src/fixtures.rs
 @export countdown = \start%0 ->
   effect.bind (effect.newReference start%0)
     \counter%1 -> effect.bind (effect.newReference [])
-      \seen%2 -> effect.bind (whileE
+      \seen%2 -> effect.bind (effect.while
         (effect.map
           (\section77%3 -> integer.greater_than section77%3 0)
           (effect.readReference counter%1))
@@ -21,19 +21,19 @@ source: tests-integration/src/fixtures.rs
 
 @export countUntil = \limit%11 ->
   effect.bind (effect.newReference 0)
-    \counter%8 -> effect.bind (untilE
+    \counter%8 -> effect.bind (effect.until
       (effect.bind (effect.modifyReferenceState
         (\section165%9 -> integer.add section165%9 1)
         counter%8)
         \count%10 -> effect.pure (integer.greater_than_or_equal count%10 limit%11)))
       \$unit%12 -> effect.readReference counter%8
 
-@export drain = whileE hasNext next
+@export drain = effect.while hasNext next
 
 @export doubleUntil = \limit%15 ->
   run
     (effect.bind (effect.newReference 1)
-      \value%13 -> effect.bind (while
+      \value%13 -> effect.bind (effect.while
         (effect.map
           (\section233%14 -> integer.less_than section233%14 limit%15)
           (effect.readReference value%13))
