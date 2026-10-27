@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+literal :: Prim.Array Prim.Int
+literal =
+  run
+    (bind {bindST} (unsafeThaw [1, 2]) \array ->
+      bind {bindST} (push 3 array) \_ -> unsafeFreeze array)
+
+shared :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+shared = \values ->
+  run
+    (bind {bindST} (unsafeThaw values) \array ->
+      bind {bindST} (unsafeFreeze array) \frozen ->
+        bind {bindST} (push 0 array) \_ -> pure {applicativeST} frozen)

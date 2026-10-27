@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+copies :: Prim.Array Prim.Int -> Main.Copies
+copies = \original ->
+  run
+    (bind {bindST} (thaw original) \array ->
+      bind {bindST} (push 3 array) \_ ->
+        bind {bindST} (freeze array) \frozen ->
+          bind {bindST} (clone array) \clone ->
+            bind {bindST} (push 4 array) \_ ->
+              bind {bindST} (push 5 clone) \_ ->
+                bind {bindST} (freeze clone) \cloned ->
+                  bind {bindST} (freeze array) \final ->
+                    pure {applicativeST} { original, frozen, cloned, final })
