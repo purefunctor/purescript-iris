@@ -5,9 +5,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
     ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
-    ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module,
-    Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence,
-    ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
+    EffectPrimitive, ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports,
+    Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate,
+    ReferenceModifyResult, ReferenceWriteResult, ReflectableEvidence, ReflectableOrdering,
+    SynthesizedEvidence, UnaryOperator,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -547,7 +548,36 @@ impl<'a> Printer<'a, '_> {
                     .nest(2);
                 self.arena.text("effect.apply").append(arguments).group()
             }
+            EffectExpression::Primitive(primitive) => {
+                let name = match primitive {
+                    EffectPrimitive::NewReference { .. } => "effect.newReference",
+                    EffectPrimitive::ReadReference { .. } => "effect.readReference",
+                    EffectPrimitive::WriteReference { result, .. } => match result {
+                        ReferenceWriteResult::Unit => "effect.writeReference",
+                        ReferenceWriteResult::Value => "effect.writeReferenceValue",
+                    },
+                    EffectPrimitive::ModifyReference { result, .. } => match result {
+                        ReferenceModifyResult::Unit => "effect.modifyReference",
+                        ReferenceModifyResult::State => "effect.modifyReferenceState",
+                        ReferenceModifyResult::Record => "effect.modifyReferenceRecord",
+                    },
+                };
+                self.effect_operation(name, primitive.operands())
+            }
         }
+    }
+
+    fn effect_operation(
+        &self,
+        name: &'static str,
+        operands: impl Iterator<Item = ExpressionId>,
+    ) -> Doc<'a> {
+        let mut arguments = self.arena.nil();
+        for operand in operands {
+            let operand = self.expression_at(operand, ExpressionPrecedence::Atom);
+            arguments = arguments.append(self.arena.line()).append(operand);
+        }
+        self.arena.text(name).append(arguments.nest(2)).group()
     }
 
     fn synthesized_evidence(&self, evidence: &SynthesizedEvidence) -> Doc<'a> {

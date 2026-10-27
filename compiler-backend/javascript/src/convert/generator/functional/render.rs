@@ -1,5 +1,6 @@
 //! Rendering functional trees as JavaScript modules.
 
+mod effect_operation;
 mod inline;
 mod structure;
 mod stylex;
@@ -39,6 +40,9 @@ use crate::tree::{
 };
 use crate::writer::{BindingCallTarget, Writer};
 
+use self::effect_operation::{
+    CapturedOperation, capture_primitive, execute_operation, render_operation_result,
+};
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
     collect_module_references, cyclic_instance_initializers, has_local_lazy_initializers,
@@ -119,6 +123,7 @@ enum CapturedEffect {
     Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
     Map { function: ExpressionId, action: CapturedEffectAction },
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
+    Operation { operation: CapturedOperation, origin: Option<Origin> },
 }
 
 #[derive(Default)]
@@ -3446,6 +3451,10 @@ fn capture_effect(
                 capture_effect_action(renderer, *argument_action, "$argumentAction")?;
             Ok(CapturedEffect::Apply { function_action, argument_action })
         }
+        EffectExpression::Primitive(primitive) => {
+            let operation = capture_primitive(renderer, primitive)?;
+            Ok(CapturedEffect::Operation { operation, origin: None })
+        }
     }
 }
 
@@ -3456,7 +3465,10 @@ fn capture_effect_action(
 ) -> ModuleResult<CapturedEffectAction> {
     let generator = renderer.generator;
     if let ExpressionKind::Effect { effect } = &generator.module.storage[expression].kind {
-        let effect = capture_effect(renderer, effect)?;
+        let mut effect = capture_effect(renderer, effect)?;
+        if let CapturedEffect::Operation { origin, .. } = &mut effect {
+            *origin = generator.module.storage[expression].origin;
+        }
         return Ok(CapturedEffectAction::Effect(Box::new(effect)));
     }
 
@@ -3511,6 +3523,22 @@ fn execute_effect(
             {
                 let value = renderer.tree.duplicate(value);
                 renderer.context.bind_inline(&parameter, value);
+            } else if let CapturedEffectAction::Effect(effect) = &action
+                && matches!(effect.as_ref(), CapturedEffect::Operation { .. })
+                && local_uses(&renderer.generator.module.storage, body, parameter.id) == 0
+            {
+                let CapturedEffectAction::Effect(effect) = action else {
+                    unreachable!("invariant violated: effect action changed kind")
+                };
+                let CapturedEffect::Operation { operation, origin } = *effect else {
+                    unreachable!("invariant violated: effect operation changed kind")
+                };
+                let _origin = renderer.tree.enter_origin(origin);
+                if let Some(result) = execute_operation(renderer, operation)?
+                    && !renderer.tree.expression_is_atomic(&result)
+                {
+                    renderer.writer.evaluate(renderer.tree, result);
+                }
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3550,6 +3578,12 @@ fn execute_effect(
             );
             Ok(())
         }
+        CapturedEffect::Operation { operation, origin } => {
+            let _origin = renderer.tree.enter_origin(origin);
+            let result = execute_operation(renderer, operation)?;
+            render_operation_result(renderer, result, destination);
+            Ok(())
+        }
     }
 }
 
@@ -3564,6 +3598,11 @@ fn execute_effect_action_value(
             Ok(renderer.tree.call(value, Vec::new()))
         }
         CapturedEffectAction::Effect(effect) => {
+            if let CapturedEffect::Operation { operation, origin } = *effect {
+                let _origin = renderer.tree.enter_origin(origin);
+                let result = execute_operation(renderer, operation)?;
+                return Ok(result.unwrap_or_else(|| renderer.tree.undefined()));
+            }
             let name = renderer.context.allocate(preferred_name);
             renderer.writer.mutable(&name);
             execute_effect(renderer, *effect, Destination::Assign(&name))?;
@@ -3587,6 +3626,11 @@ fn execute_effect_action(
         CapturedEffectAction::Effect(effect) => {
             if let CapturedEffect::Pure { value } = *effect {
                 renderer.writer.constant(renderer.tree, &name, value, false);
+            } else if let CapturedEffect::Operation { operation, origin } = *effect {
+                let _origin = renderer.tree.enter_origin(origin);
+                let result = execute_operation(renderer, operation)?;
+                let result = result.unwrap_or_else(|| renderer.tree.undefined());
+                renderer.writer.constant(renderer.tree, &name, result, false);
             } else {
                 renderer.writer.mutable(&name);
                 execute_effect(renderer, *effect, Destination::Assign(&name))?;
@@ -3929,6 +3973,11 @@ fn collect_expression_references(
                 collect_expression_references(module, *function_action, seen, globals);
                 collect_expression_references(module, *argument_action, seen, globals);
             }
+            EffectExpression::Primitive(primitive) => {
+                for operand in primitive.operands() {
+                    collect_expression_references(module, operand, seen, globals);
+                }
+            }
         },
     }
 }
@@ -4155,6 +4204,11 @@ fn collect_expression_children(
             EffectExpression::Apply { function_action, argument_action } => {
                 collect_expression_globals(module, *function_action, false, globals);
                 collect_expression_globals(module, *argument_action, false, globals);
+            }
+            EffectExpression::Primitive(primitive) => {
+                for operand in primitive.operands() {
+                    collect_expression_globals(module, operand, false, globals);
+                }
             }
         },
     }

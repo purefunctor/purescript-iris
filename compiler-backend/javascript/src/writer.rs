@@ -110,8 +110,9 @@ impl<'a> Writer<'a> {
 
     fn function_body(
         &self,
-        statements: Vec<Statement<'a>>,
+        mut statements: Vec<Statement<'a>>,
     ) -> oxc_allocator::Box<'a, FunctionBody<'a>> {
+        remove_trailing_empty_return(&mut statements);
         let statements = ArenaVec::from_iter_in(statements, &self.allocator);
         FunctionBody::boxed(self.span(), [], statements, &self.builder)
     }
@@ -124,8 +125,9 @@ impl<'a> Writer<'a> {
     fn arrow_expression(
         &self,
         parameters: &[SmolStr],
-        statements: Vec<Statement<'a>>,
+        mut statements: Vec<Statement<'a>>,
     ) -> Expression<'a> {
+        remove_trailing_empty_return(&mut statements);
         let parameters = self.parameters(parameters);
         let body = ArrowFunctionBody::new_function_body(
             self.span(),
@@ -365,6 +367,18 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn continue_loop(&mut self) {
         self.statements.push(Statement::new_continue_statement(self.span(), None, &self.builder));
+    }
+
+    pub(crate) fn return_undefined(&mut self) {
+        self.statements.push(Statement::new_return_statement(self.span(), None, &self.builder));
+    }
+
+    pub(crate) fn evaluate(&mut self, tree: &mut Tree<'a>, value: ExpressionId) {
+        self.statements.push(Statement::new_expression_statement(
+            self.span(),
+            tree.expression(value),
+            &self.builder,
+        ));
     }
 
     pub(crate) fn function<R>(
@@ -813,6 +827,15 @@ impl<'a> Writer<'a> {
             ..CodegenOptions::default()
         };
         Codegen::new().with_options(options).build(&program)
+    }
+}
+
+fn remove_trailing_empty_return(statements: &mut Vec<Statement<'_>>) {
+    if matches!(
+        statements.last(),
+        Some(Statement::ReturnStatement(statement)) if statement.argument.is_none()
+    ) {
+        statements.pop();
     }
 }
 
