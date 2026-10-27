@@ -3,11 +3,11 @@ source: tests-integration/src/fixtures.rs
 ---
 @export reads = \values%0 ->
   uncurried.call effect.bind (effect.copyArray values%0)
-    \array%1 -> effect.bind (length array%1)
-      \length%2 -> effect.bind (peek 0 array%1)
-        \first%3 -> effect.bind (peek (integer.subtract length%2 1) array%1)
-          \last%4 -> effect.bind (peek length%2 array%1)
-            \past%5 -> effect.bind (peek -1 array%1)
+    \array%1 -> effect.bind (effect.arrayLength array%1)
+      \length%2 -> effect.bind (effect.peekArray 0 array%1)
+        \first%3 -> effect.bind (effect.peekArray (integer.subtract length%2 1) array%1)
+          \last%4 -> effect.bind (effect.peekArray length%2 array%1)
+            \past%5 -> effect.bind (effect.peekArray -1 array%1)
               \negative%6 -> effect.pure {
                 length: length%2,
                 first: first%3,

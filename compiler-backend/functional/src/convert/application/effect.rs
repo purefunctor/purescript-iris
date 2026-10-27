@@ -124,6 +124,21 @@ where
                 return Ok(Some(EffectPrimitive::CopyArray { array }));
             }
         }
+        if self.known_term(function, STATE_THREAD_ARRAY, "length")?
+            && let [array] = *arguments
+        {
+            return Ok(Some(EffectPrimitive::ReadArrayLength { array }));
+        }
+        if self.known_term(function, STATE_THREAD_ARRAY, "peek")?
+            && let [index, array] = *arguments
+        {
+            return Ok(Some(EffectPrimitive::ReadArrayValue { index, array }));
+        }
+        if self.known_term(function, STATE_THREAD_ARRAY, "poke")?
+            && let [index, value, array] = *arguments
+        {
+            return Ok(Some(EffectPrimitive::WriteArrayValue { index, value, array }));
+        }
         if self.known_term(function, STATE_THREAD_OBJECT, "poke")?
             && let [key, value, object] = *arguments
         {

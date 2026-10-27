@@ -11,60 +11,74 @@ source: tests-integration/src/fixtures.rs
    |   ^ 19:12 STArray.thaw values
    |                 ^ 19:25 values
    |                        ^ 19:12 STArray.thaw values
- 4 |   const $action = Data_Array_ST.length(array);
+ 4 |   const length = array.length;
    |   ^ 20:13 STArray.length array
-   |                                        ^ 20:28 array
-   |                                             ^ 20:13 STArray.length array
- 5 |   const length = $action();
-   |   ^ 20:13 STArray.length array
- 6 |   const $action$1 = Data_Array_ST.peek(0 | 0)(array);
+   |                  ^ 20:28 array
+   |                        ^ 20:13 STArray.length array
+ 5 |   const first = (0 | 0) >= 0 && (0 | 0) < array.length ? {
    |   ^ 21:12 STArray.peek 0 array
-   |                                        ^ 21:25 0 array
-   |                                             ^ 21:12 STArray.peek 0 array
-   |                                               ^ 21:27 array
-   |                                                    ^ 21:12 STArray.peek 0 array
- 7 |   const first = $action$1();
+   |                  ^ 21:25 0 array
+   |                            ^ 21:12 STArray.peek 0 array
+   |                                  ^ 21:25 0 array
+   |                                           ^ 21:27 array
+   |                                                 ^ 21:12 STArray.peek 0 array
+ 6 |     tag: "Just",
+   |     ^ 21:12 STArray.peek 0 array
+ 7 |     _1: array[0 | 0]
+   |     ^ 21:12 STArray.peek 0 array
+   |         ^ 21:27 array
+   |               ^ 21:25 0 array
+ 8 |   } : "Nothing";
    |   ^ 21:12 STArray.peek 0 array
- 8 |   const $action$2 = Data_Array_ST.poke(length - (1 | 0) | 0)(0 | 0)(array);
+ 9 |   const $index = length - (1 | 0) | 0;
+   |   ^ 22:28 length - 1) 0 array
+   |                            ^ 22:37 1) 0 array
+   |                                     ^ 22:28 length - 1) 0 array
+10 |   const $inBounds = $index >= 0 && $index < array.length;
    |   ^ 22:14 STArray.poke (length - 1) 0 array
-   |                                        ^ 22:28 length - 1) 0 array
-   |                                                  ^ 22:37 1) 0 array
-   |                                                           ^ 22:28 length - 1) 0 array
-   |                                                            ^ 22:14 STArray.poke (length - 1) 0 array
-   |                                                              ^ 22:40 0 array
-   |                                                                   ^ 22:14 STArray.poke (length - 1) 0 array
-   |                                                                     ^ 22:42 array
-   |                                                                          ^ 22:14 STArray.poke (length - 1) 0 array
- 9 |   const written = $action$2();
+   |                     ^ 22:28 length - 1) 0 array
+   |                               ^ 22:14 STArray.poke (length - 1) 0 array
+   |                                    ^ 22:28 length - 1) 0 array
+   |                                             ^ 22:42 array
+   |                                                   ^ 22:14 STArray.poke (length - 1) 0 array
+11 |   if ($inBounds) {
    |   ^ 22:14 STArray.poke (length - 1) 0 array
-10 |   const $action$3 = Data_Array_ST.pop(array);
+12 |     array[$index] = 0 | 0;
+   |     ^ 22:42 array
+   |           ^ 22:28 length - 1) 0 array
+   |                     ^ 22:40 0 array
+13 |   }
+   |   ^ 22:14 STArray.poke (length - 1) 0 array
+14 |   const written = $inBounds;
+   |   ^ 22:14 STArray.poke (length - 1) 0 array
+15 |   const $action = Data_Array_ST.pop(array);
    |   ^ 23:11 STArray.pop array
-   |                                       ^ 23:23 array
-   |                                            ^ 23:11 STArray.pop array
-11 |   const last = $action$3();
+   |                                     ^ 23:23 array
+   |                                          ^ 23:11 STArray.pop array
+16 |   const last = $action();
    |   ^ 23:11 STArray.pop array
-12 |   const $action$4 = Data_Array_ST.shift(array);
+17 |   const $action$1 = Data_Array_ST.shift(array);
    |   ^ 24:11 STArray.shift array
    |                                         ^ 24:25 array
    |                                              ^ 24:11 STArray.shift array
-13 |   const head = $action$4();
+18 |   const head = $action$1();
    |   ^ 24:11 STArray.shift array
-14 |   const $value = {
+19 |   const $value = {
    |   ^ 25:8 { length, first, written, last, head }
-15 |     length,
+20 |     length,
    |     ^ 25:8 { length, first, written, last, head }
-16 |     first,
+21 |     first,
    |     ^ 25:8 { length, first, written, last, head }
-17 |     written,
+22 |     written,
    |     ^ 25:8 { length, first, written, last, head }
-18 |     last,
+23 |     last,
    |     ^ 25:8 { length, first, written, last, head }
-19 |     head
+24 |     head
    |     ^ 25:8 { length, first, written, last, head }
-20 |   };
+25 |   };
    |   ^ 25:8 { length, first, written, last, head }
-21 |   return $value;
+26 |   return $value;
    |   ^ 25:3 pure { length, first, written, last, head }
    |          ^ 25:8 { length, first, written, last, head }
-22 | }
+27 | }
    | ^ 18:1 accessed values = ST.run do

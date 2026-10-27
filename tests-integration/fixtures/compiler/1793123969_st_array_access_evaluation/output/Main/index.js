@@ -1,17 +1,26 @@
-import * as Data_Array_ST from "../Data.Array.ST/index.js";
 import * as $foreign from "./foreign.js";
 export function accesses(values) {
   const array = values.slice();
-  const $action = Data_Array_ST.peek(traced("peek index")(1 | 0))(traced("peek array")(array));
-  const peeked = $action();
-  const $action$1 = Data_Array_ST.poke(traced("poke index")(5 | 0))(traced("poke value")(9 | 0))(traced("poke array")(array));
-  const poked = $action$1();
+  const $index = traced("peek index")(1 | 0);
+  const $array = traced("peek array")(array);
+  const peeked = $index >= 0 && $index < $array.length ? {
+    tag: "Just",
+    _1: $array[$index]
+  } : "Nothing";
+  const $index$1 = traced("poke index")(5 | 0);
+  const $value = traced("poke value")(9 | 0);
+  const $array$1 = traced("poke array")(array);
+  const $inBounds = $index$1 >= 0 && $index$1 < $array$1.length;
+  if ($inBounds) {
+    $array$1[$index$1] = $value;
+  }
+  const poked = $inBounds;
   const final = array.slice();
-  const $value = {
+  const $value$1 = {
     peeked,
     poked,
     final
   };
-  return $value;
+  return $value$1;
 }
 export const traced = $foreign["traced"];
