@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+positive :: Prim.Partial => Prim.Int -> Prim.Int
+positive = \{partialDict} -> \value -> | greaterThan {ordInt} value 0 -> value
+
+unsafePositive :: Prim.Int -> Prim.Int
+unsafePositive = \value -> unsafePartial \{partialDict} -> positive {partialDict} value
+
+unsafePositiveFunction :: Prim.Int -> Prim.Int
+unsafePositiveFunction = unsafePartial \{partialDict} -> positive {partialDict}
+
+unsafePositiveApplied :: Prim.Int -> Prim.Int
+unsafePositiveApplied = \value -> unsafePartial (\{partialDict} -> positive {partialDict}) value
+
+unsafeLambda :: Prim.Int -> Prim.Int
+unsafeLambda = unsafePartial \{partialDict} -> \1 -> 1
