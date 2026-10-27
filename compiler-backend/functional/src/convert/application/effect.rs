@@ -36,6 +36,13 @@ where
         function: ExpressionId,
         arguments: &[ExpressionId],
     ) -> QueryResult<Option<EffectExpression>> {
+        for item_name in ["unsafeFreeze", "unsafeThaw"] {
+            if self.known_term(function, STATE_THREAD_ARRAY, item_name)?
+                && let [array] = *arguments
+            {
+                return Ok(Some(EffectExpression::Pure(array)));
+            }
+        }
         if let Some(primitive) = self.known_effect_primitive(function, arguments)? {
             return Ok(Some(EffectExpression::Primitive(primitive)));
         }
@@ -100,6 +107,13 @@ where
                 && let [values, array] = *arguments
             {
                 return Ok(Some(EffectPrimitive::InsertArrayValues { values, array, end }));
+            }
+        }
+        for item_name in ["freeze", "thaw", "clone"] {
+            if self.known_term(function, STATE_THREAD_ARRAY, item_name)?
+                && let [array] = *arguments
+            {
+                return Ok(Some(EffectPrimitive::CopyArray { array }));
             }
         }
         for &(module_name, run_prefix, _) in UNCURRIED_EFFECT_MODULES {

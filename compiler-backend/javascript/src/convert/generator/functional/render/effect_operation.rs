@@ -44,6 +44,9 @@ pub(super) enum CapturedPrimitive {
         array: ExpressionId,
         end: ArrayEnd,
     },
+    CopyArray {
+        array: ExpressionId,
+    },
 }
 
 pub(super) enum CapturedLoop {
@@ -94,6 +97,10 @@ pub(super) fn capture_primitive(
             let values = capture_array_values(renderer, *values)?;
             let array = capture_effect_value(renderer, *array, "$array")?;
             CapturedPrimitive::InsertArrayValues { values, array, end: *end }
+        }
+        EffectPrimitive::CopyArray { array } => {
+            let array = capture_effect_value(renderer, *array, "$array")?;
+            CapturedPrimitive::CopyArray { array }
         }
     };
     Ok(CapturedOperation::Primitive(primitive))
@@ -286,6 +293,10 @@ fn execute_primitive(
             };
             let method = tree.member(array, method);
             Some(tree.spread_call(method, values))
+        }
+        CapturedPrimitive::CopyArray { array } => {
+            let method = tree.member(array, "slice");
+            Some(tree.call(method, Vec::new()))
         }
     };
     Ok(result)

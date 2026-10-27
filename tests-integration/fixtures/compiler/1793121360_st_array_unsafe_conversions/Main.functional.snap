@@ -1,10 +1,10 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export literal = uncurried.call effect.bind (unsafeThaw [1, 2])
-  \array%0 -> effect.bind (effect.pushArray [3] array%0) \$int%1 -> unsafeFreeze array%0()
+@export literal = uncurried.call effect.bind (effect.pure [1, 2])
+  \array%0 -> effect.bind (effect.pushArray [3] array%0) \$int%1 -> effect.pure array%0()
 
 @export shared = \values%2 ->
-  uncurried.call effect.bind (unsafeThaw values%2)
-    \array%3 -> effect.bind (unsafeFreeze array%3)
+  uncurried.call effect.bind (effect.pure values%2)
+    \array%3 -> effect.bind (effect.pure array%3)
       \frozen%4 -> effect.bind (effect.pushArray [0] array%3) \$int%5 -> effect.pure frozen%4()

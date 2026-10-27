@@ -567,6 +567,7 @@ impl<'a> Printer<'a, '_> {
                         ArrayEnd::Start => "effect.unshiftArray",
                         ArrayEnd::End => "effect.pushArray",
                     },
+                    EffectPrimitive::CopyArray { .. } => "effect.copyArray",
                 };
                 self.effect_operation(name, primitive.operands())
             }

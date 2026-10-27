@@ -383,6 +383,9 @@ pub enum EffectPrimitive {
         array: ExpressionId,
         end: ArrayEnd,
     },
+    CopyArray {
+        array: ExpressionId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -430,6 +433,7 @@ impl EffectPrimitive {
             EffectPrimitive::InsertArrayValues { values, array, .. } => {
                 ([Some(*values), Some(*array)], &[])
             }
+            EffectPrimitive::CopyArray { array } => ([Some(*array), None], &[]),
         };
         fixed.into_iter().flatten().chain(rest.iter().copied())
     }

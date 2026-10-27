@@ -1,68 +1,64 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
- 1 | import * as Data_Array_ST from "../Data.Array.ST/index.js";
-   | ^ 6:1 import Data.Array.ST as STArray
- 2 | import * as Data_Show from "../Data.Show/index.js";
+ 1 | import * as Data_Show from "../Data.Show/index.js";
    | ^ 3:1 import Prelude
- 3 | import * as Foreign_Object from "../Foreign.Object/index.js";
+ 2 | import * as Foreign_Object from "../Foreign.Object/index.js";
    | ^ 7:1 import Foreign.Object (Object)
- 4 | import * as Foreign_Object_ST from "../Foreign.Object.ST/index.js";
+ 3 | import * as Foreign_Object_ST from "../Foreign.Object.ST/index.js";
    | ^ 9:1 import Foreign.Object.ST as STObject
- 5 | import * as Foreign_Object_Unsafe from "../Foreign.Object.Unsafe/index.js";
+ 4 | import * as Foreign_Object_Unsafe from "../Foreign.Object.Unsafe/index.js";
    | ^ 10:1 import Foreign.Object.Unsafe as ObjectUnsafe
- 6 | export function appended(values) {
+ 5 | export function appended(values) {
    | ^ 13:1 appended values = ST.run do
    |        ^ (appended) 13:1 appended values = ST.run do
    |                                  ^ 13:1 appended values = ST.run do
- 7 |   const $action = Data_Array_ST.thaw(values);
+ 6 |   const array = values.slice();
    |   ^ 14:12 STArray.thaw values
-   |                                      ^ 14:25 values
-   |                                            ^ 14:12 STArray.thaw values
- 8 |   const array = $action();
-   |   ^ 14:12 STArray.thaw values
- 9 |   array.push(0 | 0);
+   |                 ^ 14:25 values
+   |                        ^ 14:12 STArray.thaw values
+ 7 |   array.push(0 | 0);
    |   ^ 15:23 array
    |         ^ 15:8 STArray.push 0 array
    |              ^ 15:21 0 array
    |                   ^ 15:8 STArray.push 0 array
-10 |   array.unshift(...values);
+ 8 |   array.unshift(...values);
    |   ^ 16:34 array
    |         ^ 16:8 STArray.unshiftAll values array
    |                    ^ 16:27 values array
    |                          ^ 16:8 STArray.unshiftAll values array
-11 |   return Data_Array_ST.freeze(array)();
+ 9 |   return array.slice();
    |   ^ 17:3 STArray.freeze array
-   |                               ^ 17:18 array
-   |                                    ^ 17:3 STArray.freeze array
-12 | }
+   |          ^ 17:18 array
+   |                ^ 17:3 STArray.freeze array
+10 | }
    | ^ 13:1 appended values = ST.run do
-13 | export function inserted(key) {
+11 | export function inserted(key) {
    | ^ 20:1 inserted key object = Object.runST do
    |        ^ (inserted) 20:1 inserted key object = Object.runST do
    |                               ^ 20:1 inserted key object = Object.runST do
-14 |   return (object) => {
+12 |   return (object) => {
    |   ^ (inserted) 20:1 inserted key object = Object.runST do
    |                      ^ 20:1 inserted key object = Object.runST do
-15 |     const $function = Foreign_Object.runST;
+13 |     const $function = Foreign_Object.runST;
    |     ^ 20:23 Object.runST do
-16 |     const $action = Foreign_Object.thawST(object);
+14 |     const $action = Foreign_Object.thawST(object);
    |     ^ 21:14 Object.thawST object
    |                                           ^ 21:28 object
    |                                                 ^ 21:14 Object.thawST object
-17 |     const $effect = () => {
+15 |     const $effect = () => {
    |     ^ 20:36 do
-18 |       const mutable = $action();
+16 |       const mutable = $action();
    |       ^ 21:14 Object.thawST object
-19 |       const $action$1 = Foreign_Object_ST.delete("removed")(mutable);
+17 |       const $action$1 = Foreign_Object_ST.delete("removed")(mutable);
    |       ^ 22:8 STObject.delete "removed" mutable
    |                                                  ^ 22:24 "removed" mutable
    |                                                           ^ 22:8 STObject.delete "removed" mutable
    |                                                             ^ 22:34 mutable
    |                                                                    ^ 22:8 STObject.delete "removed" mutable
-20 |       const $sTObject = $action$1();
+18 |       const $sTObject = $action$1();
    |       ^ 22:8 STObject.delete "removed" mutable
-21 |       return Foreign_Object_ST.poke(key)(1 | 0)(mutable)();
+19 |       return Foreign_Object_ST.poke(key)(1 | 0)(mutable)();
    |       ^ 23:3 STObject.poke key 1 mutable
    |                                     ^ 23:17 key 1 mutable
    |                                        ^ 23:3 STObject.poke key 1 mutable
@@ -70,24 +66,24 @@ source: tests-integration/src/fixtures.rs
    |                                               ^ 23:3 STObject.poke key 1 mutable
    |                                                 ^ 23:23 mutable
    |                                                        ^ 23:3 STObject.poke key 1 mutable
-22 |     };
+20 |     };
    |     ^ 20:36 do
-23 |     return $function($effect);
+21 |     return $function($effect);
    |     ^ 20:23 Object.runST do
    |                      ^ 20:36 do
    |                             ^ 20:23 Object.runST do
-24 |   };
+22 |   };
    |   ^ 20:1 inserted key object = Object.runST do
-25 | }
+23 | }
    | ^ 20:1 inserted key object = Object.runST do
-26 | export function described(key) {
+24 | export function described(key) {
    | ^ 26:1 described key object =
    |        ^ (described) 26:1 described key object =
    |                                ^ 26:1 described key object =
-27 |   return (object) => {
+25 |   return (object) => {
    |   ^ (described) 26:1 described key object =
    |                      ^ 26:1 described key object =
-28 |     if (Foreign_Object.member(key)(object)) {
+26 |     if (Foreign_Object.member(key)(object)) {
    |     ^ 27:3 if Object.member key object then Object.keys object
    |         ^ 27:6 Object.member key object then Object.keys object
    |                               ^ 27:20 key object then Object.keys object
@@ -95,13 +91,13 @@ source: tests-integration/src/fixtures.rs
    |                                    ^ 27:24 object then Object.keys object
    |                                          ^ 27:6 Object.member key object then Object.keys object
    |                                             ^ 27:3 if Object.member key object then Object.keys object
-29 |       return Foreign_Object.keys(object);
+27 |       return Foreign_Object.keys(object);
    |       ^ 27:36 Object.keys object
    |                                  ^ 27:48 object
    |                                        ^ 27:36 Object.keys object
-30 |     } else {
+28 |     } else {
    |     ^ 27:3 if Object.member key object then Object.keys object
-31 |       return [/* @__PURE__ */ Data_Show.show(Data_Show.showInt)(Foreign_Object_Unsafe.unsafeIndex(object)("fallback"))];
+29 |       return [/* @__PURE__ */ Data_Show.show(Data_Show.showInt)(Foreign_Object_Unsafe.unsafeIndex(object)("fallback"))];
    |       ^ 28:8 [ show (ObjectUnsafe.unsafeIndex object "fallback") ]
    |               ^ 28:10 show (ObjectUnsafe.unsafeIndex object "fallback") ]
    |                                                                 ^ 28:16 ObjectUnsafe.unsafeIndex object "fallback") ]
@@ -111,9 +107,9 @@ source: tests-integration/src/fixtures.rs
    |                                                                                                                     ^ 28:16 ObjectUnsafe.unsafeIndex object "fallback") ]
    |                                                                                                                      ^ 28:10 show (ObjectUnsafe.unsafeIndex object "fallback") ]
    |                                                                                                                       ^ 28:8 [ show (ObjectUnsafe.unsafeIndex object "fallback") ]
-32 |     }
+30 |     }
    |     ^ 27:3 if Object.member key object then Object.keys object
-33 |   };
+31 |   };
    |   ^ 26:1 described key object =
-34 | }
+32 | }
    | ^ 26:1 described key object =
