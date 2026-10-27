@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+reads :: Prim.Array Prim.Int -> Main.Reads
+
+Types
+Reads :: Prim.Type
+
+Synonyms
+type Reads = { first :: Data.Maybe.Maybe Prim.Int
+, last :: Data.Maybe.Maybe Prim.Int
+, length :: Prim.Int
+, negative :: Data.Maybe.Maybe Prim.Int
+, past :: Data.Maybe.Maybe Prim.Int
+}

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+traced :: forall a. Prim.String -> a -> a
+accesses :: Prim.Array Prim.Int -> Main.Accesses
+
+Types
+Accesses :: Prim.Type
+
+Synonyms
+type Accesses = { final :: Prim.Array Prim.Int, peeked :: Data.Maybe.Maybe Prim.Int, poked :: Prim.Boolean }

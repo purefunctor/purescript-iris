@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export accesses = \values%0 ->
+  uncurried.call effect.bind (effect.copyArray values%0)
+    \array%1 -> effect.bind (peek (traced "peek index" 1) (traced "peek array" array%1))
+      \peeked%2 -> effect.bind (poke (traced "poke index" 5) (traced "poke value" 9)
+        (traced "poke array" array%1))
+        \poked%3 -> effect.bind (effect.copyArray array%1)
+          \final%4 -> effect.pure { peeked: peeked%2, poked: poked%3, final: final%4 }()

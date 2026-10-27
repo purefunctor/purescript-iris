@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+writes :: Prim.Array Prim.Int -> Main.Writes
+
+Types
+Writes :: Prim.Type
+
+Synonyms
+type Writes = { final :: Prim.Array Prim.Int
+, inside :: Prim.Boolean
+, modified :: Prim.Boolean
+, negative :: Prim.Boolean
+, past :: Prim.Boolean
+, unmodified :: Prim.Boolean
+}

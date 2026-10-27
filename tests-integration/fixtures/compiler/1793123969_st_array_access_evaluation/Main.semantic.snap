@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: forall a. Prim.String -> a -> a
+
+accesses :: Prim.Array Prim.Int -> Main.Accesses
+accesses = \values ->
+  run
+    (bind {bindST} (thaw values) \array ->
+      bind {bindST} (peek (traced "peek index" 1) (traced "peek array" array)) \peeked ->
+        bind {bindST}
+          (poke (traced "poke index" 5) (traced "poke value" 9)
+            (traced "poke array" array)) \poked ->
+          bind {bindST} (freeze array) \final -> pure {applicativeST} { peeked, poked, final })

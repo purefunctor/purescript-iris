@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+reads :: Prim.Array Prim.Int -> Main.Reads
+reads = \values ->
+  run
+    (bind {bindST} (thaw values) \array ->
+      bind {bindST} (length array) \length ->
+        bind {bindST} (peek 0 array) \first ->
+          bind {bindST} (peek (sub {ringInt} length 1) array) \last ->
+            bind {bindST} (peek length array) \past ->
+              bind {bindST} (peek (negate {ringInt} 1) array) \negative ->
+                pure {applicativeST} { length, first, last, past, negative })
