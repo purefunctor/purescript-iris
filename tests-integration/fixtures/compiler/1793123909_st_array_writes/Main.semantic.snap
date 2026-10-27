@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+writes :: Prim.Array Prim.Int -> Main.Writes
+writes = \values ->
+  run
+    (bind {bindST} (thaw values) \array ->
+      bind {bindST} (poke 1 10 array) \inside ->
+        bind {bindST} (poke 3 20 array) \past ->
+          bind {bindST} (poke (negate {ringInt} 1) 30 array) \negative ->
+            bind {bindST} (poke 0 40 array) \_ ->
+              bind {bindST} (modify 2 (\v114 -> mul {semiringInt} v114 2) array) \modified ->
+                bind {bindST} (modify 3 (\v130 -> mul {semiringInt} v130 2) array) \unmodified ->
+                  bind {bindST} (freeze array) \final ->
+                    pure {applicativeST} { inside, past, negative, modified, unmodified, final })
