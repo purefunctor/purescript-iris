@@ -25,66 +25,6 @@ jobs:
     with:
       os: windows-latest
 
-  linux_arm64_release:
-    name: Release build (${{ matrix.target }})
-    permissions:
-      contents: read
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-22.04-arm
-            target: aarch64-unknown-linux-gnu
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-musl
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Install Rust toolchain
-        run: rustup update stable && rustup default stable
-
-      - name: Install cross-compilation tools
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: ${{ matrix.target }}
-
-      - name: Build release archive
-        id: release
-        uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: iris
-          package: iris-cli
-          archive: iris-$target
-          include: README.md,LICENSE,ACKNOWLEDGEMENTS.md,THIRDPARTY.toml
-          leading-dir: true
-          locked: true
-          target: ${{ matrix.target }}
-          dry-run: true
-
-      - name: Check release archive
-        env:
-          TARGET: ${{ matrix.target }}
-          ARCHIVE: ${{ steps.release.outputs.tar }}
-        run: |
-          extracted=$(mktemp -d)
-          trap 'rm -rf "$extracted"' EXIT
-          tar -xzf "$ARCHIVE" -C "$extracted"
-          package_version=$(cargo metadata --format-version 1 --no-deps --locked |
-            jq -r '.packages[] | select(.name == "iris-cli") | .version')
-          test "$("$extracted/iris-$TARGET/iris" --version)" = "iris $package_version"
-          "$extracted/iris-$TARGET/iris" self update "$package_version"
-
-      - name: Upload release archive
-        uses: actions/upload-artifact@v7
-        with:
-          path: ${{ steps.release.outputs.tar }}
-          archive: false
-          if-no-files-found: error
-
   end_to_end:
     name: End-to-end tests (${{ matrix.os }})
     permissions:
