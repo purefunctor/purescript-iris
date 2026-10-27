@@ -15,6 +15,8 @@ use crate::tree::{
 
 use super::{Context, ConversionResult};
 
+mod record;
+
 const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
     ("Data.HeytingAlgebra", "conj", "heytingAlgebraBoolean", BinaryOperator::BooleanAnd),
     ("Data.HeytingAlgebra", "disj", "heytingAlgebraBoolean", BinaryOperator::BooleanOr),
@@ -212,6 +214,9 @@ where
         }
         if let Some(kind) = self.known_operator_application(known_function, &known_arguments)? {
             return Ok(self.expression(kind));
+        }
+        if let Some(expression) = self.known_record_application(known_function, &known_arguments)? {
+            return Ok(expression);
         }
         Ok(self.expression(ExpressionKind::Application {
             function,
