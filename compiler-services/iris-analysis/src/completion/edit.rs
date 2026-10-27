@@ -1,6 +1,6 @@
 use std::iter;
 
-use building_types::QueryProxy;
+use building_types::{QueryProxy, QueryResult};
 use files::FileId;
 use indexing::{
     ImportKind, IndexedModule, IndexedTermItemKind, IndexedTypeItemKind, TermItemId, TypeItemId,
@@ -20,7 +20,7 @@ fn import_item<F, G>(
     file_id: FileId,
     lookup_fn: F,
     name_fn: G,
-) -> (Option<String>, Option<Range>)
+) -> QueryResult<(Option<String>, Option<Range>)>
 where
     F: Fn(&ResolvedImport) -> Option<ImportKind>,
     G: Fn(&IndexedModule) -> Option<String>,
@@ -31,35 +31,33 @@ where
         .flatten()
         .find_map(|import| lookup_fn(import).map(|kind| (import, kind)));
 
-    let Ok(import_indexed) = context.language.queries().indexed(file_id) else {
-        return (None, None);
-    };
+    let import_indexed = context.language.queries().indexed(file_id)?;
 
     if let Some((import, kind)) = import_with_item {
         // Implicit or hidden imports are skipped.
         if !matches!(import.kind, ImportKind::Explicit) {
-            return (None, None);
+            return Ok((None, None));
         }
 
         // Names that are already imported are skipped.
         if matches!(kind, ImportKind::Explicit) {
-            return (None, None);
+            return Ok((None, None));
         }
 
         let Some(ptr) = context.stabilized.ast_ptr(import.id) else {
-            return (None, None);
+            return Ok((None, None));
         };
 
         let root = context.parsed.syntax_node();
         let Some(node) = ptr.try_to_node(&root) else {
-            return (None, None);
+            return Ok((None, None));
         };
 
         let import_list =
             node.import_list().expect("invariant violated: ImportKind::Explicit w/ no ImportList");
 
         let Some(import_item_name) = name_fn(&import_indexed) else {
-            return (None, None);
+            return Ok((None, None));
         };
 
         let import_item_name = {
@@ -86,12 +84,12 @@ where
                 .and_then(|range| context.positions.utf8_range_to_protocol(range))
         };
 
-        (Some(import_text), import_range)
+        Ok((Some(import_text), import_range))
     } else if let Some(import_item_name) = name_fn(&import_indexed) {
         let import_text = format!("import {module_name} ({import_item_name})\n");
-        (Some(import_text), None)
+        Ok((Some(import_text), None))
     } else {
-        (None, None)
+        Ok((None, None))
     }
 }
 
@@ -101,7 +99,7 @@ pub(super) fn term_import_item(
     term_name: &str,
     file_id: FileId,
     term_id: TermItemId,
-) -> (Option<String>, Option<Range>) {
+) -> QueryResult<(Option<String>, Option<Range>)> {
     import_item(
         context,
         module_name,
@@ -121,7 +119,7 @@ pub(super) fn type_import_item(
     type_name: &str,
     file_id: FileId,
     type_id: TypeItemId,
-) -> (Option<String>, Option<Range>) {
+) -> QueryResult<(Option<String>, Option<Range>)> {
     import_item(
         context,
         module_name,
@@ -141,7 +139,7 @@ pub(super) fn class_import_item(
     class_name: &str,
     file_id: FileId,
     class_id: TypeItemId,
-) -> (Option<String>, Option<Range>) {
+) -> QueryResult<(Option<String>, Option<Range>)> {
     import_item(
         context,
         module_name,

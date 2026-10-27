@@ -1,5 +1,6 @@
 use std::mem;
 
+use building_types::QueryResult;
 use checking::core::pretty::{Pretty, PrettyConfig};
 use files::FileId;
 use indexing::{TermItemId, TypeItemId};
@@ -46,19 +47,29 @@ pub fn implementation(
             resolve_type_item(engine, file_id, type_id, item).map_err(|error| *error)
         }
         CompletionResolveData::Binder(file_id, binder_id) => {
-            Ok(resolve_binder(engine, file_id, binder_id, item))
+            resolve_local_signature(engine, file_id, item, |checked| {
+                checked.node_types.lookup_binder(binder_id)
+            })
         }
         CompletionResolveData::Let(file_id, let_id) => {
-            Ok(resolve_let(engine, file_id, let_id, item))
+            resolve_local_signature(engine, file_id, item, |checked| {
+                checked.node_types.lookup_let(let_id)
+            })
         }
         CompletionResolveData::RecordPun(file_id, pun_id) => {
-            Ok(resolve_record_pun(engine, file_id, pun_id, item))
+            resolve_local_signature(engine, file_id, item, |checked| {
+                checked.node_types.lookup_pun(pun_id)
+            })
         }
         CompletionResolveData::ForallTypeVariable(file_id, binding_id) => {
-            Ok(resolve_forall_type_variable(engine, file_id, binding_id, item))
+            resolve_local_signature(engine, file_id, item, |checked| {
+                checked.node_types.lookup_forall_binding(binding_id)
+            })
         }
         CompletionResolveData::ImplicitTypeVariable(file_id, node_id, binding_id) => {
-            Ok(resolve_implicit_type_variable(engine, file_id, node_id, binding_id, item))
+            resolve_local_signature(engine, file_id, item, |checked| {
+                checked.node_types.lookup_implicit_binding(node_id, binding_id)
+            })
         }
     }
 }
@@ -92,18 +103,24 @@ fn resolve_term_item(
         Ok(content) => content,
         Err(error) => return Err(Box::new((error.into(), item))),
     };
-    if let Ok(range) = AnnotationSyntaxRange::of_file_term(engine, file_id, term_id) {
-        let annotation = range.annotation.map(|range| extract_annotation(&content, range));
-        item.documentation = annotation.map(|annotation| {
-            Documentation::MarkupContent(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: annotation,
-            })
-        });
+    match AnnotationSyntaxRange::of_file_term(engine, file_id, term_id) {
+        Ok(range) => {
+            let annotation = range.annotation.map(|range| extract_annotation(&content, range));
+            item.documentation = annotation.map(|annotation| {
+                Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: annotation,
+                })
+            });
+        }
+        Err(AnalyzerError::NonFatal) => (),
+        Err(error) => return Err(Box::new((error, item))),
     }
 
-    if let Some(signature) = render_term_signature(engine, file_id, term_id) {
-        item.detail = Some(signature);
+    match render_term_signature(engine, file_id, term_id) {
+        Ok(Some(signature)) => item.detail = Some(signature),
+        Ok(None) => (),
+        Err(error) => return Err(Box::new((error.into(), item))),
     }
 
     Ok(item)
@@ -113,16 +130,15 @@ fn render_term_signature(
     engine: &impl AnalyzerQueries,
     file_id: FileId,
     term_id: TermItemId,
-) -> Option<String> {
-    let indexed = engine.indexed(file_id).ok()?;
-    let checked = engine.checked(file_id).ok()?;
+) -> QueryResult<Option<String>> {
+    let indexed = engine.indexed(file_id)?;
+    let checked = engine.checked(file_id)?;
 
-    let name = &indexed.items[term_id].name;
-    let name = name.as_deref()?;
-    let signature = checked.lookup_term_item_type(term_id)?;
+    let Some(name) = indexed.items[term_id].name.as_deref() else { return Ok(None) };
+    let Some(signature) = checked.lookup_term_item_type(term_id) else { return Ok(None) };
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Some(pretty.render_signature(name, signature).to_string())
+    Ok(Some(pretty.render_signature(name, signature).to_string()))
 }
 
 fn resolve_type_item(
@@ -135,18 +151,24 @@ fn resolve_type_item(
         Ok(content) => content,
         Err(error) => return Err(Box::new((error.into(), item))),
     };
-    if let Ok(range) = AnnotationSyntaxRange::of_file_type(engine, file_id, type_id) {
-        let annotation = range.annotation.map(|range| extract_annotation(&content, range));
-        item.documentation = annotation.map(|annotation| {
-            Documentation::MarkupContent(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: annotation,
-            })
-        });
+    match AnnotationSyntaxRange::of_file_type(engine, file_id, type_id) {
+        Ok(range) => {
+            let annotation = range.annotation.map(|range| extract_annotation(&content, range));
+            item.documentation = annotation.map(|annotation| {
+                Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: annotation,
+                })
+            });
+        }
+        Err(AnalyzerError::NonFatal) => (),
+        Err(error) => return Err(Box::new((error, item))),
     }
 
-    if let Some(signature) = render_type_signature(engine, file_id, type_id) {
-        item.detail = Some(signature);
+    match render_type_signature(engine, file_id, type_id) {
+        Ok(Some(signature)) => item.detail = Some(signature),
+        Ok(None) => (),
+        Err(error) => return Err(Box::new((error.into(), item))),
     }
 
     Ok(item)
@@ -156,92 +178,30 @@ fn render_type_signature(
     engine: &impl AnalyzerQueries,
     file_id: FileId,
     type_id: TypeItemId,
-) -> Option<String> {
-    let indexed = engine.indexed(file_id).ok()?;
-    let checked = engine.checked(file_id).ok()?;
+) -> QueryResult<Option<String>> {
+    let indexed = engine.indexed(file_id)?;
+    let checked = engine.checked(file_id)?;
 
-    let name = &indexed.items[type_id].name;
-    let name = name.as_deref()?;
-    let signature = checked.lookup_type_item_kind(type_id)?;
+    let Some(name) = indexed.items[type_id].name.as_deref() else { return Ok(None) };
+    let Some(signature) = checked.lookup_type_item_kind(type_id) else { return Ok(None) };
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Some(pretty.render_signature(name, signature).to_string())
+    Ok(Some(pretty.render_signature(name, signature).to_string()))
 }
 
-fn resolve_binder(
+#[allow(clippy::result_large_err)]
+fn resolve_local_signature(
     engine: &impl AnalyzerQueries,
     file_id: FileId,
-    binder_id: BinderId,
     mut item: CompletionItem,
-) -> CompletionItem {
-    if let Some(signature) = render_local_signature(engine, file_id, &item.label, |checked| {
-        checked.node_types.lookup_binder(binder_id)
-    }) {
-        item.detail = Some(signature);
+    lookup: impl FnOnce(&checking::CheckedModule) -> Option<checking::TypeId>,
+) -> Result<CompletionItem, (AnalyzerError, CompletionItem)> {
+    match render_local_signature(engine, file_id, &item.label, lookup) {
+        Ok(Some(signature)) => item.detail = Some(signature),
+        Ok(None) => (),
+        Err(error) => return Err((error.into(), item)),
     }
-
-    item
-}
-
-fn resolve_let(
-    engine: &impl AnalyzerQueries,
-    file_id: FileId,
-    let_id: LetBindingNameGroupId,
-    mut item: CompletionItem,
-) -> CompletionItem {
-    if let Some(signature) = render_local_signature(engine, file_id, &item.label, |checked| {
-        checked.node_types.lookup_let(let_id)
-    }) {
-        item.detail = Some(signature);
-    }
-
-    item
-}
-
-fn resolve_record_pun(
-    engine: &impl AnalyzerQueries,
-    file_id: FileId,
-    pun_id: RecordPunId,
-    mut item: CompletionItem,
-) -> CompletionItem {
-    if let Some(signature) = render_local_signature(engine, file_id, &item.label, |checked| {
-        checked.node_types.lookup_pun(pun_id)
-    }) {
-        item.detail = Some(signature);
-    }
-
-    item
-}
-
-fn resolve_forall_type_variable(
-    engine: &impl AnalyzerQueries,
-    file_id: FileId,
-    binding_id: TypeVariableBindingId,
-    mut item: CompletionItem,
-) -> CompletionItem {
-    if let Some(signature) = render_local_signature(engine, file_id, &item.label, |checked| {
-        checked.node_types.lookup_forall_binding(binding_id)
-    }) {
-        item.detail = Some(signature);
-    }
-
-    item
-}
-
-fn resolve_implicit_type_variable(
-    engine: &impl AnalyzerQueries,
-    file_id: FileId,
-    node_id: GraphNodeId,
-    binding_id: ImplicitBindingId,
-    mut item: CompletionItem,
-) -> CompletionItem {
-    if let Some(signature) = render_local_signature(engine, file_id, &item.label, |checked| {
-        checked.node_types.lookup_implicit_binding(node_id, binding_id)
-    }) {
-        item.detail = Some(signature);
-    }
-
-    item
+    Ok(item)
 }
 
 fn render_local_signature(
@@ -249,12 +209,12 @@ fn render_local_signature(
     file_id: FileId,
     name: &str,
     lookup: impl FnOnce(&checking::CheckedModule) -> Option<checking::TypeId>,
-) -> Option<String> {
-    let checked = engine.checked(file_id).ok()?;
-    let signature = lookup(&checked)?;
+) -> QueryResult<Option<String>> {
+    let checked = engine.checked(file_id)?;
+    let Some(signature) = lookup(&checked) else { return Ok(None) };
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Some(pretty.render_signature(name, signature).to_string())
+    Ok(Some(pretty.render_signature(name, signature).to_string()))
 }
 
 #[derive(Serialize, Deserialize)]

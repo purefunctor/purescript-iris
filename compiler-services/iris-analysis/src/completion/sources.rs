@@ -718,7 +718,7 @@ impl SuggestionsHelper for SuggestedTerms {
         );
 
         let (import_text, import_range) =
-            edit::term_import_item(context, &module_name, name, file_id, item_id);
+            edit::term_import_item(context, &module_name, name, file_id, item_id)?;
 
         let import_edit = match (import_range, import_text) {
             (Some(range), Some(new_text)) => Some(TextEdit { range, new_text }),
@@ -766,7 +766,7 @@ impl SuggestionsHelper for SuggestedTypes {
             return Ok(None);
         };
 
-        let import_edit = edit::type_import_item(context, &module_name, name, file_id, item_id);
+        let import_edit = edit::type_import_item(context, &module_name, name, file_id, item_id)?;
         let item =
             suggested_type_candidate(context, name, &module_name, file_id, item_id, import_edit);
 
@@ -802,7 +802,7 @@ impl SuggestionsHelper for SuggestedClasses {
             return Ok(None);
         };
 
-        let import_edit = edit::class_import_item(context, &module_name, name, file_id, item_id);
+        let import_edit = edit::class_import_item(context, &module_name, name, file_id, item_id)?;
         let item =
             suggested_type_candidate(context, name, &module_name, file_id, item_id, import_edit);
 
