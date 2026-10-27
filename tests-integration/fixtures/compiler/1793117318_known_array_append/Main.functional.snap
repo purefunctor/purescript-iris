@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export arrayAppend = \left%0 right%1 -> semigroupArrayIntDictAppend left%0 right%1
+
+@export arrayAppendChain = \first%2 second%3 third%4 ->
+  semigroupArrayIntDictAppend first%2 (semigroupArrayIntDictAppend second%3 third%4)
+
+@export arrayAppendGrouped = \first%5 second%6 third%7 fourth%8 ->
+  semigroupArrayIntDictAppend (semigroupArrayIntDictAppend first%5 second%6)
+    (semigroupArrayIntDictAppend third%7 fourth%8)
+
+@export arrayAppendLiterals = \middle%9 ->
+  semigroupArrayIntDictAppend [1, 2]
+    (semigroupArrayIntDictAppend middle%9 (semigroupArrayIntDictAppend [3] []))
+
+@export literalAppend = semigroupArrayIntDictAppend [1] [2, 3]
+
+@export partiallyAppliedAppend = semigroupArrayIntDictAppend [0]
+
+semigroupArrayIntDictAppend = append semigroupArray
