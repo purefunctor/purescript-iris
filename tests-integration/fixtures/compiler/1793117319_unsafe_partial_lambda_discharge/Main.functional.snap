@@ -5,12 +5,10 @@ source: tests-integration/src/fixtures.rs
   \value%0 ->
     | integer.greater_than value%0 0 -> value%0
 
-@export unsafePositive = \value%3 ->
-  unsafePartial (\partialDict%2 -> positive partialDict%2 value%3)
+@export unsafePositive = \value%3 -> positive <trivial evidence> value%3
 
-@export unsafePositiveFunction = unsafePartial (\partialDict%4 -> positive partialDict%4)
+@export unsafePositiveFunction = positive <trivial evidence>
 
-@export unsafePositiveApplied = \value%6 ->
-  unsafePartial (\partialDict%5 -> positive partialDict%5) value%6
+@export unsafePositiveApplied = \value%6 -> positive <trivial evidence> value%6
 
-@export unsafeLambda = unsafePartial (\partialDict%7 -> \$int%8@(1) -> 1)
+@export unsafeLambda = \$int%8@(1) -> 1

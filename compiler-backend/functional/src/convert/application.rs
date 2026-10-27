@@ -6,6 +6,7 @@ use indexing::{IndexedTermItemKind, TypeItemId};
 use itertools::Itertools;
 use smol_str::format_smolstr;
 
+use crate::optimize::local_uses;
 use crate::tree::{
     BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId, ExpressionKind, GlobalId,
     InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType, RecordField, UnaryOperator,
@@ -189,6 +190,17 @@ where
             && let [argument] = known_arguments.as_slice()
         {
             return Ok(*argument);
+        }
+        if self.known_term(known_function, "Partial.Unsafe", "unsafePartial")?
+            && let [function, arguments @ ..] = known_arguments.as_slice()
+            && let Some(body) = self.discharged_partial_abstraction(*function)
+        {
+            return self.application_with_synthetic(
+                body,
+                arguments.iter().copied(),
+                synthetic,
+                result_type,
+            );
         }
         if self.known_term(known_function, "Safe.Coerce", "coerce")?
             && let [_, argument] = known_arguments.as_slice()
@@ -454,6 +466,43 @@ where
         let body = self.application(continuation, [value])?;
 
         Ok(Some((parameter, body)))
+    }
+
+    fn discharged_partial_abstraction(&mut self, function: ExpressionId) -> Option<ExpressionId> {
+        let ExpressionKind::Abstraction { parameters, body } = &self.storage[function].kind else {
+            return None;
+        };
+        let (dictionary, parameters) = parameters.split_first()?;
+        let dictionary = *dictionary;
+        let parameters = parameters.to_vec();
+        let body = *body;
+        let dictionary = match &self.storage[dictionary].kind {
+            PatternKind::Variable(parameter) => Some(Parameter::clone(parameter)),
+            PatternKind::Wildcard => None,
+            PatternKind::Named { .. }
+            | PatternKind::Literal(_)
+            | PatternKind::Array(_)
+            | PatternKind::Record(_)
+            | PatternKind::Constructor { .. } => return None,
+        };
+        let body = if parameters.is_empty() {
+            body
+        } else {
+            self.expression(ExpressionKind::Abstraction { parameters: parameters.into(), body })
+        };
+        let Some(dictionary) =
+            dictionary.filter(|dictionary| local_uses(&self.storage, body, dictionary.id) > 0)
+        else {
+            return Some(body);
+        };
+        let evidence = self.expression(ExpressionKind::TrivialEvidence);
+        let binding =
+            Binding { parameter: dictionary, expression: evidence, source_order: 0, origin: None };
+        Some(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: [binding].into(),
+            body,
+        }))
     }
 
     fn uncurry_abstraction(
