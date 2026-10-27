@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+withDefaults :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+withDefaults = \options -> merge {trivial} {trivial} options { x: 1, y: "default" }
+
+override :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+override = \record -> merge {trivial} {trivial} { x: 0 } record
+
+union :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+union = \record -> union {trivial} record { x: 1 }
+
+disjointUnion :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+disjointUnion = \record -> disjointUnion {trivial} {trivial} { x: 1 } record
+
+literals :: { x :: Prim.Int, y :: Prim.String }
+literals = merge {trivial} {trivial} { x: 1 } { y: "right", x: 2 }
+
+withDefaultsOrder :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+withDefaultsOrder = \options ->
+  merge {trivial} {trivial} (observe "options" options) { x: observe "default" 1, y: "default" }
+
+overrideOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+overrideOrder = \record ->
+  merge {trivial} {trivial} { x: observe "override" 0 } (observe "record" record)
+
+literalsOrder :: Prim.Boolean -> { x :: Prim.Int, y :: Prim.String }
+literalsOrder = \_ ->
+  merge {trivial} {trivial} { x: observe "left" 1 } { y: "right", x: observe "right" 2 }
+
+overrideBranchOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+overrideBranchOrder = \record ->
+  merge {trivial} {trivial}
+    { y: observe "override" "y", x: case record.y of
+      "branch" -> observe "branch" 1
+      _ -> observe "fallback" 2 }
+    record

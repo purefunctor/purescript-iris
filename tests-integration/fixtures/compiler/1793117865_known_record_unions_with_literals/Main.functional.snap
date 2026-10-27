@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign readTrace
+
+@export withDefaults = \options%0 ->
+  merge <trivial evidence> <trivial evidence> options%0 { x: 1, y: "default" }
+
+@export override = \record%1 -> merge <trivial evidence> <trivial evidence> { x: 0 } record%1
+
+@export union = \record%2 -> union <trivial evidence> record%2 { x: 1 }
+
+@export disjointUnion = \record%3 ->
+  disjointUnion <trivial evidence> <trivial evidence> { x: 1 } record%3
+
+@export literals = merge <trivial evidence> <trivial evidence> { x: 1 } { y: "right", x: 2 }
+
+@export withDefaultsOrder = \options%4 ->
+  merge <trivial evidence> <trivial evidence> (observe "options" options%4)
+    { x: observe "default" 1, y: "default" }
+
+@export overrideOrder = \record%5 ->
+  merge <trivial evidence> <trivial evidence> { x: observe "override" 0 }
+    (observe "record" record%5)
+
+@export literalsOrder = \$boolean%6@(_) ->
+  merge <trivial evidence> <trivial evidence> { x: observe "left" 1 }
+    { y: "right", x: observe "right" 2 }
+
+@export overrideBranchOrder = \record%7 ->
+  merge <trivial evidence> <trivial evidence>
+    {
+      y: observe "override" "y",
+      x:
+        case record%7.y of
+          "branch" ->
+            observe "branch" 1
+          _ ->
+            observe "fallback" 2
+    }
+    record%7
