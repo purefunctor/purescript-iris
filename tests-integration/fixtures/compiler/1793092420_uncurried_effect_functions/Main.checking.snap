@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+addEffect :: Effect.Uncurried.EffectFn2 Prim.Int Prim.Int Prim.Int
+addTo :: Effect.Uncurried.EffectFn2 (Effect.Ref.Ref Prim.Int) Prim.Int Prim.Int
+called :: Effect.Effect { added :: Prim.Int, external :: Prim.Int }
+partiallyApplied :: Prim.Int -> Effect.Effect Prim.Int
+multiplyBy ::
+  forall (region :: Control.Monad.ST.Internal.Region).
+    Control.Monad.ST.Uncurried.STFn2
+      (Control.Monad.ST.Internal.STRef (region :: Control.Monad.ST.Internal.Region) Prim.Int)
+      Prim.Int
+      (region :: Control.Monad.ST.Internal.Region)
+      Prim.Int
+multiplied :: Prim.Int
+
+Types

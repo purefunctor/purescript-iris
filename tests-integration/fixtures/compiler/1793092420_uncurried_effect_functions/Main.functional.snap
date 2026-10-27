@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign addEffect
+
+@export addTo = mkEffectFn2
+  (\ref%0 amount%1 ->
+    effect.modifyReferenceState (\section77%2 -> integer.add section77%2 amount%1) ref%0)
+
+@export called = effect.bind (effect.newReference 1)
+  \ref%3 -> effect.bind (runEffectFn2 addTo ref%3 2)
+    \added%4 -> effect.bind (runEffectFn2 addEffect 3 4)
+      \external%5 -> effect.pure { added: added%4, external: external%5 }
+
+@export partiallyApplied = runEffectFn2 addEffect 1
+
+@export multiplyBy = mkSTFn2
+  (\ref%6 factor%7 ->
+    effect.modifyReferenceState (\section175%8 -> integer.multiply section175%8 factor%7) ref%6)
+
+@export multiplied = uncurried.call effect.bind (effect.newReference 6)
+  \ref%9 -> runSTFn2 multiplyBy ref%9 7()

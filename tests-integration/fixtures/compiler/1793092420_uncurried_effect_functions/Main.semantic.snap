@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import addEffect :: Effect.Uncurried.EffectFn2 Prim.Int Prim.Int Prim.Int
+
+addTo :: Effect.Uncurried.EffectFn2 (Effect.Ref.Ref Prim.Int) Prim.Int Prim.Int
+addTo = mkEffectFn2 \ref amount -> modify (\v77 -> add {semiringInt} v77 amount) ref
+
+called :: Effect.Effect { added :: Prim.Int, external :: Prim.Int }
+called =
+  bind {bindEffect} (new 1) \ref ->
+    bind {bindEffect} (runEffectFn2 addTo ref 2) \added ->
+      bind {bindEffect} (runEffectFn2 addEffect 3 4) \external ->
+        pure {applicativeEffect} { added, external }
+
+partiallyApplied :: Prim.Int -> Effect.Effect Prim.Int
+partiallyApplied = runEffectFn2 addEffect 1
+
+multiplyBy :: forall region.
+  Control.Monad.ST.Uncurried.STFn2
+    (Control.Monad.ST.Internal.STRef region Prim.Int)
+    Prim.Int
+    region
+    Prim.Int
+multiplyBy = mkSTFn2 \ref factor -> modify (\v175 -> mul {semiringInt} v175 factor) ref
+
+multiplied :: Prim.Int
+multiplied = run (bind {bindST} (new 6) \ref -> runSTFn2 multiplyBy ref 7)
