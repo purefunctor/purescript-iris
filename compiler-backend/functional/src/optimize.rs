@@ -442,6 +442,7 @@ fn is_simple_expression(
                 pending.push(*left);
             }
             ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Error
             | ExpressionKind::Application { .. }
             | ExpressionKind::UncurriedApplication { .. }
@@ -496,7 +497,9 @@ pub fn try_for_each_expression_child<Error>(
             visit(*record)?;
             try_for_each_update_child(updates, &mut visit)?;
         }
-        ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
+        ExpressionKind::Project { record, .. }
+        | ExpressionKind::RecordDelete { record, .. }
+        | ExpressionKind::Unary { value: record, .. } => {
             visit(*record)?;
         }
         ExpressionKind::Binary { left, right, .. }

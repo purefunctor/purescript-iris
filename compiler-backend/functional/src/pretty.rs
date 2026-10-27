@@ -97,6 +97,7 @@ impl<'a> Printer<'a, '_> {
             | ExpressionKind::LetPattern { .. } => ExpressionPrecedence::Abstraction,
             ExpressionKind::Unary { .. }
             | ExpressionKind::Binary { .. }
+            | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Application { .. }
             | ExpressionKind::UncurriedApplication { .. }
             | ExpressionKind::StyleX(_)
@@ -156,6 +157,11 @@ impl<'a> Printer<'a, '_> {
                 let updates = updates.iter().map(|update| self.record_update(update));
                 let updates = self.braced(updates);
                 record.append(self.arena.space()).append(updates)
+            }
+            ExpressionKind::RecordDelete { record, field } => {
+                let field = self.field(field);
+                let record = self.expression_at(*record, ExpressionPrecedence::Atom);
+                self.arena.text(format!("record.delete {field} ")).append(record)
             }
             ExpressionKind::Project { record, field } => {
                 let record = self.expression_at(*record, ExpressionPrecedence::Atom);
