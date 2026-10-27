@@ -138,7 +138,7 @@ fn render_term_signature(
     let Some(signature) = checked.lookup_term_item_type(term_id) else { return Ok(None) };
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Ok(Some(pretty.render_signature(name, signature).to_string()))
+    Ok(Some(pretty.render_signature(name, signature)?.to_string()))
 }
 
 fn resolve_type_item(
@@ -186,7 +186,7 @@ fn render_type_signature(
     let Some(signature) = checked.lookup_type_item_kind(type_id) else { return Ok(None) };
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Ok(Some(pretty.render_signature(name, signature).to_string()))
+    Ok(Some(pretty.render_signature(name, signature)?.to_string()))
 }
 
 #[allow(clippy::result_large_err)]
@@ -214,7 +214,7 @@ fn render_local_signature(
     let Some(signature) = lookup(&checked) else { return Ok(None) };
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    Ok(Some(pretty.render_signature(name, signature).to_string()))
+    Ok(Some(pretty.render_signature(name, signature)?.to_string()))
 }
 
 #[derive(Serialize, Deserialize)]

@@ -119,7 +119,7 @@ where
             return Err(RenderStuck::Blocked(u));
         }
         let quoted_type = zonk::zonk(state, context, quoted_type)?;
-        let rendered = Pretty::new(context.queries, &state.checked).render(quoted_type);
+        let rendered = Pretty::new(context.queries, &state.checked).render(quoted_type)?;
         Ok(Some(rendered))
     } else if constructor == prim.quote_label {
         let &[symbol] = arguments.as_slice() else { return Ok(None) };

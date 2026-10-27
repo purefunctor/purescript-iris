@@ -17,10 +17,15 @@ use resolving::ResolvingError;
 use syntax::ast::AstNode;
 use syntax::cst;
 
+use building_types::QueryResult;
+
 use crate::{Diagnostic, DiagnosticsContext, ExternalQueries, Span};
 
 pub trait ToDiagnostics {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(
+        &self,
+        context: &DiagnosticsContext<'_, Q>,
+    ) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries;
 }
@@ -43,7 +48,7 @@ where
 }
 
 impl ToDiagnostics for FunctionalModuleError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -158,7 +163,7 @@ impl ToDiagnostics for FunctionalModuleError {
             diagnostic = diagnostic
                 .with_related(span, "The other declaration exports the same runtime name");
         }
-        vec![diagnostic]
+        Ok(vec![diagnostic])
     }
 }
 
@@ -175,7 +180,7 @@ where
 }
 
 impl ToDiagnostics for JavaScriptModuleError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -195,19 +200,19 @@ impl ToDiagnostics for JavaScriptModuleError {
                         "The compiler could not find a JavaScript binding for a referenced local value.\n\nThis is an unsupported internal compiler state.".to_owned(),
                 };
                 let module = codegen_module_name(context);
-                vec![Diagnostic::error(
+                Ok(vec![Diagnostic::error(
                     "JavaScriptCodegen",
                     format!("Cannot generate JavaScript for {module}.\n\n{reason}"),
                     context.module_span(),
                     "javascript",
-                )]
+                )])
             }
         }
     }
 }
 
 impl ToDiagnostics for JavaScriptModuleDiagnostic {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -220,12 +225,12 @@ impl ToDiagnostics for JavaScriptModuleDiagnostic {
             diagnostic =
                 diagnostic.with_related(span, "This declaration is a member of the same cycle");
         }
-        vec![diagnostic]
+        Ok(vec![diagnostic])
     }
 }
 
 impl ToDiagnostics for ForeignError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -241,7 +246,7 @@ impl ToDiagnostics for ForeignError {
             .next()
             .and_then(|pointer| context.span_from_syntax_ptr(&pointer))
         else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
 
         let diagnostic = match self {
@@ -273,24 +278,27 @@ impl ToDiagnostics for ForeignError {
             ),
         };
 
-        vec![diagnostic]
+        Ok(vec![diagnostic])
     }
 }
 
 impl ToDiagnostics for ParseError {
-    fn to_diagnostics<Q>(&self, _context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(
+        &self,
+        _context: &DiagnosticsContext<'_, Q>,
+    ) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
         let offset =
             u32::try_from(self.offset).expect("invariant violated: source offset exceeds u32");
         let span = Span::new(offset, offset);
-        vec![Diagnostic::error("ParseError", self.message.as_ref(), span, "parsing")]
+        Ok(vec![Diagnostic::error("ParseError", self.message.as_ref(), span, "parsing")])
     }
 }
 
 impl ToDiagnostics for LoweringError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -344,7 +352,7 @@ impl ToDiagnostics for LoweringError {
                     }
                 };
 
-                let Some(ptr) = ptr else { return Vec::new() };
+                let Some(ptr) = ptr else { return Ok(Vec::new()) };
                 let span = match not_in_scope {
                     lowering::NotInScope::TypeClass { id } => {
                         context.stabilized.ast_ptr(*id).and_then(|ptr| {
@@ -353,7 +361,7 @@ impl ToDiagnostics for LoweringError {
                     }
                     _ => context.span_from_syntax_ptr(&ptr),
                 };
-                let Some(span) = span else { return Vec::new() };
+                let Some(span) = span else { return Ok(Vec::new()) };
 
                 let message = if let Some(name) = name {
                     format!("'{name}' is not in scope")
@@ -362,7 +370,7 @@ impl ToDiagnostics for LoweringError {
                     format!("'{text}' is not in scope")
                 };
 
-                vec![Diagnostic::error("NotInScope", message, span, "lowering")]
+                Ok(vec![Diagnostic::error("NotInScope", message, span, "lowering")])
             }
 
             LoweringError::InvalidStringEscape { source } => {
@@ -373,15 +381,15 @@ impl ToDiagnostics for LoweringError {
                     lowering::StringLiteralSource::Binder(id) => context.stabilized.syntax_ptr(*id),
                     lowering::StringLiteralSource::Type(id) => context.stabilized.syntax_ptr(*id),
                 };
-                let Some(ptr) = ptr else { return Vec::new() };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
+                let Some(ptr) = ptr else { return Ok(Vec::new()) };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
 
-                vec![Diagnostic::error(
+                Ok(vec![Diagnostic::error(
                     "InvalidStringEscape",
                     "Invalid escape sequence in string literal",
                     span,
                     "lowering",
-                )]
+                )])
             }
 
             LoweringError::OverlappingBinderNames { name, duplicate, existing } => {
@@ -394,7 +402,7 @@ impl ToDiagnostics for LoweringError {
                     };
                     context.span_from_syntax_ptr(&ptr?)
                 };
-                let Some(duplicate) = span(*duplicate) else { return Vec::new() };
+                let Some(duplicate) = span(*duplicate) else { return Ok(Vec::new()) };
 
                 let message = format!("Name '{name}' is bound more than once");
                 let mut diagnostic =
@@ -403,22 +411,22 @@ impl ToDiagnostics for LoweringError {
                     diagnostic = diagnostic.with_related(existing, "First bound here");
                 }
 
-                vec![diagnostic]
+                Ok(vec![diagnostic])
             }
 
-            LoweringError::RecursiveSynonym(group) => convert_recursive_group(
+            LoweringError::RecursiveSynonym(group) => Ok(convert_recursive_group(
                 context,
                 &group.group,
                 "RecursiveSynonym",
                 "Invalid type synonym cycle",
-            ),
+            )),
 
-            LoweringError::RecursiveKinds(group) => convert_recursive_group(
+            LoweringError::RecursiveKinds(group) => Ok(convert_recursive_group(
                 context,
                 &group.group,
                 "RecursiveKinds",
                 "Invalid kind cycle",
-            ),
+            )),
         }
     }
 }
@@ -462,7 +470,7 @@ where
 }
 
 impl ToDiagnostics for ResolvingError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -470,7 +478,7 @@ impl ToDiagnostics for ResolvingError {
             ResolvingError::DuplicateModule { name } => {
                 let span = context.module_name_span().unwrap_or_else(|| context.module_span());
                 let message = format!("Module '{name}' has been defined multiple times");
-                vec![Diagnostic::error("DuplicateModule", message, span, "resolving")]
+                Ok(vec![Diagnostic::error("DuplicateModule", message, span, "resolving")])
             }
             ResolvingError::InstanceNameConflict { name, instance, existing } => {
                 let pointer = match instance {
@@ -483,7 +491,7 @@ impl ToDiagnostics for ResolvingError {
                 };
                 let Some(span) = pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
                 else {
-                    return Vec::new();
+                    return Ok(Vec::new());
                 };
                 let (code, message, pointer) = match existing {
                     OrderedTermItemId::Term(id) => (
@@ -508,15 +516,15 @@ impl ToDiagnostics for ResolvingError {
                 {
                     diagnostic = diagnostic.with_related(span, "Conflicting declaration");
                 }
-                vec![diagnostic]
+                Ok(vec![diagnostic])
             }
             ResolvingError::TermExportConflict { .. }
             | ResolvingError::TypeExportConflict { .. }
             | ResolvingError::ExistingTerm { .. }
-            | ResolvingError::ExistingType { .. } => Vec::new(),
+            | ResolvingError::ExistingType { .. } => Ok(Vec::new()),
 
             ResolvingError::InvalidImportStatement { id } => {
-                let Some(ptr) = context.stabilized.ast_ptr(*id) else { return Vec::new() };
+                let Some(ptr) = context.stabilized.ast_ptr(*id) else { return Ok(Vec::new()) };
 
                 let message = {
                     let cst = ptr.to_node(context.root);
@@ -528,35 +536,35 @@ impl ToDiagnostics for ResolvingError {
                     format!("Cannot import module '{name}'")
                 };
 
-                let Some(span) = context.span_from_ast_ptr(&ptr) else { return Vec::new() };
+                let Some(span) = context.span_from_ast_ptr(&ptr) else { return Ok(Vec::new()) };
 
-                vec![Diagnostic::error("InvalidImportStatement", message, span, "resolving")]
+                Ok(vec![Diagnostic::error("InvalidImportStatement", message, span, "resolving")])
             }
 
             ResolvingError::InvalidImportItem { id } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Vec::new() };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
+                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
 
                 let text = context.text_of(span).trim();
                 let message = format!("Cannot import item '{text}'");
 
-                vec![Diagnostic::error("InvalidImportItem", message, span, "resolving")]
+                Ok(vec![Diagnostic::error("InvalidImportItem", message, span, "resolving")])
             }
         }
     }
 }
 
 impl ToDiagnostics for IndexingError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
         match self {
             IndexingError::DuplicateImport { duplicate, existing } => {
                 let Some(ptr) = context.stabilized.syntax_ptr(*duplicate) else {
-                    return Vec::new();
+                    return Ok(Vec::new());
                 };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Vec::new() };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
 
                 let text = context.text_of(span).trim();
                 let message = format!("Import list contains multiple references to '{text}'");
@@ -570,19 +578,19 @@ impl ToDiagnostics for IndexingError {
                     diagnostic = diagnostic.with_related(existing_span, "First imported here");
                 }
 
-                vec![diagnostic]
+                Ok(vec![diagnostic])
             }
             IndexingError::DuplicateItem { .. }
             | IndexingError::MismatchedItem { .. }
             | IndexingError::InvalidRole { .. }
             | IndexingError::InvalidExport { .. }
-            | IndexingError::DuplicateExport { .. } => Vec::new(),
+            | IndexingError::DuplicateExport { .. } => Ok(Vec::new()),
         }
     }
 }
 
 impl ToDiagnostics for CheckingError {
-    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> Vec<Diagnostic>
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
     {
@@ -592,14 +600,14 @@ impl ToDiagnostics for CheckingError {
 
         let (code, message) = match &self.kind {
             ErrorKind::AmbiguousConstraint { constraint } => {
-                let message = render_type(*constraint);
+                let message = render_type(*constraint)?;
                 ("AmbiguousConstraint", format!("Ambiguous constraint: {message}"))
             }
             ErrorKind::CannotDeriveClass { .. } => {
                 ("CannotDeriveClass", "Cannot derive this class".to_string())
             }
             ErrorKind::CannotDeriveForType { type_id } => {
-                let message = render_type(*type_id);
+                let message = render_type(*type_id)?;
                 ("CannotDeriveForType", format!("Cannot derive for type: {message}"))
             }
             ErrorKind::CannotGeneraliseRecursiveFunction { .. } => (
@@ -607,22 +615,22 @@ impl ToDiagnostics for CheckingError {
                 "Unable to generalise the type of this recursive function.".to_string(),
             ),
             ErrorKind::ContravariantOccurrence { type_id } => {
-                let message = render_type(*type_id);
+                let message = render_type(*type_id)?;
                 (
                     "ContravariantOccurrence",
                     format!("Type variable occurs in contravariant position: {message}"),
                 )
             }
             ErrorKind::CovariantOccurrence { type_id } => {
-                let message = render_type(*type_id);
+                let message = render_type(*type_id)?;
                 (
                     "CovariantOccurrence",
                     format!("Type variable occurs in covariant position: {message}"),
                 )
             }
             ErrorKind::CannotUnify { t1, t2, .. } => {
-                let t1 = render_type(*t1);
-                let t2 = render_type(*t2);
+                let t1 = render_type(*t1)?;
+                let t2 = render_type(*t2)?;
                 ("CannotUnify", format!("Cannot unify '{t1}' with '{t2}'"))
             }
             ErrorKind::DeriveInvalidArity { expected, actual, .. } => (
@@ -639,8 +647,8 @@ impl ToDiagnostics for CheckingError {
             ErrorKind::EmptyAdoBlock => ("EmptyAdoBlock", "Empty ado block".to_string()),
             ErrorKind::EmptyDoBlock => ("EmptyDoBlock", "Empty do block".to_string()),
             ErrorKind::EscapedSkolem { skolem, type_id } => {
-                let skolem = render_type(*skolem);
-                let type_id = render_type(*type_id);
+                let skolem = render_type(*skolem)?;
+                let type_id = render_type(*type_id)?;
                 (
                     "EscapedSkolem",
                     format!(
@@ -651,7 +659,7 @@ impl ToDiagnostics for CheckingError {
             ErrorKind::TermHole { source_term } => {
                 let name = context.text_of(span).trim();
                 if let Some(hole) = context.checked.lookup_term_hole(*source_term) {
-                    let type_id = render_type(hole.type_id);
+                    let type_id = render_type(hole.type_id)?;
                     ("TermHole", format!("Hole '{name}' has inferred type: {type_id}"))
                 } else {
                     ("TermHole", format!("Hole '{name}' has unknown type"))
@@ -660,8 +668,8 @@ impl ToDiagnostics for CheckingError {
             ErrorKind::TypeHole { source_type } => {
                 let name = context.text_of(span).trim();
                 if let Some(hole) = context.checked.lookup_type_hole(*source_type) {
-                    let type_id = render_type(hole.type_id);
-                    let kind = render_type(hole.kind_id);
+                    let type_id = render_type(hole.type_id)?;
+                    let kind = render_type(hole.kind_id)?;
                     (
                         "TypeHole",
                         format!("Type hole '{name}' has inferred type: {type_id} :: {kind}"),
@@ -681,7 +689,7 @@ impl ToDiagnostics for CheckingError {
                 format!("Instance head mismatch: expected {expected} arguments, got {actual}"),
             ),
             ErrorKind::InstanceHeadLabeledRow { position, type_id, .. } => {
-                let type_msg = render_type(*type_id);
+                let type_msg = render_type(*type_id)?;
                 (
                     "InstanceHeadLabeledRow",
                     format!(
@@ -692,8 +700,8 @@ impl ToDiagnostics for CheckingError {
                 )
             }
             ErrorKind::InstanceMemberTypeMismatch { expected, actual } => {
-                let expected = render_type(*expected);
-                let actual = render_type(*actual);
+                let expected = render_type(*expected)?;
+                let actual = render_type(*actual)?;
                 (
                     "InstanceMemberTypeMismatch",
                     format!("Instance member type mismatch: expected '{expected}', got '{actual}'"),
@@ -703,9 +711,9 @@ impl ToDiagnostics for CheckingError {
                 ("MissingInstanceMembers", "Instance is missing class members".to_string())
             }
             ErrorKind::InvalidTypeApplication { function_type, function_kind, argument_type } => {
-                let function_type = render_type(*function_type);
-                let function_kind = render_type(*function_kind);
-                let argument_type = render_type(*argument_type);
+                let function_type = render_type(*function_type)?;
+                let function_kind = render_type(*function_kind)?;
+                let argument_type = render_type(*argument_type)?;
                 (
                     "InvalidTypeApplication",
                     format!(
@@ -715,7 +723,7 @@ impl ToDiagnostics for CheckingError {
                 )
             }
             ErrorKind::ExpectedNewtype { type_id } => {
-                let message = render_type(*type_id);
+                let message = render_type(*type_id)?;
                 ("ExpectedNewtype", format!("Expected a newtype, got: {message}"))
             }
             ErrorKind::InvalidNewtypeDeriveSkolemArguments => (
@@ -724,21 +732,21 @@ impl ToDiagnostics for CheckingError {
                     .to_string(),
             ),
             ErrorKind::NonLocalNewtype { type_id } => {
-                let message = render_type(*type_id);
+                let message = render_type(*type_id)?;
                 ("NonLocalNewtype", format!("Expected a local newtype, got: {message}"))
             }
             ErrorKind::NoInstanceFound { constraint, .. } => {
-                let constraint = render_type(*constraint);
+                let constraint = render_type(*constraint)?;
                 let message = format!("No instance found for: {constraint}");
                 ("NoInstanceFound", message)
             }
             ErrorKind::OverlappingInstances { constraint, .. } => {
-                let constraint = render_type(*constraint);
+                let constraint = render_type(*constraint)?;
                 let message = format!("Overlapping type class instances found for: {constraint}");
                 ("OverlappingInstances", message)
             }
             ErrorKind::NoVisibleTypeVariable { function_type } => {
-                let message = render_type(*function_type);
+                let message = render_type(*function_type)?;
                 (
                     "NoVisibleTypeVariable",
                     format!("No visible type variable for type application in: {message}"),
@@ -788,7 +796,7 @@ impl ToDiagnostics for CheckingError {
                 ("PropertyIsMissing", format!("Missing required properties: {labels_str}"))
             }
             ErrorKind::UnreportedUnknownType { type_id } => {
-                let type_id = render_type(*type_id);
+                let type_id = render_type(*type_id)?;
                 (
                     "UnreportedUnknownType",
                     format!(
@@ -810,7 +818,7 @@ impl ToDiagnostics for CheckingError {
 
         if let ErrorKind::NoInstanceFound { given, .. } = &self.kind {
             for &given in given.iter() {
-                let given = render_type(given);
+                let given = render_type(given)?;
                 let trivia = format!("{given} is in scope");
                 diagnostic = diagnostic.with_trivia(trivia)
             }
@@ -821,30 +829,30 @@ impl ToDiagnostics for CheckingError {
             &ErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) }
                 if (t1, t2) != (outer_t1, outer_t2) =>
             {
-                let outer_t1 = render_type(outer_t1);
-                let outer_t2 = render_type(outer_t2);
+                let outer_t1 = render_type(outer_t1)?;
+                let outer_t2 = render_type(outer_t2)?;
                 let trivia = format!("matching '{outer_t1}' with '{outer_t2}'");
                 diagnostic = diagnostic.with_trivia(trivia);
             }
             ErrorKind::OverlappingInstances { instances, .. } => {
                 for &instance in instances.iter() {
-                    let instance = render_type(instance);
+                    let instance = render_type(instance)?;
                     let trivia = format!("{instance} is matching");
                     diagnostic = diagnostic.with_trivia(trivia)
                 }
             }
             ErrorKind::TermHole { source_term } => {
                 if let Some(hole) = context.checked.lookup_term_hole(*source_term) {
-                    diagnostic = attach_hole_binding_trivia(diagnostic, context, &hole.bindings);
+                    diagnostic = attach_hole_binding_trivia(diagnostic, context, &hole.bindings)?;
                 }
             }
             ErrorKind::TypeHole { source_type } => {
                 if let Some(hole) = context.checked.lookup_type_hole(*source_type) {
-                    diagnostic = attach_hole_binding_trivia(diagnostic, context, &hole.bindings);
+                    diagnostic = attach_hole_binding_trivia(diagnostic, context, &hole.bindings)?;
                 }
             }
             ErrorKind::CannotGeneraliseRecursiveFunction { type_id } => {
-                let inferred = render_type(*type_id);
+                let inferred = render_type(*type_id)?;
                 let trivia = format!("The inferred type was: {inferred}");
                 diagnostic = diagnostic.with_trivia(trivia);
                 diagnostic = diagnostic.with_trivia("Try adding a type signature.");
@@ -858,7 +866,7 @@ impl ToDiagnostics for CheckingError {
             _ => {}
         }
 
-        vec![diagnostic]
+        Ok(vec![diagnostic])
     }
 }
 
@@ -868,17 +876,17 @@ fn attach_hole_binding_trivia<Q>(
     mut diagnostic: Diagnostic,
     context: &DiagnosticsContext<'_, Q>,
     bindings: &[HoleBinding],
-) -> Diagnostic
+) -> QueryResult<Diagnostic>
 where
     Q: ExternalQueries,
 {
     diagnostic.trivia.reserve(bindings.len().min(MAX_HOLE_BINDINGS));
 
     for binding in bindings.iter().take(MAX_HOLE_BINDINGS) {
-        let type_id = context.render_type(binding.type_id);
+        let type_id = context.render_type(binding.type_id)?;
         let trivia = format!("{} :: {type_id} is in scope", binding.name);
         diagnostic = diagnostic.with_trivia(trivia);
     }
 
-    diagnostic
+    Ok(diagnostic)
 }

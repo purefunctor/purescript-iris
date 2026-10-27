@@ -1390,19 +1390,18 @@ where
         if useful {
             matrix.push(vector);
         } else {
-            redundant.push(pretty::pretty_witness(context, state, vector));
+            redundant.push(pretty::pretty_witness(context, state, vector)?);
         }
     }
 
     let query: PatternVector = pattern_types.iter().map(|&t| state.allocate_wildcard(t)).collect();
     let witnesses = algorithm_m(state, context, &unconditional, &query)?;
     let missing = witnesses.map(|witnesses| {
-        witnesses
-            .iter()
-            .take(5)
-            .map(|witness| pretty::pretty_witness(context, state, witness))
-            .collect()
+        let witnesses = witnesses.iter().take(5);
+        let witnesses = witnesses.map(|witness| pretty::pretty_witness(context, state, witness));
+        witnesses.collect::<QueryResult<_>>()
     });
+    let missing = missing.transpose()?;
 
     Ok(ExhaustivenessReport { missing, redundant })
 }

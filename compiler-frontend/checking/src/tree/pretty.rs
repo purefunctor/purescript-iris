@@ -267,24 +267,19 @@ where
         }
     }
 
-    fn display_local_type_name(&self, name: &str) -> String {
+    fn display_local_type_name(&self, name: &str) -> QueryResult<String> {
         if !self.fully_qualified_names {
-            return name.to_string();
+            return Ok(name.to_string());
         }
 
-        let Ok(content) = self.queries.content(self.file_id) else {
-            return name.to_string();
-        };
-
-        let Ok((parsed, _)) = self.queries.parsed(self.file_id) else {
-            return name.to_string();
-        };
+        let content = self.queries.content(self.file_id)?;
+        let (parsed, _) = self.queries.parsed(self.file_id)?;
 
         let Some(module_name) = parsed.module_name(&content) else {
-            return name.to_string();
+            return Ok(name.to_string());
         };
 
-        format!("{module_name}.{name}")
+        Ok(format!("{module_name}.{name}"))
     }
 
     fn module(&mut self) -> QueryResult<Doc<'arena>> {
@@ -305,13 +300,13 @@ where
             let kind = declaration.kind;
 
             let mut type_pretty = self.type_pretty.state();
-            let signature = type_pretty.render_kind_signature(name, kind);
+            let signature = type_pretty.render_kind_signature(name, kind)?;
             let signature = self.arena.text(format!("{keyword} {signature}"));
 
             let declaration = if is_class {
                 self.class_declaration(type_id, name, &mut type_pretty)?
             } else {
-                self.data_declaration(type_id, keyword, name, &mut type_pretty)
+                self.data_declaration(type_id, keyword, name, &mut type_pretty)?
             };
 
             declarations.push(signature.append(self.arena.hardline()).append(declaration));
@@ -352,7 +347,7 @@ where
                         }
                         TermDeclarationKind::Foreign => {
                             let Some(name) = &item.name else { continue };
-                            let type_id = self.signature_type_pretty.render(declaration.type_id);
+                            let type_id = self.signature_type_pretty.render(declaration.type_id)?;
                             let declaration =
                                 self.arena.text(format!("foreign import {name} :: {type_id}"));
                             declarations.push(declaration);
@@ -426,7 +421,7 @@ where
         keyword: &str,
         name: &str,
         type_pretty: &mut TypePrettyState<'context, Q>,
-    ) -> Doc<'arena> {
+    ) -> QueryResult<Doc<'arena>> {
         let declaration_id = self
             .checked
             .tree
@@ -464,7 +459,7 @@ where
                 unreachable!("invariant violated: data declaration contains a value declaration");
             };
 
-            let result_name = self.display_local_type_name(name);
+            let result_name = self.display_local_type_name(name)?;
             let mut result = self.arena.text(result_name);
             for (parameter, _) in &parameter_names {
                 result = result.append(self.arena.text(format!(" {parameter}")));
@@ -472,7 +467,7 @@ where
 
             let mut constructor_type = result;
             for &argument_id in constructor.arguments.iter().rev() {
-                let argument = type_pretty.render(argument_id);
+                let argument = type_pretty.render(argument_id)?;
                 let argument = match *self.queries.lookup_type(argument_id) {
                     Type::Forall(..)
                     | Type::Constrained(..)
@@ -499,7 +494,7 @@ where
             declaration = declaration.append(self.arena.hardline()).append(constructor);
         }
 
-        declaration
+        Ok(declaration)
     }
 
     fn class_declaration(
@@ -542,7 +537,7 @@ where
         for superclass in class.superclasses.iter() {
             let base = self.evidence_base_name(superclass.constraint)?;
             let field_name = field_names.allocate_display_name(base);
-            let field_type = self.type_pretty.render(superclass.constraint);
+            let field_type = self.type_pretty.render(superclass.constraint)?;
             let field = self.arena.text(format!("  superclass {field_name} :: {field_type}"));
             declaration = declaration.append(self.arena.hardline()).append(field);
         }
@@ -552,7 +547,7 @@ where
             else {
                 continue;
             };
-            let field_type = self.type_pretty.render(member.field_type);
+            let field_type = self.type_pretty.render(member.field_type)?;
             let field = self.arena.text(format!("  {name} :: {field_type}"));
             declaration = declaration.append(self.arena.hardline()).append(field);
         }
@@ -576,7 +571,7 @@ where
         };
 
         let mut signature_pretty = self.signature_type_pretty.state();
-        let type_id = signature_pretty.render(declaration.type_id);
+        let type_id = signature_pretty.render(declaration.type_id)?;
         let signature = self.arena.text(format!("{name} :: {type_id}"));
         let rigid_names = self.declaration_rigid_names(&mut signature_pretty, &value.abstractions);
 
@@ -739,7 +734,7 @@ where
             }
         }
 
-        let type_id = type_pretty.render(member.implementation_type);
+        let type_id = type_pretty.render(member.implementation_type)?;
         let rigid_names = self.declaration_rigid_names(&mut type_pretty, &member.abstractions);
         let signature = self.arena.text(format!("  {name} :: {type_id}"));
         Ok((signature, rigid_names))
@@ -809,11 +804,11 @@ where
 
         for evidence in instance.evidences.iter() {
             let field_name = self.evidence_name(evidence_names, &evidence.evidence)?;
-            let constraint = type_pretty.render(evidence.constraint);
+            let constraint = type_pretty.render(evidence.constraint)?;
             lines.push(format!("{{ {field_name} :: {constraint} }} =>"));
         }
 
-        lines.push(type_pretty.render(current).to_string());
+        lines.push(type_pretty.render(current)?.to_string());
 
         let mut lines = lines.into_iter();
         let first = lines.next().expect("invariant violated: dictionary signature is empty");
@@ -1056,7 +1051,7 @@ where
         let declaration = &self.checked.tree[declaration_id];
         let name = self.local_declaration_name(declaration.source);
         let type_pretty = &mut type_pretty.fork();
-        let type_id = type_pretty.render(declaration.type_id);
+        let type_id = type_pretty.render(declaration.type_id)?;
         let signature = self.arena.text(format!("{name} :: {type_id}"));
         let rigid_names =
             self.declaration_rigid_names(type_pretty, &declaration.value.abstractions);
@@ -1356,7 +1351,7 @@ where
             BinderKind::Error => Ok(self.arena.text("<error>")),
             BinderKind::Typed { binder, annotation } => {
                 let binder = self.binder(*binder, type_pretty)?;
-                let annotation = type_pretty.render(*annotation);
+                let annotation = type_pretty.render(*annotation)?;
                 Ok(self
                     .arena
                     .text("(")
