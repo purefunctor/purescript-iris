@@ -373,6 +373,10 @@ pub enum EffectPrimitive {
         reference: ExpressionId,
         result: ReferenceModifyResult,
     },
+    UncurriedCall {
+        function: ExpressionId,
+        arguments: Arc<[ExpressionId]>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -397,16 +401,22 @@ pub enum EffectLoop {
 }
 
 impl EffectPrimitive {
-    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
-        let (first, second) = match self {
-            EffectPrimitive::NewReference { value } => (*value, None),
-            EffectPrimitive::ReadReference { reference } => (*reference, None),
-            EffectPrimitive::WriteReference { value, reference, .. } => (*value, Some(*reference)),
-            EffectPrimitive::ModifyReference { function, reference, .. } => {
-                (*function, Some(*reference))
-            }
-        };
-        std::iter::once(first).chain(second)
+    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> + '_ {
+        let (first, second, rest): (ExpressionId, Option<ExpressionId>, &[ExpressionId]) =
+            match self {
+                EffectPrimitive::NewReference { value } => (*value, None, &[]),
+                EffectPrimitive::ReadReference { reference } => (*reference, None, &[]),
+                EffectPrimitive::WriteReference { value, reference, .. } => {
+                    (*value, Some(*reference), &[])
+                }
+                EffectPrimitive::ModifyReference { function, reference, .. } => {
+                    (*function, Some(*reference), &[])
+                }
+                EffectPrimitive::UncurriedCall { function, arguments } => {
+                    (*function, None, arguments)
+                }
+            };
+        std::iter::once(first).chain(second).chain(rest.iter().copied())
     }
 }
 

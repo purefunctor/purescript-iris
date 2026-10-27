@@ -561,6 +561,7 @@ impl<'a> Printer<'a, '_> {
                         ReferenceModifyResult::State => "effect.modifyReferenceState",
                         ReferenceModifyResult::Record => "effect.modifyReferenceRecord",
                     },
+                    EffectPrimitive::UncurriedCall { .. } => "effect.uncurriedCall",
                 };
                 self.effect_operation(name, primitive.operands())
             }
