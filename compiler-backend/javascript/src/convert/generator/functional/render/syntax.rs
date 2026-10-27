@@ -67,6 +67,11 @@ pub(super) fn unary_expression(
         FunctionalUnaryOperator::IntegerComplement => tree.unary(UnaryOperator::BitwiseNot, value),
         FunctionalUnaryOperator::NumberNegate => tree.unary(UnaryOperator::Negate, value),
         FunctionalUnaryOperator::ArrayLength => tree.member(value, "length"),
+        FunctionalUnaryOperator::ObjectKeys => {
+            let object = tree.identifier("Object");
+            let keys = tree.member(object, "keys");
+            tree.call(keys, vec![value])
+        }
     }
 }
 
@@ -123,6 +128,7 @@ pub(super) fn binary_expression(
             tree.binary(BinaryOperator::Multiply, left, right)
         }
         FunctionalBinaryOperator::NumberDivide => tree.binary(BinaryOperator::Divide, left, right),
+        FunctionalBinaryOperator::ObjectMember => tree.binary(BinaryOperator::In, left, right),
         FunctionalBinaryOperator::Comparison { comparison, .. } => {
             let operator = match comparison {
                 Comparison::Equal => BinaryOperator::StrictEqual,

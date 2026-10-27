@@ -3,94 +3,84 @@ source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Data_Show from "../Data.Show/index.js";
    | ^ 3:1 import Prelude
- 2 | import * as Foreign_Object from "../Foreign.Object/index.js";
-   | ^ 7:1 import Foreign.Object (Object)
- 3 | import * as Foreign_Object_Unsafe from "../Foreign.Object.Unsafe/index.js";
-   | ^ 10:1 import Foreign.Object.Unsafe as ObjectUnsafe
- 4 | export function appended(values) {
+ 2 | export function appended(values) {
    | ^ 13:1 appended values = ST.run do
    |        ^ (appended) 13:1 appended values = ST.run do
    |                                  ^ 13:1 appended values = ST.run do
- 5 |   const array = values.slice();
+ 3 |   const array = values.slice();
    |   ^ 14:12 STArray.thaw values
    |                 ^ 14:25 values
    |                        ^ 14:12 STArray.thaw values
- 6 |   array.push(0 | 0);
+ 4 |   array.push(0 | 0);
    |   ^ 15:23 array
    |         ^ 15:8 STArray.push 0 array
    |              ^ 15:21 0 array
    |                   ^ 15:8 STArray.push 0 array
- 7 |   array.unshift(...values);
+ 5 |   array.unshift(...values);
    |   ^ 16:34 array
    |         ^ 16:8 STArray.unshiftAll values array
    |                    ^ 16:27 values array
    |                          ^ 16:8 STArray.unshiftAll values array
- 8 |   return array.slice();
+ 6 |   return array.slice();
    |   ^ 17:3 STArray.freeze array
    |          ^ 17:18 array
    |                ^ 17:3 STArray.freeze array
- 9 | }
+ 7 | }
    | ^ 13:1 appended values = ST.run do
-10 | export function inserted(key) {
+ 8 | export function inserted(key) {
    | ^ 20:1 inserted key object = Object.runST do
    |        ^ (inserted) 20:1 inserted key object = Object.runST do
    |                               ^ 20:1 inserted key object = Object.runST do
-11 |   return (object) => {
+ 9 |   return (object) => {
    |   ^ (inserted) 20:1 inserted key object = Object.runST do
    |                      ^ 20:1 inserted key object = Object.runST do
-12 |     const mutable = { ...object };
+10 |     const mutable = { ...object };
    |     ^ 21:14 Object.thawST object
    |                          ^ 21:28 object
    |                                 ^ 21:14 Object.thawST object
-13 |     delete mutable.removed;
+11 |     delete mutable.removed;
    |     ^ 22:8 STObject.delete "removed" mutable
    |            ^ 22:34 mutable
    |                    ^ 22:8 STObject.delete "removed" mutable
-14 |     mutable[key] = 1 | 0;
+12 |     mutable[key] = 1 | 0;
    |     ^ 23:23 mutable
    |             ^ 23:17 key 1 mutable
    |                    ^ 23:21 1 mutable
-15 |     return mutable;
+13 |     return mutable;
    |     ^ 23:3 STObject.poke key 1 mutable
    |            ^ 23:23 mutable
-16 |   };
+14 |   };
    |   ^ 20:1 inserted key object = Object.runST do
-17 | }
+15 | }
    | ^ 20:1 inserted key object = Object.runST do
-18 | export function described(key) {
+16 | export function described(key) {
    | ^ 26:1 described key object =
    |        ^ (described) 26:1 described key object =
    |                                ^ 26:1 described key object =
-19 |   return (object) => {
+17 |   return (object) => {
    |   ^ (described) 26:1 described key object =
    |                      ^ 26:1 described key object =
-20 |     if (Foreign_Object.member(key)(object)) {
+18 |     if (key in object) {
    |     ^ 27:3 if Object.member key object then Object.keys object
-   |         ^ 27:6 Object.member key object then Object.keys object
-   |                               ^ 27:20 key object then Object.keys object
-   |                                  ^ 27:6 Object.member key object then Object.keys object
-   |                                    ^ 27:24 object then Object.keys object
-   |                                          ^ 27:6 Object.member key object then Object.keys object
-   |                                             ^ 27:3 if Object.member key object then Object.keys object
-21 |       return Foreign_Object.keys(object);
+   |         ^ 27:20 key object then Object.keys object
+   |                ^ 27:24 object then Object.keys object
+   |                        ^ 27:3 if Object.member key object then Object.keys object
+19 |       return Object.keys(object);
    |       ^ 27:36 Object.keys object
-   |                                  ^ 27:48 object
-   |                                        ^ 27:36 Object.keys object
-22 |     } else {
+   |                          ^ 27:48 object
+   |                                ^ 27:36 Object.keys object
+20 |     } else {
    |     ^ 27:3 if Object.member key object then Object.keys object
-23 |       return [/* @__PURE__ */ Data_Show.show(Data_Show.showInt)(Foreign_Object_Unsafe.unsafeIndex(object)("fallback"))];
+21 |       return [/* @__PURE__ */ Data_Show.show(Data_Show.showInt)(object.fallback)];
    |       ^ 28:8 [ show (ObjectUnsafe.unsafeIndex object "fallback") ]
    |               ^ 28:10 show (ObjectUnsafe.unsafeIndex object "fallback") ]
-   |                                                                 ^ 28:16 ObjectUnsafe.unsafeIndex object "fallback") ]
-   |                                                                                                   ^ 28:41 object "fallback") ]
-   |                                                                                                         ^ 28:16 ObjectUnsafe.unsafeIndex object "fallback") ]
-   |                                                                                                           ^ 28:48 "fallback") ]
-   |                                                                                                                     ^ 28:16 ObjectUnsafe.unsafeIndex object "fallback") ]
-   |                                                                                                                      ^ 28:10 show (ObjectUnsafe.unsafeIndex object "fallback") ]
-   |                                                                                                                       ^ 28:8 [ show (ObjectUnsafe.unsafeIndex object "fallback") ]
-24 |     }
+   |                                                                 ^ 28:41 object "fallback") ]
+   |                                                                        ^ 28:16 ObjectUnsafe.unsafeIndex object "fallback") ]
+   |                                                                                ^ 28:10 show (ObjectUnsafe.unsafeIndex object "fallback") ]
+   |                                                                                 ^ 28:8 [ show (ObjectUnsafe.unsafeIndex object "fallback") ]
+22 |     }
    |     ^ 27:3 if Object.member key object then Object.keys object
-25 |   };
+23 |   };
    |   ^ 26:1 described key object =
-26 | }
+24 | }
    | ^ 26:1 described key object =

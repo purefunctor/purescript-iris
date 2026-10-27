@@ -45,6 +45,7 @@ const BINARY_FUNCTIONS: &[(&str, &str, BinaryOperator)] = &[
 const UNARY_FUNCTIONS: &[(&str, &str, UnaryOperator)] = &[
     ("Data.Int.Bits", "complement", UnaryOperator::IntegerComplement),
     ("Data.Array", "length", UnaryOperator::ArrayLength),
+    ("Foreign.Object", "keys", UnaryOperator::ObjectKeys),
 ];
 
 const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
@@ -350,6 +351,17 @@ where
             && let [_, value, index] = arguments
         {
             return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
+        }
+        if self.known_term(function, "Foreign.Object.Unsafe", "unsafeIndex")?
+            && let [value, index] = arguments
+        {
+            return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
+        }
+        if self.known_term(function, "Foreign.Object", "member")?
+            && let [key, object] = arguments
+        {
+            let operator = BinaryOperator::ObjectMember;
+            return Ok(Some(ExpressionKind::Binary { operator, left: *key, right: *object }));
         }
         if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
             self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?

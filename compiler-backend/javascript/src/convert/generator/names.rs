@@ -95,6 +95,7 @@ fn identifier_is_reserved(identifier: &str) -> bool {
         identifier,
         "Array"
             | "Error"
+            | "Object"
             | "arguments"
             | "await"
             | "break"
