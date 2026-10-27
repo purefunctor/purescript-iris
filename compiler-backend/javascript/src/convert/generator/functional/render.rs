@@ -1651,6 +1651,22 @@ impl Generator<'_> {
                 let value = binary_expression(tree, *operator, left.value, right.value);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
+            ExpressionKind::Index { value, index } => {
+                let mut value = self.rendered_expression(tree, writer, *value, context)?;
+                let index =
+                    if let Some(index) = self.try_inline_expression(tree, *index, context)? {
+                        RenderedExpression { value: index, pending_evaluation: true }
+                    } else {
+                        if self.expression_rendering_is_eager(*index, context) {
+                            self.materialize_rendered_expression(
+                                tree, writer, &mut value, "$value", context,
+                            );
+                        }
+                        self.render_non_inline_expression(tree, writer, *index, context)?
+                    };
+                let value = tree.index(value.value, index.value);
+                Ok(RenderedExpression { value, pending_evaluation: true })
+            }
             ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. } => {
                 let value = self.render_closure(tree, writer, expression, None, context)?;
                 Ok(RenderedExpression { value, pending_evaluation: false })
@@ -1883,6 +1899,10 @@ impl Generator<'_> {
                         self.expression_rendering_is_eager(*right, context)
                     }
             }
+            ExpressionKind::Index { value, index } => {
+                self.expression_rendering_is_eager(*value, context)
+                    || self.expression_rendering_is_eager(*index, context)
+            }
             ExpressionKind::Application { function, arguments, .. }
             | ExpressionKind::UncurriedApplication { function, arguments, .. } => {
                 self.expression_rendering_is_eager(*function, context)
@@ -1937,6 +1957,7 @@ impl Generator<'_> {
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }
             | ExpressionKind::Binary { .. }
+            | ExpressionKind::Index { .. }
             | ExpressionKind::Abstraction { .. }
             | ExpressionKind::UncurriedAbstraction { .. }
             | ExpressionKind::Application { .. }
@@ -2029,6 +2050,15 @@ impl Generator<'_> {
                     return Ok(None);
                 };
                 binary_expression(tree, *operator, left, right)
+            }
+            ExpressionKind::Index { value, index } => {
+                let Some(value) = self.inline_expression(tree, *value, context)? else {
+                    return Ok(None);
+                };
+                let Some(index) = self.inline_expression(tree, *index, context)? else {
+                    return Ok(None);
+                };
+                tree.index(value, index)
             }
             ExpressionKind::Constructor { global } => self.global_expression(tree, global)?,
             ExpressionKind::Global { global } => self.global_expression(tree, global)?,
@@ -2151,7 +2181,8 @@ impl Generator<'_> {
             }
             ExpressionKind::Project { record, .. }
             | ExpressionKind::Unary { value: record, .. } => self.expression_can_inline(*record),
-            ExpressionKind::Binary { left, right, .. } => {
+            ExpressionKind::Binary { left, right, .. }
+            | ExpressionKind::Index { value: left, index: right } => {
                 self.expression_can_inline(*left) && self.expression_can_inline(*right)
             }
             ExpressionKind::Abstraction { parameters, body }
@@ -3661,7 +3692,8 @@ fn collect_expression_references(
         ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
             collect_expression_references(module, *record, seen, globals);
         }
-        ExpressionKind::Binary { left, right, .. } => {
+        ExpressionKind::Binary { left, right, .. }
+        | ExpressionKind::Index { value: left, index: right } => {
             collect_expression_references(module, *left, seen, globals);
             collect_expression_references(module, *right, seen, globals);
         }
@@ -3882,7 +3914,8 @@ fn collect_expression_children(
         ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
             collect_expression_globals(module, *record, false, globals);
         }
-        ExpressionKind::Binary { left, right, .. } => {
+        ExpressionKind::Binary { left, right, .. }
+        | ExpressionKind::Index { value: left, index: right } => {
             collect_expression_globals(module, *left, false, globals);
             collect_expression_globals(module, *right, false, globals);
         }

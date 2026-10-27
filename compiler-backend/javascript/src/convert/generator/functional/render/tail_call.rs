@@ -247,6 +247,7 @@ fn function_profile(
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
+        | ExpressionKind::Index { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }
@@ -342,6 +343,7 @@ fn collect_tail_edges(
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
+        | ExpressionKind::Index { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }
@@ -387,6 +389,7 @@ fn application_head(module: &Module, expression: ExpressionId) -> Option<Applica
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
+        | ExpressionKind::Index { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }

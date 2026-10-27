@@ -186,7 +186,8 @@ fn folded_negation(
             UnaryOperator::BooleanNot
             | UnaryOperator::IntegerNegate
             | UnaryOperator::IntegerComplement
-            | UnaryOperator::NumberNegate,
+            | UnaryOperator::NumberNegate
+            | UnaryOperator::ArrayLength,
             _,
         ) => None,
     }
@@ -432,7 +433,8 @@ fn is_simple_expression(
             | ExpressionKind::Unary { value: record, .. } => {
                 pending.push(*record);
             }
-            ExpressionKind::Binary { left, right, .. } => {
+            ExpressionKind::Binary { left, right, .. }
+            | ExpressionKind::Index { value: left, index: right } => {
                 pending.push(*right);
                 pending.push(*left);
             }
@@ -489,7 +491,8 @@ pub fn try_for_each_expression_child<Error>(
         ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
             visit(*record)?;
         }
-        ExpressionKind::Binary { left, right, .. } => {
+        ExpressionKind::Binary { left, right, .. }
+        | ExpressionKind::Index { value: left, index: right } => {
             visit(*left)?;
             visit(*right)?;
         }

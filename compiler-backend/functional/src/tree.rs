@@ -258,6 +258,7 @@ pub enum ExpressionKind {
     Project { record: ExpressionId, field: Field },
     Unary { operator: UnaryOperator, value: ExpressionId },
     Binary { operator: BinaryOperator, left: ExpressionId, right: ExpressionId },
+    Index { value: ExpressionId, index: ExpressionId },
     Constructor { global: Global },
     Global { global: Global },
     Local { parameter: Parameter },
@@ -282,6 +283,7 @@ pub enum UnaryOperator {
     IntegerNegate,
     IntegerComplement,
     NumberNegate,
+    ArrayLength,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
