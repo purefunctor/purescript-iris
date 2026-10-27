@@ -107,6 +107,7 @@ impl<'a> Printer<'a, '_> {
             | ExpressionKind::Array { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
+            | ExpressionKind::Index { .. }
             | ExpressionKind::Constructor { .. }
             | ExpressionKind::Global { .. }
             | ExpressionKind::Local { .. }
@@ -149,12 +150,18 @@ impl<'a> Printer<'a, '_> {
                 let field = self.field(field);
                 record.append(self.arena.text(format!(".{field}")))
             }
+            ExpressionKind::Index { value, index } => {
+                let value = self.expression_at(*value, ExpressionPrecedence::Atom);
+                let index = self.expression(*index);
+                value.append("[").append(index).append("]")
+            }
             ExpressionKind::Unary { operator, value } => {
                 let operator = match operator {
                     UnaryOperator::BooleanNot => "boolean.not",
                     UnaryOperator::IntegerNegate => "integer.negate",
                     UnaryOperator::IntegerComplement => "integer.complement",
                     UnaryOperator::NumberNegate => "number.negate",
+                    UnaryOperator::ArrayLength => "array.length",
                 };
                 let value = self.expression_at(*value, ExpressionPrecedence::Atom);
                 self.arena.text(operator).append(" ").append(value)

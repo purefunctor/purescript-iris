@@ -66,6 +66,7 @@ pub(super) fn unary_expression(
         }
         FunctionalUnaryOperator::IntegerComplement => tree.unary(UnaryOperator::BitwiseNot, value),
         FunctionalUnaryOperator::NumberNegate => tree.unary(UnaryOperator::Negate, value),
+        FunctionalUnaryOperator::ArrayLength => tree.member(value, "length"),
     }
 }
 

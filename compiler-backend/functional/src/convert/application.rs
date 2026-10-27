@@ -35,8 +35,10 @@ const BINARY_FUNCTIONS: &[(&str, &str, BinaryOperator)] = &[
     ("Data.Int.Bits", "zshr", BinaryOperator::IntegerZeroFillShiftRight),
 ];
 
-const UNARY_FUNCTIONS: &[(&str, &str, UnaryOperator)] =
-    &[("Data.Int.Bits", "complement", UnaryOperator::IntegerComplement)];
+const UNARY_FUNCTIONS: &[(&str, &str, UnaryOperator)] = &[
+    ("Data.Int.Bits", "complement", UnaryOperator::IntegerComplement),
+    ("Data.Array", "length", UnaryOperator::ArrayLength),
+];
 
 const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
     ("eqBoolean", PrimitiveType::Boolean),
@@ -304,6 +306,11 @@ where
             {
                 return Ok(Some(ExpressionKind::Unary { operator, value: *value }));
             }
+        }
+        if self.known_term(function, "Data.Array", "unsafeIndex")?
+            && let [_, value, index] = arguments
+        {
+            return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
         }
         if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
             self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?
