@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export inserted = \more%3 ->
+  run
+    (effect.bind new
+      \array%0 -> effect.bind (push 2 array%0)
+        \$int%1 -> effect.bind (pushAll [3, 4] array%0)
+          \$int%2 -> effect.bind (pushAll [...more%3, 9] array%0)
+            \$int%4 -> effect.bind (unshift 1 array%0)
+              \$int%5 -> effect.bind (unshiftAll more%3 array%0) \$int%6 -> effect.pure array%0)
+
+@export lengths = uncurried.call effect.bind new
+  \array%7 -> effect.bind (push 1 array%7)
+    \pushed%8 -> effect.bind (pushAll [2, 3] array%7)
+      \pushedAll%9 -> effect.bind (unshift 0 array%7)
+        \unshifted%10 -> effect.bind (unshiftAll [-2, -1] array%7)
+          \unshiftedAll%11 -> effect.pure [pushed%8, pushedAll%9, unshifted%10, unshiftedAll%11]()
