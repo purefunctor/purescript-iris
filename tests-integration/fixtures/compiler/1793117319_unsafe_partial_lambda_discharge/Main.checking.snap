@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+positive :: Prim.Partial => Prim.Int -> Prim.Int
+unsafePositive :: Prim.Int -> Prim.Int
+unsafePositiveFunction :: Prim.Int -> Prim.Int
+unsafePositiveApplied :: Prim.Int -> Prim.Int
+unsafeLambda :: Prim.Int -> Prim.Int
+
+Types
