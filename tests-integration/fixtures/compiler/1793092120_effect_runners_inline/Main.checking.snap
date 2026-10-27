@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+performed :: Prim.Int
+doubled :: Prim.Int -> Prim.Int
+offset :: Prim.Int -> Prim.Int
+performedAction :: Effect.Effect Prim.Int -> Prim.Int
+runAction ::
+  (forall (region :: Control.Monad.ST.Internal.Region).
+    Control.Monad.ST.Internal.ST (region :: Control.Monad.ST.Internal.Region) Prim.Int) ->
+  Prim.Int
+
+Types
