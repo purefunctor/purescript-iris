@@ -1651,6 +1651,10 @@ impl Generator<'_> {
                     self.record_update_expression(tree, writer, *record, updates, context)?;
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
+            ExpressionKind::RecordUnion { left, right } => {
+                let value = self.record_union_expression(tree, writer, *left, *right, context)?;
+                Ok(RenderedExpression { value, pending_evaluation: true })
+            }
             ExpressionKind::RecordDelete { record, field } => {
                 let value = self.record_delete_expression(tree, writer, *record, field, context)?;
                 Ok(RenderedExpression { value, pending_evaluation: false })
@@ -1928,6 +1932,10 @@ impl Generator<'_> {
                         && !self.functional_expression_is_reusable(*record, context)
                     || self.record_updates_rendering_is_eager(updates, context)
             }
+            ExpressionKind::RecordUnion { left, right } => {
+                self.expression_rendering_is_eager(*left, context)
+                    || self.expression_rendering_is_eager(*right, context)
+            }
             ExpressionKind::Project { record, .. }
             | ExpressionKind::Unary { value: record, .. } => {
                 self.expression_rendering_is_eager(*record, context)
@@ -2000,6 +2008,7 @@ impl Generator<'_> {
             | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::RecordUnion { .. }
             | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }
@@ -2089,6 +2098,17 @@ impl Generator<'_> {
                     };
                     properties
                         .push(ObjectProperty::Field { name: field.field.name.clone(), value });
+                }
+                tree.object(properties)
+            }
+            ExpressionKind::RecordUnion { left, right } => {
+                let parts = self.record_union_parts(*left, *right);
+                let mut properties = Vec::with_capacity(parts.len());
+                for (field, expression) in parts {
+                    let Some(value) = self.inline_expression(tree, expression, context)? else {
+                        return Ok(None);
+                    };
+                    properties.push(record_union_property(field, value));
                 }
                 tree.object(properties)
             }
@@ -2248,7 +2268,8 @@ impl Generator<'_> {
             ExpressionKind::Project { record, .. }
             | ExpressionKind::Unary { value: record, .. } => self.expression_can_inline(*record),
             ExpressionKind::Binary { left, right, .. }
-            | ExpressionKind::Index { value: left, index: right } => {
+            | ExpressionKind::Index { value: left, index: right }
+            | ExpressionKind::RecordUnion { left, right } => {
                 self.expression_can_inline(*left) && self.expression_can_inline(*right)
             }
             ExpressionKind::Abstraction { parameters, body }
@@ -3303,6 +3324,58 @@ impl Generator<'_> {
         Ok(tree.object(properties))
     }
 
+    fn record_union_expression<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        left: FunctionalExpressionId,
+        right: FunctionalExpressionId,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<ExpressionId> {
+        let mut rendered_parts: Vec<(Option<&RecordField>, RenderedExpression)> = Vec::new();
+        for (field, expression) in self.record_union_parts(left, right) {
+            let value = if let Some(value) =
+                self.try_inline_expression(tree, expression, context)?
+            {
+                RenderedExpression { value, pending_evaluation: true }
+            } else {
+                if self.expression_rendering_is_eager(expression, context) {
+                    for (_, value) in rendered_parts.iter_mut() {
+                        self.materialize_rendered_expression(
+                            tree, writer, value, "$field", context,
+                        );
+                    }
+                }
+                match field {
+                    Some(field) => self.render_field_value(tree, writer, field, context)?,
+                    None => self.render_non_inline_expression(tree, writer, expression, context)?,
+                }
+            };
+            rendered_parts.push((field, value));
+        }
+        let properties = rendered_parts
+            .into_iter()
+            .map(|(field, value)| record_union_property(field, value.value));
+        Ok(tree.object(properties.collect_vec()))
+    }
+
+    fn record_union_parts(
+        &self,
+        left: FunctionalExpressionId,
+        right: FunctionalExpressionId,
+    ) -> Vec<(Option<&RecordField>, FunctionalExpressionId)> {
+        let mut parts = Vec::new();
+        for side in [right, left] {
+            match &self.module.storage[side].kind {
+                ExpressionKind::Record { fields } => {
+                    parts.extend(fields.iter().map(|field| (Some(field), field.expression)));
+                }
+                _ => parts.push((None, side)),
+            }
+        }
+        parts
+    }
+
     fn record_delete_expression<'t>(
         &self,
         tree: &mut Tree<'t>,
@@ -3316,6 +3389,13 @@ impl Generator<'_> {
         let name = context.allocate("$record");
         writer.constant_object_rest(tree, &field.name, &deleted, &name, record);
         Ok(tree.identifier(name))
+    }
+}
+
+fn record_union_property(field: Option<&RecordField>, value: ExpressionId) -> ObjectProperty {
+    match field {
+        Some(field) => ObjectProperty::Field { name: field.field.name.clone(), value },
+        None => ObjectProperty::Spread(value),
     }
 }
 
@@ -3782,7 +3862,8 @@ fn collect_expression_references(
             collect_expression_references(module, *record, seen, globals);
         }
         ExpressionKind::Binary { left, right, .. }
-        | ExpressionKind::Index { value: left, index: right } => {
+        | ExpressionKind::Index { value: left, index: right }
+        | ExpressionKind::RecordUnion { left, right } => {
             collect_expression_references(module, *left, seen, globals);
             collect_expression_references(module, *right, seen, globals);
         }
@@ -4011,7 +4092,8 @@ fn collect_expression_children(
             collect_expression_globals(module, *record, false, globals);
         }
         ExpressionKind::Binary { left, right, .. }
-        | ExpressionKind::Index { value: left, index: right } => {
+        | ExpressionKind::Index { value: left, index: right }
+        | ExpressionKind::RecordUnion { left, right } => {
             collect_expression_globals(module, *left, false, globals);
             collect_expression_globals(module, *right, false, globals);
         }
