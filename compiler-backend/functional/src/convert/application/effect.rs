@@ -10,6 +10,8 @@ use super::super::{Context, ConversionResult};
 const EFFECT_REFERENCE: &str = "Effect.Ref";
 const STATE_THREAD: &str = "Control.Monad.ST.Internal";
 const STATE_THREAD_ARRAY: &str = "Data.Array.ST";
+const OBJECT: &str = "Foreign.Object";
+const STATE_THREAD_OBJECT: &str = "Foreign.Object.ST";
 
 const UNCURRIED_EFFECT_MODULES: &[(&str, &str, &str)] = &[
     ("Effect.Uncurried", "runEffectFn", "mkEffectFn"),
@@ -24,9 +26,15 @@ where
         &mut self,
         expression: ExpressionId,
     ) -> QueryResult<ExpressionId> {
-        if self.known_term(expression, STATE_THREAD_ARRAY, "new")? {
-            let effect = EffectExpression::Primitive(EffectPrimitive::NewArray);
-            self.storage.replace_expression_kind(expression, ExpressionKind::Effect { effect });
+        for (module_name, primitive) in [
+            (STATE_THREAD_ARRAY, EffectPrimitive::NewArray),
+            (STATE_THREAD_OBJECT, EffectPrimitive::NewObject),
+        ] {
+            if self.known_term(expression, module_name, "new")? {
+                let effect = EffectExpression::Primitive(primitive);
+                self.storage.replace_expression_kind(expression, ExpressionKind::Effect { effect });
+                return Ok(expression);
+            }
         }
         Ok(expression)
     }
@@ -116,6 +124,23 @@ where
                 return Ok(Some(EffectPrimitive::CopyArray { array }));
             }
         }
+        if self.known_term(function, STATE_THREAD_OBJECT, "poke")?
+            && let [key, value, object] = *arguments
+        {
+            return Ok(Some(EffectPrimitive::WriteObjectProperty { key, value, object }));
+        }
+        if self.known_term(function, STATE_THREAD_OBJECT, "delete")?
+            && let [key, object] = *arguments
+        {
+            return Ok(Some(EffectPrimitive::DeleteObjectProperty { key, object }));
+        }
+        for item_name in ["freezeST", "thawST"] {
+            if self.known_term(function, OBJECT, item_name)?
+                && let [object] = *arguments
+            {
+                return Ok(Some(EffectPrimitive::CopyObject { object }));
+            }
+        }
         for &(module_name, run_prefix, _) in UNCURRIED_EFFECT_MODULES {
             if let Some(arity) =
                 self.known_numbered_term_arity(function, module_name, run_prefix)?
@@ -168,6 +193,7 @@ where
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
         if (self.known_term(function, STATE_THREAD, "run")?
+            || self.known_term(function, OBJECT, "runST")?
             || self.known_term(function, "Effect.Unsafe", "unsafePerformEffect")?)
             && let [effect] = *arguments
         {

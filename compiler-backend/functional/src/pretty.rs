@@ -568,6 +568,10 @@ impl<'a> Printer<'a, '_> {
                         ArrayEnd::End => "effect.pushArray",
                     },
                     EffectPrimitive::CopyArray { .. } => "effect.copyArray",
+                    EffectPrimitive::NewObject => "effect.newObject",
+                    EffectPrimitive::WriteObjectProperty { .. } => "effect.writeObjectProperty",
+                    EffectPrimitive::DeleteObjectProperty { .. } => "effect.deleteObjectProperty",
+                    EffectPrimitive::CopyObject { .. } => "effect.copyObject",
                 };
                 self.effect_operation(name, primitive.operands())
             }

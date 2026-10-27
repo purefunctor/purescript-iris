@@ -47,6 +47,19 @@ pub(super) enum CapturedPrimitive {
     CopyArray {
         array: ExpressionId,
     },
+    NewObject,
+    WriteObjectProperty {
+        key: ExpressionId,
+        value: ExpressionId,
+        object: ExpressionId,
+    },
+    DeleteObjectProperty {
+        key: ExpressionId,
+        object: ExpressionId,
+    },
+    CopyObject {
+        object: ExpressionId,
+    },
 }
 
 pub(super) enum CapturedLoop {
@@ -101,6 +114,22 @@ pub(super) fn capture_primitive(
         EffectPrimitive::CopyArray { array } => {
             let array = capture_effect_value(renderer, *array, "$array")?;
             CapturedPrimitive::CopyArray { array }
+        }
+        EffectPrimitive::NewObject => CapturedPrimitive::NewObject,
+        EffectPrimitive::WriteObjectProperty { key, value, object } => {
+            let key = capture_effect_value(renderer, *key, "$key")?;
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            let object = capture_stable_value(renderer, *object, "$object")?;
+            CapturedPrimitive::WriteObjectProperty { key, value, object }
+        }
+        EffectPrimitive::DeleteObjectProperty { key, object } => {
+            let key = capture_effect_value(renderer, *key, "$key")?;
+            let object = capture_stable_value(renderer, *object, "$object")?;
+            CapturedPrimitive::DeleteObjectProperty { key, object }
+        }
+        EffectPrimitive::CopyObject { object } => {
+            let object = capture_effect_value(renderer, *object, "$object")?;
+            CapturedPrimitive::CopyObject { object }
         }
     };
     Ok(CapturedOperation::Primitive(primitive))
@@ -297,6 +326,24 @@ fn execute_primitive(
         CapturedPrimitive::CopyArray { array } => {
             let method = tree.member(array, "slice");
             Some(tree.call(method, Vec::new()))
+        }
+        CapturedPrimitive::NewObject => Some(tree.object(Vec::new())),
+        CapturedPrimitive::WriteObjectProperty { key, value, object } => {
+            let target = tree.duplicate(&object);
+            let target = tree.property(target, key);
+            let assignment = tree.assignment(target, value);
+            renderer.writer.evaluate(tree, assignment);
+            Some(object)
+        }
+        CapturedPrimitive::DeleteObjectProperty { key, object } => {
+            let target = tree.duplicate(&object);
+            let target = tree.property(target, key);
+            let deletion = tree.unary(UnaryOperator::Delete, target);
+            renderer.writer.evaluate(tree, deletion);
+            Some(object)
+        }
+        CapturedPrimitive::CopyObject { object } => {
+            Some(tree.object(vec![ObjectProperty::Spread(object)]))
         }
     };
     Ok(result)
