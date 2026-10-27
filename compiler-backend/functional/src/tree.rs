@@ -377,6 +377,18 @@ pub enum EffectPrimitive {
         function: ExpressionId,
         arguments: Arc<[ExpressionId]>,
     },
+    NewArray,
+    InsertArrayValues {
+        values: ExpressionId,
+        array: ExpressionId,
+        end: ArrayEnd,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayEnd {
+    Start,
+    End,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -402,21 +414,24 @@ pub enum EffectLoop {
 
 impl EffectPrimitive {
     pub fn operands(&self) -> impl Iterator<Item = ExpressionId> + '_ {
-        let (first, second, rest): (ExpressionId, Option<ExpressionId>, &[ExpressionId]) =
-            match self {
-                EffectPrimitive::NewReference { value } => (*value, None, &[]),
-                EffectPrimitive::ReadReference { reference } => (*reference, None, &[]),
-                EffectPrimitive::WriteReference { value, reference, .. } => {
-                    (*value, Some(*reference), &[])
-                }
-                EffectPrimitive::ModifyReference { function, reference, .. } => {
-                    (*function, Some(*reference), &[])
-                }
-                EffectPrimitive::UncurriedCall { function, arguments } => {
-                    (*function, None, arguments)
-                }
-            };
-        std::iter::once(first).chain(second).chain(rest.iter().copied())
+        let (fixed, rest): ([Option<ExpressionId>; 2], &[ExpressionId]) = match self {
+            EffectPrimitive::NewReference { value } => ([Some(*value), None], &[]),
+            EffectPrimitive::ReadReference { reference } => ([Some(*reference), None], &[]),
+            EffectPrimitive::WriteReference { value, reference, .. } => {
+                ([Some(*value), Some(*reference)], &[])
+            }
+            EffectPrimitive::ModifyReference { function, reference, .. } => {
+                ([Some(*function), Some(*reference)], &[])
+            }
+            EffectPrimitive::UncurriedCall { function, arguments } => {
+                ([Some(*function), None], arguments)
+            }
+            EffectPrimitive::NewArray => ([None, None], &[]),
+            EffectPrimitive::InsertArrayValues { values, array, .. } => {
+                ([Some(*values), Some(*array)], &[])
+            }
+        };
+        fixed.into_iter().flatten().chain(rest.iter().copied())
     }
 }
 

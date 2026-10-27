@@ -4,10 +4,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
-    ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
-    EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind, Field, GlobalId, Guard,
-    IndirectModuleExports, Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType,
-    RecordUpdate, ReferenceModifyResult, ReferenceWriteResult, ReflectableEvidence,
+    ArrayElement, ArrayEnd, BinaryOperator, Comparison, Declaration, DeclarationKind,
+    EffectExpression, EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind, Field, GlobalId,
+    Guard, IndirectModuleExports, Literal, Module, Parameter, PatternId, PatternKind,
+    PrimitiveType, RecordUpdate, ReferenceModifyResult, ReferenceWriteResult, ReflectableEvidence,
     ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
 };
 
@@ -562,6 +562,11 @@ impl<'a> Printer<'a, '_> {
                         ReferenceModifyResult::Record => "effect.modifyReferenceRecord",
                     },
                     EffectPrimitive::UncurriedCall { .. } => "effect.uncurriedCall",
+                    EffectPrimitive::NewArray => "effect.newArray",
+                    EffectPrimitive::InsertArrayValues { end, .. } => match end {
+                        ArrayEnd::Start => "effect.unshiftArray",
+                        ArrayEnd::End => "effect.pushArray",
+                    },
                 };
                 self.effect_operation(name, primitive.operands())
             }
