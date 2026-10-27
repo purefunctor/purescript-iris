@@ -1,7 +1,7 @@
 use building_types::QueryResult;
 
 use crate::tree::{
-    EffectExpression, EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind,
+    ArrayEnd, EffectExpression, EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind,
     ReferenceModifyResult, ReferenceWriteResult,
 };
 
@@ -9,6 +9,7 @@ use super::super::{Context, ConversionResult};
 
 const EFFECT_REFERENCE: &str = "Effect.Ref";
 const STATE_THREAD: &str = "Control.Monad.ST.Internal";
+const STATE_THREAD_ARRAY: &str = "Data.Array.ST";
 
 const UNCURRIED_EFFECT_MODULES: &[(&str, &str, &str)] = &[
     ("Effect.Uncurried", "runEffectFn", "mkEffectFn"),
@@ -19,8 +20,19 @@ impl<'c, Q> Context<'c, Q>
 where
     Q: checking::ExternalQueries,
 {
+    pub(in crate::convert) fn known_effect_value(
+        &mut self,
+        expression: ExpressionId,
+    ) -> QueryResult<ExpressionId> {
+        if self.known_term(expression, STATE_THREAD_ARRAY, "new")? {
+            let effect = EffectExpression::Primitive(EffectPrimitive::NewArray);
+            self.storage.replace_expression_kind(expression, ExpressionKind::Effect { effect });
+        }
+        Ok(expression)
+    }
+
     pub(super) fn known_effect_operation(
-        &self,
+        &mut self,
         function: ExpressionId,
         arguments: &[ExpressionId],
     ) -> QueryResult<Option<EffectExpression>> {
@@ -34,7 +46,7 @@ where
     }
 
     fn known_effect_primitive(
-        &self,
+        &mut self,
         function: ExpressionId,
         arguments: &[ExpressionId],
     ) -> QueryResult<Option<EffectPrimitive>> {
@@ -73,6 +85,21 @@ where
                         result,
                     }));
                 }
+            }
+        }
+        for (item_name, values_item_name, end) in
+            [("push", "pushAll", ArrayEnd::End), ("unshift", "unshiftAll", ArrayEnd::Start)]
+        {
+            if self.known_term(function, STATE_THREAD_ARRAY, item_name)?
+                && let [value, array] = *arguments
+            {
+                let values = self.expression(ExpressionKind::Array { elements: [value].into() });
+                return Ok(Some(EffectPrimitive::InsertArrayValues { values, array, end }));
+            }
+            if self.known_term(function, STATE_THREAD_ARRAY, values_item_name)?
+                && let [values, array] = *arguments
+            {
+                return Ok(Some(EffectPrimitive::InsertArrayValues { values, array, end }));
             }
         }
         for &(module_name, run_prefix, _) in UNCURRIED_EFFECT_MODULES {

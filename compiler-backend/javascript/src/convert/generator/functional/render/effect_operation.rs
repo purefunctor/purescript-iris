@@ -1,7 +1,8 @@
 use functional::optimize::{EffectPosition, local_is_captured, local_uses};
 use functional::tree::{
-    EffectLoop, EffectPrimitive, ExpressionId as FunctionalExpressionId, ExpressionKind, Parameter,
-    PatternKind, ReferenceModifyResult, ReferenceWriteResult,
+    ArrayElement as FunctionalArrayElement, ArrayEnd, EffectLoop, EffectPrimitive,
+    ExpressionId as FunctionalExpressionId, ExpressionKind, Parameter, PatternKind,
+    ReferenceModifyResult, ReferenceWriteResult,
 };
 
 use super::{
@@ -9,7 +10,7 @@ use super::{
     capture_effect_value, execute_effect, execute_effect_action_value,
 };
 use crate::error::ModuleResult;
-use crate::tree::{ExpressionId, ObjectProperty, UnaryOperator};
+use crate::tree::{ArrayElement, ExpressionId, ObjectProperty, UnaryOperator};
 
 pub(super) enum CapturedOperation {
     Primitive(CapturedPrimitive),
@@ -36,6 +37,12 @@ pub(super) enum CapturedPrimitive {
     UncurriedCall {
         function: ExpressionId,
         arguments: Vec<ExpressionId>,
+    },
+    NewArray,
+    InsertArrayValues {
+        values: Vec<ArrayElement>,
+        array: ExpressionId,
+        end: ArrayEnd,
     },
 }
 
@@ -82,8 +89,36 @@ pub(super) fn capture_primitive(
                 .collect::<ModuleResult<Vec<_>>>()?;
             CapturedPrimitive::UncurriedCall { function, arguments }
         }
+        EffectPrimitive::NewArray => CapturedPrimitive::NewArray,
+        EffectPrimitive::InsertArrayValues { values, array, end } => {
+            let values = capture_array_values(renderer, *values)?;
+            let array = capture_effect_value(renderer, *array, "$array")?;
+            CapturedPrimitive::InsertArrayValues { values, array, end: *end }
+        }
     };
     Ok(CapturedOperation::Primitive(primitive))
+}
+
+fn capture_array_values(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    values: FunctionalExpressionId,
+) -> ModuleResult<Vec<ArrayElement>> {
+    let elements = match &renderer.generator.module.storage[values].kind {
+        ExpressionKind::Array { elements } => {
+            elements.iter().copied().map(FunctionalArrayElement::Value).collect()
+        }
+        ExpressionKind::ArrayConcatenation { elements } => elements.to_vec(),
+        _ => vec![FunctionalArrayElement::Spread(values)],
+    };
+    let elements = elements.into_iter().map(|element| match element {
+        FunctionalArrayElement::Value(value) => {
+            Ok(ArrayElement::Value(capture_effect_value(renderer, value, "$value")?))
+        }
+        FunctionalArrayElement::Spread(values) => {
+            Ok(ArrayElement::Spread(capture_effect_value(renderer, values, "$values")?))
+        }
+    });
+    elements.collect()
 }
 
 pub(super) fn capture_loop(
@@ -242,6 +277,15 @@ fn execute_primitive(
         }
         CapturedPrimitive::UncurriedCall { function, arguments } => {
             Some(tree.call(function, arguments))
+        }
+        CapturedPrimitive::NewArray => Some(tree.array(Vec::new())),
+        CapturedPrimitive::InsertArrayValues { values, array, end } => {
+            let method = match end {
+                ArrayEnd::Start => "unshift",
+                ArrayEnd::End => "push",
+            };
+            let method = tree.member(array, method);
+            Some(tree.spread_call(method, values))
         }
     };
     Ok(result)

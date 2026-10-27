@@ -335,7 +335,8 @@ fn variable(
                     return Ok(expression);
                 }
                 let global = context.term_global(file_id, term_id)?;
-                Ok(context.expression(ExpressionKind::Global { global }))
+                let expression = context.expression(ExpressionKind::Global { global });
+                Ok(context.known_effect_value(expression)?)
             }
         },
     }

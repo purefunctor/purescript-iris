@@ -268,6 +268,31 @@ impl<'a> Tree<'a> {
         self.call_with_purity(callee, arguments, false)
     }
 
+    pub(crate) fn spread_call(
+        &mut self,
+        callee: ExpressionId,
+        arguments: Vec<ArrayElement>,
+    ) -> ExpressionId {
+        let allocator = self.allocator;
+        let callee = self.expression(callee);
+        let arguments = arguments.into_iter().map(|argument| match argument {
+            ArrayElement::Value(value) => Argument::from(self.expression(value)),
+            ArrayElement::Spread(value) => {
+                Argument::new_spread_element(self.span(), self.expression(value), &self.builder)
+            }
+        });
+        let arguments = ArenaVec::from_iter_in(arguments, &allocator);
+        let expression = Expression::new_call_expression(
+            self.span(),
+            callee,
+            None,
+            arguments,
+            false,
+            &self.builder,
+        );
+        self.allocate(expression)
+    }
+
     pub(crate) fn pure_call(
         &mut self,
         callee: ExpressionId,
