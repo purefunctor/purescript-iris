@@ -328,6 +328,19 @@ impl LocalState {
         }
     }
 
+    fn with_unavailable_dependency(&self, error: &QueryError) {
+        let mut inner = self.inner.get_or_default().borrow_mut();
+        if let Some(frame) = inner.frames.last_mut() {
+            frame.record_unavailable(error);
+        }
+    }
+
+    fn take_unavailable_dependency(local: &RefCell<LocalStateInner>) -> Option<QueryError> {
+        let mut inner = local.borrow_mut();
+        let frame = inner.frames.last_mut().expect("invariant violated: expected query frame");
+        frame.unavailable_dependency.take()
+    }
+
     fn dependencies(local: &RefCell<LocalStateInner>) -> Arc<[QueryKey]> {
         let inner = local.borrow();
         let dependencies = inner
@@ -394,18 +407,36 @@ struct QueryFrame {
     in_progress: bool,
     verifying: bool,
     dependencies: FxHashSet<QueryKey>,
+    unavailable_dependency: Option<QueryError>,
 }
 
 impl QueryFrame {
     fn new(query: QueryKey) -> QueryFrame {
         let dependencies = FxHashSet::default();
-        QueryFrame { query, in_progress: false, verifying: false, dependencies }
+        QueryFrame {
+            query,
+            in_progress: false,
+            verifying: false,
+            dependencies,
+            unavailable_dependency: None,
+        }
     }
 
     fn record(&mut self, dependency: QueryKey) {
         if !self.verifying {
             self.dependencies.insert(dependency);
         }
+    }
+
+    fn record_unavailable(&mut self, error: &QueryError) {
+        if self.verifying || self.unavailable_dependency.is_some() {
+            return;
+        }
+        self.unavailable_dependency = match error {
+            QueryError::Unverifiable => Some(QueryError::Unverifiable),
+            QueryError::Cancelled => Some(QueryError::Cancelled),
+            _ => None,
+        };
     }
 }
 
@@ -537,6 +568,9 @@ impl QueryEngine {
             }
             result
         });
+        if let Ok(Err(error)) = &result {
+            self.control.local.with_unavailable_dependency(error);
+        }
         result.unwrap_or_else(|payload| panic::resume_unwind(payload))
     }
 
@@ -619,6 +653,10 @@ impl QueryEngine {
         }
 
         let computed = compute(self)?;
+
+        if let Some(error) = LocalState::take_unavailable_dependency(local) {
+            return Err(error);
+        }
 
         // If the computed result is equal to the cached one, the changed
         // timestamp does not need to be updated. Likewise, we also insert
@@ -2986,6 +3024,42 @@ mod tests {
         let bracketed = engine.bracketed(main).unwrap();
         assert_eq!(bracketed.expressions.len(), 1);
         assert!(bracketed.expressions.values().all(Result::is_ok));
+    }
+
+    #[test]
+    fn test_unavailable_dependency_is_not_cached() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let parent = files.insert("./src/Parent.purs", "module Parent where");
+        let child = files.insert("./src/Child.purs", "module Child where");
+        engine.set_content(parent, files.content(parent));
+        engine.set_content(child, files.content(child));
+
+        {
+            let shard = engine.derived.parsed.shard(&child);
+            shard.write().insert(child, DerivedState::in_progress(SnapshotId(u32::MAX)));
+        }
+
+        let recover = |engine: &QueryEngine| {
+            let _ = engine.parsed(child);
+            engine.stabilized(parent)
+        };
+        let result = engine.control.local.with_query(QueryKey::Checked(parent), |local| {
+            super::LocalState::with_verifying(local, || {
+                engine.query(
+                    QueryKey::Stabilized(child),
+                    child,
+                    |derived| &derived.stabilized,
+                    recover,
+                )
+            })
+        });
+        assert_eq!(result.map(|_| ()), Err(QueryError::Unverifiable));
+
+        let shard = engine.derived.stabilized.shard(&child);
+        assert!(!shard.read().contains_key(&child));
     }
 
     #[test]

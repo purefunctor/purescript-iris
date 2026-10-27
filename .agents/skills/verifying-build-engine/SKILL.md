@@ -106,9 +106,10 @@ Each property is one sentence, followed by what users see if it breaks.
 
 ## Findings
 
-The model found two bugs, and both are fixed. Their configs now run with `expect_pass`, and a
-mutation restores each bug. If the model finds a new bug, add a config that reproduces it, run it
-with `expect_violation` until the code is fixed, and do not weaken the model to make it pass.
+The model found the first two bugs, and `iris watch` found the third. All three are fixed. The
+configs of the first two now run with `expect_pass`, and a mutation restores each bug. If the model
+finds a new bug, add a config that reproduces it, run it with `expect_violation` until the code is
+fixed, and do not weaken the model to make it pass.
 
 1. **Spurious `Cycle` after an import flip.** Fixed. `SpuriousCycle.cfg` and `SpuriousCancel.cfg`
    reproduced it.
@@ -153,26 +154,41 @@ with `expect_violation` until the code is fixed, and do not weaken the model to 
    `PanicHang.cfg` now passes, and the `PanicSkipsCleanup` mutation restores the old behaviour.
    `test_panicking_query_releases_in_progress` is the regression test.
 
+3. **A recovered `Unverifiable` or `Cancelled` is cached.** Fixed. Bracketing read the lowered
+   module of each operator with `.ok()`, so an `Unverifiable` from that read became an unresolved
+   operator, and bracketing returned `Ok`. `compute_core` stored the result with dependencies that
+   verify as unchanged, so the unresolved operator stayed until the watcher restarted. The model
+   missed it because its query bodies always propagated their dependencies' errors.
+
+   Query bodies in the model may now recover from `Unverifiable` and `Cancelled`. Neither error says
+   anything about the inputs, so a value computed around one cannot be trusted. When a dependency
+   returns either error to a computing frame, `QueryEngine::query` records it on that frame, and
+   `compute_core` returns the error instead of storing the value. Frames that are verifying record
+   nothing, because `query_core` handles their errors itself. The `UnavailableResultsCached`
+   mutation restores the bug. `test_unavailable_dependency_is_not_cached` and
+   `test_bracketing_propagates_unverifiable_operator_module` are the regression tests.
+
 ## Mutations
 
 `check.sh` runs these broken variants and requires TLC to catch each one. They show that the
 properties can fail.
 
-| `Mutation`                | What it breaks in the code                                                                                                    | Caught by                                                             |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `TwoOwners`               | `query_core` re-checks the state under `upgradable_read`. The mutation overwrites an `InProgress` entry instead of joining it | `OwnerFramesHoldTheirQuery` in `Parallel`                             |
-| `CleanupIgnoresOwnership` | The `LocalState::is_in_progress` guard in the cleanup in `QueryEngine::query`                                                 | `OwnerFramesHoldTheirQuery` in `Parallel`                             |
-| `EdgeAlwaysAdded`         | `SnapshotGraph::add_edge` rejects edges that close a loop                                                                     | `WaitForGraphIsAcyclic` in `Serial`                                   |
-| `AddEdgeChecksOneHop`     | `add_edge` follows the whole chain of successors                                                                              | `WaitForGraphIsAcyclic` in `ParallelChain`                            |
-| `EagerCycle`              | `add_edge` rejects only real loops, not every owner that is itself waiting                                                    | `CyclesAreReal` in `ParallelChain`. Two snapshots cannot catch it     |
-| `EdgeNotRemoved`          | `remove_waiter_edges` in `fulfill_and_store` and in the cleanup                                                               | `WaitEdgesMatchWaiters` in `Parallel`                                 |
-| `WaitersNotWoken`         | The cleanup transfers the entry to a waiter and wakes it                                                                      | `BlockedWaitersCanBeWoken` in `Parallel`                              |
-| `ChangedAlwaysPrevious`   | `compute_core` sets `changed: revision` when the value differs                                                                | `FreshCacheIsCorrect` in `Serial`                                     |
-| `VerifyIgnoresInputs`     | `verify_core` reads `InputState::changed`                                                                                     | `FreshCacheIsCorrect` in `Serial`                                     |
-| `UnverifiablePropagates`  | `query_core` recomputes when `verify_core` returns `Unverifiable`                                                             | `UnverifiableStaysInternal` in `Serial`                               |
-| `VerifyingDemandBlocks`   | `create_future` returns `Unverifiable` under a verifying frame                                                                | `CyclesAreReal` in `ParallelWrites`                                   |
-| `CleanupDropsWaiters`     | The cleanup in `QueryEngine::query` hands the entry to a waiter                                                               | `CancellationsAreExplained` in `SpuriousCancel`                       |
-| `PanicSkipsCleanup`       | `catch_unwind` in `QueryEngine::query` runs the cleanup before it resumes the panic                                           | `InProgressHasLiveOwner` or `BlockedWaitersCanBeWoken` in `PanicHang` |
+| `Mutation`                 | What it breaks in the code                                                                                                    | Caught by                                                             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `TwoOwners`                | `query_core` re-checks the state under `upgradable_read`. The mutation overwrites an `InProgress` entry instead of joining it | `OwnerFramesHoldTheirQuery` in `Parallel`                             |
+| `CleanupIgnoresOwnership`  | The `LocalState::is_in_progress` guard in the cleanup in `QueryEngine::query`                                                 | `OwnerFramesHoldTheirQuery` in `Parallel`                             |
+| `EdgeAlwaysAdded`          | `SnapshotGraph::add_edge` rejects edges that close a loop                                                                     | `WaitForGraphIsAcyclic` in `Serial`                                   |
+| `AddEdgeChecksOneHop`      | `add_edge` follows the whole chain of successors                                                                              | `WaitForGraphIsAcyclic` in `ParallelChain`                            |
+| `EagerCycle`               | `add_edge` rejects only real loops, not every owner that is itself waiting                                                    | `CyclesAreReal` in `ParallelChain`. Two snapshots cannot catch it     |
+| `EdgeNotRemoved`           | `remove_waiter_edges` in `fulfill_and_store` and in the cleanup                                                               | `WaitEdgesMatchWaiters` in `Parallel`                                 |
+| `WaitersNotWoken`          | The cleanup transfers the entry to a waiter and wakes it                                                                      | `BlockedWaitersCanBeWoken` in `Parallel`                              |
+| `ChangedAlwaysPrevious`    | `compute_core` sets `changed: revision` when the value differs                                                                | `FreshCacheIsCorrect` in `Serial`                                     |
+| `VerifyIgnoresInputs`      | `verify_core` reads `InputState::changed`                                                                                     | `FreshCacheIsCorrect` in `Serial`                                     |
+| `UnverifiablePropagates`   | `query_core` recomputes when `verify_core` returns `Unverifiable`                                                             | `UnverifiableStaysInternal` in `Serial`                               |
+| `VerifyingDemandBlocks`    | `create_future` returns `Unverifiable` under a verifying frame                                                                | `CyclesAreReal` in `ParallelWrites`                                   |
+| `CleanupDropsWaiters`      | The cleanup in `QueryEngine::query` hands the entry to a waiter                                                               | `CancellationsAreExplained` in `SpuriousCancel`                       |
+| `PanicSkipsCleanup`        | `catch_unwind` in `QueryEngine::query` runs the cleanup before it resumes the panic                                           | `InProgressHasLiveOwner` or `BlockedWaitersCanBeWoken` in `PanicHang` |
+| `UnavailableResultsCached` | `compute_core` returns a recorded `Unverifiable` or `Cancelled` instead of storing the value                                  | `FreshCacheIsCorrect` or `OkResultsAreCorrect` in `Serial`            |
 
 ## Mapping to code
 
@@ -186,7 +202,7 @@ the sync commit.
 | `CreateFuture`                                            | `create_future`, which returns `Unverifiable` without touching the graph while a frame is verifying                                                           | It takes the graph `Mutex` and then the waiters `Mutex`, both under the shard lock                                                                                                                                                                                                             |
 | `FutureWait`                                              | `promise::Future::wait`, and `wait_core`, which computes the query when the promise was transferred                                                           | The slot `Mutex` and `Condvar`                                                                                                                                                                                                                                                                 |
 | `VerifyCore`, `VerifyCoreReturn`                          | `verify_core`, and the match on its result in `query_core`, which recomputes on `Unverifiable`. `QueryFrame::record` records nothing while `verifying` is set | `verify_core` reads or demands each dependency separately and never stops early. The dependencies sit in an `FxHashSet` with no fixed order, so the model tries every order                                                                                                                    |
-| `ComputeCore`, `ComputeChildren`, `ComputeChildrenReturn` | `compute_core` and the nested demands in the query body                                                                                                       | The body runs without locks. Only the store takes a lock                                                                                                                                                                                                                                       |
+| `ComputeCore`, `ComputeChildren`, `ComputeChildrenReturn` | `compute_core`, the nested demands in the query body, and `QueryFrame::record_unavailable`                                                                    | The body runs without locks. Only the store takes a lock                                                                                                                                                                                                                                       |
 | `FulfillAndStore`, `Release`                              | `fulfill_and_store`, `remove_waiter_edges`                                                                                                                    | The shard write lock, with the graph lock inside it. Woken waiters run only after the lock drops, so other threads see only the end state                                                                                                                                                      |
 | `Fail`, `HandOff`, `MarkOwner`                            | The cleanup after `catch_unwind` in `QueryEngine::query` and `hand_off_waiter_edges`                                                                          | The shard write lock, with the graph lock inside it. The entry names the heir as its owner before the lock drops. The model also marks the heir's waiting frame as owner in the same step. The code marks it in `wait_core` when the heir wakes, and the heir's thread runs nothing in between |
 | `ComputePanics`, `UnwindCleanup`                          | Unwinding out of `compute`, caught by `catch_unwind` in each `QueryEngine::query` frame                                                                       | Each frame takes the shard write lock for its own entry, innermost first, and hands it off. A snapshot that joins an outer entry between two releases is handed that entry or keeps waiting on its heir, the same as a waiter that joined before the panic                                     |
@@ -204,6 +220,8 @@ the sync commit.
   Because the model leaves it out, the `ELSE 0` branch in `VerifyCoreReturn` never runs.
 - The only errors are `Cycle`, `Unverifiable`, and `Cancelled`. `MissingContent` takes the same
   cleanup path.
+- Query bodies recover only from `Unverifiable` and `Cancelled`. A body that recovers from `Cycle`
+  defines its own result, which `Eval` does not describe.
 - The model checks cancellation at query entry and before compute, as the code does. No property
   catches a deleted cancellation check, and the model cannot measure how long a compute runs before
   it stops.
@@ -221,7 +239,9 @@ the sync commit.
   - `compiler-core/building/src/engine.rs`: `QueryEngine::query`, `fulfill_and_store`,
     `remove_waiter_edges`, `hand_off_waiter_edges`, `compute_core`, `verify_core`, `create_future`,
     `wait_core`, `query_core`, `set_input_transaction`, `snapshot`, `request_cancel`,
-    `QueryControlGuard`, `QueryFrame::record`, `LocalState::is_verifying`
+    `QueryControlGuard`, `QueryFrame::record`, `QueryFrame::record_unavailable`,
+    `LocalState::is_verifying`, `LocalState::with_unavailable_dependency`,
+    `LocalState::take_unavailable_dependency`
   - `compiler-core/building/src/engine/graph.rs`: `SnapshotGraph::add_edge`, `remove_edge`
   - `compiler-core/building/src/engine/promise.rs`: `Future::wait`, `Promise::fulfill`,
     `Promise::transfer`, `Drop for Promise`
