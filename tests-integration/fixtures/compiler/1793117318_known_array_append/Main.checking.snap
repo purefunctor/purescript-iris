@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+arrayAppend :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+arrayAppendChain ::
+  Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+arrayAppendGrouped ::
+  Prim.Array Prim.Int ->
+  Prim.Array Prim.Int ->
+  Prim.Array Prim.Int ->
+  Prim.Array Prim.Int ->
+  Prim.Array Prim.Int
+arrayAppendLiterals :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+literalAppend :: Prim.Array Prim.Int
+partiallyAppliedAppend :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+
+Types
