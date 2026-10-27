@@ -400,6 +400,10 @@ pub enum EffectPrimitive {
         value: ExpressionId,
         array: ExpressionId,
     },
+    RemoveArrayValue {
+        array: ExpressionId,
+        end: ArrayEnd,
+    },
     NewObject,
     WriteObjectProperty {
         key: ExpressionId,
@@ -460,9 +464,9 @@ impl EffectPrimitive {
             EffectPrimitive::InsertArrayValues { values, array, .. } => {
                 ([Some(*values), Some(*array), None], &[])
             }
-            EffectPrimitive::CopyArray { array } | EffectPrimitive::ReadArrayLength { array } => {
-                ([Some(*array), None, None], &[])
-            }
+            EffectPrimitive::CopyArray { array }
+            | EffectPrimitive::ReadArrayLength { array }
+            | EffectPrimitive::RemoveArrayValue { array, .. } => ([Some(*array), None, None], &[]),
             EffectPrimitive::ReadArrayValue { index, array } => {
                 ([Some(*index), Some(*array), None], &[])
             }

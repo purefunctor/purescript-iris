@@ -139,6 +139,13 @@ where
         {
             return Ok(Some(EffectPrimitive::WriteArrayValue { index, value, array }));
         }
+        for (item_name, end) in [("pop", ArrayEnd::End), ("shift", ArrayEnd::Start)] {
+            if self.known_term(function, STATE_THREAD_ARRAY, item_name)?
+                && let [array] = *arguments
+            {
+                return Ok(Some(EffectPrimitive::RemoveArrayValue { array, end }));
+            }
+        }
         if self.known_term(function, STATE_THREAD_OBJECT, "poke")?
             && let [key, value, object] = *arguments
         {

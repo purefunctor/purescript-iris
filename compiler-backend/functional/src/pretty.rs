@@ -573,6 +573,10 @@ impl<'a> Printer<'a, '_> {
                     EffectPrimitive::ReadArrayLength { .. } => "effect.arrayLength",
                     EffectPrimitive::ReadArrayValue { .. } => "effect.peekArray",
                     EffectPrimitive::WriteArrayValue { .. } => "effect.pokeArray",
+                    EffectPrimitive::RemoveArrayValue { end, .. } => match end {
+                        ArrayEnd::Start => "effect.shiftArray",
+                        ArrayEnd::End => "effect.popArray",
+                    },
                     EffectPrimitive::NewObject => "effect.newObject",
                     EffectPrimitive::WriteObjectProperty { .. } => "effect.writeObjectProperty",
                     EffectPrimitive::DeleteObjectProperty { .. } => "effect.deleteObjectProperty",
