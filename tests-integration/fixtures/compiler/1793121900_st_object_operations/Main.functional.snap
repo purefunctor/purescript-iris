@@ -2,17 +2,16 @@
 source: tests-integration/src/fixtures.rs
 ---
 @export built = \key%2 ->
-  runST
-    (effect.bind new
-      \object%0 -> effect.bind (poke "a" 1 object%0)
-        \$sTObject%1 -> effect.bind (poke key%2 2 object%0)
-          \poked%3 -> effect.bind (poke "removed" 3 poked%3)
-            \$sTObject%4 -> delete "removed" poked%3)
+  uncurried.call effect.bind (effect.newObject)
+    \object%0 -> effect.bind (effect.writeObjectProperty "a" 1 object%0)
+      \$sTObject%1 -> effect.bind (effect.writeObjectProperty key%2 2 object%0)
+        \poked%3 -> effect.bind (effect.writeObjectProperty "removed" 3 poked%3)
+          \$sTObject%4 -> effect.deleteObjectProperty "removed" poked%3()
 
 @export copies = \original%5 ->
-  uncurried.call effect.bind (thawST original%5)
-    \object%6 -> effect.bind (poke "b" 2 object%6)
-      \$sTObject%7 -> effect.bind (freezeST object%6)
-        \frozen%8 -> effect.bind (delete "a" object%6)
-          \$sTObject%9 -> effect.bind (freezeST object%6)
+  uncurried.call effect.bind (effect.copyObject original%5)
+    \object%6 -> effect.bind (effect.writeObjectProperty "b" 2 object%6)
+      \$sTObject%7 -> effect.bind (effect.copyObject object%6)
+        \frozen%8 -> effect.bind (effect.deleteObjectProperty "a" object%6)
+          \$sTObject%9 -> effect.bind (effect.copyObject object%6)
             \final%10 -> effect.pure { original: original%5, frozen: frozen%8, final: final%10 }()

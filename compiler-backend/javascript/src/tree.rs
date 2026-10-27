@@ -42,6 +42,7 @@ pub(crate) enum UnaryOperator {
     LogicalNot,
     Negate,
     BitwiseNot,
+    Delete,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -372,11 +373,29 @@ impl<'a> Tree<'a> {
         self.allocate(expression)
     }
 
+    pub(crate) fn property(&mut self, object: ExpressionId, key: ExpressionId) -> ExpressionId {
+        let property = match &self.expressions[Idx::from_raw(key.0)] {
+            Some(Expression::StringLiteral(literal)) if property_is_identifier(&literal.value) => {
+                Some(literal.value.as_str())
+            }
+            Some(_) => None,
+            None => unreachable!("invariant violated: JavaScript expression was already consumed"),
+        };
+        match property {
+            Some(property) => {
+                self.expression(key);
+                self.member(object, property)
+            }
+            None => self.index(object, key),
+        }
+    }
+
     pub(crate) fn unary(&mut self, operator: UnaryOperator, value: ExpressionId) -> ExpressionId {
         let operator = match operator {
             UnaryOperator::LogicalNot => OxcUnaryOperator::LogicalNot,
             UnaryOperator::Negate => OxcUnaryOperator::UnaryNegation,
             UnaryOperator::BitwiseNot => OxcUnaryOperator::BitwiseNot,
+            UnaryOperator::Delete => OxcUnaryOperator::Delete,
         };
         let expression = Expression::new_unary_expression(
             self.span(),
@@ -465,6 +484,10 @@ impl<'a> Tree<'a> {
         value: ExpressionId,
     ) -> ExpressionId {
         let member = self.member(object, property);
+        self.assignment(member, value)
+    }
+
+    pub(crate) fn assignment(&mut self, member: ExpressionId, value: ExpressionId) -> ExpressionId {
         let target = AssignmentTarget::from(self.expression(member).into_member_expression());
         let expression = Expression::new_assignment_expression(
             self.span(),

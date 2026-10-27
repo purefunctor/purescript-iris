@@ -386,6 +386,19 @@ pub enum EffectPrimitive {
     CopyArray {
         array: ExpressionId,
     },
+    NewObject,
+    WriteObjectProperty {
+        key: ExpressionId,
+        value: ExpressionId,
+        object: ExpressionId,
+    },
+    DeleteObjectProperty {
+        key: ExpressionId,
+        object: ExpressionId,
+    },
+    CopyObject {
+        object: ExpressionId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -417,23 +430,30 @@ pub enum EffectLoop {
 
 impl EffectPrimitive {
     pub fn operands(&self) -> impl Iterator<Item = ExpressionId> + '_ {
-        let (fixed, rest): ([Option<ExpressionId>; 2], &[ExpressionId]) = match self {
-            EffectPrimitive::NewReference { value } => ([Some(*value), None], &[]),
-            EffectPrimitive::ReadReference { reference } => ([Some(*reference), None], &[]),
+        let (fixed, rest): ([Option<ExpressionId>; 3], &[ExpressionId]) = match self {
+            EffectPrimitive::NewReference { value } => ([Some(*value), None, None], &[]),
+            EffectPrimitive::ReadReference { reference } => ([Some(*reference), None, None], &[]),
             EffectPrimitive::WriteReference { value, reference, .. } => {
-                ([Some(*value), Some(*reference)], &[])
+                ([Some(*value), Some(*reference), None], &[])
             }
             EffectPrimitive::ModifyReference { function, reference, .. } => {
-                ([Some(*function), Some(*reference)], &[])
+                ([Some(*function), Some(*reference), None], &[])
             }
             EffectPrimitive::UncurriedCall { function, arguments } => {
-                ([Some(*function), None], arguments)
+                ([Some(*function), None, None], arguments)
             }
-            EffectPrimitive::NewArray => ([None, None], &[]),
+            EffectPrimitive::NewArray | EffectPrimitive::NewObject => ([None, None, None], &[]),
             EffectPrimitive::InsertArrayValues { values, array, .. } => {
-                ([Some(*values), Some(*array)], &[])
+                ([Some(*values), Some(*array), None], &[])
             }
-            EffectPrimitive::CopyArray { array } => ([Some(*array), None], &[]),
+            EffectPrimitive::CopyArray { array } => ([Some(*array), None, None], &[]),
+            EffectPrimitive::WriteObjectProperty { key, value, object } => {
+                ([Some(*key), Some(*value), Some(*object)], &[])
+            }
+            EffectPrimitive::DeleteObjectProperty { key, object } => {
+                ([Some(*key), Some(*object), None], &[])
+            }
+            EffectPrimitive::CopyObject { object } => ([Some(*object), None, None], &[]),
         };
         fixed.into_iter().flatten().chain(rest.iter().copied())
     }
