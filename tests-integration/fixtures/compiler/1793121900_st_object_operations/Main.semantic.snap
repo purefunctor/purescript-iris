@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+built :: Prim.String -> Foreign.Object.Object Prim.Int
+built = \key ->
+  runST
+    (bind {bindST} new \object ->
+      bind {bindST} (poke "a" 1 object) \_ ->
+        bind {bindST} (poke key 2 object) \poked ->
+          bind {bindST} (poke "removed" 3 poked) \_ -> delete "removed" poked)
+
+copies :: Foreign.Object.Object Prim.Int -> Main.Copies
+copies = \original ->
+  run
+    (bind {bindST} (thawST original) \object ->
+      bind {bindST} (poke "b" 2 object) \_ ->
+        bind {bindST} (freezeST object) \frozen ->
+          bind {bindST} (delete "a" object) \_ ->
+            bind {bindST} (freezeST object) \final ->
+              pure {applicativeST} { original, frozen, final })

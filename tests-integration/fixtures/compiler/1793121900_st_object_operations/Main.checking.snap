@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+built :: Prim.String -> Foreign.Object.Object Prim.Int
+copies :: Foreign.Object.Object Prim.Int -> Main.Copies
+
+Types
+Copies :: Prim.Type
+
+Synonyms
+type Copies = { final :: Foreign.Object.Object Prim.Int
+, frozen :: Foreign.Object.Object Prim.Int
+, original :: Foreign.Object.Object Prim.Int
+}
