@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+arrayLength :: Prim.Array Prim.String -> Prim.Int
+firstValue :: Prim.Array Prim.String -> Prim.String
+lastValue :: Prim.Array Prim.String -> Prim.String
+indexWith :: Prim.Partial => Prim.Array Prim.String -> Prim.Int -> Prim.String
+
+Types
