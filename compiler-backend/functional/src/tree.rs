@@ -351,6 +351,54 @@ pub enum EffectExpression {
     Bind { action: ExpressionId, parameter: Parameter, body: ExpressionId },
     Map { function: ExpressionId, action: ExpressionId },
     Apply { function_action: ExpressionId, argument_action: ExpressionId },
+    Primitive(EffectPrimitive),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EffectPrimitive {
+    NewReference {
+        value: ExpressionId,
+    },
+    ReadReference {
+        reference: ExpressionId,
+    },
+    WriteReference {
+        value: ExpressionId,
+        reference: ExpressionId,
+        result: ReferenceWriteResult,
+    },
+    ModifyReference {
+        function: ExpressionId,
+        reference: ExpressionId,
+        result: ReferenceModifyResult,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceWriteResult {
+    Unit,
+    Value,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReferenceModifyResult {
+    Unit,
+    State,
+    Record,
+}
+
+impl EffectPrimitive {
+    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
+        let (first, second) = match self {
+            EffectPrimitive::NewReference { value } => (*value, None),
+            EffectPrimitive::ReadReference { reference } => (*reference, None),
+            EffectPrimitive::WriteReference { value, reference, .. } => (*value, Some(*reference)),
+            EffectPrimitive::ModifyReference { function, reference, .. } => {
+                (*function, Some(*reference))
+            }
+        };
+        std::iter::once(first).chain(second)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

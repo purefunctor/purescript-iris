@@ -15,6 +15,7 @@ use crate::tree::{
 
 use super::{Context, ConversionResult};
 
+mod effect;
 mod record;
 
 const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
@@ -469,7 +470,7 @@ where
                 argument_action: *argument_action,
             }));
         }
-        Ok(None)
+        self.known_effect_operation(function, arguments).map_err(Into::into)
     }
 
     fn effect_continuation(

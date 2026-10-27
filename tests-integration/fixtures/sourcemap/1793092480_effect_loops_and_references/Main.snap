@@ -3,88 +3,103 @@ source: tests-integration/src/fixtures.rs
 ---
  1 | import * as Effect from "../Effect/index.js";
    | ^ 5:1 import Effect (Effect, forE, foreachE, whileE)
- 2 | import * as Effect_Ref from "../Effect.Ref/index.js";
-   | ^ 6:1 import Effect.Ref as Ref
- 3 | export function total(values) {
+ 2 | export function total(values) {
    | ^ 9:1 total values = do
    |        ^ (total) 9:1 total values = do
    |                               ^ 9:1 total values = do
- 4 |   const $action = Effect_Ref.new(0 | 0);
-   |   ^ 10:10 Ref.new 0
-   |                                  ^ 10:18 0
-   |                                       ^ 10:10 Ref.new 0
- 5 |   return () => {
+ 3 |   return () => {
    |   ^ (total) 9:16 do
    |                ^ 9:16 do
- 6 |     const sum = $action();
+ 4 |     const sum = { value: 0 | 0 };
    |     ^ 10:10 Ref.new 0
- 7 |     const $action$1 = Effect.forE(0 | 0)(3 | 0)((index) => Effect_Ref.modify_((section59) => section59 + index | 0)(sum));
+   |                          ^ 10:18 0
+   |                                ^ 10:10 Ref.new 0
+ 5 |     const $closure = (index) => {
+   |     ^ 11:12 \index ->
+ 6 |       return () => {
+   |       ^ 12:5 Ref.modify_ (_ + index) sum
+ 7 |         sum.value = sum.value + index | 0;
+   |         ^ 12:29 sum
+   |             ^ 12:5 Ref.modify_ (_ + index) sum
+   |                     ^ 12:29 sum
+   |                         ^ 12:5 Ref.modify_ (_ + index) sum
+   |                                 ^ 12:22 index) sum
+   |                                         ^ 12:18 _ + index) sum
+ 8 |       };
+   |       ^ 12:5 Ref.modify_ (_ + index) sum
+ 9 |     };
+   |     ^ 11:12 \index ->
+10 |     const $action = Effect.forE(0 | 0)(3 | 0)($closure);
    |     ^ 11:3 forE 0 3 \index ->
-   |                                   ^ 11:8 0 3 \index ->
-   |                                        ^ 11:3 forE 0 3 \index ->
-   |                                          ^ 11:10 3 \index ->
-   |                                               ^ 11:3 forE 0 3 \index ->
-   |                                                  ^ 11:12 \index ->
-   |                                                            ^ 12:5 Ref.modify_ (_ + index) sum
-   |                                                                                ^ 12:18 _ + index) sum
-   |                                                                                                          ^ 12:22 index) sum
-   |                                                                                                                  ^ 12:18 _ + index) sum
-   |                                                                                                                   ^ 12:5 Ref.modify_ (_ + index) sum
-   |                                                                                                                     ^ 12:29 sum
-   |                                                                                                                        ^ 12:5 Ref.modify_ (_ + index) sum
-   |                                                                                                                         ^ 11:3 forE 0 3 \index ->
- 8 |     const $unit = $action$1();
+   |                                 ^ 11:8 0 3 \index ->
+   |                                      ^ 11:3 forE 0 3 \index ->
+   |                                        ^ 11:10 3 \index ->
+   |                                             ^ 11:3 forE 0 3 \index ->
+   |                                               ^ 11:12 \index ->
+   |                                                       ^ 11:3 forE 0 3 \index ->
+11 |     const $unit = $action();
    |     ^ 11:3 forE 0 3 \index ->
- 9 |     const $action$2 = Effect.foreachE(values)((value) => Effect_Ref.write(value)(sum));
+12 |     const $closure$1 = (value) => {
+   |     ^ 13:19 \value ->
+13 |       return () => {
+   |       ^ 14:5 Ref.write value sum
+14 |         sum.value = value;
+   |         ^ 14:21 sum
+   |             ^ 14:5 Ref.write value sum
+   |                     ^ 14:15 value sum
+15 |       };
+   |       ^ 14:5 Ref.write value sum
+16 |     };
+   |     ^ 13:19 \value ->
+17 |     const $action$1 = Effect.foreachE(values)($closure$1);
    |     ^ 13:3 foreachE values \value ->
    |                                       ^ 13:12 values \value ->
    |                                             ^ 13:3 foreachE values \value ->
-   |                                                ^ 13:19 \value ->
-   |                                                          ^ 14:5 Ref.write value sum
-   |                                                                           ^ 14:15 value sum
-   |                                                                                ^ 14:5 Ref.write value sum
-   |                                                                                  ^ 14:21 sum
-   |                                                                                     ^ 14:5 Ref.write value sum
-   |                                                                                      ^ 13:3 foreachE values \value ->
-10 |     const $unit$1 = $action$2();
+   |                                               ^ 13:19 \value ->
+   |                                                         ^ 13:3 foreachE values \value ->
+18 |     const $unit$1 = $action$1();
    |     ^ 13:3 foreachE values \value ->
-11 |     const $function = Effect.whileE;
+19 |     const $function = Effect.whileE;
    |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
-12 |     const $function$1 = (section91) => section91 < (10 | 0);
+20 |     const $function$1 = (section91) => section91 < (10 | 0);
    |     ^ 15:16 _ < 10) (Ref.read sum)) do
    |                                                     ^ 15:20 10) (Ref.read sum)) do
-13 |     const $action$3 = Effect_Ref.read(sum);
-   |     ^ 15:25 Ref.read sum)) do
-   |                                       ^ 15:34 sum)) do
-   |                                          ^ 15:25 Ref.read sum)) do
-14 |     const $effect = () => {
+21 |     const $effect = () => {
    |     ^ 15:11 map (_ < 10) (Ref.read sum)) do
-15 |       return $function$1($action$3());
+22 |       return $function$1(sum.value);
    |       ^ 15:11 map (_ < 10) (Ref.read sum)) do
    |              ^ 15:16 _ < 10) (Ref.read sum)) do
-   |                          ^ 15:25 Ref.read sum)) do
-   |                                     ^ 15:11 map (_ < 10) (Ref.read sum)) do
-16 |     };
+   |                          ^ 15:34 sum)) do
+   |                              ^ 15:25 Ref.read sum)) do
+   |                                   ^ 15:11 map (_ < 10) (Ref.read sum)) do
+23 |     };
    |     ^ 15:11 map (_ < 10) (Ref.read sum)) do
-17 |     const $action$4 = $function($effect)(Effect_Ref.modify_((section112) => section112 + (1 | 0) | 0)(sum));
+24 |     const $function$2 = $function($effect);
    |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
-   |                                 ^ 15:11 map (_ < 10) (Ref.read sum)) do
-   |                                        ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
-   |                                          ^ 16:5 Ref.modify_ (_ + 1) sum
-   |                                                              ^ 16:18 _ + 1) sum
-   |                                                                                           ^ 16:22 1) sum
-   |                                                                                                    ^ 16:18 _ + 1) sum
-   |                                                                                                     ^ 16:5 Ref.modify_ (_ + 1) sum
-   |                                                                                                       ^ 16:25 sum
-   |                                                                                                          ^ 16:5 Ref.modify_ (_ + 1) sum
-   |                                                                                                           ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
-18 |     const $unit$2 = $action$4();
+   |                                   ^ 15:11 map (_ < 10) (Ref.read sum)) do
+   |                                          ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+25 |     const $effect$1 = () => {
+   |     ^ 16:5 Ref.modify_ (_ + 1) sum
+26 |       sum.value = sum.value + (1 | 0) | 0;
+   |       ^ 16:25 sum
+   |           ^ 16:5 Ref.modify_ (_ + 1) sum
+   |                   ^ 16:25 sum
+   |                       ^ 16:5 Ref.modify_ (_ + 1) sum
+   |                                ^ 16:22 1) sum
+   |                                         ^ 16:18 _ + 1) sum
+27 |     };
+   |     ^ 16:5 Ref.modify_ (_ + 1) sum
+28 |     const $action$2 = $function$2($effect$1);
    |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
-19 |     return Effect_Ref.read(sum)();
+   |                                   ^ 16:5 Ref.modify_ (_ + 1) sum
+   |                                            ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+29 |     const $unit$2 = $action$2();
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+30 |     return sum.value;
    |     ^ 17:3 Ref.read sum
-   |                            ^ 17:12 sum
-   |                               ^ 17:3 Ref.read sum
-20 |   };
+   |            ^ 17:12 sum
+   |                ^ 17:3 Ref.read sum
+31 |   };
    |   ^ 9:16 do
-21 | }
+32 | }
    | ^ 9:1 total values = do

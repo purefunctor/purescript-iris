@@ -2,13 +2,15 @@
 source: tests-integration/src/fixtures.rs
 ---
 @export results = run
-  (effect.bind (new 1)
-    \ref%0 -> effect.bind (write 2 ref%0)
-      \written%1 -> effect.bind (modify (\section63%2 -> integer.add section63%2 10) ref%0)
-        \modified%3 -> effect.bind (modify'
+  (effect.bind (effect.newReference 1)
+    \ref%0 -> effect.bind (effect.writeReferenceValue 2 ref%0)
+      \written%1 -> effect.bind (effect.modifyReferenceState
+        (\section63%2 -> integer.add section63%2 10)
+        ref%0)
+        \modified%3 -> effect.bind (effect.modifyReferenceRecord
           (\state%4 -> { state: integer.multiply state%4 2, value: show showInt state%4 })
           ref%0)
-          \modifiedValue%5 -> effect.bind (read ref%0)
+          \modifiedValue%5 -> effect.bind (effect.readReference ref%0)
             \final%6 -> effect.pure {
               written: written%1,
               modified: modified%3,
