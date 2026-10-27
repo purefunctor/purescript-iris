@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+test :: Prim.String
+
+Types

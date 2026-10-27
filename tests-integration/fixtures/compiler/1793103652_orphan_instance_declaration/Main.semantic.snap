@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+test :: Prim.String
+test = describe {error} Subject
