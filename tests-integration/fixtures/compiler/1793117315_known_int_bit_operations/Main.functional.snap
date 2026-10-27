@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export bitAnd = \left%0 right%1 -> and left%0 right%1
+
+@export bitOr = \left%2 right%3 -> or left%2 right%3
+
+@export bitXor = \left%4 right%5 -> xor left%4 right%5
+
+@export shiftLeft = \value%6 count%7 -> shl value%6 count%7
+
+@export shiftRight = \value%8 count%9 -> shr value%8 count%9
+
+@export zeroFillShiftRight = \value%10 count%11 -> zshr value%10 count%11
+
+@export bitComplement = \value%12 -> complement value%12
+
+@export lowByte = \value%13 -> or (and value%13 255) (and (complement 0) 0)
+
+@export partiallyAppliedAnd = and 15
