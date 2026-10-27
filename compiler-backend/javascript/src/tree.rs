@@ -30,6 +30,11 @@ pub(crate) enum ObjectProperty {
     Spread(ExpressionId),
 }
 
+pub(crate) enum ArrayElement {
+    Value(ExpressionId),
+    Spread(ExpressionId),
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum UnaryOperator {
     LogicalNot,
@@ -184,6 +189,21 @@ impl<'a> Tree<'a> {
         let elements = elements.into_iter().map(|element| {
             let expression = self.expression(element);
             ArrayExpressionElement::from(expression)
+        });
+        let elements = ArenaVec::from_iter_in(elements, &allocator);
+        let expression = Expression::new_array_expression(self.span(), elements, &self.builder);
+        self.allocate(expression)
+    }
+
+    pub(crate) fn spread_array(&mut self, elements: Vec<ArrayElement>) -> ExpressionId {
+        let allocator = self.allocator;
+        let elements = elements.into_iter().map(|element| match element {
+            ArrayElement::Value(value) => ArrayExpressionElement::from(self.expression(value)),
+            ArrayElement::Spread(value) => ArrayExpressionElement::new_spread_element(
+                self.span(),
+                self.expression(value),
+                &self.builder,
+            ),
         });
         let elements = ArenaVec::from_iter_in(elements, &allocator);
         let expression = Expression::new_array_expression(self.span(), elements, &self.builder);

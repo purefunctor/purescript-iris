@@ -57,7 +57,7 @@ export function integerDivide(left) {
 }
 export function arrayAppend(left) {
   return (right) => {
-    return /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupArray)(left)(right);
+    return [...left, ...right];
   };
 }
 export function genericAppend(semigroupValueDict) {

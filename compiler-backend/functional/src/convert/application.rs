@@ -8,8 +8,9 @@ use smol_str::format_smolstr;
 
 use crate::optimize::local_uses;
 use crate::tree::{
-    BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId, ExpressionKind, GlobalId,
-    InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType, RecordField, UnaryOperator,
+    ArrayElement, BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId,
+    ExpressionKind, GlobalId, InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType,
+    RecordField, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
@@ -319,6 +320,21 @@ where
                 return Ok(Some(ExpressionKind::Unary { operator, value: *value }));
             }
         }
+        if let Some([left, right]) = self.known_instance_member_arguments(
+            function,
+            arguments,
+            "Data.Semigroup",
+            "append",
+            "Data.Semigroup",
+            "semigroupArray",
+        )? {
+            return Ok(Some(self.array_concatenation(*left, *right)));
+        }
+        if self.known_term(function, "Data.Semigroup", "concatArray")?
+            && let [left, right] = arguments
+        {
+            return Ok(Some(self.array_concatenation(*left, *right)));
+        }
         if self.known_term(function, "Data.Array", "unsafeIndex")?
             && let [_, value, index] = arguments
         {
@@ -375,6 +391,29 @@ where
             }
         }
         Ok(None)
+    }
+
+    fn array_concatenation(&self, left: ExpressionId, right: ExpressionId) -> ExpressionKind {
+        let mut elements = Vec::new();
+        for operand in [left, right] {
+            match &self.storage[operand].kind {
+                ExpressionKind::Array { elements: values } => {
+                    elements.extend(values.iter().copied().map(ArrayElement::Value));
+                }
+                ExpressionKind::ArrayConcatenation { elements: operand_elements } => {
+                    elements.extend(operand_elements.iter().copied());
+                }
+                _ => elements.push(ArrayElement::Spread(operand)),
+            }
+        }
+        let values = elements.iter().map(|element| match element {
+            ArrayElement::Value(value) => Some(*value),
+            ArrayElement::Spread(_) => None,
+        });
+        match values.collect::<Option<Vec<_>>>() {
+            Some(values) => ExpressionKind::Array { elements: values.into() },
+            None => ExpressionKind::ArrayConcatenation { elements: elements.into() },
+        }
     }
 
     fn known_effect_application(

@@ -564,6 +564,7 @@ where
             }) => return Err(invalid()),
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::RecordUpdate { .. }
@@ -723,6 +724,7 @@ where
             }
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }

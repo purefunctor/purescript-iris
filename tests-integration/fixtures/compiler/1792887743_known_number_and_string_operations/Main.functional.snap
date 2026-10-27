@@ -32,7 +32,7 @@ source: tests-integration/src/fixtures.rs
 
 @export integerDivide = \left%20 right%21 -> div euclideanRingInt left%20 right%21
 
-@export arrayAppend = \left%22 right%23 -> append semigroupArray left%22 right%23
+@export arrayAppend = \left%22 right%23 -> [...left%22, ...right%23]
 
 @export genericAppend = \semigroupValueDict%24 ->
   \left%25 right%26 -> append semigroupValueDict%24 left%25 right%26
