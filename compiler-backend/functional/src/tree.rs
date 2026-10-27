@@ -253,6 +253,7 @@ pub enum ExpressionKind {
     Error,
     Literal { literal: Literal },
     Array { elements: Arc<[ExpressionId]> },
+    ArrayConcatenation { elements: Arc<[ArrayElement]> },
     Record { fields: Arc<[RecordField]> },
     RecordUpdate { record: ExpressionId, updates: Arc<[RecordUpdate]> },
     Project { record: ExpressionId, field: Field },
@@ -275,6 +276,20 @@ pub enum ExpressionKind {
     Effect { effect: EffectExpression },
     SynthesizedEvidence { evidence: SynthesizedEvidence },
     TrivialEvidence,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayElement {
+    Value(ExpressionId),
+    Spread(ExpressionId),
+}
+
+impl ArrayElement {
+    pub fn expression(self) -> ExpressionId {
+        match self {
+            ArrayElement::Value(expression) | ArrayElement::Spread(expression) => expression,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

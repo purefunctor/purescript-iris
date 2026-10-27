@@ -4,10 +4,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
-    BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression, ExpressionId,
-    ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module, Parameter,
-    PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence, ReflectableOrdering,
-    SynthesizedEvidence, UnaryOperator,
+    ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
+    ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module,
+    Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence,
+    ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -105,6 +105,7 @@ impl<'a> Printer<'a, '_> {
             ExpressionKind::RecordUpdate { .. } => ExpressionPrecedence::RecordUpdate,
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Index { .. }
@@ -128,6 +129,17 @@ impl<'a> Printer<'a, '_> {
             ExpressionKind::Literal { literal } => self.literal(literal),
             ExpressionKind::Array { elements } => {
                 let elements = elements.iter().map(|element| self.expression(*element));
+                self.delimited("[", elements, "]")
+            }
+            ExpressionKind::ArrayConcatenation { elements } => {
+                let elements = elements.iter().map(|element| match element {
+                    ArrayElement::Value(expression) => self.expression(*expression),
+                    ArrayElement::Spread(expression) => {
+                        let expression =
+                            self.expression_at(*expression, ExpressionPrecedence::Atom);
+                        self.arena.text("...").append(expression)
+                    }
+                });
                 self.delimited("[", elements, "]")
             }
             ExpressionKind::Record { fields } => {
