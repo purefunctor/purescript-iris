@@ -2,14 +2,14 @@
 source: tests-integration/src/fixtures.rs
 ---
 @export copies = \original%0 ->
-  uncurried.call effect.bind (thaw original%0)
+  uncurried.call effect.bind (effect.copyArray original%0)
     \array%1 -> effect.bind (effect.pushArray [3] array%1)
-      \$int%2 -> effect.bind (freeze array%1)
-        \frozen%3 -> effect.bind (clone array%1)
+      \$int%2 -> effect.bind (effect.copyArray array%1)
+        \frozen%3 -> effect.bind (effect.copyArray array%1)
           \clone%4 -> effect.bind (effect.pushArray [4] array%1)
             \$int%5 -> effect.bind (effect.pushArray [5] clone%4)
-              \$int%6 -> effect.bind (freeze clone%4)
-                \cloned%7 -> effect.bind (freeze array%1)
+              \$int%6 -> effect.bind (effect.copyArray clone%4)
+                \cloned%7 -> effect.bind (effect.copyArray array%1)
                   \final%8 -> effect.pure {
                     original: original%0,
                     frozen: frozen%3,
