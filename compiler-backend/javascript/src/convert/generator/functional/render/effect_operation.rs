@@ -62,6 +62,10 @@ pub(super) enum CapturedPrimitive {
         value: ExpressionId,
         array: ExpressionId,
     },
+    RemoveArrayValue {
+        array: ExpressionId,
+        end: ArrayEnd,
+    },
     NewObject,
     WriteObjectProperty {
         key: ExpressionId,
@@ -144,6 +148,10 @@ pub(super) fn capture_primitive(
             let value = capture_effect_value(renderer, *value, "$value")?;
             let array = capture_stable_value(renderer, *array, "$array")?;
             CapturedPrimitive::WriteArrayValue { index, value, array }
+        }
+        EffectPrimitive::RemoveArrayValue { array, end } => {
+            let array = capture_stable_value(renderer, *array, "$array")?;
+            CapturedPrimitive::RemoveArrayValue { array, end: *end }
         }
         EffectPrimitive::NewObject => CapturedPrimitive::NewObject,
         EffectPrimitive::WriteObjectProperty { key, value, object } => {
@@ -377,6 +385,21 @@ fn execute_primitive(
                 writer.evaluate(tree, assignment);
             });
             Some(tree.identifier(&name))
+        }
+        CapturedPrimitive::RemoveArrayValue { array, end } => {
+            let method = match end {
+                ArrayEnd::Start => "shift",
+                ArrayEnd::End => "pop",
+            };
+            let length = tree.duplicate(&array);
+            let length = tree.member(length, "length");
+            let zero = tree.number("0");
+            let non_empty = tree.binary(BinaryOperator::GreaterThan, length, zero);
+            let method = tree.member(array, method);
+            let value = tree.call(method, Vec::new());
+            let just = constructor_value(tree, "Just", vec![value]);
+            let nothing = constructor_value(tree, "Nothing", Vec::new());
+            Some(tree.conditional(non_empty, just, nothing))
         }
         CapturedPrimitive::NewObject => Some(tree.object(Vec::new())),
         CapturedPrimitive::WriteObjectProperty { key, value, object } => {
