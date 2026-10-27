@@ -1,4 +1,3 @@
-import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
 import * as $foreign from "./foreign.js";
 export function sumRange(start) {
   return (end) => {
@@ -31,14 +30,10 @@ export function sumWithFunction(end) {
   };
 }
 export function productRange(end) {
-  const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
-    const total = { value: 1 | 0 };
-    for (let index = 1 | 0; index < end; index++) {
-      total.value = total.value * index | 0;
-    }
-    return total.value;
-  };
-  return $function($effect);
+  const total = { value: 1 | 0 };
+  for (let index = 1 | 0; index < end; index++) {
+    total.value = total.value * index | 0;
+  }
+  return total.value;
 }
 export const traced = $foreign["traced"];

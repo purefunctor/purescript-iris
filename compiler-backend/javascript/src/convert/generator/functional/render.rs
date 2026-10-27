@@ -1344,6 +1344,13 @@ impl Generator<'_> {
             }
             ExpressionKind::Effect { effect } if !destination.is_effect() => self
                 .render_effect_expression_destination(tree, writer, effect, destination, context),
+            ExpressionKind::UncurriedApplication { function, arguments, .. }
+                if self.runs_effect_expression(*function, arguments)
+                    && !destination.is_effect()
+                    && !matches!(destination, Destination::TailEffectThunkReturn) =>
+            {
+                self.render_effect_destination(tree, writer, *function, destination, context)
+            }
             ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. }
                 if matches!(destination, Destination::Return) =>
             {
@@ -1368,6 +1375,15 @@ impl Generator<'_> {
                 Ok(())
             }
         }
+    }
+
+    fn runs_effect_expression(
+        &self,
+        function: FunctionalExpressionId,
+        arguments: &[FunctionalExpressionId],
+    ) -> bool {
+        arguments.is_empty()
+            && matches!(self.module.storage[function].kind, ExpressionKind::Effect { .. })
     }
 
     fn render_destination<'t>(
@@ -1779,6 +1795,21 @@ impl Generator<'_> {
                     function = RenderedExpression { value, pending_evaluation: true };
                 }
                 Ok(function)
+            }
+            ExpressionKind::UncurriedApplication { function, arguments, .. }
+                if self.runs_effect_expression(*function, arguments) =>
+            {
+                let name = context.allocate("$result");
+                writer.mutable(&name);
+                self.render_expression(
+                    tree,
+                    writer,
+                    expression,
+                    Destination::Assign(&name),
+                    context,
+                )?;
+                let value = tree.identifier(name);
+                Ok(RenderedExpression { value, pending_evaluation: false })
             }
             ExpressionKind::UncurriedApplication { function, arguments, synthetic } => {
                 let mut function = self.rendered_expression(tree, writer, *function, context)?;
