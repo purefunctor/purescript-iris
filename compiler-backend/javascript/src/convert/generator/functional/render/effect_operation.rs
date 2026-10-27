@@ -5,12 +5,15 @@ use functional::tree::{
     ReferenceModifyResult, ReferenceWriteResult,
 };
 
+use super::syntax::constructor_value;
 use super::{
     CapturedEffectAction, Destination, FunctionRenderer, capture_effect_action,
     capture_effect_value, execute_effect, execute_effect_action_value,
 };
 use crate::error::ModuleResult;
-use crate::tree::{ArrayElement, ExpressionId, ObjectProperty, UnaryOperator};
+use crate::tree::{
+    ArrayElement, BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator,
+};
 
 pub(super) enum CapturedOperation {
     Primitive(CapturedPrimitive),
@@ -45,6 +48,18 @@ pub(super) enum CapturedPrimitive {
         end: ArrayEnd,
     },
     CopyArray {
+        array: ExpressionId,
+    },
+    ReadArrayLength {
+        array: ExpressionId,
+    },
+    ReadArrayValue {
+        index: ExpressionId,
+        array: ExpressionId,
+    },
+    WriteArrayValue {
+        index: ExpressionId,
+        value: ExpressionId,
         array: ExpressionId,
     },
     NewObject,
@@ -114,6 +129,21 @@ pub(super) fn capture_primitive(
         EffectPrimitive::CopyArray { array } => {
             let array = capture_effect_value(renderer, *array, "$array")?;
             CapturedPrimitive::CopyArray { array }
+        }
+        EffectPrimitive::ReadArrayLength { array } => {
+            let array = capture_effect_value(renderer, *array, "$array")?;
+            CapturedPrimitive::ReadArrayLength { array }
+        }
+        EffectPrimitive::ReadArrayValue { index, array } => {
+            let index = capture_stable_value(renderer, *index, "$index")?;
+            let array = capture_stable_value(renderer, *array, "$array")?;
+            CapturedPrimitive::ReadArrayValue { index, array }
+        }
+        EffectPrimitive::WriteArrayValue { index, value, array } => {
+            let index = capture_stable_value(renderer, *index, "$index")?;
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            let array = capture_stable_value(renderer, *array, "$array")?;
+            CapturedPrimitive::WriteArrayValue { index, value, array }
         }
         EffectPrimitive::NewObject => CapturedPrimitive::NewObject,
         EffectPrimitive::WriteObjectProperty { key, value, object } => {
@@ -327,6 +357,27 @@ fn execute_primitive(
             let method = tree.member(array, "slice");
             Some(tree.call(method, Vec::new()))
         }
+        CapturedPrimitive::ReadArrayLength { array } => Some(tree.member(array, "length")),
+        CapturedPrimitive::ReadArrayValue { index, array } => {
+            let in_bounds = array_index_in_bounds(tree, &index, &array);
+            let value = tree.index(array, index);
+            let just = constructor_value(tree, "Just", vec![value]);
+            let nothing = constructor_value(tree, "Nothing", Vec::new());
+            Some(tree.conditional(in_bounds, just, nothing))
+        }
+        CapturedPrimitive::WriteArrayValue { index, value, array } => {
+            let FunctionRenderer { tree, writer, context, .. } = renderer;
+            let in_bounds = array_index_in_bounds(tree, &index, &array);
+            let name = context.allocate("$inBounds");
+            writer.constant(tree, &name, in_bounds, false);
+            let condition = tree.identifier(&name);
+            writer.if_block(tree, condition, |tree, writer| {
+                let target = tree.index(array, index);
+                let assignment = tree.assignment(target, value);
+                writer.evaluate(tree, assignment);
+            });
+            Some(tree.identifier(&name))
+        }
         CapturedPrimitive::NewObject => Some(tree.object(Vec::new())),
         CapturedPrimitive::WriteObjectProperty { key, value, object } => {
             let target = tree.duplicate(&object);
@@ -347,6 +398,21 @@ fn execute_primitive(
         }
     };
     Ok(result)
+}
+
+fn array_index_in_bounds(
+    tree: &mut Tree<'_>,
+    index: &ExpressionId,
+    array: &ExpressionId,
+) -> ExpressionId {
+    let lower_index = tree.duplicate(index);
+    let zero = tree.number("0");
+    let lower = tree.binary(BinaryOperator::GreaterThanOrEqual, lower_index, zero);
+    let upper_index = tree.duplicate(index);
+    let length = tree.duplicate(array);
+    let length = tree.member(length, "length");
+    let upper = tree.binary(BinaryOperator::LessThan, upper_index, length);
+    tree.binary(BinaryOperator::LogicalAnd, lower, upper)
 }
 
 fn apply_function(

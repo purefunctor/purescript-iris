@@ -193,23 +193,30 @@ pub(super) fn curried_call_expression(
 }
 
 pub(super) fn constructor_expression(tree: &mut Tree, name: &str, arity: usize) -> ExpressionId {
-    if arity == 0 {
-        return tree.string(name);
-    }
-
     let arguments = (0..arity).map(|index| format_smolstr!("$value{index}")).collect_vec();
-    let tag = tree.string(name);
-    let mut properties = Vec::with_capacity(arguments.len() + 1);
-    properties.push(ObjectProperty::Field { name: SmolStr::new_static("tag"), value: tag });
-    for (index, argument) in arguments.iter().enumerate() {
-        let value = tree.identifier(argument);
-        properties.push(ObjectProperty::Field { name: format_smolstr!("_{}", index + 1), value });
-    }
-    let mut expression = tree.object(properties);
+    let values = arguments.iter().map(|argument| tree.identifier(argument)).collect_vec();
+    let mut expression = constructor_value(tree, name, values);
     for argument in arguments.into_iter().rev() {
         expression = tree.arrow(None, vec![argument], expression);
     }
     expression
+}
+
+pub(super) fn constructor_value(
+    tree: &mut Tree,
+    name: &str,
+    values: Vec<ExpressionId>,
+) -> ExpressionId {
+    let tag = tree.string(name);
+    if values.is_empty() {
+        return tag;
+    }
+    let mut properties = Vec::with_capacity(values.len() + 1);
+    properties.push(ObjectProperty::Field { name: SmolStr::new_static("tag"), value: tag });
+    for (index, value) in values.into_iter().enumerate() {
+        properties.push(ObjectProperty::Field { name: format_smolstr!("_{}", index + 1), value });
+    }
+    tree.object(properties)
 }
 
 pub(super) fn synthesized_evidence_expression(

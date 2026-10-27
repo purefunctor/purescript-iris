@@ -388,6 +388,18 @@ pub enum EffectPrimitive {
     CopyArray {
         array: ExpressionId,
     },
+    ReadArrayLength {
+        array: ExpressionId,
+    },
+    ReadArrayValue {
+        index: ExpressionId,
+        array: ExpressionId,
+    },
+    WriteArrayValue {
+        index: ExpressionId,
+        value: ExpressionId,
+        array: ExpressionId,
+    },
     NewObject,
     WriteObjectProperty {
         key: ExpressionId,
@@ -448,7 +460,15 @@ impl EffectPrimitive {
             EffectPrimitive::InsertArrayValues { values, array, .. } => {
                 ([Some(*values), Some(*array), None], &[])
             }
-            EffectPrimitive::CopyArray { array } => ([Some(*array), None, None], &[]),
+            EffectPrimitive::CopyArray { array } | EffectPrimitive::ReadArrayLength { array } => {
+                ([Some(*array), None, None], &[])
+            }
+            EffectPrimitive::ReadArrayValue { index, array } => {
+                ([Some(*index), Some(*array), None], &[])
+            }
+            EffectPrimitive::WriteArrayValue { index, value, array } => {
+                ([Some(*index), Some(*value), Some(*array)], &[])
+            }
             EffectPrimitive::WriteObjectProperty { key, value, object } => {
                 ([Some(*key), Some(*value), Some(*object)], &[])
             }

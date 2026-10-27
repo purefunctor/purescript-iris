@@ -3,10 +3,10 @@ source: tests-integration/src/fixtures.rs
 ---
 @export writes = \values%0 ->
   uncurried.call effect.bind (effect.copyArray values%0)
-    \array%1 -> effect.bind (poke 1 10 array%1)
-      \inside%2 -> effect.bind (poke 3 20 array%1)
-        \past%3 -> effect.bind (poke -1 30 array%1)
-          \negative%4 -> effect.bind (poke 0 40 array%1)
+    \array%1 -> effect.bind (effect.pokeArray 1 10 array%1)
+      \inside%2 -> effect.bind (effect.pokeArray 3 20 array%1)
+        \past%3 -> effect.bind (effect.pokeArray -1 30 array%1)
+          \negative%4 -> effect.bind (effect.pokeArray 0 40 array%1)
             \$boolean%5 -> effect.bind (modify 2 (\section114%6 -> integer.multiply section114%6 2)
               array%1)
               \modified%7 -> effect.bind (modify 3
