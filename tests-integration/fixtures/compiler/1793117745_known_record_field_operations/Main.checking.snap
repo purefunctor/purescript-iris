@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+get :: { x :: Prim.Int, y :: Prim.String } -> Prim.Int
+getQuoted :: { first name :: Prim.String } -> Prim.String
+set :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.String, y :: Prim.String }
+modify :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+insert :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+setOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.String, y :: Prim.String }
+modifyOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+getPolymorphic ::
+  forall (label :: Prim.Symbol) value (rest :: Prim.Row Prim.Type) (row :: Prim.Row Prim.Type).
+    Data.Symbol.IsSymbol (label :: Prim.Symbol) =>
+    Prim.Row.Cons @Prim.Type
+      (label :: Prim.Symbol)
+      value
+      (rest :: Prim.Row Prim.Type)
+      (row :: Prim.Row Prim.Type) =>
+    Type.Proxy.Proxy @Prim.Symbol (label :: Prim.Symbol) ->
+    {| (row :: Prim.Row Prim.Type) } ->
+    value
+
+Types

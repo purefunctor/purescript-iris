@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+get :: { x :: Prim.Int, y :: Prim.String } -> Prim.Int
+get = \record -> get {isSymbol("x")} {trivial} Proxy record
+
+getQuoted :: { first name :: Prim.String } -> Prim.String
+getQuoted = \record -> get {isSymbol("first name")} {trivial} Proxy record
+
+set :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.String, y :: Prim.String }
+set = \record -> set {isSymbol("x")} {trivial} {trivial} Proxy "set" record
+
+modify :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+modify = \record ->
+  modify {isSymbol("x")} {trivial} {trivial} Proxy (\v151 -> add {semiringInt} v151 1) record
+
+insert :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+insert = \record -> insert {isSymbol("x")} {trivial} {trivial} Proxy 1 record
+
+setOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.String, y :: Prim.String }
+setOrder = \record ->
+  set {isSymbol("x")} {trivial} {trivial} Proxy (observe "value" "set") (observe "record" record)
+
+modifyOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+modifyOrder = \record ->
+  modify {isSymbol("x")} {trivial} {trivial} Proxy
+    (observe "function" \v265 -> add {semiringInt} v265 1)
+    (observe "record" record)
+
+getPolymorphic :: forall label value rest row.
+  Data.Symbol.IsSymbol label =>
+  Prim.Row.Cons @Prim.Type label value rest row =>
+  Type.Proxy.Proxy @Prim.Symbol label -> {| row } -> value
+getPolymorphic = \{isSymbolDict} -> \{consDict} -> \label -> \record ->
+  get {isSymbolDict} {consDict} label record

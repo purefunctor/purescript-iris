@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign readTrace
+
+@export get = \record%0 -> get (symbol "x") <trivial evidence> "Proxy" record%0
+
+@export getQuoted = \record%1 -> get (symbol "first name") <trivial evidence> "Proxy" record%1
+
+@export set = \record%2 ->
+  set (symbol "x") <trivial evidence> <trivial evidence> "Proxy" "set" record%2
+
+@export modify = \record%4 ->
+  modify (symbol "x") <trivial evidence> <trivial evidence> "Proxy"
+    (\section151%3 -> integer.add section151%3 1)
+    record%4
+
+@export insert = \record%5 ->
+  insert (symbol "x") <trivial evidence> <trivial evidence> "Proxy" 1 record%5
+
+@export setOrder = \record%6 ->
+  set (symbol "x") <trivial evidence> <trivial evidence> "Proxy" (observe "value" "set")
+    (observe "record" record%6)
+
+@export modifyOrder = \record%8 ->
+  modify (symbol "x") <trivial evidence> <trivial evidence> "Proxy"
+    (observe "function" (\section265%7 -> integer.add section265%7 1))
+    (observe "record" record%8)
+
+@export getPolymorphic = \isSymbolLabelDict%10 consLabelValueRestRowDict%9 ->
+  \label%11 record%12 -> get isSymbolLabelDict%10 consLabelValueRestRowDict%9 label%11 record%12
