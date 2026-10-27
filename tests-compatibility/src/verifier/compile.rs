@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::OnceLock;
 
-use building::{QueryEngine, QueryError, prim};
+use building::{QueryEngine, QueryError, QueryResult, prim};
 use files::{FileId, Files, ForeignFiles, ForeignSourceKind};
 use iris_diagnostics::{
     Diagnostic, DiagnosticsContext, Severity, Span, ToDiagnostics, format_rich_with_path,
@@ -188,20 +188,21 @@ fn collect_file(
         Ok(indexed) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in &indexed.errors {
-                    let diagnostics = error.to_diagnostics(&ctx);
-                    if diagnostics.is_empty() {
-                        report.diagnostics.push(debug_diagnostic(
-                            metadata,
-                            CompilationStage::Indexing,
-                            "IndexingError",
-                            error,
-                        ));
-                    } else {
-                        report.diagnostics.extend(convert_diagnostics(
+                    match error.to_diagnostics(&ctx) {
+                        Ok(diagnostics) if diagnostics.is_empty() => {
+                            report.diagnostics.push(debug_diagnostic(
+                                metadata,
+                                CompilationStage::Indexing,
+                                "IndexingError",
+                                error,
+                            ));
+                        }
+                        diagnostics => push_diagnostics(
+                            report,
                             metadata,
                             CompilationStage::Indexing,
                             diagnostics,
-                        ));
+                        ),
                     }
                 }
             });
@@ -216,11 +217,12 @@ fn collect_file(
         Ok(resolved) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in &resolved.errors {
-                    report.diagnostics.extend(convert_diagnostics(
+                    push_diagnostics(
+                        report,
                         metadata,
                         CompilationStage::Resolving,
                         error.to_diagnostics(&ctx),
-                    ));
+                    );
                 }
             });
         }
@@ -233,11 +235,12 @@ fn collect_file(
         Ok(lowered) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in &lowered.errors {
-                    report.diagnostics.extend(convert_diagnostics(
+                    push_diagnostics(
+                        report,
                         metadata,
                         CompilationStage::Lowering,
                         error.to_diagnostics(&ctx),
-                    ));
+                    );
                 }
             });
         }
@@ -248,11 +251,12 @@ fn collect_file(
         Ok(grouped) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in &grouped.cycle_errors {
-                    report.diagnostics.extend(convert_diagnostics(
+                    push_diagnostics(
+                        report,
                         metadata,
                         CompilationStage::Lowering,
                         error.to_diagnostics(&ctx),
-                    ));
+                    );
                 }
             });
         }
@@ -271,11 +275,12 @@ fn collect_file(
         Ok(checked) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in &checked.errors {
-                    report.diagnostics.extend(convert_diagnostics(
+                    push_diagnostics(
+                        report,
                         metadata,
                         CompilationStage::Checking,
                         error.to_diagnostics(&ctx),
-                    ));
+                    );
                 }
             });
             if checked.errors.is_empty() {
@@ -283,11 +288,12 @@ fn collect_file(
                     Ok(Ok(module)) => {
                         with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                             for diagnostic in module.diagnostics() {
-                                report.diagnostics.extend(convert_diagnostics(
+                                push_diagnostics(
+                                    report,
                                     metadata,
                                     CompilationStage::JavaScript,
                                     diagnostic.to_diagnostics(&ctx),
-                                ));
+                                );
                             }
                         });
                     }
@@ -317,11 +323,12 @@ fn collect_file(
         Ok(validation) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in validation.errors.iter() {
-                    report.diagnostics.extend(convert_diagnostics(
+                    push_diagnostics(
+                        report,
                         metadata,
                         CompilationStage::JavaScript,
                         error.to_diagnostics(&ctx),
-                    ));
+                    );
                 }
             });
         }
@@ -393,14 +400,21 @@ fn debug_diagnostic(
     compiler_diagnostic(metadata, stage, diagnostic)
 }
 
-fn convert_diagnostics(
+fn push_diagnostics(
+    report: &mut CompileReport,
     metadata: &FileMetadata,
     stage: CompilationStage,
-    diagnostics: Vec<Diagnostic>,
-) -> Vec<CompilerDiagnostic> {
-    let diagnostics =
-        diagnostics.into_iter().map(|diagnostic| compiler_diagnostic(metadata, stage, diagnostic));
-    diagnostics.collect()
+    diagnostics: QueryResult<Vec<Diagnostic>>,
+) {
+    match diagnostics {
+        Ok(diagnostics) => {
+            let diagnostics = diagnostics
+                .into_iter()
+                .map(|diagnostic| compiler_diagnostic(metadata, stage, diagnostic));
+            report.diagnostics.extend(diagnostics);
+        }
+        Err(error) => push_query_error(report, metadata, stage, error),
+    }
 }
 
 fn compiler_diagnostic(

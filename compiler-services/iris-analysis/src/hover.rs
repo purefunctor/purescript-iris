@@ -139,7 +139,7 @@ fn hover_instance_signature(
 ) -> Result<Option<Hover>, AnalyzerError> {
     let signature = signature.ok_or(AnalyzerError::NonFatal)?;
     let pretty = Pretty::with_config(engine, checked, PRETTY_CONFIG);
-    let value = pretty.render_signature(name.unwrap_or("<unknown>"), signature).to_string();
+    let value = pretty.render_signature(name.unwrap_or("<unknown>"), signature)?.to_string();
     Ok(Some(render_hover(format, Some(value), None)))
 }
 
@@ -470,7 +470,7 @@ fn hover_checked_type(
     let checked = engine.checked(current_file)?;
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    let value = pretty.render(type_id).to_string();
+    let value = pretty.render(type_id)?.to_string();
     Ok(Some(render_hover(format, Some(value), None)))
 }
 
@@ -483,7 +483,7 @@ fn hover_checked_kind(
     let checked = engine.checked(current_file)?;
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    let value = pretty.render_kind(type_id).to_string();
+    let value = pretty.render_kind(type_id)?.to_string();
     Ok(Some(render_hover(format, Some(value), None)))
 }
 
@@ -504,7 +504,7 @@ fn hover_file_term(
     let signature = checked.lookup_term_item_type(term_id).ok_or(AnalyzerError::NonFatal)?;
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    let value = pretty.render_signature(name, signature).to_string();
+    let value = pretty.render_signature(name, signature)?.to_string();
     Ok(Some(render_hover(format, Some(value), annotation)))
 }
 
@@ -525,7 +525,7 @@ fn hover_file_type(
     let signature = checked.lookup_type_item_kind(type_id).ok_or(AnalyzerError::NonFatal)?;
 
     let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-    let value = pretty.render_signature(name, signature).to_string();
+    let value = pretty.render_signature(name, signature)?.to_string();
     Ok(Some(render_hover(format, Some(value), annotation)))
 }
 

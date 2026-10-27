@@ -41,6 +41,7 @@ if ! $quick; then
   mutant UnverifiablePropagates Serial "Invariant UnverifiableStaysInternal is violated"
   mutant VerifyingDemandBlocks ParallelWrites "Invariant CyclesAreReal is violated"
   mutant CleanupDropsWaiters SpuriousCancel "Invariant CancellationsAreExplained is violated"
+  mutant UnavailableResultsCached Serial "Invariant (FreshCacheIsCorrect|OkResultsAreCorrect) is violated"
   mutant PanicSkipsCleanup PanicHang "Invariant (BlockedWaitersCanBeWoken|InProgressHasLiveOwner) is violated"
 fi
 

@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use building_types::QueryResult;
 use checking::CheckedModule;
 use checking::core::TypeId;
 use checking::core::pretty::{Pretty, PrettyState};
@@ -132,7 +133,7 @@ where
         }
     }
 
-    pub fn render_type(&self, id: TypeId) -> smol_str::SmolStr {
+    pub fn render_type(&self, id: TypeId) -> QueryResult<smol_str::SmolStr> {
         self.pretty_state.borrow_mut().render(id)
     }
 

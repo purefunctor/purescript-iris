@@ -13,7 +13,8 @@ CONSTANTS
 ASSUME Mutation \in {"None", "TwoOwners", "CleanupIgnoresOwnership", "EdgeAlwaysAdded",
                      "AddEdgeChecksOneHop", "EagerCycle", "EdgeNotRemoved", "WaitersNotWoken",
                      "ChangedAlwaysPrevious", "VerifyIgnoresInputs", "PanicSkipsCleanup",
-                     "UnverifiablePropagates", "VerifyingDemandBlocks", "CleanupDropsWaiters"}
+                     "UnverifiablePropagates", "VerifyingDemandBlocks", "CleanupDropsWaiters",
+                     "UnavailableResultsCached"}
 
 VARIABLES
     content,
@@ -52,6 +53,8 @@ DerivedKey(q) == [kind |-> "derived", q |-> q]
 Ok(value) == [ok |-> TRUE, value |-> value, error |-> "none"]
 Err(error) == [ok |-> FALSE, value |-> {}, error |-> error]
 
+UnavailableErrors == {"Unverifiable", "Cancelled"}
+
 RECURSIVE Eval(_, _, _)
 Eval(inputContent, q, visiting) ==
     IF q \in visiting
@@ -83,7 +86,8 @@ NewFrame(q) ==
     [q |-> q, pc |-> "enter", owner |-> FALSE, verifying |-> FALSE,
      deps |-> <<>>, todo |-> <<>>, current |-> DerivedKey(q), latest |-> 0,
      hasPrevious |-> FALSE, previousValue |-> {}, previousBuilt |-> 0,
-     previousChanged |-> 0, oldDeps |-> <<>>, acc |-> {}, payload |-> 0]
+     previousChanged |-> 0, oldDeps |-> <<>>, acc |-> {}, payload |-> 0,
+     unavailable |-> "none"]
 
 NoOutcome ==
     [q |-> NoSnapshot, result |-> Err("none"),
@@ -300,7 +304,9 @@ ComputeChildren(s) ==
         computed == {<<frame.q, Weight(frame.payload)>>} \cup frame.acc
     IN /\ frame.pc = "compute_children"
        /\ IF frame.todo = <<>>
-          THEN IF frame.hasPrevious /\ computed = frame.previousValue
+          THEN IF frame.unavailable # "none" /\ Mutation # "UnavailableResultsCached"
+               THEN Fail(s, frame.unavailable)
+               ELSE IF frame.hasPrevious /\ computed = frame.previousValue
                THEN /\ FulfillAndStore(s, frame.q, frame.previousValue, revision,
                                        frame.previousChanged, frame.deps)
                     /\ Return(s, Ok(frame.previousValue))
@@ -317,7 +323,12 @@ ComputeChildrenReturn(s) ==
     LET frame == Top(s)
     IN /\ frame.pc = "compute_return"
        /\ IF ~ret[s].ok
-          THEN Fail(s, ret[s].error)
+          THEN \/ Fail(s, ret[s].error)
+               \/ /\ ret[s].error \in UnavailableErrors
+                  /\ SetTop(s, [frame EXCEPT !.pc = "compute_children",
+                                             !.todo = Tail(@),
+                                             !.unavailable = IF @ = "none" THEN ret[s].error ELSE @])
+                  /\ UNCHANGED <<engine, ret, alive, outcome>>
           ELSE /\ SetTop(s, [frame EXCEPT !.pc = "compute_children",
                                           !.acc = @ \cup ret[s].value,
                                           !.todo = Tail(@)])

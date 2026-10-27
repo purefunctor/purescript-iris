@@ -94,7 +94,7 @@ fn test_index_package_set() {
             .errors
             .iter()
             .filter_map(|error| {
-                let diagnostics = error.to_diagnostics(&context);
+                let diagnostics = error.to_diagnostics(&context).unwrap();
                 if diagnostics.is_empty()
                     || diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error)
                 {

@@ -78,39 +78,39 @@ where
 
     let mut diagnostics = Vec::new();
     for error in &indexed.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
 
     let source_start = diagnostics.len();
     for error in parse_errors.iter() {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
     for error in &lowered.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
     for error in &grouped.cycle_errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
     for error in &resolved.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
     for error in &checked.errors {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
 
     let foreign_start = diagnostics.len();
     for error in foreign_validation.errors.iter() {
-        diagnostics.extend(error.to_diagnostics(&context));
+        diagnostics.extend(error.to_diagnostics(&context)?);
     }
 
     let backend_start = diagnostics.len();
     match javascript {
         Ok(module) => {
             for diagnostic in module.diagnostics() {
-                diagnostics.extend(diagnostic.to_diagnostics(&context));
+                diagnostics.extend(diagnostic.to_diagnostics(&context)?);
             }
         }
-        Err(error) => diagnostics.extend(error.to_diagnostics(&context)),
+        Err(error) => diagnostics.extend(error.to_diagnostics(&context)?),
     }
 
     Ok(DiagnosticCollection {

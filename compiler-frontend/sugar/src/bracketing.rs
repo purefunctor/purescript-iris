@@ -99,21 +99,23 @@ where
 fn operator_info<OperatorId, Q>(
     context: &mut BracketingContext<'_, Q>,
     id: OperatorId,
-) -> Option<(Associativity, u8)>
+) -> QueryResult<Option<(Associativity, u8)>>
 where
     Q: crate::ExternalQueries,
     OperatorId: ForOperatorId,
 {
-    let (file_id, item_id) = OperatorId::resolve_operator(context.lowered, id)?;
+    let Some((file_id, item_id)) = OperatorId::resolve_operator(context.lowered, id) else {
+        return Ok(None);
+    };
     let queries = context.queries;
     let lowered = match context.lowered_by_file.entry(file_id) {
         Entry::Occupied(entry) => entry.into_mut(),
         Entry::Vacant(entry) => {
-            let lowered = queries.lowered(file_id).ok()?;
+            let lowered = queries.lowered(file_id)?;
             entry.insert(lowered)
         }
     };
-    OperatorId::operator_info(lowered.as_ref(), item_id)
+    Ok(OperatorId::operator_info(lowered.as_ref(), item_id))
 }
 
 /// Translates [`Associativity`] and precedence into binding power.
@@ -141,7 +143,7 @@ fn bracket<Id, Q>(
     context: &mut BracketingContext<'_, Q>,
     item: Option<Id>,
     items: &[OperatorPair<Id>],
-) -> BracketingResult<Id>
+) -> QueryResult<BracketingResult<Id>>
 where
     Q: crate::ExternalQueries,
     Id: IsElement,
@@ -149,11 +151,11 @@ where
 {
     match items {
         [OperatorPair { id, element }] => {
-            let id = id.ok_or(BracketingError::InvalidOperator)?;
-            Ok(OperatorTree::Branch(
-                id,
-                [OperatorTree::Leaf(item), OperatorTree::Leaf(*element)].into(),
-            ))
+            let Some(id) = id else {
+                return Ok(Err(BracketingError::InvalidOperator));
+            };
+            let leaves = [OperatorTree::Leaf(item), OperatorTree::Leaf(*element)];
+            Ok(Ok(OperatorTree::Branch(*id, leaves.into())))
         }
         _ => {
             let mut items = items.iter().copied().peekable();
@@ -169,7 +171,7 @@ fn bracket_loop<Id, Q>(
     items: &mut Peekable<impl Iterator<Item = OperatorPair<Id>>>,
     minimum_binding_power: u8,
     previous_operator: Option<OperatorInfo<Id::OperatorId>>,
-) -> BracketingResult<Id>
+) -> QueryResult<BracketingResult<Id>>
 where
     Q: crate::ExternalQueries,
     Id: IsElement,
@@ -178,10 +180,13 @@ where
     let mut left = OperatorTree::Leaf(item);
 
     while let Some(OperatorPair { id, element }) = items.peek().copied() {
-        let id = id.ok_or(BracketingError::InvalidOperator)?;
+        let Some(id) = id else {
+            return Ok(Err(BracketingError::InvalidOperator));
+        };
 
-        let (associativity, precedence) =
-            operator_info(context, id).ok_or(BracketingError::FailedToResolve(id))?;
+        let Some((associativity, precedence)) = operator_info(context, id)? else {
+            return Ok(Err(BracketingError::FailedToResolve(id)));
+        };
 
         let operator = OperatorInfo { id, associativity, precedence };
 
@@ -194,22 +199,26 @@ where
             && associativity == Associativity::None
             && previous.associativity == Associativity::None
         {
-            return Err(BracketingError::NonAssociative { previous, operator });
+            return Ok(Err(BracketingError::NonAssociative { previous, operator }));
         } else if let Some(previous) = previous_operator
             && previous.associativity != associativity
             && previous.precedence == precedence
         {
-            return Err(BracketingError::MixedAssociativity { previous, operator });
+            return Ok(Err(BracketingError::MixedAssociativity { previous, operator }));
         }
 
         items.next();
 
         let right = bracket_loop(context, element, items, right_binding_power, Some(operator))?;
+        let right = match right {
+            Ok(right) => right,
+            Err(error) => return Ok(Err(error)),
+        };
 
         left = OperatorTree::Branch(id, [left, right].into());
     }
 
-    Ok(left)
+    Ok(Ok(left))
 }
 
 // section: types
@@ -267,21 +276,21 @@ pub fn bracketed(
     let mut binders = FxHashMap::default();
     for (id, kind) in lowered.tree.iter_binder() {
         if let BinderKind::OperatorChain { head, tail } = kind {
-            binders.insert(id, bracket(&mut context, *head, tail));
+            binders.insert(id, bracket(&mut context, *head, tail)?);
         }
     }
 
     let mut expressions = FxHashMap::default();
     for (id, kind) in lowered.tree.iter_expression() {
         if let ExpressionKind::OperatorChain { head, tail } = kind {
-            expressions.insert(id, bracket(&mut context, *head, tail));
+            expressions.insert(id, bracket(&mut context, *head, tail)?);
         }
     }
 
     let mut types = FxHashMap::default();
     for (id, kind) in lowered.tree.iter_type() {
         if let TypeKind::OperatorChain { head, tail } = kind {
-            types.insert(id, bracket(&mut context, *head, tail));
+            types.insert(id, bracket(&mut context, *head, tail)?);
         }
     }
 

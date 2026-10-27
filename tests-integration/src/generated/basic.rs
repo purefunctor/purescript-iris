@@ -255,7 +255,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
         let Some(name) = name else { continue };
         let Some(kind) = checked.lookup_term_item_type(id) else { continue };
         let mut state = pretty.state();
-        let signature = state.render_signature(name, kind);
+        let signature = state.render_signature(name, kind).unwrap();
         writeln!(out, "{signature}").unwrap();
     }
 
@@ -264,7 +264,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
         let Some(name) = name else { continue };
         let Some(kind) = checked.lookup_type_item_kind(id) else { continue };
         let mut state = pretty.state();
-        let signature = state.render_signature(name, kind);
+        let signature = state.render_signature(name, kind).unwrap();
         writeln!(out, "{signature}").unwrap();
     }
 
@@ -275,7 +275,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
         let Some(name) = name else { continue };
         let Some(definition) = checked.lookup_synonym(id) else { continue };
         let mut state = pretty.state();
-        let replacement = state.render(definition.expansion);
+        let replacement = state.render(definition.expansion).unwrap();
         let binders =
             definition.parameters.iter().map(|b| state.display_name(b.name)).collect_vec();
         let binders_formatted =
@@ -298,7 +298,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
             class_head = inner;
         }
 
-        let canonical = state.render(class_head);
+        let canonical = state.render(class_head).unwrap();
         let forall_prefix = if class_binders.is_empty() {
             String::new()
         } else {
@@ -307,7 +307,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
                 .map(|&binder_id| {
                     let binder = engine.lookup_forall_binder(binder_id);
                     let text = state.display_name(binder.name);
-                    let kind = state.render(binder.kind);
+                    let kind = state.render(binder.kind).unwrap();
                     format!("({text} :: {kind})")
                 })
                 .join(" ");
@@ -320,7 +320,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
             let superclasses = class
                 .superclasses
                 .iter()
-                .map(|superclass| state.render(superclass.constraint))
+                .map(|superclass| state.render(superclass.constraint).unwrap())
                 .join(", ");
             writeln!(out, "class {forall_prefix}{superclasses} <= {canonical}").unwrap();
         }
@@ -329,7 +329,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
             let member_id = member.item_id;
             let Some(member_name) = indexed.items[member_id].name.as_deref() else { continue };
             let Some(member_type) = checked.lookup_term_item_type(member_id) else { continue };
-            let signature = state.render_signature(member_name, member_type);
+            let signature = state.render_signature(member_name, member_type).unwrap();
             writeln!(out, "  {signature}").unwrap();
         }
     }
@@ -341,7 +341,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
     instance_entries.sort_by_key(|(id, _)| *id);
     for (_instance_id, instance) in instance_entries {
         let mut state = pretty.state();
-        let canonical = state.render(instance.signature);
+        let canonical = state.render(instance.signature).unwrap();
         writeln!(out, "instance {canonical}").unwrap();
     }
 
@@ -352,7 +352,7 @@ pub fn report_checked(engine: &QueryEngine, id: FileId) -> String {
     derived_entries.sort_by_key(|(id, _)| *id);
     for (_derive_id, instance) in derived_entries {
         let mut state = pretty.state();
-        let canonical = state.render(instance.signature);
+        let canonical = state.render(instance.signature).unwrap();
         writeln!(out, "derive {canonical}").unwrap();
     }
 

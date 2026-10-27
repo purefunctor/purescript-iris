@@ -3,8 +3,7 @@
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
-use building_types::QueryProxy;
-use itertools::Itertools;
+use building_types::{QueryProxy, QueryResult};
 use lowering::StringKind;
 use pretty::{Arena, DocAllocator, DocBuilder};
 use rustc_hash::FxHashMap;
@@ -239,19 +238,19 @@ where
         }
     }
 
-    pub fn render(&self, id: TypeId) -> SmolStr {
+    pub fn render(&self, id: TypeId) -> QueryResult<SmolStr> {
         self.state().render(id)
     }
 
-    pub fn render_kind(&self, id: TypeId) -> SmolStr {
+    pub fn render_kind(&self, id: TypeId) -> QueryResult<SmolStr> {
         self.state().render_kind(id)
     }
 
-    pub fn render_signature(&self, name: &str, id: TypeId) -> SmolStr {
+    pub fn render_signature(&self, name: &str, id: TypeId) -> QueryResult<SmolStr> {
         self.state().render_signature(name, id)
     }
 
-    pub fn render_kind_signature(&self, name: &str, id: TypeId) -> SmolStr {
+    pub fn render_kind_signature(&self, name: &str, id: TypeId) -> QueryResult<SmolStr> {
         self.state().render_kind_signature(name, id)
     }
 }
@@ -290,22 +289,22 @@ where
         self.names.assign_display_name(name, display);
     }
 
-    pub fn render(&mut self, id: TypeId) -> SmolStr {
+    pub fn render(&mut self, id: TypeId) -> QueryResult<SmolStr> {
         self.names.set_default_name("t");
         self.render_with_signature(None, id, Precedence::Top)
     }
 
-    pub fn render_kind(&mut self, id: TypeId) -> SmolStr {
+    pub fn render_kind(&mut self, id: TypeId) -> QueryResult<SmolStr> {
         self.names.set_default_name("k");
         self.render_with_signature(None, id, Precedence::Top)
     }
 
-    pub fn render_signature(&mut self, name: &str, id: TypeId) -> SmolStr {
+    pub fn render_signature(&mut self, name: &str, id: TypeId) -> QueryResult<SmolStr> {
         self.names.set_default_name("t");
         self.render_with_signature(Some(name), id, Precedence::Top)
     }
 
-    pub fn render_kind_signature(&mut self, name: &str, id: TypeId) -> SmolStr {
+    pub fn render_kind_signature(&mut self, name: &str, id: TypeId) -> QueryResult<SmolStr> {
         self.names.set_default_name("k");
         self.render_with_signature(Some(name), id, Precedence::Top)
     }
@@ -315,7 +314,7 @@ where
         signature: Option<&str>,
         id: TypeId,
         precedence: Precedence,
-    ) -> SmolStr {
+    ) -> QueryResult<SmolStr> {
         let arena = Arena::new();
         let mut printer = Printer::new(
             &arena,
@@ -328,16 +327,16 @@ where
         );
 
         let document = if let Some(name) = signature {
-            printer.signature(name, id)
+            printer.signature(name, id)?
         } else {
-            printer.traverse(precedence, id)
+            printer.traverse(precedence, id)?
         };
 
         let mut output = SmolStrBuilder::new();
         document
             .render_fmt(self.config.width, &mut output)
             .expect("critical failure: failed to render type");
-        output.finish()
+        Ok(output.finish())
     }
 }
 
@@ -403,96 +402,98 @@ where
         &self,
         file_id: files::FileId,
         type_id: indexing::TypeItemId,
-    ) -> Option<String> {
-        let indexed = self.queries.indexed(file_id).ok()?;
-        indexed.items[type_id].name.as_ref().map(|name| name.to_string())
+    ) -> QueryResult<Option<String>> {
+        let indexed = self.queries.indexed(file_id)?;
+        Ok(indexed.items[type_id].name.as_ref().map(|name| name.to_string()))
     }
 
-    fn lookup_module_name(&self, file_id: files::FileId) -> Option<SmolStr> {
-        let content = self.queries.content(file_id).ok()?;
-        let (parsed, _) = self.queries.parsed(file_id).ok()?;
-        parsed.module_name(&content)
+    fn lookup_module_name(&self, file_id: files::FileId) -> QueryResult<Option<SmolStr>> {
+        let content = self.queries.content(file_id)?;
+        let (parsed, _) = self.queries.parsed(file_id)?;
+        Ok(parsed.module_name(&content))
     }
 
     fn display_type_name(
         &self,
         file_id: files::FileId,
         type_id: indexing::TypeItemId,
-    ) -> Option<String> {
-        let name = self.lookup_type_name(file_id, type_id)?;
-
-        if !self.fully_qualified_names {
-            return Some(name);
-        }
-
-        let Some(module_name) = self.lookup_module_name(file_id) else {
-            return Some(name);
+    ) -> QueryResult<Option<String>> {
+        let Some(name) = self.lookup_type_name(file_id, type_id)? else {
+            return Ok(None);
         };
 
-        Some(format!("{module_name}.{name}"))
+        if !self.fully_qualified_names {
+            return Ok(Some(name));
+        }
+
+        let Some(module_name) = self.lookup_module_name(file_id)? else {
+            return Ok(Some(name));
+        };
+
+        Ok(Some(format!("{module_name}.{name}")))
     }
 
-    fn is_record_constructor(&self, id: TypeId) -> bool {
+    fn is_prim_type(&self, id: TypeId, expected: &str) -> QueryResult<bool> {
         if let Type::Constructor(file_id, type_id) = *self.lookup_type(id)
             && file_id == self.queries.prim_id()
-            && let Some(name) = self.lookup_type_name(file_id, type_id)
+            && let Some(name) = self.lookup_type_name(file_id, type_id)?
         {
-            return name == "Record";
+            return Ok(name == expected);
         }
-        false
+        Ok(false)
     }
 
-    fn is_type_kind(&self, id: TypeId) -> bool {
-        if let Type::Constructor(file_id, type_id) = *self.lookup_type(id)
-            && file_id == self.queries.prim_id()
-            && let Some(name) = self.lookup_type_name(file_id, type_id)
-        {
-            return name == "Type";
-        }
-        false
+    fn is_record_constructor(&self, id: TypeId) -> QueryResult<bool> {
+        self.is_prim_type(id, "Record")
+    }
+
+    fn is_type_kind(&self, id: TypeId) -> QueryResult<bool> {
+        self.is_prim_type(id, "Type")
     }
 
     fn parens_if(&self, condition: bool, doc: Doc<'arena>) -> Doc<'arena> {
         if condition { self.arena.text("(").append(doc).append(self.arena.text(")")) } else { doc }
     }
 
-    fn signature(&mut self, name: &str, id: TypeId) -> Doc<'arena> {
-        let signature = self.traverse(Precedence::Top, id);
+    fn signature(&mut self, name: &str, id: TypeId) -> QueryResult<Doc<'arena>> {
+        let signature = self.traverse(Precedence::Top, id)?;
         let head = self.arena.text(format!("{name} ::"));
-        breakable_continuation(self.arena, head, signature)
+        Ok(breakable_continuation(self.arena, head, signature))
     }
 
-    fn traverse(&mut self, precedence: Precedence, id: TypeId) -> Doc<'arena> {
+    fn traverse(&mut self, precedence: Precedence, id: TypeId) -> QueryResult<Doc<'arena>> {
         let queries = self.queries;
-        match queries.lookup_type(id) {
+        let document = match queries.lookup_type(id) {
             &Type::Application(function, argument) => {
-                self.traverse_application(precedence, function, argument)
+                self.traverse_application(precedence, function, argument)?
             }
 
             &Type::KindApplication(function, argument) => {
-                self.traverse_kind_application(precedence, function, argument)
+                self.traverse_kind_application(precedence, function, argument)?
             }
 
-            &Type::Forall(binder_id, inner) => self.traverse_forall(precedence, binder_id, inner),
+            &Type::Forall(binder_id, inner) => {
+                self.traverse_forall(precedence, binder_id, inner)?
+            }
 
             &Type::Constrained(constraint, inner) => {
-                self.traverse_constrained(precedence, constraint, inner)
+                self.traverse_constrained(precedence, constraint, inner)?
             }
 
             &Type::Function(argument, result) => {
-                self.traverse_function(precedence, argument, result)
+                self.traverse_function(precedence, argument, result)?
             }
 
             &Type::Kinded(inner, kind) => {
-                let inner = self.traverse(Precedence::Application, inner);
-                let kind = self.traverse(Precedence::Top, kind);
+                let inner = self.traverse(Precedence::Application, inner)?;
+                let kind = self.traverse(Precedence::Top, kind)?;
                 let kinded = inner.append(self.arena.text(" :: ")).append(kind);
                 self.parens_if(precedence > Precedence::Atom, kinded)
             }
 
             &Type::Constructor(file_id, type_id) => {
                 let name = self
-                    .display_type_name(file_id, type_id)
+                    .display_type_name(file_id, type_id)?
                     .unwrap_or_else(|| "<InvalidName>".to_string());
                 self.arena.text(name)
             }
@@ -518,15 +519,15 @@ where
             &Type::Row(row_id) => {
                 let row = queries.lookup_row_type(row_id);
                 if row.fields.is_empty() && row.tail.is_none() {
-                    return self.arena.text("()");
+                    return Ok(self.arena.text("()"));
                 }
-                self.format_row(&row.fields, row.tail)
+                self.format_row(&row.fields, row.tail)?
             }
 
             &Type::Rigid(name, _, kind) => {
                 let text = self.pretty_names.display_name(self.queries, self.names, name);
-                if self.show_rigid_kinds && !self.is_type_kind(kind) {
-                    let kind = self.traverse(Precedence::Top, kind);
+                if self.show_rigid_kinds && !self.is_type_kind(kind)? {
+                    let kind = self.traverse(Precedence::Top, kind)?;
                     self.arena
                         .text(format!("({text} :: "))
                         .append(kind)
@@ -547,7 +548,8 @@ where
                 let name = self.lookup_smol_str(name_id);
                 self.arena.text(format!("?[{name}]"))
             }
-        }
+        };
+        Ok(document)
     }
 }
 
@@ -560,8 +562,8 @@ where
         precedence: Precedence,
         mut function: TypeId,
         argument: TypeId,
-    ) -> Doc<'arena> {
-        if self.is_record_constructor(function) {
+    ) -> QueryResult<Doc<'arena>> {
+        if self.is_record_constructor(function)? {
             return self.format_record_application(argument);
         }
 
@@ -572,20 +574,18 @@ where
             arguments.push(argument);
         }
 
-        let function = self.traverse(Precedence::Application, function);
+        let function = self.traverse(Precedence::Application, function)?;
 
-        let arguments = arguments
-            .iter()
-            .rev()
-            .map(|&argument| self.traverse(Precedence::Atom, argument))
-            .collect_vec();
+        let arguments = arguments.iter().rev();
+        let arguments = arguments.map(|&argument| self.traverse(Precedence::Atom, argument));
+        let arguments = arguments.collect::<QueryResult<Vec<_>>>()?;
 
         let arguments = self.arena.intersperse(arguments, self.arena.line());
         let application = breakable_continuation(self.arena, function, arguments);
-        self.parens_if(precedence > Precedence::Application, application)
+        Ok(self.parens_if(precedence > Precedence::Application, application))
     }
 
-    fn format_record_application(&mut self, argument: TypeId) -> Doc<'arena> {
+    fn format_record_application(&mut self, argument: TypeId) -> QueryResult<Doc<'arena>> {
         let queries = self.queries;
         match queries.lookup_type(argument) {
             &Type::Row(row_id) => {
@@ -593,8 +593,8 @@ where
                 self.format_record(&row.fields, row.tail)
             }
             _ => {
-                let inner = self.traverse(Precedence::Top, argument);
-                self.arena.text("{| ").append(inner).append(self.arena.text(" }"))
+                let inner = self.traverse(Precedence::Top, argument)?;
+                Ok(self.arena.text("{| ").append(inner).append(self.arena.text(" }")))
             }
         }
     }
@@ -604,7 +604,7 @@ where
         precedence: Precedence,
         mut function: TypeId,
         argument: TypeId,
-    ) -> Doc<'arena> {
+    ) -> QueryResult<Doc<'arena>> {
         let mut arguments = vec![argument];
 
         while let Type::KindApplication(inner_function, argument) = *self.lookup_type(function) {
@@ -612,18 +612,16 @@ where
             arguments.push(argument);
         }
 
-        let function = self.traverse(Precedence::Application, function);
+        let function = self.traverse(Precedence::Application, function)?;
 
-        let arguments = arguments
-            .iter()
-            .rev()
-            .map(|&argument| self.traverse(Precedence::Atom, argument))
-            .collect_vec();
+        let arguments = arguments.iter().rev();
+        let arguments = arguments.map(|&argument| self.traverse(Precedence::Atom, argument));
+        let arguments = arguments.collect::<QueryResult<Vec<_>>>()?;
 
         let arguments = arguments.into_iter().map(|argument| self.arena.text("@").append(argument));
         let arguments = self.arena.intersperse(arguments, self.arena.line());
         let application = breakable_continuation(self.arena, function, arguments);
-        self.parens_if(precedence > Precedence::Application, application)
+        Ok(self.parens_if(precedence > Precedence::Application, application))
     }
 }
 
@@ -636,7 +634,7 @@ where
         precedence: Precedence,
         binder_id: ForallBinderId,
         mut inner: TypeId,
-    ) -> Doc<'arena> {
+    ) -> QueryResult<Doc<'arena>> {
         let binder = self.lookup_forall_binder(binder_id);
         let mut binders = vec![binder];
 
@@ -645,23 +643,23 @@ where
             inner = next_inner;
         }
 
-        let binders = binders
-            .iter()
-            .map(|binder| {
-                let name = self.pretty_names.display_name(self.queries, self.names, binder.name);
-                let text = if binder.visible { format!("@{name}") } else { name.to_string() };
-                if self.show_forall_kinds && !self.is_type_kind(binder.kind) {
-                    let kind = self.traverse(Precedence::Top, binder.kind);
-                    self.arena
-                        .text(format!("({} :: ", text))
-                        .append(kind)
-                        .append(self.arena.text(")"))
-                        .group()
-                } else {
-                    self.arena.text(text)
-                }
-            })
-            .collect_vec();
+        let binders = binders.iter().map(|binder| {
+            let name = self.pretty_names.display_name(self.queries, self.names, binder.name);
+            let text = if binder.visible { format!("@{name}") } else { name.to_string() };
+            if self.show_forall_kinds && !self.is_type_kind(binder.kind)? {
+                let kind = self.traverse(Precedence::Top, binder.kind)?;
+                Ok(self
+                    .arena
+                    .text(format!("({} :: ", text))
+                    .append(kind)
+                    .append(self.arena.text(")"))
+                    .group())
+            } else {
+                Ok(self.arena.text(text))
+            }
+        });
+
+        let binders = binders.collect::<QueryResult<Vec<_>>>()?;
 
         let mut binders = binders.into_iter();
         let binders = if let Some(first) = binders.next() {
@@ -673,10 +671,10 @@ where
         };
 
         let header = self.arena.text("forall ").append(binders).append(self.arena.text("."));
-        let inner = self.traverse(Precedence::Top, inner);
+        let inner = self.traverse(Precedence::Top, inner)?;
         let forall = breakable_continuation(self.arena, header, inner);
 
-        self.parens_if(precedence > Precedence::Top, forall)
+        Ok(self.parens_if(precedence > Precedence::Top, forall))
     }
 
     fn traverse_constrained(
@@ -684,7 +682,7 @@ where
         precedence: Precedence,
         constraint: TypeId,
         mut inner: TypeId,
-    ) -> Doc<'arena> {
+    ) -> QueryResult<Doc<'arena>> {
         let mut constraints = vec![constraint];
 
         while let Type::Constrained(constraint, next_inner) = *self.lookup_type(inner) {
@@ -692,12 +690,12 @@ where
             inner = next_inner;
         }
 
-        let constraints = constraints
-            .iter()
-            .map(|&constraint| self.traverse(Precedence::Application, constraint))
-            .collect_vec();
+        let constraints = constraints.iter();
+        let constraints =
+            constraints.map(|&constraint| self.traverse(Precedence::Application, constraint));
+        let constraints = constraints.collect::<QueryResult<Vec<_>>>()?;
 
-        let inner = self.traverse(Precedence::Constraint, inner);
+        let inner = self.traverse(Precedence::Constraint, inner)?;
 
         let arrow = self.arena.text(" =>").append(self.arena.line());
         let constraints = constraints.into_iter().fold(self.arena.nil(), |builder, constraint| {
@@ -705,7 +703,7 @@ where
         });
 
         let constraints = constraints.append(inner).group();
-        self.parens_if(precedence > Precedence::Constraint, constraints)
+        Ok(self.parens_if(precedence > Precedence::Constraint, constraints))
     }
 
     fn traverse_function(
@@ -713,7 +711,7 @@ where
         precedence: Precedence,
         argument: TypeId,
         mut result: TypeId,
-    ) -> Doc<'arena> {
+    ) -> QueryResult<Doc<'arena>> {
         let mut arguments = vec![argument];
 
         while let Type::Function(argument, next_result) = *self.lookup_type(result) {
@@ -721,12 +719,11 @@ where
             arguments.push(argument);
         }
 
-        let arguments = arguments
-            .iter()
-            .map(|&argument| self.traverse(Precedence::Application, argument))
-            .collect_vec();
+        let arguments = arguments.iter();
+        let arguments = arguments.map(|&argument| self.traverse(Precedence::Application, argument));
+        let arguments = arguments.collect::<QueryResult<Vec<_>>>()?;
 
-        let result = self.traverse(Precedence::Function, result);
+        let result = self.traverse(Precedence::Function, result)?;
 
         let arrow = self.arena.text(" ->").append(self.arena.line());
         let arguments = arguments.into_iter().fold(self.arena.nil(), |builder, argument| {
@@ -734,7 +731,7 @@ where
         });
 
         let function = arguments.append(result).group();
-        self.parens_if(precedence > Precedence::Function, function)
+        Ok(self.parens_if(precedence > Precedence::Function, function))
     }
 }
 
@@ -742,46 +739,59 @@ impl<'arena, 'context, 'names, Q> Printer<'arena, 'context, 'names, Q>
 where
     Q: PrettyQueries + ?Sized,
 {
-    fn format_record(&mut self, fields: &[RowField], tail: Option<TypeId>) -> Doc<'arena> {
+    fn format_record(
+        &mut self,
+        fields: &[RowField],
+        tail: Option<TypeId>,
+    ) -> QueryResult<Doc<'arena>> {
         if fields.is_empty() && tail.is_none() {
-            return self.arena.text("{}");
+            return Ok(self.arena.text("{}"));
         }
-        let body = self.format_row_body(fields, tail);
-        self.arena
+        let body = self.format_row_body(fields, tail)?;
+        Ok(self
+            .arena
             .text("{ ")
             .append(body)
             .append(self.arena.line())
             .append(self.arena.text("}"))
-            .group()
+            .group())
     }
 
-    fn format_row(&mut self, fields: &[RowField], tail: Option<TypeId>) -> Doc<'arena> {
-        let body = self.format_row_body(fields, tail);
-        self.arena
+    fn format_row(
+        &mut self,
+        fields: &[RowField],
+        tail: Option<TypeId>,
+    ) -> QueryResult<Doc<'arena>> {
+        let body = self.format_row_body(fields, tail)?;
+        Ok(self
+            .arena
             .text("( ")
             .append(body)
             .append(self.arena.line())
             .append(self.arena.text(")"))
-            .group()
+            .group())
     }
 
-    fn format_row_body(&mut self, fields: &[RowField], tail: Option<TypeId>) -> Doc<'arena> {
+    fn format_row_body(
+        &mut self,
+        fields: &[RowField],
+        tail: Option<TypeId>,
+    ) -> QueryResult<Doc<'arena>> {
         if fields.is_empty() {
             return if let Some(tail) = tail {
-                let tail = self.traverse(Precedence::Top, tail);
-                self.arena.text("| ").append(tail)
+                let tail = self.traverse(Precedence::Top, tail)?;
+                Ok(self.arena.text("| ").append(tail))
             } else {
-                self.arena.nil()
+                Ok(self.arena.nil())
             };
         }
 
-        let fields = fields
-            .iter()
-            .map(|field| {
-                let field_type = self.traverse(Precedence::Top, field.id);
-                (field.label.to_string(), field_type)
-            })
-            .collect_vec();
+        let fields = fields.iter().map(|field| {
+            let field_type = self.traverse(Precedence::Top, field.id)?;
+            Ok((field.label.to_string(), field_type))
+        });
+
+        let fields = fields.collect::<QueryResult<Vec<_>>>()?;
 
         let format_field =
             |arena: &'arena Arena<'arena>, label: String, field_type: Doc<'arena>| {
@@ -803,12 +813,12 @@ where
         });
 
         if let Some(tail) = tail {
-            let tail = self.traverse(Precedence::Top, tail);
+            let tail = self.traverse(Precedence::Top, tail)?;
             let leading_pipe = self.arena.hardline().append(self.arena.text("| "));
             let leading_pipe = leading_pipe.flat_alt(self.arena.text(" | "));
-            fields.append(leading_pipe).append(tail)
+            Ok(fields.append(leading_pipe).append(tail))
         } else {
-            fields
+            Ok(fields)
         }
     }
 }

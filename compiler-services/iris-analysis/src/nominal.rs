@@ -120,7 +120,7 @@ fn render_signature(
     };
     let Some(signature) = signature else { return Ok(None) };
     let pretty = Pretty::with_config(engine, &checked, config);
-    Ok(Some(pretty.render_signature(name, signature).to_string()))
+    Ok(Some(pretty.render_signature(name, signature)?.to_string()))
 }
 
 /// The documentation comment written above the item, if any.
@@ -243,8 +243,8 @@ pub fn instances(
                 }
             };
             let pretty = Pretty::with_config(engine, &checked, PRETTY_CONFIG);
-            let head =
-                checked_instance.map(|instance| pretty.render(instance.signature).to_string());
+            let head = checked_instance.map(|instance| pretty.render(instance.signature));
+            let head = head.transpose()?.map(|head| head.to_string());
             found.push(FoundInstance { location, head });
         }
     }
