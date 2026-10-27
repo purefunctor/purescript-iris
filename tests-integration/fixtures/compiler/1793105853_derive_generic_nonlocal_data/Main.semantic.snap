@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+dictionary genericWrapperConstructorArgumentInt ::
+  Data.Generic.Rep.Generic
+  Lib.Wrapper
+  (Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument Prim.Int))
+  where
+  to :: Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument Prim.Int) -> Lib.Wrapper
+  to = \representation ->
+    case representation of
+      (Constructor (Argument field0)) -> Wrapper field0
+  from :: Lib.Wrapper -> Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument Prim.Int)
+  from = \value ->
+    case value of
+      (Wrapper field0) -> Constructor (Argument field0)
+
+dictionary genericOpaqueNoConstructors ::
+  Data.Generic.Rep.Generic Main.Opaque Data.Generic.Rep.NoConstructors
+  where
+  to :: Data.Generic.Rep.NoConstructors -> Main.Opaque
+  to = \value ->
+    case value of
+      _ -> to {genericOpaqueNoConstructors} value
+  from :: Main.Opaque -> Data.Generic.Rep.NoConstructors
+  from = \value ->
+    case value of
+      _ -> from {genericOpaqueNoConstructors} value

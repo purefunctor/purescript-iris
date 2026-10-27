@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+dictionary functorBox :: Data.Functor.Functor Library.Box where
+  map :: forall a b. (a -> b) -> Library.Box a -> Library.Box b
+  map = \function value ->
+    case value of
+      (Box field0) -> Box (function field0)
+
+dictionary foldableBox :: Data.Foldable.Foldable Library.Box where
+  foldr :: forall a b. (a -> b -> b) -> b -> Library.Box a -> b
+  foldr = \function accumulator value ->
+    case value of
+      (Box field0) -> function field0 accumulator
+  foldl :: forall a b. (b -> a -> b) -> b -> Library.Box a -> b
+  foldl = \function accumulator value ->
+    case value of
+      (Box field0) -> function accumulator field0
+  foldMap :: forall a m. Data.Monoid.Monoid m => (a -> m) -> Library.Box a -> m
+  foldMap = \{monoidDict} ->
+    \function value ->
+      case value of
+        (Box field0) -> function field0
+
+dictionary bifunctorPair :: Data.Bifunctor.Bifunctor Library.Pair where
+  bimap :: forall a b c d. (a -> b) -> (c -> d) -> Library.Pair a c -> Library.Pair b d
+  bimap = \firstFunction secondFunction value ->
+    case value of
+      (Pair field0 field1) -> Pair (firstFunction field0) (secondFunction field1)

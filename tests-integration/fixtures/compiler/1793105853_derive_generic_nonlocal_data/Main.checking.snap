@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+Opaque :: Prim.Type
+
+Derived
+derive Data.Generic.Rep.Generic
+  Lib.Wrapper
+  (Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument Prim.Int))
+derive Data.Generic.Rep.Generic Main.Opaque Data.Generic.Rep.NoConstructors
+
+Roles
+Opaque = []

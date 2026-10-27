@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+
+Derived
+derive Data.Functor.Functor Library.Box
+derive Data.Foldable.Foldable Library.Box
+derive Data.Bifunctor.Bifunctor Library.Pair

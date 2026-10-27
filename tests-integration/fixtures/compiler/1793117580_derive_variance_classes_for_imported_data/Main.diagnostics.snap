@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [OrphanInstance] · Main.purs:9:1
+  •
+  │
+  • Orphan instance found for: Functor Box
+  │
+  │   derive instance Functor Box
+  │   ╰──────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:11:1
+  •
+  │
+  • Orphan instance found for: Foldable Box
+  │
+  │   derive instance Foldable Box
+  │   ╰───────────────────────────
+  •
+
+Error! · [OrphanInstance] · Main.purs:13:1
+  •
+  │
+  • Orphan instance found for: Bifunctor Pair
+  │
+  │   derive instance Bifunctor Pair
+  │   ╰─────────────────────────────
+  •

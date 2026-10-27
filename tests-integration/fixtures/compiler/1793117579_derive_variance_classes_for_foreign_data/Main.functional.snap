@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance eqOpaque = \eqADict%0 -> { eq: \$opaque%1@(_) $opaque%2@(_) -> true }
+
+@export instance functorOpaque = {
+  map:
+    \function%3 value%4 ->
+      case value%4 of
+
+}
+
+@export instance foldableOpaque = {
+  foldr:
+    \function%5 accumulator%6 value%7 ->
+      case value%7 of
+  ,
+  foldl:
+    \function%8 accumulator%9 value%10 ->
+      case value%10 of
+  ,
+  foldMap:
+    \monoidMDict%13 ->
+      \function%11 value%12 ->
+        case value%12 of
+
+}
+
+@export instance bifunctorOpaquePair = {
+  bimap:
+    \firstFunction%14 secondFunction%15 value%16 ->
+      case value%16 of
+
+}
+
+@export instance eq1Opaque = { eq1: \eqADict%17 -> eq (eqOpaque eqADict%17) }

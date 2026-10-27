@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+dictionary eqOpaque :: forall a. { eqDict :: Data.Eq.Eq a } => Data.Eq.Eq (Main.Opaque a) where
+  eq :: Main.Opaque a -> Main.Opaque a -> Prim.Boolean
+  eq = \_ -> \_ -> true
+
+dictionary functorOpaque :: Data.Functor.Functor Main.Opaque where
+  map :: forall a b. (a -> b) -> Main.Opaque a -> Main.Opaque b
+  map = \function value ->
+    case value of
+      <error>
+
+dictionary foldableOpaque :: Data.Foldable.Foldable Main.Opaque where
+  foldr :: forall a b. (a -> b -> b) -> b -> Main.Opaque a -> b
+  foldr = \function accumulator value ->
+    case value of
+      <error>
+  foldl :: forall a b. (b -> a -> b) -> b -> Main.Opaque a -> b
+  foldl = \function accumulator value ->
+    case value of
+      <error>
+  foldMap :: forall a m. Data.Monoid.Monoid m => (a -> m) -> Main.Opaque a -> m
+  foldMap = \{monoidDict} ->
+    \function value ->
+      case value of
+        <error>
+
+dictionary bifunctorOpaquePair :: Data.Bifunctor.Bifunctor Main.OpaquePair where
+  bimap :: forall a b c d. (a -> b) -> (c -> d) -> Main.OpaquePair a c -> Main.OpaquePair b d
+  bimap = \firstFunction secondFunction value ->
+    case value of
+      <error>
+
+dictionary eq1Opaque :: Data.Eq.Eq1 Main.Opaque where
+  eq1 :: forall a. Data.Eq.Eq a => Main.Opaque a -> Main.Opaque a -> Prim.Boolean
+  eq1 = \{eqDict} -> eq {eqOpaque {eqDict}}
