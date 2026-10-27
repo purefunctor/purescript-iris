@@ -26,6 +26,18 @@ const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
     ("Data.Semigroup", "append", "semigroupString", BinaryOperator::StringAppend),
 ];
 
+const BINARY_FUNCTIONS: &[(&str, &str, BinaryOperator)] = &[
+    ("Data.Int.Bits", "and", BinaryOperator::IntegerAnd),
+    ("Data.Int.Bits", "or", BinaryOperator::IntegerOr),
+    ("Data.Int.Bits", "xor", BinaryOperator::IntegerXor),
+    ("Data.Int.Bits", "shl", BinaryOperator::IntegerShiftLeft),
+    ("Data.Int.Bits", "shr", BinaryOperator::IntegerShiftRight),
+    ("Data.Int.Bits", "zshr", BinaryOperator::IntegerZeroFillShiftRight),
+];
+
+const UNARY_FUNCTIONS: &[(&str, &str, UnaryOperator)] =
+    &[("Data.Int.Bits", "complement", UnaryOperator::IntegerComplement)];
+
 const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
     ("eqBoolean", PrimitiveType::Boolean),
     ("eqInt", PrimitiveType::Integer),
@@ -277,6 +289,20 @@ where
                 instance_name,
             )? {
                 return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
+            }
+        }
+        for &(module_name, function_name, operator) in BINARY_FUNCTIONS {
+            if self.known_term(function, module_name, function_name)?
+                && let [left, right] = arguments
+            {
+                return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
+            }
+        }
+        for &(module_name, function_name, operator) in UNARY_FUNCTIONS {
+            if self.known_term(function, module_name, function_name)?
+                && let [value] = arguments
+            {
+                return Ok(Some(ExpressionKind::Unary { operator, value: *value }));
             }
         }
         if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =

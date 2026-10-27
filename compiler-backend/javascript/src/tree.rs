@@ -34,6 +34,7 @@ pub(crate) enum ObjectProperty {
 pub(crate) enum UnaryOperator {
     LogicalNot,
     Negate,
+    BitwiseNot,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +46,11 @@ pub(crate) enum BinaryOperator {
     GreaterThan,
     GreaterThanOrEqual,
     BitwiseOr,
+    BitwiseAnd,
+    BitwiseXor,
+    ShiftLeft,
+    ShiftRight,
+    UnsignedShiftRight,
     LogicalAnd,
     LogicalOr,
     Add,
@@ -323,6 +329,7 @@ impl<'a> Tree<'a> {
         let operator = match operator {
             UnaryOperator::LogicalNot => OxcUnaryOperator::LogicalNot,
             UnaryOperator::Negate => OxcUnaryOperator::UnaryNegation,
+            UnaryOperator::BitwiseNot => OxcUnaryOperator::BitwiseNot,
         };
         let expression = Expression::new_unary_expression(
             self.span(),
@@ -372,6 +379,13 @@ impl<'a> Tree<'a> {
                 binary(left, OxcBinaryOperator::GreaterEqualThan, right)
             }
             BinaryOperator::BitwiseOr => binary(left, OxcBinaryOperator::BitwiseOR, right),
+            BinaryOperator::BitwiseAnd => binary(left, OxcBinaryOperator::BitwiseAnd, right),
+            BinaryOperator::BitwiseXor => binary(left, OxcBinaryOperator::BitwiseXOR, right),
+            BinaryOperator::ShiftLeft => binary(left, OxcBinaryOperator::ShiftLeft, right),
+            BinaryOperator::ShiftRight => binary(left, OxcBinaryOperator::ShiftRight, right),
+            BinaryOperator::UnsignedShiftRight => {
+                binary(left, OxcBinaryOperator::ShiftRightZeroFill, right)
+            }
             BinaryOperator::Add => binary(left, OxcBinaryOperator::Addition, right),
             BinaryOperator::Subtract => binary(left, OxcBinaryOperator::Subtraction, right),
             BinaryOperator::Multiply => binary(left, OxcBinaryOperator::Multiplication, right),

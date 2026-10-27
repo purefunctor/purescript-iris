@@ -280,6 +280,7 @@ pub enum ExpressionKind {
 pub enum UnaryOperator {
     BooleanNot,
     IntegerNegate,
+    IntegerComplement,
     NumberNegate,
 }
 
@@ -290,6 +291,12 @@ pub enum BinaryOperator {
     IntegerAdd,
     IntegerSubtract,
     IntegerMultiply,
+    IntegerAnd,
+    IntegerOr,
+    IntegerXor,
+    IntegerShiftLeft,
+    IntegerShiftRight,
+    IntegerZeroFillShiftRight,
     NumberAdd,
     NumberSubtract,
     NumberMultiply,
