@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+performed :: Prim.Int
+performed =
+  unsafePerformEffect
+    (bind {bindEffect} (new 20) \ref -> modify (\v61 -> add {semiringInt} v61 1) ref)
+
+doubled :: Prim.Int -> Prim.Int
+doubled = \value ->
+  run (bind {bindST} (new value) \ref -> modify (\v96 -> mul {semiringInt} v96 2) ref)
+
+offset :: Prim.Int -> Prim.Int
+offset = \value -> add {semiringInt} 1 (run (pure {applicativeST} value))
+
+performedAction :: Effect.Effect Prim.Int -> Prim.Int
+performedAction = \action -> unsafePerformEffect action
+
+runAction :: (forall region. Control.Monad.ST.Internal.ST region Prim.Int) -> Prim.Int
+runAction = \action -> run action
