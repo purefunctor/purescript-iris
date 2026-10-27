@@ -9,10 +9,9 @@ With [mise](https://mise.jdx.dev/) installed, run `mise trust` and `mise install
 from the repository root, then use `mise exec -- just <recipe>` or activate mise
 in your shell. `just format` uses the pinned nightly toolchain in this environment.
 
-Amp orbs and Buildkite share `.agents/setup`, which bootstraps mise and installs
-these tools. Native prerequisites remain platform-managed: a C/C++ toolchain,
-pkg-config, OpenSSL development libraries, curl, and xz. Buildkite installs them
-through apt on Linux or Homebrew on macOS (with Xcode command-line tools present).
+Amp orbs use `.agents/setup` to bootstrap mise and install these tools. Native
+prerequisites are platform-managed: a C/C++ toolchain, pkg-config, OpenSSL
+development libraries, curl, and xz.
 
 Before pushing a branch, run `just format` and `just licenses`, then squash any
 resulting changes into the relevant commits in the branch.
