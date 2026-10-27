@@ -10,6 +10,11 @@ use super::super::{Context, ConversionResult};
 const EFFECT_REFERENCE: &str = "Effect.Ref";
 const STATE_THREAD: &str = "Control.Monad.ST.Internal";
 
+const UNCURRIED_EFFECT_MODULES: &[(&str, &str, &str)] = &[
+    ("Effect.Uncurried", "runEffectFn", "mkEffectFn"),
+    ("Control.Monad.ST.Uncurried", "runSTFn", "mkSTFn"),
+];
+
 impl<'c, Q> Context<'c, Q>
 where
     Q: checking::ExternalQueries,
@@ -70,6 +75,17 @@ where
                 }
             }
         }
+        for &(module_name, run_prefix, _) in UNCURRIED_EFFECT_MODULES {
+            if let Some(arity) =
+                self.known_numbered_term_arity(function, module_name, run_prefix)?
+                && let Some((function, arguments)) = arguments.split_first()
+                && arguments.len() == arity
+            {
+                let function = *function;
+                let arguments = arguments.into();
+                return Ok(Some(EffectPrimitive::UncurriedCall { function, arguments }));
+            }
+        }
         Ok(None)
     }
 
@@ -115,6 +131,25 @@ where
             && let [effect] = *arguments
         {
             return Ok(Some(self.run_effect(effect)));
+        }
+        for &(module_name, _, make_prefix) in UNCURRIED_EFFECT_MODULES {
+            if let Some(arity) =
+                self.known_numbered_term_arity(function, module_name, make_prefix)?
+                && arity >= 1
+                && let [function] = *arguments
+                && let Some(function) = self.uncurry_abstraction(function, arity)
+            {
+                let ExpressionKind::UncurriedAbstraction { parameters, body } =
+                    &self.storage[function].kind
+                else {
+                    unreachable!("invariant violated: uncurried abstraction has another kind")
+                };
+                let parameters = parameters.clone();
+                let body = self.run_effect(*body);
+                let abstraction = ExpressionKind::UncurriedAbstraction { parameters, body };
+                self.storage.replace_expression_kind(function, abstraction);
+                return Ok(Some(function));
+            }
         }
         Ok(None)
     }

@@ -33,6 +33,10 @@ pub(super) enum CapturedPrimitive {
         reference: ExpressionId,
         result: ReferenceModifyResult,
     },
+    UncurriedCall {
+        function: ExpressionId,
+        arguments: Vec<ExpressionId>,
+    },
 }
 
 pub(super) enum CapturedLoop {
@@ -69,6 +73,14 @@ pub(super) fn capture_primitive(
             let function = capture_function(renderer, *function, "$function")?;
             let reference = capture_stable_value(renderer, *reference, "$reference")?;
             CapturedPrimitive::ModifyReference { function, reference, result: *result }
+        }
+        EffectPrimitive::UncurriedCall { function, arguments } => {
+            let function = capture_effect_value(renderer, *function, "$function")?;
+            let arguments = arguments
+                .iter()
+                .map(|argument| capture_effect_value(renderer, *argument, "$argument"))
+                .collect::<ModuleResult<Vec<_>>>()?;
+            CapturedPrimitive::UncurriedCall { function, arguments }
         }
     };
     Ok(CapturedOperation::Primitive(primitive))
@@ -227,6 +239,9 @@ fn execute_primitive(
                     Some(tree.member(record, "value"))
                 }
             }
+        }
+        CapturedPrimitive::UncurriedCall { function, arguments } => {
+            Some(tree.call(function, arguments))
         }
     };
     Ok(result)
