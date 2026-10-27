@@ -2,7 +2,7 @@ use smol_str::SmolStr;
 
 use crate::convert::{Context, ConversionResult};
 use crate::tree::{
-    Binding, ExpressionId, ExpressionKind, Field, RecordUpdate, SynthesizedEvidence,
+    Binding, ExpressionId, ExpressionKind, Field, RecordField, RecordUpdate, SynthesizedEvidence,
 };
 
 impl<'c, Q> Context<'c, Q>
@@ -54,7 +54,22 @@ where
         {
             return Ok(Some(self.expression(ExpressionKind::RecordDelete { record, field })));
         }
-        Ok(None)
+        let operands = if self.known_term(function, "Record", "union")?
+            && let [constraint, left, right] = *arguments
+            && self.known_record_constraints(&[constraint])
+        {
+            Some((left, right))
+        } else if (self.known_term(function, "Record", "merge")?
+            || self.known_term(function, "Record", "disjointUnion")?)
+            && let [first, second, left, right] = *arguments
+            && self.known_record_constraints(&[first, second])
+        {
+            Some((left, right))
+        } else {
+            None
+        };
+        let Some((left, right)) = operands else { return Ok(None) };
+        self.record_union(left, right)
     }
 
     fn known_record_label(
@@ -80,6 +95,95 @@ where
         constraints.all(|constraint| {
             matches!(self.storage[*constraint].kind, ExpressionKind::TrivialEvidence)
         })
+    }
+
+    fn record_union(
+        &mut self,
+        left: ExpressionId,
+        right: ExpressionId,
+    ) -> ConversionResult<Option<ExpressionId>> {
+        let left_fields = self.record_literal_fields(left);
+        let right_fields = self.record_literal_fields(right);
+        if left_fields.is_none() && right_fields.is_none() {
+            return Ok(None);
+        }
+
+        let mut names = Vec::new();
+        let mut operands = Vec::new();
+        for (side, fields) in [(left, &left_fields), (right, &right_fields)] {
+            match fields {
+                Some(fields) => {
+                    names.extend(fields.iter().map(|field| SmolStr::clone(&field.field.name)));
+                    operands.extend(fields.iter().map(|field| field.expression));
+                }
+                None => {
+                    names.push(SmolStr::new_static("record"));
+                    operands.push(side);
+                }
+            }
+        }
+        let names = names.iter().map(SmolStr::as_str).collect::<Vec<_>>();
+        let left_count = left_fields.as_ref().map_or(1, Vec::len);
+
+        if let (Some(left_fields), Some(right_fields)) = (&left_fields, &right_fields) {
+            let mut uses = Vec::with_capacity(operands.len());
+            for (index, right_field) in right_fields.iter().enumerate() {
+                let overriding = left_fields
+                    .iter()
+                    .position(|left_field| left_field.field.name == right_field.field.name);
+                uses.push(overriding.unwrap_or(left_count + index));
+            }
+            for (index, left_field) in left_fields.iter().enumerate() {
+                let overridden = right_fields
+                    .iter()
+                    .any(|right_field| right_field.field.name == left_field.field.name);
+                if !overridden {
+                    uses.push(index);
+                }
+            }
+            let bindings = self.ordered_operands(&mut operands, &names, &uses)?;
+            let fields = uses.iter().map(|&index| {
+                let field = if index < left_count {
+                    &left_fields[index].field
+                } else {
+                    &right_fields[index - left_count].field
+                };
+                RecordField { field: Field::clone(field), expression: operands[index] }
+            });
+            let record = self.expression(ExpressionKind::Record { fields: fields.collect() });
+            return Ok(Some(self.bound_operands(bindings, record)));
+        }
+
+        let uses = (left_count..operands.len()).chain(0..left_count).collect::<Vec<_>>();
+        let bindings = self.ordered_operands(&mut operands, &names, &uses)?;
+        let (left_operands, right_operands) = operands.split_at(left_count);
+        let left = self.record_side(left, left_fields, left_operands);
+        let right = self.record_side(right, right_fields, right_operands);
+        let union = self.expression(ExpressionKind::RecordUnion { left, right });
+        Ok(Some(self.bound_operands(bindings, union)))
+    }
+
+    fn record_literal_fields(&self, expression: ExpressionId) -> Option<Vec<RecordField>> {
+        let ExpressionKind::Record { fields } = &self.storage[expression].kind else {
+            return None;
+        };
+        Some(fields.to_vec())
+    }
+
+    fn record_side(
+        &mut self,
+        side: ExpressionId,
+        fields: Option<Vec<RecordField>>,
+        operands: &[ExpressionId],
+    ) -> ExpressionId {
+        let Some(fields) = fields else { return operands[0] };
+        let fields = fields
+            .into_iter()
+            .zip(operands)
+            .map(|(field, &expression)| RecordField { field: field.field, expression });
+        let fields = ExpressionKind::Record { fields: fields.collect() };
+        self.storage.replace_expression_kind(side, fields);
+        side
     }
 
     fn ordered_operands(

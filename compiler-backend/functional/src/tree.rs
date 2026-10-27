@@ -256,6 +256,7 @@ pub enum ExpressionKind {
     ArrayConcatenation { elements: Arc<[ArrayElement]> },
     Record { fields: Arc<[RecordField]> },
     RecordUpdate { record: ExpressionId, updates: Arc<[RecordUpdate]> },
+    RecordUnion { left: ExpressionId, right: ExpressionId },
     RecordDelete { record: ExpressionId, field: Field },
     Project { record: ExpressionId, field: Field },
     Unary { operator: UnaryOperator, value: ExpressionId },

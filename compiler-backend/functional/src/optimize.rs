@@ -442,6 +442,7 @@ fn is_simple_expression(
                 pending.push(*left);
             }
             ExpressionKind::RecordUpdate { .. }
+            | ExpressionKind::RecordUnion { .. }
             | ExpressionKind::RecordDelete { .. }
             | ExpressionKind::Error
             | ExpressionKind::Application { .. }
@@ -503,7 +504,8 @@ pub fn try_for_each_expression_child<Error>(
             visit(*record)?;
         }
         ExpressionKind::Binary { left, right, .. }
-        | ExpressionKind::Index { value: left, index: right } => {
+        | ExpressionKind::Index { value: left, index: right }
+        | ExpressionKind::RecordUnion { left, right } => {
             visit(*left)?;
             visit(*right)?;
         }

@@ -1,37 +1,53 @@
-import * as Record from "../Record/index.js";
 import * as $foreign from "./foreign.js";
 export function withDefaults(options) {
-  return /* @__PURE__ */ Record.merge({})({})(options)({
+  return {
     x: 1 | 0,
-    y: "default"
-  });
+    y: "default",
+    ...options
+  };
 }
 export function override(record) {
-  return /* @__PURE__ */ Record.merge({})({})({ x: 0 | 0 })(record);
+  return {
+    ...record,
+    x: 0 | 0
+  };
 }
 export function union(record) {
-  return /* @__PURE__ */ Record.union({})(record)({ x: 1 | 0 });
+  return {
+    x: 1 | 0,
+    ...record
+  };
 }
 export function disjointUnion(record) {
-  return /* @__PURE__ */ Record.disjointUnion({})({})({ x: 1 | 0 })(record);
+  return {
+    ...record,
+    x: 1 | 0
+  };
 }
 export function withDefaultsOrder(options) {
-  return /* @__PURE__ */ Record.merge({})({})(observe("options")(options))({
+  const record = observe("options")(options);
+  return {
     x: observe("default")(1 | 0),
-    y: "default"
-  });
+    y: "default",
+    ...record
+  };
 }
 export function overrideOrder(record) {
-  return /* @__PURE__ */ Record.merge({})({})({ x: observe("override")(0 | 0) })(observe("record")(record));
+  const x = observe("override")(0 | 0);
+  return {
+    ...observe("record")(record),
+    x
+  };
 }
 export function literalsOrder($boolean) {
-  return /* @__PURE__ */ Record.merge({})({})({ x: observe("left")(1 | 0) })({
+  const x = observe("left")(1 | 0);
+  const x$1 = observe("right")(2 | 0);
+  return {
     y: "right",
-    x: observe("right")(2 | 0)
-  });
+    x
+  };
 }
 export function overrideBranchOrder(record) {
-  const $function = Record.merge({})({});
   const $field = observe("override")("y");
   let $result;
   const $scrutinee = record.y;
@@ -43,14 +59,15 @@ export function overrideBranchOrder(record) {
     $result = observe("fallback")(2 | 0);
     break $case;
   }
-  return /* @__PURE__ */ $function({
+  return {
+    ...record,
     y: $field,
     x: $result
-  })(record);
+  };
 }
 export const observe = $foreign["observe"];
 export const readTrace = $foreign["readTrace"];
-export const literals = /* @__PURE__ */ Record.merge({})({})({ x: 1 | 0 })({
+export const literals = {
   y: "right",
-  x: 2 | 0
-});
+  x: 1 | 0
+};
