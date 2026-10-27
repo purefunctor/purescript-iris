@@ -24,19 +24,15 @@ source: tests-integration/src/fixtures.rs
               partialDict%4)
           composeArgument%8),
   fromContentPartialLambda:
-    unsafePartial
-      (\partialDict%9 ->
-        \content%10 ->
-          case content%10 of
-            Sentence value%11 ->
-              value%11),
+    \content%10 ->
+      case content%10 of
+        Sentence value%11 ->
+          value%11,
   fromContentLambdaPartial:
     \content%12 ->
-      unsafePartial
-        (\partialDict%13 ->
-          case content%12 of
-            Sentence value%14 ->
-              value%14)
+      case content%12 of
+        Sentence value%14 ->
+          value%14
 }
 
 @export instance contentOverloadArrayString = {
@@ -52,17 +48,13 @@ source: tests-integration/src/fixtures.rs
               partialDict%16)
           composeArgument%20),
   fromContentPartialLambda:
-    unsafePartial
-      (\partialDict%21 ->
-        \content%22 ->
-          case content%22 of
-            Paragraph value%23 ->
-              value%23),
+    \content%22 ->
+      case content%22 of
+        Paragraph value%23 ->
+          value%23,
   fromContentLambdaPartial:
     \content%24 ->
-      unsafePartial
-        (\partialDict%25 ->
-          case content%24 of
-            Paragraph value%26 ->
-              value%26)
+      case content%24 of
+        Paragraph value%26 ->
+          value%26
 }
