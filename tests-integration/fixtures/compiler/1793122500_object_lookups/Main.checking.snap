@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+member :: Prim.String -> Foreign.Object.Object Prim.Int -> Prim.Boolean
+keys :: Foreign.Object.Object Prim.Int -> Prim.Array Prim.String
+index :: Prim.String -> Foreign.Object.Object Prim.Int -> Prim.Int
+indexLiteral :: Foreign.Object.Object Prim.Int -> Prim.Int
+
+Types

@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export member = \key%0 object%1 -> member key%0 object%1
+
+@export keys = \object%2 -> keys object%2
+
+@export index = \key%4 object%3 -> unsafeIndex object%3 key%4
+
+@export indexLiteral = \object%5 ->
+  integer.add (unsafeIndex object%5 "a") (unsafeIndex object%5 "b-c")
