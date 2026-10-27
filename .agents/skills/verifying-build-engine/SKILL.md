@@ -234,7 +234,7 @@ the sync commit.
 
 ## Coverage record
 
-- **Sync commit:** `1d388327c562aeb67e5f971fb42d3eb338a3056e`
+- **Sync commit:** `d3596689241f609b81e620869bfadfdd30283788`
 - **Covered code:**
   - `compiler-core/building/src/engine.rs`: `QueryEngine::query`, `fulfill_and_store`,
     `remove_waiter_edges`, `hand_off_waiter_edges`, `compute_core`, `verify_core`, `create_future`,
@@ -249,7 +249,7 @@ the sync commit.
 To find changes since the sync commit:
 
 ```bash
-git log --oneline 1d388327c562aeb67e5f971fb42d3eb338a3056e..HEAD -- compiler-core/building/src/engine.rs compiler-core/building/src/engine/
+git log --oneline d3596689241f609b81e620869bfadfdd30283788..HEAD -- compiler-core/building/src/engine.rs compiler-core/building/src/engine/
 ```
 
 For each commit, check whether it changes a step in the mapping table. If it does, update the model
