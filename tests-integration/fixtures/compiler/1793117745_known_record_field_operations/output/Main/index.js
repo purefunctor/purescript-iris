@@ -1,25 +1,43 @@
 import * as Record from "../Record/index.js";
 import * as $foreign from "./foreign.js";
 export function get(record) {
-  return /* @__PURE__ */ Record.get({ reflectSymbol: ($proxy) => "x" })({})("Proxy")(record);
+  return record.x;
 }
 export function getQuoted(record) {
-  return /* @__PURE__ */ Record.get({ reflectSymbol: ($proxy) => "first name" })({})("Proxy")(record);
+  return record["first name"];
 }
 export function set(record) {
-  return /* @__PURE__ */ Record.set({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy")("set")(record);
+  return {
+    ...record,
+    x: "set"
+  };
 }
 export function modify(record) {
-  return /* @__PURE__ */ Record.modify({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy")((section151) => section151 + (1 | 0) | 0)(record);
+  return {
+    ...record,
+    x: ((section151) => section151 + (1 | 0) | 0)(record.x)
+  };
 }
 export function insert(record) {
-  return /* @__PURE__ */ Record.insert({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy")(1 | 0)(record);
+  return {
+    ...record,
+    x: 1 | 0
+  };
 }
 export function setOrder(record) {
-  return /* @__PURE__ */ Record.set({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy")(observe("value")("set"))(observe("record")(record));
+  const value = observe("value")("set");
+  return {
+    ...observe("record")(record),
+    x: value
+  };
 }
 export function modifyOrder(record) {
-  return /* @__PURE__ */ Record.modify({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy")(observe("function")((section265) => section265 + (1 | 0) | 0))(observe("record")(record));
+  const modify$1 = observe("function")((section265) => section265 + (1 | 0) | 0);
+  const record$1 = observe("record")(record);
+  return {
+    ...record$1,
+    x: modify$1(record$1.x)
+  };
 }
 export function getPolymorphic(isSymbolLabelDict) {
   return (consLabelValueRestRowDict) => {

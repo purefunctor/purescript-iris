@@ -20,46 +20,50 @@ source: tests-integration/src/fixtures.rs
    | ^ 12:1 modify record =
    |        ^ (modify) 12:1 modify record =
    |                                ^ 12:1 modify record =
- 7 |   return /* @__PURE__ */ Record.modify({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy")(observe("function")((x) => x))(observe("record")(record));
+ 7 |   const modify$1 = observe("function")((x) => x);
+   |   ^ 13:35 observe "function" (\x -> x)) (observe "record" record)
+   |                            ^ 13:43 "function" (\x -> x)) (observe "record" record)
+   |                                      ^ 13:35 observe "function" (\x -> x)) (observe "record" record)
+   |                                         ^ 13:55 \x -> x)) (observe "record" record)
+   |                                               ^ 13:61 x)) (observe "record" record)
+   |                                                ^ 13:35 observe "function" (\x -> x)) (observe "record" record)
+ 8 |   const record$1 = observe("record")(record);
+   |   ^ 13:66 observe "record" record)
+   |                            ^ 13:74 "record" record)
+   |                                    ^ 13:66 observe "record" record)
+   |                                      ^ 13:83 record)
+   |                                            ^ 13:66 observe "record" record)
+ 9 |   return {
    |   ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                    ^ 13:18 Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                           ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                             ^ 13:35 observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                                     ^ 13:43 "function" (\x -> x)) (observe "record" record)
-   |                                                                                                               ^ 13:35 observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                                                  ^ 13:55 \x -> x)) (observe "record" record)
-   |                                                                                                                        ^ 13:61 x)) (observe "record" record)
-   |                                                                                                                         ^ 13:35 observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                                                          ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
-   |                                                                                                                            ^ 13:66 observe "record" record)
-   |                                                                                                                                    ^ 13:74 "record" record)
-   |                                                                                                                                            ^ 13:66 observe "record" record)
-   |                                                                                                                                              ^ 13:83 record)
-   |                                                                                                                                                    ^ 13:66 observe "record" record)
-   |                                                                                                                                                     ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
- 8 | }
+10 |     ...record$1,
+   |     ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
+11 |     x: modify$1(record$1.x)
+   |     ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
+12 |   };
+   |   ^ 13:3 Record.modify (Proxy :: _ "x") (observe "function" (\x -> x)) (observe "record" record)
+13 | }
    | ^ 12:1 modify record =
- 9 | export function withDefaults(options) {
+14 | export function withDefaults(options) {
    | ^ 16:1 withDefaults options = Record.merge options { x: 1, y: "default" }
    |        ^ (withDefaults) 16:1 withDefaults options = Record.merge options { x: 1, y: "default" }
    |                                       ^ 16:1 withDefaults options = Record.merge options { x: 1, y: "default" }
-10 |   return /* @__PURE__ */ Record.merge({})({})(options)({
+15 |   return /* @__PURE__ */ Record.merge({})({})(options)({
    |   ^ 16:24 Record.merge options { x: 1, y: "default" }
    |                                               ^ 16:37 options { x: 1, y: "default" }
    |                                                      ^ 16:24 Record.merge options { x: 1, y: "default" }
    |                                                        ^ 16:45 { x: 1, y: "default" }
-11 |     x: 1 | 0,
+16 |     x: 1 | 0,
    |     ^ 16:45 { x: 1, y: "default" }
    |        ^ 16:50 1, y: "default" }
-12 |     y: "default"
+17 |     y: "default"
    |     ^ 16:45 { x: 1, y: "default" }
    |        ^ 16:56 "default" }
-13 |   });
+18 |   });
    |   ^ 16:45 { x: 1, y: "default" }
    |    ^ 16:24 Record.merge options { x: 1, y: "default" }
-14 | }
+19 | }
    | ^ 16:1 withDefaults options = Record.merge options { x: 1, y: "default" }
-15 | export const observe = $foreign["observe"];
+20 | export const observe = $foreign["observe"];
    | ^ 6:1 foreign import observe :: forall value. String -> value -> value
-16 | export { $delete as "delete" };
+21 | export { $delete as "delete" };
    | ^ 9:1 delete record = Record.delete (Proxy :: _ "x") record
