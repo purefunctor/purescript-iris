@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+removals :: Prim.Array Prim.Int -> Main.Removals
+
+Types
+Removals :: Prim.Type
+
+Synonyms
+type Removals = { emptyFirst :: Data.Maybe.Maybe Prim.Int
+, emptyLast :: Data.Maybe.Maybe Prim.Int
+, final :: Prim.Array Prim.Int
+, first :: Data.Maybe.Maybe Prim.Int
+, last :: Data.Maybe.Maybe Prim.Int
+}

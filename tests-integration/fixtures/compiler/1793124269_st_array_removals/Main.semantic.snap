@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+removals :: Prim.Array Prim.Int -> Main.Removals
+removals = \values ->
+  run
+    (bind {bindST} (thaw values) \array ->
+      bind {bindST} (pop array) \last ->
+        bind {bindST} (shift array) \first ->
+          bind {bindST} new \empty ->
+            bind {bindST} (pop empty) \emptyLast ->
+              bind {bindST} (shift empty) \emptyFirst ->
+                bind {bindST} (freeze array) \final ->
+                  pure {applicativeST} { last, first, emptyLast, emptyFirst, final })

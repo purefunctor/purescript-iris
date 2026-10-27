@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export removals = \values%0 ->
+  uncurried.call effect.bind (effect.copyArray values%0)
+    \array%1 -> effect.bind (pop array%1)
+      \last%2 -> effect.bind (shift array%1)
+        \first%3 -> effect.bind (effect.newArray)
+          \empty%4 -> effect.bind (pop empty%4)
+            \emptyLast%5 -> effect.bind (shift empty%4)
+              \emptyFirst%6 -> effect.bind (effect.copyArray array%1)
+                \final%7 -> effect.pure {
+                  last: last%2,
+                  first: first%3,
+                  emptyLast: emptyLast%5,
+                  emptyFirst: emptyFirst%6,
+                  final: final%7
+                }()
