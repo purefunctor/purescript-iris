@@ -2948,6 +2948,47 @@ mod tests {
     }
 
     #[test]
+    fn test_bracketing_propagates_unverifiable_operator_module() {
+        let mut engine = QueryEngine::default();
+        let mut files = Files::default();
+        prim::configure(&mut engine, &mut files);
+
+        let main = files.insert(
+            "Main.purs",
+            "module Main where\n\nimport Lib (add, (+))\n\nx :: Int\nx = 1 + 2 + 3",
+        );
+        let library = files.insert(
+            "Lib.purs",
+            "module Lib where\n\nadd :: Int -> Int -> Int\nadd a _ = a\n\ninfixl 6 add as +",
+        );
+
+        engine.set_content(main, files.content(main));
+        engine.set_content(library, files.content(library));
+        engine.insert_module_file("Main", main);
+        engine.insert_module_file("Lib", library);
+        engine.lowered(main).unwrap();
+
+        {
+            let shard = engine.derived.lowered.shard(&library);
+            shard.write().insert(library, DerivedState::in_progress(SnapshotId(u32::MAX)));
+        }
+
+        let result = engine.control.local.with_query(QueryKey::Checked(main), |local| {
+            super::LocalState::with_verifying(local, || engine.bracketed(main))
+        });
+        assert_eq!(result.map(|_| ()), Err(QueryError::Unverifiable));
+
+        {
+            let shard = engine.derived.lowered.shard(&library);
+            shard.write().remove(&library);
+        }
+
+        let bracketed = engine.bracketed(main).unwrap();
+        assert_eq!(bracketed.expressions.len(), 1);
+        assert!(bracketed.expressions.values().all(Result::is_ok));
+    }
+
+    #[test]
     fn test_panicking_query_releases_in_progress() {
         let mut engine = QueryEngine::default();
         let mut files = Files::default();
