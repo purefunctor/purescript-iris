@@ -1,7 +1,7 @@
 //! Module-level references and lazy binding requirements.
 
 use functional::initializers::cyclic_initializers;
-use functional::tree::{DeclarationKind, ExpressionKind, Global, GlobalId, Module};
+use functional::tree::{BinaryOperator, DeclarationKind, ExpressionKind, Global, GlobalId, Module};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -71,6 +71,18 @@ pub(super) fn has_local_lazy_initializers(module: &Module) -> bool {
                 if !bindings
                     .iter()
                     .all(|binding| is_abstraction(&module.storage[binding.expression].kind))
+        )
+    })
+}
+
+pub(super) fn has_runtime_operators(module: &Module) -> bool {
+    module.storage.expressions().any(|(_, expression)| {
+        matches!(
+            expression.kind,
+            ExpressionKind::Binary {
+                operator: BinaryOperator::IntegerDivide | BinaryOperator::IntegerModulo,
+                ..
+            }
         )
     })
 }

@@ -185,6 +185,8 @@ impl<'a> Printer<'a, '_> {
                     BinaryOperator::IntegerAdd => ("integer", "add"),
                     BinaryOperator::IntegerSubtract => ("integer", "subtract"),
                     BinaryOperator::IntegerMultiply => ("integer", "multiply"),
+                    BinaryOperator::IntegerDivide => ("integer", "divide"),
+                    BinaryOperator::IntegerModulo => ("integer", "modulo"),
                     BinaryOperator::IntegerAnd => ("integer", "and"),
                     BinaryOperator::IntegerOr => ("integer", "or"),
                     BinaryOperator::IntegerXor => ("integer", "xor"),

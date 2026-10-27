@@ -42,6 +42,7 @@ use crate::writer::{BindingCallTarget, Writer};
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
     collect_module_references, cyclic_instance_initializers, has_local_lazy_initializers,
+    has_runtime_operators,
 };
 use self::stylex::{StyleXTheme, collect_stylex_references, collect_stylex_theme};
 use self::syntax::{
@@ -350,7 +351,9 @@ impl<'m> Generator<'m> {
             kind: foreign_kind.unwrap_or(ForeignSourceKind::JavaScript),
         });
         let lazy_globals = cyclic_instance_initializers(module);
-        let requires_runtime = !lazy_globals.is_empty() || has_local_lazy_initializers(module);
+        let requires_runtime = !lazy_globals.is_empty()
+            || has_local_lazy_initializers(module)
+            || has_runtime_operators(module);
         let runtime_namespace = requires_runtime.then(|| allocator.allocate("$runtime"));
         let lazy_global_names = lazy_globals.into_iter().map(|id| {
             let global_name = &global_names[&id];
@@ -1680,7 +1683,9 @@ impl Generator<'_> {
                         }
                         self.render_non_inline_expression(tree, writer, *right, context)?
                     };
-                let value = binary_expression(tree, *operator, left.value, right.value);
+                let runtime_namespace = self.runtime_namespace.as_ref();
+                let value =
+                    binary_expression(tree, runtime_namespace, *operator, left.value, right.value);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Index { value, index } => {
@@ -2100,7 +2105,7 @@ impl Generator<'_> {
                 let Some(right) = self.inline_expression(tree, *right, context)? else {
                     return Ok(None);
                 };
-                binary_expression(tree, *operator, left, right)
+                binary_expression(tree, self.runtime_namespace.as_ref(), *operator, left, right)
             }
             ExpressionKind::Index { value, index } => {
                 let Some(value) = self.inline_expression(tree, *value, context)? else {

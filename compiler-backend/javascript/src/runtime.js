@@ -12,3 +12,14 @@ export function binding(name, initialize) {
     return value;
   };
 }
+
+export function intDiv(x, y) {
+  if (y === 0) return 0;
+  return y > 0 ? Math.floor(x / y) : -Math.floor(x / -y);
+}
+
+export function intMod(x, y) {
+  if (y === 0) return 0;
+  const yy = Math.abs(y);
+  return ((x % yy) + yy) % yy;
+}

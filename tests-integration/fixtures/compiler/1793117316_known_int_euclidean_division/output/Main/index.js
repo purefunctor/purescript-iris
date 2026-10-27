@@ -1,17 +1,16 @@
 import * as Data_EuclideanRing from "../Data.EuclideanRing/index.js";
+import * as $runtime from "../runtime.js";
 export function integerDivide(left) {
   return (right) => {
-    return /* @__PURE__ */ euclideanRingIntDictDiv(left)(right);
+    return /* @__PURE__ */ $runtime.intDiv(left, right);
   };
 }
 export function integerModulo(left) {
   return (right) => {
-    return /* @__PURE__ */ euclideanRingIntDictMod(left)(right);
+    return /* @__PURE__ */ $runtime.intMod(left, right);
   };
 }
 export function halveAndRemainder(value) {
-  return /* @__PURE__ */ euclideanRingIntDictDiv(value)(2 | 0) + /* @__PURE__ */ euclideanRingIntDictMod(value)(2 | 0) | 0;
+  return /* @__PURE__ */ $runtime.intDiv(value, 2 | 0) + /* @__PURE__ */ $runtime.intMod(value, 2 | 0) | 0;
 }
-const euclideanRingIntDictDiv = /* @__PURE__ */ Data_EuclideanRing.div(Data_EuclideanRing.euclideanRingInt);
-const euclideanRingIntDictMod = /* @__PURE__ */ Data_EuclideanRing.mod(Data_EuclideanRing.euclideanRingInt);
-export const partiallyAppliedDivide = /* @__PURE__ */ euclideanRingIntDictDiv(100 | 0);
+export const partiallyAppliedDivide = /* @__PURE__ */ Data_EuclideanRing.div(Data_EuclideanRing.euclideanRingInt)(100 | 0);

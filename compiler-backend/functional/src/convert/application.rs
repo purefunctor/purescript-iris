@@ -24,6 +24,8 @@ const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
     ("Data.Semiring", "add", "semiringNumber", BinaryOperator::NumberAdd),
     ("Data.Ring", "sub", "ringNumber", BinaryOperator::NumberSubtract),
     ("Data.Semiring", "mul", "semiringNumber", BinaryOperator::NumberMultiply),
+    ("Data.EuclideanRing", "div", "euclideanRingInt", BinaryOperator::IntegerDivide),
+    ("Data.EuclideanRing", "mod", "euclideanRingInt", BinaryOperator::IntegerModulo),
     ("Data.EuclideanRing", "div", "euclideanRingNumber", BinaryOperator::NumberDivide),
     ("Data.Semigroup", "append", "semigroupString", BinaryOperator::StringAppend),
 ];
