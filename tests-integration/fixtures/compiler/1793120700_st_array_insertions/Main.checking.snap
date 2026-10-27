@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+inserted :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+lengths :: Prim.Array Prim.Int
+
+Types

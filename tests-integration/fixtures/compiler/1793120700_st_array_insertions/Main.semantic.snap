@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+inserted :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+inserted = \more ->
+  run
+    (bind {bindST} new \array ->
+      bind {bindST} (push 2 array) \_ ->
+        bind {bindST} (pushAll [3, 4] array) \_ ->
+          bind {bindST} (pushAll (append {semigroupArray} more [9]) array) \_ ->
+            bind {bindST} (unshift 1 array) \_ ->
+              bind {bindST} (unshiftAll more array) \_ -> pure {applicativeST} array)
+
+lengths :: Prim.Array Prim.Int
+lengths =
+  run
+    (bind {bindST} new \array ->
+      bind {bindST} (push 1 array) \pushed ->
+        bind {bindST} (pushAll [2, 3] array) \pushedAll ->
+          bind {bindST} (unshift 0 array) \unshifted ->
+            bind {bindST}
+              (unshiftAll [negate {ringInt} 2, negate {ringInt} 1] array) \unshiftedAll ->
+              pure {applicativeST} [pushed, pushedAll, unshifted, unshiftedAll])
