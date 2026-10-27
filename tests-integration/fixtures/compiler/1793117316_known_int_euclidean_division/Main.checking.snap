@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+integerDivide :: Prim.Int -> Prim.Int -> Prim.Int
+integerModulo :: Prim.Int -> Prim.Int -> Prim.Int
+halveAndRemainder :: Prim.Int -> Prim.Int
+partiallyAppliedDivide :: Prim.Int -> Prim.Int
+
+Types
