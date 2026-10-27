@@ -183,7 +183,10 @@ fn folded_negation(
             ExpressionKind::Literal { literal: Literal::Number(value) },
         ) => Some(Literal::Number(negated_number(value))),
         (
-            UnaryOperator::BooleanNot | UnaryOperator::IntegerNegate | UnaryOperator::NumberNegate,
+            UnaryOperator::BooleanNot
+            | UnaryOperator::IntegerNegate
+            | UnaryOperator::IntegerComplement
+            | UnaryOperator::NumberNegate,
             _,
         ) => None,
     }

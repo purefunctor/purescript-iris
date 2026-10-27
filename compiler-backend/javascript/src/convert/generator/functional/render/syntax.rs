@@ -64,6 +64,7 @@ pub(super) fn unary_expression(
             let value = tree.unary(UnaryOperator::Negate, value);
             integer_coercion_expression(tree, value)
         }
+        FunctionalUnaryOperator::IntegerComplement => tree.unary(UnaryOperator::BitwiseNot, value),
         FunctionalUnaryOperator::NumberNegate => tree.unary(UnaryOperator::Negate, value),
     }
 }
@@ -87,6 +88,22 @@ pub(super) fn binary_expression(
         }
         FunctionalBinaryOperator::IntegerMultiply => {
             integer_binary_expression(tree, BinaryOperator::Multiply, left, right)
+        }
+        FunctionalBinaryOperator::IntegerAnd => {
+            tree.binary(BinaryOperator::BitwiseAnd, left, right)
+        }
+        FunctionalBinaryOperator::IntegerOr => tree.binary(BinaryOperator::BitwiseOr, left, right),
+        FunctionalBinaryOperator::IntegerXor => {
+            tree.binary(BinaryOperator::BitwiseXor, left, right)
+        }
+        FunctionalBinaryOperator::IntegerShiftLeft => {
+            tree.binary(BinaryOperator::ShiftLeft, left, right)
+        }
+        FunctionalBinaryOperator::IntegerShiftRight => {
+            tree.binary(BinaryOperator::ShiftRight, left, right)
+        }
+        FunctionalBinaryOperator::IntegerZeroFillShiftRight => {
+            tree.binary(BinaryOperator::UnsignedShiftRight, left, right)
         }
         FunctionalBinaryOperator::NumberAdd | FunctionalBinaryOperator::StringAppend => {
             tree.binary(BinaryOperator::Add, left, right)

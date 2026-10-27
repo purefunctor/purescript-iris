@@ -153,6 +153,7 @@ impl<'a> Printer<'a, '_> {
                 let operator = match operator {
                     UnaryOperator::BooleanNot => "boolean.not",
                     UnaryOperator::IntegerNegate => "integer.negate",
+                    UnaryOperator::IntegerComplement => "integer.complement",
                     UnaryOperator::NumberNegate => "number.negate",
                 };
                 let value = self.expression_at(*value, ExpressionPrecedence::Atom);
@@ -165,6 +166,14 @@ impl<'a> Printer<'a, '_> {
                     BinaryOperator::IntegerAdd => ("integer", "add"),
                     BinaryOperator::IntegerSubtract => ("integer", "subtract"),
                     BinaryOperator::IntegerMultiply => ("integer", "multiply"),
+                    BinaryOperator::IntegerAnd => ("integer", "and"),
+                    BinaryOperator::IntegerOr => ("integer", "or"),
+                    BinaryOperator::IntegerXor => ("integer", "xor"),
+                    BinaryOperator::IntegerShiftLeft => ("integer", "shift_left"),
+                    BinaryOperator::IntegerShiftRight => ("integer", "shift_right"),
+                    BinaryOperator::IntegerZeroFillShiftRight => {
+                        ("integer", "zero_fill_shift_right")
+                    }
                     BinaryOperator::NumberAdd => ("number", "add"),
                     BinaryOperator::NumberSubtract => ("number", "subtract"),
                     BinaryOperator::NumberMultiply => ("number", "multiply"),
