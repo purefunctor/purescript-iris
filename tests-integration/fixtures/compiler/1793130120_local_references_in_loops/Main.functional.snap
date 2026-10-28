@@ -1,0 +1,58 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export counted = \values%4 ->
+  effect.bind (effect.newReference 0)
+    \total%0 -> effect.bind (effect.forRange
+      0
+      3
+      (\index%1 ->
+        effect.modifyReference (\section70%2 -> integer.add section70%2 index%1) total%0))
+      \$unit%3 -> effect.bind (effect.forEach
+        values%4
+        (\value%5 ->
+          effect.modifyReference (\section91%6 -> integer.add section91%6 value%5) total%0))
+        \$unit%7 -> effect.bind (effect.while
+          (effect.map
+            (\section107%8 -> integer.less_than section107%8 20)
+            (effect.readReference total%0))
+          (effect.modifyReference (\section126%9 -> integer.add section126%9 4) total%0))
+          \$unit%10 -> effect.bind (effect.until
+            (effect.bind (effect.modifyReference
+              (\section145%11 -> integer.add section145%11 1)
+              total%0)
+              \$unit%12 -> effect.map
+                (\section157%13 -> integer.greater_than_or_equal section157%13 25)
+                (effect.readReference total%0)))
+            \$unit%14 -> effect.readReference total%0
+
+@export doubledPerIteration = effect.bind (effect.newReference 0)
+  \total%15 -> effect.bind (effect.forRange
+    1
+    4
+    (\index%16 ->
+      effect.bind (effect.newReference index%16)
+        \local%17 -> effect.bind (effect.modifyReference
+          (\section217%18 -> integer.multiply section217%18 2)
+          local%17)
+          \$unit%19 -> effect.bind (effect.readReference local%17)
+            \value%20 -> effect.modifyReference
+              (\section237%21 -> integer.add section237%21 value%20)
+              total%15))
+    \$unit%22 -> effect.readReference total%15
+
+@export stateCountdown = \start%23 ->
+  uncurried.call effect.bind (effect.newReference start%23)
+    \remaining%24 -> effect.bind (effect.newReference [])
+      \seen%25 -> effect.bind (effect.while
+        (effect.map
+          (\section291%26 -> integer.greater_than section291%26 0)
+          (effect.readReference remaining%24))
+        (effect.bind (effect.readReference remaining%24)
+          \value%27 -> effect.bind (effect.modifyReferenceState
+            (\section320%28 -> [...section320%28, value%27])
+            seen%25)
+            \$array%29 -> effect.modifyReferenceState
+              (\section334%30 -> integer.subtract section334%30 1)
+              remaining%24))
+        \$unit%31 -> effect.readReference seen%25()

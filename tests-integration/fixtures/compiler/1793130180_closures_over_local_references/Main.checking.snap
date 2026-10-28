@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+snapshots :: Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.Int))
+previous :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.Int))
+chained :: Effect.Effect Prim.Int
+readers :: Effect.Effect (Prim.Array Prim.Int)
+
+Types

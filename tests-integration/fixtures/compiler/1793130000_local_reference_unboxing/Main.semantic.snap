@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+refs :: Effect.Effect Prim.Int
+refs =
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect} (write 1 ref) \_ ->
+      discard {discardUnit} {bindEffect} (modify_ (\v58 -> add {semiringInt} v58 1) ref) \_ ->
+        read ref
+
+branches :: Prim.Boolean -> Effect.Effect Prim.String
+branches = \flag ->
+  bind {bindEffect} (new "start") \ref ->
+    if flag then
+      discard {discardUnit} {bindEffect} (write "then" ref) \_ ->
+        map {functorEffect} (\v111 -> append {semigroupString} v111 "!") (read ref)
+    else
+      discard {discardUnit} {bindEffect}
+        (modify_ (\v132 -> append {semigroupString} v132 "-else") ref) \_ -> read ref
+
+stateWrites :: Prim.Int -> Prim.Array Prim.Int
+stateWrites = \start ->
+  run
+    (bind {bindST} (new start) \ref ->
+      bind {bindST} (write (mul {semiringInt} start 2) ref) \written ->
+        bind {bindST} (modify (\v190 -> add {semiringInt} v190 1) ref) \modified ->
+          bind {bindST} (read ref) \final -> pure {applicativeST} [written, modified, final])

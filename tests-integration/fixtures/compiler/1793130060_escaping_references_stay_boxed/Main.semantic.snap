@@ -1,0 +1,40 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+bump :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+bump = \ref -> modify_ (\v41 -> add {semiringInt} v41 1) ref
+
+passed :: Effect.Effect Prim.Int
+passed =
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect} (bump ref) \_ ->
+      discard {discardUnit} {bindEffect} (modify_ (\v75 -> add {semiringInt} v75 10) ref) \_ ->
+        read ref
+
+returned :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+returned =
+  bind {bindEffect} (new 1) \ref ->
+    discard {discardUnit} {bindEffect} (write 2 ref) \_ -> pure {applicativeEffect} ref
+
+stored :: Effect.Effect { counter :: Effect.Ref.Ref Prim.Int }
+stored =
+  bind {bindEffect} (new 3) \ref ->
+    discard {discardUnit} {bindEffect} (modify_ (\v146 -> mul {semiringInt} v146 2) ref) \_ ->
+      pure {applicativeEffect} { counter: ref }
+
+captured :: Prim.Boolean -> Effect.Effect Prim.Int
+captured = \flag ->
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect}
+      (when {applicativeEffect} flag (modify_ (\v192 -> add {semiringInt} v192 5) ref)) \_ ->
+      discard {discardUnit} {bindEffect}
+        (if flag then
+          modify_ (\v209 -> mul {semiringInt} v209 2) ref
+        else
+          pure {applicativeEffect} unit) \_ ->
+        let
+          increment :: Effect.Effect Data.Unit.Unit
+          increment = modify_ (\v231 -> add {semiringInt} v231 1) ref
+        in
+          discard {discardUnit} {bindEffect} increment \_ ->
+            discard {discardUnit} {bindEffect} increment \_ -> read ref
