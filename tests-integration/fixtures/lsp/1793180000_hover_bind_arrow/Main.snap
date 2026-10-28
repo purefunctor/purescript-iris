@@ -1,0 +1,71 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Hover at Position { line: 20, character: 8 }
+
+```
+  value <- Box "life"
+--      $
+```
+
+Range: "do\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  let total = count items\n--$\n  Box total"
+
+```purescript
+Box Int
+```
+
+
+Hover at Position { line: 22, character: 8 }
+
+```
+  items <- empty
+--      $
+```
+
+Range: "do\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  let total = count items\n--$\n  Box total"
+
+```purescript
+Box Int
+```
+
+
+Hover at Position { line: 24, character: 2 }
+
+```
+  let total = count items
+--$
+```
+
+Range: "do\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  let total = count items\n--$\n  Box total"
+
+```purescript
+Box Int
+```
+
+
+Hover at Position { line: 29, character: 8 }
+
+```
+  value <- Box "life"
+--      $
+```
+
+Range: "ado\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  in count items"
+
+```purescript
+Box Int
+```
+
+
+Hover at Position { line: 31, character: 8 }
+
+```
+  items <- empty
+--      $
+```
+
+Range: "ado\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  in count items"
+
+```purescript
+Box Int
+```
