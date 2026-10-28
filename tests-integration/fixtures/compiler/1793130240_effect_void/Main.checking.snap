@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+record :: Prim.String -> Effect.Effect Prim.Int
+takeLog :: Effect.Effect (Prim.Array Prim.String)
+statements :: Effect.Effect Prim.Int
+final :: Effect.Effect Data.Unit.Unit
+nested :: Effect.Effect Data.Unit.Unit
+discarded :: Effect.Effect Prim.Int -> Effect.Effect Data.Unit.Unit
+stateWrite :: Data.Unit.Unit
+
+Types

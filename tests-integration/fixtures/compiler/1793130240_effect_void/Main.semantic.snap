@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import record :: Prim.String -> Effect.Effect Prim.Int
+
+foreign import takeLog :: Effect.Effect (Prim.Array Prim.String)
+
+statements :: Effect.Effect Prim.Int
+statements =
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect}
+      (void {functorEffect} (modify (\v67 -> add {semiringInt} v67 1) ref)) \_ ->
+      discard {discardUnit} {bindEffect}
+        (apply (void {functorEffect}) (modify (\v84 -> add {semiringInt} v84 2) ref)) \_ -> read ref
+
+final :: Effect.Effect Data.Unit.Unit
+final = bind {bindEffect} (record "first") \_ -> void {functorEffect} (record "second")
+
+nested :: Effect.Effect Data.Unit.Unit
+nested = void {functorEffect} (bind {bindEffect} (record "inner") \_ -> record "last")
+
+discarded :: Effect.Effect Prim.Int -> Effect.Effect Data.Unit.Unit
+discarded = \action -> void {functorEffect} action
+
+stateWrite :: Data.Unit.Unit
+stateWrite = run (bind {bindST} (new 0) \ref -> void {functorST} (write 5 ref))
