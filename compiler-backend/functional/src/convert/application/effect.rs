@@ -1,8 +1,9 @@
 use building_types::QueryResult;
 
+use crate::optimize::for_each_expression_child;
 use crate::tree::{
     ArrayEnd, EffectExpression, EffectLoop, EffectPrimitive, ExpressionId, ExpressionKind,
-    ReferenceModifyResult, ReferenceWriteResult,
+    ReferenceModifyResult, ReferenceWriteResult, UnaryOperator,
 };
 
 use super::super::{Context, ConversionResult};
@@ -241,6 +242,74 @@ where
             }
         }
         Ok(None)
+    }
+
+    pub(super) fn known_conditional_effect(
+        &mut self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        for (item_name, negated) in [("when", false), ("unless", true)] {
+            if self.known_term(function, "Control.Applicative", item_name)?
+                && let [applicative_dictionary, condition, action] = *arguments
+                && self.known_thunk_instance(applicative_dictionary, None)?
+                && self.effect_construction_is_total(action)
+                && let Some(unit) = self.unit_effect()?
+            {
+                let condition = if negated {
+                    let operator = UnaryOperator::BooleanNot;
+                    self.expression(ExpressionKind::Unary { operator, value: condition })
+                } else {
+                    condition
+                };
+                let conditional =
+                    ExpressionKind::IfThenElse { condition, then: action, else_: unit };
+                return Ok(Some(self.expression(conditional)));
+            }
+        }
+        Ok(None)
+    }
+
+    fn effect_construction_is_total(&self, expression: ExpressionId) -> bool {
+        let mut pending = vec![expression];
+        while let Some(expression) = pending.pop() {
+            let kind = &self.storage[expression].kind;
+            match kind {
+                ExpressionKind::Literal { .. }
+                | ExpressionKind::Constructor { .. }
+                | ExpressionKind::Global { .. }
+                | ExpressionKind::Local { .. }
+                | ExpressionKind::Abstraction { .. }
+                | ExpressionKind::UncurriedAbstraction { .. }
+                | ExpressionKind::SynthesizedEvidence { .. }
+                | ExpressionKind::TrivialEvidence => {}
+                ExpressionKind::Effect { effect: EffectExpression::Bind { action, .. } } => {
+                    pending.push(*action);
+                }
+                ExpressionKind::Array { .. }
+                | ExpressionKind::Record { .. }
+                | ExpressionKind::Project { .. }
+                | ExpressionKind::Unary { .. }
+                | ExpressionKind::Binary { .. }
+                | ExpressionKind::Effect { .. } => {
+                    for_each_expression_child(kind, |child| pending.push(child));
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+
+    fn unit_effect(&mut self) -> ConversionResult<Option<ExpressionId>> {
+        let Some(file_id) = self.queries.module_file("Data.Unit") else { return Ok(None) };
+        let resolved = self.queries.resolved(file_id)?;
+        let Some((file_id, term_id)) = resolved.exports.lookup_term("unit") else {
+            return Ok(None);
+        };
+        let global = self.term_global(file_id, term_id)?;
+        let unit = self.expression(ExpressionKind::Global { global });
+        let effect = EffectExpression::Pure(unit);
+        Ok(Some(self.expression(ExpressionKind::Effect { effect })))
     }
 
     fn run_effect(&mut self, effect: ExpressionId) -> ExpressionId {

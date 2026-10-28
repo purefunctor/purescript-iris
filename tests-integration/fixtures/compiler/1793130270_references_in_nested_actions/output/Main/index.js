@@ -1,24 +1,19 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
-import * as Effect from "../Effect/index.js";
 export function captured(flag) {
   return () => {
     let ref = 0 | 0;
-    const $function = Control_Applicative.when(Effect.applicativeEffect)(flag);
-    const $effect = () => {
+    if (flag) {
       ref = ref + (5 | 0) | 0;
-    };
-    const $action = /* @__PURE__ */ $function($effect);
-    const $unit = $action();
+    }
     if (flag) {
       ref = ref * (2 | 0) | 0;
     }
-    const $effect$1 = () => {
+    const $effect = () => {
       ref = ref + (1 | 0) | 0;
     };
-    const increment = $effect$1;
+    const increment = $effect;
+    const $unit = increment();
     const $unit$1 = increment();
-    const $unit$2 = increment();
     return ref;
   };
 }
