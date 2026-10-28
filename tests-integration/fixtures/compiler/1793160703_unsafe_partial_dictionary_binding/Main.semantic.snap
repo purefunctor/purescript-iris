@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+positive :: Prim.Partial => Prim.Int -> Prim.Int
+positive = \{partialDict} -> \value -> | greaterThan {ordInt} value 0 -> value
+
+unusedDictionary :: Prim.Int -> Prim.Int
+unusedDictionary = \value -> unsafePartial \{partialDict} -> add {semiringInt} value 1
+
+forwardedDictionary :: Prim.Int -> Prim.Int
+forwardedDictionary = \value -> unsafePartial \{partialDict} -> positive {partialDict} value
+
+forwardedCrash :: Prim.Int -> Prim.Int
+forwardedCrash = \value ->
+  unsafePartial \{partialDict} ->
+    crashWith {partialDict} (append {semigroupString} "crashed with " (show {showInt} value))
+
+extraArguments :: Prim.Int -> Prim.Int
+extraArguments =
+  unsafePartial
+    (\{partialDict} -> \left right -> add {semiringInt} (positive {partialDict} left) right)
+    10

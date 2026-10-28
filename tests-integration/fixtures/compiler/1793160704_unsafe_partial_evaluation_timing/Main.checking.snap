@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+traced :: forall a. Prim.String -> a -> a
+tracedValue :: Prim.Int -> Prim.Int
+tracedCrash :: Prim.Int -> Prim.Int
+tracedFunction :: Prim.Int -> Prim.Int
+
+Types

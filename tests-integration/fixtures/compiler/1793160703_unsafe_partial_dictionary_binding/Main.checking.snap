@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+positive :: Prim.Partial => Prim.Int -> Prim.Int
+unusedDictionary :: Prim.Int -> Prim.Int
+forwardedDictionary :: Prim.Int -> Prim.Int
+forwardedCrash :: Prim.Int -> Prim.Int
+extraArguments :: Prim.Int -> Prim.Int
+
+Types

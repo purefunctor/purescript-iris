@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export tracedValue = \value%1 -> traced "after argument" (traced "inside" value%1)
+
+@export tracedCrash = \value%3 ->
+  integer.add (crashWith <trivial evidence> (traced "message" "crashed")) (traced "unreached"
+    value%3)
+
+@export tracedFunction = traced "function" (\value%5 -> traced "body" value%5)
