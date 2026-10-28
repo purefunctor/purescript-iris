@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+Opaque :: Prim.Type -> Prim.Type
+OpaquePair :: Prim.Type -> Prim.Type -> Prim.Type
+
+Instances
+instance forall a. Data.Eq.Eq a => Data.Eq.Eq (Main.Opaque a)
+
+Derived
+derive Data.Functor.Functor Main.Opaque
+derive Data.Foldable.Foldable Main.Opaque
+derive Data.Bifunctor.Bifunctor Main.OpaquePair
+derive Data.Eq.Eq1 Main.Opaque
+
+Roles
+Opaque = [Nominal]
+OpaquePair = [Nominal, Nominal]

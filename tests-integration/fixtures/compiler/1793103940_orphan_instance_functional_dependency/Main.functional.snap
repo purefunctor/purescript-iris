@@ -1,0 +1,4 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export fromSubject = convert convertSubjectInt "Subject"

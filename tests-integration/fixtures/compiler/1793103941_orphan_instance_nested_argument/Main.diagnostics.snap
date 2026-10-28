@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [OrphanInstance] · Subject.purs:7:1
+  •
+  │
+  • Orphan instance found for: Describe (Array Subject)
+  │
+  │   instance Describe (Array Subject) where
+  │   ╰──────────────────────────────────────
+  •

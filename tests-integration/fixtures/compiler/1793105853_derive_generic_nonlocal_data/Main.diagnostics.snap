@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotDeriveForType] · Main.purs:8:1
+  •
+  │
+  • Cannot derive for type: Wrapper
+  │
+  │   derive instance Generic Wrapper _
+  │   ╰────────────────────────────────
+  •
+
+Error! · [CannotDeriveForType] · Main.purs:10:1
+  •
+  │
+  • Cannot derive for type: Opaque
+  │
+  │   derive instance Generic Opaque _
+  │   ╰───────────────────────────────
+  •
+
+Error! · [FunctionalCodegen] · Main.purs:1:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ The checked representation of an instance declaration is unavailable.
+  │
+  │   module Main where
+  │   ╰────────────────
+  •

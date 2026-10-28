@@ -10,7 +10,7 @@ use crate::source::types;
 use crate::source::types::application::{self, Argument, Options};
 use crate::state::CheckState;
 
-use super::DeriveStrategy;
+use super::{DeriveStrategy, DerivedData};
 
 pub fn check_derive_newtype<Q>(
     state: &mut CheckState,
@@ -77,37 +77,22 @@ where
 pub fn check_derive_newtype_class<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    _class_file: FileId,
-    _class_id: TypeItemId,
-    arguments: &[TypeId],
+    derived: DerivedData,
+    inner_type: TypeId,
 ) -> QueryResult<Option<DeriveStrategy>>
 where
     Q: ExternalQueries,
 {
-    let [newtype_type, inner_type] = arguments else {
-        return Ok(None);
-    };
-
-    let Some((newtype_file, newtype_id)) =
-        toolkit::extract_type_constructor(state, context, *newtype_type)?
-    else {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: *newtype_type });
-        return Ok(None);
-    };
-
-    if newtype_file != context.id {
-        state.insert_error(ErrorKind::NonLocalNewtype { type_id: *newtype_type });
-        return Ok(None);
-    }
+    let DerivedData { derived_type, data_file, data_id } = derived;
 
     let Some(newtype_inner) =
-        toolkit::get_newtype_inner(state, context, newtype_file, newtype_id, *newtype_type)?
+        toolkit::get_newtype_inner(state, context, data_file, data_id, derived_type)?
     else {
-        state.insert_error(ErrorKind::ExpectedNewtype { type_id: *newtype_type });
+        state.insert_error(ErrorKind::ExpectedNewtype { type_id: derived_type });
         return Ok(None);
     };
 
-    if !unification::unify(state, context, *inner_type, newtype_inner.inner)? {
+    if !unification::unify(state, context, inner_type, newtype_inner.inner)? {
         return Ok(None);
     }
 

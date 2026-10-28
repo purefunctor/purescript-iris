@@ -1,43 +1,17 @@
-use building_types::QueryResult;
 use files::FileId;
 use indexing::TypeItemId;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::toolkit;
-use crate::error::ErrorKind;
-use crate::state::CheckState;
 
-use super::DeriveStrategy;
 use super::variance::{FunctionPolicy, ParameterConfig, Variance, VarianceConfig};
+use super::{DeriveStrategy, DerivedData};
 
-pub fn check_derive_functor<Q>(
-    state: &mut CheckState,
-    context: &CheckContext<Q>,
+pub fn check_derive_functor(
     class_file: FileId,
     class_id: TypeItemId,
-    arguments: &[crate::core::TypeId],
-) -> QueryResult<Option<DeriveStrategy>>
-where
-    Q: ExternalQueries,
-{
-    let [derived_type] = arguments else {
-        state.insert_error(ErrorKind::DeriveInvalidArity {
-            class_file,
-            class_id,
-            expected: 1,
-            actual: arguments.len(),
-        });
-        return Ok(None);
-    };
-
-    let Some((data_file, data_id)) =
-        toolkit::extract_type_constructor(state, context, *derived_type)?
-    else {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: *derived_type });
-        return Ok(None);
-    };
-
+    derived: DerivedData,
+) -> DeriveStrategy {
     let parameter = ParameterConfig {
         variance: Variance::Covariant,
         unary_class: Some((class_file, class_id)),
@@ -45,41 +19,23 @@ where
     };
     let config = VarianceConfig::Single { parameter, binary_class: None };
 
-    Ok(Some(DeriveStrategy::VarianceConstraints {
-        data_file,
-        data_id,
-        derived_type: *derived_type,
+    DeriveStrategy::VarianceConstraints {
+        data_file: derived.data_file,
+        data_id: derived.data_id,
+        derived_type: derived.derived_type,
         config,
-    }))
+    }
 }
 
 pub fn check_derive_bifunctor<Q>(
-    state: &mut CheckState,
     context: &CheckContext<Q>,
     class_file: FileId,
     class_id: TypeItemId,
-    arguments: &[crate::core::TypeId],
-) -> QueryResult<Option<DeriveStrategy>>
+    derived: DerivedData,
+) -> DeriveStrategy
 where
     Q: ExternalQueries,
 {
-    let [derived_type] = arguments else {
-        state.insert_error(ErrorKind::DeriveInvalidArity {
-            class_file,
-            class_id,
-            expected: 1,
-            actual: arguments.len(),
-        });
-        return Ok(None);
-    };
-
-    let Some((data_file, data_id)) =
-        toolkit::extract_type_constructor(state, context, *derived_type)?
-    else {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: *derived_type });
-        return Ok(None);
-    };
-
     let parameter = ParameterConfig {
         variance: Variance::Covariant,
         unary_class: context.known_types.functor,
@@ -91,10 +47,10 @@ where
         binary_class: Some((class_file, class_id)),
     };
 
-    Ok(Some(DeriveStrategy::VarianceConstraints {
-        data_file,
-        data_id,
-        derived_type: *derived_type,
+    DeriveStrategy::VarianceConstraints {
+        data_file: derived.data_file,
+        data_id: derived.data_id,
+        derived_type: derived.derived_type,
         config,
-    }))
+    }
 }

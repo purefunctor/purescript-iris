@@ -12,7 +12,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::constraint::{CanonicalConstraint, CanonicalConstraintId};
-use crate::core::fd::{get_all_determined, get_functional_dependencies};
+use crate::core::fd::{self, get_all_determined, get_functional_dependencies};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
     ApplicationArgument, CheckedInstance, Type, TypeId, constraint, normalise, toolkit,
@@ -70,7 +70,7 @@ impl InstanceChains {
     }
 }
 
-pub fn validate_declared_instance_overlap<Q>(
+pub fn validate_declared_instance<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     item_id: InstanceSourceItemId,
@@ -85,6 +85,19 @@ where
 
     if toolkit::contains_unknown(state, context, instance.signature)? {
         state.absorb_unknown(instance.signature);
+        return Ok(());
+    }
+
+    let derives_from_data = match item_id {
+        InstanceSourceItemId::Instance(_) => false,
+        InstanceSourceItemId::Derive(item_id) => {
+            context.lowered.tree.get_derive_item(item_id).is_some_and(|item| !item.newtype)
+        }
+    };
+
+    if !derives_from_data && let Some(constraint) = orphan_instance_head(state, context, instance)?
+    {
+        state.insert_error(ErrorKind::OrphanInstance { constraint });
         return Ok(());
     }
 
@@ -133,6 +146,72 @@ where
             let origin = InstanceCandidateOrigin::Derive(context.id, id);
             Some((origin, instance))
         }
+    }
+}
+
+fn orphan_instance_head<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    instance: CheckedInstance,
+) -> QueryResult<Option<TypeId>>
+where
+    Q: ExternalQueries,
+{
+    let (class_file, class_id) = instance.resolution;
+    if class_file == context.id {
+        return Ok(None);
+    }
+
+    let Some(toolkit::InstanceInfo { arguments, .. }) =
+        toolkit::instance_info(state, context, instance.signature, instance.resolution)?
+    else {
+        return Ok(None);
+    };
+
+    let Some(class) = toolkit::lookup_file_class(state, context, class_file, class_id)? else {
+        return Ok(None);
+    };
+
+    let type_arguments = constraint::matching::type_arguments(&arguments);
+    if type_arguments.len() != class.type_parameters.len() {
+        return Ok(None);
+    }
+
+    let mut foreign_positions = FxHashSet::default();
+    for (position, &argument) in type_arguments.iter().enumerate() {
+        if head_constructor_file(state, context, argument)? != Some(context.id) {
+            foreign_positions.insert(position);
+        }
+    }
+
+    let all_positions = (0..type_arguments.len()).collect();
+    if !fd::positions_cover_all(&class.functional_dependencies, &foreign_positions, &all_positions)
+    {
+        return Ok(None);
+    }
+
+    let head = state.canonicals.intern(CanonicalConstraint {
+        file_id: class_file,
+        type_id: class_id,
+        arguments: Rc::from(arguments),
+    });
+
+    Ok(Some(state.canonicals.type_id(context, head)))
+}
+
+fn head_constructor_file<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<Option<FileId>>
+where
+    Q: ExternalQueries,
+{
+    let (function, _) = toolkit::extract_type_application(state, context, id)?;
+    match *context.lookup_type(function) {
+        Type::Constructor(file_id, _) => Ok(Some(file_id)),
+        Type::Kinded(inner, _) => head_constructor_file(state, context, inner),
+        _ => Ok(None),
     }
 }
 

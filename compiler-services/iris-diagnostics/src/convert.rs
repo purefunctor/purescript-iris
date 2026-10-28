@@ -740,6 +740,11 @@ impl ToDiagnostics for CheckingError {
                 let message = format!("No instance found for: {constraint}");
                 ("NoInstanceFound", message)
             }
+            ErrorKind::OrphanInstance { constraint } => {
+                let constraint = render_type(*constraint)?;
+                let message = format!("Orphan instance found for: {constraint}");
+                ("OrphanInstance", message)
+            }
             ErrorKind::OverlappingInstances { constraint, .. } => {
                 let constraint = render_type(*constraint)?;
                 let message = format!("Overlapping type class instances found for: {constraint}");

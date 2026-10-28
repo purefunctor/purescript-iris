@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+fromSubject :: Prim.Int
+fromSubject = convert {convertSubjectInt} Subject

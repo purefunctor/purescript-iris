@@ -10,6 +10,15 @@ Error! · [NonLocalNewtype] · Main.purs:6:1
   │   ╰───────────────────────────────────
   •
 
+Error! · [OrphanInstance] · Main.purs:6:1
+  •
+  │
+  • Orphan instance found for: Show Wrapper
+  │
+  │   derive newtype instance Show Wrapper
+  │   ╰───────────────────────────────────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
   │

@@ -6,15 +6,15 @@ use itertools::Itertools;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::{
-    CheckedInstance, Type, constraint, generalise, signature, toolkit, unification, zonk,
+    CheckedInstance, Type, TypeId, constraint, generalise, signature, toolkit, unification, zonk,
 };
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::types;
 use crate::state::CheckState;
 
 use super::{
-    DeriveDispatch, DeriveHeadResult, contravariant, derive_dispatch, eq_ord, eq1_ord1, foldable,
-    functor, generic, newtype, traversable,
+    DeriveDispatch, DeriveHeadResult, DeriveStrategy, DerivedData, contravariant, derive_dispatch,
+    eq_ord, eq1_ord1, foldable, functor, generic, newtype, tools, traversable,
 };
 
 pub fn check_derive_declarations<Q>(
@@ -94,6 +94,108 @@ where
     })
 }
 
+struct CheckKnownClassDerive<'a> {
+    class_file: FileId,
+    class_id: TypeItemId,
+    class_arity_matches: bool,
+    arguments: &'a [TypeId],
+}
+
+fn check_known_class_derive<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    item: CheckKnownClassDerive,
+) -> QueryResult<Option<DeriveStrategy>>
+where
+    Q: ExternalQueries,
+{
+    let CheckKnownClassDerive { class_file, class_id, class_arity_matches, arguments } = item;
+
+    let dispatch = derive_dispatch(context, class_file, class_id);
+    let Some(expected) = dispatch.arity() else {
+        state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
+        return Ok(None);
+    };
+
+    if arguments.len() != expected {
+        if class_arity_matches {
+            state.insert_error(ErrorKind::DeriveInvalidArity {
+                class_file,
+                class_id,
+                expected,
+                actual: arguments.len(),
+            });
+        }
+        return Ok(None);
+    }
+
+    let derived_type = arguments[0];
+    let local_type = if dispatch.accepts_foreign_data() {
+        tools::extract_local_type_constructor(state, context, derived_type)?
+    } else {
+        tools::extract_local_algebraic_data(state, context, derived_type)?
+    };
+
+    let Some((data_file, data_id)) = local_type else {
+        state.insert_error(ErrorKind::CannotDeriveForType { type_id: derived_type });
+        return Ok(None);
+    };
+
+    let derived = DerivedData { derived_type, data_file, data_id };
+
+    let strategy = match dispatch {
+        DeriveDispatch::Eq | DeriveDispatch::Ord => {
+            Some(eq_ord::check_derive_field_constraints(class_file, class_id, derived))
+        }
+        DeriveDispatch::Eq1 => {
+            eq1_ord1::check_derive_eq1(state, context, class_file, class_id, derived)
+        }
+        DeriveDispatch::Ord1 => {
+            eq1_ord1::check_derive_ord1(state, context, class_file, class_id, derived)
+        }
+        DeriveDispatch::Functor => {
+            Some(functor::check_derive_functor(class_file, class_id, derived))
+        }
+        DeriveDispatch::Bifunctor => {
+            Some(functor::check_derive_bifunctor(context, class_file, class_id, derived))
+        }
+        DeriveDispatch::Contravariant => {
+            Some(contravariant::check_derive_contravariant(class_file, class_id, derived))
+        }
+        DeriveDispatch::Profunctor => {
+            Some(contravariant::check_derive_profunctor(context, derived))
+        }
+        DeriveDispatch::Foldable => {
+            Some(foldable::check_derive_foldable(context, class_file, class_id, derived))
+        }
+        DeriveDispatch::Bifoldable => {
+            Some(foldable::check_derive_bifoldable(context, class_file, class_id, derived))
+        }
+        DeriveDispatch::Traversable => {
+            Some(traversable::check_derive_traversable(context, class_file, class_id, derived))
+        }
+        DeriveDispatch::Bitraversable => {
+            Some(traversable::check_derive_bitraversable(context, class_file, class_id, derived))
+        }
+        DeriveDispatch::Newtype => {
+            newtype::check_derive_newtype_class(state, context, derived, arguments[1])?
+        }
+        DeriveDispatch::Generic => generic::check_derive_generic(
+            state,
+            context,
+            class_file,
+            class_id,
+            derived,
+            arguments[1],
+        )?,
+        DeriveDispatch::Unsupported => {
+            unreachable!("invariant violated: unsupported dispatch has no derive arity")
+        }
+    };
+
+    Ok(strategy)
+}
+
 fn check_derive_declaration_core<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -124,7 +226,8 @@ where
         signature.arguments().collect_vec()
     };
 
-    if expected_kinds.len() != arguments.len() {
+    let class_arity_matches = expected_kinds.len() == arguments.len();
+    if !class_arity_matches {
         state.insert_error(ErrorKind::DeriveInvalidArity {
             class_file,
             class_id,
@@ -166,102 +269,13 @@ where
     let strategy = if newtype {
         newtype::check_derive_newtype(state, context, class_file, class_id, &checked_arguments)?
     } else {
-        match derive_dispatch(context, class_file, class_id) {
-            DeriveDispatch::Eq => {
-                eq_ord::check_derive_eq(state, context, class_file, class_id, &checked_arguments)?
-            }
-            DeriveDispatch::Eq1 => eq1_ord1::check_derive_eq1(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Functor => functor::check_derive_functor(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Bifunctor => functor::check_derive_bifunctor(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Contravariant => contravariant::check_derive_contravariant(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Profunctor => contravariant::check_derive_profunctor(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Foldable => foldable::check_derive_foldable(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Bifoldable => foldable::check_derive_bifoldable(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Traversable => traversable::check_derive_traversable(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Bitraversable => traversable::check_derive_bitraversable(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Newtype => newtype::check_derive_newtype_class(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Generic => generic::check_derive_generic(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Ord => {
-                eq_ord::check_derive_ord(state, context, class_file, class_id, &checked_arguments)?
-            }
-            DeriveDispatch::Ord1 => eq1_ord1::check_derive_ord1(
-                state,
-                context,
-                class_file,
-                class_id,
-                &checked_arguments,
-            )?,
-            DeriveDispatch::Unsupported => {
-                state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
-                None
-            }
-        }
+        let item = CheckKnownClassDerive {
+            class_file,
+            class_id,
+            class_arity_matches,
+            arguments: &checked_arguments,
+        };
+        check_known_class_derive(state, context, item)?
     };
 
     let resolution = (class_file, class_id);

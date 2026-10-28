@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [NoInstanceFound] · Main.purs:8:8
+  •
+  │
+  • No instance found for: Describe Subject
+  │
+  │   test = describe Subject
+  │          ╰───────────────
+  •
+
+Error! · [OrphanInstance] · Orphan.purs:6:1
+  •
+  │
+  • Orphan instance found for: Describe Subject
+  │
+  │   instance Describe Subject where
+  │   ╰──────────────────────────────
+  •

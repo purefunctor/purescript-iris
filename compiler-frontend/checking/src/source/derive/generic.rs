@@ -11,34 +11,20 @@ use crate::error::ErrorKind;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
-use super::{DeriveStrategy, tools};
+use super::{DeriveStrategy, DerivedData, tools};
 
 pub fn check_derive_generic<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     class_file: FileId,
     class_id: indexing::TypeItemId,
-    arguments: &[TypeId],
+    derived: DerivedData,
+    wildcard_type: TypeId,
 ) -> QueryResult<Option<DeriveStrategy>>
 where
     Q: ExternalQueries,
 {
-    let [derived_type, wildcard_type] = arguments else {
-        state.insert_error(ErrorKind::DeriveInvalidArity {
-            class_file,
-            class_id,
-            expected: 2,
-            actual: arguments.len(),
-        });
-        return Ok(None);
-    };
-
-    let Some((data_file, data_id)) =
-        toolkit::extract_type_constructor(state, context, *derived_type)?
-    else {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: *derived_type });
-        return Ok(None);
-    };
+    let DerivedData { derived_type, data_file, data_id } = derived;
 
     let Some(ref known_generic) = context.known_generic else {
         state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
@@ -47,9 +33,9 @@ where
 
     let constructors = tools::lookup_data_constructors(context, data_file, data_id)?;
     let generic_rep =
-        build_generic_rep(state, context, known_generic, data_file, *derived_type, &constructors)?;
+        build_generic_rep(state, context, known_generic, data_file, derived_type, &constructors)?;
 
-    if !unification::unify(state, context, *wildcard_type, generic_rep)? {
+    if !unification::unify(state, context, wildcard_type, generic_rep)? {
         return Ok(None);
     }
     Ok(Some(DeriveStrategy::Generic { data_file, data_id }))

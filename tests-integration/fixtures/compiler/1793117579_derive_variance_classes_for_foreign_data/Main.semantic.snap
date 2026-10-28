@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+dictionary eqOpaque :: forall a. { eqDict :: Data.Eq.Eq a } => Data.Eq.Eq (Main.Opaque a) where
+  eq :: Main.Opaque a -> Main.Opaque a -> Prim.Boolean
+  eq = \_ -> \_ -> true
+
+dictionary eq1Opaque :: Data.Eq.Eq1 Main.Opaque where
+  eq1 :: forall a. Data.Eq.Eq a => Main.Opaque a -> Main.Opaque a -> Prim.Boolean
+  eq1 = \{eqDict} -> eq {eqOpaque {eqDict}}
