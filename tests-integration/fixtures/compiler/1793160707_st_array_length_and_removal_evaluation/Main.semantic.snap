@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: forall a. Prim.String -> a -> a
+
+removals :: Prim.Array Prim.Int -> Main.Removals
+removals = \values ->
+  run
+    (bind {bindST} (thaw values) \array ->
+      bind {bindST} (length (traced "length array" array)) \length ->
+        bind {bindST} (pop (traced "pop array" array)) \last ->
+          bind {bindST} (shift (traced "shift array" array)) \first ->
+            bind {bindST} (freeze array) \final ->
+              pure {applicativeST} { length, last, first, final })

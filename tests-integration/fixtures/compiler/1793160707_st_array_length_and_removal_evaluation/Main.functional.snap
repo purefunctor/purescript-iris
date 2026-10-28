@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export removals = \values%0 ->
+  uncurried.call effect.bind (effect.copyArray values%0)
+    \array%1 -> effect.bind (effect.arrayLength (traced "length array" array%1))
+      \length%2 -> effect.bind (effect.popArray (traced "pop array" array%1))
+        \last%3 -> effect.bind (effect.shiftArray (traced "shift array" array%1))
+          \first%4 -> effect.bind (effect.copyArray array%1)
+            \final%5 -> effect.pure {
+              length: length%2,
+              last: last%3,
+              first: first%4,
+              final: final%5
+            }()
