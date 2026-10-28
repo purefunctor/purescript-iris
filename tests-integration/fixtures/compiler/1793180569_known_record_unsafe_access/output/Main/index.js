@@ -1,18 +1,24 @@
 import * as Record_Unsafe from "../Record.Unsafe/index.js";
 export function readX(point) {
-  return Record_Unsafe.unsafeGet("x")(point);
+  return point.x;
 }
 export function readSpacedLabel(person) {
-  return Record_Unsafe.unsafeGet("first name")(person);
+  return person["first name"];
 }
 export function setX(value) {
   return (point) => {
-    return Record_Unsafe.unsafeSet("x")(value)(point);
+    return {
+      ...point,
+      x: value
+    };
   };
 }
 export function addZ(value) {
   return (point) => {
-    return Record_Unsafe.unsafeSet("z")(value)(point);
+    return {
+      ...point,
+      z: value
+    };
   };
 }
 export function readLabel(label) {

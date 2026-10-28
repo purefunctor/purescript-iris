@@ -4,13 +4,13 @@ use building_types::QueryResult;
 use files::FileId;
 use indexing::{IndexedTermItemKind, TypeItemId};
 use itertools::Itertools;
-use smol_str::format_smolstr;
+use smol_str::{SmolStr, format_smolstr};
 
 use crate::optimize::local_uses;
 use crate::tree::{
     ArrayElement, BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId,
-    ExpressionKind, GlobalId, InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType,
-    RecordField, UnaryOperator,
+    ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter, PatternKind,
+    PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
@@ -150,6 +150,12 @@ where
             && let Some((function, arguments)) = known_arguments.split_first()
             && arguments.len() == arity
         {
+            if self.known_term(*function, "Record.Unsafe.Union", "unsafeUnionFn")?
+                && let [left, right] = arguments
+                && let Some(fields) = self.literal_record_union(*left, *right)
+            {
+                return Ok(self.expression(ExpressionKind::Record { fields }));
+            }
             return Ok(self.expression(ExpressionKind::UncurriedApplication {
                 function: *function,
                 arguments: arguments.into(),
@@ -342,6 +348,43 @@ where
         {
             return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
         }
+        if self.known_term(function, "Record.Unsafe", "unsafeGet")?
+            && let [label, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+        {
+            let field = self.label_field(label);
+            return Ok(Some(ExpressionKind::Project { record: *record, field }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeSet")?
+            && let [label, value, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+        {
+            let field = self.label_field(label);
+            let updates = [RecordUpdate::Leaf { field, expression: *value }].into();
+            return Ok(Some(ExpressionKind::RecordUpdate { record: *record, updates }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeHas")?
+            && let [label, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+            && let Some(fields) = self.literal_record_fields(*record)
+        {
+            let has = fields.iter().any(|field| field.field.name == label);
+            return Ok(Some(ExpressionKind::Literal { literal: Literal::Boolean(has) }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeDelete")?
+            && let [label, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+            && let Some(fields) = self.literal_record_fields(*record)
+        {
+            let fields = fields.iter().filter(|field| field.field.name != label).cloned();
+            return Ok(Some(ExpressionKind::Record { fields: fields.collect() }));
+        }
+        if self.known_term(function, "Record.Unsafe.Union", "unsafeUnion")?
+            && let [left, right] = arguments
+            && let Some(fields) = self.literal_record_union(*left, *right)
+        {
+            return Ok(Some(ExpressionKind::Record { fields }));
+        }
         if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
             self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?
             && let Some(operand) = self.known_primitive_instance(record, "Data.Eq", EQ_INSTANCES)?
@@ -393,6 +436,37 @@ where
             }
         }
         Ok(None)
+    }
+
+    fn literal_label(&self, expression: ExpressionId) -> Option<SmolStr> {
+        let ExpressionKind::Literal { literal: Literal::String(label) } =
+            &self.storage[expression].kind
+        else {
+            return None;
+        };
+        label.to_utf8().ok().map(SmolStr::from)
+    }
+
+    fn literal_record_fields(&self, expression: ExpressionId) -> Option<&Arc<[RecordField]>> {
+        let ExpressionKind::Record { fields } = &self.storage[expression].kind else {
+            return None;
+        };
+        let labelled =
+            fields.iter().all(|field| matches!(field.field.identity, FieldIdentity::Label(_)));
+        labelled.then_some(fields)
+    }
+
+    fn literal_record_union(
+        &self,
+        left: ExpressionId,
+        right: ExpressionId,
+    ) -> Option<Arc<[RecordField]>> {
+        let left = self.literal_record_fields(left)?;
+        let right = self.literal_record_fields(right)?;
+        let right = right.iter().filter(|field| {
+            left.iter().all(|left_field| left_field.field.name != field.field.name)
+        });
+        Some(left.iter().chain(right).cloned().collect())
     }
 
     fn array_concatenation(&self, left: ExpressionId, right: ExpressionId) -> ExpressionKind {

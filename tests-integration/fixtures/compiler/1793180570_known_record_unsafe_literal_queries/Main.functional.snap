@@ -1,12 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export literalHasX = unsafeHas "x" { x: 1, y: 2 }
+@export literalHasX = true
 
-@export literalHasZ = unsafeHas "z" { x: 1, y: 2 }
+@export literalHasZ = false
 
 @export hasX = \point%0 -> unsafeHas "x" point%0
 
-@export literalDeleteY = \value%1 -> unsafeDelete "y" { x: value%1, y: 2 }
+@export literalDeleteY = \value%1 -> { x: value%1 }
 
 @export deleteY = \point%2 -> unsafeDelete "y" point%2
