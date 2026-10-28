@@ -1,0 +1,82 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Data_Show from "../Data.Show/index.js";
+   | ^ 3:1 import Prelude
+ 2 | export function written(start) {
+   | ^ 18:1 written start = ST.run do
+   |        ^ (written) 18:1 written start = ST.run do
+   |                                ^ 18:1 written start = ST.run do
+ 3 |   const ref = { value: start };
+   |   ^ 19:10 STRef.new start
+   |                        ^ 19:20 start
+   |                              ^ 19:10 STRef.new start
+ 4 |   const $value = start + (1 | 0) | 0;
+   |   ^ 20:25 start + 1) ref
+   |                           ^ 20:33 1) ref
+   |                                    ^ 20:25 start + 1) ref
+ 5 |   const value = ref.value = $value;
+   |   ^ 20:12 STRef.write (start + 1) ref
+   |                 ^ 20:36 ref
+   |                     ^ 20:12 STRef.write (start + 1) ref
+   |                             ^ 20:25 start + 1) ref
+ 6 |   return ref.value = ref.value + value | 0;
+   |   ^ 21:3 STRef.modify (_ + value) ref
+   |          ^ 21:28 ref
+   |              ^ 21:3 STRef.modify (_ + value) ref
+   |                      ^ 21:28 ref
+   |                          ^ 21:3 STRef.modify (_ + value) ref
+   |                                  ^ 21:21 value) ref
+   |                                          ^ 21:17 _ + value) ref
+ 7 | }
+   | ^ 18:1 written start = ST.run do
+ 8 | export const labelled = /* @__PURE__ */ (() => {
+   | ^ 11:1 labelled = do
+   |              ^ (labelled) 11:1 labelled = do
+   |                                                ^ 11:1 labelled = do
+ 9 |   return () => {
+   |   ^ (labelled) 11:12 do
+   |                ^ 11:12 do
+10 |     const ref = { value: 1 | 0 };
+   |     ^ 12:10 Ref.new 1
+   |                          ^ 12:18 1
+   |                                ^ 12:10 Ref.new 1
+11 |     const state = ref.value;
+   |     ^ 13:12 Ref.modify' (\state -> { state: state + 1, value: show state }) ref
+   |                   ^ 13:76 ref
+   |                       ^ 13:12 Ref.modify' (\state -> { state: state + 1, value: show state }) ref
+12 |     const $modified = {
+   |     ^ 13:12 Ref.modify' (\state -> { state: state + 1, value: show state }) ref
+   |                       ^ 13:35 { state: state + 1, value: show state }) ref
+13 |       state: state + (1 | 0) | 0,
+   |       ^ 13:35 { state: state + 1, value: show state }) ref
+   |              ^ 13:44 state + 1, value: show state }) ref
+   |                       ^ 13:52 1, value: show state }) ref
+   |                                ^ 13:44 state + 1, value: show state }) ref
+14 |       value: /* @__PURE__ */ Data_Show.show(Data_Show.showInt)(state)
+   |       ^ 13:35 { state: state + 1, value: show state }) ref
+   |              ^ 13:62 show state }) ref
+   |                                                                ^ 13:67 state }) ref
+   |                                                                     ^ 13:62 show state }) ref
+15 |     };
+   |     ^ 13:35 { state: state + 1, value: show state }) ref
+16 |     ref.value = $modified.state;
+   |     ^ 13:76 ref
+   |         ^ 13:12 Ref.modify' (\state -> { state: state + 1, value: show state }) ref
+17 |     const label = $modified.value;
+   |     ^ 13:12 Ref.modify' (\state -> { state: state + 1, value: show state }) ref
+18 |     ref.value = ref.value * (2 | 0) | 0;
+   |     ^ 14:23 ref
+   |         ^ 14:3 Ref.modify_ (_ * 2) ref
+   |                 ^ 14:23 ref
+   |                     ^ 14:3 Ref.modify_ (_ * 2) ref
+   |                              ^ 14:20 2) ref
+   |                                       ^ 14:16 _ * 2) ref
+19 |     return label;
+   |     ^ 15:3 pure label
+   |            ^ 15:8 label
+20 |   };
+   |   ^ 11:12 do
+21 | })();
+   | ^ 11:1 labelled = do
+   |   ^ (labelled) 11:1 labelled = do
