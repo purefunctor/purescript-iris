@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export fonts = ["Inter", "sans-serif"]
-
-@export styles = stylex.create { root: { fontFamily: [...fonts, "serif"] } }
+Module Main rejected; see Main.diagnostics.snap

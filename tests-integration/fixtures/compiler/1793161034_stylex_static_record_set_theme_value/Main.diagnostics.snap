@@ -1,4 +1,14 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-
+Error! · [FunctionalCodegen] · Main.purs:10:1
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ 'Iris.StyleX.create' cannot update a record that a StyleX call defines, such as a defineConsts
+  │ or defineVars value; StyleX does not copy its fields into the update.
+  │
+  │   styles = StyleX.create
+  │   ╰─────────────────────
+  •

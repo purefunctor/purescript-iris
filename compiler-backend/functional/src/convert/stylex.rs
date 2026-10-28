@@ -15,8 +15,8 @@ use crate::stylex::{
     StyleXRootCall, StyleXRootIntrinsic, StyleXTypeCall, StyleXWhenRelation,
 };
 use crate::tree::{
-    Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Field, GlobalId, LocalId,
-    Parameter, PatternKind, RecordField,
+    BinaryOperator, Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Field,
+    GlobalId, LocalId, Parameter, PatternKind, RecordField,
 };
 
 use super::{Context, ConversionResult, term_declaration};
@@ -561,13 +561,33 @@ where
             ExpressionKind::StyleX(StyleXExpression::Call {
                 target: StyleXCallTarget::Root(StyleXRootCall::Props | StyleXRootCall::Attrs),
                 ..
-            }) => return Err(invalid()),
+            })
+            | ExpressionKind::Binary {
+                operator: BinaryOperator::IntegerDivide | BinaryOperator::IntegerModulo,
+                ..
+            } => return Err(invalid()),
+            ExpressionKind::RecordUpdate { record, .. } => {
+                try_for_each_expression_child(&self.storage[expression].kind, |child| {
+                    self.validate_stylex_static_expression(
+                        child,
+                        call,
+                        declaration,
+                        bindings,
+                        visiting,
+                    )
+                })?;
+                if self.stylex_definition_reference(*record, bindings) {
+                    return Err(self.invalid_stylex_context(
+                        StyleXIntrinsic::Root(StyleXRootIntrinsic::Call(call)),
+                        "cannot update a record that a StyleX call defines, such as a defineConsts or defineVars value; StyleX does not copy its fields into the update",
+                        declaration.global.id,
+                    ));
+                }
+            }
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
-            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
-            | ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::Unary { .. }
             | ExpressionKind::Binary { .. }
             | ExpressionKind::Index { .. }
@@ -587,6 +607,32 @@ where
         }
         visiting.remove(&expression);
         Ok(())
+    }
+
+    fn stylex_definition_reference(
+        &self,
+        expression: ExpressionId,
+        bindings: &StyleXStaticBindings,
+    ) -> bool {
+        match &self.storage[expression].kind {
+            ExpressionKind::Global { global } => match bindings.globals.get(&global.id) {
+                Some(&value) => {
+                    matches!(
+                        self.storage[value].kind,
+                        ExpressionKind::StyleX(StyleXExpression::Call {
+                            target: StyleXCallTarget::Root(_),
+                            ..
+                        })
+                    ) || self.stylex_definition_reference(value, bindings)
+                }
+                None => bindings.imports.get(&global.id) == Some(&true),
+            },
+            ExpressionKind::Local { parameter } => bindings
+                .locals
+                .get(&parameter.id)
+                .is_some_and(|&value| self.stylex_definition_reference(value, bindings)),
+            _ => false,
+        }
     }
 
     /// A `create` namespace is a record of static declarations, or a function of one named
@@ -710,6 +756,7 @@ where
             | ExpressionKind::Abstraction { .. }
             | ExpressionKind::UncurriedAbstraction { .. }
             | ExpressionKind::IfThenElse { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
@@ -724,7 +771,6 @@ where
             }
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
-            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }

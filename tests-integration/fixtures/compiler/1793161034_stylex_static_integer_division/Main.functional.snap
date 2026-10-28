@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export styles = stylex.create {
-  root: { padding: integer.divide 17 4, margin: integer.modulo 17 4 }
-}
+Module Main rejected; see Main.diagnostics.snap
