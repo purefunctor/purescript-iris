@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+describe ::
+  Effect.Ref.Ref Prim.Int -> Effect.Ref.Ref (Prim.Array Prim.String) -> Effect.Effect Data.Unit.Unit
+describeGuarded ::
+  Effect.Ref.Ref Prim.Int -> Effect.Ref.Ref (Prim.Array Prim.String) -> Effect.Effect Data.Unit.Unit
+describeEach :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array Prim.String)
+describeCountdown :: Prim.Int -> Effect.Effect (Prim.Array Prim.String)
+
+Types

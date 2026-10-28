@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+describe :: Effect.Ref.Ref Prim.Int -> Effect.Ref.Ref (Prim.Array Prim.String) -> Effect.Effect Data.Unit.Unit
+describe = \source -> \log ->
+  bind {bindEffect} (read source) \value ->
+    case value of
+      0 -> modify_ (\v67 -> append {semigroupArray} v67 ["zero"]) log
+      1 -> modify_ (\v85 -> append {semigroupArray} v85 ["one"]) log
+      _ -> modify_ (\v103 -> append {semigroupArray} v103 ["many"]) log
+
+describeGuarded :: Effect.Ref.Ref Prim.Int -> Effect.Ref.Ref (Prim.Array Prim.String) -> Effect.Effect Data.Unit.Unit
+describeGuarded = \source -> \log ->
+  bind {bindEffect} (read source) \value ->
+    case value of
+      n
+        | greaterThan {ordInt} n 10 -> modify_ (\v165 -> append {semigroupArray} v165 ["big"]) log
+        | greaterThan {ordInt} n 0 -> modify_ (\v186 -> append {semigroupArray} v186 ["small"]) log
+      _ -> modify_ (\v204 -> append {semigroupArray} v204 ["none"]) log
+
+describeEach :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array Prim.String)
+describeEach = \values ->
+  bind {bindEffect} (new []) \log ->
+    discard {discardUnit} {bindEffect}
+      (foreachE values \value ->
+        case value of
+          0 -> modify_ (\v260 -> append {semigroupArray} v260 ["zero"]) log
+          1 -> modify_ (\v278 -> append {semigroupArray} v278 ["one"]) log
+          _ -> modify_ (\v296 -> append {semigroupArray} v296 ["many"]) log) \_ -> read log
+
+describeCountdown :: Prim.Int -> Effect.Effect (Prim.Array Prim.String)
+describeCountdown = \start ->
+  bind {bindEffect} (new start) \counter ->
+    bind {bindEffect} (new []) \log ->
+      discard {discardUnit} {bindEffect}
+        (whileE (map {functorEffect} (\v349 -> greaterThanOrEq {ordInt} v349 0) (read counter))
+          (bind {bindEffect} (read counter) \current ->
+            discard {discardUnit} {bindEffect} (write (sub {ringInt} current 1) counter) \_ ->
+              case current of
+                0 -> modify_ (\v399 -> append {semigroupArray} v399 ["zero"]) log
+                1 -> modify_ (\v417 -> append {semigroupArray} v417 ["one"]) log
+                _ -> modify_ (\v435 -> append {semigroupArray} v435 ["many"]) log)) \_ -> read log

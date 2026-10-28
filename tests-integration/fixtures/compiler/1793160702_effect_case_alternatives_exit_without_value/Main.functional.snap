@@ -1,0 +1,57 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export describe = \source%0 log%3 ->
+  effect.bind (effect.readReference source%0)
+    \value%1 -> case value%1 of
+      0 ->
+        effect.modifyReference (\section67%2 -> [...section67%2, "zero"]) log%3
+      1 ->
+        effect.modifyReference (\section85%4 -> [...section85%4, "one"]) log%3
+      _ ->
+        effect.modifyReference (\section103%5 -> [...section103%5, "many"]) log%3
+
+@export describeGuarded = \source%6 log%10 ->
+  effect.bind (effect.readReference source%6)
+    \value%7 -> case value%7 of
+      n%8 ->
+        | integer.greater_than n%8 10 ->
+          effect.modifyReference (\section165%9 -> [...section165%9, "big"]) log%10
+        | integer.greater_than n%8 0 ->
+          effect.modifyReference (\section186%11 -> [...section186%11, "small"]) log%10
+      _ ->
+        effect.modifyReference (\section204%12 -> [...section204%12, "none"]) log%10
+
+@export describeEach = \values%14 ->
+  effect.bind (effect.newReference [])
+    \log%13 -> effect.bind (effect.forEach
+      values%14
+      (\value%15 ->
+        case value%15 of
+          0 ->
+            effect.modifyReference (\section260%16 -> [...section260%16, "zero"]) log%13
+          1 ->
+            effect.modifyReference (\section278%17 -> [...section278%17, "one"]) log%13
+          _ ->
+            effect.modifyReference (\section296%18 -> [...section296%18, "many"]) log%13))
+      \$unit%19 -> effect.readReference log%13
+
+@export describeCountdown = \start%20 ->
+  effect.bind (effect.newReference start%20)
+    \counter%21 -> effect.bind (effect.newReference [])
+      \log%22 -> effect.bind (effect.while
+        (effect.map
+          (\section349%23 -> integer.greater_than_or_equal section349%23 0)
+          (effect.readReference counter%21))
+        (effect.bind (effect.readReference counter%21)
+          \current%24 -> effect.bind (effect.writeReference
+            (integer.subtract current%24 1)
+            counter%21)
+            \$unit%25 -> case current%24 of
+              0 ->
+                effect.modifyReference (\section399%26 -> [...section399%26, "zero"]) log%22
+              1 ->
+                effect.modifyReference (\section417%27 -> [...section417%27, "one"]) log%22
+              _ ->
+                effect.modifyReference (\section435%28 -> [...section435%28, "many"]) log%22))
+        \$unit%29 -> effect.readReference log%22
