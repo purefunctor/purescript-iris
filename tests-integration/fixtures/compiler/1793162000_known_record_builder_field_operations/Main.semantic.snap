@@ -1,0 +1,64 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+insertFlipped :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+insertFlipped = \record ->
+  build
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("y")} Proxy "y")
+      (insert {trivial} {trivial} {isSymbol("z")} Proxy true))
+    record
+
+insertComposed :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+insertComposed = \record ->
+  build
+    (compose {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("z")} Proxy true)
+      (insert {trivial} {trivial} {isSymbol("y")} Proxy "y"))
+    record
+
+modify :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+modify = \record ->
+  build (modify {trivial} {trivial} {isSymbol("x")} Proxy \x -> add {semiringInt} x 1) record
+
+delete :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String }
+delete = \record -> build (delete {isSymbol("x")} {trivial} {trivial} Proxy) record
+
+rename :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String, z :: Prim.Int }
+rename = \record ->
+  build (rename {isSymbol("x")} {isSymbol("z")} {trivial} {trivial} {trivial} {trivial} Proxy Proxy)
+    record
+
+pipeline :: { x :: Prim.Int, y :: Prim.String } -> { w :: Prim.Int, z :: Prim.Boolean }
+pipeline = \record ->
+  build
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("z")} Proxy true)
+      (composeFlipped {semigroupoidBuilder}
+        (modify {trivial} {trivial} {isSymbol("x")} Proxy \x -> mul {semiringInt} x 2)
+        (composeFlipped {semigroupoidBuilder} (identity {categoryBuilder})
+          (composeFlipped {semigroupoidBuilder} (delete {isSymbol("y")} {trivial} {trivial} Proxy)
+            (composeFlipped {semigroupoidBuilder}
+              (rename {isSymbol("x")} {isSymbol("w")} {trivial} {trivial} {trivial} {trivial} Proxy
+                Proxy)
+              (nub {trivial}))))))
+    record
+
+fromScratch :: { x :: Prim.Int, y :: Prim.String }
+fromScratch =
+  buildFromScratch
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("x")} Proxy 1)
+      (insert {trivial} {trivial} {isSymbol("y")} Proxy "y"))
+
+literal :: { w :: Prim.Int, z :: Prim.Boolean }
+literal =
+  build
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("z")} Proxy true)
+      (composeFlipped {semigroupoidBuilder}
+        (modify {trivial} {trivial} {isSymbol("x")} Proxy \x -> mul {semiringInt} x 2)
+        (composeFlipped {semigroupoidBuilder} (delete {isSymbol("y")} {trivial} {trivial} Proxy)
+          (rename {isSymbol("x")} {isSymbol("w")} {trivial} {trivial} {trivial} {trivial} Proxy
+            Proxy))))
+    { x: 1, y: "y" }
+
+unknown :: Record.Builder.Builder { x :: Prim.Int } { x :: Prim.Int, y :: Prim.String } ->
+{ x :: Prim.Int } ->
+{ x :: Prim.Int, y :: Prim.String }
+unknown = \builder -> \record -> build builder record

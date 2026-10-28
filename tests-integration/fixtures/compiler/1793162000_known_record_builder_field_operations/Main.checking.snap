@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+insertFlipped :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+insertComposed :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+modify :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+delete :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String }
+rename :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String, z :: Prim.Int }
+pipeline :: { x :: Prim.Int, y :: Prim.String } -> { w :: Prim.Int, z :: Prim.Boolean }
+fromScratch :: { x :: Prim.Int, y :: Prim.String }
+literal :: { w :: Prim.Int, z :: Prim.Boolean }
+unknown ::
+  Record.Builder.Builder { x :: Prim.Int } { x :: Prim.Int, y :: Prim.String } ->
+  { x :: Prim.Int } ->
+  { x :: Prim.Int, y :: Prim.String }
+
+Types

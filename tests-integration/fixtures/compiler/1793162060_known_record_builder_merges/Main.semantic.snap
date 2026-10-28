@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+merge :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+merge = \record -> build (merge {trivial} {trivial} { x: 0, z: true }) record
+
+union :: { y :: Prim.String } -> { y :: Prim.String, z :: Prim.Boolean }
+union = \record -> build (union {trivial} { z: true }) record
+
+disjointUnion :: { y :: Prim.String } -> { y :: Prim.String, z :: Prim.Boolean }
+disjointUnion = \record -> build (disjointUnion {trivial} {trivial} { z: true }) record
+
+records :: { x :: Prim.Int } -> { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+records = \left -> \right -> build (merge {trivial} {trivial} left) right
+
+literals :: { x :: Prim.Int, y :: Prim.String }
+literals = build (merge {trivial} {trivial} { x: 0 }) { y: "y", x: 1 }
+
+insertThenMerge :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+insertThenMerge = \record ->
+  build
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("z")} Proxy true)
+      (merge {trivial} {trivial} { x: 0 }))
+    record

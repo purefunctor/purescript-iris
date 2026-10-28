@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign readTrace
+
+@export flipped = \record%1 ->
+  build
+    (composeFlipped semigroupoidBuilder
+      (insert <trivial evidence> <trivial evidence> (symbol "y") "Proxy" (observe "y" "y"))
+      (composeFlipped semigroupoidBuilder
+        (modify <trivial evidence> <trivial evidence> (symbol "x") "Proxy"
+          (observe "modify" (\x%0 -> observe "apply" (integer.add x%0 1))))
+        (merge <trivial evidence> <trivial evidence> { z: observe "z" true })))
+    (observe "record" record%1)
+
+@export composed = \record%3 ->
+  build
+    (compose semigroupoidBuilder
+      (insert <trivial evidence> <trivial evidence> (symbol "y") "Proxy" (observe "y" "y"))
+      (modify <trivial evidence> <trivial evidence> (symbol "x") "Proxy"
+        (\x%2 -> observe "apply" (integer.add x%2 1))))
+    (observe "record" record%3)
+
+@export literal = \$boolean%6@(_) ->
+  build
+    (composeFlipped semigroupoidBuilder
+      (modify <trivial evidence> <trivial evidence> (symbol "y") "Proxy"
+        (\y%4 -> observe "first" (integer.add y%4 1)))
+      (composeFlipped semigroupoidBuilder
+        (modify <trivial evidence> <trivial evidence> (symbol "x") "Proxy"
+          (\x%5 -> observe "second" (integer.add x%5 1)))
+        (delete (symbol "z") <trivial evidence> <trivial evidence> "Proxy")))
+    { x: observe "x" 1, y: observe "y" 2, z: observe "z" 3 }

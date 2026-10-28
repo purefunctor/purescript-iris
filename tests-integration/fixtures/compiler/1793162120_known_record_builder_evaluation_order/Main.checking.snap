@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+flipped :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+composed :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String }
+literal :: Prim.Boolean -> { x :: Prim.Int, y :: Prim.Int }
+
+Types

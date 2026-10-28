@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+merge ::
+  { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+union :: { y :: Prim.String } -> { y :: Prim.String, z :: Prim.Boolean }
+disjointUnion :: { y :: Prim.String } -> { y :: Prim.String, z :: Prim.Boolean }
+records :: { x :: Prim.Int } -> { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+literals :: { x :: Prim.Int, y :: Prim.String }
+insertThenMerge :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+
+Types

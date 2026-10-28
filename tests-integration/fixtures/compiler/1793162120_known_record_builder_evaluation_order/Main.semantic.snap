@@ -1,0 +1,38 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+flipped :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Boolean }
+flipped = \record ->
+  build
+    (composeFlipped {semigroupoidBuilder}
+      (insert {trivial} {trivial} {isSymbol("y")} Proxy (observe "y" "y"))
+      (composeFlipped {semigroupoidBuilder}
+        (modify {trivial} {trivial} {isSymbol("x")} Proxy
+          (observe "modify" \x -> observe "apply" (add {semiringInt} x 1)))
+        (merge {trivial} {trivial} { z: observe "z" true })))
+    (observe "record" record)
+
+composed :: { x :: Prim.Int } -> { x :: Prim.Int, y :: Prim.String }
+composed = \record ->
+  build
+    (compose {semigroupoidBuilder}
+      (insert {trivial} {trivial} {isSymbol("y")} Proxy (observe "y" "y"))
+      (modify {trivial} {trivial} {isSymbol("x")} Proxy \x ->
+        observe "apply" (add {semiringInt} x 1)))
+    (observe "record" record)
+
+literal :: Prim.Boolean -> { x :: Prim.Int, y :: Prim.Int }
+literal = \_ ->
+  build
+    (composeFlipped {semigroupoidBuilder}
+      (modify {trivial} {trivial} {isSymbol("y")} Proxy \y ->
+        observe "first" (add {semiringInt} y 1))
+      (composeFlipped {semigroupoidBuilder}
+        (modify {trivial} {trivial} {isSymbol("x")} Proxy \x ->
+          observe "second" (add {semiringInt} x 1))
+        (delete {isSymbol("z")} {trivial} {trivial} Proxy)))
+    { x: observe "x" 1, y: observe "y" 2, z: observe "z" 3 }
