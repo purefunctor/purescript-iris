@@ -1,33 +1,43 @@
-import * as Record_Unsafe from "../Record.Unsafe/index.js";
 import * as $foreign from "./foreign.js";
 export function get(record) {
-  return Record_Unsafe.unsafeGet("x")(record);
+  return record.x;
 }
 export function getQuoted(record) {
-  return Record_Unsafe.unsafeGet("first name")(record);
+  return record["first name"];
 }
 export function set(record) {
-  return Record_Unsafe.unsafeSet("x")(2 | 0)(record);
+  return {
+    ...record,
+    x: 2 | 0
+  };
 }
 export function setNew(record) {
-  return Record_Unsafe.unsafeSet("x")(2 | 0)(record);
+  return {
+    ...record,
+    x: 2 | 0
+  };
 }
 function $delete(record) {
-  return Record_Unsafe.unsafeDelete("x")(record);
+  const { x: $deleted, ...$record } = record;
+  return $record;
 }
 export function deleteLiteral($boolean) {
-  return Record_Unsafe.unsafeDelete("x")({
-    x: observe("x")(1 | 0),
-    y: observe("y")("y")
-  });
+  const x = observe("x")(1 | 0);
+  return { y: observe("y")("y") };
 }
 export function setOrder(record) {
-  return Record_Unsafe.unsafeSet("x")(observe("value")(2 | 0))(observe("record")(record));
+  const value = observe("value")(2 | 0);
+  return {
+    ...observe("record")(record),
+    x: value
+  };
 }
 export function deleteOrder(record) {
+  const $field = observe("first")(1 | 0);
+  const { x: $deleted, ...$record } = observe("record")(record);
   return {
-    first: observe("first")(1 | 0),
-    rest: Record_Unsafe.unsafeDelete("x")(observe("record")(record))
+    first: $field,
+    rest: $record
   };
 }
 export const observe = $foreign["observe"];

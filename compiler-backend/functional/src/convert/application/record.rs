@@ -2,7 +2,8 @@ use smol_str::SmolStr;
 
 use crate::convert::{Context, ConversionResult};
 use crate::tree::{
-    Binding, ExpressionId, ExpressionKind, Field, RecordField, RecordUpdate, SynthesizedEvidence,
+    Binding, ExpressionId, ExpressionKind, Field, Literal, RecordField, RecordUpdate,
+    SynthesizedEvidence,
 };
 
 impl<'c, Q> Context<'c, Q>
@@ -25,13 +26,7 @@ where
             && let [symbol, first, second, proxy, value, record] = *arguments
             && let Some(field) = self.known_record_label(symbol, &[first, second], proxy)
         {
-            let mut operands = [value, record];
-            let bindings = self.ordered_operands(&mut operands, &["value", "record"], &[1, 0])?;
-            let [value, record] = operands;
-            let updates = [RecordUpdate::Leaf { field, expression: value }];
-            let updated =
-                self.expression(ExpressionKind::RecordUpdate { record, updates: updates.into() });
-            return Ok(Some(self.bound_operands(bindings, updated)));
+            return self.record_set(field, value, record).map(Some);
         }
         if self.known_term(function, "Record", "modify")?
             && let [symbol, first, second, proxy, modification, record] = *arguments
@@ -52,7 +47,36 @@ where
             && let [symbol, first, second, proxy, record] = *arguments
             && let Some(field) = self.known_record_label(symbol, &[first, second], proxy)
         {
-            return Ok(Some(self.expression(ExpressionKind::RecordDelete { record, field })));
+            return self.record_delete(field, record).map(Some);
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeGet")?
+            && let [label, record] = *arguments
+            && let Some(field) = self.known_literal_label(label)
+        {
+            return Ok(Some(self.expression(ExpressionKind::Project { record, field })));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeSet")?
+            && let [label, value, record] = *arguments
+            && let Some(field) = self.known_literal_label(label)
+        {
+            return self.record_set(field, value, record).map(Some);
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeDelete")?
+            && let [label, record] = *arguments
+            && let Some(field) = self.known_literal_label(label)
+        {
+            return self.record_delete(field, record).map(Some);
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeHas")?
+            && let [label, record] = *arguments
+            && let Some(field) = self.known_literal_label(label)
+            && let Some(fields) = self.record_literal_fields(record)
+        {
+            let present = fields.iter().any(|candidate| candidate.field.name == field.name);
+            let literal = Literal::Boolean(present);
+            let present = self.expression(ExpressionKind::Literal { literal });
+            let (bindings, _) = self.ordered_record_fields(&fields, &[])?;
+            return Ok(Some(self.bound_operands(bindings, present)));
         }
         let operands = if self.known_term(function, "Record", "union")?
             && let [constraint, left, right] = *arguments
@@ -90,11 +114,65 @@ where
         Some(self.label_field(label.into()))
     }
 
+    fn known_literal_label(&self, label: ExpressionId) -> Option<Field> {
+        let ExpressionKind::Literal { literal: Literal::String(label) } = &self.storage[label].kind
+        else {
+            return None;
+        };
+        let label = label.to_utf8().ok()?;
+        Some(self.label_field(label.into()))
+    }
+
     fn known_record_constraints(&self, constraints: &[ExpressionId]) -> bool {
         let mut constraints = constraints.iter();
         constraints.all(|constraint| {
             matches!(self.storage[*constraint].kind, ExpressionKind::TrivialEvidence)
         })
+    }
+
+    fn record_set(
+        &mut self,
+        field: Field,
+        value: ExpressionId,
+        record: ExpressionId,
+    ) -> ConversionResult<ExpressionId> {
+        let mut operands = [value, record];
+        let bindings = self.ordered_operands(&mut operands, &["value", "record"], &[1, 0])?;
+        let [value, record] = operands;
+        let updates = [RecordUpdate::Leaf { field, expression: value }];
+        let updated =
+            self.expression(ExpressionKind::RecordUpdate { record, updates: updates.into() });
+        Ok(self.bound_operands(bindings, updated))
+    }
+
+    fn record_delete(
+        &mut self,
+        field: Field,
+        record: ExpressionId,
+    ) -> ConversionResult<ExpressionId> {
+        let Some(fields) = self.record_literal_fields(record) else {
+            return Ok(self.expression(ExpressionKind::RecordDelete { record, field }));
+        };
+        let uses = (0..fields.len()).filter(|&index| fields[index].field.name != field.name);
+        let uses = uses.collect::<Vec<_>>();
+        let (bindings, operands) = self.ordered_record_fields(&fields, &uses)?;
+        let fields = uses.iter().map(|&index| RecordField {
+            field: Field::clone(&fields[index].field),
+            expression: operands[index],
+        });
+        let record = self.expression(ExpressionKind::Record { fields: fields.collect() });
+        Ok(self.bound_operands(bindings, record))
+    }
+
+    fn ordered_record_fields(
+        &mut self,
+        fields: &[RecordField],
+        uses: &[usize],
+    ) -> ConversionResult<(Vec<Binding>, Vec<ExpressionId>)> {
+        let names = fields.iter().map(|field| field.field.name.as_str()).collect::<Vec<_>>();
+        let mut operands = fields.iter().map(|field| field.expression).collect::<Vec<_>>();
+        let bindings = self.ordered_operands(&mut operands, &names, uses)?;
+        Ok((bindings, operands))
     }
 
     fn record_union(

@@ -49,11 +49,9 @@ function $delete(record) {
   return $record;
 }
 export function deleteLiteral(y) {
-  const { x: $deleted, ...$record } = {
+  return {
     z: 2 | 0,
-    x: 0 | 0,
     y
   };
-  return $record;
 }
 export { $delete as "delete" };

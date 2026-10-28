@@ -5,19 +5,25 @@ source: tests-integration/src/fixtures.rs
 
 @export foreign readTrace
 
-@export get = \record%0 -> unsafeGet "x" record%0
+@export get = \record%0 -> record%0.x
 
-@export getQuoted = \record%1 -> unsafeGet "first name" record%1
+@export getQuoted = \record%1 -> record%1."first name"
 
-@export set = \record%2 -> unsafeSet "x" 2 record%2
+@export set = \record%2 -> record%2 { x = 2 }
 
-@export setNew = \record%3 -> unsafeSet "x" 2 record%3
+@export setNew = \record%3 -> record%3 { x = 2 }
 
-@export delete = \record%4 -> unsafeDelete "x" record%4
+@export delete = \record%4 -> record.delete x record%4
 
-@export deleteLiteral = \$boolean%5@(_) -> unsafeDelete "x" { x: observe "x" 1, y: observe "y" "y" }
+@export deleteLiteral = \$boolean%6@(_) ->
+  let
+    x%5 = observe "x" 1
+  in { y: observe "y" "y" }
 
-@export setOrder = \record%6 -> unsafeSet "x" (observe "value" 2) (observe "record" record%6)
+@export setOrder = \record%7 ->
+  let
+    value%8 = observe "value" 2
+  in (observe "record" record%7) { x = value%8 }
 
-@export deleteOrder = \record%7 ->
-  { first: observe "first" 1, rest: unsafeDelete "x" (observe "record" record%7) }
+@export deleteOrder = \record%9 ->
+  { first: observe "first" 1, rest: record.delete x (observe "record" record%9) }

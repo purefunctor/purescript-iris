@@ -5,10 +5,14 @@ source: tests-integration/src/fixtures.rs
 
 @export foreign readTrace
 
-@export present = unsafeHas "x" { x: 1, y: "y" }
+@export present = true
 
-@export absent = unsafeHas "z" { x: 1, y: "y" }
+@export absent = false
 
-@export presentOrder = \$boolean%0@(_) -> unsafeHas "y" { x: observe "x" 1, y: observe "y" "y" }
+@export presentOrder = \$boolean%2@(_) ->
+  let
+    x%0 = observe "x" 1
+    y%1 = observe "y" "y"
+  in true
 
-@export unknown = \record%1 -> unsafeHas "x" record%1
+@export unknown = \record%3 -> unsafeHas "x" record%3

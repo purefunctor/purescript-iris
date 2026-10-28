@@ -19,4 +19,4 @@ source: tests-integration/src/fixtures.rs
 
 @export delete = \record%10 -> record.delete x record%10
 
-@export deleteLiteral = \y%11 -> record.delete x { z: 2, x: 0, y: y%11 }
+@export deleteLiteral = \y%11 -> { z: 2, y: y%11 }
