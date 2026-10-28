@@ -1,22 +1,29 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export newCounter = \value%0 -> new value%0
+@export newCounter = \value%0 -> reference.new value%0
 
-@export readCounter = \counter%1 -> read counter%1
+@export readCounter = \counter%1 -> reference.read counter%1
 
-@export resetCounter = \counter%2 -> write 0 counter%2
+@export resetCounter = \counter%2 -> reference.write counter%2 0
 
 @export incrementCounter = \counter%4 ->
-  modify (\section98%3 -> integer.add section98%3 1) counter%4
+  effect.bind (reference.read counter%4)
+    \section98%3 -> reference.write counter%4 (integer.add section98%3 1)
 
-@export addToField = \step%5 state%6 -> modify (add semiringInt step%5) state%6.counter
+@export addToField = \step%5 state%6 ->
+  let
+    modifyFunction%7 = add semiringInt step%5
+    modifyReference%9 = state%6.counter
+  in effect.bind (reference.read modifyReference%9)
+    \value%8 -> reference.write modifyReference%9 (modifyFunction%7 value%8)
 
-@export countTwice = \value%7 ->
-  effect.bind (new value%7)
-    \counter%8 -> effect.bind (modify (\section163%9 -> integer.multiply section163%9 2) counter%8)
-      \$int%10 -> effect.bind (write (integer.add value%7 1) counter%8)
-        \$unit%11 -> effect.bind (modify (\section190%12 -> integer.multiply section190%12 10)
-          counter%8)
-          \next%13 -> effect.bind (read counter%8)
-            \current%14 -> effect.pure (integer.add next%13 current%14)
+@export countTwice = \value%10 ->
+  effect.bind (reference.new value%10)
+    \counter%11 -> effect.bind (effect.bind (reference.read counter%11)
+      \section163%12 -> reference.write counter%11 (integer.multiply section163%12 2))
+      \$int%13 -> effect.bind (reference.write counter%11 (integer.add value%10 1))
+        \$unit%14 -> effect.bind (effect.bind (reference.read counter%11)
+          \section190%15 -> reference.write counter%11 (integer.multiply section190%15 10))
+          \next%16 -> effect.bind (reference.read counter%11)
+            \current%17 -> effect.pure (integer.add next%16 current%17)

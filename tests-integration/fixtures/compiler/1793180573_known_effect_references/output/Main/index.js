@@ -1,35 +1,52 @@
 import * as Data_Semiring from "../Data.Semiring/index.js";
-import * as Effect_Ref from "../Effect.Ref/index.js";
 export function newCounter(value) {
-  return Effect_Ref.new(value);
+  return () => {
+    return { value };
+  };
 }
 export function readCounter(counter) {
-  return Effect_Ref.read(counter);
+  return () => {
+    return counter.value;
+  };
 }
 export function resetCounter(counter) {
-  return Effect_Ref.write(0 | 0)(counter);
+  return () => {
+    return counter.value = 0 | 0;
+  };
 }
 export function incrementCounter(counter) {
-  return Effect_Ref.modify((section98) => section98 + (1 | 0) | 0)(counter);
+  return () => {
+    const section98 = counter.value;
+    const $value = section98 + (1 | 0) | 0;
+    return counter.value = $value;
+  };
 }
 export function addToField(step) {
   return (state) => {
-    return Effect_Ref.modify(/* @__PURE__ */ Data_Semiring.add(Data_Semiring.semiringInt)(step))(state.counter);
+    const modifyFunction = /* @__PURE__ */ Data_Semiring.add(Data_Semiring.semiringInt)(step);
+    const modifyReference = state.counter;
+    return () => {
+      const value = modifyReference.value;
+      const $value = modifyFunction(value);
+      return modifyReference.value = $value;
+    };
   };
 }
 export function countTwice(value) {
-  const $action = Effect_Ref.new(value);
   return () => {
-    const counter = $action();
-    const $action$1 = Effect_Ref.modify((section163) => section163 * (2 | 0) | 0)(counter);
-    const $int = $action$1();
-    const $action$2 = Effect_Ref.write(value + (1 | 0) | 0)(counter);
-    const $unit = $action$2();
-    const $action$3 = Effect_Ref.modify((section190) => section190 * (10 | 0) | 0)(counter);
-    const next = $action$3();
-    const $action$4 = Effect_Ref.read(counter);
-    const current = $action$4();
-    const $value = next + current | 0;
-    return $value;
+    const counter = { value };
+    let $int;
+    const section163 = counter.value;
+    const $value = section163 * (2 | 0) | 0;
+    $int = counter.value = $value;
+    const $value$1 = value + (1 | 0) | 0;
+    const $unit = counter.value = $value$1;
+    let next;
+    const section190 = counter.value;
+    const $value$2 = section190 * (10 | 0) | 0;
+    next = counter.value = $value$2;
+    const current = counter.value;
+    const $value$3 = next + current | 0;
+    return $value$3;
   };
 }

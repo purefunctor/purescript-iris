@@ -119,6 +119,28 @@ enum CapturedEffect {
     Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
     Map { function: ExpressionId, action: CapturedEffectAction },
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
+    Operation(CapturedOperation),
+}
+
+enum CapturedOperation {
+    ReferenceNew { value: ExpressionId },
+    ReferenceRead { reference: ExpressionId },
+    ReferenceWrite { reference: ExpressionId, value: ExpressionId },
+}
+
+impl CapturedOperation {
+    fn result(self, tree: &mut Tree) -> ExpressionId {
+        match self {
+            CapturedOperation::ReferenceNew { value } => {
+                tree.object(vec![ObjectProperty::Field { name: "value".into(), value }])
+            }
+            CapturedOperation::ReferenceRead { reference } => tree.member(reference, "value"),
+            CapturedOperation::ReferenceWrite { reference, value } => {
+                let target = tree.member(reference, "value");
+                tree.assignment(target, value)
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -3343,6 +3365,19 @@ fn capture_effect(
                 capture_effect_action(renderer, *argument_action, "$argumentAction")?;
             Ok(CapturedEffect::Apply { function_action, argument_action })
         }
+        EffectExpression::ReferenceNew(value) => {
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceNew { value }))
+        }
+        EffectExpression::ReferenceRead(reference) => {
+            let reference = capture_effect_value(renderer, *reference, "$reference")?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { reference }))
+        }
+        EffectExpression::ReferenceWrite { reference, value } => {
+            let reference = capture_effect_value(renderer, *reference, "$reference")?;
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { reference, value }))
+        }
     }
 }
 
@@ -3431,6 +3466,16 @@ fn execute_effect(
             );
             Ok(())
         }
+        CapturedEffect::Operation(operation) => {
+            let result = operation.result(renderer.tree);
+            renderer.generator.render_destination(
+                renderer.tree,
+                renderer.writer,
+                result,
+                destination,
+            );
+            Ok(())
+        }
         CapturedEffect::Apply { function_action, argument_action } => {
             let function = if matches!(&argument_action, CapturedEffectAction::Effect(_)) {
                 execute_effect_action(renderer, function_action, "$function")?.0
@@ -3460,12 +3505,15 @@ fn execute_effect_action_value(
             let _origin = renderer.tree.enter_origin(origin);
             Ok(renderer.tree.call(value, Vec::new()))
         }
-        CapturedEffectAction::Effect(effect) => {
-            let name = renderer.context.allocate(preferred_name);
-            renderer.writer.mutable(&name);
-            execute_effect(renderer, *effect, Destination::Assign(&name))?;
-            Ok(renderer.tree.identifier(name))
-        }
+        CapturedEffectAction::Effect(effect) => match *effect {
+            CapturedEffect::Operation(operation) => Ok(operation.result(renderer.tree)),
+            effect => {
+                let name = renderer.context.allocate(preferred_name);
+                renderer.writer.mutable(&name);
+                execute_effect(renderer, effect, Destination::Assign(&name))?;
+                Ok(renderer.tree.identifier(name))
+            }
+        },
     }
 }
 
@@ -3481,14 +3529,19 @@ fn execute_effect_action(
             let value = renderer.tree.call(value, Vec::new());
             renderer.writer.constant(renderer.tree, &name, value, false);
         }
-        CapturedEffectAction::Effect(effect) => {
-            if let CapturedEffect::Pure { value } = *effect {
+        CapturedEffectAction::Effect(effect) => match *effect {
+            CapturedEffect::Pure { value } => {
                 renderer.writer.constant(renderer.tree, &name, value, false);
-            } else {
-                renderer.writer.mutable(&name);
-                execute_effect(renderer, *effect, Destination::Assign(&name))?;
             }
-        }
+            CapturedEffect::Operation(operation) => {
+                let value = operation.result(renderer.tree);
+                renderer.writer.constant(renderer.tree, &name, value, false);
+            }
+            effect => {
+                renderer.writer.mutable(&name);
+                execute_effect(renderer, effect, Destination::Assign(&name))?;
+            }
+        },
     }
     Ok((renderer.tree.identifier(&name), name))
 }
@@ -3823,6 +3876,13 @@ fn collect_expression_references(
                 collect_expression_references(module, *function_action, seen, globals);
                 collect_expression_references(module, *argument_action, seen, globals);
             }
+            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
+                collect_expression_references(module, *value, seen, globals);
+            }
+            EffectExpression::ReferenceWrite { reference, value } => {
+                collect_expression_references(module, *reference, seen, globals);
+                collect_expression_references(module, *value, seen, globals);
+            }
         },
     }
 }
@@ -4046,6 +4106,13 @@ fn collect_expression_children(
             EffectExpression::Apply { function_action, argument_action } => {
                 collect_expression_globals(module, *function_action, false, globals);
                 collect_expression_globals(module, *argument_action, false, globals);
+            }
+            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
+                collect_expression_globals(module, *value, false, globals);
+            }
+            EffectExpression::ReferenceWrite { reference, value } => {
+                collect_expression_globals(module, *reference, false, globals);
+                collect_expression_globals(module, *value, false, globals);
             }
         },
     }

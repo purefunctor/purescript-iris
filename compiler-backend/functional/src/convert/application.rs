@@ -67,6 +67,8 @@ const ORD_FUNCTIONS: &[(&str, Comparison)] = &[
     ("greaterThanOrEq", Comparison::GreaterThanOrEqual),
 ];
 
+const REFERENCE_MODULES: &[&str] = &["Effect.Ref", "Control.Monad.ST.Internal"];
+
 struct ClassMemberApplication<'a> {
     class: (FileId, TypeItemId),
     record: ExpressionId,
@@ -181,6 +183,11 @@ where
             self.stylex_intrinsic(known_function, &known_arguments, result_type)?
         {
             return Ok(expression);
+        }
+        if let Some(reference) =
+            self.known_reference_application(known_function, &known_arguments)?
+        {
+            return Ok(reference);
         }
         if let Some(effect) = self.known_effect_application(known_function, &known_arguments)? {
             return Ok(self.expression(ExpressionKind::Effect { effect }));
@@ -547,6 +554,89 @@ where
             }));
         }
         Ok(None)
+    }
+
+    fn known_reference_application(
+        &mut self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        for module_name in REFERENCE_MODULES {
+            let effect = if self.known_term(function, module_name, "new")?
+                && let [value] = arguments
+            {
+                EffectExpression::ReferenceNew(*value)
+            } else if self.known_term(function, module_name, "read")?
+                && let [reference] = arguments
+            {
+                EffectExpression::ReferenceRead(*reference)
+            } else if self.known_term(function, module_name, "write")?
+                && let [value, reference] = arguments
+            {
+                EffectExpression::ReferenceWrite { reference: *reference, value: *value }
+            } else if self.known_term(function, module_name, "modify")?
+                && let [function, reference] = arguments
+            {
+                return self.reference_modification(*function, *reference).map(Some);
+            } else {
+                continue;
+            };
+            return Ok(Some(self.expression(ExpressionKind::Effect { effect })));
+        }
+        Ok(None)
+    }
+
+    fn reference_modification(
+        &mut self,
+        function: ExpressionId,
+        reference: ExpressionId,
+    ) -> ConversionResult<ExpressionId> {
+        let mut bindings = Vec::new();
+        let (parameter, value) = match self.effect_continuation(function)? {
+            Some(continuation) => continuation,
+            None => {
+                let function = self.let_bound_local(function, "modifyFunction", &mut bindings)?;
+                let parameter = self.fresh_parameter("value".into())?;
+                let value = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
+                (parameter, self.application(function, [value])?)
+            }
+        };
+        let reference = if self.expression_is_stable(reference) {
+            reference
+        } else {
+            self.let_bound_local(reference, "modifyReference", &mut bindings)?
+        };
+
+        let written_reference =
+            self.expression(ExpressionKind::clone(&self.storage[reference].kind));
+        let effect = EffectExpression::ReferenceWrite { reference: written_reference, value };
+        let body = self.expression(ExpressionKind::Effect { effect });
+        let effect = EffectExpression::ReferenceRead(reference);
+        let action = self.expression(ExpressionKind::Effect { effect });
+        let effect = EffectExpression::Bind { action, parameter, body };
+        let modification = self.expression(ExpressionKind::Effect { effect });
+
+        if bindings.is_empty() {
+            return Ok(modification);
+        }
+        Ok(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: bindings.into(),
+            body: modification,
+        }))
+    }
+
+    fn let_bound_local(
+        &mut self,
+        expression: ExpressionId,
+        name: &str,
+        bindings: &mut Vec<Binding>,
+    ) -> ConversionResult<ExpressionId> {
+        let parameter = self.fresh_parameter(name.into())?;
+        let local = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
+        let source_order = bindings.len();
+        bindings.push(Binding { parameter, expression, source_order, origin: None });
+        Ok(local)
     }
 
     fn effect_continuation(

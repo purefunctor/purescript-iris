@@ -535,6 +535,26 @@ impl<'a> Printer<'a, '_> {
                     .nest(2);
                 self.arena.text("effect.apply").append(arguments).group()
             }
+            EffectExpression::ReferenceNew(value) => {
+                let value = self.expression_at(*value, ExpressionPrecedence::Atom);
+                self.arena.text("reference.new ").append(value)
+            }
+            EffectExpression::ReferenceRead(reference) => {
+                let reference = self.expression_at(*reference, ExpressionPrecedence::Atom);
+                self.arena.text("reference.read ").append(reference)
+            }
+            EffectExpression::ReferenceWrite { reference, value } => {
+                let reference = self.expression_at(*reference, ExpressionPrecedence::Atom);
+                let value = self.expression_at(*value, ExpressionPrecedence::Atom);
+                let arguments = self
+                    .arena
+                    .line()
+                    .append(reference)
+                    .append(self.arena.line())
+                    .append(value)
+                    .nest(2);
+                self.arena.text("reference.write").append(arguments).group()
+            }
         }
     }
 

@@ -7,10 +7,9 @@ export function runPure(value) {
 }
 export function runReference(value) {
   const $function = Control_Monad_ST_Internal.run;
-  const $action = Control_Monad_ST_Internal.new(value);
   const $effect = () => {
-    const bindValue = $action();
-    return Control_Monad_ST_Internal.read(bindValue)();
+    const bindValue = { value };
+    return bindValue.value;
   };
   return $function($effect);
 }

@@ -1,22 +1,23 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export newCounter = \value%0 -> new value%0
+@export newCounter = \value%0 -> reference.new value%0
 
-@export readCounter = \counter%1 -> read counter%1
+@export readCounter = \counter%1 -> reference.read counter%1
 
-@export resetCounter = \counter%2 -> write 0 counter%2
+@export resetCounter = \counter%2 -> reference.write counter%2 0
 
 @export incrementCounter = \counter%4 ->
-  modify (\section120%3 -> integer.add section120%3 1) counter%4
+  effect.bind (reference.read counter%4)
+    \section120%3 -> reference.write counter%4 (integer.add section120%3 1)
 
 @export countTwice = \value%5 ->
   run
-    (effect.bind (new value%5)
-      \counter%6 -> effect.bind (modify (\section156%7 -> integer.multiply section156%7 2)
-        counter%6)
-        \$int%8 -> effect.bind (write (integer.add value%5 1) counter%6)
-          \written%9 -> effect.bind (modify (\section184%10 -> integer.multiply section184%10 10)
-            counter%6)
-            \next%11 -> effect.bind (read counter%6)
+    (effect.bind (reference.new value%5)
+      \counter%6 -> effect.bind (effect.bind (reference.read counter%6)
+        \section156%7 -> reference.write counter%6 (integer.multiply section156%7 2))
+        \$int%8 -> effect.bind (reference.write counter%6 (integer.add value%5 1))
+          \written%9 -> effect.bind (effect.bind (reference.read counter%6)
+            \section184%10 -> reference.write counter%6 (integer.multiply section184%10 10))
+            \next%11 -> effect.bind (reference.read counter%6)
               \current%12 -> effect.pure (integer.add (integer.add written%9 next%11) current%12))
