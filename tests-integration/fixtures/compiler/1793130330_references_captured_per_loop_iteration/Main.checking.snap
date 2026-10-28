@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sharedCounter :: Effect.Effect (Prim.Array Prim.Int)
+ownCounters :: Effect.Effect (Prim.Array Prim.Int)
+
+Types

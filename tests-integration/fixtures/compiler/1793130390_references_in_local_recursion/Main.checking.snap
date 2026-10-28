@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+countdown :: Prim.Int -> Effect.Effect Prim.Int
+
+Types

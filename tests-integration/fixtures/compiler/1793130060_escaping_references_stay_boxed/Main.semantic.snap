@@ -22,19 +22,16 @@ stored =
     discard {discardUnit} {bindEffect} (modify_ (\v146 -> mul {semiringInt} v146 2) ref) \_ ->
       pure {applicativeEffect} { counter: ref }
 
-captured :: Prim.Boolean -> Effect.Effect Prim.Int
-captured = \flag ->
+escapesFromClosure :: Effect.Effect (Data.Unit.Unit -> Effect.Ref.Ref Prim.Int)
+escapesFromClosure =
   bind {bindEffect} (new 0) \ref ->
-    discard {discardUnit} {bindEffect}
-      (when {applicativeEffect} flag (modify_ (\v192 -> add {semiringInt} v192 5) ref)) \_ ->
-      discard {discardUnit} {bindEffect}
-        (if flag then
-          modify_ (\v209 -> mul {semiringInt} v209 2) ref
-        else
-          pure {applicativeEffect} unit) \_ ->
-        let
-          increment :: Effect.Effect Data.Unit.Unit
-          increment = modify_ (\v231 -> add {semiringInt} v231 1) ref
-        in
-          discard {discardUnit} {bindEffect} increment \_ ->
-            discard {discardUnit} {bindEffect} increment \_ -> read ref
+    let
+      increment :: Effect.Effect Data.Unit.Unit
+      increment = modify_ (\v191 -> add {semiringInt} v191 1) ref
+    in
+      discard {discardUnit} {bindEffect} increment \_ -> pure {applicativeEffect} \_ -> ref
+
+passedLater :: Effect.Effect (Effect.Effect Prim.Int)
+passedLater =
+  bind {bindEffect} (new 0) \ref ->
+    pure {applicativeEffect} (discard {discardUnit} {bindEffect} (bump ref) \_ -> read ref)

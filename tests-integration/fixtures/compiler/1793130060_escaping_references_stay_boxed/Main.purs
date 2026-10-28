@@ -28,12 +28,16 @@ stored = do
   Ref.modify_ (_ * 2) ref
   pure { counter: ref }
 
-captured :: Boolean -> Effect Int
-captured flag = do
+escapesFromClosure :: Effect (Unit -> Ref Int)
+escapesFromClosure = do
   ref <- Ref.new 0
-  when flag (Ref.modify_ (_ + 5) ref)
-  if flag then Ref.modify_ (_ * 2) ref else pure unit
   let increment = Ref.modify_ (_ + 1) ref
   increment
-  increment
-  Ref.read ref
+  pure \_ -> ref
+
+passedLater :: Effect (Effect Int)
+passedLater = do
+  ref <- Ref.new 0
+  pure do
+    bump ref
+    Ref.read ref

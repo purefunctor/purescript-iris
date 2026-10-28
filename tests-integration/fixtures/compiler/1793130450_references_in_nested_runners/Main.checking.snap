@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+performedInside :: Effect.Effect Prim.Int
+runInside :: Prim.Int -> Prim.Int
+
+Types

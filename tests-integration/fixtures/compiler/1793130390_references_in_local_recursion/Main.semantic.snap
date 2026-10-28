@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+countdown :: Prim.Int -> Effect.Effect Prim.Int
+countdown = \start ->
+  bind {bindEffect} (new 0) \steps ->
+    let
+      go :: Prim.Int -> Effect.Effect Data.Unit.Unit
+      go = \remaining ->
+        if greaterThan {ordInt} remaining 0 then
+          discard {discardUnit} {bindEffect}
+            (modify_ (\v67 -> add {semiringInt} v67 remaining) steps) \_ ->
+            go (sub {ringInt} remaining 1)
+        else
+          pure {applicativeEffect} unit
+    in
+      discard {discardUnit} {bindEffect} (go start) \_ ->
+        discard {discardUnit} {bindEffect} (go 2) \_ -> read steps

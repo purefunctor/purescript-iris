@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+captured :: Prim.Boolean -> Effect.Effect Prim.Int
+capturedAction :: Effect.Effect (Effect.Effect Prim.Int)
+counter ::
+  Effect.Effect { current :: Effect.Effect Prim.Int, increment :: Effect.Effect Data.Unit.Unit }
+
+Types
