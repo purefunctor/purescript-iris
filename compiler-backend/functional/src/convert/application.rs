@@ -516,6 +516,12 @@ where
                     fallback = Some(alternative.expression);
                     break;
                 }
+                PatternKind::Variable(parameter)
+                    if local_uses(&self.storage, alternative.expression, parameter.id) == 0 =>
+                {
+                    fallback = Some(alternative.expression);
+                    break;
+                }
                 PatternKind::Constructor { global, arguments } if arguments.is_empty() => {
                     let GlobalId::Term(file_id, _) = global.id else { return Ok(None) };
                     if self.source_module_name(file_id)? != "Data.Ordering" {
