@@ -8,10 +8,10 @@ Hover at Position { line: 20, character: 8 }
 --      $
 ```
 
-Range: "do\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  let total = count items\n--$\n  Box total"
+Range: "value <- Box \"life\""
 
 ```purescript
-Box Int
+Box String
 ```
 
 
@@ -22,10 +22,10 @@ Hover at Position { line: 22, character: 8 }
 --      $
 ```
 
-Range: "do\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  let total = count items\n--$\n  Box total"
+Range: "items <- empty"
 
 ```purescript
-Box Int
+forall a. Box (Array a)
 ```
 
 
@@ -36,11 +36,7 @@ Hover at Position { line: 24, character: 2 }
 --$
 ```
 
-Range: "do\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  let total = count items\n--$\n  Box total"
-
-```purescript
-Box Int
-```
+<empty>
 
 
 Hover at Position { line: 29, character: 8 }
@@ -50,10 +46,10 @@ Hover at Position { line: 29, character: 8 }
 --      $
 ```
 
-Range: "ado\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  in count items"
+Range: "value <- Box \"life\""
 
 ```purescript
-Box Int
+Box String
 ```
 
 
@@ -64,8 +60,8 @@ Hover at Position { line: 31, character: 8 }
 --      $
 ```
 
-Range: "ado\n  value <- Box \"life\"\n--      $\n  items <- empty\n--      $\n  in count items"
+Range: "items <- empty"
 
 ```purescript
-Box Int
+forall a. Box (Array a)
 ```

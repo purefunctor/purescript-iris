@@ -7,7 +7,8 @@ use checking::tree::pretty::Pretty as TreePretty;
 use files::FileId;
 use indexing::{ImportItemId, TermItemId, TypeItemId};
 use lowering::{
-    BinderKind, ExpressionKind, TermVariableResolution, TypeKind, TypeVariableResolution,
+    BinderKind, DoStatement, ExpressionKind, TermVariableResolution, TypeKind,
+    TypeVariableResolution,
 };
 use lsp_types::*;
 use smol_str::ToSmolStr;
@@ -62,6 +63,9 @@ pub fn implementation(
         }
         locate::Located::RecordUpdate(update_id) => {
             hover_record_update(engine, current_file, update_id, format)
+        }
+        locate::Located::DoStatement(statement_id) => {
+            hover_do_statement(engine, current_file, statement_id, format)
         }
         locate::Located::Type(type_id) => hover_type(engine, current_file, type_id, format),
         locate::Located::TypeVariableBinding(binding_id) => {
@@ -404,6 +408,27 @@ fn hover_record_update(
     let update_type = checked.node_types.lookup_record_update(update_id);
     let update_type = update_type.ok_or(AnalyzerError::NonFatal)?;
     hover_checked_type(engine, current_file, update_type, format)
+}
+
+fn hover_do_statement(
+    engine: &impl AnalyzerQueries,
+    current_file: FileId,
+    statement_id: lowering::DoStatementId,
+    format: &MarkupKind,
+) -> Result<Option<Hover>, AnalyzerError> {
+    let lowered = engine.lowered(current_file)?;
+    let statement = lowered.tree.get_do_statement(statement_id).ok_or(AnalyzerError::NonFatal)?;
+    let expression_id = match statement {
+        DoStatement::Bind { expression, .. } | DoStatement::Discard { expression } => *expression,
+        DoStatement::Let { .. } => None,
+    };
+    let expression_id = expression_id.ok_or(AnalyzerError::NonFatal)?;
+
+    let checked = engine.checked(current_file)?;
+    let expression_type = checked.node_types.lookup_expression(expression_id);
+    let expression_type = expression_type.ok_or(AnalyzerError::NonFatal)?;
+
+    hover_checked_type(engine, current_file, expression_type, format)
 }
 
 fn hover_let(

@@ -8,9 +8,9 @@ use indexing::{
     InstanceItemId, TermItemId, TypeItemId,
 };
 use lowering::{
-    BinderId, ExpressionId, LetBindingNameGroupId, LoweredModule, RecordAccessLabelId,
-    RecordFieldId, RecordPunId, RecordUpdateId, TermItemKind, TermOperatorId, TypeId, TypeItemKind,
-    TypeOperatorId, TypeVariableBindingId,
+    BinderId, DoStatementId, ExpressionId, LetBindingNameGroupId, LoweredModule,
+    RecordAccessLabelId, RecordFieldId, RecordPunId, RecordUpdateId, TermItemKind, TermOperatorId,
+    TypeId, TypeItemKind, TypeOperatorId, TypeVariableBindingId,
 };
 use stabilizing::{AstId, StabilizedModule};
 use syntax::ast::{AstNode, AstPtr};
@@ -215,6 +215,7 @@ pub enum Located {
     RecordAccessLabel(RecordAccessLabelId),
     RecordField(RecordFieldId),
     RecordUpdate(RecordUpdateId),
+    DoStatement(DoStatementId),
     Type(TypeId),
     TypeVariableBinding(TypeVariableBindingId),
     BinderPun(RecordPunId),
@@ -326,6 +327,10 @@ fn locate_node(
         let ptr = ptr.cast()?;
         let id = stabilized.lookup_ptr(&ptr)?;
         Some(Located::RecordUpdate(id))
+    } else if cst::DoStatement::can_cast(kind) {
+        let ptr = ptr.cast()?;
+        let id = stabilized.lookup_ptr(&ptr)?;
+        Some(Located::DoStatement(id))
     } else if cst::Expression::can_cast(kind) {
         let ptr = ptr.cast()?;
         let id = stabilized.lookup_ptr(&ptr)?;

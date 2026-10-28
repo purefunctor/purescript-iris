@@ -87,6 +87,7 @@ pub fn implementation(
         locate::Located::RecordAccessLabel(_) => Ok(None),
         locate::Located::RecordField(_) => Ok(None),
         locate::Located::RecordUpdate(_) => Ok(None),
+        locate::Located::DoStatement(_) => Ok(None),
         locate::Located::TypeVariableBinding(_) => Ok(None),
         locate::Located::Nothing => Ok(None),
     }
