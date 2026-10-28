@@ -479,18 +479,13 @@ impl<'a> Tree<'a> {
         self.allocate(expression)
     }
 
-    pub(crate) fn member_assignment(
-        &mut self,
-        object: ExpressionId,
-        property: impl AsRef<str>,
-        value: ExpressionId,
-    ) -> ExpressionId {
-        let member = self.member(object, property);
-        self.assignment(member, value)
-    }
-
-    pub(crate) fn assignment(&mut self, member: ExpressionId, value: ExpressionId) -> ExpressionId {
-        let target = AssignmentTarget::from(self.expression(member).into_member_expression());
+    pub(crate) fn assignment(&mut self, target: ExpressionId, value: ExpressionId) -> ExpressionId {
+        let target = match self.expression(target) {
+            Expression::Identifier(identifier) => {
+                AssignmentTarget::AssignmentTargetIdentifier(identifier)
+            }
+            target => AssignmentTarget::from(target.into_member_expression()),
+        };
         let expression = Expression::new_assignment_expression(
             self.span(),
             AssignmentOperator::Assign,

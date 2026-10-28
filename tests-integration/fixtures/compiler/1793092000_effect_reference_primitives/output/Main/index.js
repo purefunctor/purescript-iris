@@ -6,20 +6,20 @@ export function increment(ref) {
 }
 export const results = /* @__PURE__ */ (() => {
   return () => {
-    const ref = { value: 1 | 0 };
-    ref.value = 2 | 0;
+    let ref = 1 | 0;
+    ref = 2 | 0;
     const written = void 0;
-    const modified = ref.value = ref.value + (10 | 0) | 0;
-    ref.value = ref.value * (2 | 0) | 0;
+    const modified = ref = ref + (10 | 0) | 0;
+    ref = ref * (2 | 0) | 0;
     const modifiedUnit = void 0;
-    const state = ref.value;
+    const state = ref;
     const $modified = {
       state: state + (1 | 0) | 0,
       value: /* @__PURE__ */ Data_Show.show(Data_Show.showInt)(state)
     };
-    ref.value = $modified.state;
+    ref = $modified.state;
     const modifiedValue = $modified.value;
-    const final = ref.value;
+    const final = ref;
     const $value = {
       written,
       modified,

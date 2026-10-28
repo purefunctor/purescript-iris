@@ -6,7 +6,7 @@ import * as $foreign from "./foreign.js";
 export function visit(values) {
   const $value = [];
   return () => {
-    const seen = { value: $value };
+    let seen = $value;
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
@@ -14,9 +14,9 @@ export function visit(values) {
       const $unit = $action();
       const $action$1 = push(values)(value);
       const $unit$1 = $action$1();
-      seen.value = [...seen.value, value];
+      seen = [...seen, value];
     }
-    return seen.value;
+    return seen;
   };
 }
 export function record(seen) {

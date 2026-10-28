@@ -1,22 +1,22 @@
 export function branches(flag) {
   return () => {
-    const ref = { value: "start" };
+    let ref = "start";
     if (flag) {
-      ref.value = "then";
+      ref = "then";
       const $function = (section111) => section111 + "!";
-      return $function(ref.value);
+      return $function(ref);
     } else {
-      ref.value = ref.value + "-else";
-      return ref.value;
+      ref = ref + "-else";
+      return ref;
     }
   };
 }
 export function stateWrites(start) {
-  const ref = { value: start };
+  let ref = start;
   const $value = start * (2 | 0) | 0;
-  const written = ref.value = $value;
-  const modified = ref.value = ref.value + (1 | 0) | 0;
-  const final = ref.value;
+  const written = ref = $value;
+  const modified = ref = ref + (1 | 0) | 0;
+  const final = ref;
   const $value$1 = [
     written,
     modified,
@@ -26,9 +26,9 @@ export function stateWrites(start) {
 }
 export const refs = /* @__PURE__ */ (() => {
   return () => {
-    const ref = { value: 0 | 0 };
-    ref.value = 1 | 0;
-    ref.value = ref.value + (1 | 0) | 0;
-    return ref.value;
+    let ref = 0 | 0;
+    ref = 1 | 0;
+    ref = ref + (1 | 0) | 0;
+    return ref;
   };
 })();

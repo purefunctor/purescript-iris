@@ -1,13 +1,14 @@
 use functional::optimize::{EffectPosition, local_is_captured, local_uses};
 use functional::tree::{
-    ArrayElement as FunctionalArrayElement, ArrayEnd, EffectLoop, EffectPrimitive,
-    ExpressionId as FunctionalExpressionId, ExpressionKind, Parameter, PatternKind,
-    ReferenceModifyResult, ReferenceWriteResult,
+    ArrayElement as FunctionalArrayElement, ArrayEnd, EffectExpression, EffectLoop,
+    EffectPrimitive, ExpressionId as FunctionalExpressionId, ExpressionKind, Guard, LocalId,
+    Origin, Parameter, PatternKind, ReferenceModifyResult, ReferenceWriteResult, Storage,
 };
+use smol_str::SmolStr;
 
 use super::syntax::constructor_value;
 use super::{
-    CapturedEffectAction, Destination, FunctionRenderer, capture_effect_action,
+    CapturedEffectAction, Destination, FunctionRenderer, LocalBinding, capture_effect_action,
     capture_effect_value, execute_effect, execute_effect_action_value,
 };
 use crate::error::ModuleResult;
@@ -25,16 +26,16 @@ pub(super) enum CapturedPrimitive {
         value: ExpressionId,
     },
     ReadReference {
-        reference: ExpressionId,
+        reference: CapturedReference,
     },
     WriteReference {
         value: ExpressionId,
-        reference: ExpressionId,
+        reference: CapturedReference,
         result: ReferenceWriteResult,
     },
     ModifyReference {
         function: CapturedFunction,
-        reference: ExpressionId,
+        reference: CapturedReference,
         result: ReferenceModifyResult,
     },
     UncurriedCall {
@@ -81,6 +82,41 @@ pub(super) enum CapturedPrimitive {
     },
 }
 
+pub(super) enum CapturedReference {
+    Boxed(ExpressionId),
+    Local { name: SmolStr, origin: Option<Origin> },
+}
+
+impl CapturedReference {
+    fn duplicate(&self, tree: &mut Tree<'_>) -> CapturedReference {
+        match self {
+            CapturedReference::Boxed(reference) => {
+                CapturedReference::Boxed(tree.duplicate(reference))
+            }
+            CapturedReference::Local { name, origin } => {
+                CapturedReference::Local { name: name.clone(), origin: *origin }
+            }
+        }
+    }
+
+    fn read(self, tree: &mut Tree<'_>) -> ExpressionId {
+        match self {
+            CapturedReference::Boxed(reference) => tree.member(reference, "value"),
+            CapturedReference::Local { name, origin } => {
+                let _origin = tree.enter_origin(origin);
+                tree.identifier(name)
+            }
+        }
+    }
+
+    fn target(self, tree: &mut Tree<'_>) -> ExpressionId {
+        match self {
+            CapturedReference::Boxed(reference) => tree.member(reference, "value"),
+            CapturedReference::Local { name, .. } => tree.identifier(name),
+        }
+    }
+}
+
 pub(super) enum CapturedLoop {
     Range { start: ExpressionId, end: ExpressionId, body: CapturedFunction },
     Each { array: ExpressionId, body: CapturedFunction },
@@ -103,17 +139,17 @@ pub(super) fn capture_primitive(
             CapturedPrimitive::NewReference { value }
         }
         EffectPrimitive::ReadReference { reference } => {
-            let reference = capture_effect_value(renderer, *reference, "$reference")?;
+            let reference = capture_reference(renderer, *reference, capture_effect_value)?;
             CapturedPrimitive::ReadReference { reference }
         }
         EffectPrimitive::WriteReference { value, reference, result } => {
             let value = capture_effect_value(renderer, *value, "$value")?;
-            let reference = capture_effect_value(renderer, *reference, "$reference")?;
+            let reference = capture_reference(renderer, *reference, capture_effect_value)?;
             CapturedPrimitive::WriteReference { value, reference, result: *result }
         }
         EffectPrimitive::ModifyReference { function, reference, result } => {
             let function = capture_function(renderer, *function, "$function")?;
-            let reference = capture_stable_value(renderer, *reference, "$reference")?;
+            let reference = capture_reference(renderer, *reference, capture_stable_value)?;
             CapturedPrimitive::ModifyReference { function, reference, result: *result }
         }
         EffectPrimitive::UncurriedCall { function, arguments } => {
@@ -171,6 +207,26 @@ pub(super) fn capture_primitive(
         }
     };
     Ok(CapturedOperation::Primitive(primitive))
+}
+
+fn capture_reference(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    reference: FunctionalExpressionId,
+    capture_boxed: fn(
+        &mut FunctionRenderer<'_, '_, '_>,
+        FunctionalExpressionId,
+        &str,
+    ) -> ModuleResult<ExpressionId>,
+) -> ModuleResult<CapturedReference> {
+    let expression = &renderer.generator.module.storage[reference];
+    if let ExpressionKind::Local { parameter } = &expression.kind
+        && let Some(LocalBinding::Reference(name)) = renderer.context.locals.get(&parameter.id)
+    {
+        let name = name.clone();
+        return Ok(CapturedReference::Local { name, origin: expression.origin });
+    }
+    let reference = capture_boxed(renderer, reference, "$reference")?;
+    Ok(CapturedReference::Boxed(reference))
 }
 
 fn capture_array_values(
@@ -248,29 +304,37 @@ fn capture_function(
     preferred_name: &str,
 ) -> ModuleResult<CapturedFunction> {
     let storage = &renderer.generator.module.storage;
-    if let ExpressionKind::Abstraction { parameters, body } = &storage[expression].kind
-        && let [pattern] = parameters.as_ref()
-    {
-        let parameter = match &storage[*pattern].kind {
-            PatternKind::Variable(parameter) => Some(Some(parameter.clone())),
-            PatternKind::Named { parameter, pattern }
-                if matches!(storage[*pattern].kind, PatternKind::Wildcard) =>
-            {
-                Some(Some(parameter.clone()))
-            }
-            PatternKind::Wildcard => Some(None),
-            PatternKind::Named { .. }
-            | PatternKind::Literal(_)
-            | PatternKind::Array(_)
-            | PatternKind::Record(_)
-            | PatternKind::Constructor { .. } => None,
-        };
-        if let Some(parameter) = parameter {
-            return Ok(CapturedFunction::Abstraction { parameter, body: *body });
-        }
+    if let Some((parameter, body)) = inline_function(storage, expression) {
+        let parameter = parameter.cloned();
+        return Ok(CapturedFunction::Abstraction { parameter, body });
     }
     let value = capture_effect_value(renderer, expression, preferred_name)?;
     Ok(CapturedFunction::Value(value))
+}
+
+fn inline_function(
+    storage: &Storage,
+    expression: FunctionalExpressionId,
+) -> Option<(Option<&Parameter>, FunctionalExpressionId)> {
+    let ExpressionKind::Abstraction { parameters, body } = &storage[expression].kind else {
+        return None;
+    };
+    let [pattern] = parameters.as_ref() else { return None };
+    let parameter = match &storage[*pattern].kind {
+        PatternKind::Variable(parameter) => Some(parameter),
+        PatternKind::Named { parameter, pattern }
+            if matches!(storage[*pattern].kind, PatternKind::Wildcard) =>
+        {
+            Some(parameter)
+        }
+        PatternKind::Wildcard => None,
+        PatternKind::Named { .. }
+        | PatternKind::Literal(_)
+        | PatternKind::Array(_)
+        | PatternKind::Record(_)
+        | PatternKind::Constructor { .. } => return None,
+    };
+    Some((parameter, *body))
 }
 
 pub(super) fn execute_operation(
@@ -312,9 +376,10 @@ fn execute_primitive(
             let field = ObjectProperty::Field { name: "value".into(), value };
             Some(tree.object(vec![field]))
         }
-        CapturedPrimitive::ReadReference { reference } => Some(tree.member(reference, "value")),
+        CapturedPrimitive::ReadReference { reference } => Some(reference.read(tree)),
         CapturedPrimitive::WriteReference { value, reference, result } => {
-            let assignment = tree.member_assignment(reference, "value", value);
+            let target = reference.target(tree);
+            let assignment = tree.assignment(target, value);
             match result {
                 ReferenceWriteResult::Value => Some(assignment),
                 ReferenceWriteResult::Unit => {
@@ -324,16 +389,17 @@ fn execute_primitive(
             }
         }
         CapturedPrimitive::ModifyReference { function, reference, result } => {
-            let current_reference = tree.duplicate(&reference);
-            let current = tree.member(current_reference, "value");
+            let current = reference.duplicate(tree).read(tree);
             let modified = apply_function(renderer, function, current)?;
             let FunctionRenderer { tree, writer, context, .. } = renderer;
             match result {
                 ReferenceModifyResult::State => {
-                    Some(tree.member_assignment(reference, "value", modified))
+                    let target = reference.target(tree);
+                    Some(tree.assignment(target, modified))
                 }
                 ReferenceModifyResult::Unit => {
-                    let assignment = tree.member_assignment(reference, "value", modified);
+                    let target = reference.target(tree);
+                    let assignment = tree.assignment(target, modified);
                     writer.evaluate(tree, assignment);
                     None
                 }
@@ -342,7 +408,8 @@ fn execute_primitive(
                     writer.constant(tree, &name, modified, false);
                     let record = tree.identifier(&name);
                     let state = tree.member(record, "state");
-                    let assignment = tree.member_assignment(reference, "value", state);
+                    let target = reference.target(tree);
+                    let assignment = tree.assignment(target, state);
                     writer.evaluate(tree, assignment);
                     let record = tree.identifier(&name);
                     Some(tree.member(record, "value"))
@@ -597,4 +664,122 @@ fn execute_loop_action(
     }
     renderer.writer.remove_trailing_continue();
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum ReferencePosition {
+    Action,
+    Continuation,
+}
+
+pub(super) fn reference_stays_local(
+    storage: &Storage,
+    body: FunctionalExpressionId,
+    reference: LocalId,
+) -> bool {
+    let mut values = Vec::new();
+    let mut pending = vec![(body, ReferencePosition::Continuation)];
+    while let Some((expression, position)) = pending.pop() {
+        match (&storage[expression].kind, position) {
+            (ExpressionKind::Effect { effect }, _) => match effect {
+                EffectExpression::Pure(value) => values.push(*value),
+                EffectExpression::Bind { action, body, .. } => {
+                    pending.push((*action, ReferencePosition::Action));
+                    pending.push((*body, ReferencePosition::Continuation));
+                }
+                EffectExpression::Map { function, action } => {
+                    values.push(*function);
+                    pending.push((*action, ReferencePosition::Action));
+                }
+                EffectExpression::Apply { function_action, argument_action } => {
+                    pending.push((*function_action, ReferencePosition::Action));
+                    pending.push((*argument_action, ReferencePosition::Action));
+                }
+                EffectExpression::Primitive(primitive) => {
+                    let reference_operand = match primitive {
+                        EffectPrimitive::ReadReference { reference: operand }
+                        | EffectPrimitive::WriteReference { reference: operand, .. }
+                        | EffectPrimitive::ModifyReference { reference: operand, .. } => {
+                            Some(*operand)
+                        }
+                        _ => None,
+                    };
+                    for operand in primitive.operands() {
+                        let operates_on_reference = Some(operand) == reference_operand
+                            && matches!(
+                                &storage[operand].kind,
+                                ExpressionKind::Local { parameter } if parameter.id == reference
+                            );
+                        if !operates_on_reference {
+                            values.push(operand);
+                        }
+                    }
+                }
+                EffectExpression::Loop(effect_loop) => match effect_loop {
+                    EffectLoop::Range { start, end, body } => {
+                        values.extend([*start, *end]);
+                        match inline_function(storage, *body) {
+                            Some((_, body)) => {
+                                pending.push((body, ReferencePosition::Continuation));
+                            }
+                            None => values.push(*body),
+                        }
+                    }
+                    EffectLoop::Each { array, body } => {
+                        values.push(*array);
+                        match inline_function(storage, *body) {
+                            Some((_, body)) => {
+                                pending.push((body, ReferencePosition::Continuation));
+                            }
+                            None => values.push(*body),
+                        }
+                    }
+                    EffectLoop::While { condition, body } => {
+                        pending.push((*condition, ReferencePosition::Action));
+                        pending.push((*body, ReferencePosition::Action));
+                    }
+                    EffectLoop::Until { condition } => {
+                        pending.push((*condition, ReferencePosition::Action));
+                    }
+                },
+            },
+            (
+                ExpressionKind::IfThenElse { condition, then, else_ },
+                ReferencePosition::Continuation,
+            ) => {
+                values.push(*condition);
+                pending.push((*then, ReferencePosition::Continuation));
+                pending.push((*else_, ReferencePosition::Continuation));
+            }
+            (
+                ExpressionKind::Case { scrutinees, alternatives },
+                ReferencePosition::Continuation,
+            ) => {
+                values.extend(scrutinees.iter().copied());
+                let alternatives = alternatives.iter().map(|alternative| alternative.expression);
+                pending.extend(alternatives.map(|body| (body, ReferencePosition::Continuation)));
+            }
+            (ExpressionKind::Guarded { alternatives }, ReferencePosition::Continuation) => {
+                for alternative in alternatives.iter() {
+                    let guards = alternative.guards.iter().map(|guard| match guard {
+                        Guard::Boolean(expression) | Guard::Pattern { expression, .. } => {
+                            *expression
+                        }
+                    });
+                    values.extend(guards);
+                    pending.push((alternative.expression, ReferencePosition::Continuation));
+                }
+            }
+            (ExpressionKind::Let { bindings, body, .. }, ReferencePosition::Continuation) => {
+                values.extend(bindings.iter().map(|binding| binding.expression));
+                pending.push((*body, ReferencePosition::Continuation));
+            }
+            (ExpressionKind::LetPattern { value, body, .. }, ReferencePosition::Continuation) => {
+                values.push(*value);
+                pending.push((*body, ReferencePosition::Continuation));
+            }
+            _ => values.push(expression),
+        }
+    }
+    values.into_iter().all(|value| local_uses(storage, value, reference) == 0)
 }
