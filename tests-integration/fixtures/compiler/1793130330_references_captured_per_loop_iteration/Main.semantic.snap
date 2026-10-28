@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+sharedCounter :: Effect.Effect (Prim.Array Prim.Int)
+sharedCounter =
+  bind {bindEffect} (new 0) \counter ->
+    bind {bindEffect} (new []) \actions ->
+      discard {discardUnit} {bindEffect}
+        (forE 0 3 \_ ->
+          modify_
+            (\v66 -> append {semigroupArray} v66 [modify (\v76 -> add {semiringInt} v76 1) counter])
+            actions) \_ ->
+        bind {bindEffect} (read actions) (sequence {traversableArray} {applicativeEffect})
+
+ownCounters :: Effect.Effect (Prim.Array Prim.Int)
+ownCounters =
+  bind {bindEffect} (new []) \actions ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 3 \index ->
+        bind {bindEffect} (new (mul {semiringInt} index 10)) \counter ->
+          modify_
+            (\v145 ->
+              append {semigroupArray} v145 [modify (\v155 -> add {semiringInt} v155 1) counter])
+            actions) \_ ->
+      bind {bindEffect} (read actions) \bumps ->
+        bind {bindEffect} (sequence {traversableArray} {applicativeEffect} bumps) \_ ->
+          sequence {traversableArray} {applicativeEffect} bumps

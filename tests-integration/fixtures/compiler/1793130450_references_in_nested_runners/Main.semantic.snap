@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+performedInside :: Effect.Effect Prim.Int
+performedInside =
+  bind {bindEffect} (new 1) \ref ->
+    let
+      doubled :: Prim.Int
+      doubled =
+        unsafePerformEffect
+          (discard {discardUnit} {bindEffect} (modify_ (\v65 -> mul {semiringInt} v65 2) ref) \_ ->
+            read ref)
+    in
+      discard {discardUnit} {bindEffect} (modify_ (\v84 -> add {semiringInt} v84 doubled) ref) \_ ->
+        read ref
+
+runInside :: Prim.Int -> Prim.Int
+runInside = \start ->
+  unsafePerformEffect
+    (bind {bindEffect} (new start) \ref ->
+      let
+        inner :: Prim.Int
+        inner =
+          run
+            (bind {bindST} (new start) \local ->
+              let
+                bump :: Control.Monad.ST.Internal.ST t0 Prim.Int
+                bump = modify (\v146 -> add {semiringInt} v146 1) local
+              in
+                bind {bindST} bump \_ -> bump)
+      in
+        discard {discardUnit} {bindEffect}
+          (modify_ (\v164 -> add {semiringInt} v164 inner) ref) \_ -> read ref)

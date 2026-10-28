@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export performedInside = effect.bind (effect.newReference 1)
+  \ref%0 -> let
+    doubled%2 = uncurried.call effect.bind (effect.modifyReference
+      (\section65%4 -> integer.multiply section65%4 2)
+      ref%0)
+      \$unit%5 -> effect.readReference ref%0()
+  in effect.bind (effect.modifyReference (\section84%1 -> integer.add section84%1 doubled%2) ref%0)
+    \$unit%3 -> effect.readReference ref%0
+
+@export runInside = \start%6 ->
+  uncurried.call effect.bind (effect.newReference start%6)
+    \ref%7 -> let
+      inner%9 = uncurried.call effect.bind (effect.newReference start%6)
+        \local%11 -> let
+          bump%12 = effect.modifyReferenceState
+            (\section146%14 -> integer.add section146%14 1)
+            local%11
+        in effect.bind bump%12 \$int%13 -> bump%12()
+    in effect.bind (effect.modifyReference
+      (\section164%8 -> integer.add section164%8 inner%9)
+      ref%7)
+      \$unit%10 -> effect.readReference ref%7()

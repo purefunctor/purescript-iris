@@ -6,6 +6,7 @@ bump :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
 passed :: Effect.Effect Prim.Int
 returned :: Effect.Effect (Effect.Ref.Ref Prim.Int)
 stored :: Effect.Effect { counter :: Effect.Ref.Ref Prim.Int }
-captured :: Prim.Boolean -> Effect.Effect Prim.Int
+escapesFromClosure :: Effect.Effect (Data.Unit.Unit -> Effect.Ref.Ref Prim.Int)
+passedLater :: Effect.Effect (Effect.Effect Prim.Int)
 
 Types

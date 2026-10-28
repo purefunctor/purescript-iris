@@ -19,16 +19,10 @@ source: tests-integration/src/fixtures.rs
     ref%8)
     \$unit%10 -> effect.pure { counter: ref%8 }
 
-@export captured = \flag%12 ->
-  effect.bind (effect.newReference 0)
-    \ref%11 -> effect.bind (when applicativeEffect flag%12
-      (effect.modifyReference (\section192%13 -> integer.add section192%13 5) ref%11))
-      \$unit%14 -> effect.bind (if flag%12
-        then effect.modifyReference (\section209%15 -> integer.multiply section209%15 2) ref%11
-        else effect.pure unit)
-        \$unit%16 -> let
-          increment%17 = effect.modifyReference
-            (\section231%20 -> integer.add section231%20 1)
-            ref%11
-        in effect.bind increment%17
-          \$unit%18 -> effect.bind increment%17 \$unit%19 -> effect.readReference ref%11
+@export escapesFromClosure = effect.bind (effect.newReference 0)
+  \ref%11 -> let
+    increment%12 = effect.modifyReference (\section191%15 -> integer.add section191%15 1) ref%11
+  in effect.bind increment%12 \$unit%13 -> effect.pure (\$unit%14@(_) -> ref%11)
+
+@export passedLater = effect.bind (effect.newReference 0)
+  \ref%16 -> effect.pure (effect.bind (bump ref%16) \$unit%17 -> effect.readReference ref%16)

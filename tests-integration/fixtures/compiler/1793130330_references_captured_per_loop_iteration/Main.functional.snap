@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export sharedCounter = effect.bind (effect.newReference 0)
+  \counter%0 -> effect.bind (effect.newReference [])
+    \actions%1 -> effect.bind (effect.forRange
+      0
+      3
+      (\$int%2@(_) ->
+        effect.modifyReference
+          (\section66%3 ->
+            [...section66%3,
+              effect.modifyReferenceState (\section76%4 -> integer.add section76%4 1) counter%0])
+          actions%1))
+      \$unit%5 -> bind bindEffect (effect.readReference actions%1)
+        (traversableArrayDictSequence applicativeEffect)
+
+@export ownCounters = effect.bind (effect.newReference [])
+  \actions%6 -> effect.bind (effect.forRange
+    0
+    3
+    (\index%7 ->
+      effect.bind (effect.newReference (integer.multiply index%7 10))
+        \counter%8 -> effect.modifyReference
+          (\section145%9 ->
+            [...section145%9,
+              effect.modifyReferenceState (\section155%10 -> integer.add section155%10 1) counter%8
+            ])
+          actions%6))
+    \$unit%11 -> effect.bind (effect.readReference actions%6)
+      \bumps%12 -> effect.bind (traversableArrayDictSequence applicativeEffect bumps%12)
+        \$array%13 -> traversableArrayDictSequence applicativeEffect bumps%12
+
+traversableArrayDictSequence = sequence traversableArray

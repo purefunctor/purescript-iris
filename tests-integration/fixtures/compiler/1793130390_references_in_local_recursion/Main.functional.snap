@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export countdown = \start%2 ->
+  effect.bind (effect.newReference 0)
+    \steps%0 -> let
+      rec go%1 = \remaining%5 ->
+        if integer.greater_than remaining%5 0
+          then effect.bind (effect.modifyReference
+            (\section67%6 -> integer.add section67%6 remaining%5)
+            steps%0)
+            \$unit%7 -> go%1 (integer.subtract remaining%5 1)
+          else effect.pure unit
+    in effect.bind (go%1 start%2)
+      \$unit%3 -> effect.bind (go%1 2) \$unit%4 -> effect.readReference steps%0

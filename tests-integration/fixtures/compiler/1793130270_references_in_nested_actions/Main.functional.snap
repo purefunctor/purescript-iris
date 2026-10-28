@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export captured = \flag%1 ->
+  effect.bind (effect.newReference 0)
+    \ref%0 -> effect.bind (when applicativeEffect flag%1
+      (effect.modifyReference (\section50%2 -> integer.add section50%2 5) ref%0))
+      \$unit%3 -> effect.bind (if flag%1
+        then effect.modifyReference (\section67%4 -> integer.multiply section67%4 2) ref%0
+        else effect.pure unit)
+        \$unit%5 -> let
+          increment%6 = effect.modifyReference (\section89%9 -> integer.add section89%9 1) ref%0
+        in effect.bind increment%6
+          \$unit%7 -> effect.bind increment%6 \$unit%8 -> effect.readReference ref%0
+
+@export capturedAction = effect.bind (effect.newReference 0)
+  \ref%10 -> let
+    bump%11 = effect.modifyReferenceState (\section135%13 -> integer.add section135%13 1) ref%10
+  in effect.bind bump%11 \$int%12 -> effect.pure bump%11
+
+@export counter = effect.bind (effect.newReference 0)
+  \ref%14 -> let
+    increment%15 = effect.modifyReference (\section184%17 -> integer.add section184%17 1) ref%14
+  in effect.bind increment%15
+    \$unit%16 -> effect.pure { increment: increment%15, current: effect.readReference ref%14 }
