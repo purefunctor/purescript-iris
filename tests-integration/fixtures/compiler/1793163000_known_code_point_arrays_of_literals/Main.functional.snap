@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export ascii = toCodePointArray "abc"
+
+@export astral = toCodePointArray "a𝐀b"
+
+@export loneSurrogate = toCodePointArray "\x00d800x"
+
+@export empty = toCodePointArray ""
+
+@export reexported = toCodePointArray "ab"
+
+@export unknown = \string%0 -> toCodePointArray string%0
