@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export isLess = \left%0 right%1 ->
+  case ordIntDictCompare left%0 right%1 of
+    LT ->
+      "less"
+    other%2 ->
+      "not less"
+
+@export describeOrdering = \left%3 right%4 ->
+  case ordIntDictCompare left%3 right%4 of
+    LT ->
+      "less"
+    other%5 ->
+      show showOrdering other%5
+
+ordIntDictCompare = compare ordInt
