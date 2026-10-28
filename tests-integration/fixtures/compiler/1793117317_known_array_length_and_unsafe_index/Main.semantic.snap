@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+arrayLength :: Prim.Array Prim.String -> Prim.Int
+arrayLength = \values -> length values
+
+firstValue :: Prim.Array Prim.String -> Prim.String
+firstValue = \values -> unsafePartial \{partialDict} -> unsafeIndex {partialDict} values 0
+
+lastValue :: Prim.Array Prim.String -> Prim.String
+lastValue = \values ->
+  unsafePartial \{partialDict} -> unsafeIndex {partialDict} values (sub {ringInt} (length values) 1)
+
+indexWith :: Prim.Partial => Prim.Array Prim.String -> Prim.Int -> Prim.String
+indexWith = \{partialDict} -> \values -> unsafeIndex {partialDict} values

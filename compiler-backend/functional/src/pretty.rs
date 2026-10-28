@@ -4,10 +4,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
-    BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression, ExpressionId,
-    ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module, Parameter,
-    PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence, ReflectableOrdering,
-    SynthesizedEvidence, UnaryOperator,
+    ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
+    ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module,
+    Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence,
+    ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -105,8 +105,10 @@ impl<'a> Printer<'a, '_> {
             ExpressionKind::RecordUpdate { .. } => ExpressionPrecedence::RecordUpdate,
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
+            | ExpressionKind::Index { .. }
             | ExpressionKind::Constructor { .. }
             | ExpressionKind::Global { .. }
             | ExpressionKind::Local { .. }
@@ -129,6 +131,17 @@ impl<'a> Printer<'a, '_> {
                 let elements = elements.iter().map(|element| self.expression(*element));
                 self.delimited("[", elements, "]")
             }
+            ExpressionKind::ArrayConcatenation { elements } => {
+                let elements = elements.iter().map(|element| match element {
+                    ArrayElement::Value(expression) => self.expression(*expression),
+                    ArrayElement::Spread(expression) => {
+                        let expression =
+                            self.expression_at(*expression, ExpressionPrecedence::Atom);
+                        self.arena.text("...").append(expression)
+                    }
+                });
+                self.delimited("[", elements, "]")
+            }
             ExpressionKind::Record { fields } => {
                 let fields = fields.iter().map(|field| {
                     let label = self.field(&field.field);
@@ -149,11 +162,18 @@ impl<'a> Printer<'a, '_> {
                 let field = self.field(field);
                 record.append(self.arena.text(format!(".{field}")))
             }
+            ExpressionKind::Index { value, index } => {
+                let value = self.expression_at(*value, ExpressionPrecedence::Atom);
+                let index = self.expression(*index);
+                value.append("[").append(index).append("]")
+            }
             ExpressionKind::Unary { operator, value } => {
                 let operator = match operator {
                     UnaryOperator::BooleanNot => "boolean.not",
                     UnaryOperator::IntegerNegate => "integer.negate",
+                    UnaryOperator::IntegerComplement => "integer.complement",
                     UnaryOperator::NumberNegate => "number.negate",
+                    UnaryOperator::ArrayLength => "array.length",
                 };
                 let value = self.expression_at(*value, ExpressionPrecedence::Atom);
                 self.arena.text(operator).append(" ").append(value)
@@ -165,6 +185,16 @@ impl<'a> Printer<'a, '_> {
                     BinaryOperator::IntegerAdd => ("integer", "add"),
                     BinaryOperator::IntegerSubtract => ("integer", "subtract"),
                     BinaryOperator::IntegerMultiply => ("integer", "multiply"),
+                    BinaryOperator::IntegerDivide => ("integer", "divide"),
+                    BinaryOperator::IntegerModulo => ("integer", "modulo"),
+                    BinaryOperator::IntegerAnd => ("integer", "and"),
+                    BinaryOperator::IntegerOr => ("integer", "or"),
+                    BinaryOperator::IntegerXor => ("integer", "xor"),
+                    BinaryOperator::IntegerShiftLeft => ("integer", "shift_left"),
+                    BinaryOperator::IntegerShiftRight => ("integer", "shift_right"),
+                    BinaryOperator::IntegerZeroFillShiftRight => {
+                        ("integer", "zero_fill_shift_right")
+                    }
                     BinaryOperator::NumberAdd => ("number", "add"),
                     BinaryOperator::NumberSubtract => ("number", "subtract"),
                     BinaryOperator::NumberMultiply => ("number", "multiply"),

@@ -1,0 +1,40 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export function masked(flags) {
+   | ^ 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+   |        ^ (masked) 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+   |                               ^ 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+ 2 |   return (mask) => {
+   |   ^ (masked) 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+   |                    ^ 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+ 3 |     return flags & mask | flags ^ ~mask;
+   |     ^ 6:21 (flags .&. mask) .|. (flags .^. complement mask)
+   |            ^ 6:22 flags .&. mask) .|. (flags .^. complement mask)
+   |                    ^ 6:32 mask) .|. (flags .^. complement mask)
+   |                           ^ 6:43 flags .^. complement mask)
+   |                                   ^ 6:53 complement mask)
+   |                                    ^ 6:64 mask)
+ 4 |   };
+   |   ^ 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+ 5 | }
+   | ^ 6:1 masked flags mask = (flags .&. mask) .|. (flags .^. complement mask)
+ 6 | export function shifted(value) {
+   | ^ 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count
+   |        ^ (shifted) 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count
+   |                                ^ 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count
+ 7 |   return (count) => {
+   |   ^ (shifted) 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count
+   |                     ^ 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count
+ 8 |     return (value << count | value >> count) ^ value >>> count;
+   |     ^ 9:23 shl value count .|. shr value count .^. zshr value count
+   |             ^ 9:27 value count .|. shr value count .^. zshr value count
+   |                      ^ 9:33 count .|. shr value count .^. zshr value count
+   |                              ^ 9:47 value count .^. zshr value count
+   |                                       ^ 9:53 count .^. zshr value count
+   |                                                ^ 9:68 value count
+   |                                                          ^ 9:74 count
+ 9 |   };
+   |   ^ 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count
+10 | }
+   | ^ 9:1 shifted value count = shl value count .|. shr value count .^. zshr value count

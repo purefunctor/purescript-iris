@@ -3,6 +3,6 @@ source: tests-integration/src/fixtures.rs
 ---
 @export safeZero = \partialDict%1 -> \$int%0@(0) -> 0
 
-@export unsafeZeroLambda = unsafePartial (\partialDict%2 -> \$int%3@(0) -> 0)
+@export unsafeZeroLambda = \$int%3@(0) -> 0
 
-@export unsafeZeroName = unsafePartial (\partialDict%4 -> safeZero partialDict%4)
+@export unsafeZeroName = safeZero <trivial evidence>

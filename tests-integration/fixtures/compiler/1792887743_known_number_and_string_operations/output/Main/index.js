@@ -1,6 +1,7 @@
 import * as Data_EuclideanRing from "../Data.EuclideanRing/index.js";
 import * as Data_Semigroup from "../Data.Semigroup/index.js";
 import * as $foreign from "./foreign.js";
+import * as $runtime from "../runtime.js";
 export function numberAdd(left) {
   return (right) => {
     return left + right;
@@ -52,12 +53,12 @@ export function numberAddOrder($boolean) {
 }
 export function integerDivide(left) {
   return (right) => {
-    return /* @__PURE__ */ Data_EuclideanRing.div(Data_EuclideanRing.euclideanRingInt)(left)(right);
+    return /* @__PURE__ */ $runtime.intDiv(left, right);
   };
 }
 export function arrayAppend(left) {
   return (right) => {
-    return /* @__PURE__ */ Data_Semigroup.append(Data_Semigroup.semigroupArray)(left)(right);
+    return [...left, ...right];
   };
 }
 export function genericAppend(semigroupValueDict) {

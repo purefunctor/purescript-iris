@@ -33,30 +33,24 @@ export const contentOverloadString = /* @__PURE__ */ (() => {
     };
     return /* @__PURE__ */ Partial_Unsafe.unsafePartial(/* @__PURE__ */ $closure$1(composeArgument));
   };
-  const $closure$4 = (partialDict$2) => {
-    const $closure$5 = (content$1) => {
-      if (content$1.tag === "Sentence") {
-        const { _1: value } = content$1;
-        return value;
-      }
-      throw new Error("Pattern match failure");
-    };
-    return $closure$5;
+  const $closure$4 = (content$1) => {
+    if (content$1.tag === "Sentence") {
+      const { _1: value } = content$1;
+      return value;
+    }
+    throw new Error("Pattern match failure");
   };
-  const $closure$6 = (content$2) => {
-    const $closure$7 = (partialDict$3) => {
-      if (content$2.tag === "Sentence") {
-        const { _1: value$1 } = content$2;
-        return value$1;
-      }
-      throw new Error("Pattern match failure");
-    };
-    return Partial_Unsafe.unsafePartial($closure$7);
+  const $closure$5 = (content$2) => {
+    if (content$2.tag === "Sentence") {
+      const { _1: value$1 } = content$2;
+      return value$1;
+    }
+    throw new Error("Pattern match failure");
   };
   return {
     fromContent: $closure,
-    fromContentPartialLambda: Partial_Unsafe.unsafePartial($closure$4),
-    fromContentLambdaPartial: $closure$6
+    fromContentPartialLambda: $closure$4,
+    fromContentLambdaPartial: $closure$5
   };
 })();
 export const contentOverloadArrayString = /* @__PURE__ */ (() => {
@@ -76,29 +70,23 @@ export const contentOverloadArrayString = /* @__PURE__ */ (() => {
     };
     return /* @__PURE__ */ Partial_Unsafe.unsafePartial(/* @__PURE__ */ $closure$1(composeArgument));
   };
-  const $closure$4 = (partialDict$2) => {
-    const $closure$5 = (content$1) => {
-      if (content$1.tag === "Paragraph") {
-        const { _1: value } = content$1;
-        return value;
-      }
-      throw new Error("Pattern match failure");
-    };
-    return $closure$5;
+  const $closure$4 = (content$1) => {
+    if (content$1.tag === "Paragraph") {
+      const { _1: value } = content$1;
+      return value;
+    }
+    throw new Error("Pattern match failure");
   };
-  const $closure$6 = (content$2) => {
-    const $closure$7 = (partialDict$3) => {
-      if (content$2.tag === "Paragraph") {
-        const { _1: value$1 } = content$2;
-        return value$1;
-      }
-      throw new Error("Pattern match failure");
-    };
-    return Partial_Unsafe.unsafePartial($closure$7);
+  const $closure$5 = (content$2) => {
+    if (content$2.tag === "Paragraph") {
+      const { _1: value$1 } = content$2;
+      return value$1;
+    }
+    throw new Error("Pattern match failure");
   };
   return {
     fromContent: $closure,
-    fromContentPartialLambda: Partial_Unsafe.unsafePartial($closure$4),
-    fromContentLambdaPartial: $closure$6
+    fromContentPartialLambda: $closure$4,
+    fromContentLambdaPartial: $closure$5
   };
 })();

@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+bitAnd :: Prim.Int -> Prim.Int -> Prim.Int
+bitOr :: Prim.Int -> Prim.Int -> Prim.Int
+bitXor :: Prim.Int -> Prim.Int -> Prim.Int
+shiftLeft :: Prim.Int -> Prim.Int -> Prim.Int
+shiftRight :: Prim.Int -> Prim.Int -> Prim.Int
+zeroFillShiftRight :: Prim.Int -> Prim.Int -> Prim.Int
+bitComplement :: Prim.Int -> Prim.Int
+lowByte :: Prim.Int -> Prim.Int
+partiallyAppliedAnd :: Prim.Int -> Prim.Int
+
+Types

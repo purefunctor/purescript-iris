@@ -64,12 +64,15 @@ pub(super) fn unary_expression(
             let value = tree.unary(UnaryOperator::Negate, value);
             integer_coercion_expression(tree, value)
         }
+        FunctionalUnaryOperator::IntegerComplement => tree.unary(UnaryOperator::BitwiseNot, value),
         FunctionalUnaryOperator::NumberNegate => tree.unary(UnaryOperator::Negate, value),
+        FunctionalUnaryOperator::ArrayLength => tree.member(value, "length"),
     }
 }
 
 pub(super) fn binary_expression(
     tree: &mut Tree,
+    runtime_namespace: Option<&SmolStr>,
     operator: FunctionalBinaryOperator,
     left: ExpressionId,
     right: ExpressionId,
@@ -87,6 +90,28 @@ pub(super) fn binary_expression(
         }
         FunctionalBinaryOperator::IntegerMultiply => {
             integer_binary_expression(tree, BinaryOperator::Multiply, left, right)
+        }
+        FunctionalBinaryOperator::IntegerDivide => {
+            runtime_call_expression(tree, runtime_namespace, "intDiv", vec![left, right])
+        }
+        FunctionalBinaryOperator::IntegerModulo => {
+            runtime_call_expression(tree, runtime_namespace, "intMod", vec![left, right])
+        }
+        FunctionalBinaryOperator::IntegerAnd => {
+            tree.binary(BinaryOperator::BitwiseAnd, left, right)
+        }
+        FunctionalBinaryOperator::IntegerOr => tree.binary(BinaryOperator::BitwiseOr, left, right),
+        FunctionalBinaryOperator::IntegerXor => {
+            tree.binary(BinaryOperator::BitwiseXor, left, right)
+        }
+        FunctionalBinaryOperator::IntegerShiftLeft => {
+            tree.binary(BinaryOperator::ShiftLeft, left, right)
+        }
+        FunctionalBinaryOperator::IntegerShiftRight => {
+            tree.binary(BinaryOperator::ShiftRight, left, right)
+        }
+        FunctionalBinaryOperator::IntegerZeroFillShiftRight => {
+            tree.binary(BinaryOperator::UnsignedShiftRight, left, right)
         }
         FunctionalBinaryOperator::NumberAdd | FunctionalBinaryOperator::StringAppend => {
             tree.binary(BinaryOperator::Add, left, right)
@@ -110,6 +135,19 @@ pub(super) fn binary_expression(
             tree.binary(operator, left, right)
         }
     }
+}
+
+fn runtime_call_expression(
+    tree: &mut Tree,
+    runtime_namespace: Option<&SmolStr>,
+    helper: &str,
+    arguments: Vec<ExpressionId>,
+) -> ExpressionId {
+    let runtime_namespace = runtime_namespace
+        .expect("invariant violated: runtime operators require the JavaScript runtime");
+    let runtime = tree.identifier(runtime_namespace);
+    let helper = tree.member(runtime, helper);
+    tree.pure_call(helper, arguments)
 }
 
 fn integer_binary_expression(

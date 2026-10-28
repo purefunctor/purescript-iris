@@ -183,7 +183,11 @@ fn folded_negation(
             ExpressionKind::Literal { literal: Literal::Number(value) },
         ) => Some(Literal::Number(negated_number(value))),
         (
-            UnaryOperator::BooleanNot | UnaryOperator::IntegerNegate | UnaryOperator::NumberNegate,
+            UnaryOperator::BooleanNot
+            | UnaryOperator::IntegerNegate
+            | UnaryOperator::IntegerComplement
+            | UnaryOperator::NumberNegate
+            | UnaryOperator::ArrayLength,
             _,
         ) => None,
     }
@@ -422,6 +426,9 @@ fn is_simple_expression(
                 }
             }
             ExpressionKind::Array { elements } => pending.extend(elements.iter().rev().copied()),
+            ExpressionKind::ArrayConcatenation { elements } => {
+                pending.extend(elements.iter().rev().map(|element| element.expression()));
+            }
             ExpressionKind::Record { fields } => {
                 pending.extend(fields.iter().rev().map(|field| field.expression));
             }
@@ -429,7 +436,8 @@ fn is_simple_expression(
             | ExpressionKind::Unary { value: record, .. } => {
                 pending.push(*record);
             }
-            ExpressionKind::Binary { left, right, .. } => {
+            ExpressionKind::Binary { left, right, .. }
+            | ExpressionKind::Index { value: left, index: right } => {
                 pending.push(*right);
                 pending.push(*left);
             }
@@ -474,6 +482,11 @@ pub fn try_for_each_expression_child<Error>(
                 visit(element)?;
             }
         }
+        ExpressionKind::ArrayConcatenation { elements } => {
+            for element in elements.iter() {
+                visit(element.expression())?;
+            }
+        }
         ExpressionKind::Record { fields } => {
             for field in fields.iter() {
                 visit(field.expression)?;
@@ -486,7 +499,8 @@ pub fn try_for_each_expression_child<Error>(
         ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
             visit(*record)?;
         }
-        ExpressionKind::Binary { left, right, .. } => {
+        ExpressionKind::Binary { left, right, .. }
+        | ExpressionKind::Index { value: left, index: right } => {
             visit(*left)?;
             visit(*right)?;
         }

@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: forall a. Prim.String -> a -> a
+
+indexBeforeCase :: Prim.Array Prim.String -> Prim.Int -> Prim.String
+indexBeforeCase = \values -> \position ->
+  unsafePartial \{partialDict} ->
+    unsafeIndex {partialDict} (traced "array" values) case traced "scrutinee" position of
+      0 -> traced "first" 0
+      _ -> traced "last" 2

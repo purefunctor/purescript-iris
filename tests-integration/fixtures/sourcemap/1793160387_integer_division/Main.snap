@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | import * as $runtime from "../runtime.js";
+  | ^ unmapped
+2 | export function halved(value) {
+  | ^ 6:1 halved value = value / 2
+  |        ^ (halved) 6:1 halved value = value / 2
+  |                               ^ 6:1 halved value = value / 2
+3 |   return /* @__PURE__ */ $runtime.intDiv(value, 2 | 0);
+  |   ^ 6:16 value / 2
+  |                                                 ^ 6:24 2
+  |                                                      ^ 6:16 value / 2
+4 | }
+  | ^ 6:1 halved value = value / 2
+5 | export function remainder(value) {
+  | ^ 9:1 remainder value divisor = mod value divisor
+  |        ^ (remainder) 9:1 remainder value divisor = mod value divisor
+  |                                  ^ 9:1 remainder value divisor = mod value divisor
+6 |   return (divisor) => {
+  |   ^ (remainder) 9:1 remainder value divisor = mod value divisor
+  |                       ^ 9:1 remainder value divisor = mod value divisor
+7 |     return /* @__PURE__ */ $runtime.intMod(value, divisor);
+  |     ^ 9:27 mod value divisor
+  |                                            ^ 9:31 value divisor
+  |                                                   ^ 9:37 divisor
+  |                                                          ^ 9:27 mod value divisor
+8 |   };
+  |   ^ 9:1 remainder value divisor = mod value divisor
+9 | }
+  | ^ 9:1 remainder value divisor = mod value divisor

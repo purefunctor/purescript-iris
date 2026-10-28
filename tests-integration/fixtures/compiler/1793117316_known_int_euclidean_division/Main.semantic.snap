@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+integerDivide :: Prim.Int -> Prim.Int -> Prim.Int
+integerDivide = \left -> \right -> div {euclideanRingInt} left right
+
+integerModulo :: Prim.Int -> Prim.Int -> Prim.Int
+integerModulo = \left -> \right -> mod {euclideanRingInt} left right
+
+halveAndRemainder :: Prim.Int -> Prim.Int
+halveAndRemainder = \value ->
+  add {semiringInt} (div {euclideanRingInt} value 2) (mod {euclideanRingInt} value 2)
+
+partiallyAppliedDivide :: Prim.Int -> Prim.Int
+partiallyAppliedDivide = div {euclideanRingInt} 100

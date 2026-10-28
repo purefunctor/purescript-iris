@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export function lastValue(values) {
+   | ^ 9:1 lastValue values = unsafePartial (Array.unsafeIndex values (Array.length values - 1))
+   |        ^ (lastValue) 9:1 lastValue values = unsafePartial (Array.unsafeIndex values (Array.length values - 1))
+   |                                   ^ 9:1 lastValue values = unsafePartial (Array.unsafeIndex values (Array.length values - 1))
+ 2 |   return values[values.length - (1 | 0) | 0];
+   |   ^ 9:35 Array.unsafeIndex values (Array.length values - 1))
+   |          ^ 9:53 values (Array.length values - 1))
+   |                 ^ 9:74 values - 1))
+   |                        ^ 9:61 Array.length values - 1))
+   |                                  ^ 9:83 1))
+   |                                           ^ 9:61 Array.length values - 1))
+ 3 | }
+   | ^ 9:1 lastValue values = unsafePartial (Array.unsafeIndex values (Array.length values - 1))
+ 4 | export function surrounded(left) {
+   | ^ 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]
+   |        ^ (surrounded) 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]
+   |                                  ^ 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]
+ 5 |   return (right) => {
+   |   ^ (surrounded) 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]
+   |                     ^ 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]
+ 6 |     return [
+   |     ^ 12:25 [ 0 ] <> left <> right <> [ Array.length right ]
+ 7 |       0 | 0,
+   |       ^ 12:27 0 ] <> left <> right <> [ Array.length right ]
+ 8 |       ...left,
+   |       ^ 12:25 [ 0 ] <> left <> right <> [ Array.length right ]
+   |          ^ 12:34 left <> right <> [ Array.length right ]
+ 9 |       ...right,
+   |       ^ 12:25 [ 0 ] <> left <> right <> [ Array.length right ]
+   |          ^ 12:42 right <> [ Array.length right ]
+10 |       right.length
+   |       ^ 12:66 right ]
+   |             ^ 12:53 Array.length right ]
+11 |     ];
+   |     ^ 12:25 [ 0 ] <> left <> right <> [ Array.length right ]
+12 |   };
+   |   ^ 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]
+13 | }
+   | ^ 12:1 surrounded left right = [ 0 ] <> left <> right <> [ Array.length right ]

@@ -16,10 +16,11 @@ use functional::optimize::{
     EffectPosition, for_each_expression_child, local_is_captured, local_uses,
 };
 use functional::tree::{
-    BinaryOperator as FunctionalBinaryOperator, Binding, CaseAlternative, Declaration,
-    DeclarationKind, EffectExpression, ExpressionId as FunctionalExpressionId, ExpressionKind,
-    Global, GlobalId, Guard, GuardedAlternative, LocalId, Module as FunctionalModule,
-    ModuleDependency, Origin, Parameter, PatternId, PatternKind, RecordField, RecordUpdate,
+    ArrayElement as FunctionalArrayElement, BinaryOperator as FunctionalBinaryOperator, Binding,
+    CaseAlternative, Declaration, DeclarationKind, EffectExpression,
+    ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
+    GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
+    PatternId, PatternKind, RecordField, RecordUpdate,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -33,12 +34,15 @@ use crate::module::{
     runtime_filename, stylex_theme_module_filename,
 };
 use crate::program_text::ProgramText;
-use crate::tree::{BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator};
+use crate::tree::{
+    ArrayElement, BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator,
+};
 use crate::writer::{BindingCallTarget, Writer};
 
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
     collect_module_references, cyclic_instance_initializers, has_local_lazy_initializers,
+    has_runtime_operators,
 };
 use self::stylex::{StyleXTheme, collect_stylex_references, collect_stylex_theme};
 use self::syntax::{
@@ -347,7 +351,9 @@ impl<'m> Generator<'m> {
             kind: foreign_kind.unwrap_or(ForeignSourceKind::JavaScript),
         });
         let lazy_globals = cyclic_instance_initializers(module);
-        let requires_runtime = !lazy_globals.is_empty() || has_local_lazy_initializers(module);
+        let requires_runtime = !lazy_globals.is_empty()
+            || has_local_lazy_initializers(module)
+            || has_runtime_operators(module);
         let runtime_namespace = requires_runtime.then(|| allocator.allocate("$runtime"));
         let lazy_global_names = lazy_globals.into_iter().map(|id| {
             let global_name = &global_names[&id];
@@ -1585,6 +1591,35 @@ impl Generator<'_> {
                 let value = tree.array(values);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
+            ExpressionKind::ArrayConcatenation { elements } => {
+                let mut values = Vec::with_capacity(elements.len());
+                for element in elements.iter() {
+                    let expression = element.expression();
+                    let value = if let Some(value) =
+                        self.try_inline_expression(tree, expression, context)?
+                    {
+                        RenderedExpression { value, pending_evaluation: true }
+                    } else {
+                        if self.expression_rendering_is_eager(expression, context) {
+                            self.materialize_rendered_expressions(
+                                tree,
+                                writer,
+                                &mut values,
+                                "$element",
+                                context,
+                            );
+                        }
+                        self.render_non_inline_expression(tree, writer, expression, context)?
+                    };
+                    values.push(value);
+                }
+                let values = elements.iter().zip(values).map(|(element, value)| match element {
+                    FunctionalArrayElement::Value(_) => ArrayElement::Value(value.value),
+                    FunctionalArrayElement::Spread(_) => ArrayElement::Spread(value.value),
+                });
+                let value = tree.spread_array(values.collect_vec());
+                Ok(RenderedExpression { value, pending_evaluation: true })
+            }
             ExpressionKind::Record { fields } => {
                 let mut rendered_fields = Vec::with_capacity(fields.len());
                 for field in fields.iter() {
@@ -1648,7 +1683,25 @@ impl Generator<'_> {
                         }
                         self.render_non_inline_expression(tree, writer, *right, context)?
                     };
-                let value = binary_expression(tree, *operator, left.value, right.value);
+                let runtime_namespace = self.runtime_namespace.as_ref();
+                let value =
+                    binary_expression(tree, runtime_namespace, *operator, left.value, right.value);
+                Ok(RenderedExpression { value, pending_evaluation: true })
+            }
+            ExpressionKind::Index { value, index } => {
+                let mut value = self.rendered_expression(tree, writer, *value, context)?;
+                let index =
+                    if let Some(index) = self.try_inline_expression(tree, *index, context)? {
+                        RenderedExpression { value: index, pending_evaluation: true }
+                    } else {
+                        if self.expression_rendering_is_eager(*index, context) {
+                            self.materialize_rendered_expression(
+                                tree, writer, &mut value, "$value", context,
+                            );
+                        }
+                        self.render_non_inline_expression(tree, writer, *index, context)?
+                    };
+                let value = tree.index(value.value, index.value);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. } => {
@@ -1859,6 +1912,9 @@ impl Generator<'_> {
             ExpressionKind::Array { elements } => {
                 elements.iter().any(|element| self.expression_rendering_is_eager(*element, context))
             }
+            ExpressionKind::ArrayConcatenation { elements } => elements
+                .iter()
+                .any(|element| self.expression_rendering_is_eager(element.expression(), context)),
             ExpressionKind::Record { fields } => fields
                 .iter()
                 .any(|field| self.expression_rendering_is_eager(field.expression, context)),
@@ -1882,6 +1938,10 @@ impl Generator<'_> {
                     } else {
                         self.expression_rendering_is_eager(*right, context)
                     }
+            }
+            ExpressionKind::Index { value, index } => {
+                self.expression_rendering_is_eager(*value, context)
+                    || self.expression_rendering_is_eager(*index, context)
             }
             ExpressionKind::Application { function, arguments, .. }
             | ExpressionKind::UncurriedApplication { function, arguments, .. } => {
@@ -1932,11 +1992,13 @@ impl Generator<'_> {
             }
             ExpressionKind::Error
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }
             | ExpressionKind::Binary { .. }
+            | ExpressionKind::Index { .. }
             | ExpressionKind::Abstraction { .. }
             | ExpressionKind::UncurriedAbstraction { .. }
             | ExpressionKind::Application { .. }
@@ -1997,6 +2059,21 @@ impl Generator<'_> {
                 };
                 tree.array(elements)
             }
+            ExpressionKind::ArrayConcatenation { elements } => {
+                let mut values = Vec::with_capacity(elements.len());
+                for element in elements.iter() {
+                    let Some(value) =
+                        self.inline_expression(tree, element.expression(), context)?
+                    else {
+                        return Ok(None);
+                    };
+                    values.push(match element {
+                        FunctionalArrayElement::Value(_) => ArrayElement::Value(value),
+                        FunctionalArrayElement::Spread(_) => ArrayElement::Spread(value),
+                    });
+                }
+                tree.spread_array(values)
+            }
             ExpressionKind::Record { fields } => {
                 let mut properties = Vec::with_capacity(fields.len());
                 for field in fields.iter() {
@@ -2028,7 +2105,16 @@ impl Generator<'_> {
                 let Some(right) = self.inline_expression(tree, *right, context)? else {
                     return Ok(None);
                 };
-                binary_expression(tree, *operator, left, right)
+                binary_expression(tree, self.runtime_namespace.as_ref(), *operator, left, right)
+            }
+            ExpressionKind::Index { value, index } => {
+                let Some(value) = self.inline_expression(tree, *value, context)? else {
+                    return Ok(None);
+                };
+                let Some(index) = self.inline_expression(tree, *index, context)? else {
+                    return Ok(None);
+                };
+                tree.index(value, index)
             }
             ExpressionKind::Constructor { global } => self.global_expression(tree, global)?,
             ExpressionKind::Global { global } => self.global_expression(tree, global)?,
@@ -2146,12 +2232,16 @@ impl Generator<'_> {
             ExpressionKind::Array { elements } => {
                 elements.iter().all(|element| self.expression_can_inline(*element))
             }
+            ExpressionKind::ArrayConcatenation { elements } => {
+                elements.iter().all(|element| self.expression_can_inline(element.expression()))
+            }
             ExpressionKind::Record { fields } => {
                 fields.iter().all(|field| self.expression_can_inline(field.expression))
             }
             ExpressionKind::Project { record, .. }
             | ExpressionKind::Unary { value: record, .. } => self.expression_can_inline(*record),
-            ExpressionKind::Binary { left, right, .. } => {
+            ExpressionKind::Binary { left, right, .. }
+            | ExpressionKind::Index { value: left, index: right } => {
                 self.expression_can_inline(*left) && self.expression_can_inline(*right)
             }
             ExpressionKind::Abstraction { parameters, body }
@@ -3649,6 +3739,11 @@ fn collect_expression_references(
                 collect_expression_references(module, *expression, seen, globals);
             }
         }
+        ExpressionKind::ArrayConcatenation { elements } => {
+            for element in elements.iter() {
+                collect_expression_references(module, element.expression(), seen, globals);
+            }
+        }
         ExpressionKind::Record { fields } => {
             for field in fields.iter() {
                 collect_expression_references(module, field.expression, seen, globals);
@@ -3661,7 +3756,8 @@ fn collect_expression_references(
         ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
             collect_expression_references(module, *record, seen, globals);
         }
-        ExpressionKind::Binary { left, right, .. } => {
+        ExpressionKind::Binary { left, right, .. }
+        | ExpressionKind::Index { value: left, index: right } => {
             collect_expression_references(module, *left, seen, globals);
             collect_expression_references(module, *right, seen, globals);
         }
@@ -3870,6 +3966,11 @@ fn collect_expression_children(
                 collect_expression_globals(module, *expression, false, globals);
             }
         }
+        ExpressionKind::ArrayConcatenation { elements } => {
+            for element in elements.iter() {
+                collect_expression_globals(module, element.expression(), false, globals);
+            }
+        }
         ExpressionKind::Record { fields } => {
             for field in fields.iter() {
                 collect_expression_globals(module, field.expression, false, globals);
@@ -3882,7 +3983,8 @@ fn collect_expression_children(
         ExpressionKind::Project { record, .. } | ExpressionKind::Unary { value: record, .. } => {
             collect_expression_globals(module, *record, false, globals);
         }
-        ExpressionKind::Binary { left, right, .. } => {
+        ExpressionKind::Binary { left, right, .. }
+        | ExpressionKind::Index { value: left, index: right } => {
             collect_expression_globals(module, *left, false, globals);
             collect_expression_globals(module, *right, false, globals);
         }

@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+arrayAppend :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+arrayAppend = \left -> \right -> append {semigroupArray} left right
+
+arrayAppendChain :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Array Prim.Int
+arrayAppendChain = \first -> \second -> \third ->
+  append {semigroupArray} first (append {semigroupArray} second third)
+
+arrayAppendGrouped :: Prim.Array Prim.Int ->
+Prim.Array Prim.Int ->
+Prim.Array Prim.Int ->
+Prim.Array Prim.Int ->
+Prim.Array Prim.Int
+arrayAppendGrouped = \first -> \second -> \third -> \fourth ->
+  append {semigroupArray} (append {semigroupArray} first second)
+    (append {semigroupArray} third fourth)
+
+arrayAppendLiterals :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+arrayAppendLiterals = \middle ->
+  append {semigroupArray} [1, 2] (append {semigroupArray} middle (append {semigroupArray} [3] []))
+
+literalAppend :: Prim.Array Prim.Int
+literalAppend = append {semigroupArray} [1] [2, 3]
+
+partiallyAppliedAppend :: Prim.Array Prim.Int -> Prim.Array Prim.Int
+partiallyAppliedAppend = append {semigroupArray} [0]

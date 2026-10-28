@@ -242,11 +242,13 @@ fn function_profile(
         ExpressionKind::Error
         | ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }
+        | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
         | ExpressionKind::RecordUpdate { .. }
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
+        | ExpressionKind::Index { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }
@@ -337,11 +339,13 @@ fn collect_tail_edges(
         ExpressionKind::Error
         | ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }
+        | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
         | ExpressionKind::RecordUpdate { .. }
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
+        | ExpressionKind::Index { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }
@@ -382,11 +386,13 @@ fn application_head(module: &Module, expression: ExpressionId) -> Option<Applica
         ExpressionKind::Error
         | ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }
+        | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
         | ExpressionKind::RecordUpdate { .. }
         | ExpressionKind::Project { .. }
         | ExpressionKind::Unary { .. }
         | ExpressionKind::Binary { .. }
+        | ExpressionKind::Index { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }

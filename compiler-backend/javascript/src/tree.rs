@@ -30,10 +30,16 @@ pub(crate) enum ObjectProperty {
     Spread(ExpressionId),
 }
 
+pub(crate) enum ArrayElement {
+    Value(ExpressionId),
+    Spread(ExpressionId),
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum UnaryOperator {
     LogicalNot,
     Negate,
+    BitwiseNot,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +51,11 @@ pub(crate) enum BinaryOperator {
     GreaterThan,
     GreaterThanOrEqual,
     BitwiseOr,
+    BitwiseAnd,
+    BitwiseXor,
+    ShiftLeft,
+    ShiftRight,
+    UnsignedShiftRight,
     LogicalAnd,
     LogicalOr,
     Add,
@@ -178,6 +189,21 @@ impl<'a> Tree<'a> {
         let elements = elements.into_iter().map(|element| {
             let expression = self.expression(element);
             ArrayExpressionElement::from(expression)
+        });
+        let elements = ArenaVec::from_iter_in(elements, &allocator);
+        let expression = Expression::new_array_expression(self.span(), elements, &self.builder);
+        self.allocate(expression)
+    }
+
+    pub(crate) fn spread_array(&mut self, elements: Vec<ArrayElement>) -> ExpressionId {
+        let allocator = self.allocator;
+        let elements = elements.into_iter().map(|element| match element {
+            ArrayElement::Value(value) => ArrayExpressionElement::from(self.expression(value)),
+            ArrayElement::Spread(value) => ArrayExpressionElement::new_spread_element(
+                self.span(),
+                self.expression(value),
+                &self.builder,
+            ),
         });
         let elements = ArenaVec::from_iter_in(elements, &allocator);
         let expression = Expression::new_array_expression(self.span(), elements, &self.builder);
@@ -323,6 +349,7 @@ impl<'a> Tree<'a> {
         let operator = match operator {
             UnaryOperator::LogicalNot => OxcUnaryOperator::LogicalNot,
             UnaryOperator::Negate => OxcUnaryOperator::UnaryNegation,
+            UnaryOperator::BitwiseNot => OxcUnaryOperator::BitwiseNot,
         };
         let expression = Expression::new_unary_expression(
             self.span(),
@@ -372,6 +399,13 @@ impl<'a> Tree<'a> {
                 binary(left, OxcBinaryOperator::GreaterEqualThan, right)
             }
             BinaryOperator::BitwiseOr => binary(left, OxcBinaryOperator::BitwiseOR, right),
+            BinaryOperator::BitwiseAnd => binary(left, OxcBinaryOperator::BitwiseAnd, right),
+            BinaryOperator::BitwiseXor => binary(left, OxcBinaryOperator::BitwiseXOR, right),
+            BinaryOperator::ShiftLeft => binary(left, OxcBinaryOperator::ShiftLeft, right),
+            BinaryOperator::ShiftRight => binary(left, OxcBinaryOperator::ShiftRight, right),
+            BinaryOperator::UnsignedShiftRight => {
+                binary(left, OxcBinaryOperator::ShiftRightZeroFill, right)
+            }
             BinaryOperator::Add => binary(left, OxcBinaryOperator::Addition, right),
             BinaryOperator::Subtract => binary(left, OxcBinaryOperator::Subtraction, right),
             BinaryOperator::Multiply => binary(left, OxcBinaryOperator::Multiplication, right),

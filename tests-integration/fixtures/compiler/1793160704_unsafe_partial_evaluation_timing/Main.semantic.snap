@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: forall a. Prim.String -> a -> a
+
+tracedValue :: Prim.Int -> Prim.Int
+tracedValue = \value ->
+  traced "after argument" (unsafePartial \{partialDict} -> traced "inside" value)
+
+tracedCrash :: Prim.Int -> Prim.Int
+tracedCrash = \value ->
+  add {semiringInt}
+    (unsafePartial \{partialDict} -> crashWith {partialDict} (traced "message" "crashed"))
+    (traced "unreached" value)
+
+tracedFunction :: Prim.Int -> Prim.Int
+tracedFunction = unsafePartial \{partialDict} -> traced "function" \value -> traced "body" value

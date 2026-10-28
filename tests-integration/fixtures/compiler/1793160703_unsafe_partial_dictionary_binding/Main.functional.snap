@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export positive = \partialDict%1 ->
+  \value%0 ->
+    | integer.greater_than value%0 0 -> value%0
+
+@export unusedDictionary = \value%3 -> integer.add value%3 1
+
+@export forwardedDictionary = \value%5 -> positive <trivial evidence> value%5
+
+@export forwardedCrash = \value%7 ->
+  crashWith <trivial evidence> (string.append "crashed with " (show showInt value%7))
+
+@export extraArguments = (\left%9 right%10 ->
+  integer.add (positive <trivial evidence> left%9) right%10)
+  10

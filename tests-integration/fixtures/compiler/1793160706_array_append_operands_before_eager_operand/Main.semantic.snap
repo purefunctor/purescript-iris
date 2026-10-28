@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: forall a. Prim.String -> a -> a
+
+appendBeforeCase :: Prim.Array Prim.Int -> Prim.Int -> Prim.Array Prim.Int
+appendBeforeCase = \values -> \count ->
+  append {semigroupArray} [traced "literal" 0]
+    (append {semigroupArray} (traced "spread" values) case traced "scrutinee" count of
+      0 -> []
+      _ -> traced "nonempty" [count])

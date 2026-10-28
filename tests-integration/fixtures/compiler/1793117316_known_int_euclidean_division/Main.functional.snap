@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export integerDivide = \left%0 right%1 -> integer.divide left%0 right%1
+
+@export integerModulo = \left%2 right%3 -> integer.modulo left%2 right%3
+
+@export halveAndRemainder = \value%4 ->
+  integer.add (integer.divide value%4 2) (integer.modulo value%4 2)
+
+@export partiallyAppliedDivide = div euclideanRingInt 100

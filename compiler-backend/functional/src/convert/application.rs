@@ -6,9 +6,11 @@ use indexing::{IndexedTermItemKind, TypeItemId};
 use itertools::Itertools;
 use smol_str::format_smolstr;
 
+use crate::optimize::local_uses;
 use crate::tree::{
-    BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId, ExpressionKind, GlobalId,
-    InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType, RecordField, UnaryOperator,
+    ArrayElement, BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId,
+    ExpressionKind, GlobalId, InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType,
+    RecordField, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
@@ -22,8 +24,24 @@ const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
     ("Data.Semiring", "add", "semiringNumber", BinaryOperator::NumberAdd),
     ("Data.Ring", "sub", "ringNumber", BinaryOperator::NumberSubtract),
     ("Data.Semiring", "mul", "semiringNumber", BinaryOperator::NumberMultiply),
+    ("Data.EuclideanRing", "div", "euclideanRingInt", BinaryOperator::IntegerDivide),
+    ("Data.EuclideanRing", "mod", "euclideanRingInt", BinaryOperator::IntegerModulo),
     ("Data.EuclideanRing", "div", "euclideanRingNumber", BinaryOperator::NumberDivide),
     ("Data.Semigroup", "append", "semigroupString", BinaryOperator::StringAppend),
+];
+
+const BINARY_FUNCTIONS: &[(&str, &str, BinaryOperator)] = &[
+    ("Data.Int.Bits", "and", BinaryOperator::IntegerAnd),
+    ("Data.Int.Bits", "or", BinaryOperator::IntegerOr),
+    ("Data.Int.Bits", "xor", BinaryOperator::IntegerXor),
+    ("Data.Int.Bits", "shl", BinaryOperator::IntegerShiftLeft),
+    ("Data.Int.Bits", "shr", BinaryOperator::IntegerShiftRight),
+    ("Data.Int.Bits", "zshr", BinaryOperator::IntegerZeroFillShiftRight),
+];
+
+const UNARY_FUNCTIONS: &[(&str, &str, UnaryOperator)] = &[
+    ("Data.Int.Bits", "complement", UnaryOperator::IntegerComplement),
+    ("Data.Array", "length", UnaryOperator::ArrayLength),
 ];
 
 const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
@@ -176,6 +194,17 @@ where
         {
             return Ok(*argument);
         }
+        if self.known_term(known_function, "Partial.Unsafe", "unsafePartial")?
+            && let [function, arguments @ ..] = known_arguments.as_slice()
+            && let Some(body) = self.discharged_partial_abstraction(*function)
+        {
+            return self.application_with_synthetic(
+                body,
+                arguments.iter().copied(),
+                synthetic,
+                result_type,
+            );
+        }
         if self.known_term(known_function, "Safe.Coerce", "coerce")?
             && let [_, argument] = known_arguments.as_slice()
         {
@@ -279,6 +308,40 @@ where
                 return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
             }
         }
+        for &(module_name, function_name, operator) in BINARY_FUNCTIONS {
+            if self.known_term(function, module_name, function_name)?
+                && let [left, right] = arguments
+            {
+                return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
+            }
+        }
+        for &(module_name, function_name, operator) in UNARY_FUNCTIONS {
+            if self.known_term(function, module_name, function_name)?
+                && let [value] = arguments
+            {
+                return Ok(Some(ExpressionKind::Unary { operator, value: *value }));
+            }
+        }
+        if let Some([left, right]) = self.known_instance_member_arguments(
+            function,
+            arguments,
+            "Data.Semigroup",
+            "append",
+            "Data.Semigroup",
+            "semigroupArray",
+        )? {
+            return Ok(Some(self.array_concatenation(*left, *right)));
+        }
+        if self.known_term(function, "Data.Semigroup", "concatArray")?
+            && let [left, right] = arguments
+        {
+            return Ok(Some(self.array_concatenation(*left, *right)));
+        }
+        if self.known_term(function, "Data.Array", "unsafeIndex")?
+            && let [_, value, index] = arguments
+        {
+            return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
+        }
         if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
             self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?
             && let Some(operand) = self.known_primitive_instance(record, "Data.Eq", EQ_INSTANCES)?
@@ -330,6 +393,29 @@ where
             }
         }
         Ok(None)
+    }
+
+    fn array_concatenation(&self, left: ExpressionId, right: ExpressionId) -> ExpressionKind {
+        let mut elements = Vec::new();
+        for operand in [left, right] {
+            match &self.storage[operand].kind {
+                ExpressionKind::Array { elements: values } => {
+                    elements.extend(values.iter().copied().map(ArrayElement::Value));
+                }
+                ExpressionKind::ArrayConcatenation { elements: operand_elements } => {
+                    elements.extend(operand_elements.iter().copied());
+                }
+                _ => elements.push(ArrayElement::Spread(operand)),
+            }
+        }
+        let values = elements.iter().map(|element| match element {
+            ArrayElement::Value(value) => Some(*value),
+            ArrayElement::Spread(_) => None,
+        });
+        match values.collect::<Option<Vec<_>>>() {
+            Some(values) => ExpressionKind::Array { elements: values.into() },
+            None => ExpressionKind::ArrayConcatenation { elements: elements.into() },
+        }
     }
 
     fn known_effect_application(
@@ -421,6 +507,43 @@ where
         let body = self.application(continuation, [value])?;
 
         Ok(Some((parameter, body)))
+    }
+
+    fn discharged_partial_abstraction(&mut self, function: ExpressionId) -> Option<ExpressionId> {
+        let ExpressionKind::Abstraction { parameters, body } = &self.storage[function].kind else {
+            return None;
+        };
+        let (dictionary, parameters) = parameters.split_first()?;
+        let dictionary = *dictionary;
+        let parameters = parameters.to_vec();
+        let body = *body;
+        let dictionary = match &self.storage[dictionary].kind {
+            PatternKind::Variable(parameter) => Some(Parameter::clone(parameter)),
+            PatternKind::Wildcard => None,
+            PatternKind::Named { .. }
+            | PatternKind::Literal(_)
+            | PatternKind::Array(_)
+            | PatternKind::Record(_)
+            | PatternKind::Constructor { .. } => return None,
+        };
+        let body = if parameters.is_empty() {
+            body
+        } else {
+            self.expression(ExpressionKind::Abstraction { parameters: parameters.into(), body })
+        };
+        let Some(dictionary) =
+            dictionary.filter(|dictionary| local_uses(&self.storage, body, dictionary.id) > 0)
+        else {
+            return Some(body);
+        };
+        let evidence = self.expression(ExpressionKind::TrivialEvidence);
+        let binding =
+            Binding { parameter: dictionary, expression: evidence, source_order: 0, origin: None };
+        Some(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: [binding].into(),
+            body,
+        }))
     }
 
     fn uncurry_abstraction(

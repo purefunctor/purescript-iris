@@ -253,11 +253,13 @@ pub enum ExpressionKind {
     Error,
     Literal { literal: Literal },
     Array { elements: Arc<[ExpressionId]> },
+    ArrayConcatenation { elements: Arc<[ArrayElement]> },
     Record { fields: Arc<[RecordField]> },
     RecordUpdate { record: ExpressionId, updates: Arc<[RecordUpdate]> },
     Project { record: ExpressionId, field: Field },
     Unary { operator: UnaryOperator, value: ExpressionId },
     Binary { operator: BinaryOperator, left: ExpressionId, right: ExpressionId },
+    Index { value: ExpressionId, index: ExpressionId },
     Constructor { global: Global },
     Global { global: Global },
     Local { parameter: Parameter },
@@ -277,10 +279,26 @@ pub enum ExpressionKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayElement {
+    Value(ExpressionId),
+    Spread(ExpressionId),
+}
+
+impl ArrayElement {
+    pub fn expression(self) -> ExpressionId {
+        match self {
+            ArrayElement::Value(expression) | ArrayElement::Spread(expression) => expression,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOperator {
     BooleanNot,
     IntegerNegate,
+    IntegerComplement,
     NumberNegate,
+    ArrayLength,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -290,6 +308,14 @@ pub enum BinaryOperator {
     IntegerAdd,
     IntegerSubtract,
     IntegerMultiply,
+    IntegerDivide,
+    IntegerModulo,
+    IntegerAnd,
+    IntegerOr,
+    IntegerXor,
+    IntegerShiftLeft,
+    IntegerShiftRight,
+    IntegerZeroFillShiftRight,
     NumberAdd,
     NumberSubtract,
     NumberMultiply,

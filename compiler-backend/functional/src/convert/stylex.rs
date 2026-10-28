@@ -564,11 +564,13 @@ where
             }) => return Err(invalid()),
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::Unary { .. }
             | ExpressionKind::Binary { .. }
+            | ExpressionKind::Index { .. }
             | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::StyleX(_) => {
                 try_for_each_expression_child(&self.storage[expression].kind, |child| {
@@ -722,10 +724,12 @@ where
             }
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
+            | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::Project { .. }
             | ExpressionKind::Unary { .. }
-            | ExpressionKind::Binary { .. } => try_for_each_expression_child(kind, |child| {
+            | ExpressionKind::Binary { .. }
+            | ExpressionKind::Index { .. } => try_for_each_expression_child(kind, |child| {
                 self.validate_stylex_dynamic_expression(
                     child,
                     parameter,

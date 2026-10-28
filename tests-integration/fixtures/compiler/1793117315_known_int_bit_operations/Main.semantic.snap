@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+bitAnd :: Prim.Int -> Prim.Int -> Prim.Int
+bitAnd = \left -> \right -> and left right
+
+bitOr :: Prim.Int -> Prim.Int -> Prim.Int
+bitOr = \left -> \right -> or left right
+
+bitXor :: Prim.Int -> Prim.Int -> Prim.Int
+bitXor = \left -> \right -> xor left right
+
+shiftLeft :: Prim.Int -> Prim.Int -> Prim.Int
+shiftLeft = \value -> \count -> shl value count
+
+shiftRight :: Prim.Int -> Prim.Int -> Prim.Int
+shiftRight = \value -> \count -> shr value count
+
+zeroFillShiftRight :: Prim.Int -> Prim.Int -> Prim.Int
+zeroFillShiftRight = \value -> \count -> zshr value count
+
+bitComplement :: Prim.Int -> Prim.Int
+bitComplement = \value -> complement value
+
+lowByte :: Prim.Int -> Prim.Int
+lowByte = \value -> or (and value 255) (and (complement 0) 0)
+
+partiallyAppliedAnd :: Prim.Int -> Prim.Int
+partiallyAppliedAnd = and 15
