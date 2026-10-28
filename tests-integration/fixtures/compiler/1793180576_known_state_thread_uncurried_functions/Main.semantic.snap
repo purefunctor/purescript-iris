@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+addToReference :: forall r.
+  Control.Monad.ST.Uncurried.STFn2 (Control.Monad.ST.Internal.STRef r Prim.Int) Prim.Int r Prim.Int
+addToReference =
+  mkSTFn2 \reference amount -> modify (\v59 -> add {semiringInt} v59 amount) reference
+
+addTwice :: Prim.Int -> Prim.Int
+addTwice = \value ->
+  run
+    (bind {bindST} (new value) \reference ->
+      bind {bindST} (runSTFn2 addToReference reference 2) \_ -> runSTFn2 addToReference reference 3)
