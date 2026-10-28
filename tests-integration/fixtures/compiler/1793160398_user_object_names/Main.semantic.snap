@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+sample :: Library.Value
+sample = Object (insert "b" 2 (singleton "a" 1))
+
+wrap :: Foreign.Object.Object Prim.Int -> Library.Value
+wrap = Object
+
+keys :: Foreign.Object.Object Prim.Int -> Prim.Array Prim.String
+keys = \object ->
+  let
+    keysOfObject :: Prim.Array Prim.String
+    keysOfObject = keys object
+  in
+    keysOfObject
+
+member :: Prim.String -> Foreign.Object.Object Prim.Int -> Prim.Boolean
+member = \key -> \object -> member key object
+
+marker :: Prim.Int
+marker = marker

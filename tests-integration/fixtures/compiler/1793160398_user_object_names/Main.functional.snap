@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export Library { Array, Error, Object, describe, objectSize }
+
+@export sample = { tag: "Object", _1: insert "b" 2 (singleton "a" 1) }
+
+@export wrap = Object
+
+@export keys = \object%0 -> object.keys object%0
+
+@export member = \key%2 object%3 -> object.member key%2 object%3
+
+@export marker = marker

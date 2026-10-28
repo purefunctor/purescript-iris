@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sample :: Library.Value
+wrap :: Foreign.Object.Object Prim.Int -> Library.Value
+keys :: Foreign.Object.Object Prim.Int -> Prim.Array Prim.String
+member :: Prim.String -> Foreign.Object.Object Prim.Int -> Prim.Boolean
+marker :: Prim.Int
+
+Types
