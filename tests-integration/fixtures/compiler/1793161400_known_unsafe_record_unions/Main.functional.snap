@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign readTrace
+
+@export withDefaults = \options%0 -> unsafeUnion options%0 { x: 1, y: "default" }
+
+@export override = \record%1 -> uncurried.call unsafeUnionFn({ x: 0 }, record%1)
+
+@export literals = uncurried.call unsafeUnionFn({ x: 1 }, { y: "right", x: 2 })
+
+@export records = \left%2 right%3 -> uncurried.call unsafeUnionFn(left%2, right%3)
+
+@export overrideOrder = \record%4 ->
+  unsafeUnion { x: observe "override" 0 } (observe "record" record%4)
+
+@export literalsOrder = \$boolean%5@(_) ->
+  uncurried.call unsafeUnionFn({ x: observe "left" 1 }, { y: "right", x: observe "right" 2 })

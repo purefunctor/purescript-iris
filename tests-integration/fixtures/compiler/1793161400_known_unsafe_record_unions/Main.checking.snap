@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+withDefaults :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+override :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+literals :: { x :: Prim.Int, y :: Prim.String }
+records :: { x :: Prim.Int } -> { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+overrideOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+literalsOrder :: Prim.Boolean -> { x :: Prim.Int, y :: Prim.String }
+
+Types

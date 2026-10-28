@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+withDefaults :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+withDefaults = \options -> unsafeUnion options { x: 1, y: "default" }
+
+override :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+override = \record -> runFn2 unsafeUnionFn { x: 0 } record
+
+literals :: { x :: Prim.Int, y :: Prim.String }
+literals = runFn2 unsafeUnionFn { x: 1 } { y: "right", x: 2 }
+
+records :: { x :: Prim.Int } -> { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+records = \left -> \right -> runFn2 unsafeUnionFn left right
+
+overrideOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+overrideOrder = \record -> unsafeUnion { x: observe "override" 0 } (observe "record" record)
+
+literalsOrder :: Prim.Boolean -> { x :: Prim.Int, y :: Prim.String }
+literalsOrder = \_ ->
+  runFn2 unsafeUnionFn { x: observe "left" 1 } { y: "right", x: observe "right" 2 }
