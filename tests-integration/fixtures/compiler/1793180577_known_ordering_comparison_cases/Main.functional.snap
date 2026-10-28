@@ -1,0 +1,54 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export compareIntegers = \left%0 right%1 ->
+  case ordIntDictCompare left%0 right%1 of
+    LT ->
+      "less"
+    EQ ->
+      "equal"
+    GT ->
+      "greater"
+
+@export compareStrings = \left%2 right%3 ->
+  case compare ordString left%2 right%3 of
+    EQ ->
+      "equal"
+    GT ->
+      "greater"
+    LT ->
+      "less"
+
+@export compareNumbers = \left%4 right%5 ->
+  case ordNumberDictCompare left%4 right%5 of
+    GT ->
+      "greater"
+    EQ ->
+      "equal"
+    _ ->
+      "less"
+
+@export numberIsGreater = \left%6 right%7 ->
+  case ordNumberDictCompare left%6 right%7 of
+    GT ->
+      true
+    _ ->
+      false
+
+@export computedIsLess = \left%8 right%9 ->
+  case ordIntDictCompare (integer.add left%8 1) (integer.multiply right%9 2) of
+    LT ->
+      true
+    _ ->
+      false
+
+@export arrayIsLess = \left%10 right%11 ->
+  case compare (ordArray ordInt) left%10 right%11 of
+    LT ->
+      true
+    _ ->
+      false
+
+ordIntDictCompare = compare ordInt
+
+ordNumberDictCompare = compare ordNumber
