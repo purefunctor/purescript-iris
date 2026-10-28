@@ -337,11 +337,16 @@ impl<'a> Tree<'a> {
     }
 
     pub(crate) fn assignment(&mut self, target: ExpressionId, value: ExpressionId) -> ExpressionId {
-        let target = self.expression(target).into_member_expression();
+        let target = match self.expression(target) {
+            Expression::Identifier(identifier) => {
+                AssignmentTarget::AssignmentTargetIdentifier(identifier)
+            }
+            target => AssignmentTarget::from(target.into_member_expression()),
+        };
         let expression = Expression::new_assignment_expression(
             self.span(),
             AssignmentOperator::Assign,
-            AssignmentTarget::from(target),
+            target,
             self.expression(value),
             &self.builder,
         );

@@ -20,7 +20,7 @@ use functional::tree::{
     CaseAlternative, Declaration, DeclarationKind, EffectExpression,
     ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
     GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
-    PatternId, PatternKind, RecordField, RecordUpdate,
+    PatternId, PatternKind, RecordField, RecordUpdate, Storage,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -88,6 +88,7 @@ enum LocalBinding {
     Direct(SmolStr),
     Inline(ExpressionId),
     Lazy(SmolStr),
+    Reference(SmolStr),
 }
 
 struct FunctionContext {
@@ -124,8 +125,8 @@ enum CapturedEffect {
 
 enum CapturedOperation {
     ReferenceNew { value: ExpressionId },
-    ReferenceRead { reference: ExpressionId },
-    ReferenceWrite { reference: ExpressionId, value: ExpressionId },
+    ReferenceRead { target: ExpressionId },
+    ReferenceWrite { target: ExpressionId, value: ExpressionId },
     UncurriedApplication { function: ExpressionId, arguments: Vec<ExpressionId> },
 }
 
@@ -135,11 +136,8 @@ impl CapturedOperation {
             CapturedOperation::ReferenceNew { value } => {
                 tree.object(vec![ObjectProperty::Field { name: "value".into(), value }])
             }
-            CapturedOperation::ReferenceRead { reference } => tree.member(reference, "value"),
-            CapturedOperation::ReferenceWrite { reference, value } => {
-                let target = tree.member(reference, "value");
-                tree.assignment(target, value)
-            }
+            CapturedOperation::ReferenceRead { target } => target,
+            CapturedOperation::ReferenceWrite { target, value } => tree.assignment(target, value),
             CapturedOperation::UncurriedApplication { function, arguments } => {
                 tree.call(function, arguments)
             }
@@ -265,6 +263,10 @@ impl FunctionContext {
 
     fn bind_lazy(&mut self, parameter: &Parameter, name: SmolStr) {
         self.locals.insert(parameter.id, LocalBinding::Lazy(name));
+    }
+
+    fn bind_reference(&mut self, parameter: &Parameter, name: SmolStr) {
+        self.locals.insert(parameter.id, LocalBinding::Reference(name));
     }
 }
 
@@ -770,7 +772,10 @@ impl Generator<'_> {
             TailCallIdentity::Global(global) => self.global_names[&global].clone(),
             TailCallIdentity::Local(local) => match context.locals.get(&local) {
                 Some(LocalBinding::Direct(name)) => name.clone(),
-                Some(LocalBinding::Inline(_) | LocalBinding::Lazy(_)) | None => {
+                Some(
+                    LocalBinding::Inline(_) | LocalBinding::Lazy(_) | LocalBinding::Reference(_),
+                )
+                | None => {
                     unreachable!("invariant violated: tail-call profile has no direct local name")
                 }
             },
@@ -3389,13 +3394,13 @@ fn capture_effect(
             Ok(CapturedEffect::Operation(CapturedOperation::ReferenceNew { value }))
         }
         EffectExpression::ReferenceRead(reference) => {
-            let reference = capture_effect_value(renderer, *reference, "$reference")?;
-            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { reference }))
+            let target = capture_reference_target(renderer, *reference)?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { target }))
         }
         EffectExpression::ReferenceWrite { reference, value } => {
-            let reference = capture_effect_value(renderer, *reference, "$reference")?;
+            let target = capture_reference_target(renderer, *reference)?;
             let value = capture_effect_value(renderer, *value, "$value")?;
-            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { reference, value }))
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { target, value }))
         }
         EffectExpression::UncurriedApplication { function, arguments } => {
             let function = capture_effect_value(renderer, *function, "$function")?;
@@ -3409,6 +3414,49 @@ fn capture_effect(
             }))
         }
     }
+}
+
+fn capture_reference_target(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    reference: FunctionalExpressionId,
+) -> ModuleResult<ExpressionId> {
+    if let ExpressionKind::Local { parameter } = &renderer.generator.module.storage[reference].kind
+        && let Some(LocalBinding::Reference(name)) = renderer.context.locals.get(&parameter.id)
+    {
+        let _origin =
+            renderer.tree.enter_origin(renderer.generator.module.storage[reference].origin);
+        return Ok(renderer.tree.identifier(name));
+    }
+    let reference = capture_effect_value(renderer, reference, "$reference")?;
+    Ok(renderer.tree.member(reference, "value"))
+}
+
+fn reference_stays_local(
+    storage: &Storage,
+    body: FunctionalExpressionId,
+    reference: LocalId,
+) -> bool {
+    let is_reference = |expression: FunctionalExpressionId| {
+        matches!(
+            &storage[expression].kind,
+            ExpressionKind::Local { parameter } if parameter.id == reference
+        )
+    };
+    let mut pending = vec![body];
+    while let Some(expression) = pending.pop() {
+        if is_reference(expression) {
+            return false;
+        }
+        match &storage[expression].kind {
+            ExpressionKind::Effect { effect: EffectExpression::ReferenceRead(operand) }
+                if is_reference(*operand) => {}
+            ExpressionKind::Effect {
+                effect: EffectExpression::ReferenceWrite { reference: operand, value },
+            } if is_reference(*operand) => pending.push(*value),
+            kind => for_each_expression_child(kind, |child| pending.push(child)),
+        }
+    }
+    true
 }
 
 fn capture_effect_action(
@@ -3473,6 +3521,15 @@ fn execute_effect(
             {
                 let value = renderer.tree.duplicate(value);
                 renderer.context.bind_inline(&parameter, value);
+            } else if let CapturedEffectAction::Effect(effect) = &action
+                && let CapturedEffect::Operation(CapturedOperation::ReferenceNew { value }) =
+                    effect.as_ref()
+                && reference_stays_local(&renderer.generator.module.storage, body, parameter.id)
+            {
+                let name = renderer.context.allocate(&parameter.name);
+                let value = renderer.tree.duplicate(value);
+                renderer.writer.mutable_value(renderer.tree, &name, value);
+                renderer.context.bind_reference(&parameter, name);
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3588,6 +3645,9 @@ fn local_expression(
         Some(LocalBinding::Lazy(name)) => {
             let accessor = tree.identifier(name);
             Ok(tree.call(accessor, Vec::new()))
+        }
+        Some(LocalBinding::Reference(_)) => {
+            unreachable!("invariant violated: local reference is used outside its operations")
         }
         None => Err(generator
             .unsupported(UnsupportedState::MissingLocal { name: parameter.name.to_string() })),

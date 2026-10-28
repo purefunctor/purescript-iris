@@ -34,18 +34,18 @@ export function addToField(step) {
 }
 export function countTwice(value) {
   return () => {
-    const counter = { value };
+    let counter = value;
     let $int;
-    const section163 = counter.value;
+    const section163 = counter;
     const $value = section163 * (2 | 0) | 0;
-    $int = counter.value = $value;
+    $int = counter = $value;
     const $value$1 = value + (1 | 0) | 0;
-    const $unit = counter.value = $value$1;
+    const $unit = counter = $value$1;
     let next;
-    const section190 = counter.value;
+    const section190 = counter;
     const $value$2 = section190 * (10 | 0) | 0;
-    next = counter.value = $value$2;
-    const current = counter.value;
+    next = counter = $value$2;
+    const current = counter;
     const $value$3 = next + current | 0;
     return $value$3;
   };
