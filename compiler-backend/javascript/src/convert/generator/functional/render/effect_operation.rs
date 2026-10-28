@@ -695,6 +695,9 @@ pub(super) fn reference_stays_local(
                     pending.push((*function_action, ReferencePosition::Action));
                     pending.push((*argument_action, ReferencePosition::Action));
                 }
+                EffectExpression::Void { action } => {
+                    pending.push((*action, ReferencePosition::Action));
+                }
                 EffectExpression::Primitive(primitive) => {
                     let reference_operand = match primitive {
                         EffectPrimitive::ReadReference { reference: operand }

@@ -550,6 +550,10 @@ impl<'a> Printer<'a, '_> {
                     .nest(2);
                 self.arena.text("effect.apply").append(arguments).group()
             }
+            EffectExpression::Void { action } => {
+                let action = self.expression_at(*action, ExpressionPrecedence::Atom);
+                self.arena.text("effect.void ").append(action)
+            }
             EffectExpression::Primitive(primitive) => {
                 let name = match primitive {
                     EffectPrimitive::NewReference { .. } => "effect.newReference",

@@ -6,17 +6,19 @@ source: tests-integration/src/fixtures.rs
 @export foreign takeLog
 
 @export statements = effect.bind (effect.newReference 0)
-  \ref%0 -> effect.bind (void functorEffect
-    (effect.modifyReferenceState (\section67%1 -> integer.add section67%1 1) ref%0))
-    \$unit%2 -> effect.bind (void functorEffect
-      (effect.modifyReferenceState (\section84%3 -> integer.add section84%3 2) ref%0))
+  \ref%0 -> effect.bind (effect.void (effect.modifyReferenceState
+    (\section67%1 -> integer.add section67%1 1)
+    ref%0))
+    \$unit%2 -> effect.bind (effect.void (effect.modifyReferenceState
+      (\section84%3 -> integer.add section84%3 2)
+      ref%0))
       \$unit%4 -> effect.readReference ref%0
 
-@export final = effect.bind (record "first") \$int%5 -> void functorEffect (record "second")
+@export final = effect.bind (record "first") \$int%5 -> effect.void (record "second")
 
-@export nested = void functorEffect (effect.bind (record "inner") \$int%6 -> record "last")
+@export nested = effect.void (effect.bind (record "inner") \$int%6 -> record "last")
 
-@export discarded = \action%7 -> void functorEffect action%7
+@export discarded = \action%7 -> effect.void action%7
 
 @export stateWrite = uncurried.call effect.bind (effect.newReference 0)
-  \ref%8 -> void functorST (effect.writeReferenceValue 5 ref%8)()
+  \ref%8 -> effect.void (effect.writeReferenceValue 5 ref%8)()

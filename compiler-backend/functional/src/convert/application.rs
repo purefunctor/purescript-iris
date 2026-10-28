@@ -485,6 +485,12 @@ where
                 argument_action: *argument_action,
             }));
         }
+        if self.known_term(function, "Data.Functor", "void")?
+            && let [functor_dictionary, action] = *arguments
+            && self.known_thunk_instance(functor_dictionary, None)?
+        {
+            return Ok(Some(EffectExpression::Void { action }));
+        }
         self.known_effect_operation(function, arguments).map_err(Into::into)
     }
 

@@ -337,6 +337,7 @@ fn collect_tail_edges(
             EffectExpression::Pure(_)
             | EffectExpression::Map { .. }
             | EffectExpression::Apply { .. }
+            | EffectExpression::Void { .. }
             | EffectExpression::Primitive(_)
             | EffectExpression::Loop(_) => {}
         },
