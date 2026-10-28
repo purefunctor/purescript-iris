@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+get :: { x :: Prim.Int, y :: Prim.String } -> Prim.Int
+getQuoted :: { first name :: Prim.String } -> Prim.String
+set :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+setNew :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+delete :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String }
+deleteLiteral :: Prim.Boolean -> { y :: Prim.String }
+setOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+deleteOrder ::
+  { x :: Prim.Int, y :: Prim.String } -> { first :: Prim.Int, rest :: { y :: Prim.String } }
+
+Types

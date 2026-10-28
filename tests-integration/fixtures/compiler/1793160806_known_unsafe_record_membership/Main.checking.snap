@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: forall value. Prim.String -> value -> value
+readTrace :: Prim.Boolean -> Prim.Array Prim.String
+present :: Prim.Boolean
+absent :: Prim.Boolean
+presentOrder :: Prim.Boolean -> Prim.Boolean
+unknown :: { x :: Prim.Int } -> Prim.Boolean
+
+Types

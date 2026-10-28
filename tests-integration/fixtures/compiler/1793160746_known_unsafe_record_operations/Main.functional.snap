@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign readTrace
+
+@export get = \record%0 -> unsafeGet "x" record%0
+
+@export getQuoted = \record%1 -> unsafeGet "first name" record%1
+
+@export set = \record%2 -> unsafeSet "x" 2 record%2
+
+@export setNew = \record%3 -> unsafeSet "x" 2 record%3
+
+@export delete = \record%4 -> unsafeDelete "x" record%4
+
+@export deleteLiteral = \$boolean%5@(_) -> unsafeDelete "x" { x: observe "x" 1, y: observe "y" "y" }
+
+@export setOrder = \record%6 -> unsafeSet "x" (observe "value" 2) (observe "record" record%6)
+
+@export deleteOrder = \record%7 ->
+  { first: observe "first" 1, rest: unsafeDelete "x" (observe "record" record%7) }

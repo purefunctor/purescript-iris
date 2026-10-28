@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+get :: { x :: Prim.Int, y :: Prim.String } -> Prim.Int
+get = \record -> unsafeGet "x" record
+
+getQuoted :: { first name :: Prim.String } -> Prim.String
+getQuoted = \record -> unsafeGet "first name" record
+
+set :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+set = \record -> unsafeSet "x" 2 record
+
+setNew :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+setNew = \record -> unsafeSet "x" 2 record
+
+delete :: { x :: Prim.Int, y :: Prim.String } -> { y :: Prim.String }
+delete = \record -> unsafeDelete "x" record
+
+deleteLiteral :: Prim.Boolean -> { y :: Prim.String }
+deleteLiteral = \_ -> unsafeDelete "x" { x: observe "x" 1, y: observe "y" "y" }
+
+setOrder :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+setOrder = \record -> unsafeSet "x" (observe "value" 2) (observe "record" record)
+
+deleteOrder :: { x :: Prim.Int, y :: Prim.String } -> { first :: Prim.Int, rest :: { y :: Prim.String } }
+deleteOrder = \record ->
+  { first: observe "first" 1, rest: unsafeDelete "x" (observe "record" record) }

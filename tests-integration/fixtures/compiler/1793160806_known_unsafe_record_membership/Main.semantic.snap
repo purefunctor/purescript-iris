@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: forall value. Prim.String -> value -> value
+
+foreign import readTrace :: Prim.Boolean -> Prim.Array Prim.String
+
+present :: Prim.Boolean
+present = unsafeHas "x" { x: 1, y: "y" }
+
+absent :: Prim.Boolean
+absent = unsafeHas "z" { x: 1, y: "y" }
+
+presentOrder :: Prim.Boolean -> Prim.Boolean
+presentOrder = \_ -> unsafeHas "y" { x: observe "x" 1, y: observe "y" "y" }
+
+unknown :: { x :: Prim.Int } -> Prim.Boolean
+unknown = \record -> unsafeHas "x" record
