@@ -36,48 +36,48 @@ export function describeGuarded(source) {
 export function describeEach(values) {
   const $value = [];
   return () => {
-    const log = { value: $value };
+    let log = $value;
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
       if (value === (0 | 0)) {
-        log.value = [...log.value, "zero"];
+        log = [...log, "zero"];
         continue;
       }
       if (value === (1 | 0)) {
-        log.value = [...log.value, "one"];
+        log = [...log, "one"];
         continue;
       }
-      log.value = [...log.value, "many"];
+      log = [...log, "many"];
     }
-    return log.value;
+    return log;
   };
 }
 export function describeCountdown(start) {
   return () => {
-    const counter = { value: start };
+    let counter = start;
     const $value = [];
-    const log = { value: $value };
+    let log = $value;
     const $function = (section349) => section349 >= (0 | 0);
     while (true) {
       let $condition;
-      $condition = $function(counter.value);
+      $condition = $function(counter);
       if (!$condition) {
         break;
       }
-      const current = counter.value;
+      const current = counter;
       const $value$1 = current - (1 | 0) | 0;
-      counter.value = $value$1;
+      counter = $value$1;
       if (current === (0 | 0)) {
-        log.value = [...log.value, "zero"];
+        log = [...log, "zero"];
         continue;
       }
       if (current === (1 | 0)) {
-        log.value = [...log.value, "one"];
+        log = [...log, "one"];
         continue;
       }
-      log.value = [...log.value, "many"];
+      log = [...log, "many"];
     }
-    return log.value;
+    return log;
   };
 }

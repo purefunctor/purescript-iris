@@ -4,45 +4,45 @@ import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
 export function previous(values) {
   return () => {
-    const latest = { value: 0 | 0 };
+    let latest = 0 | 0;
     const $value = [];
-    const closures = { value: $value };
+    let closures = $value;
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
       const $modified = {
         state: value,
-        value: latest.value
+        value: latest
       };
-      latest.value = $modified.state;
+      latest = $modified.state;
       const old = $modified.value;
-      closures.value = [...closures.value, ($unit) => old];
+      closures = [...closures, ($unit) => old];
     }
-    return closures.value;
+    return closures;
   };
 }
 export const snapshots = /* @__PURE__ */ (() => {
   return () => {
-    const counter = { value: 0 | 0 };
+    let counter = 0 | 0;
     const $value = [];
-    const closures = { value: $value };
+    let closures = $value;
     for (let $int = 0 | 0; $int < (3 | 0); $int++) {
-      counter.value = counter.value + (10 | 0) | 0;
-      const value = counter.value;
-      closures.value = [...closures.value, ($unit) => value];
+      counter = counter + (10 | 0) | 0;
+      const value = counter;
+      closures = [...closures, ($unit) => value];
     }
-    return closures.value;
+    return closures;
   };
 })();
 export const chained = /* @__PURE__ */ (() => {
   const $value = ($unit) => 0 | 0;
   return () => {
-    const ref = { value: $value };
+    let ref = $value;
     for (let $int = 0 | 0; $int < (3 | 0); $int++) {
-      const $function = ref.value;
-      ref.value = ($unit$1) => $function(Data_Unit.unit) + (1 | 0) | 0;
+      const $function = ref;
+      ref = ($unit$1) => $function(Data_Unit.unit) + (1 | 0) | 0;
     }
-    const $function$1 = ref.value;
+    const $function$1 = ref;
     const $value$1 = $function$1(Data_Unit.unit);
     return $value$1;
   };

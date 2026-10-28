@@ -1,30 +1,30 @@
 export function elementClosures(values) {
   const $value = [];
   return () => {
-    const closures = { value: $value };
+    let closures = $value;
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
-      closures.value = [...closures.value, ($unit) => value];
+      closures = [...closures, ($unit) => value];
     }
-    return closures.value;
+    return closures;
   };
 }
 export const rangeClosures = /* @__PURE__ */ (() => {
   const $value = [];
   return () => {
-    const closures = { value: $value };
+    let closures = $value;
     for (let index = 0 | 0; index < (3 | 0); index++) {
-      closures.value = [...closures.value, ($unit) => index];
+      closures = [...closures, ($unit) => index];
     }
-    return closures.value;
+    return closures;
   };
 })();
 export const stateClosures = /* @__PURE__ */ (() => {
   const $value = [];
-  const closures = { value: $value };
+  let closures = $value;
   for (let index = 5 | 0; index < (8 | 0); index++) {
-    closures.value = [...closures.value, ($unit) => index];
+    closures = [...closures, ($unit) => index];
   }
-  return closures.value;
+  return closures;
 })();

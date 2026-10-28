@@ -1,61 +1,61 @@
 export function counted(values) {
   return () => {
-    const total = { value: 0 | 0 };
+    let total = 0 | 0;
     for (let index = 0 | 0; index < (3 | 0); index++) {
-      total.value = total.value + index | 0;
+      total = total + index | 0;
     }
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
-      total.value = total.value + value | 0;
+      total = total + value | 0;
     }
     const $function = (section107) => section107 < (20 | 0);
     while (true) {
       let $condition;
-      $condition = $function(total.value);
+      $condition = $function(total);
       if (!$condition) {
         break;
       }
-      total.value = total.value + (4 | 0) | 0;
+      total = total + (4 | 0) | 0;
     }
     while (true) {
       let $condition$1;
-      total.value = total.value + (1 | 0) | 0;
+      total = total + (1 | 0) | 0;
       const $function$1 = (section157) => section157 >= (25 | 0);
-      $condition$1 = $function$1(total.value);
+      $condition$1 = $function$1(total);
       if ($condition$1) {
         break;
       }
     }
-    return total.value;
+    return total;
   };
 }
 export function stateCountdown(start) {
-  const remaining = { value: start };
+  let remaining = start;
   const $value = [];
-  const seen = { value: $value };
+  let seen = $value;
   const $function = (section291) => section291 > (0 | 0);
   while (true) {
     let $condition;
-    $condition = $function(remaining.value);
+    $condition = $function(remaining);
     if (!$condition) {
       break;
     }
-    const value = remaining.value;
-    seen.value = [...seen.value, value];
-    remaining.value = remaining.value - (1 | 0) | 0;
+    const value = remaining;
+    seen = [...seen, value];
+    remaining = remaining - (1 | 0) | 0;
   }
-  return seen.value;
+  return seen;
 }
 export const doubledPerIteration = /* @__PURE__ */ (() => {
   return () => {
-    const total = { value: 0 | 0 };
+    let total = 0 | 0;
     for (let index = 1 | 0; index < (4 | 0); index++) {
-      const local = { value: index };
-      local.value = local.value * (2 | 0) | 0;
-      const value = local.value;
-      total.value = total.value + value | 0;
+      let local = index;
+      local = local * (2 | 0) | 0;
+      const value = local;
+      total = total + value | 0;
     }
-    return total.value;
+    return total;
   };
 })();

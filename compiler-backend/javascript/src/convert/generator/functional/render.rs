@@ -41,7 +41,8 @@ use crate::tree::{
 use crate::writer::{BindingCallTarget, Writer};
 
 use self::effect_operation::{
-    CapturedOperation, capture_loop, capture_primitive, execute_operation, render_operation_result,
+    CapturedOperation, CapturedPrimitive, capture_loop, capture_primitive, execute_operation,
+    reference_stays_local, render_operation_result,
 };
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
@@ -92,6 +93,7 @@ enum LocalBinding {
     Direct(SmolStr),
     Inline(ExpressionId),
     Lazy(SmolStr),
+    Reference(SmolStr),
 }
 
 struct FunctionContext {
@@ -246,6 +248,10 @@ impl FunctionContext {
 
     fn bind_lazy(&mut self, parameter: &Parameter, name: SmolStr) {
         self.locals.insert(parameter.id, LocalBinding::Lazy(name));
+    }
+
+    fn bind_reference(&mut self, parameter: &Parameter, name: SmolStr) {
+        self.locals.insert(parameter.id, LocalBinding::Reference(name));
     }
 }
 
@@ -756,7 +762,10 @@ impl Generator<'_> {
             TailCallIdentity::Global(global) => self.global_names[&global].clone(),
             TailCallIdentity::Local(local) => match context.locals.get(&local) {
                 Some(LocalBinding::Direct(name)) => name.clone(),
-                Some(LocalBinding::Inline(_) | LocalBinding::Lazy(_)) | None => {
+                Some(
+                    LocalBinding::Inline(_) | LocalBinding::Lazy(_) | LocalBinding::Reference(_),
+                )
+                | None => {
                     unreachable!("invariant violated: tail-call profile has no direct local name")
                 }
             },
@@ -3597,6 +3606,28 @@ fn execute_effect(
                 {
                     renderer.writer.evaluate(renderer.tree, result);
                 }
+            } else if let CapturedEffectAction::Effect(effect) = &action
+                && let CapturedEffect::Operation {
+                    operation: CapturedOperation::Primitive(CapturedPrimitive::NewReference { .. }),
+                    ..
+                } = effect.as_ref()
+                && reference_stays_local(&renderer.generator.module.storage, body, parameter.id)
+            {
+                let CapturedEffectAction::Effect(effect) = action else {
+                    unreachable!("invariant violated: effect action changed kind")
+                };
+                let CapturedEffect::Operation {
+                    operation:
+                        CapturedOperation::Primitive(CapturedPrimitive::NewReference { value }),
+                    origin,
+                } = *effect
+                else {
+                    unreachable!("invariant violated: reference creation changed kind")
+                };
+                let name = renderer.context.allocate(&parameter.name);
+                let _origin = renderer.tree.enter_origin(origin);
+                renderer.writer.mutable_value(renderer.tree, &name, value);
+                renderer.context.bind_reference(&parameter, name);
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3710,6 +3741,9 @@ fn local_expression(
         Some(LocalBinding::Lazy(name)) => {
             let accessor = tree.identifier(name);
             Ok(tree.call(accessor, Vec::new()))
+        }
+        Some(LocalBinding::Reference(_)) => {
+            unreachable!("invariant violated: local reference is used outside its operations")
         }
         None => Err(generator
             .unsupported(UnsupportedState::MissingLocal { name: parameter.name.to_string() })),
