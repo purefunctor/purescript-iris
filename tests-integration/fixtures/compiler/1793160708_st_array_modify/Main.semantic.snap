@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: forall a. Prim.String -> a -> a
+
+modifyAt :: forall h.
+  Prim.Int ->
+  (Prim.Int -> Prim.Int) ->
+  Data.Array.ST.STArray h Prim.Int ->
+  Control.Monad.ST.Internal.ST h Prim.Boolean
+modifyAt = \index -> \function -> \array ->
+  modify (traced "index" index) (traced "function" function) (traced "array" array)

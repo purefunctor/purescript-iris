@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export modifyAt = \index%0 function%1 array%2 ->
+  modify (traced "index" index%0) (traced "function" function%1) (traced "array" array%2)

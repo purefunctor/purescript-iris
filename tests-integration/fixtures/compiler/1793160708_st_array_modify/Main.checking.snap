@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+traced :: forall a. Prim.String -> a -> a
+modifyAt ::
+  forall (h :: Control.Monad.ST.Internal.Region).
+    Prim.Int ->
+    (Prim.Int -> Prim.Int) ->
+    Data.Array.ST.STArray (h :: Control.Monad.ST.Internal.Region) Prim.Int ->
+    Control.Monad.ST.Internal.ST (h :: Control.Monad.ST.Internal.Region) Prim.Boolean
+
+Types
