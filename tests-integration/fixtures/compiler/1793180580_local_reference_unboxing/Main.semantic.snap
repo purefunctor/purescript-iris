@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+readBeforeWrite :: Prim.Int -> Effect.Effect Prim.Int
+readBeforeWrite = \value ->
+  bind {bindEffect} (new value) \reference ->
+    bind {bindEffect} (read reference) \before ->
+      discard {discardUnit} {bindEffect} (write (add {semiringInt} value 4) reference) \_ ->
+        bind {bindEffect} (read reference) \after ->
+          pure {applicativeEffect} (add {semiringInt} (mul {semiringInt} before 10) after)
+
+sumTwo :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+sumTwo = \left -> \right ->
+  bind {bindEffect} (new left) \first ->
+    bind {bindEffect} (new right) \second ->
+      bind {bindEffect} (modify (\v120 -> add {semiringInt} v120 1) first) \_ ->
+        bind {bindEffect} (read first) \a ->
+          bind {bindEffect} (read second) \b -> pure {applicativeEffect} (add {semiringInt} a b)
+
+escapes :: Prim.Int -> Effect.Effect (Effect.Ref.Ref Prim.Int)
+escapes = \value ->
+  bind {bindEffect} (new value) \reference ->
+    discard {discardUnit} {bindEffect} (write (mul {semiringInt} value 2) reference) \_ ->
+      pure {applicativeEffect} reference
+
+passedToFunction :: Prim.Int -> Effect.Effect Prim.Int
+passedToFunction = \value ->
+  bind {bindEffect} (new value) \reference ->
+    discard {discardUnit} {bindEffect} (modify_ (\v218 -> add {semiringInt} v218 1) reference) \_ ->
+      read reference

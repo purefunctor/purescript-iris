@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+delayedRead :: Prim.Int -> Effect.Effect Prim.Int
+delayedRead = \value ->
+  bind {bindEffect} (new value) \reference ->
+    let
+      readLater :: Effect.Effect Prim.Int
+      readLater = read reference
+    in
+      discard {discardUnit} {bindEffect} (write (add {semiringInt} value 6) reference) \_ ->
+        readLater
+
+closureWrites :: Effect.Effect Prim.Int
+closureWrites =
+  bind {bindEffect} (new 0) \reference ->
+    let
+      increment :: Effect.Effect Prim.Int
+      increment = modify (\v104 -> add {semiringInt} v104 1) reference
+    in
+      bind {bindEffect} increment \_ -> bind {bindEffect} increment \_ -> read reference
+
+countDown :: forall r. Prim.Int -> Control.Monad.ST.Internal.ST r Prim.Int
+countDown = \start ->
+  bind {bindST} (new start) \remaining ->
+    bind {bindST} (new 0) \steps ->
+      discard {discardUnit} {bindST}
+        (while (map {functorST} (\v161 -> greaterThan {ordInt} v161 0) (read remaining))
+          (bind {bindST} (modify (\v183 -> sub {ringInt} v183 1) remaining) \_ ->
+            apply (void {functorST}) (modify (\v200 -> add {semiringInt} v200 1) steps))) \_ ->
+        read steps

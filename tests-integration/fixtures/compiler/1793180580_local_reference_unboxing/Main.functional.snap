@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export readBeforeWrite = \value%0 ->
+  effect.bind (reference.new value%0)
+    \reference%1 -> effect.bind (reference.read reference%1)
+      \before%2 -> effect.bind (reference.write reference%1 (integer.add value%0 4))
+        \$unit%3 -> effect.bind (reference.read reference%1)
+          \after%4 -> effect.pure (integer.add (integer.multiply before%2 10) after%4)
+
+@export sumTwo = \left%5 right%7 ->
+  effect.bind (reference.new left%5)
+    \first%6 -> effect.bind (reference.new right%7)
+      \second%8 -> effect.bind (effect.bind (reference.read first%6)
+        \section120%9 -> reference.write first%6 (integer.add section120%9 1))
+        \$int%10 -> effect.bind (reference.read first%6)
+          \a%11 -> effect.bind (reference.read second%8)
+            \b%12 -> effect.pure (integer.add a%11 b%12)
+
+@export escapes = \value%13 ->
+  effect.bind (reference.new value%13)
+    \reference%14 -> effect.bind (reference.write reference%14 (integer.multiply value%13 2))
+      \$unit%15 -> effect.pure reference%14
+
+@export passedToFunction = \value%16 ->
+  effect.bind (reference.new value%16)
+    \reference%17 -> effect.bind (modify_ (\section218%18 -> integer.add section218%18 1)
+      reference%17)
+      \$unit%19 -> reference.read reference%17
