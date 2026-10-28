@@ -394,6 +394,23 @@ where
         {
             return Ok(Some(self.array_concatenation(*left, *right)));
         }
+        if self.known_term(function, "Data.String.CodePoints", "toCodePointArray")?
+            && let [string] = arguments
+            && let ExpressionKind::Literal { literal: Literal::String(string) } =
+                &self.storage[*string].kind
+        {
+            let code_points = char::decode_utf16(string.as_utf16().iter().copied());
+            let code_points = code_points.map(|code_point| match code_point {
+                Ok(character) => u32::from(character),
+                Err(error) => u32::from(error.unpaired_surrogate()),
+            });
+            let code_points = code_points.collect_vec();
+            let elements = code_points.into_iter().map(|code_point| {
+                let literal = Literal::Integer(i64::from(code_point));
+                self.expression(ExpressionKind::Literal { literal })
+            });
+            return Ok(Some(ExpressionKind::Array { elements: elements.collect() }));
+        }
         if self.known_term(function, "Data.Array", "unsafeIndex")?
             && let [_, value, index] = arguments
         {
