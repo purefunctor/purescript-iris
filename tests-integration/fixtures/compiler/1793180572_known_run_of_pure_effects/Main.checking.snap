@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+performPure :: Prim.Int -> Prim.Int
+runPure :: Prim.Int -> Prim.Int
+runReference :: Prim.Int -> Prim.Int
+
+Types
