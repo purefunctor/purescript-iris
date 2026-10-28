@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+inserted :: Prim.Int -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+reshaped :: Prim.Int -> { w :: Prim.Int, x :: Prim.Int, z :: Prim.String }
+composedBackwards :: { x :: Prim.Int, y :: Prim.Int }
+fromScratch :: Prim.Int -> { x :: Prim.Int, y :: Prim.Int }
+merged :: { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+
+Types

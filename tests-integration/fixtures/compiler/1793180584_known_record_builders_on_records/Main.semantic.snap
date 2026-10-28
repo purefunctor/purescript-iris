@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+withZ :: Prim.Int -> Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+withZ = \value -> \point -> build (insert {trivial} {trivial} {isSymbol("z")} Proxy value) point
+
+shifted :: Main.Point -> Main.Point
+shifted = \point ->
+  build
+    (composeFlipped {semigroupoidBuilder}
+      (modify {trivial} {trivial} {isSymbol("x")} Proxy \v91 -> add {semiringInt} v91 1)
+      (modify {trivial} {trivial} {isSymbol("y")} Proxy \v109 -> mul {semiringInt} v109 2))
+    point
+
+insertedThenModified :: Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+insertedThenModified = \point ->
+  build
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("z")} Proxy 5)
+      (modify {trivial} {trivial} {isSymbol("z")} Proxy \v160 -> add {semiringInt} v160 1))
+    point
+
+mergedOnto :: Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+mergedOnto = \point -> build (merge {trivial} {trivial} { y: 20, z: 30 }) point
+
+withoutY :: Main.Point -> { x :: Prim.Int }
+withoutY = \point -> build (delete {isSymbol("y")} {trivial} {trivial} Proxy) point
+
+unknownBuilder :: Record.Builder.Builder Main.Point Main.Point -> Main.Point -> Main.Point
+unknownBuilder = \builder -> \point -> build builder point

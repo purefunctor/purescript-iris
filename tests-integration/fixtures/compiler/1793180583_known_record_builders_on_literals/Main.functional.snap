@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export inserted = \value%0 ->
+  build (insert <trivial evidence> <trivial evidence> (symbol "z") "Proxy" value%0) { x: 1, y: 2 }
+
+@export reshaped = \value%2 ->
+  build
+    (composeFlipped semigroupoidBuilder
+      (modify <trivial evidence> <trivial evidence> (symbol "x") "Proxy"
+        (\section93%1 -> integer.add section93%1 value%2))
+      (composeFlipped semigroupoidBuilder
+        (delete (symbol "y") <trivial evidence> <trivial evidence> "Proxy")
+        (composeFlipped semigroupoidBuilder
+          (rename (symbol "v") (symbol "w") <trivial evidence> <trivial evidence> <trivial evidence>
+            <trivial evidence>
+            "Proxy"
+            "Proxy")
+          (insert <trivial evidence> <trivial evidence> (symbol "z") "Proxy" "new"))))
+    { x: 1, y: 2, v: 3 }
+
+@export composedBackwards = build
+  (compose semigroupoidBuilder
+    (modify <trivial evidence> <trivial evidence> (symbol "y") "Proxy"
+      (\section173%3 -> integer.multiply section173%3 10))
+    (insert <trivial evidence> <trivial evidence> (symbol "y") "Proxy" 4))
+  { x: 1 }
+
+@export fromScratch = \value%4 ->
+  buildFromScratch
+    (composeFlipped semigroupoidBuilder
+      (insert <trivial evidence> <trivial evidence> (symbol "x") "Proxy" value%4)
+      (insert <trivial evidence> <trivial evidence> (symbol "y") "Proxy" 2))
+
+@export merged = build (merge <trivial evidence> <trivial evidence> { y: 20, z: 30 }) { x: 1, y: 2 }

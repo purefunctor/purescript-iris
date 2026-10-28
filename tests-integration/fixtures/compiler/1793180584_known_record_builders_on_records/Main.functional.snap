@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export withZ = \value%0 point%1 ->
+  build (insert <trivial evidence> <trivial evidence> (symbol "z") "Proxy" value%0) point%1
+
+@export shifted = \point%4 ->
+  build
+    (composeFlipped semigroupoidBuilder
+      (modify <trivial evidence> <trivial evidence> (symbol "x") "Proxy"
+        (\section91%2 -> integer.add section91%2 1))
+      (modify <trivial evidence> <trivial evidence> (symbol "y") "Proxy"
+        (\section109%3 -> integer.multiply section109%3 2)))
+    point%4
+
+@export insertedThenModified = \point%6 ->
+  build
+    (composeFlipped semigroupoidBuilder
+      (insert <trivial evidence> <trivial evidence> (symbol "z") "Proxy" 5)
+      (modify <trivial evidence> <trivial evidence> (symbol "z") "Proxy"
+        (\section160%5 -> integer.add section160%5 1)))
+    point%6
+
+@export mergedOnto = \point%7 ->
+  build (merge <trivial evidence> <trivial evidence> { y: 20, z: 30 }) point%7
+
+@export withoutY = \point%8 ->
+  build (delete (symbol "y") <trivial evidence> <trivial evidence> "Proxy") point%8
+
+@export unknownBuilder = \builder%9 point%10 -> build builder%9 point%10

@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+withZ :: Prim.Int -> Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+shifted :: Main.Point -> Main.Point
+insertedThenModified :: Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+mergedOnto :: Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+withoutY :: Main.Point -> { x :: Prim.Int }
+unknownBuilder :: Record.Builder.Builder Main.Point Main.Point -> Main.Point -> Main.Point
+
+Types
+Point :: Prim.Type
+
+Synonyms
+type Point = { x :: Prim.Int, y :: Prim.Int }
