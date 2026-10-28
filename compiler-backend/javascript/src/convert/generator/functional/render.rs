@@ -1498,9 +1498,11 @@ impl Generator<'_> {
         if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
             if destination.is_discard()
                 && let EffectExpression::Pure(value) = effect
-                && self.discarded_value_is_stable(*value, context)
             {
-                if let Destination::DiscardAndBreak { label } = destination {
+                if !self.discarded_value_is_stable(*value, context) {
+                    let value = self.expression_value(tree, writer, *value, context)?;
+                    self.render_destination(tree, writer, value, destination);
+                } else if let Destination::DiscardAndBreak { label } = destination {
                     writer.break_label(label);
                 }
                 return Ok(());
@@ -3867,28 +3869,19 @@ fn discard_effect_action(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     action: CapturedEffectAction,
 ) -> ModuleResult<()> {
-    let action = match action {
+    match action {
         CapturedEffectAction::Effect(effect) => match *effect {
-            CapturedEffect::Pure { .. } => return Ok(()),
-            CapturedEffect::Void { action } => return discard_effect_action(renderer, action),
-            CapturedEffect::Operation { operation, origin } => {
-                let _origin = renderer.tree.enter_origin(origin);
-                if let Some(result) = execute_operation(renderer, operation)?
-                    && !renderer.tree.expression_is_atomic(&result)
-                {
-                    renderer.writer.evaluate(renderer.tree, result);
-                }
-                return Ok(());
-            }
-            effect => CapturedEffectAction::Effect(Box::new(effect)),
+            CapturedEffect::Pure { .. } => Ok(()),
+            effect => execute_effect(renderer, effect, Destination::Discard),
         },
-        action @ CapturedEffectAction::Expression { .. } => action,
-    };
-    let value = execute_effect_action_value(renderer, action, "$value")?;
-    if !renderer.tree.expression_is_atomic(&value) {
-        renderer.writer.evaluate(renderer.tree, value);
+        action @ CapturedEffectAction::Expression { .. } => {
+            let value = execute_effect_action_value(renderer, action, "$value")?;
+            if !renderer.tree.expression_is_atomic(&value) {
+                renderer.writer.evaluate(renderer.tree, value);
+            }
+            Ok(())
+        }
     }
-    Ok(())
 }
 
 fn execute_effect_action_value(

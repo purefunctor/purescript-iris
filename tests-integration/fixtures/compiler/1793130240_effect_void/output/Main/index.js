@@ -25,9 +25,8 @@ export const final = /* @__PURE__ */ (() => {
 export const nested = /* @__PURE__ */ (() => {
   const $action = record("inner");
   return () => {
-    let $value;
     const $int = $action();
-    $value = record("last")();
+    record("last")();
   };
 })();
 export const stateWrite = /* @__PURE__ */ (() => {
