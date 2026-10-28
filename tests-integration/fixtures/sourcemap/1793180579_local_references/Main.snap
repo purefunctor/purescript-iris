@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export function doubled(value) {
+   | ^ 9:1 doubled value = do
+   |        ^ (doubled) 9:1 doubled value = do
+   |                                ^ 9:1 doubled value = do
+ 2 |   return () => {
+   |   ^ (doubled) 9:17 do
+   |                ^ 9:17 do
+ 3 |     const counter = { value };
+   |     ^ 9:17 do
+   |                       ^ 10:22 value
+   |                             ^ 9:17 do
+ 4 |     let $int;
+   |     ^ 11:3 _ <- Ref.modify (_ * 2) counter
+ 5 |     const section45 = counter.value;
+   |     ^ 11:3 _ <- Ref.modify (_ * 2) counter
+   |                       ^ 11:27 counter
+   |                               ^ 11:3 _ <- Ref.modify (_ * 2) counter
+ 6 |     const $value = section45 * (2 | 0) | 0;
+   |     ^ 11:20 _ * 2) counter
+   |                                 ^ 11:24 2) counter
+   |                                          ^ 11:20 _ * 2) counter
+ 7 |     $int = counter.value = $value;
+   |     ^ 11:8 Ref.modify (_ * 2) counter
+   |                            ^ 11:20 _ * 2) counter
+ 8 |     return counter.value;
+   |     ^ 12:3 Ref.read counter
+   |            ^ 12:12 counter
+   |                    ^ 12:3 Ref.read counter
+ 9 |   };
+   |   ^ 9:17 do
+10 | }
+   | ^ 9:1 doubled value = do
