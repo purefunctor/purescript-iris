@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+set :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.String, y :: Prim.String }
+set = \record -> set {isSymbol("x")} {trivial} {trivial} Proxy "set" record
+
+setLiteral :: Prim.String -> { x :: Prim.String, y :: Prim.String }
+setLiteral = \y -> set {isSymbol("x")} {trivial} {trivial} Proxy "set" { y, x: 0 }
+
+insert :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+insert = \record -> insert {isSymbol("x")} {trivial} {trivial} Proxy 1 record
+
+insertLiteral :: Prim.String -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Int }
+insertLiteral = \y -> insert {isSymbol("x")} {trivial} {trivial} Proxy 1 { z: 2, y }
+
+modify :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+modify = \record ->
+  modify {isSymbol("x")} {trivial} {trivial} Proxy (\v170 -> add {semiringInt} v170 1) record
+
+modifyLiteral :: Prim.String -> { x :: Prim.Int, y :: Prim.String }
+modifyLiteral = \y ->
+  modify {isSymbol("x")} {trivial} {trivial} Proxy (\v202 -> add {semiringInt} v202 1) { y, x: 0 }
+
+delete :: { x :: Prim.Int, y :: Prim.String, z :: Prim.Int } -> { y :: Prim.String, z :: Prim.Int }
+delete = \record -> delete {isSymbol("x")} {trivial} {trivial} Proxy record
+
+deleteLiteral :: Prim.String -> { y :: Prim.String, z :: Prim.Int }
+deleteLiteral = \y -> delete {isSymbol("x")} {trivial} {trivial} Proxy { z: 2, x: 0, y }

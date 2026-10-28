@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export set = \record%0 -> record%0 { x = "set" }
+
+@export setLiteral = \y%1 -> { y: y%1, x: 0 } { x = "set" }
+
+@export insert = \record%2 -> record%2 { x = 1 }
+
+@export insertLiteral = \y%3 -> { z: 2, y: y%3 } { x = 1 }
+
+@export modify = \record%5 ->
+  record%5 { x = (\section170%4 -> integer.add section170%4 1) record%5.x }
+
+@export modifyLiteral = \y%7 ->
+  let
+    record%9 = { y: y%7, x: 0 }
+  in record%9 { x = (\section202%6 -> integer.add section202%6 1) record%9.x }
+
+@export delete = \record%10 -> record.delete x record%10
+
+@export deleteLiteral = \y%11 -> record.delete x { z: 2, x: 0, y: y%11 }

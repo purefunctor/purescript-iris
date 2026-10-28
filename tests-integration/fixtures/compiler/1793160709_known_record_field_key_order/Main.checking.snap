@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+set :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.String, y :: Prim.String }
+setLiteral :: Prim.String -> { x :: Prim.String, y :: Prim.String }
+insert :: { y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+insertLiteral :: Prim.String -> { x :: Prim.Int, y :: Prim.String, z :: Prim.Int }
+modify :: { x :: Prim.Int, y :: Prim.String } -> { x :: Prim.Int, y :: Prim.String }
+modifyLiteral :: Prim.String -> { x :: Prim.Int, y :: Prim.String }
+delete :: { x :: Prim.Int, y :: Prim.String, z :: Prim.Int } -> { y :: Prim.String, z :: Prim.Int }
+deleteLiteral :: Prim.String -> { y :: Prim.String, z :: Prim.Int }
+
+Types
