@@ -9,7 +9,7 @@ const same = (actual, left, right) => {
 };
 
 const options = { y: "options" };
-const record = { x: 5, y: "record" };
+const record = { y: "record", x: 5 };
 
 same(Main.withDefaults(options), options, { x: 1, y: "default" });
 same(Main.override(record), { x: 0 }, record);
@@ -17,7 +17,7 @@ same(Main.union(options), options, { x: 1 });
 same(Main.disjointUnion(options), { x: 1 }, options);
 same(Main.literals, { x: 1 }, { y: "right", x: 2 });
 deepStrictEqual(options, { y: "options" });
-deepStrictEqual(record, { x: 5, y: "record" });
+deepStrictEqual(record, { y: "record", x: 5 });
 
 Main.readTrace(true);
 same(Main.withDefaultsOrder(options), options, { x: 1, y: "default" });
