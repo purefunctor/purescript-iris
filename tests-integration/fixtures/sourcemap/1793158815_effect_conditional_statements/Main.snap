@@ -28,100 +28,78 @@ source: tests-integration/src/fixtures.rs
 11 |       let ref = 0 | 0;
    |       ^ 12:10 Ref.new 0
    |                 ^ 12:18 0
-12 |       let $result;
-   |       ^ 13:3 if flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-13 |       if (flag) {
+12 |       if (flag) {
    |       ^ 13:3 if flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
    |           ^ 13:6 flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
    |                 ^ 13:3 if flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-14 |         $result = () => {
+13 |         ref = 1 | 0;
    |         ^ 13:16 Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-15 |           ref = 1 | 0;
-   |           ^ 13:16 Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-   |                 ^ 13:26 1 ref else Ref.modify_ (_ + 2) ref
-16 |         };
-   |         ^ 13:16 Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-17 |       } else {
+   |               ^ 13:26 1 ref else Ref.modify_ (_ + 2) ref
+14 |       } else {
    |       ^ 13:3 if flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-18 |         $result = () => {
+15 |         ref = ref + (2 | 0) | 0;
    |         ^ 13:37 Ref.modify_ (_ + 2) ref
-19 |           ref = ref + (2 | 0) | 0;
-   |           ^ 13:37 Ref.modify_ (_ + 2) ref
-   |                 ^ 13:57 ref
-   |                        ^ 13:54 2) ref
-   |                                 ^ 13:50 _ + 2) ref
-20 |         };
-   |         ^ 13:37 Ref.modify_ (_ + 2) ref
-21 |       }
+   |               ^ 13:57 ref
+   |                      ^ 13:54 2) ref
+   |                               ^ 13:50 _ + 2) ref
+16 |       }
    |       ^ 13:3 if flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-22 |       const $unit = $result();
-   |       ^ 13:3 if flag then Ref.write 1 ref else Ref.modify_ (_ + 2) ref
-23 |       let $result$1;
+17 |       let value;
+   |       ^ 14:3 value <- case choice of
+18 |       $case: {
    |       ^ 14:12 case choice of
-24 |       $case: {
-   |       ^ 14:12 case choice of
-25 |         if (choice === "First") {
+19 |         if (choice === "First") {
    |         ^ 15:5 First -> Ref.read ref
    |             ^ 14:17 choice of
    |                        ^ 15:5 First -> Ref.read ref
-26 |           $result$1 = () => {
+20 |           value = ref;
    |           ^ 15:14 Ref.read ref
-27 |             return ref;
-   |             ^ 15:14 Ref.read ref
-   |                    ^ 15:23 ref
-28 |           };
+   |                   ^ 15:23 ref
+21 |           break $case;
    |           ^ 15:14 Ref.read ref
-29 |           break $case;
-   |           ^ 15:14 Ref.read ref
-30 |         }
+22 |         }
    |         ^ 15:5 First -> Ref.read ref
-31 |         if (choice.tag === "Second") {
+23 |         if (choice.tag === "Second") {
    |         ^ 16:5 Second count -> pure count
    |             ^ 14:17 choice of
    |                    ^ 16:5 Second count -> pure count
-32 |           const { _1: count } = choice;
+24 |           const { _1: count } = choice;
    |           ^ 16:5 Second count -> pure count
    |                                 ^ 14:17 choice of
-33 |           $result$1 = () => {
+25 |           value = count;
    |           ^ 16:21 pure count
-34 |             return count;
-   |             ^ 16:21 pure count
-   |                    ^ 16:26 count
-35 |           };
+   |                   ^ 16:26 count
+26 |           break $case;
    |           ^ 16:21 pure count
-36 |           break $case;
-   |           ^ 16:21 pure count
-37 |         }
+27 |         }
    |         ^ 16:5 Second count -> pure count
-38 |         throw new Error("Pattern match failure");
+28 |         throw new Error("Pattern match failure");
    |         ^ 14:12 case choice of
-39 |       }
+29 |       }
    |       ^ 14:12 case choice of
-40 |       const value = $result$1();
-   |       ^ 14:12 case choice of
-41 |       const $function = Control_Applicative.when(Effect.applicativeEffect)(flag);
+30 |       const $function = Control_Applicative.when(Effect.applicativeEffect)(flag);
    |       ^ 17:3 when flag (Ref.write value ref)
    |                                                                            ^ 17:8 flag (Ref.write value ref)
    |                                                                                ^ 17:3 when flag (Ref.write value ref)
-42 |       const $effect = () => {
+31 |       const $effect = () => {
    |       ^ 17:14 Ref.write value ref)
-43 |         ref = value;
+32 |         ref = value;
    |         ^ 17:14 Ref.write value ref)
    |               ^ 17:24 value ref)
-44 |       };
+33 |       };
    |       ^ 17:14 Ref.write value ref)
-45 |       const $action = /* @__PURE__ */ $function($effect);
+34 |       const $action = /* @__PURE__ */ $function($effect);
    |       ^ 17:3 when flag (Ref.write value ref)
    |                                                 ^ 17:14 Ref.write value ref)
    |                                                        ^ 17:3 when flag (Ref.write value ref)
-46 |       const $unit$1 = $action();
+35 |       const $unit = $action();
    |       ^ 17:3 when flag (Ref.write value ref)
-47 |       return ref;
+36 |       return ref;
    |       ^ 18:3 Ref.read ref
    |              ^ 18:12 ref
-48 |     };
+37 |     };
    |     ^ 11:22 do
-49 |   };
+38 |   };
    |   ^ 11:1 chosen flag choice = do
-50 | }
+39 | }
    | ^ 11:1 chosen flag choice = do

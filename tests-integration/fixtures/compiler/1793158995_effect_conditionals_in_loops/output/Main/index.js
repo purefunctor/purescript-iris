@@ -3,18 +3,9 @@ export function loopBody(limit) {
   return () => {
     let total = 0 | 0;
     for (let index = 0 | 0; index < limit; index++) {
-      let $result;
       if (index < (3 | 0)) {
-        $result = () => {
-          total = total + index | 0;
-        };
-      } else {
-        const $value = Data_Unit.unit;
-        $result = () => {
-          return $value;
-        };
+        total = total + index | 0;
       }
-      const $unit = $result();
       total = total + (100 | 0) | 0;
     }
     return total;
@@ -23,25 +14,18 @@ export function loopBody(limit) {
 export function nestedConditionals(count) {
   return () => {
     let ref = 0 | 0;
-    let $result;
+    let label;
     if (count > (0 | 0)) {
       if (count > (10 | 0)) {
-        $result = () => {
-          ref = 2 | 0;
-          return 20 | 0;
-        };
+        ref = 2 | 0;
+        label = 20 | 0;
       } else {
-        $result = () => {
-          ref = 1 | 0;
-          return 10 | 0;
-        };
+        ref = 1 | 0;
+        label = 10 | 0;
       }
     } else {
-      $result = () => {
-        return 0 | 0;
-      };
+      label = 0 | 0;
     }
-    const label = $result();
     ref = ref + label | 0;
     return ref;
   };

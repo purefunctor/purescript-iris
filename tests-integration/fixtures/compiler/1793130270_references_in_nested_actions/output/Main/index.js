@@ -10,24 +10,15 @@ export function captured(flag) {
     };
     const $action = /* @__PURE__ */ $function($effect);
     const $unit = $action();
-    let $result;
     if (flag) {
-      $result = () => {
-        ref = ref * (2 | 0) | 0;
-      };
-    } else {
-      const $value = Data_Unit.unit;
-      $result = () => {
-        return $value;
-      };
+      ref = ref * (2 | 0) | 0;
     }
-    const $unit$1 = $result();
     const $effect$1 = () => {
       ref = ref + (1 | 0) | 0;
     };
     const increment = $effect$1;
+    const $unit$1 = increment();
     const $unit$2 = increment();
-    const $unit$3 = increment();
     return ref;
   };
 }

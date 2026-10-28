@@ -361,6 +361,8 @@ pub(super) fn render_operation_result(
     match (result, destination) {
         (None, Destination::Return) => writer.return_undefined(),
         (None, Destination::Continue) => writer.continue_loop(),
+        (None, Destination::Discard) => {}
+        (None, Destination::DiscardAndBreak { label }) => writer.break_label(label),
         (result, destination) => {
             let value = result.unwrap_or_else(|| tree.undefined());
             generator.render_destination(tree, writer, value, destination);

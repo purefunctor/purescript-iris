@@ -588,12 +588,13 @@ impl<'a> Writer<'a> {
         render_else(tree, &mut else_writer)?;
         self.has_eager_throw |= then_writer.has_eager_throw || else_writer.has_eager_throw;
         let consequent = self.block_statement(then_writer.statements);
-        let alternate = self.block_statement(else_writer.statements);
+        let alternate = (!else_writer.statements.is_empty())
+            .then(|| self.block_statement(else_writer.statements));
         self.statements.push(Statement::new_if_statement(
             self.span(),
             tree.expression(condition),
             consequent,
-            Some(alternate),
+            alternate,
             &self.builder,
         ));
         Ok(())
@@ -613,12 +614,13 @@ impl<'a> Writer<'a> {
         render_else(tree, &mut else_writer, state)?;
         self.has_eager_throw |= then_writer.has_eager_throw || else_writer.has_eager_throw;
         let consequent = self.block_statement(then_writer.statements);
-        let alternate = self.block_statement(else_writer.statements);
+        let alternate = (!else_writer.statements.is_empty())
+            .then(|| self.block_statement(else_writer.statements));
         self.statements.push(Statement::new_if_statement(
             self.span(),
             tree.expression(condition),
             consequent,
-            Some(alternate),
+            alternate,
             &self.builder,
         ));
         Ok(())

@@ -113,6 +113,10 @@ enum Destination<'a> {
     EffectAssign(&'a str),
     AssignAndBreak { name: &'a str, label: &'a str },
     EffectAssignAndBreak { name: &'a str, label: &'a str },
+    Discard,
+    EffectDiscard,
+    DiscardAndBreak { label: &'a str },
+    EffectDiscardAndBreak { label: &'a str },
     Continue,
     EffectContinue,
 }
@@ -123,12 +127,34 @@ enum CapturedEffectAction {
 }
 
 enum CapturedEffect {
-    Pure { value: ExpressionId },
-    Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
-    Map { function: ExpressionId, action: CapturedEffectAction },
-    Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
-    Void { action: CapturedEffectAction },
-    Operation { operation: CapturedOperation, origin: Option<Origin> },
+    Pure {
+        value: ExpressionId,
+    },
+    Bind {
+        action: CapturedEffectAction,
+        parameter: Parameter,
+        body: FunctionalExpressionId,
+    },
+    Map {
+        function: ExpressionId,
+        action: CapturedEffectAction,
+    },
+    Apply {
+        function_action: CapturedEffectAction,
+        argument_action: CapturedEffectAction,
+    },
+    ConditionalBind {
+        conditional: FunctionalExpressionId,
+        parameter: Parameter,
+        body: FunctionalExpressionId,
+    },
+    Void {
+        action: CapturedEffectAction,
+    },
+    Operation {
+        operation: CapturedOperation,
+        origin: Option<Origin>,
+    },
 }
 
 #[derive(Default)]
@@ -265,12 +291,16 @@ impl<'a> Destination<'a> {
             Destination::AssignAndBreak { name, label } => {
                 Destination::EffectAssignAndBreak { name, label }
             }
+            Destination::Discard => Destination::EffectDiscard,
+            Destination::DiscardAndBreak { label } => Destination::EffectDiscardAndBreak { label },
             Destination::Continue => Destination::EffectContinue,
             Destination::TailEffectThunkReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
             | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectDiscard
+            | Destination::EffectDiscardAndBreak { .. }
             | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination is already indirect")
             }
@@ -285,12 +315,16 @@ impl<'a> Destination<'a> {
             Destination::EffectAssignAndBreak { name, label } => {
                 Destination::AssignAndBreak { name, label }
             }
+            Destination::EffectDiscard => Destination::Discard,
+            Destination::EffectDiscardAndBreak { label } => Destination::DiscardAndBreak { label },
             Destination::EffectContinue => Destination::Continue,
             Destination::Return
             | Destination::TailEffectThunkReturn
             | Destination::TailEffectReturn
             | Destination::Assign(_)
             | Destination::AssignAndBreak { .. }
+            | Destination::Discard
+            | Destination::DiscardAndBreak { .. }
             | Destination::Continue => {
                 unreachable!("invariant violated: value destination is already direct")
             }
@@ -304,8 +338,14 @@ impl<'a> Destination<'a> {
                 | Destination::EffectTailEffectReturn
                 | Destination::EffectAssign(_)
                 | Destination::EffectAssignAndBreak { .. }
+                | Destination::EffectDiscard
+                | Destination::EffectDiscardAndBreak { .. }
                 | Destination::EffectContinue
         )
+    }
+
+    fn is_discard(self) -> bool {
+        matches!(self, Destination::Discard | Destination::DiscardAndBreak { .. })
     }
 }
 
@@ -1417,6 +1457,17 @@ impl Generator<'_> {
                 writer.assign(tree, name, value);
                 writer.break_label(label);
             }
+            Destination::Discard => {
+                if !tree.expression_is_atomic(&value) {
+                    writer.evaluate(tree, value);
+                }
+            }
+            Destination::DiscardAndBreak { label } => {
+                if !tree.expression_is_atomic(&value) {
+                    writer.evaluate(tree, value);
+                }
+                writer.break_label(label);
+            }
             Destination::Continue => {
                 if !tree.expression_is_atomic(&value) {
                     writer.evaluate(tree, value);
@@ -1428,6 +1479,8 @@ impl Generator<'_> {
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
             | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectDiscard
+            | Destination::EffectDiscardAndBreak { .. }
             | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination was not rendered directly")
             }
@@ -1443,8 +1496,17 @@ impl Generator<'_> {
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
         if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
+            if destination.is_discard()
+                && let EffectExpression::Pure(value) = effect
+                && self.discarded_value_is_stable(*value, context)
+            {
+                if let Destination::DiscardAndBreak { label } = destination {
+                    writer.break_label(label);
+                }
+                return Ok(());
+            }
             let mut renderer = self.renderer(tree, writer, context);
-            let effect = capture_effect(&mut renderer, effect)?;
+            let effect = capture_executed_effect(&mut renderer, effect)?;
             return execute_effect(&mut renderer, effect, destination);
         }
 
@@ -1452,6 +1514,21 @@ impl Generator<'_> {
         let value = tree.call(effect, Vec::new());
         self.render_destination(tree, writer, value, destination);
         Ok(())
+    }
+
+    fn discarded_value_is_stable(
+        &self,
+        expression: FunctionalExpressionId,
+        context: &FunctionContext,
+    ) -> bool {
+        match &self.module.storage[expression].kind {
+            ExpressionKind::Literal { .. } | ExpressionKind::Constructor { .. } => true,
+            ExpressionKind::Global { global } => !self.lazy_global_names.contains_key(&global.id),
+            ExpressionKind::Local { parameter } => {
+                matches!(context.locals.get(&parameter.id), Some(LocalBinding::Direct(_)))
+            }
+            _ => false,
+        }
     }
 
     fn render_effect_expression_destination<'t>(
@@ -1493,6 +1570,8 @@ impl Generator<'_> {
                 })?;
                 Some(label)
             }
+            Destination::Discard => None,
+            Destination::DiscardAndBreak { label } => Some(label),
             Destination::Continue => {
                 writer.continue_loop();
                 None
@@ -1502,6 +1581,8 @@ impl Generator<'_> {
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
             | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectDiscard
+            | Destination::EffectDiscardAndBreak { .. }
             | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination returned an effect thunk")
             }
@@ -2812,6 +2893,8 @@ fn render_case(
         | Destination::EffectTailEffectReturn
         | Destination::AssignAndBreak { .. }
         | Destination::EffectAssignAndBreak { .. }
+        | Destination::DiscardAndBreak { .. }
+        | Destination::EffectDiscardAndBreak { .. }
         | Destination::Continue
         | Destination::EffectContinue => generator.render_case_alternatives(
             tree,
@@ -2843,6 +2926,32 @@ fn render_case(
                     &scrutinees,
                     alternatives,
                     Destination::EffectAssignAndBreak { name, label: &label },
+                    context,
+                )
+            })
+        }
+        Destination::Discard => {
+            let label = context.allocate("$case");
+            writer.labeled_block(&label, |writer| {
+                generator.render_case_alternatives(
+                    tree,
+                    writer,
+                    &scrutinees,
+                    alternatives,
+                    Destination::DiscardAndBreak { label: &label },
+                    context,
+                )
+            })
+        }
+        Destination::EffectDiscard => {
+            let label = context.allocate("$case");
+            writer.labeled_block(&label, |writer| {
+                generator.render_case_alternatives(
+                    tree,
+                    writer,
+                    &scrutinees,
+                    alternatives,
+                    Destination::EffectDiscardAndBreak { label: &label },
                     context,
                 )
             })
@@ -2938,6 +3047,8 @@ fn render_guarded(
         | Destination::EffectTailEffectReturn
         | Destination::AssignAndBreak { .. }
         | Destination::EffectAssignAndBreak { .. }
+        | Destination::DiscardAndBreak { .. }
+        | Destination::EffectDiscardAndBreak { .. }
         | Destination::Continue
         | Destination::EffectContinue => {
             generator.render_guard_alternatives(
@@ -2972,6 +3083,34 @@ fn render_guarded(
                     writer,
                     alternatives,
                     Destination::EffectAssignAndBreak { name, label: &label },
+                    context,
+                )?;
+                generator.render_pattern_failure(writer);
+                Ok(())
+            })
+        }
+        Destination::Discard => {
+            let label = context.allocate("$guard");
+            writer.labeled_block(&label, |writer| {
+                generator.render_guard_alternatives(
+                    tree,
+                    writer,
+                    alternatives,
+                    Destination::DiscardAndBreak { label: &label },
+                    context,
+                )?;
+                generator.render_pattern_failure(writer);
+                Ok(())
+            })
+        }
+        Destination::EffectDiscard => {
+            let label = context.allocate("$guard");
+            writer.labeled_block(&label, |writer| {
+                generator.render_guard_alternatives(
+                    tree,
+                    writer,
+                    alternatives,
+                    Destination::EffectDiscardAndBreak { label: &label },
                     context,
                 )?;
                 generator.render_pattern_failure(writer);
@@ -3530,6 +3669,28 @@ fn capture_effect(
     }
 }
 
+fn capture_executed_effect(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    effect: &EffectExpression,
+) -> ModuleResult<CapturedEffect> {
+    if let EffectExpression::Bind { action, parameter, body } = effect
+        && matches!(
+            renderer.generator.module.storage[*action].kind,
+            ExpressionKind::IfThenElse { .. }
+                | ExpressionKind::Case { .. }
+                | ExpressionKind::Guarded { .. }
+        )
+    {
+        let parameter = parameter.clone();
+        return Ok(CapturedEffect::ConditionalBind {
+            conditional: *action,
+            parameter,
+            body: *body,
+        });
+    }
+    capture_effect(renderer, effect)
+}
+
 fn capture_effect_action(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     expression: FunctionalExpressionId,
@@ -3636,6 +3797,30 @@ fn execute_effect(
                 destination.effect(),
                 renderer.context,
             )
+        }
+        CapturedEffect::ConditionalBind { conditional, parameter, body } => {
+            let FunctionRenderer { generator, tree, writer, context } = renderer;
+            if local_uses(&generator.module.storage, body, parameter.id) == 0 {
+                generator.render_expression(
+                    tree,
+                    writer,
+                    conditional,
+                    Destination::EffectDiscard,
+                    context,
+                )?;
+            } else {
+                let name = context.allocate(&parameter.name);
+                writer.mutable(&name);
+                generator.render_expression(
+                    tree,
+                    writer,
+                    conditional,
+                    Destination::EffectAssign(&name),
+                    context,
+                )?;
+                context.bind_direct(&parameter, name);
+            }
+            generator.render_expression(tree, writer, body, destination.effect(), context)
         }
         CapturedEffect::Map { function, action } => {
             let value = execute_effect_action_value(renderer, action, "$value")?;
