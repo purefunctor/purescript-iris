@@ -30,8 +30,7 @@ source: tests-integration/src/fixtures.rs
     \total%13 -> effect.bind (effect.forEach
       values%14
       (\value%15 ->
-        void functorST
-          (effect.modifyReferenceState
-            (\section256%16 -> integer.add section256%16 value%15)
-            total%13)))
+        effect.void (effect.modifyReferenceState
+          (\section256%16 -> integer.add section256%16 value%15)
+          total%13)))
       \$unit%17 -> effect.readReference total%13()

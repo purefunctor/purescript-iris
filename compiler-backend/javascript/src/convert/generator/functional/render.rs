@@ -127,6 +127,7 @@ enum CapturedEffect {
     Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
     Map { function: ExpressionId, action: CapturedEffectAction },
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
+    Void { action: CapturedEffectAction },
     Operation { operation: CapturedOperation, origin: Option<Origin> },
 }
 
@@ -3514,6 +3515,10 @@ fn capture_effect(
                 capture_effect_action(renderer, *argument_action, "$argumentAction")?;
             Ok(CapturedEffect::Apply { function_action, argument_action })
         }
+        EffectExpression::Void { action } => {
+            let action = capture_effect_action(renderer, *action, "$action")?;
+            Ok(CapturedEffect::Void { action })
+        }
         EffectExpression::Primitive(primitive) => {
             let operation = capture_primitive(renderer, primitive)?;
             Ok(CapturedEffect::Operation { operation, origin: None })
@@ -3591,21 +3596,13 @@ fn execute_effect(
                 let value = renderer.tree.duplicate(value);
                 renderer.context.bind_inline(&parameter, value);
             } else if let CapturedEffectAction::Effect(effect) = &action
-                && matches!(effect.as_ref(), CapturedEffect::Operation { .. })
+                && matches!(
+                    effect.as_ref(),
+                    CapturedEffect::Operation { .. } | CapturedEffect::Void { .. }
+                )
                 && local_uses(&renderer.generator.module.storage, body, parameter.id) == 0
             {
-                let CapturedEffectAction::Effect(effect) = action else {
-                    unreachable!("invariant violated: effect action changed kind")
-                };
-                let CapturedEffect::Operation { operation, origin } = *effect else {
-                    unreachable!("invariant violated: effect operation changed kind")
-                };
-                let _origin = renderer.tree.enter_origin(origin);
-                if let Some(result) = execute_operation(renderer, operation)?
-                    && !renderer.tree.expression_is_atomic(&result)
-                {
-                    renderer.writer.evaluate(renderer.tree, result);
-                }
+                discard_effect_action(renderer, action)?;
             } else if let CapturedEffectAction::Effect(effect) = &action
                 && let CapturedEffect::Operation {
                     operation: CapturedOperation::Primitive(CapturedPrimitive::NewReference { .. }),
@@ -3667,6 +3664,11 @@ fn execute_effect(
             );
             Ok(())
         }
+        CapturedEffect::Void { action } => {
+            discard_effect_action(renderer, action)?;
+            render_operation_result(renderer, None, destination);
+            Ok(())
+        }
         CapturedEffect::Operation { operation, origin } => {
             let _origin = renderer.tree.enter_origin(origin);
             let result = execute_operation(renderer, operation)?;
@@ -3674,6 +3676,34 @@ fn execute_effect(
             Ok(())
         }
     }
+}
+
+fn discard_effect_action(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    action: CapturedEffectAction,
+) -> ModuleResult<()> {
+    let action = match action {
+        CapturedEffectAction::Effect(effect) => match *effect {
+            CapturedEffect::Pure { .. } => return Ok(()),
+            CapturedEffect::Void { action } => return discard_effect_action(renderer, action),
+            CapturedEffect::Operation { operation, origin } => {
+                let _origin = renderer.tree.enter_origin(origin);
+                if let Some(result) = execute_operation(renderer, operation)?
+                    && !renderer.tree.expression_is_atomic(&result)
+                {
+                    renderer.writer.evaluate(renderer.tree, result);
+                }
+                return Ok(());
+            }
+            effect => CapturedEffectAction::Effect(Box::new(effect)),
+        },
+        action @ CapturedEffectAction::Expression { .. } => action,
+    };
+    let value = execute_effect_action_value(renderer, action, "$value")?;
+    if !renderer.tree.expression_is_atomic(&value) {
+        renderer.writer.evaluate(renderer.tree, value);
+    }
+    Ok(())
 }
 
 fn execute_effect_action_value(
@@ -4065,6 +4095,9 @@ fn collect_expression_references(
                 collect_expression_references(module, *function_action, seen, globals);
                 collect_expression_references(module, *argument_action, seen, globals);
             }
+            EffectExpression::Void { action } => {
+                collect_expression_references(module, *action, seen, globals);
+            }
             EffectExpression::Primitive(primitive) => {
                 for operand in primitive.operands() {
                     collect_expression_references(module, operand, seen, globals);
@@ -4301,6 +4334,9 @@ fn collect_expression_children(
             EffectExpression::Apply { function_action, argument_action } => {
                 collect_expression_globals(module, *function_action, false, globals);
                 collect_expression_globals(module, *argument_action, false, globals);
+            }
+            EffectExpression::Void { action } => {
+                collect_expression_globals(module, *action, false, globals);
             }
             EffectExpression::Primitive(primitive) => {
                 for operand in primitive.operands() {

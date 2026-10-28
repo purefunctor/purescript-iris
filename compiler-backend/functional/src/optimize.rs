@@ -316,6 +316,7 @@ pub fn for_each_evaluated_child(
                     visit(*function_action, action);
                     visit(*argument_action, action);
                 }
+                EffectExpression::Void { action: discarded } => visit(*discarded, action),
                 EffectExpression::Primitive(primitive) => {
                     for operand in primitive.operands() {
                         visit(operand, value);
@@ -594,6 +595,7 @@ pub fn try_for_each_expression_child<Error>(
                 visit(*function_action)?;
                 visit(*argument_action)?;
             }
+            EffectExpression::Void { action } => visit(*action)?,
             EffectExpression::Primitive(primitive) => {
                 for operand in primitive.operands() {
                     visit(operand)?;

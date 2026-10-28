@@ -1,6 +1,4 @@
 import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
-import * as Data_Functor from "../Data.Functor/index.js";
 import * as Effect from "../Effect/index.js";
 import * as $foreign from "./foreign.js";
 export function visit(values) {
@@ -39,17 +37,13 @@ export function visitWithFunction(values) {
   };
 }
 export function sumState(values) {
-  const total = { value: 0 | 0 };
+  let total = 0 | 0;
   const $length = values.length;
   for (let $index = 0; $index < $length; $index++) {
     const value = values[$index];
-    const $function = Data_Functor.void(Control_Monad_ST_Internal.functorST);
-    const $effect = () => {
-      return total.value = total.value + value | 0;
-    };
-    (/* @__PURE__ */ $function($effect))();
+    total = total + value | 0;
   }
-  return total.value;
+  return total;
 }
 export const push = $foreign["push"];
 export const poke = $foreign["poke"];
