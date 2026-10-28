@@ -1,8 +1,10 @@
-use functional::optimize::{EffectPosition, local_is_captured, local_uses};
+use functional::optimize::{
+    EffectPosition, for_each_expression_child, local_is_captured, local_uses,
+};
 use functional::tree::{
     ArrayElement as FunctionalArrayElement, ArrayEnd, EffectExpression, EffectLoop,
-    EffectPrimitive, ExpressionId as FunctionalExpressionId, ExpressionKind, Guard, LocalId,
-    Origin, Parameter, PatternKind, ReferenceModifyResult, ReferenceWriteResult, Storage,
+    EffectPrimitive, ExpressionId as FunctionalExpressionId, ExpressionKind, LocalId, Origin,
+    Parameter, PatternKind, ReferenceModifyResult, ReferenceWriteResult, Storage,
 };
 use smol_str::SmolStr;
 
@@ -666,123 +668,37 @@ fn execute_loop_action(
     Ok(())
 }
 
-#[derive(Clone, Copy)]
-enum ReferencePosition {
-    Action,
-    Continuation,
-}
-
 pub(super) fn reference_stays_local(
     storage: &Storage,
     body: FunctionalExpressionId,
     reference: LocalId,
 ) -> bool {
-    let mut values = Vec::new();
-    let mut pending = vec![(body, ReferencePosition::Continuation)];
-    while let Some((expression, position)) = pending.pop() {
-        match (&storage[expression].kind, position) {
-            (ExpressionKind::Effect { effect }, _) => match effect {
-                EffectExpression::Pure(value) => values.push(*value),
-                EffectExpression::Bind { action, body, .. } => {
-                    pending.push((*action, ReferencePosition::Action));
-                    pending.push((*body, ReferencePosition::Continuation));
-                }
-                EffectExpression::Map { function, action } => {
-                    values.push(*function);
-                    pending.push((*action, ReferencePosition::Action));
-                }
-                EffectExpression::Apply { function_action, argument_action } => {
-                    pending.push((*function_action, ReferencePosition::Action));
-                    pending.push((*argument_action, ReferencePosition::Action));
-                }
-                EffectExpression::Void { action } => {
-                    pending.push((*action, ReferencePosition::Action));
-                }
-                EffectExpression::Primitive(primitive) => {
-                    let reference_operand = match primitive {
-                        EffectPrimitive::ReadReference { reference: operand }
-                        | EffectPrimitive::WriteReference { reference: operand, .. }
-                        | EffectPrimitive::ModifyReference { reference: operand, .. } => {
-                            Some(*operand)
-                        }
-                        _ => None,
-                    };
-                    for operand in primitive.operands() {
-                        let operates_on_reference = Some(operand) == reference_operand
-                            && matches!(
-                                &storage[operand].kind,
-                                ExpressionKind::Local { parameter } if parameter.id == reference
-                            );
-                        if !operates_on_reference {
-                            values.push(operand);
-                        }
-                    }
-                }
-                EffectExpression::Loop(effect_loop) => match effect_loop {
-                    EffectLoop::Range { start, end, body } => {
-                        values.extend([*start, *end]);
-                        match inline_function(storage, *body) {
-                            Some((_, body)) => {
-                                pending.push((body, ReferencePosition::Continuation));
-                            }
-                            None => values.push(*body),
-                        }
-                    }
-                    EffectLoop::Each { array, body } => {
-                        values.push(*array);
-                        match inline_function(storage, *body) {
-                            Some((_, body)) => {
-                                pending.push((body, ReferencePosition::Continuation));
-                            }
-                            None => values.push(*body),
-                        }
-                    }
-                    EffectLoop::While { condition, body } => {
-                        pending.push((*condition, ReferencePosition::Action));
-                        pending.push((*body, ReferencePosition::Action));
-                    }
-                    EffectLoop::Until { condition } => {
-                        pending.push((*condition, ReferencePosition::Action));
-                    }
-                },
-            },
-            (
-                ExpressionKind::IfThenElse { condition, then, else_ },
-                ReferencePosition::Continuation,
-            ) => {
-                values.push(*condition);
-                pending.push((*then, ReferencePosition::Continuation));
-                pending.push((*else_, ReferencePosition::Continuation));
-            }
-            (
-                ExpressionKind::Case { scrutinees, alternatives },
-                ReferencePosition::Continuation,
-            ) => {
-                values.extend(scrutinees.iter().copied());
-                let alternatives = alternatives.iter().map(|alternative| alternative.expression);
-                pending.extend(alternatives.map(|body| (body, ReferencePosition::Continuation)));
-            }
-            (ExpressionKind::Guarded { alternatives }, ReferencePosition::Continuation) => {
-                for alternative in alternatives.iter() {
-                    let guards = alternative.guards.iter().map(|guard| match guard {
-                        Guard::Boolean(expression) | Guard::Pattern { expression, .. } => {
-                            *expression
-                        }
-                    });
-                    values.extend(guards);
-                    pending.push((alternative.expression, ReferencePosition::Continuation));
-                }
-            }
-            (ExpressionKind::Let { bindings, body, .. }, ReferencePosition::Continuation) => {
-                values.extend(bindings.iter().map(|binding| binding.expression));
-                pending.push((*body, ReferencePosition::Continuation));
-            }
-            (ExpressionKind::LetPattern { value, body, .. }, ReferencePosition::Continuation) => {
-                values.push(*value);
-                pending.push((*body, ReferencePosition::Continuation));
-            }
-            _ => values.push(expression),
+    let is_reference = |expression: FunctionalExpressionId| {
+        matches!(
+            &storage[expression].kind,
+            ExpressionKind::Local { parameter } if parameter.id == reference
+        )
+    };
+    let mut pending = vec![body];
+    while let Some(expression) = pending.pop() {
+        if is_reference(expression) {
+            return false;
         }
+        let kind = &storage[expression].kind;
+        let ExpressionKind::Effect { effect: EffectExpression::Primitive(primitive) } = kind else {
+            for_each_expression_child(kind, |child| pending.push(child));
+            continue;
+        };
+        let reference_operand = match primitive {
+            EffectPrimitive::ReadReference { reference: operand }
+            | EffectPrimitive::WriteReference { reference: operand, .. }
+            | EffectPrimitive::ModifyReference { reference: operand, .. } => Some(*operand),
+            _ => None,
+        };
+        let operands = primitive
+            .operands()
+            .filter(|&operand| Some(operand) != reference_operand || !is_reference(operand));
+        pending.extend(operands);
     }
-    values.into_iter().all(|value| local_uses(storage, value, reference) == 0)
+    true
 }
