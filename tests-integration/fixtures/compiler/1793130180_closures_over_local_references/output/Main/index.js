@@ -49,21 +49,20 @@ export const chained = /* @__PURE__ */ (() => {
 })();
 export const readers = /* @__PURE__ */ (() => {
   return () => {
-    const counter = { value: 0 | 0 };
+    let counter = 0 | 0;
     const $value = [];
-    const actions = { value: $value };
+    let actions = $value;
     for (let index = 0 | 0; index < (3 | 0); index++) {
-      counter.value = index;
-      const $element = actions.value;
+      counter = index;
       const $effect = () => {
-        return counter.value;
+        return counter;
       };
-      actions.value = [...$element, $effect];
+      actions = [...actions, $effect];
     }
-    counter.value = 42 | 0;
+    counter = 42 | 0;
     const $function = Control_Bind.bind(Effect.bindEffect);
     const $effect$1 = () => {
-      return actions.value;
+      return actions;
     };
     return (/* @__PURE__ */ $function($effect$1)(/* @__PURE__ */ Data_Traversable.sequence(Data_Traversable.traversableArray)(Effect.applicativeEffect)))();
   };

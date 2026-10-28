@@ -1,9 +1,9 @@
 export function runInside(start) {
   let ref = start;
   let $result;
-  const local = { value: start };
+  let local = start;
   const $effect = () => {
-    return local.value = local.value + (1 | 0) | 0;
+    return local = local + (1 | 0) | 0;
   };
   const bump = $effect;
   const $int = bump();
@@ -14,12 +14,12 @@ export function runInside(start) {
 }
 export const performedInside = /* @__PURE__ */ (() => {
   return () => {
-    const ref = { value: 1 | 0 };
+    let ref = 1 | 0;
     let $result;
-    ref.value = ref.value * (2 | 0) | 0;
-    $result = ref.value;
+    ref = ref * (2 | 0) | 0;
+    $result = ref;
     const doubled = $result;
-    ref.value = ref.value + doubled | 0;
-    return ref.value;
+    ref = ref + doubled | 0;
+    return ref;
   };
 })();
