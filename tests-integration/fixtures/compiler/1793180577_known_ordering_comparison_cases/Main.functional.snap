@@ -2,53 +2,29 @@
 source: tests-integration/src/fixtures.rs
 ---
 @export compareIntegers = \left%0 right%1 ->
-  case ordIntDictCompare left%0 right%1 of
-    LT ->
-      "less"
-    EQ ->
-      "equal"
-    GT ->
-      "greater"
+  if integer.less_than left%0 right%1
+    then "less"
+    else if integer.equal left%0 right%1 then "equal" else "greater"
 
 @export compareStrings = \left%2 right%3 ->
-  case compare ordString left%2 right%3 of
-    EQ ->
-      "equal"
-    GT ->
-      "greater"
-    LT ->
-      "less"
+  if string.equal left%2 right%3
+    then "equal"
+    else if string.greater_than left%2 right%3 then "greater" else "less"
 
 @export compareNumbers = \left%4 right%5 ->
-  case ordNumberDictCompare left%4 right%5 of
-    GT ->
-      "greater"
-    EQ ->
-      "equal"
-    _ ->
-      "less"
+  if boolean.not (number.less_than_or_equal left%4 right%5)
+    then "greater"
+    else if number.equal left%4 right%5 then "equal" else "less"
 
 @export numberIsGreater = \left%6 right%7 ->
-  case ordNumberDictCompare left%6 right%7 of
-    GT ->
-      true
-    _ ->
-      false
+  if boolean.not (number.less_than_or_equal left%6 right%7) then true else false
 
 @export computedIsLess = \left%8 right%9 ->
-  case ordIntDictCompare (integer.add left%8 1) (integer.multiply right%9 2) of
+  if integer.less_than (integer.add left%8 1) (integer.multiply right%9 2) then true else false
+
+@export arrayIsLess = \left%12 right%13 ->
+  case compare (ordArray ordInt) left%12 right%13 of
     LT ->
       true
     _ ->
       false
-
-@export arrayIsLess = \left%10 right%11 ->
-  case compare (ordArray ordInt) left%10 right%11 of
-    LT ->
-      true
-    _ ->
-      false
-
-ordIntDictCompare = compare ordInt
-
-ordNumberDictCompare = compare ordNumber

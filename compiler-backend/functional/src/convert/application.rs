@@ -8,9 +8,9 @@ use smol_str::{SmolStr, format_smolstr};
 
 use crate::optimize::local_uses;
 use crate::tree::{
-    ArrayElement, BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId,
-    ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter, PatternId,
-    PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
+    ArrayElement, BinaryOperator, Binding, CaseAlternative, Comparison, EffectExpression,
+    ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter,
+    PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
@@ -457,36 +457,122 @@ where
                 && let Some(operand) =
                     self.known_primitive_instance(*dictionary, "Data.Ord", ORD_INSTANCES)?
             {
-                let negated = match (operand, comparison) {
-                    (PrimitiveType::Number, Comparison::GreaterThan) => {
-                        Some(Comparison::LessThanOrEqual)
-                    }
-                    (PrimitiveType::Number, Comparison::GreaterThanOrEqual) => {
-                        Some(Comparison::LessThan)
-                    }
-                    _ => None,
-                };
-                let Some(negated) = negated else {
-                    let operator = BinaryOperator::Comparison { operand, comparison };
-                    return Ok(Some(ExpressionKind::Binary {
-                        operator,
-                        left: *left,
-                        right: *right,
-                    }));
-                };
-                let operator = BinaryOperator::Comparison { operand, comparison: negated };
-                let value = self.expression(ExpressionKind::Binary {
-                    operator,
-                    left: *left,
-                    right: *right,
-                });
-                return Ok(Some(ExpressionKind::Unary {
-                    operator: UnaryOperator::BooleanNot,
-                    value,
-                }));
+                let kind = self.primitive_comparison(operand, comparison, *left, *right);
+                return Ok(Some(kind));
             }
         }
         Ok(None)
+    }
+
+    fn primitive_comparison(
+        &mut self,
+        operand: PrimitiveType,
+        comparison: Comparison,
+        left: ExpressionId,
+        right: ExpressionId,
+    ) -> ExpressionKind {
+        let negated = match (operand, comparison) {
+            (PrimitiveType::Number, Comparison::GreaterThan) => Some(Comparison::LessThanOrEqual),
+            (PrimitiveType::Number, Comparison::GreaterThanOrEqual) => Some(Comparison::LessThan),
+            _ => None,
+        };
+        let Some(negated) = negated else {
+            let operator = BinaryOperator::Comparison { operand, comparison };
+            return ExpressionKind::Binary { operator, left, right };
+        };
+        let operator = BinaryOperator::Comparison { operand, comparison: negated };
+        let value = self.expression(ExpressionKind::Binary { operator, left, right });
+        ExpressionKind::Unary { operator: UnaryOperator::BooleanNot, value }
+    }
+
+    pub(super) fn known_comparison_case(
+        &mut self,
+        scrutinees: &[ExpressionId],
+        alternatives: &[CaseAlternative],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        let [scrutinee] = scrutinees else { return Ok(None) };
+        let (function, arguments) = self.application_spine(*scrutinee, &[]);
+        let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
+            self.known_class_member_arguments(function, &arguments, "Data.Ord", "compare")?
+        else {
+            return Ok(None);
+        };
+        let (left, right) = (*left, *right);
+        let Some(operand) = self.known_primitive_instance(record, "Data.Ord", ORD_INSTANCES)?
+        else {
+            return Ok(None);
+        };
+
+        let mut branches = Vec::new();
+        let mut covered = Vec::new();
+        let mut fallback = None;
+        for alternative in alternatives {
+            let [pattern] = alternative.patterns.as_ref() else { return Ok(None) };
+            if matches!(self.storage[alternative.expression].kind, ExpressionKind::Guarded { .. }) {
+                return Ok(None);
+            }
+            match &self.storage[*pattern].kind {
+                PatternKind::Wildcard => {
+                    fallback = Some(alternative.expression);
+                    break;
+                }
+                PatternKind::Constructor { global, arguments } if arguments.is_empty() => {
+                    let GlobalId::Term(file_id, _) = global.id else { return Ok(None) };
+                    if self.source_module_name(file_id)? != "Data.Ordering" {
+                        return Ok(None);
+                    }
+                    let comparison = match global.item_name.as_str() {
+                        "LT" => Comparison::LessThan,
+                        "EQ" => Comparison::Equal,
+                        "GT" => Comparison::GreaterThan,
+                        _ => return Ok(None),
+                    };
+                    if !covered.contains(&comparison) {
+                        covered.push(comparison);
+                    }
+                    branches.push((comparison, alternative.expression));
+                }
+                _ => return Ok(None),
+            }
+        }
+        let fallback = match fallback {
+            Some(fallback) => fallback,
+            None if covered.len() == 3 => {
+                let Some((_, fallback)) = branches.pop() else { return Ok(None) };
+                fallback
+            }
+            None => return Ok(None),
+        };
+
+        let mut bindings = Vec::new();
+        let mut operands = [left, right];
+        for (operand, name) in operands.iter_mut().zip(["compareLeft", "compareRight"]) {
+            if !self.expression_is_stable(*operand) {
+                *operand = self.let_bound_local(*operand, name, &mut bindings)?;
+            }
+        }
+
+        let mut expression = fallback;
+        for (comparison, branch) in branches.into_iter().rev() {
+            let [left, right] = operands
+                .map(|operand| self.expression(ExpressionKind::clone(&self.storage[operand].kind)));
+            let condition = self.primitive_comparison(operand, comparison, left, right);
+            let condition = self.expression(condition);
+            expression = self.expression(ExpressionKind::IfThenElse {
+                condition,
+                then: branch,
+                else_: expression,
+            });
+        }
+
+        if bindings.is_empty() {
+            return Ok(Some(expression));
+        }
+        Ok(Some(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: bindings.into(),
+            body: expression,
+        })))
     }
 
     fn literal_label(&self, expression: ExpressionId) -> Option<SmolStr> {
