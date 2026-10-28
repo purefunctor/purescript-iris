@@ -1,26 +1,40 @@
-import * as Control_Semigroupoid from "../Control.Semigroupoid/index.js";
-import * as Record_Builder from "../Record.Builder/index.js";
 export function merge(record) {
-  return Record_Builder.build(/* @__PURE__ */ Record_Builder.merge({})({})({
+  return {
+    ...record,
     x: 0 | 0,
     z: true
-  }))(record);
+  };
 }
 export function union(record) {
-  return Record_Builder.build(/* @__PURE__ */ Record_Builder.union({})({ z: true }))(record);
+  return {
+    ...record,
+    z: true
+  };
 }
 export function disjointUnion(record) {
-  return Record_Builder.build(/* @__PURE__ */ Record_Builder.disjointUnion({})({})({ z: true }))(record);
+  return {
+    ...record,
+    z: true
+  };
 }
 export function records(left) {
   return (right) => {
-    return Record_Builder.build(/* @__PURE__ */ Record_Builder.merge({})({})(left))(right);
+    return {
+      ...right,
+      ...left
+    };
   };
 }
 export function insertThenMerge(record) {
-  return Record_Builder.build(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "z" })("Proxy")(true))(/* @__PURE__ */ Record_Builder.merge({})({})({ x: 0 | 0 })))(record);
+  return {
+    ...{
+      ...record,
+      z: true
+    },
+    x: 0 | 0
+  };
 }
-export const literals = Record_Builder.build(/* @__PURE__ */ Record_Builder.merge({})({})({ x: 0 | 0 }))({
+export const literals = {
   y: "y",
-  x: 1 | 0
-});
+  x: 0 | 0
+};

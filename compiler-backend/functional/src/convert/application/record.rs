@@ -6,6 +6,8 @@ use crate::tree::{
     SynthesizedEvidence,
 };
 
+mod builder;
+
 impl<'c, Q> Context<'c, Q>
 where
     Q: checking::ExternalQueries,
@@ -15,6 +17,9 @@ where
         function: ExpressionId,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
+        if let Some(expression) = self.known_record_build(function, arguments)? {
+            return Ok(Some(expression));
+        }
         if self.known_term(function, "Record", "get")?
             && let [symbol, constraint, proxy, record] = *arguments
             && let Some(field) = self.known_record_label(symbol, &[constraint], proxy)

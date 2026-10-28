@@ -1,32 +1,63 @@
-import * as Control_Category from "../Control.Category/index.js";
-import * as Control_Semigroupoid from "../Control.Semigroupoid/index.js";
 import * as Record_Builder from "../Record.Builder/index.js";
 export function insertFlipped(record) {
-  return Record_Builder.build(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "y" })("Proxy")("y"))(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "z" })("Proxy")(true)))(record);
+  return {
+    ...record,
+    y: "y",
+    z: true
+  };
 }
 export function insertComposed(record) {
-  return Record_Builder.build(/* @__PURE__ */ Control_Semigroupoid.compose(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "z" })("Proxy")(true))(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "y" })("Proxy")("y")))(record);
+  return {
+    ...record,
+    y: "y",
+    z: true
+  };
 }
 export function modify(record) {
-  return Record_Builder.build(/* @__PURE__ */ Record_Builder.modify({})({})({ reflectSymbol: ($proxy) => "x" })("Proxy")((x) => x + (1 | 0) | 0))(record);
+  return {
+    ...record,
+    x: ((x) => x + (1 | 0) | 0)(record.x)
+  };
 }
 function $delete(record) {
-  return Record_Builder.build(/* @__PURE__ */ Record_Builder.delete({ reflectSymbol: ($proxy) => "x" })({})({})("Proxy"))(record);
+  const { x: $deleted, ...$record } = record;
+  return $record;
 }
 export function rename(record) {
-  return Record_Builder.build(/* @__PURE__ */ Record_Builder.rename({ reflectSymbol: ($proxy) => "x" })({ reflectSymbol: ($proxy) => "z" })({})({})({})({})("Proxy")("Proxy"))(record);
+  const { x: $deleted, ...$record } = record;
+  return {
+    ...$record,
+    z: record.x
+  };
 }
 export function pipeline(record) {
-  return Record_Builder.build(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "z" })("Proxy")(true))(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.modify({})({})({ reflectSymbol: ($proxy) => "x" })("Proxy")((x) => x * (2 | 0) | 0))(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Control_Category.identity(Record_Builder.categoryBuilder))(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.delete({ reflectSymbol: ($proxy) => "y" })({})({})("Proxy"))(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.rename({ reflectSymbol: ($proxy) => "x" })({ reflectSymbol: ($proxy) => "w" })({})({})({})({})("Proxy")("Proxy"))(/* @__PURE__ */ Record_Builder.nub({})))))))(record);
+  const record$2 = {
+    ...record,
+    z: true
+  };
+  const $result = {
+    ...record$2,
+    x: ((x) => x * (2 | 0) | 0)(record$2.x)
+  };
+  const { y: $deleted, ...$record } = $result;
+  const record$1 = $record;
+  const { x: $deleted$1, ...$record$1 } = record$1;
+  return {
+    ...$record$1,
+    w: record$1.x
+  };
 }
 export function unknown(builder) {
   return (record) => {
     return Record_Builder.build(builder)(record);
   };
 }
-export const fromScratch = Record_Builder.buildFromScratch(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "x" })("Proxy")(1 | 0))(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "y" })("Proxy")("y")));
-export const literal = Record_Builder.build(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.insert({})({})({ reflectSymbol: ($proxy) => "z" })("Proxy")(true))(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.modify({})({})({ reflectSymbol: ($proxy) => "x" })("Proxy")((x) => x * (2 | 0) | 0))(/* @__PURE__ */ Control_Semigroupoid.composeFlipped(Record_Builder.semigroupoidBuilder)(/* @__PURE__ */ Record_Builder.delete({ reflectSymbol: ($proxy) => "y" })({})({})("Proxy"))(/* @__PURE__ */ Record_Builder.rename({ reflectSymbol: ($proxy) => "x" })({ reflectSymbol: ($proxy) => "w" })({})({})({})({})("Proxy")("Proxy")))))({
+export const fromScratch = {
   x: 1 | 0,
   y: "y"
-});
+};
+export const literal = {
+  z: true,
+  w: ((x) => x * (2 | 0) | 0)(1 | 0)
+};
 export { $delete as "delete" };

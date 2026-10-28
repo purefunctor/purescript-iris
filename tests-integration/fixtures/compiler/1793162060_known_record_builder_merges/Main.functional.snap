@@ -1,22 +1,14 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export merge = \record%0 ->
-  build (merge <trivial evidence> <trivial evidence> { x: 0, z: true }) record%0
+@export merge = \record%0 -> record.union { x: 0, z: true } record%0
 
-@export union = \record%1 -> build (union <trivial evidence> { z: true }) record%1
+@export union = \record%1 -> record.union { z: true } record%1
 
-@export disjointUnion = \record%2 ->
-  build (disjointUnion <trivial evidence> <trivial evidence> { z: true }) record%2
+@export disjointUnion = \record%2 -> record.union { z: true } record%2
 
-@export records = \left%3 right%4 ->
-  build (merge <trivial evidence> <trivial evidence> left%3) right%4
+@export records = \left%3 right%4 -> record.union left%3 right%4
 
-@export literals = build (merge <trivial evidence> <trivial evidence> { x: 0 }) { y: "y", x: 1 }
+@export literals = { y: "y", x: 0 }
 
-@export insertThenMerge = \record%5 ->
-  build
-    (composeFlipped semigroupoidBuilder
-      (insert <trivial evidence> <trivial evidence> (symbol "z") "Proxy" true)
-      (merge <trivial evidence> <trivial evidence> { x: 0 }))
-    record%5
+@export insertThenMerge = \record%5 -> record.union { x: 0 } (record%5 { z = true })
