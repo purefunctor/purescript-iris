@@ -1,13 +1,17 @@
 import * as Record_Unsafe_Union from "../Record.Unsafe.Union/index.js";
 import * as $foreign from "./foreign.js";
 export function withDefaults(options) {
-  return Record_Unsafe_Union.unsafeUnion(options)({
+  return {
     x: 1 | 0,
-    y: "default"
-  });
+    y: "default",
+    ...options
+  };
 }
 export function override(record) {
-  return Record_Unsafe_Union.unsafeUnionFn({ x: 0 | 0 }, record);
+  return {
+    ...record,
+    x: 0 | 0
+  };
 }
 export function records(left) {
   return (right) => {
@@ -15,17 +19,23 @@ export function records(left) {
   };
 }
 export function overrideOrder(record) {
-  return Record_Unsafe_Union.unsafeUnion({ x: observe("override")(0 | 0) })(observe("record")(record));
+  const x = observe("override")(0 | 0);
+  return {
+    ...observe("record")(record),
+    x
+  };
 }
 export function literalsOrder($boolean) {
-  return Record_Unsafe_Union.unsafeUnionFn({ x: observe("left")(1 | 0) }, {
+  const x = observe("left")(1 | 0);
+  const x$1 = observe("right")(2 | 0);
+  return {
     y: "right",
-    x: observe("right")(2 | 0)
-  });
+    x
+  };
 }
 export const observe = $foreign["observe"];
 export const readTrace = $foreign["readTrace"];
-export const literals = Record_Unsafe_Union.unsafeUnionFn({ x: 1 | 0 }, {
+export const literals = {
   y: "right",
-  x: 2 | 0
-});
+  x: 1 | 0
+};

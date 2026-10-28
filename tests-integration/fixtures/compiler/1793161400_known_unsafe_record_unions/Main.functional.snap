@@ -5,16 +5,21 @@ source: tests-integration/src/fixtures.rs
 
 @export foreign readTrace
 
-@export withDefaults = \options%0 -> unsafeUnion options%0 { x: 1, y: "default" }
+@export withDefaults = \options%0 -> record.union options%0 { x: 1, y: "default" }
 
-@export override = \record%1 -> uncurried.call unsafeUnionFn({ x: 0 }, record%1)
+@export override = \record%1 -> record.union { x: 0 } record%1
 
-@export literals = uncurried.call unsafeUnionFn({ x: 1 }, { y: "right", x: 2 })
+@export literals = { y: "right", x: 1 }
 
 @export records = \left%2 right%3 -> uncurried.call unsafeUnionFn(left%2, right%3)
 
 @export overrideOrder = \record%4 ->
-  unsafeUnion { x: observe "override" 0 } (observe "record" record%4)
+  let
+    x%5 = observe "override" 0
+  in record.union { x: x%5 } (observe "record" record%4)
 
-@export literalsOrder = \$boolean%5@(_) ->
-  uncurried.call unsafeUnionFn({ x: observe "left" 1 }, { y: "right", x: observe "right" 2 })
+@export literalsOrder = \$boolean%8@(_) ->
+  let
+    x%6 = observe "left" 1
+    x%7 = observe "right" 2
+  in { y: "right", x: x%6 }

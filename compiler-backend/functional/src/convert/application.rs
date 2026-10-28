@@ -154,6 +154,11 @@ where
             && let Some((function, arguments)) = known_arguments.split_first()
             && arguments.len() == arity
         {
+            if let Some(expression) =
+                self.known_uncurried_record_application(*function, arguments)?
+            {
+                return Ok(expression);
+            }
             return Ok(self.expression(ExpressionKind::UncurriedApplication {
                 function: *function,
                 arguments: arguments.into(),

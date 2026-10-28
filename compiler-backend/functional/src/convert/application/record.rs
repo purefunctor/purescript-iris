@@ -89,6 +89,10 @@ where
             && self.known_record_constraints(&[first, second])
         {
             Some((left, right))
+        } else if self.known_term(function, "Record.Unsafe.Union", "unsafeUnion")?
+            && let [left, right] = *arguments
+        {
+            Some((left, right))
         } else {
             None
         };
@@ -112,6 +116,19 @@ where
         }
         let label = label.to_utf8().ok()?;
         Some(self.label_field(label.into()))
+    }
+
+    pub(super) fn known_uncurried_record_application(
+        &mut self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        if self.known_term(function, "Record.Unsafe.Union", "unsafeUnionFn")?
+            && let [left, right] = *arguments
+        {
+            return self.record_union(left, right);
+        }
+        Ok(None)
     }
 
     fn known_literal_label(&self, label: ExpressionId) -> Option<Field> {
