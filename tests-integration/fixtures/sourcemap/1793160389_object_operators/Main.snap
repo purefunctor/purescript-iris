@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+1 | export function selected(key) {
+  | ^ 8:1 selected key object =
+  |        ^ (selected) 8:1 selected key object =
+  |                               ^ 8:1 selected key object =
+2 |   return (object) => {
+  |   ^ (selected) 8:1 selected key object =
+  |                      ^ 8:1 selected key object =
+3 |     if (key in object) {
+  |     ^ 9:3 if Object.member key object then [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+  |         ^ 9:20 key object then [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+  |                ^ 9:24 object then [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+  |                        ^ 9:3 if Object.member key object then [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+4 |       return [object[key], object.default];
+  |       ^ 9:36 [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+  |               ^ 9:63 object key, ObjectUnsafe.unsafeIndex object "default" ]
+  |                      ^ 9:70 key, ObjectUnsafe.unsafeIndex object "default" ]
+  |                            ^ 9:100 object "default" ]
+  |                                   ^ 9:75 ObjectUnsafe.unsafeIndex object "default" ]
+  |                                          ^ 9:36 [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+5 |     } else {
+  |     ^ 9:3 if Object.member key object then [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+6 |       return Object.keys(object);
+  |       ^ 10:8 Object.keys object
+  |                          ^ 10:20 object
+  |                                ^ 10:8 Object.keys object
+7 |     }
+  |     ^ 9:3 if Object.member key object then [ ObjectUnsafe.unsafeIndex object key, ObjectUnsafe.unsafeIndex object "default" ]
+8 |   };
+  |   ^ 8:1 selected key object =
+9 | }
+  | ^ 8:1 selected key object =
