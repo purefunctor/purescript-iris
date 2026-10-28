@@ -12,6 +12,7 @@
     "profunctor",
     "profunctor-lenses",
     "safe-coerce",
+    "strings",
     "tailrec"
   ]
 }
