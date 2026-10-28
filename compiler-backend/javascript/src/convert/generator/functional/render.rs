@@ -126,6 +126,7 @@ enum CapturedOperation {
     ReferenceNew { value: ExpressionId },
     ReferenceRead { reference: ExpressionId },
     ReferenceWrite { reference: ExpressionId, value: ExpressionId },
+    UncurriedApplication { function: ExpressionId, arguments: Vec<ExpressionId> },
 }
 
 impl CapturedOperation {
@@ -138,6 +139,9 @@ impl CapturedOperation {
             CapturedOperation::ReferenceWrite { reference, value } => {
                 let target = tree.member(reference, "value");
                 tree.assignment(target, value)
+            }
+            CapturedOperation::UncurriedApplication { function, arguments } => {
+                tree.call(function, arguments)
             }
         }
     }
@@ -1354,6 +1358,21 @@ impl Generator<'_> {
             }
             ExpressionKind::Effect { effect } if !destination.is_effect() => self
                 .render_effect_expression_destination(tree, writer, effect, destination, context),
+            ExpressionKind::UncurriedApplication { function, arguments, .. }
+                if arguments.is_empty()
+                    && matches!(
+                        self.module.storage[*function].kind,
+                        ExpressionKind::Effect { .. }
+                    )
+                    && matches!(
+                        destination,
+                        Destination::Return
+                            | Destination::Assign(_)
+                            | Destination::AssignAndBreak { .. }
+                    ) =>
+            {
+                self.render_expression(tree, writer, *function, destination.effect(), context)
+            }
             ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. }
                 if matches!(destination, Destination::Return) =>
             {
@@ -3378,6 +3397,17 @@ fn capture_effect(
             let value = capture_effect_value(renderer, *value, "$value")?;
             Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { reference, value }))
         }
+        EffectExpression::UncurriedApplication { function, arguments } => {
+            let function = capture_effect_value(renderer, *function, "$function")?;
+            let arguments = arguments
+                .iter()
+                .map(|argument| capture_effect_value(renderer, *argument, "$argument"));
+            let arguments = arguments.collect::<ModuleResult<Vec<_>>>()?;
+            Ok(CapturedEffect::Operation(CapturedOperation::UncurriedApplication {
+                function,
+                arguments,
+            }))
+        }
     }
 }
 
@@ -3883,6 +3913,12 @@ fn collect_expression_references(
                 collect_expression_references(module, *reference, seen, globals);
                 collect_expression_references(module, *value, seen, globals);
             }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                collect_expression_references(module, *function, seen, globals);
+                for argument in arguments.iter() {
+                    collect_expression_references(module, *argument, seen, globals);
+                }
+            }
         },
     }
 }
@@ -4113,6 +4149,12 @@ fn collect_expression_children(
             EffectExpression::ReferenceWrite { reference, value } => {
                 collect_expression_globals(module, *reference, false, globals);
                 collect_expression_globals(module, *value, false, globals);
+            }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                collect_expression_globals(module, *function, false, globals);
+                for argument in arguments.iter() {
+                    collect_expression_globals(module, *argument, false, globals);
+                }
             }
         },
     }

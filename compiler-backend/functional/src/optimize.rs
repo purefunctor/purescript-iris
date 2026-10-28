@@ -321,6 +321,12 @@ pub fn for_each_evaluated_child(
                     visit(*reference, value);
                     visit(*written, value);
                 }
+                EffectExpression::UncurriedApplication { function, arguments } => {
+                    visit(*function, value);
+                    for argument in arguments.iter() {
+                        visit(*argument, value);
+                    }
+                }
             }
         }
         ExpressionKind::Let { bindings, body, .. } => {
@@ -576,6 +582,12 @@ pub fn try_for_each_expression_child<Error>(
             EffectExpression::ReferenceWrite { reference, value } => {
                 visit(*reference)?;
                 visit(*value)?;
+            }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                visit(*function)?;
+                for argument in arguments.iter() {
+                    visit(*argument)?;
+                }
             }
         },
     }

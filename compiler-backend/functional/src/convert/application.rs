@@ -9,8 +9,8 @@ use smol_str::{SmolStr, format_smolstr};
 use crate::optimize::local_uses;
 use crate::tree::{
     ArrayElement, BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId,
-    ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter, PatternKind,
-    PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
+    ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter, PatternId,
+    PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
@@ -65,6 +65,11 @@ const ORD_FUNCTIONS: &[(&str, Comparison)] = &[
     ("lessThanOrEq", Comparison::LessThanOrEqual),
     ("greaterThan", Comparison::GreaterThan),
     ("greaterThanOrEq", Comparison::GreaterThanOrEqual),
+];
+
+const UNCURRIED_EFFECT_FUNCTIONS: &[(&str, &str, &str)] = &[
+    ("Effect.Uncurried", "mkEffectFn", "runEffectFn"),
+    ("Control.Monad.ST.Uncurried", "mkSTFn", "runSTFn"),
 ];
 
 const REFERENCE_MODULES: &[&str] = &["Effect.Ref", "Control.Monad.ST.Internal"];
@@ -143,9 +148,10 @@ where
             self.known_numbered_term_arity(known_function, "Data.Function.Uncurried", "mkFn")?
             && arity >= 1
             && let [function] = known_arguments.as_slice()
-            && let Some(function) = self.uncurry_abstraction(*function, arity)
+            && let Some((parameters, body)) = self.uncurried_parameters(*function, arity)
         {
-            return Ok(function);
+            let parameters = parameters.into();
+            return Ok(self.expression(ExpressionKind::UncurriedAbstraction { parameters, body }));
         }
         if let Some(arity) =
             self.known_numbered_term_arity(known_function, "Data.Function.Uncurried", "runFn")?
@@ -163,6 +169,36 @@ where
                 arguments: arguments.into(),
                 synthetic,
             }));
+        }
+        for &(module_name, abstraction_prefix, application_prefix) in UNCURRIED_EFFECT_FUNCTIONS {
+            if let Some(arity) =
+                self.known_numbered_term_arity(known_function, module_name, abstraction_prefix)?
+                && arity >= 1
+                && let [function] = known_arguments.as_slice()
+                && let Some((parameters, action)) = self.uncurried_parameters(*function, arity)
+            {
+                let body = self.expression(ExpressionKind::UncurriedApplication {
+                    function: action,
+                    arguments: [].into(),
+                    synthetic: false,
+                });
+                let parameters = parameters.into();
+                return Ok(
+                    self.expression(ExpressionKind::UncurriedAbstraction { parameters, body })
+                );
+            }
+            if let Some(arity) =
+                self.known_numbered_term_arity(known_function, module_name, application_prefix)?
+                && arity >= 1
+                && let Some((function, arguments)) = known_arguments.split_first()
+                && arguments.len() == arity
+            {
+                let effect = EffectExpression::UncurriedApplication {
+                    function: *function,
+                    arguments: arguments.into(),
+                };
+                return Ok(self.expression(ExpressionKind::Effect { effect }));
+            }
         }
         if self.known_term(known_function, "Data.Function", "apply")?
             && let [function, argument] = known_arguments.as_slice()
@@ -718,11 +754,11 @@ where
         }))
     }
 
-    fn uncurry_abstraction(
+    fn uncurried_parameters(
         &mut self,
         mut expression: ExpressionId,
         arity: usize,
-    ) -> Option<ExpressionId> {
+    ) -> Option<(Vec<PatternId>, ExpressionId)> {
         let mut parameters = Vec::with_capacity(arity);
         while parameters.len() < arity {
             let ExpressionKind::Abstraction { parameters: abstraction, body } =
@@ -744,10 +780,7 @@ where
                 })
             };
         }
-        Some(self.expression(ExpressionKind::UncurriedAbstraction {
-            parameters: parameters.into(),
-            body: expression,
-        }))
+        Some((parameters, expression))
     }
 
     fn application_spine(

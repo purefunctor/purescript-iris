@@ -1,13 +1,12 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export addToReference = mkEffectFn2
-  (\reference%0 amount%1 ->
-    effect.bind (reference.read reference%0)
-      \section56%2 -> reference.write reference%0 (integer.add section56%2 amount%1))
+@export addToReference = uncurried \reference%0, amount%1 ->
+  uncurried.call effect.bind (reference.read reference%0)
+    \section56%2 -> reference.write reference%0 (integer.add section56%2 amount%1)()
 
-@export addFive = \function%3 reference%4 -> runEffectFn2 function%3 reference%4 5
+@export addFive = \function%3 reference%4 -> effect.uncurried.call function%3(reference%4, 5)
 
 @export logTwice = \log%5 message%6 ->
-  effect.bind (runEffectFn1 log%5 message%6)
-    \$unit%7 -> runEffectFn1 log%5 (string.append message%6 "!")
+  effect.bind (effect.uncurried.call log%5(message%6))
+    \$unit%7 -> effect.uncurried.call log%5((string.append message%6 "!"))

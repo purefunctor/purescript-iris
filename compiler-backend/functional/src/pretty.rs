@@ -555,6 +555,14 @@ impl<'a> Printer<'a, '_> {
                     .nest(2);
                 self.arena.text("reference.write").append(arguments).group()
             }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                let function = self.expression_at(*function, ExpressionPrecedence::Application);
+                let arguments = arguments
+                    .iter()
+                    .map(|argument| self.expression_at(*argument, ExpressionPrecedence::Atom));
+                let arguments = self.delimited("(", arguments, ")");
+                self.arena.text("effect.uncurried.call ").append(function).append(arguments)
+            }
         }
     }
 
