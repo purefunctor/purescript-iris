@@ -1,0 +1,54 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export snapshots = effect.bind (effect.newReference 0)
+  \counter%0 -> effect.bind (effect.newReference [])
+    \closures%1 -> effect.bind (effect.forRange
+      0
+      3
+      (\$int%2@(_) ->
+        effect.bind (effect.modifyReference (\section73%3 -> integer.add section73%3 10) counter%0)
+          \$unit%4 -> effect.bind (effect.readReference counter%0)
+            \value%5 -> effect.modifyReference
+              (\section93%6 -> [...section93%6, \$unit%7@(_) -> value%5])
+              closures%1))
+      \$unit%8 -> effect.readReference closures%1
+
+@export previous = \values%11 ->
+  effect.bind (effect.newReference 0)
+    \latest%9 -> effect.bind (effect.newReference [])
+      \closures%10 -> effect.bind (effect.forEach
+        values%11
+        (\value%12 ->
+          effect.bind (effect.modifyReferenceRecord
+            (\state%13 -> { state: value%12, value: state%13 })
+            latest%9)
+            \old%14 -> effect.modifyReference
+              (\section179%15 -> [...section179%15, \$unit%16@(_) -> old%14])
+              closures%10))
+        \$unit%17 -> effect.readReference closures%10
+
+@export chained = effect.bind (effect.newReference (\$unit%18@(_) -> 0))
+  \ref%19 -> effect.bind (effect.forRange
+    0
+    3
+    (\$int%20@(_) ->
+      effect.modifyReference
+        (\function%21 -> \$unit%22@(_) -> integer.add (function%21 unit) 1)
+        ref%19))
+    \$unit%23 -> effect.bind (effect.readReference ref%19)
+      \function%24 -> effect.pure (function%24 unit)
+
+@export readers = effect.bind (effect.newReference 0)
+  \counter%25 -> effect.bind (effect.newReference [])
+    \actions%26 -> effect.bind (effect.forRange
+      0
+      3
+      (\index%27 ->
+        effect.bind (effect.writeReference index%27 counter%25)
+          \$unit%28 -> effect.modifyReference
+            (\section317%29 -> [...section317%29, effect.readReference counter%25])
+            actions%26))
+      \$unit%30 -> effect.bind (effect.writeReference 42 counter%25)
+        \$unit%31 -> bind bindEffect (effect.readReference actions%26)
+          (sequence traversableArray applicativeEffect)

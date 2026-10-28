@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+counted :: Prim.Array Prim.Int -> Effect.Effect Prim.Int
+counted = \values ->
+  bind {bindEffect} (new 0) \total ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 3 \index -> modify_ (\v70 -> add {semiringInt} v70 index) total) \_ ->
+      discard {discardUnit} {bindEffect}
+        (foreachE values \value -> modify_ (\v91 -> add {semiringInt} v91 value) total) \_ ->
+        discard {discardUnit} {bindEffect}
+          (whileE (map {functorEffect} (\v107 -> lessThan {ordInt} v107 20) (read total))
+            (modify_ (\v126 -> add {semiringInt} v126 4) total)) \_ ->
+          discard {discardUnit} {bindEffect}
+            (untilE
+              (discard {discardUnit} {bindEffect}
+                (modify_ (\v145 -> add {semiringInt} v145 1) total) \_ ->
+                map {functorEffect} (\v157 -> greaterThanOrEq {ordInt} v157 25) (read total))) \_ ->
+            read total
+
+doubledPerIteration :: Effect.Effect Prim.Int
+doubledPerIteration =
+  bind {bindEffect} (new 0) \total ->
+    discard {discardUnit} {bindEffect}
+      (forE 1 4 \index ->
+        bind {bindEffect} (new index) \local ->
+          discard {discardUnit} {bindEffect}
+            (modify_ (\v217 -> mul {semiringInt} v217 2) local) \_ ->
+            bind {bindEffect} (read local) \value ->
+              modify_ (\v237 -> add {semiringInt} v237 value) total) \_ -> read total
+
+stateCountdown :: Prim.Int -> Prim.Array Prim.Int
+stateCountdown = \start ->
+  run
+    (bind {bindST} (new start) \remaining ->
+      bind {bindST} (new []) \seen ->
+        discard {discardUnit} {bindST}
+          (while (map {functorST} (\v291 -> greaterThan {ordInt} v291 0) (read remaining))
+            (bind {bindST} (read remaining) \value ->
+              bind {bindST} (modify (\v320 -> append {semigroupArray} v320 [value]) seen) \_ ->
+                modify (\v334 -> sub {ringInt} v334 1) remaining)) \_ -> read seen)

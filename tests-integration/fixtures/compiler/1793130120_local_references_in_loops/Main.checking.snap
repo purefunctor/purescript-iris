@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+counted :: Prim.Array Prim.Int -> Effect.Effect Prim.Int
+doubledPerIteration :: Effect.Effect Prim.Int
+stateCountdown :: Prim.Int -> Prim.Array Prim.Int
+
+Types

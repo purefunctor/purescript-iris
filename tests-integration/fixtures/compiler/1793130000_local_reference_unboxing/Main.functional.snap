@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export refs = effect.bind (effect.newReference 0)
+  \ref%0 -> effect.bind (effect.writeReference 1 ref%0)
+    \$unit%1 -> effect.bind (effect.modifyReference
+      (\section58%2 -> integer.add section58%2 1)
+      ref%0)
+      \$unit%3 -> effect.readReference ref%0
+
+@export branches = \flag%5 ->
+  effect.bind (effect.newReference "start")
+    \ref%4 -> if flag%5
+      then effect.bind (effect.writeReference "then" ref%4)
+        \$unit%6 -> effect.map
+          (\section111%7 -> string.append section111%7 "!")
+          (effect.readReference ref%4)
+      else effect.bind (effect.modifyReference
+        (\section132%8 -> string.append section132%8 "-else")
+        ref%4)
+        \$unit%9 -> effect.readReference ref%4
+
+@export stateWrites = \start%10 ->
+  uncurried.call effect.bind (effect.newReference start%10)
+    \ref%11 -> effect.bind (effect.writeReferenceValue (integer.multiply start%10 2) ref%11)
+      \written%12 -> effect.bind (effect.modifyReferenceState
+        (\section190%13 -> integer.add section190%13 1)
+        ref%11)
+        \modified%14 -> effect.bind (effect.readReference ref%11)
+          \final%15 -> effect.pure [written%12, modified%14, final%15]()

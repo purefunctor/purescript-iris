@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+refs :: Effect.Effect Prim.Int
+branches :: Prim.Boolean -> Effect.Effect Prim.String
+stateWrites :: Prim.Int -> Prim.Array Prim.Int
+
+Types

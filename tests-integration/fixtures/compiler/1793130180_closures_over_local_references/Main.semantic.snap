@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+snapshots :: Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.Int))
+snapshots =
+  bind {bindEffect} (new 0) \counter ->
+    bind {bindEffect} (new []) \closures ->
+      discard {discardUnit} {bindEffect}
+        (forE 0 3 \_ ->
+          discard {discardUnit} {bindEffect}
+            (modify_ (\v73 -> add {semiringInt} v73 10) counter) \_ ->
+            bind {bindEffect} (read counter) \value ->
+              modify_ (\v93 -> append {semigroupArray} v93 [\_ -> value]) closures) \_ ->
+        read closures
+
+previous :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.Int))
+previous = \values ->
+  bind {bindEffect} (new 0) \latest ->
+    bind {bindEffect} (new []) \closures ->
+      discard {discardUnit} {bindEffect}
+        (foreachE values \value ->
+          bind {bindEffect} (modify' (\state -> { state: value, value: state }) latest) \old ->
+            modify_ (\v179 -> append {semigroupArray} v179 [\_ -> old]) closures) \_ ->
+        read closures
+
+chained :: Effect.Effect Prim.Int
+chained =
+  bind {bindEffect} (new \_ -> 0) \ref ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 3 \_ -> modify_ (\function -> \_ -> add {semiringInt} (function unit) 1) ref) \_ ->
+      bind {bindEffect} (read ref) \function -> pure {applicativeEffect} (function unit)
+
+readers :: Effect.Effect (Prim.Array Prim.Int)
+readers =
+  bind {bindEffect} (new 0) \counter ->
+    bind {bindEffect} (new []) \actions ->
+      discard {discardUnit} {bindEffect}
+        (forE 0 3 \index ->
+          discard {discardUnit} {bindEffect} (write index counter) \_ ->
+            modify_ (\v317 -> append {semigroupArray} v317 [read counter]) actions) \_ ->
+        discard {discardUnit} {bindEffect} (write 42 counter) \_ ->
+          bind {bindEffect} (read actions) (sequence {traversableArray} {applicativeEffect})
