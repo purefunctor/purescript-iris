@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import observe :: Prim.Int -> Prim.Int
+
+foreign import takeLog :: Effect.Effect (Prim.Array Prim.String)
+
+finalRead :: Effect.Effect Prim.Int
+finalRead =
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect}
+      (void {functorEffect} (discard {discardUnit} {bindEffect} (write 3 ref) \_ -> read ref)) \_ ->
+      read ref
+
+finalPure :: Prim.Int -> Effect.Effect Prim.Int
+finalPure = \count ->
+  bind {bindEffect} (new count) \ref ->
+    discard {discardUnit} {bindEffect}
+      (void {functorEffect}
+        (discard {discardUnit} {bindEffect} (modify_ (\v103 -> add {semiringInt} v103 1) ref) \_ ->
+          pure {applicativeEffect} count)) \_ ->
+      discard {discardUnit} {bindEffect}
+        (void {functorEffect}
+          (discard {discardUnit} {bindEffect}
+            (modify_ (\v127 -> mul {semiringInt} v127 2) ref) \_ ->
+            pure {applicativeEffect} (observe count))) \_ -> read ref
+
+finalMap :: Effect.Effect Prim.Int
+finalMap =
+  bind {bindEffect} (new 1) \ref ->
+    discard {discardUnit} {bindEffect}
+      (void {functorEffect}
+        (discard {discardUnit} {bindEffect} (write 4 ref) \_ ->
+          map {functorEffect} observe (read ref))) \_ -> read ref

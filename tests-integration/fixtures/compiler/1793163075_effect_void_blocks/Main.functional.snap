@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign observe
+
+@export foreign takeLog
+
+@export finalRead = effect.bind (effect.newReference 0)
+  \ref%0 -> effect.bind (effect.void (effect.bind (effect.writeReference 3 ref%0)
+    \$unit%1 -> effect.readReference ref%0))
+    \$unit%2 -> effect.readReference ref%0
+
+@export finalPure = \count%3 ->
+  effect.bind (effect.newReference count%3)
+    \ref%4 -> effect.bind (effect.void (effect.bind (effect.modifyReference
+      (\section103%5 -> integer.add section103%5 1)
+      ref%4)
+      \$unit%6 -> effect.pure count%3))
+      \$unit%7 -> effect.bind (effect.void (effect.bind (effect.modifyReference
+        (\section127%8 -> integer.multiply section127%8 2)
+        ref%4)
+        \$unit%9 -> effect.pure (observe count%3)))
+        \$unit%10 -> effect.readReference ref%4
+
+@export finalMap = effect.bind (effect.newReference 1)
+  \ref%11 -> effect.bind (effect.void (effect.bind (effect.writeReference 4 ref%11)
+    \$unit%12 -> effect.map observe (effect.readReference ref%11)))
+    \$unit%13 -> effect.readReference ref%11

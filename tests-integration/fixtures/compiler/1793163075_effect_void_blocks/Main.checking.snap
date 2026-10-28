@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+observe :: Prim.Int -> Prim.Int
+takeLog :: Effect.Effect (Prim.Array Prim.String)
+finalRead :: Effect.Effect Prim.Int
+finalPure :: Prim.Int -> Effect.Effect Prim.Int
+finalMap :: Effect.Effect Prim.Int
+
+Types
