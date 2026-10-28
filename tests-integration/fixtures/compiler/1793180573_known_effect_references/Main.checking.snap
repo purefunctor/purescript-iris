@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+newCounter :: Prim.Int -> Effect.Effect (Effect.Ref.Ref Prim.Int)
+readCounter :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+resetCounter :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+incrementCounter :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+addToField :: Prim.Int -> { counter :: Effect.Ref.Ref Prim.Int } -> Effect.Effect Prim.Int
+countTwice :: Prim.Int -> Effect.Effect Prim.Int
+
+Types

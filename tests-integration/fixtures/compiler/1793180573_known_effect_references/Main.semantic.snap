@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newCounter :: Prim.Int -> Effect.Effect (Effect.Ref.Ref Prim.Int)
+newCounter = \value -> new value
+
+readCounter :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+readCounter = \counter -> read counter
+
+resetCounter :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+resetCounter = \counter -> write 0 counter
+
+incrementCounter :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+incrementCounter = \counter -> modify (\v98 -> add {semiringInt} v98 1) counter
+
+addToField :: Prim.Int -> { counter :: Effect.Ref.Ref Prim.Int } -> Effect.Effect Prim.Int
+addToField = \step -> \state -> modify (add {semiringInt} step) state.counter
+
+countTwice :: Prim.Int -> Effect.Effect Prim.Int
+countTwice = \value ->
+  bind {bindEffect} (new value) \counter ->
+    bind {bindEffect} (modify (\v163 -> mul {semiringInt} v163 2) counter) \_ ->
+      discard {discardUnit} {bindEffect} (write (add {semiringInt} value 1) counter) \_ ->
+        bind {bindEffect} (modify (\v190 -> mul {semiringInt} v190 10) counter) \next ->
+          bind {bindEffect} (read counter) \current ->
+            pure {applicativeEffect} (add {semiringInt} next current)

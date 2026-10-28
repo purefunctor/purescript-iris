@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export newCounter = \value%0 -> new value%0
+
+@export readCounter = \counter%1 -> read counter%1
+
+@export resetCounter = \counter%2 -> write 0 counter%2
+
+@export incrementCounter = \counter%4 ->
+  modify (\section98%3 -> integer.add section98%3 1) counter%4
+
+@export addToField = \step%5 state%6 -> modify (add semiringInt step%5) state%6.counter
+
+@export countTwice = \value%7 ->
+  effect.bind (new value%7)
+    \counter%8 -> effect.bind (modify (\section163%9 -> integer.multiply section163%9 2) counter%8)
+      \$int%10 -> effect.bind (write (integer.add value%7 1) counter%8)
+        \$unit%11 -> effect.bind (modify (\section190%12 -> integer.multiply section190%12 10)
+          counter%8)
+          \next%13 -> effect.bind (read counter%8)
+            \current%14 -> effect.pure (integer.add next%13 current%14)
