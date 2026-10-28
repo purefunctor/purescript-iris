@@ -15,6 +15,8 @@ use crate::tree::{
 
 use super::{Context, ConversionResult};
 
+mod builder;
+
 const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
     ("Data.HeytingAlgebra", "conj", "heytingAlgebraBoolean", BinaryOperator::BooleanAnd),
     ("Data.HeytingAlgebra", "disj", "heytingAlgebraBoolean", BinaryOperator::BooleanOr),
@@ -219,6 +221,9 @@ where
             self.stylex_intrinsic(known_function, &known_arguments, result_type)?
         {
             return Ok(expression);
+        }
+        if let Some(record) = self.known_record_build(known_function, &known_arguments)? {
+            return Ok(record);
         }
         if let Some(reference) =
             self.known_reference_application(known_function, &known_arguments)?
