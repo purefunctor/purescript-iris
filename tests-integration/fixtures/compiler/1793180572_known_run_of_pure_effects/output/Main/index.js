@@ -1,20 +1,9 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
-import * as Effect_Unsafe from "../Effect.Unsafe/index.js";
 export function performPure(value) {
-  const $function = Effect_Unsafe.unsafePerformEffect;
-  const $value = value + (1 | 0) | 0;
-  const $effect = () => {
-    return $value;
-  };
-  return $function($effect);
+  return value + (1 | 0) | 0;
 }
 export function runPure(value) {
-  const $function = Control_Monad_ST_Internal.run;
-  const $value = value * (2 | 0) | 0;
-  const $effect = () => {
-    return $value;
-  };
-  return $function($effect);
+  return value * (2 | 0) | 0;
 }
 export function runReference(value) {
   const $function = Control_Monad_ST_Internal.run;

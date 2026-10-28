@@ -200,6 +200,14 @@ where
         {
             return Ok(*argument);
         }
+        if (self.known_term(known_function, "Effect.Unsafe", "unsafePerformEffect")?
+            || self.known_term(known_function, "Control.Monad.ST.Internal", "run")?)
+            && let [action] = known_arguments.as_slice()
+            && let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
+                &self.storage[*action].kind
+        {
+            return Ok(*value);
+        }
         if self.known_term(known_function, "Partial.Unsafe", "unsafePartial")?
             && let [function, arguments @ ..] = known_arguments.as_slice()
             && let Some(body) = self.discharged_partial_abstraction(*function)
