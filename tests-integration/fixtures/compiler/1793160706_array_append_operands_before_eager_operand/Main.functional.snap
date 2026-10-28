@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export appendBeforeCase = \values%0 count%1 ->
+  [traced "literal" 0,
+    ...(traced "spread" values%0),
+    ...(case traced "scrutinee" count%1 of
+      0 ->
+        []
+      _ ->
+        traced "nonempty" [count%1])]

@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign traced
+
+@export indexBeforeCase = \values%1 position%2 ->
+  (traced "array" values%1)[case traced "scrutinee" position%2 of
+    0 ->
+      traced "first" 0
+    _ ->
+      traced "last" 2]

@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+traced :: forall a. Prim.String -> a -> a
+indexBeforeCase :: Prim.Array Prim.String -> Prim.Int -> Prim.String
+
+Types
