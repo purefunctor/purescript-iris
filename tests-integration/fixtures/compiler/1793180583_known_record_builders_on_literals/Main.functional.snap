@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export inserted = \value%0 -> { x: 1, y: 2, z: value%0 }
+
+@export reshaped = \value%2 -> { x: integer.add 1 value%2, w: 3, z: "new" }
+
+@export composedBackwards = { x: 1, y: integer.multiply 4 10 }
+
+@export fromScratch = \value%4 -> { x: value%4, y: 2 }
+
+@export merged = { x: 1, y: 20, z: 30 }

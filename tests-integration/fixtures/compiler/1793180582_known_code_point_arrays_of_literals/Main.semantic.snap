@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ascii :: Prim.Array Data.String.CodePoints.CodePoint
+ascii = toCodePointArray "abc"
+
+astral :: Prim.Array Data.String.CodePoints.CodePoint
+astral = toCodePointArray "a𝐀b"
+
+loneSurrogate :: Prim.Array Data.String.CodePoints.CodePoint
+loneSurrogate = toCodePointArray "\x00d800x"
+
+empty :: Prim.Array Data.String.CodePoints.CodePoint
+empty = toCodePointArray ""
+
+reexported :: Prim.Array Data.String.CodePoints.CodePoint
+reexported = toCodePointArray "ab"
+
+unknown :: Prim.String -> Prim.Array Data.String.CodePoints.CodePoint
+unknown = \string -> toCodePointArray string

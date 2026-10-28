@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+compareIntegers :: Prim.Int -> Prim.Int -> Prim.String
+compareIntegers = \left -> \right ->
+  case compare {ordInt} left right of
+    LT -> "less"
+    EQ -> "equal"
+    GT -> "greater"
+
+compareStrings :: Prim.String -> Prim.String -> Prim.String
+compareStrings = \left -> \right ->
+  case compare {ordString} left right of
+    EQ -> "equal"
+    GT -> "greater"
+    LT -> "less"
+
+compareNumbers :: Prim.Number -> Prim.Number -> Prim.String
+compareNumbers = \left -> \right ->
+  case compare {ordNumber} left right of
+    GT -> "greater"
+    EQ -> "equal"
+    _ -> "less"
+
+numberIsGreater :: Prim.Number -> Prim.Number -> Prim.Boolean
+numberIsGreater = \left -> \right ->
+  case compare {ordNumber} left right of
+    GT -> true
+    _ -> false
+
+computedIsLess :: Prim.Int -> Prim.Int -> Prim.Boolean
+computedIsLess = \left -> \right ->
+  case compare {ordInt} (add {semiringInt} left 1) (mul {semiringInt} right 2) of
+    LT -> true
+    _ -> false
+
+arrayIsLess :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Boolean
+arrayIsLess = \left -> \right ->
+  case compare {ordArray {ordInt}} left right of
+    LT -> true
+    _ -> false

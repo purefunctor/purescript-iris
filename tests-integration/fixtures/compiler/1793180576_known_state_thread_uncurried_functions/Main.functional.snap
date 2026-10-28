@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export addToReference = uncurried \reference%0, amount%1 ->
+  uncurried.call effect.bind (reference.read reference%0)
+    \section59%2 -> reference.write reference%0 (integer.add section59%2 amount%1)()
+
+@export addTwice = \value%3 ->
+  run
+    (effect.bind (reference.new value%3)
+      \reference%4 -> effect.bind (effect.uncurried.call addToReference(reference%4, 2))
+        \$int%5 -> effect.uncurried.call addToReference(reference%4, 3))

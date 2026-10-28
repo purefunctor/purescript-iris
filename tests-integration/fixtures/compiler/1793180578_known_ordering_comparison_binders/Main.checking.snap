@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+isLess :: Prim.Int -> Prim.Int -> Prim.String
+describeOrdering :: Prim.Int -> Prim.Int -> Prim.String
+
+Types

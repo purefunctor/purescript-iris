@@ -20,7 +20,7 @@ use functional::tree::{
     CaseAlternative, Declaration, DeclarationKind, EffectExpression,
     ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
     GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
-    PatternId, PatternKind, RecordField, RecordUpdate,
+    PatternId, PatternKind, RecordField, RecordUpdate, Storage,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -88,6 +88,7 @@ enum LocalBinding {
     Direct(SmolStr),
     Inline(ExpressionId),
     Lazy(SmolStr),
+    Reference(SmolStr),
 }
 
 struct FunctionContext {
@@ -119,6 +120,29 @@ enum CapturedEffect {
     Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
     Map { function: ExpressionId, action: CapturedEffectAction },
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
+    Operation(CapturedOperation),
+}
+
+enum CapturedOperation {
+    ReferenceNew { value: ExpressionId },
+    ReferenceRead { target: ExpressionId },
+    ReferenceWrite { target: ExpressionId, value: ExpressionId },
+    UncurriedApplication { function: ExpressionId, arguments: Vec<ExpressionId> },
+}
+
+impl CapturedOperation {
+    fn result(self, tree: &mut Tree) -> ExpressionId {
+        match self {
+            CapturedOperation::ReferenceNew { value } => {
+                tree.object(vec![ObjectProperty::Field { name: "value".into(), value }])
+            }
+            CapturedOperation::ReferenceRead { target } => target,
+            CapturedOperation::ReferenceWrite { target, value } => tree.assignment(target, value),
+            CapturedOperation::UncurriedApplication { function, arguments } => {
+                tree.call(function, arguments)
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -239,6 +263,10 @@ impl FunctionContext {
 
     fn bind_lazy(&mut self, parameter: &Parameter, name: SmolStr) {
         self.locals.insert(parameter.id, LocalBinding::Lazy(name));
+    }
+
+    fn bind_reference(&mut self, parameter: &Parameter, name: SmolStr) {
+        self.locals.insert(parameter.id, LocalBinding::Reference(name));
     }
 }
 
@@ -744,7 +772,10 @@ impl Generator<'_> {
             TailCallIdentity::Global(global) => self.global_names[&global].clone(),
             TailCallIdentity::Local(local) => match context.locals.get(&local) {
                 Some(LocalBinding::Direct(name)) => name.clone(),
-                Some(LocalBinding::Inline(_) | LocalBinding::Lazy(_)) | None => {
+                Some(
+                    LocalBinding::Inline(_) | LocalBinding::Lazy(_) | LocalBinding::Reference(_),
+                )
+                | None => {
                     unreachable!("invariant violated: tail-call profile has no direct local name")
                 }
             },
@@ -1332,6 +1363,21 @@ impl Generator<'_> {
             }
             ExpressionKind::Effect { effect } if !destination.is_effect() => self
                 .render_effect_expression_destination(tree, writer, effect, destination, context),
+            ExpressionKind::UncurriedApplication { function, arguments, .. }
+                if arguments.is_empty()
+                    && matches!(
+                        self.module.storage[*function].kind,
+                        ExpressionKind::Effect { .. }
+                    )
+                    && matches!(
+                        destination,
+                        Destination::Return
+                            | Destination::Assign(_)
+                            | Destination::AssignAndBreak { .. }
+                    ) =>
+            {
+                self.render_expression(tree, writer, *function, destination.effect(), context)
+            }
             ExpressionKind::Abstraction { .. } | ExpressionKind::UncurriedAbstraction { .. }
                 if matches!(destination, Destination::Return) =>
             {
@@ -3343,7 +3389,74 @@ fn capture_effect(
                 capture_effect_action(renderer, *argument_action, "$argumentAction")?;
             Ok(CapturedEffect::Apply { function_action, argument_action })
         }
+        EffectExpression::ReferenceNew(value) => {
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceNew { value }))
+        }
+        EffectExpression::ReferenceRead(reference) => {
+            let target = capture_reference_target(renderer, *reference)?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { target }))
+        }
+        EffectExpression::ReferenceWrite { reference, value } => {
+            let target = capture_reference_target(renderer, *reference)?;
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { target, value }))
+        }
+        EffectExpression::UncurriedApplication { function, arguments } => {
+            let function = capture_effect_value(renderer, *function, "$function")?;
+            let arguments = arguments
+                .iter()
+                .map(|argument| capture_effect_value(renderer, *argument, "$argument"));
+            let arguments = arguments.collect::<ModuleResult<Vec<_>>>()?;
+            Ok(CapturedEffect::Operation(CapturedOperation::UncurriedApplication {
+                function,
+                arguments,
+            }))
+        }
     }
+}
+
+fn capture_reference_target(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    reference: FunctionalExpressionId,
+) -> ModuleResult<ExpressionId> {
+    if let ExpressionKind::Local { parameter } = &renderer.generator.module.storage[reference].kind
+        && let Some(LocalBinding::Reference(name)) = renderer.context.locals.get(&parameter.id)
+    {
+        let _origin =
+            renderer.tree.enter_origin(renderer.generator.module.storage[reference].origin);
+        return Ok(renderer.tree.identifier(name));
+    }
+    let reference = capture_effect_value(renderer, reference, "$reference")?;
+    Ok(renderer.tree.member(reference, "value"))
+}
+
+fn reference_stays_local(
+    storage: &Storage,
+    body: FunctionalExpressionId,
+    reference: LocalId,
+) -> bool {
+    let is_reference = |expression: FunctionalExpressionId| {
+        matches!(
+            &storage[expression].kind,
+            ExpressionKind::Local { parameter } if parameter.id == reference
+        )
+    };
+    let mut pending = vec![body];
+    while let Some(expression) = pending.pop() {
+        if is_reference(expression) {
+            return false;
+        }
+        match &storage[expression].kind {
+            ExpressionKind::Effect { effect: EffectExpression::ReferenceRead(operand) }
+                if is_reference(*operand) => {}
+            ExpressionKind::Effect {
+                effect: EffectExpression::ReferenceWrite { reference: operand, value },
+            } if is_reference(*operand) => pending.push(*value),
+            kind => for_each_expression_child(kind, |child| pending.push(child)),
+        }
+    }
+    true
 }
 
 fn capture_effect_action(
@@ -3408,6 +3521,15 @@ fn execute_effect(
             {
                 let value = renderer.tree.duplicate(value);
                 renderer.context.bind_inline(&parameter, value);
+            } else if let CapturedEffectAction::Effect(effect) = &action
+                && let CapturedEffect::Operation(CapturedOperation::ReferenceNew { value }) =
+                    effect.as_ref()
+                && reference_stays_local(&renderer.generator.module.storage, body, parameter.id)
+            {
+                let name = renderer.context.allocate(&parameter.name);
+                let value = renderer.tree.duplicate(value);
+                renderer.writer.mutable_value(renderer.tree, &name, value);
+                renderer.context.bind_reference(&parameter, name);
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3423,6 +3545,16 @@ fn execute_effect(
         CapturedEffect::Map { function, action } => {
             let value = execute_effect_action_value(renderer, action, "$value")?;
             let result = renderer.tree.call(function, vec![value]);
+            renderer.generator.render_destination(
+                renderer.tree,
+                renderer.writer,
+                result,
+                destination,
+            );
+            Ok(())
+        }
+        CapturedEffect::Operation(operation) => {
+            let result = operation.result(renderer.tree);
             renderer.generator.render_destination(
                 renderer.tree,
                 renderer.writer,
@@ -3460,12 +3592,15 @@ fn execute_effect_action_value(
             let _origin = renderer.tree.enter_origin(origin);
             Ok(renderer.tree.call(value, Vec::new()))
         }
-        CapturedEffectAction::Effect(effect) => {
-            let name = renderer.context.allocate(preferred_name);
-            renderer.writer.mutable(&name);
-            execute_effect(renderer, *effect, Destination::Assign(&name))?;
-            Ok(renderer.tree.identifier(name))
-        }
+        CapturedEffectAction::Effect(effect) => match *effect {
+            CapturedEffect::Operation(operation) => Ok(operation.result(renderer.tree)),
+            effect => {
+                let name = renderer.context.allocate(preferred_name);
+                renderer.writer.mutable(&name);
+                execute_effect(renderer, effect, Destination::Assign(&name))?;
+                Ok(renderer.tree.identifier(name))
+            }
+        },
     }
 }
 
@@ -3481,14 +3616,19 @@ fn execute_effect_action(
             let value = renderer.tree.call(value, Vec::new());
             renderer.writer.constant(renderer.tree, &name, value, false);
         }
-        CapturedEffectAction::Effect(effect) => {
-            if let CapturedEffect::Pure { value } = *effect {
+        CapturedEffectAction::Effect(effect) => match *effect {
+            CapturedEffect::Pure { value } => {
                 renderer.writer.constant(renderer.tree, &name, value, false);
-            } else {
-                renderer.writer.mutable(&name);
-                execute_effect(renderer, *effect, Destination::Assign(&name))?;
             }
-        }
+            CapturedEffect::Operation(operation) => {
+                let value = operation.result(renderer.tree);
+                renderer.writer.constant(renderer.tree, &name, value, false);
+            }
+            effect => {
+                renderer.writer.mutable(&name);
+                execute_effect(renderer, effect, Destination::Assign(&name))?;
+            }
+        },
     }
     Ok((renderer.tree.identifier(&name), name))
 }
@@ -3505,6 +3645,9 @@ fn local_expression(
         Some(LocalBinding::Lazy(name)) => {
             let accessor = tree.identifier(name);
             Ok(tree.call(accessor, Vec::new()))
+        }
+        Some(LocalBinding::Reference(_)) => {
+            unreachable!("invariant violated: local reference is used outside its operations")
         }
         None => Err(generator
             .unsupported(UnsupportedState::MissingLocal { name: parameter.name.to_string() })),
@@ -3823,6 +3966,19 @@ fn collect_expression_references(
                 collect_expression_references(module, *function_action, seen, globals);
                 collect_expression_references(module, *argument_action, seen, globals);
             }
+            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
+                collect_expression_references(module, *value, seen, globals);
+            }
+            EffectExpression::ReferenceWrite { reference, value } => {
+                collect_expression_references(module, *reference, seen, globals);
+                collect_expression_references(module, *value, seen, globals);
+            }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                collect_expression_references(module, *function, seen, globals);
+                for argument in arguments.iter() {
+                    collect_expression_references(module, *argument, seen, globals);
+                }
+            }
         },
     }
 }
@@ -4046,6 +4202,19 @@ fn collect_expression_children(
             EffectExpression::Apply { function_action, argument_action } => {
                 collect_expression_globals(module, *function_action, false, globals);
                 collect_expression_globals(module, *argument_action, false, globals);
+            }
+            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
+                collect_expression_globals(module, *value, false, globals);
+            }
+            EffectExpression::ReferenceWrite { reference, value } => {
+                collect_expression_globals(module, *reference, false, globals);
+                collect_expression_globals(module, *value, false, globals);
+            }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                collect_expression_globals(module, *function, false, globals);
+                for argument in arguments.iter() {
+                    collect_expression_globals(module, *argument, false, globals);
+                }
             }
         },
     }

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+ascii :: Prim.Array Data.String.CodePoints.CodePoint
+astral :: Prim.Array Data.String.CodePoints.CodePoint
+loneSurrogate :: Prim.Array Data.String.CodePoints.CodePoint
+empty :: Prim.Array Data.String.CodePoints.CodePoint
+reexported :: Prim.Array Data.String.CodePoints.CodePoint
+unknown :: Prim.String -> Prim.Array Data.String.CodePoints.CodePoint
+
+Types

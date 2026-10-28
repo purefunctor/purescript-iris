@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+readBeforeWrite :: Prim.Int -> Effect.Effect Prim.Int
+sumTwo :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+escapes :: Prim.Int -> Effect.Effect (Effect.Ref.Ref Prim.Int)
+passedToFunction :: Prim.Int -> Effect.Effect Prim.Int
+
+Types

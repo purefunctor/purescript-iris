@@ -1,14 +1,16 @@
 use la_arena::{Arena, Idx, RawIdx};
 use oxc_allocator::{Allocator, CloneIn, Vec as ArenaVec};
 use oxc_ast::ast::{
-    Argument, ArrayExpressionElement, ArrowFunctionBody, BindingPattern, Expression,
-    FormalParameter, FormalParameterKind, FormalParameters, ObjectPropertyKind, PropertyKey,
+    Argument, ArrayExpressionElement, ArrowFunctionBody, AssignmentTarget, BindingPattern,
+    Expression, FormalParameter, FormalParameterKind, FormalParameters, ObjectPropertyKind,
+    PropertyKey,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_span::Span;
 use oxc_syntax::number::NumberBase;
 use oxc_syntax::operator::{
-    BinaryOperator as OxcBinaryOperator, LogicalOperator, UnaryOperator as OxcUnaryOperator,
+    AssignmentOperator, BinaryOperator as OxcBinaryOperator, LogicalOperator,
+    UnaryOperator as OxcUnaryOperator,
 };
 use smol_str::SmolStr;
 
@@ -331,6 +333,23 @@ impl<'a> Tree<'a> {
                 &self.builder,
             )
         };
+        self.allocate(expression)
+    }
+
+    pub(crate) fn assignment(&mut self, target: ExpressionId, value: ExpressionId) -> ExpressionId {
+        let target = match self.expression(target) {
+            Expression::Identifier(identifier) => {
+                AssignmentTarget::AssignmentTargetIdentifier(identifier)
+            }
+            target => AssignmentTarget::from(target.into_member_expression()),
+        };
+        let expression = Expression::new_assignment_expression(
+            self.span(),
+            AssignmentOperator::Assign,
+            target,
+            self.expression(value),
+            &self.builder,
+        );
         self.allocate(expression)
     }
 

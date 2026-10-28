@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export delayedRead = \value%0 ->
+  effect.bind (reference.new value%0)
+    \reference%1 -> let
+      readLater%3 = reference.read reference%1
+    in effect.bind (reference.write reference%1 (integer.add value%0 6)) \$unit%2 -> readLater%3
+
+@export closureWrites = effect.bind (reference.new 0)
+  \reference%4 -> let
+    increment%5 = effect.bind (reference.read reference%4)
+      \section104%8 -> reference.write reference%4 (integer.add section104%8 1)
+  in effect.bind increment%5
+    \$int%6 -> effect.bind increment%5 \$int%7 -> reference.read reference%4
+
+@export countDown = \start%9 ->
+  effect.bind (reference.new start%9)
+    \remaining%10 -> effect.bind (reference.new 0)
+      \steps%11 -> effect.bind (while
+        (effect.map
+          (\section161%12 -> integer.greater_than section161%12 0)
+          (reference.read remaining%10))
+        (effect.bind (effect.bind (reference.read remaining%10)
+          \section183%13 -> reference.write remaining%10 (integer.subtract section183%13 1))
+          \$int%14 -> void functorST
+            (effect.bind (reference.read steps%11)
+              \section200%15 -> reference.write steps%11 (integer.add section200%15 1))))
+        \$unit%16 -> reference.read steps%11

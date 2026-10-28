@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export literalHasX = true
+
+@export literalHasZ = false
+
+@export hasX = \point%0 -> unsafeHas "x" point%0
+
+@export literalDeleteY = \value%1 -> { x: value%1 }
+
+@export deleteY = \point%2 -> unsafeDelete "y" point%2

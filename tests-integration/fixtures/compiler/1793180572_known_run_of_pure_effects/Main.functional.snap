@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export performPure = \value%0 -> integer.add value%0 1
+
+@export runPure = \value%1 -> integer.multiply value%1 2
+
+@export runReference = \value%2 ->
+  run (effect.bind (reference.new value%2) \bindValue%3 -> reference.read bindValue%3)

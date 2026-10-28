@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export withZ = \value%0 point%1 -> point%1 { z = value%0 }
+
+@export shifted = \point%4 ->
+  point%4 { x = integer.add point%4.x 1, y = integer.multiply point%4.y 2 }
+
+@export insertedThenModified = \point%6 -> point%6 { z = integer.add 5 1 }
+
+@export mergedOnto = \point%7 -> point%7 { y = 20, z = 30 }
+
+@export withoutY = \point%8 ->
+  build (delete (symbol "y") <trivial evidence> <trivial evidence> "Proxy") point%8
+
+@export unknownBuilder = \builder%9 point%10 -> build builder%9 point%10

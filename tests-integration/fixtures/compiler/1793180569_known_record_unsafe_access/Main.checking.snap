@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+readX :: Main.Point -> Prim.Int
+readSpacedLabel :: { first name :: Prim.String } -> Prim.String
+setX :: Prim.Int -> Main.Point -> Main.Point
+addZ :: Prim.Int -> Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+readLabel :: Prim.String -> Main.Point -> Prim.Int
+
+Types
+Point :: Prim.Type
+
+Synonyms
+type Point = { x :: Prim.Int, y :: Prim.Int }

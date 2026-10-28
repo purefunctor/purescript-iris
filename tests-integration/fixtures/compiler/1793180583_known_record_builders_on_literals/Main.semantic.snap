@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+inserted :: Prim.Int -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+inserted = \value -> build (insert {trivial} {trivial} {isSymbol("z")} Proxy value) { x: 1, y: 2 }
+
+reshaped :: Prim.Int -> { w :: Prim.Int, x :: Prim.Int, z :: Prim.String }
+reshaped = \value ->
+  build
+    (composeFlipped {semigroupoidBuilder}
+      (modify {trivial} {trivial} {isSymbol("x")} Proxy \v93 -> add {semiringInt} v93 value)
+      (composeFlipped {semigroupoidBuilder} (delete {isSymbol("y")} {trivial} {trivial} Proxy)
+        (composeFlipped {semigroupoidBuilder}
+          (rename {isSymbol("v")} {isSymbol("w")} {trivial} {trivial} {trivial} {trivial} Proxy
+            Proxy)
+          (insert {trivial} {trivial} {isSymbol("z")} Proxy "new"))))
+    { x: 1, y: 2, v: 3 }
+
+composedBackwards :: { x :: Prim.Int, y :: Prim.Int }
+composedBackwards =
+  build
+    (compose {semigroupoidBuilder}
+      (modify {trivial} {trivial} {isSymbol("y")} Proxy \v173 -> mul {semiringInt} v173 10)
+      (insert {trivial} {trivial} {isSymbol("y")} Proxy 4))
+    { x: 1 }
+
+fromScratch :: Prim.Int -> { x :: Prim.Int, y :: Prim.Int }
+fromScratch = \value ->
+  buildFromScratch
+    (composeFlipped {semigroupoidBuilder} (insert {trivial} {trivial} {isSymbol("x")} Proxy value)
+      (insert {trivial} {trivial} {isSymbol("y")} Proxy 2))
+
+merged :: { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+merged = build (merge {trivial} {trivial} { y: 20, z: 30 }) { x: 1, y: 2 }

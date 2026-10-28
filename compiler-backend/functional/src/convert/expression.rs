@@ -153,6 +153,9 @@ fn convert_expression_kind(
             let alternatives =
                 alternatives.iter().map(|alternative| case_alternative(context, alternative));
             let alternatives = alternatives.collect::<ConversionResult<Vec<_>>>()?;
+            if let Some(expression) = context.known_comparison_case(&scrutinees, &alternatives)? {
+                return Ok(expression);
+            }
             ExpressionKind::Case {
                 scrutinees: scrutinees.into(),
                 alternatives: alternatives.into(),

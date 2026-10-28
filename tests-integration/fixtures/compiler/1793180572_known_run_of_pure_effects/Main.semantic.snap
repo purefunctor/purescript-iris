@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+performPure :: Prim.Int -> Prim.Int
+performPure = \value -> unsafePerformEffect (pure {applicativeEffect} (add {semiringInt} value 1))
+
+runPure :: Prim.Int -> Prim.Int
+runPure = \value -> run (pure {applicativeST} (mul {semiringInt} value 2))
+
+runReference :: Prim.Int -> Prim.Int
+runReference = \value -> run (bind {bindST} (new value) read)

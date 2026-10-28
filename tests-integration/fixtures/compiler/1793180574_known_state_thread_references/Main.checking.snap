@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+newCounter ::
+  forall (r :: Control.Monad.ST.Internal.Region).
+    Prim.Int ->
+    Control.Monad.ST.Internal.ST
+      (r :: Control.Monad.ST.Internal.Region)
+      (Control.Monad.ST.Internal.STRef (r :: Control.Monad.ST.Internal.Region) Prim.Int)
+readCounter ::
+  forall (r :: Control.Monad.ST.Internal.Region).
+    Control.Monad.ST.Internal.STRef (r :: Control.Monad.ST.Internal.Region) Prim.Int ->
+    Control.Monad.ST.Internal.ST (r :: Control.Monad.ST.Internal.Region) Prim.Int
+resetCounter ::
+  forall (r :: Control.Monad.ST.Internal.Region).
+    Control.Monad.ST.Internal.STRef (r :: Control.Monad.ST.Internal.Region) Prim.Int ->
+    Control.Monad.ST.Internal.ST (r :: Control.Monad.ST.Internal.Region) Prim.Int
+incrementCounter ::
+  forall (r :: Control.Monad.ST.Internal.Region).
+    Control.Monad.ST.Internal.STRef (r :: Control.Monad.ST.Internal.Region) Prim.Int ->
+    Control.Monad.ST.Internal.ST (r :: Control.Monad.ST.Internal.Region) Prim.Int
+countTwice :: Prim.Int -> Prim.Int
+
+Types

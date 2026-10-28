@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+addToReference ::
+  forall (r :: Control.Monad.ST.Internal.Region).
+    Control.Monad.ST.Uncurried.STFn2
+      (Control.Monad.ST.Internal.STRef (r :: Control.Monad.ST.Internal.Region) Prim.Int)
+      Prim.Int
+      (r :: Control.Monad.ST.Internal.Region)
+      Prim.Int
+addTwice :: Prim.Int -> Prim.Int
+
+Types

@@ -349,6 +349,10 @@ pub enum EffectExpression {
     Bind { action: ExpressionId, parameter: Parameter, body: ExpressionId },
     Map { function: ExpressionId, action: ExpressionId },
     Apply { function_action: ExpressionId, argument_action: ExpressionId },
+    ReferenceNew(ExpressionId),
+    ReferenceRead(ExpressionId),
+    ReferenceWrite { reference: ExpressionId, value: ExpressionId },
+    UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

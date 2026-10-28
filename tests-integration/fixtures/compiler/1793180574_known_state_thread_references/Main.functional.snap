@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export newCounter = \value%0 -> reference.new value%0
+
+@export readCounter = \counter%1 -> reference.read counter%1
+
+@export resetCounter = \counter%2 -> reference.write counter%2 0
+
+@export incrementCounter = \counter%4 ->
+  effect.bind (reference.read counter%4)
+    \section120%3 -> reference.write counter%4 (integer.add section120%3 1)
+
+@export countTwice = \value%5 ->
+  run
+    (effect.bind (reference.new value%5)
+      \counter%6 -> effect.bind (effect.bind (reference.read counter%6)
+        \section156%7 -> reference.write counter%6 (integer.multiply section156%7 2))
+        \$int%8 -> effect.bind (reference.write counter%6 (integer.add value%5 1))
+          \written%9 -> effect.bind (effect.bind (reference.read counter%6)
+            \section184%10 -> reference.write counter%6 (integer.multiply section184%10 10))
+            \next%11 -> effect.bind (reference.read counter%6)
+              \current%12 -> effect.pure (integer.add (integer.add written%9 next%11) current%12))

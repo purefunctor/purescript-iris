@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export compareIntegers = \left%0 right%1 ->
+  if integer.less_than left%0 right%1
+    then "less"
+    else if integer.equal left%0 right%1 then "equal" else "greater"
+
+@export compareStrings = \left%2 right%3 ->
+  if string.equal left%2 right%3
+    then "equal"
+    else if string.greater_than left%2 right%3 then "greater" else "less"
+
+@export compareNumbers = \left%4 right%5 ->
+  if boolean.not (number.less_than_or_equal left%4 right%5)
+    then "greater"
+    else if number.equal left%4 right%5 then "equal" else "less"
+
+@export numberIsGreater = \left%6 right%7 ->
+  if boolean.not (number.less_than_or_equal left%6 right%7) then true else false
+
+@export computedIsLess = \left%8 right%9 ->
+  if integer.less_than (integer.add left%8 1) (integer.multiply right%9 2) then true else false
+
+@export arrayIsLess = \left%12 right%13 ->
+  case compare (ordArray ordInt) left%12 right%13 of
+    LT ->
+      true
+    _ ->
+      false

@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+addToReference :: Effect.Uncurried.EffectFn2 (Effect.Ref.Ref Prim.Int) Prim.Int Prim.Int
+addFive ::
+  Effect.Uncurried.EffectFn2 (Effect.Ref.Ref Prim.Int) Prim.Int Prim.Int ->
+  Effect.Ref.Ref Prim.Int ->
+  Effect.Effect Prim.Int
+logTwice ::
+  Effect.Uncurried.EffectFn1 Prim.String Data.Unit.Unit ->
+  Prim.String ->
+  Effect.Effect Data.Unit.Unit
+
+Types

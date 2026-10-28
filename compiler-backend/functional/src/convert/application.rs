@@ -4,16 +4,18 @@ use building_types::QueryResult;
 use files::FileId;
 use indexing::{IndexedTermItemKind, TypeItemId};
 use itertools::Itertools;
-use smol_str::format_smolstr;
+use smol_str::{SmolStr, format_smolstr};
 
 use crate::optimize::local_uses;
 use crate::tree::{
-    ArrayElement, BinaryOperator, Binding, Comparison, EffectExpression, ExpressionId,
-    ExpressionKind, GlobalId, InstanceIdentity, Literal, Parameter, PatternKind, PrimitiveType,
-    RecordField, UnaryOperator,
+    ArrayElement, BinaryOperator, Binding, CaseAlternative, Comparison, EffectExpression,
+    ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter,
+    PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
+
+mod builder;
 
 const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
     ("Data.HeytingAlgebra", "conj", "heytingAlgebraBoolean", BinaryOperator::BooleanAnd),
@@ -66,6 +68,13 @@ const ORD_FUNCTIONS: &[(&str, Comparison)] = &[
     ("greaterThan", Comparison::GreaterThan),
     ("greaterThanOrEq", Comparison::GreaterThanOrEqual),
 ];
+
+const UNCURRIED_EFFECT_FUNCTIONS: &[(&str, &str, &str)] = &[
+    ("Effect.Uncurried", "mkEffectFn", "runEffectFn"),
+    ("Control.Monad.ST.Uncurried", "mkSTFn", "runSTFn"),
+];
+
+const REFERENCE_MODULES: &[&str] = &["Effect.Ref", "Control.Monad.ST.Internal"];
 
 struct ClassMemberApplication<'a> {
     class: (FileId, TypeItemId),
@@ -141,20 +150,57 @@ where
             self.known_numbered_term_arity(known_function, "Data.Function.Uncurried", "mkFn")?
             && arity >= 1
             && let [function] = known_arguments.as_slice()
-            && let Some(function) = self.uncurry_abstraction(*function, arity)
+            && let Some((parameters, body)) = self.uncurried_parameters(*function, arity)
         {
-            return Ok(function);
+            let parameters = parameters.into();
+            return Ok(self.expression(ExpressionKind::UncurriedAbstraction { parameters, body }));
         }
         if let Some(arity) =
             self.known_numbered_term_arity(known_function, "Data.Function.Uncurried", "runFn")?
             && let Some((function, arguments)) = known_arguments.split_first()
             && arguments.len() == arity
         {
+            if self.known_term(*function, "Record.Unsafe.Union", "unsafeUnionFn")?
+                && let [left, right] = arguments
+                && let Some(fields) = self.literal_record_union(*left, *right)
+            {
+                return Ok(self.expression(ExpressionKind::Record { fields }));
+            }
             return Ok(self.expression(ExpressionKind::UncurriedApplication {
                 function: *function,
                 arguments: arguments.into(),
                 synthetic,
             }));
+        }
+        for &(module_name, abstraction_prefix, application_prefix) in UNCURRIED_EFFECT_FUNCTIONS {
+            if let Some(arity) =
+                self.known_numbered_term_arity(known_function, module_name, abstraction_prefix)?
+                && arity >= 1
+                && let [function] = known_arguments.as_slice()
+                && let Some((parameters, action)) = self.uncurried_parameters(*function, arity)
+            {
+                let body = self.expression(ExpressionKind::UncurriedApplication {
+                    function: action,
+                    arguments: [].into(),
+                    synthetic: false,
+                });
+                let parameters = parameters.into();
+                return Ok(
+                    self.expression(ExpressionKind::UncurriedAbstraction { parameters, body })
+                );
+            }
+            if let Some(arity) =
+                self.known_numbered_term_arity(known_function, module_name, application_prefix)?
+                && arity >= 1
+                && let Some((function, arguments)) = known_arguments.split_first()
+                && arguments.len() == arity
+            {
+                let effect = EffectExpression::UncurriedApplication {
+                    function: *function,
+                    arguments: arguments.into(),
+                };
+                return Ok(self.expression(ExpressionKind::Effect { effect }));
+            }
         }
         if self.known_term(known_function, "Data.Function", "apply")?
             && let [function, argument] = known_arguments.as_slice()
@@ -176,6 +222,14 @@ where
         {
             return Ok(expression);
         }
+        if let Some(record) = self.known_record_build(known_function, &known_arguments)? {
+            return Ok(record);
+        }
+        if let Some(reference) =
+            self.known_reference_application(known_function, &known_arguments)?
+        {
+            return Ok(reference);
+        }
         if let Some(effect) = self.known_effect_application(known_function, &known_arguments)? {
             return Ok(self.expression(ExpressionKind::Effect { effect }));
         }
@@ -193,6 +247,14 @@ where
             && let [argument] = known_arguments.as_slice()
         {
             return Ok(*argument);
+        }
+        if (self.known_term(known_function, "Effect.Unsafe", "unsafePerformEffect")?
+            || self.known_term(known_function, "Control.Monad.ST.Internal", "run")?)
+            && let [action] = known_arguments.as_slice()
+            && let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
+                &self.storage[*action].kind
+        {
+            return Ok(*value);
         }
         if self.known_term(known_function, "Partial.Unsafe", "unsafePartial")?
             && let [function, arguments @ ..] = known_arguments.as_slice()
@@ -337,10 +399,64 @@ where
         {
             return Ok(Some(self.array_concatenation(*left, *right)));
         }
+        if self.known_term(function, "Data.String.CodePoints", "toCodePointArray")?
+            && let [string] = arguments
+            && let ExpressionKind::Literal { literal: Literal::String(string) } =
+                &self.storage[*string].kind
+        {
+            let code_points = char::decode_utf16(string.as_utf16().iter().copied());
+            let code_points = code_points.map(|code_point| match code_point {
+                Ok(character) => u32::from(character),
+                Err(error) => u32::from(error.unpaired_surrogate()),
+            });
+            let code_points = code_points.collect_vec();
+            let elements = code_points.into_iter().map(|code_point| {
+                let literal = Literal::Integer(i64::from(code_point));
+                self.expression(ExpressionKind::Literal { literal })
+            });
+            return Ok(Some(ExpressionKind::Array { elements: elements.collect() }));
+        }
         if self.known_term(function, "Data.Array", "unsafeIndex")?
             && let [_, value, index] = arguments
         {
             return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeGet")?
+            && let [label, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+        {
+            let field = self.label_field(label);
+            return Ok(Some(ExpressionKind::Project { record: *record, field }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeSet")?
+            && let [label, value, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+        {
+            let field = self.label_field(label);
+            let updates = [RecordUpdate::Leaf { field, expression: *value }].into();
+            return Ok(Some(ExpressionKind::RecordUpdate { record: *record, updates }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeHas")?
+            && let [label, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+            && let Some(fields) = self.literal_record_fields(*record)
+        {
+            let has = fields.iter().any(|field| field.field.name == label);
+            return Ok(Some(ExpressionKind::Literal { literal: Literal::Boolean(has) }));
+        }
+        if self.known_term(function, "Record.Unsafe", "unsafeDelete")?
+            && let [label, record] = arguments
+            && let Some(label) = self.literal_label(*label)
+            && let Some(fields) = self.literal_record_fields(*record)
+        {
+            let fields = fields.iter().filter(|field| field.field.name != label).cloned();
+            return Ok(Some(ExpressionKind::Record { fields: fields.collect() }));
+        }
+        if self.known_term(function, "Record.Unsafe.Union", "unsafeUnion")?
+            && let [left, right] = arguments
+            && let Some(fields) = self.literal_record_union(*left, *right)
+        {
+            return Ok(Some(ExpressionKind::Record { fields }));
         }
         if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
             self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?
@@ -363,36 +479,159 @@ where
                 && let Some(operand) =
                     self.known_primitive_instance(*dictionary, "Data.Ord", ORD_INSTANCES)?
             {
-                let negated = match (operand, comparison) {
-                    (PrimitiveType::Number, Comparison::GreaterThan) => {
-                        Some(Comparison::LessThanOrEqual)
-                    }
-                    (PrimitiveType::Number, Comparison::GreaterThanOrEqual) => {
-                        Some(Comparison::LessThan)
-                    }
-                    _ => None,
-                };
-                let Some(negated) = negated else {
-                    let operator = BinaryOperator::Comparison { operand, comparison };
-                    return Ok(Some(ExpressionKind::Binary {
-                        operator,
-                        left: *left,
-                        right: *right,
-                    }));
-                };
-                let operator = BinaryOperator::Comparison { operand, comparison: negated };
-                let value = self.expression(ExpressionKind::Binary {
-                    operator,
-                    left: *left,
-                    right: *right,
-                });
-                return Ok(Some(ExpressionKind::Unary {
-                    operator: UnaryOperator::BooleanNot,
-                    value,
-                }));
+                let kind = self.primitive_comparison(operand, comparison, *left, *right);
+                return Ok(Some(kind));
             }
         }
         Ok(None)
+    }
+
+    fn primitive_comparison(
+        &mut self,
+        operand: PrimitiveType,
+        comparison: Comparison,
+        left: ExpressionId,
+        right: ExpressionId,
+    ) -> ExpressionKind {
+        let negated = match (operand, comparison) {
+            (PrimitiveType::Number, Comparison::GreaterThan) => Some(Comparison::LessThanOrEqual),
+            (PrimitiveType::Number, Comparison::GreaterThanOrEqual) => Some(Comparison::LessThan),
+            _ => None,
+        };
+        let Some(negated) = negated else {
+            let operator = BinaryOperator::Comparison { operand, comparison };
+            return ExpressionKind::Binary { operator, left, right };
+        };
+        let operator = BinaryOperator::Comparison { operand, comparison: negated };
+        let value = self.expression(ExpressionKind::Binary { operator, left, right });
+        ExpressionKind::Unary { operator: UnaryOperator::BooleanNot, value }
+    }
+
+    pub(super) fn known_comparison_case(
+        &mut self,
+        scrutinees: &[ExpressionId],
+        alternatives: &[CaseAlternative],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        let [scrutinee] = scrutinees else { return Ok(None) };
+        let (function, arguments) = self.application_spine(*scrutinee, &[]);
+        let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
+            self.known_class_member_arguments(function, &arguments, "Data.Ord", "compare")?
+        else {
+            return Ok(None);
+        };
+        let (left, right) = (*left, *right);
+        let Some(operand) = self.known_primitive_instance(record, "Data.Ord", ORD_INSTANCES)?
+        else {
+            return Ok(None);
+        };
+
+        let mut branches = Vec::new();
+        let mut covered = Vec::new();
+        let mut fallback = None;
+        for alternative in alternatives {
+            let [pattern] = alternative.patterns.as_ref() else { return Ok(None) };
+            if matches!(self.storage[alternative.expression].kind, ExpressionKind::Guarded { .. }) {
+                return Ok(None);
+            }
+            match &self.storage[*pattern].kind {
+                PatternKind::Wildcard => {
+                    fallback = Some(alternative.expression);
+                    break;
+                }
+                PatternKind::Variable(parameter)
+                    if local_uses(&self.storage, alternative.expression, parameter.id) == 0 =>
+                {
+                    fallback = Some(alternative.expression);
+                    break;
+                }
+                PatternKind::Constructor { global, arguments } if arguments.is_empty() => {
+                    let GlobalId::Term(file_id, _) = global.id else { return Ok(None) };
+                    if self.source_module_name(file_id)? != "Data.Ordering" {
+                        return Ok(None);
+                    }
+                    let comparison = match global.item_name.as_str() {
+                        "LT" => Comparison::LessThan,
+                        "EQ" => Comparison::Equal,
+                        "GT" => Comparison::GreaterThan,
+                        _ => return Ok(None),
+                    };
+                    if !covered.contains(&comparison) {
+                        covered.push(comparison);
+                    }
+                    branches.push((comparison, alternative.expression));
+                }
+                _ => return Ok(None),
+            }
+        }
+        let fallback = match fallback {
+            Some(fallback) => fallback,
+            None if covered.len() == 3 => {
+                let Some((_, fallback)) = branches.pop() else { return Ok(None) };
+                fallback
+            }
+            None => return Ok(None),
+        };
+
+        let mut bindings = Vec::new();
+        let mut operands = [left, right];
+        for (operand, name) in operands.iter_mut().zip(["compareLeft", "compareRight"]) {
+            if !self.expression_is_stable(*operand) {
+                *operand = self.let_bound_local(*operand, name, &mut bindings)?;
+            }
+        }
+
+        let mut expression = fallback;
+        for (comparison, branch) in branches.into_iter().rev() {
+            let [left, right] = operands
+                .map(|operand| self.expression(ExpressionKind::clone(&self.storage[operand].kind)));
+            let condition = self.primitive_comparison(operand, comparison, left, right);
+            let condition = self.expression(condition);
+            expression = self.expression(ExpressionKind::IfThenElse {
+                condition,
+                then: branch,
+                else_: expression,
+            });
+        }
+
+        if bindings.is_empty() {
+            return Ok(Some(expression));
+        }
+        Ok(Some(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: bindings.into(),
+            body: expression,
+        })))
+    }
+
+    fn literal_label(&self, expression: ExpressionId) -> Option<SmolStr> {
+        let ExpressionKind::Literal { literal: Literal::String(label) } =
+            &self.storage[expression].kind
+        else {
+            return None;
+        };
+        label.to_utf8().ok().map(SmolStr::from)
+    }
+
+    fn literal_record_fields(&self, expression: ExpressionId) -> Option<&Arc<[RecordField]>> {
+        let ExpressionKind::Record { fields } = &self.storage[expression].kind else {
+            return None;
+        };
+        let labelled =
+            fields.iter().all(|field| matches!(field.field.identity, FieldIdentity::Label(_)));
+        labelled.then_some(fields)
+    }
+
+    fn literal_record_union(
+        &self,
+        left: ExpressionId,
+        right: ExpressionId,
+    ) -> Option<Arc<[RecordField]>> {
+        let left = self.literal_record_fields(left)?;
+        let right = self.literal_record_fields(right)?;
+        let right = right.iter().filter(|field| {
+            left.iter().all(|left_field| left_field.field.name != field.field.name)
+        });
+        Some(left.iter().chain(right).cloned().collect())
     }
 
     fn array_concatenation(&self, left: ExpressionId, right: ExpressionId) -> ExpressionKind {
@@ -465,6 +704,89 @@ where
             }));
         }
         Ok(None)
+    }
+
+    fn known_reference_application(
+        &mut self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+    ) -> ConversionResult<Option<ExpressionId>> {
+        for module_name in REFERENCE_MODULES {
+            let effect = if self.known_term(function, module_name, "new")?
+                && let [value] = arguments
+            {
+                EffectExpression::ReferenceNew(*value)
+            } else if self.known_term(function, module_name, "read")?
+                && let [reference] = arguments
+            {
+                EffectExpression::ReferenceRead(*reference)
+            } else if self.known_term(function, module_name, "write")?
+                && let [value, reference] = arguments
+            {
+                EffectExpression::ReferenceWrite { reference: *reference, value: *value }
+            } else if self.known_term(function, module_name, "modify")?
+                && let [function, reference] = arguments
+            {
+                return self.reference_modification(*function, *reference).map(Some);
+            } else {
+                continue;
+            };
+            return Ok(Some(self.expression(ExpressionKind::Effect { effect })));
+        }
+        Ok(None)
+    }
+
+    fn reference_modification(
+        &mut self,
+        function: ExpressionId,
+        reference: ExpressionId,
+    ) -> ConversionResult<ExpressionId> {
+        let mut bindings = Vec::new();
+        let (parameter, value) = match self.effect_continuation(function)? {
+            Some(continuation) => continuation,
+            None => {
+                let function = self.let_bound_local(function, "modifyFunction", &mut bindings)?;
+                let parameter = self.fresh_parameter("value".into())?;
+                let value = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
+                (parameter, self.application(function, [value])?)
+            }
+        };
+        let reference = if self.expression_is_stable(reference) {
+            reference
+        } else {
+            self.let_bound_local(reference, "modifyReference", &mut bindings)?
+        };
+
+        let written_reference =
+            self.expression(ExpressionKind::clone(&self.storage[reference].kind));
+        let effect = EffectExpression::ReferenceWrite { reference: written_reference, value };
+        let body = self.expression(ExpressionKind::Effect { effect });
+        let effect = EffectExpression::ReferenceRead(reference);
+        let action = self.expression(ExpressionKind::Effect { effect });
+        let effect = EffectExpression::Bind { action, parameter, body };
+        let modification = self.expression(ExpressionKind::Effect { effect });
+
+        if bindings.is_empty() {
+            return Ok(modification);
+        }
+        Ok(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: bindings.into(),
+            body: modification,
+        }))
+    }
+
+    fn let_bound_local(
+        &mut self,
+        expression: ExpressionId,
+        name: &str,
+        bindings: &mut Vec<Binding>,
+    ) -> ConversionResult<ExpressionId> {
+        let parameter = self.fresh_parameter(name.into())?;
+        let local = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
+        let source_order = bindings.len();
+        bindings.push(Binding { parameter, expression, source_order, origin: None });
+        Ok(local)
     }
 
     fn effect_continuation(
@@ -546,11 +868,11 @@ where
         }))
     }
 
-    fn uncurry_abstraction(
+    fn uncurried_parameters(
         &mut self,
         mut expression: ExpressionId,
         arity: usize,
-    ) -> Option<ExpressionId> {
+    ) -> Option<(Vec<PatternId>, ExpressionId)> {
         let mut parameters = Vec::with_capacity(arity);
         while parameters.len() < arity {
             let ExpressionKind::Abstraction { parameters: abstraction, body } =
@@ -572,10 +894,7 @@ where
                 })
             };
         }
-        Some(self.expression(ExpressionKind::UncurriedAbstraction {
-            parameters: parameters.into(),
-            body: expression,
-        }))
+        Some((parameters, expression))
     }
 
     fn application_spine(

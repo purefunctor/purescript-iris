@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+addToReference :: Effect.Uncurried.EffectFn2 (Effect.Ref.Ref Prim.Int) Prim.Int Prim.Int
+addToReference =
+  mkEffectFn2 \reference amount -> modify (\v56 -> add {semiringInt} v56 amount) reference
+
+addFive :: Effect.Uncurried.EffectFn2 (Effect.Ref.Ref Prim.Int) Prim.Int Prim.Int ->
+Effect.Ref.Ref Prim.Int ->
+Effect.Effect Prim.Int
+addFive = \function -> \reference -> runEffectFn2 function reference 5
+
+logTwice :: Effect.Uncurried.EffectFn1 Prim.String Data.Unit.Unit -> Prim.String -> Effect.Effect Data.Unit.Unit
+logTwice = \log -> \message ->
+  discard {discardUnit} {bindEffect} (runEffectFn1 log message) \_ ->
+    runEffectFn1 log (append {semigroupString} message "!")

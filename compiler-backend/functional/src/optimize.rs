@@ -315,6 +315,18 @@ pub fn for_each_evaluated_child(
                     visit(*function_action, action);
                     visit(*argument_action, action);
                 }
+                EffectExpression::ReferenceNew(expression)
+                | EffectExpression::ReferenceRead(expression) => visit(*expression, value),
+                EffectExpression::ReferenceWrite { reference, value: written } => {
+                    visit(*reference, value);
+                    visit(*written, value);
+                }
+                EffectExpression::UncurriedApplication { function, arguments } => {
+                    visit(*function, value);
+                    for argument in arguments.iter() {
+                        visit(*argument, value);
+                    }
+                }
             }
         }
         ExpressionKind::Let { bindings, body, .. } => {
@@ -563,6 +575,19 @@ pub fn try_for_each_expression_child<Error>(
             EffectExpression::Apply { function_action, argument_action } => {
                 visit(*function_action)?;
                 visit(*argument_action)?;
+            }
+            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
+                visit(*value)?
+            }
+            EffectExpression::ReferenceWrite { reference, value } => {
+                visit(*reference)?;
+                visit(*value)?;
+            }
+            EffectExpression::UncurriedApplication { function, arguments } => {
+                visit(*function)?;
+                for argument in arguments.iter() {
+                    visit(*argument)?;
+                }
             }
         },
     }

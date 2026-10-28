@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+literalUnion :: Prim.Int -> Main.Union
+literalUnionFn :: Prim.Int -> Main.Union
+unionWithLiteral :: { y :: Prim.Int, z :: Prim.Int } -> Main.Union
+
+Types
+Union :: Prim.Type
+
+Synonyms
+type Union = { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }

@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newCounter :: forall r. Prim.Int -> Control.Monad.ST.Internal.ST r (Control.Monad.ST.Internal.STRef r Prim.Int)
+newCounter = \value -> new value
+
+readCounter :: forall r. Control.Monad.ST.Internal.STRef r Prim.Int -> Control.Monad.ST.Internal.ST r Prim.Int
+readCounter = \counter -> read counter
+
+resetCounter :: forall r. Control.Monad.ST.Internal.STRef r Prim.Int -> Control.Monad.ST.Internal.ST r Prim.Int
+resetCounter = \counter -> write 0 counter
+
+incrementCounter :: forall r. Control.Monad.ST.Internal.STRef r Prim.Int -> Control.Monad.ST.Internal.ST r Prim.Int
+incrementCounter = \counter -> modify (\v120 -> add {semiringInt} v120 1) counter
+
+countTwice :: Prim.Int -> Prim.Int
+countTwice = \value ->
+  run
+    (bind {bindST} (new value) \counter ->
+      bind {bindST} (modify (\v156 -> mul {semiringInt} v156 2) counter) \_ ->
+        bind {bindST} (write (add {semiringInt} value 1) counter) \written ->
+          bind {bindST} (modify (\v184 -> mul {semiringInt} v184 10) counter) \next ->
+            bind {bindST} (read counter) \current ->
+              pure {applicativeST} (add {semiringInt} (add {semiringInt} written next) current))

@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+compareIntegers :: Prim.Int -> Prim.Int -> Prim.String
+compareStrings :: Prim.String -> Prim.String -> Prim.String
+compareNumbers :: Prim.Number -> Prim.Number -> Prim.String
+numberIsGreater :: Prim.Number -> Prim.Number -> Prim.Boolean
+computedIsLess :: Prim.Int -> Prim.Int -> Prim.Boolean
+arrayIsLess :: Prim.Array Prim.Int -> Prim.Array Prim.Int -> Prim.Boolean
+
+Types

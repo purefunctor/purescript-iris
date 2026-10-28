@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+delayedRead :: Prim.Int -> Effect.Effect Prim.Int
+closureWrites :: Effect.Effect Prim.Int
+countDown ::
+  forall (r :: Control.Monad.ST.Internal.Region).
+    Prim.Int -> Control.Monad.ST.Internal.ST (r :: Control.Monad.ST.Internal.Region) Prim.Int
+
+Types

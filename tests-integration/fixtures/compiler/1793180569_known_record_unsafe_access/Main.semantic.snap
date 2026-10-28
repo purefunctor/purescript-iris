@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+readX :: Main.Point -> Prim.Int
+readX = \point -> unsafeGet "x" point
+
+readSpacedLabel :: { first name :: Prim.String } -> Prim.String
+readSpacedLabel = \person -> unsafeGet "first name" person
+
+setX :: Prim.Int -> Main.Point -> Main.Point
+setX = \value -> \point -> unsafeSet "x" value point
+
+addZ :: Prim.Int -> Main.Point -> { x :: Prim.Int, y :: Prim.Int, z :: Prim.Int }
+addZ = \value -> \point -> unsafeSet "z" value point
+
+readLabel :: Prim.String -> Main.Point -> Prim.Int
+readLabel = \label -> \point -> unsafeGet label point

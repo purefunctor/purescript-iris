@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+isLess :: Prim.Int -> Prim.Int -> Prim.String
+isLess = \left -> \right ->
+  case compare {ordInt} left right of
+    LT -> "less"
+    other -> "not less"
+
+describeOrdering :: Prim.Int -> Prim.Int -> Prim.String
+describeOrdering = \left -> \right ->
+  case compare {ordInt} left right of
+    LT -> "less"
+    other -> show {showOrdering} other
