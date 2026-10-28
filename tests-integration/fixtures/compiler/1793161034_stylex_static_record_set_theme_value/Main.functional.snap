@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export card = stylex.defineConsts { color: "navy", padding: "8px" }
+
+@export styles = stylex.create { root: card { color = "teal" } }

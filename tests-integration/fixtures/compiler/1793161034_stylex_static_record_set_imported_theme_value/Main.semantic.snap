@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: set {isSymbol("color")} {trivial} {trivial} Proxy "teal" card }

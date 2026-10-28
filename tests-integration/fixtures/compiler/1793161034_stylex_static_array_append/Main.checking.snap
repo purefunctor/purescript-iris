@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+fonts :: Prim.Array Prim.String
+styles :: { root :: Iris.StyleX.Style }
+
+Types

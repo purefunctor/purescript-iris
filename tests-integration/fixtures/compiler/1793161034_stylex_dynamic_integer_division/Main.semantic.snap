@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+styles :: { root :: Prim.Int -> Iris.StyleX.DynamicStyle }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeFunctionRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: \(width :: Prim.Int) ->
+      { width: div {euclideanRingInt} width 2, height: mod {euclideanRingInt} width 3 } }

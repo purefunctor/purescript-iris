@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+styles :: { root :: Iris.StyleX.Style }
+
+Types

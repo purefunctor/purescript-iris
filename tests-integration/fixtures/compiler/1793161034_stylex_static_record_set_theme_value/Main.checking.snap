@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+card :: { color :: Prim.String, padding :: Prim.String }
+styles :: { root :: Iris.StyleX.Style }
+
+Types

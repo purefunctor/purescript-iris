@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { padding: div {euclideanRingInt} 17 4, margin: mod {euclideanRingInt} 17 4 } }

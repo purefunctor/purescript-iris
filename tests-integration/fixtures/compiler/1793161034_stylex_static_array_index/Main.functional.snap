@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export spacing = [4, 8, 16]
+
+@export styles = stylex.create { root: { padding: spacing[1] } }

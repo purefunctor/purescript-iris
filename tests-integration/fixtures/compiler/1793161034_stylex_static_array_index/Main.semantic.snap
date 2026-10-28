@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+spacing :: Prim.Array Prim.Int
+spacing = [4, 8, 16]
+
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { padding: unsafePartial \{partialDict} -> unsafeIndex {partialDict} spacing 1 } }

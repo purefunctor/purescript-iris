@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export base = { color: "red", padding: 4 }
+
+@export styles = stylex.create { primary: base { color = "blue" }, spaced: base { margin = 2 } }

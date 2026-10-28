@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+base :: { color :: Prim.String, padding :: Prim.Int }
+base = { color: "red", padding: 4 }
+
+styles :: { primary :: Iris.StyleX.Style, spaced :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}} {trivial}}}
+    { primary: set {isSymbol("color")} {trivial} {trivial} Proxy "blue"
+      base, spaced: insert {isSymbol("margin")} {trivial} {trivial} Proxy 2 base }

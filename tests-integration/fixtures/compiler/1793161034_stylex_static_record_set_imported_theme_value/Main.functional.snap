@@ -1,0 +1,4 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export styles = stylex.create { root: card { color = "teal" } }

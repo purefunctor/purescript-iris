@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+card :: { color :: Prim.String, padding :: Prim.String }
+card = defineConsts { color: "navy", padding: "8px" }
+
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: set {isSymbol("color")} {trivial} {trivial} Proxy "teal" card }

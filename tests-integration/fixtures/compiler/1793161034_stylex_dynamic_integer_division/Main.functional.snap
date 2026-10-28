@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export styles = stylex.create {
+  root: \width%0 -> { width: integer.divide width%0 2, height: integer.modulo width%0 3 }
+}

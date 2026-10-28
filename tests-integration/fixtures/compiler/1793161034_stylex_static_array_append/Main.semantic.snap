@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+fonts :: Prim.Array Prim.String
+fonts = ["Inter", "sans-serif"]
+
+styles :: { root :: Iris.StyleX.Style }
+styles =
+  create {compileStyles {trivial} {compileStyleListConsTypeRecord {compileStyleListNilTypeRow} {trivial}}}
+    { root: { fontFamily: append {semigroupArray} fonts ["serif"] } }

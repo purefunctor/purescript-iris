@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export fonts = ["Inter", "sans-serif"]
+
+@export styles = stylex.create { root: \font%0 -> { fontFamily: [...fonts, font%0] } }
