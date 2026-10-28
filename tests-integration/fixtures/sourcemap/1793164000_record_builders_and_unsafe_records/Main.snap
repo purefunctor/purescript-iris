@@ -1,0 +1,92 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as $foreign from "./foreign.js";
+   | ^ 9:1 foreign import observe :: forall value. String -> value -> value
+ 2 | export function build(record) {
+   | ^ 12:1 build record =
+   |        ^ (build) 12:1 build record =
+   |                               ^ 12:1 build record =
+ 3 |   const value = observe("z")(true);
+   |   ^ 14:40 observe "z" true)
+   |                         ^ 14:48 "z" true)
+   |                            ^ 14:40 observe "z" true)
+   |                              ^ 14:52 true)
+   |                                  ^ 14:40 observe "z" true)
+ 4 |   const record$2 = {
+   |   ^ 13:3 Builder.build
+ 5 |     ...record,
+   |     ^ 13:3 Builder.build
+   |        ^ 19:5 record
+ 6 |     z: value
+   |     ^ 13:3 Builder.build
+ 7 |   };
+   |   ^ 13:3 Builder.build
+ 8 |   const $result = {
+   |   ^ 13:3 Builder.build
+ 9 |     ...record$2,
+   |     ^ 13:3 Builder.build
+10 |     x: ((x) => x + (1 | 0) | 0)(record$2.x)
+   |     ^ 13:3 Builder.build
+   |          ^ 15:46 \x -> x + 1)
+   |                ^ 15:52 x + 1)
+   |                     ^ 15:56 1)
+   |                              ^ 15:52 x + 1)
+   |                                ^ 15:46 \x -> x + 1)
+   |                                 ^ 13:3 Builder.build
+11 |   };
+   |   ^ 13:3 Builder.build
+12 |   const { y: $deleted, ...$record } = $result;
+   |   ^ 13:3 Builder.build
+13 |   const record$1 = $record;
+   |   ^ 13:3 Builder.build
+14 |   const { x: $deleted$1, ...$record$1 } = record$1;
+   |   ^ 13:3 Builder.build
+15 |   return {
+   |   ^ 13:3 Builder.build
+16 |     ...$record$1,
+   |     ^ 13:3 Builder.build
+17 |     w: record$1.x
+   |     ^ 13:3 Builder.build
+18 |   };
+   |   ^ 13:3 Builder.build
+19 | }
+   | ^ 12:1 build record =
+20 | export function get(record) {
+   | ^ 26:1 get record = unsafeGet "x" record
+   |        ^ (get) 26:1 get record = unsafeGet "x" record
+   |                             ^ 26:1 get record = unsafeGet "x" record
+21 |   return record.x;
+   |   ^ 26:14 unsafeGet "x" record
+   |          ^ 26:28 record
+   |                 ^ 26:14 unsafeGet "x" record
+22 | }
+   | ^ 26:1 get record = unsafeGet "x" record
+23 | export const observe = $foreign["observe"];
+   | ^ 9:1 foreign import observe :: forall value. String -> value -> value
+24 | export const fromScratch = {
+   | ^ 22:1 fromScratch =
+   |                            ^ 23:3 Builder.buildFromScratch (Builder.insert (Proxy :: _ "x") 1 >>> Builder.insert (Proxy :: _ "y") "y")
+25 |   x: 1 | 0,
+   |   ^ 23:3 Builder.buildFromScratch (Builder.insert (Proxy :: _ "x") 1 >>> Builder.insert (Proxy :: _ "y") "y")
+   |      ^ 23:61 1 >>> Builder.insert (Proxy :: _ "y") "y")
+26 |   y: "y"
+   |   ^ 23:3 Builder.buildFromScratch (Builder.insert (Proxy :: _ "x") 1 >>> Builder.insert (Proxy :: _ "y") "y")
+   |      ^ 23:99 "y")
+27 | };
+   | ^ 23:3 Builder.buildFromScratch (Builder.insert (Proxy :: _ "x") 1 >>> Builder.insert (Proxy :: _ "y") "y")
+28 | export const has = /* @__PURE__ */ (() => {
+   | ^ 29:1 has = unsafeHas "x" { x: observe "x" 1 }
+   |              ^ (has) 29:1 has = unsafeHas "x" { x: observe "x" 1 }
+   |                                           ^ 29:1 has = unsafeHas "x" { x: observe "x" 1 }
+29 |   const x = observe("x")(1 | 0);
+   |   ^ 29:26 observe "x" 1 }
+   |                     ^ 29:34 "x" 1 }
+   |                        ^ 29:26 observe "x" 1 }
+   |                          ^ 29:38 1 }
+   |                               ^ 29:26 observe "x" 1 }
+30 |   return true;
+   |   ^ 29:7 unsafeHas "x" { x: observe "x" 1 }
+31 | })();
+   | ^ 29:1 has = unsafeHas "x" { x: observe "x" 1 }
+   |   ^ (has) 29:1 has = unsafeHas "x" { x: observe "x" 1 }
