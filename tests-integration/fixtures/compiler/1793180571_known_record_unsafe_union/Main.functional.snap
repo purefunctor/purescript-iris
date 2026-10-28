@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export literalUnion = \value%0 -> unsafeUnion { x: value%0, y: 2 } { y: 20, z: 30 }
+
+@export literalUnionFn = \value%1 ->
+  uncurried.call unsafeUnionFn({ x: 1, y: value%1 }, { y: 20, z: 30 })
+
+@export unionWithLiteral = \right%2 -> unsafeUnion { x: 1, y: 2 } right%2

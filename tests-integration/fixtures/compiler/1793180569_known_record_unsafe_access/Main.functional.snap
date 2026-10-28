@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export readX = \point%0 -> unsafeGet "x" point%0
+
+@export readSpacedLabel = \person%1 -> unsafeGet "first name" person%1
+
+@export setX = \value%2 point%3 -> unsafeSet "x" value%2 point%3
+
+@export addZ = \value%4 point%5 -> unsafeSet "z" value%4 point%5
+
+@export readLabel = \label%6 point%7 -> unsafeGet label%6 point%7

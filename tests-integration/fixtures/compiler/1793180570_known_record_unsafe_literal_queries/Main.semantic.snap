@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+literalHasX :: Prim.Boolean
+literalHasX = unsafeHas "x" { x: 1, y: 2 }
+
+literalHasZ :: Prim.Boolean
+literalHasZ = unsafeHas "z" { x: 1, y: 2 }
+
+hasX :: Main.Point -> Prim.Boolean
+hasX = \point -> unsafeHas "x" point
+
+literalDeleteY :: Prim.Int -> { x :: Prim.Int }
+literalDeleteY = \value -> unsafeDelete "y" { x: value, y: 2 }
+
+deleteY :: Main.Point -> { x :: Prim.Int }
+deleteY = \point -> unsafeDelete "y" point

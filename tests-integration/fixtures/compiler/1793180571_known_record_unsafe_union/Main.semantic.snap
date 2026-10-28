@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+literalUnion :: Prim.Int -> Main.Union
+literalUnion = \value -> unsafeUnion { x: value, y: 2 } { y: 20, z: 30 }
+
+literalUnionFn :: Prim.Int -> Main.Union
+literalUnionFn = \value -> runFn2 unsafeUnionFn { x: 1, y: value } { y: 20, z: 30 }
+
+unionWithLiteral :: { y :: Prim.Int, z :: Prim.Int } -> Main.Union
+unionWithLiteral = \right -> unsafeUnion { x: 1, y: 2 } right
