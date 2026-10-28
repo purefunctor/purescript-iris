@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+loopBody :: Prim.Int -> Effect.Effect Prim.Int
+loopBody = \limit ->
+  bind {bindEffect} (new 0) \total ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 limit \index ->
+        discard {discardUnit} {bindEffect}
+          (if lessThan {ordInt} index 3 then
+            modify_ (\v76 -> add {semiringInt} v76 index) total
+          else
+            pure {applicativeEffect} unit) \_ ->
+          modify_ (\v94 -> add {semiringInt} v94 100) total) \_ -> read total
+
+nestedConditionals :: Prim.Int -> Effect.Effect Prim.Int
+nestedConditionals = \count ->
+  bind {bindEffect} (new 0) \ref ->
+    bind {bindEffect}
+      (if greaterThan {ordInt} count 0 then
+        if greaterThan {ordInt} count 10 then
+          discard {discardUnit} {bindEffect} (write 2 ref) \_ -> pure {applicativeEffect} 20
+        else
+          discard {discardUnit} {bindEffect} (write 1 ref) \_ -> pure {applicativeEffect} 10
+      else
+        pure {applicativeEffect} 0) \label ->
+      discard {discardUnit} {bindEffect} (modify_ (\v187 -> add {semiringInt} v187 label) ref) \_ ->
+        read ref
+
+tailConditional :: Prim.Int -> Prim.Int
+tailConditional = \count ->
+  run
+    (bind {bindST} (new count) \ref ->
+      if greaterThan {ordInt} count 0 then
+        modify (\v236 -> mul {semiringInt} v236 2) ref
+      else
+        read ref)

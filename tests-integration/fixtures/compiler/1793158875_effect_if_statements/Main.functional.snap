@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export statementIf = \flag%1 ->
+  effect.bind (effect.newReference 0)
+    \ref%0 -> effect.bind (if flag%1
+      then effect.writeReference 1 ref%0
+      else effect.writeReference 2 ref%0)
+      \$unit%2 -> effect.bind (effect.modifyReference
+        (\section64%3 -> integer.add section64%3 10)
+        ref%0)
+        \$unit%4 -> effect.readReference ref%0
+
+@export boundIf = \flag%6 ->
+  effect.bind (effect.newReference 5)
+    \ref%5 -> effect.bind (if flag%6 then effect.readReference ref%5 else effect.pure 0)
+      \chosen%7 -> effect.bind (effect.writeReference 7 ref%5)
+        \$unit%8 -> effect.pure (integer.add chosen%7 1)
+
+@export opaqueBranches = \flag%10 perform%11 produce%13 ->
+  effect.bind (effect.newReference 0)
+    \ref%9 -> effect.bind (if flag%10 then perform%11 else effect.writeReference 1 ref%9)
+      \$unit%12 -> effect.bind (if flag%10 then produce%13 else effect.readReference ref%9)
+        \result%14 -> effect.pure (integer.add result%14 1)

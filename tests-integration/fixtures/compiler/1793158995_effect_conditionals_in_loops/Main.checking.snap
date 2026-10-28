@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+loopBody :: Prim.Int -> Effect.Effect Prim.Int
+nestedConditionals :: Prim.Int -> Effect.Effect Prim.Int
+tailConditional :: Prim.Int -> Prim.Int
+
+Types

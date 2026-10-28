@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+statementIf :: Prim.Boolean -> Effect.Effect Prim.Int
+statementIf = \flag ->
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect} (if flag then write 1 ref else write 2 ref) \_ ->
+      discard {discardUnit} {bindEffect} (modify_ (\v64 -> add {semiringInt} v64 10) ref) \_ ->
+        read ref
+
+boundIf :: Prim.Boolean -> Effect.Effect Prim.Int
+boundIf = \flag ->
+  bind {bindEffect} (new 5) \ref ->
+    bind {bindEffect} (if flag then read ref else pure {applicativeEffect} 0) \chosen ->
+      discard {discardUnit} {bindEffect} (write 7 ref) \_ ->
+        pure {applicativeEffect} (add {semiringInt} chosen 1)
+
+opaqueBranches :: Prim.Boolean -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int -> Effect.Effect Prim.Int
+opaqueBranches = \flag -> \perform -> \produce ->
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect} (if flag then perform else write 1 ref) \_ ->
+      bind {bindEffect} (if flag then produce else read ref) \result ->
+        pure {applicativeEffect} (add {semiringInt} result 1)

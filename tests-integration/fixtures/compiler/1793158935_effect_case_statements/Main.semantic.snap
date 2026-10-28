@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Choice :: Prim.Type
+data Choice
+  | First :: Main.Choice
+  | Second :: Prim.Int -> Main.Choice
+  | Third :: Main.Choice
+
+foreign import observe :: Main.Choice -> Main.Choice
+
+foreign import record :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+foreign import takeLog :: Effect.Effect (Prim.Array Prim.String)
+
+statementCase :: Main.Choice -> Effect.Effect Prim.Int
+statementCase = \choice ->
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect}
+      (case observe choice of
+        First -> write 1 ref
+        (Second count) -> write count ref
+        Third -> pure {applicativeEffect} unit) \_ ->
+      discard {discardUnit} {bindEffect} (modify_ (\v113 -> add {semiringInt} v113 10) ref) \_ ->
+        read ref
+
+guardedCase :: Main.Choice -> Effect.Effect Prim.Int
+guardedCase = \choice ->
+  discard {discardUnit} {bindEffect} (record "before") \_ ->
+    bind {bindEffect}
+      (case choice of
+        (Second count)
+          | greaterThan {ordInt} count 0 -> pure {applicativeEffect} count
+          | otherwise -> discard {discardUnit} {bindEffect} (record "negative") \_ ->
+            pure {applicativeEffect} 0
+        _ -> pure {applicativeEffect} (negate {ringInt} 1)) \value ->
+      discard {discardUnit} {bindEffect} (record "after") \_ -> pure {applicativeEffect} value
+
+partialCase :: Main.Choice -> Effect.Effect Data.Unit.Unit
+partialCase =
+  unsafePartial \{partialDict} ->
+    \choice ->
+      discard {discardUnit} {bindEffect} (record "before") \_ ->
+        discard {discardUnit} {bindEffect}
+          ((\{partialDict1} ->
+            case choice of
+              First -> record "first") {partialDict}) \_ -> record "after"

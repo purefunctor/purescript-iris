@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+statementIf :: Prim.Boolean -> Effect.Effect Prim.Int
+boundIf :: Prim.Boolean -> Effect.Effect Prim.Int
+opaqueBranches ::
+  Prim.Boolean -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int -> Effect.Effect Prim.Int
+
+Types

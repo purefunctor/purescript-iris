@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export loopBody = \limit%1 ->
+  effect.bind (effect.newReference 0)
+    \total%0 -> effect.bind (effect.forRange
+      0
+      limit%1
+      (\index%2 ->
+        effect.bind (if integer.less_than index%2 3
+          then effect.modifyReference (\section76%3 -> integer.add section76%3 index%2) total%0
+          else effect.pure unit)
+          \$unit%4 -> effect.modifyReference (\section94%5 -> integer.add section94%5 100) total%0))
+      \$unit%6 -> effect.readReference total%0
+
+@export nestedConditionals = \count%8 ->
+  effect.bind (effect.newReference 0)
+    \ref%7 -> effect.bind (if integer.greater_than count%8 0
+      then if integer.greater_than count%8 10
+        then effect.bind (effect.writeReference 2 ref%7) \$unit%9 -> effect.pure 20
+        else effect.bind (effect.writeReference 1 ref%7) \$unit%10 -> effect.pure 10
+      else effect.pure 0)
+      \label%11 -> effect.bind (effect.modifyReference
+        (\section187%12 -> integer.add section187%12 label%11)
+        ref%7)
+        \$unit%13 -> effect.readReference ref%7
+
+@export tailConditional = \count%14 ->
+  uncurried.call effect.bind (effect.newReference count%14)
+    \ref%15 -> if integer.greater_than count%14 0
+      then effect.modifyReferenceState (\section236%16 -> integer.multiply section236%16 2) ref%15
+      else effect.readReference ref%15()

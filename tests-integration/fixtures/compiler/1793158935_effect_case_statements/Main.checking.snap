@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+First :: Main.Choice
+Second :: Prim.Int -> Main.Choice
+Third :: Main.Choice
+observe :: Main.Choice -> Main.Choice
+record :: Prim.String -> Effect.Effect Data.Unit.Unit
+takeLog :: Effect.Effect (Prim.Array Prim.String)
+statementCase :: Main.Choice -> Effect.Effect Prim.Int
+guardedCase :: Main.Choice -> Effect.Effect Prim.Int
+partialCase :: Main.Choice -> Effect.Effect Data.Unit.Unit
+
+Types
+Choice :: Prim.Type
+
+Roles
+Choice = []

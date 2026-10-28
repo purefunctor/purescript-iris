@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor First/0
+
+@export constructor Second/1
+
+@export constructor Third/0
+
+@export foreign observe
+
+@export foreign record
+
+@export foreign takeLog
+
+@export statementCase = \choice%1 ->
+  effect.bind (effect.newReference 0)
+    \ref%0 -> effect.bind (case observe choice%1 of
+      First ->
+        effect.writeReference 1 ref%0
+      Second count%2 ->
+        effect.writeReference count%2 ref%0
+      Third ->
+        effect.pure unit)
+      \$unit%3 -> effect.bind (effect.modifyReference
+        (\section113%4 -> integer.add section113%4 10)
+        ref%0)
+        \$unit%5 -> effect.readReference ref%0
+
+@export guardedCase = \choice%7 ->
+  effect.bind (record "before")
+    \$unit%6 -> effect.bind (case choice%7 of
+      Second count%8 ->
+        | integer.greater_than count%8 0 -> effect.pure count%8
+        | otherwise -> effect.bind (record "negative") \$unit%9 -> effect.pure 0
+      _ ->
+        effect.pure -1)
+      \value%10 -> effect.bind (record "after") \$unit%11 -> effect.pure value%10
+
+@export partialCase = \choice%13 ->
+  effect.bind (record "before")
+    \$unit%14 -> effect.bind ((\partialDict%15 ->
+      case choice%13 of
+        First ->
+          record "first")
+      <trivial evidence>)
+      \$unit%16 -> record "after"
