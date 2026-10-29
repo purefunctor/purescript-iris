@@ -19,10 +19,12 @@ pub enum ResolvingError {
         existing: OrderedTermItemId,
     },
     TermExportConflict {
+        name: SmolStr,
         existing: (FileId, TermItemId, ExportSource),
         duplicate: (FileId, TermItemId, ExportSource),
     },
     TypeExportConflict {
+        name: SmolStr,
         existing: (FileId, TypeItemId, ExportSource),
         duplicate: (FileId, TypeItemId, ExportSource),
     },
