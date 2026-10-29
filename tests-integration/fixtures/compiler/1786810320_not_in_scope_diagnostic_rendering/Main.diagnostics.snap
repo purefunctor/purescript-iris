@@ -145,7 +145,34 @@ Error! · [NotInScope] · Main.purs:26:15
   │                 ╰─────
   •
 
-Error! · [FunctionalCodegen] · Main.purs:30:1
+Error! · [NotInScope] · Main.purs:28:16
+  •
+  │
+  • 'absent' is not in scope
+  │
+  │   missingPun = { absent }
+  │                  ╰─────
+  •
+
+Error! · [NotInScope] · Main.purs:32:9
+  •
+  │
+  • 'missingOperatorName' is not in scope
+  │
+  │   infix 5 missingOperatorName as <+>
+  │           ╰──────────────────
+  •
+
+Error! · [NotInScope] · Main.purs:33:14
+  •
+  │
+  • 'MissingTypeOperatorName' is not in scope
+  │
+  │   infix 5 type MissingTypeOperatorName as +
+  │                ╰──────────────────────
+  •
+
+Error! · [FunctionalCodegen] · Main.purs:32:1
   •
   │
   • Cannot generate JavaScript for module 'Main'.

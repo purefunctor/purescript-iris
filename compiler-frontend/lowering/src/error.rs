@@ -41,6 +41,7 @@ pub enum NotInScope {
     ExprConstructor { id: AstId<cst::ExpressionConstructor> },
     ExprVariable { id: AstId<cst::ExpressionVariable> },
     ExprOperatorName { id: AstId<cst::ExpressionOperatorName> },
+    ExprRecordPun { id: AstId<cst::RecordPun> },
     TypeClass { id: AstId<cst::InstanceHead> },
     TypeConstructor { id: AstId<cst::TypeConstructor> },
     TypeVariable { id: AstId<cst::TypeVariable> },
@@ -50,6 +51,8 @@ pub enum NotInScope {
     NegateFn { id: AstId<cst::ExpressionNegate> },
     TermOperator { id: AstId<cst::TermOperator> },
     TypeOperator { id: AstId<cst::TypeOperator> },
+    TermOperatorTarget { id: AstId<cst::InfixDeclaration> },
+    TypeOperatorTarget { id: AstId<cst::InfixDeclaration> },
 }
 
 #[derive(Debug, PartialEq, Eq)]

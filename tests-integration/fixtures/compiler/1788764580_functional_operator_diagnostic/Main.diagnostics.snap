@@ -1,6 +1,15 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [NotInScope] · Main.purs:3:10
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   infixl 5 missing as +++
+  │            ╰──────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:3:1
   •
   │

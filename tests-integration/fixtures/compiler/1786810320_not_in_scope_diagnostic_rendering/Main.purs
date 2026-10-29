@@ -25,6 +25,8 @@ missingPure = ado
 missingType :: MissingType
 missingType = absent
 
+missingPun = { absent }
+
 type MissingTypeOperator = Int + String
 
 infix 5 missingOperatorName as <+>
