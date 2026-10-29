@@ -474,6 +474,7 @@ where
             IndexedTypeItemKind::Newtype { equation, .. } => {
                 context.stabilized.syntax_ptr(equation?)?
             }
+            IndexedTypeItemKind::Foreign { id, .. } => context.stabilized.syntax_ptr(id)?,
             _ => return None,
         };
         context.span_from_syntax_ptr(&ptr)

@@ -1,4 +1,25 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [RecursiveKinds] · Main.purs:3:1
+  •
+  │
+  • Invalid kind cycle
+  │
+  │   foreign import data T :: T -> Type
+  │   ╰─────────────────────────────────
+  •
 
+Error! · [RecursiveKinds] · Main.purs:6:1
+  •
+  │
+  • Invalid kind cycle
+  │
+  │   foreign import data B :: A -> Type
+  │   ╰─────────────────────────────────
+  │
+  • Includes this type
+  │
+  │   foreign import data A :: B -> Type
+  │   ╰─────────────────────────────────
+  •
