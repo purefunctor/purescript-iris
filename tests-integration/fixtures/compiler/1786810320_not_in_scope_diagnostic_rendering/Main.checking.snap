@@ -11,6 +11,7 @@ missingDiscard :: forall (t0 :: Prim.Type -> Prim.Type) t1. (t0 :: Prim.Type -> 
 missingAdo :: forall (t0 :: Prim.Type -> Prim.Type) t1. (t0 :: Prim.Type -> Prim.Type) t1
 missingPure :: forall (t0 :: Prim.Type -> Prim.Type). (t0 :: Prim.Type -> Prim.Type) Prim.Int
 missingType :: ?[missing constructor]
+missingPun :: {}
 
 Types
 MissingTypeOperator :: ?[invalid operator kind]

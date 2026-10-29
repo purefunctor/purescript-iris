@@ -27,3 +27,6 @@ missingPure = <error> 1
 
 missingType :: ?[missing constructor]
 missingType = <error>
+
+missingPun :: {}
+missingPun = <error>

@@ -145,7 +145,7 @@ Error! · [NotInScope] · Main.purs:26:15
   │                 ╰─────
   •
 
-Error! · [FunctionalCodegen] · Main.purs:30:1
+Error! · [FunctionalCodegen] · Main.purs:32:1
   •
   │
   • Cannot generate JavaScript for module 'Main'.
