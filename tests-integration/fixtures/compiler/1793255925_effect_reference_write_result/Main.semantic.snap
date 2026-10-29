@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+writeResult :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+writeResult = \reference -> write 7 reference
+
+boundWriteResult :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+boundWriteResult = \reference ->
+  bind {bindEffect} (write 8 reference) \result -> pure {applicativeEffect} result
+
+localWriteResult :: Prim.Int -> Effect.Effect Data.Unit.Unit
+localWriteResult = \value ->
+  bind {bindEffect} (new value) \reference ->
+    bind {bindEffect} (write (add {semiringInt} value 1) reference) \result ->
+      pure {applicativeEffect} result

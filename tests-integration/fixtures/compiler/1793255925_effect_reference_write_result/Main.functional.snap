@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export writeResult = \reference%0 -> reference.write reference%0 7
+
+@export boundWriteResult = \reference%1 ->
+  effect.bind (reference.write reference%1 8) \result%2 -> effect.pure result%2
+
+@export localWriteResult = \value%3 ->
+  effect.bind (reference.new value%3)
+    \reference%4 -> effect.bind (reference.write reference%4 (integer.add value%3 1))
+      \result%5 -> effect.pure result%5
