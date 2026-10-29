@@ -165,7 +165,9 @@ fn convert_expression_kind(
             let body = convert_expression(context, *expression)?;
             return let_bindings(context, bindings, body);
         }
-        checking_tree::ExpressionKind::Error => ExpressionKind::Error,
+        checking_tree::ExpressionKind::Error => {
+            return Err(context.unsupported(UnsupportedState::ExpressionError(expression_id)));
+        }
     };
     Ok(context.expression(kind))
 }

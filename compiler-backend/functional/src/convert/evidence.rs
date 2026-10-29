@@ -382,8 +382,7 @@ pub(super) fn evidence_variable(
                         steps.push(EvidenceConversionStep::Evidence { evidence, constraint });
                     }
                     EvidenceState::Error => {
-                        lowering.remove(&variable);
-                        expressions.push(context.expression(ExpressionKind::Error));
+                        return Err(context.unsupported(UnsupportedState::EvidenceError(variable)));
                     }
                 }
             }

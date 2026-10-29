@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export add = \left%0 right%1 -> left%0
-
-@export missingRightOperand = <error>
+Module Main rejected; see Main.diagnostics.snap

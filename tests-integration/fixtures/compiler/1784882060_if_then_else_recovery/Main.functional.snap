@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export missingCondition = if <error> then 1 else 2
-
-@export missingThen = if true then <error> else 2
-
-@export missingElse = if true then 1 else <error>
+Module Main rejected; see Main.diagnostics.snap

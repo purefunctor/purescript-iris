@@ -87,8 +87,7 @@ impl<'a> Printer<'a, '_> {
     ) -> Doc<'a> {
         let expression = &self.module.storage[expression_id];
         let precedence = match expression.kind {
-            ExpressionKind::Error
-            | ExpressionKind::Abstraction { .. }
+            ExpressionKind::Abstraction { .. }
             | ExpressionKind::UncurriedAbstraction { .. }
             | ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
@@ -125,7 +124,6 @@ impl<'a> Printer<'a, '_> {
     fn expression_unparenthesized(&self, expression_id: ExpressionId) -> Doc<'a> {
         let expression = &self.module.storage[expression_id];
         match &expression.kind {
-            ExpressionKind::Error => self.arena.text("<error>"),
             ExpressionKind::Literal { literal } => self.literal(literal),
             ExpressionKind::Array { elements } => {
                 let elements = elements.iter().map(|element| self.expression(*element));

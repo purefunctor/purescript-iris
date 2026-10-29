@@ -1,20 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export nonAssociative = \left%0 right%1 -> left%0
-
-@export singleNonAssociative = nonAssociative 1 2
-
-@export ambiguousNonAssociative = <error>
-
-@export leftAssociative = \left%2 right%3 -> left%2
-
-@export rightAssociative = \left%5 right%4 -> right%4
-
-@export validLeftAssociative = leftAssociative (leftAssociative 1 2) 3
-
-@export validRightAssociative = rightAssociative 1 (rightAssociative 2 3)
-
-@export validMixedPrecedence = leftAssociative 1 (rightAssociative 2 3)
-
-@export ambiguousMixedAssociativity = <error>
+Module Main rejected; see Main.diagnostics.snap

@@ -18,6 +18,8 @@ pub enum ModuleError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum UnsupportedState {
+    #[error("checked expression {0:?} contains an error")]
+    ExpressionError(checked_tree::ExpressionId),
     #[error("source module has no module name")]
     MissingModuleName,
     #[error("checked binder {0:?} contains an error")]
@@ -28,6 +30,8 @@ pub enum UnsupportedState {
     PatternBindingError(lowering::LetBindingId),
     #[error("evidence variable {0:?} is unsolved")]
     UnsolvedEvidence(EvidenceVarId),
+    #[error("evidence variable {0:?} contains an error")]
+    EvidenceError(EvidenceVarId),
     #[error("evidence variable {0:?} is cyclic")]
     CyclicEvidence(EvidenceVarId),
     #[error("checked term declaration {0:?} is missing")]

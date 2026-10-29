@@ -78,6 +78,15 @@ impl ToDiagnostics for FunctionalModuleError {
                 };
                 pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
             }
+            FunctionalUnsupportedState::ExpressionError(id) => {
+                use checking::tree::ExpressionSource;
+                let pointer = match context.checked.tree[*id].source {
+                    Some(ExpressionSource::Expression(id)) => context.stabilized.syntax_ptr(id),
+                    Some(ExpressionSource::DoStatement(id)) => context.stabilized.syntax_ptr(id),
+                    None => None,
+                };
+                pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
+            }
             FunctionalUnsupportedState::PatternBindingError(id) => context
                 .stabilized
                 .syntax_ptr(*id)
@@ -111,6 +120,8 @@ impl ToDiagnostics for FunctionalModuleError {
         let reason = match state {
             FunctionalUnsupportedState::MissingModuleName =>
                 "A module header with a module name is required.".to_owned(),
+            FunctionalUnsupportedState::ExpressionError(_) =>
+                "An expression contains an error.".to_owned(),
             FunctionalUnsupportedState::BinderError(_) =>
                 "A pattern could not be translated from its checked representation.".to_owned(),
             FunctionalUnsupportedState::RecordUpdateError =>
@@ -119,6 +130,8 @@ impl ToDiagnostics for FunctionalModuleError {
                 "A pattern binding in a let expression contains an error.".to_owned(),
             FunctionalUnsupportedState::UnsolvedEvidence(_) =>
                 "An unresolved type class constraint remains in the checked code.".to_owned(),
+            FunctionalUnsupportedState::EvidenceError(_) =>
+                "A type class dictionary contains an error.".to_owned(),
             FunctionalUnsupportedState::CyclicEvidence(_) =>
                 "The compiler encountered a cycle while constructing type class dictionaries.\n\nThis is an unsupported internal compiler state.".to_owned(),
             FunctionalUnsupportedState::MissingTermDeclaration(_) =>
