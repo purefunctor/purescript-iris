@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+unwrap :: Store.Counter -> Prim.Int
+unwrap = \value ->
+  case value of
+    <error> -> count

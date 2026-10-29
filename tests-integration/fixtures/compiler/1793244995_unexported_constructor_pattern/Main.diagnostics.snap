@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [NotInScope] · Main.purs:9:3
+  •
+  │
+  • 'Store.Counter' is not in scope
+  │
+  │     Store.Counter count -> count
+  │     ╰────────────
+  •
+
+Error! · [FunctionalCodegen] · Main.purs:9:3
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ A pattern could not be translated from its checked representation.
+  │
+  │     Store.Counter count -> count
+  │     ╰──────────────────
+  •

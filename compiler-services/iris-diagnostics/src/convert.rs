@@ -305,6 +305,9 @@ impl ToDiagnostics for LoweringError {
         match self {
             LoweringError::NotInScope(not_in_scope) => {
                 let (ptr, name) = match not_in_scope {
+                    lowering::NotInScope::BinderConstructor { id } => {
+                        (context.stabilized.syntax_ptr(*id), None)
+                    }
                     lowering::NotInScope::ExprConstructor { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
@@ -354,6 +357,11 @@ impl ToDiagnostics for LoweringError {
 
                 let Some(ptr) = ptr else { return Ok(Vec::new()) };
                 let span = match not_in_scope {
+                    lowering::NotInScope::BinderConstructor { id } => {
+                        context.stabilized.ast_ptr(*id).and_then(|ptr| {
+                            context.span_from_ast_ptr_child(&ptr, cst::BinderConstructor::name)
+                        })
+                    }
                     lowering::NotInScope::TypeClass { id } => {
                         context.stabilized.ast_ptr(*id).and_then(|ptr| {
                             context.span_from_ast_ptr_child(&ptr, cst::InstanceHead::qualified)
