@@ -1,19 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export variables = stylex.defineVars {
-  accent: stylex.types.color "blue",
-  spacing: stylex.types.length "8px"
-}
-
-@export valid = stylex.createTheme variables { accent: stylex.types.color "white" }
-
-@export wrongType = stylex.createTheme variables { accent: stylex.types.length "12px" }
-
-@export unknown = stylex.createTheme variables { missing: stylex.types.color "red" }
-
-@export invalidInteger = stylex.defineVars { value: stylex.types.integer true }
-
-@export invalidNumber = stylex.defineVars { value: stylex.types.number "1" }
-
-@export invalidColor = stylex.defineVars { value: stylex.types.color 42 }
+Module Main rejected; see Main.diagnostics.snap

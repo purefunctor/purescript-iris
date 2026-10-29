@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign combine
-
-@export foreign constrainedValue
-
-@export foreign needsFirst
-
-@export test = combine (\firstIntDict%0 -> constrainedValue firstIntDict%0) (needsFirst (<error>))
+Module Main rejected; see Main.diagnostics.snap

@@ -53,7 +53,10 @@ impl ToDiagnostics for FunctionalModuleError {
     where
         Q: ExternalQueries,
     {
-        let FunctionalModuleError::Unsupported { file_id, state } = self;
+        let (file_id, state) = match self {
+            FunctionalModuleError::SourceErrors { .. } => return Ok(Vec::new()),
+            FunctionalModuleError::Unsupported { file_id, state } => (file_id, state),
+        };
         let local_global_span = |global| {
             let source_file = match global {
                 GlobalId::Term(file, _) | GlobalId::Generated(file, _) => file,

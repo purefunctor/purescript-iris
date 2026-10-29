@@ -18,14 +18,3 @@ Error! · [ParseError] · Main.purs:6:5
   │     \ @ -> 1
   │       ╰
   •
-
-Error! · [FunctionalCodegen] · Main.purs:6:3
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ A pattern could not be translated from its checked representation.
-  │
-  │     \ @ -> 1
-  │     ╰───────
-  •

@@ -14,19 +14,3 @@ Error! · [RedefinedIdent] · Main.purs:7:1
   │   foreign import classInt :: Int
   │   ╰─────────────────────────────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:7:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ More than one declaration exports the runtime name 'classInt'.
-  │
-  │   instance classInt :: Class Int
-  │   ╰─────────────────────────────
-  │
-  • The other declaration exports the same runtime name
-  │
-  │   foreign import classInt :: Int
-  │   ╰─────────────────────────────
-  •

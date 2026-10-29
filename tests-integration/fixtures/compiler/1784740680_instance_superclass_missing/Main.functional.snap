@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Missing/0
-
-@export instance childMissing = { "Parent0": \() -> <error> }
+Module Main rejected; see Main.diagnostics.snap

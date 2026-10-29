@@ -8,6 +8,3 @@ Diagnostics
 1:0..1:0 analyzer/parsing [ParseError] Expected WHERE
 1:0..1:0 analyzer/parsing [ParseError] Expected LAYOUT_START
 1:0..1:0 analyzer/parsing [ParseError] Expected LAYOUT_END
-0:0..1:0 analyzer/functional [FunctionalCodegen] Cannot generate JavaScript for this module.
-
-A module header with a module name is required.

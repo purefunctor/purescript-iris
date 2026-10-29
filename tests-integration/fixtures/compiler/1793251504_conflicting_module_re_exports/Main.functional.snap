@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export First { Square }
-
-@export Second { value }
-
-constructor Circle/0
+Module Main rejected; see Main.diagnostics.snap

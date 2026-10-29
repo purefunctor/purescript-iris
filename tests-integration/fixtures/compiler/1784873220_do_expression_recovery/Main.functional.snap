@@ -1,22 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign pure
-
-@export foreign bind
-
-@export foreign discard
-
-@export emptyDo = <error>
-
-@export finalBind = pure 1
-
-@export finalLet = let
-  value%0 = 1
-in <error>
-
-@export missingDoAction = (<error>) (\value%1 -> pure value%1)
-
-@export missingFinalBindAction = <error>
-
-@export missingFinalDiscardAction = <error>
+Module Main rejected; see Main.diagnostics.snap

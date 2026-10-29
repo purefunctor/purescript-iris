@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export show = \dictionary%0 -> dictionary%0.show
-
-@export instance showInt = { show: \x%1 -> x%1 }
+Module Main rejected; see Main.diagnostics.snap

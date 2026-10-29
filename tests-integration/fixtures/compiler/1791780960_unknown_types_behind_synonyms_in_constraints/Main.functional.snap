@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export needsInvalid = \constrainedInvalidDict%0 -> 0
-
-@export usesInvalid = needsInvalid (<error>)
-
-@export needsWrapped = \constrainedWrappedDict%1 -> 0
-
-@export usesWrapped = needsWrapped (<error>)
-
-@export needsLoop = \constrainedLoopDict%2 -> 0
-
-@export usesLoop = needsLoop (<error>)
+Module Main rejected; see Main.diagnostics.snap

@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export instance pickSame = \compareAAEQDict%0 -> {  }
-
-@export instance pickFallback = {  }
-
-@export choose = \pickABResultDict%3 -> \$proxy%1@(_) $proxy%2@(_) -> "Proxy"
-
-@export x = choose (pickSame <trivial evidence>) "Proxy" "Proxy"
+Module Main rejected; see Main.diagnostics.snap

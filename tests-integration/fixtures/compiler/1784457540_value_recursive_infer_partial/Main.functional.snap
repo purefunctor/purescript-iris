@@ -1,7 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export partialValue = \partialDict%0 -> 0
-
-@export recursive[1] test = \partialDict%1 ->
-  if true then test else partialValue partialDict%1
+Module Main rejected; see Main.diagnostics.snap

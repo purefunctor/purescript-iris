@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Proxy/0
-
-@export showP = \dictionary%0 -> dictionary%0.showP
-
-@export instance showPFirst = { showP: \$proxy%1@(_) -> "first" }
-
-@export instance showPSecond = { showP: \$proxy%2@(_) -> "second" }
-
-@export value = showP showPFirst "Proxy"
+Module Main rejected; see Main.diagnostics.snap

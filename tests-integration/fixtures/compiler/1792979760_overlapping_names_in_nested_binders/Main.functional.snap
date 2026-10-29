@@ -1,19 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Pair/2
-
-@export acrossArguments = \x%1 $pair%2@(Pair _ x%0) -> x%0
-
-@export constructor = \$pair%5@(Pair x%4 x%3) -> x%3
-
-@export operator = \$pair%8@(Pair x%7 x%6) -> x%6
-
-@export array = \$array%9 ->
-  case $array%9 of
-    [x%10, x%11] ->
-      x%11
-    _ ->
-      0
-
-@export named = \x%12@(Pair x%13 _) -> 0
+Module Main rejected; see Main.diagnostics.snap

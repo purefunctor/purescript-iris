@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Pair/2
-
-@export convert = \dictionary%0 -> dictionary%0.convert
-
-@export instance convertIntString = { convert: \$int%1@(_) -> "" }
-
-@export instance convertPairIntStringBoolean = { convert: \$pair%2@(_) -> true }
-
-@export instance convert1 = { convert: \value%3 -> value%3 }
-
-@export instance convertPair = { convert: \value%4 -> { tag: "Pair", _1: value%4, _2: value%4 } }
+Module Main rejected; see Main.diagnostics.snap

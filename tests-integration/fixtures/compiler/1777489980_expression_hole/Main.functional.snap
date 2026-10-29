@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export hole = <error>
+Module Main rejected; see Main.diagnostics.snap

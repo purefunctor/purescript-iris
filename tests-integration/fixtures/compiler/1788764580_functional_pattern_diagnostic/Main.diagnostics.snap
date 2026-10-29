@@ -9,14 +9,3 @@ Error! · [NotInScope] · Main.purs:4:6
   │   test Missing = 1
   │        ╰──────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:4:6
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ A pattern could not be translated from its checked representation.
-  │
-  │   test Missing = 1
-  │        ╰──────
-  •

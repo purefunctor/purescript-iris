@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = \$record%2@({ outer: { x: x%0, y: y%1 } }) -> x%0
+Module Main rejected; see Main.diagnostics.snap

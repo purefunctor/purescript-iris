@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Identity/1
+Module Main rejected; see Main.diagnostics.snap

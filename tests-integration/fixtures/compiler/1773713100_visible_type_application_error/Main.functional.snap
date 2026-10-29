@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export identity = \a%0 -> a%0
-
-@export test = <error>
+Module Main rejected; see Main.diagnostics.snap

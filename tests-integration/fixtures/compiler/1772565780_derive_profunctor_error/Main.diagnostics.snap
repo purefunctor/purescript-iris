@@ -27,14 +27,3 @@ Error! · [CovariantOccurrence] · Main.purs:9:1
   │   derive instance Profunctor WrongSecond
   │   ╰─────────────────────────────────────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:1:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The checked representation of an instance declaration is unavailable.
-  │
-  │   module Main where
-  │   ╰────────────────
-  •

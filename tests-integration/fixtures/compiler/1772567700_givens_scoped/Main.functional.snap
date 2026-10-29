@@ -1,15 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export consume = \dictionary%0 -> dictionary%0.consume
-
-@export testGiven = \givenADict%1 ->
-  \a%2 ->
-    let
-      b%4 = \givenIntDict%6 ->
-        let
-          consumeInt%5 = consume givenIntDict%6 42
-        in a%2
-    in let
-      c%3 = consume (<error>) 42
-    in consume givenADict%1 a%2
+Module Main rejected; see Main.diagnostics.snap

@@ -25,14 +25,3 @@ Error! · [NoInstanceFound] · Main.purs:43:1
   │
   │   Eq t1 is in scope
   •
-
-Error! · [FunctionalCodegen] · Main.purs:1:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The checked representation of an instance declaration is unavailable.
-  │
-  │   module Main where
-  │   ╰────────────────
-  •

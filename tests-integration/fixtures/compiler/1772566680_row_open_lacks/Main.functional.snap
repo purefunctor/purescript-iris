@@ -1,15 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Proxy/0
-
-@export lacksOpen = \lacksRowDict%1 -> \$proxy%0@(_) -> 0
-
-@export lacksPresent = \lacksRowDict%3 -> \$proxy%2@(_) -> 0
-
-@export empty = "Proxy"
-
-@export forceSolve = {
-  lacksOpen: lacksOpen <trivial evidence> empty,
-  lacksPresent: lacksPresent (<error>) empty
-}
+Module Main rejected; see Main.diagnostics.snap

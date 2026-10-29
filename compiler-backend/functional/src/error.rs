@@ -10,6 +10,8 @@ pub type ModuleResult<T> = Result<T, ModuleError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ModuleError {
+    #[error("checked module {file_id:?} has source errors")]
+    SourceErrors { file_id: FileId },
     #[error("cannot convert checked module {file_id:?}: {state}")]
     Unsupported { file_id: FileId, state: UnsupportedState },
 }

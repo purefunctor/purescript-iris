@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export unresolvedBind = (<error>) 1 (\value%0 -> value%0)
-
-@export unresolvedDiscard = (<error>) 1 (\$argument0%1@(_) -> 2)
+Module Main rejected; see Main.diagnostics.snap

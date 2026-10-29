@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export identity = \value%0 -> value%0
-
-@export apply = \function%1 argument%2 -> function%1 argument%2
-
-@export orphan = <error>
-
-@export orphanInLambda = \value%3 -> <error>
-
-@export failedBody = \section56%4 -> apply section56%4 (<error>)
-
-@export invalidExpected = \section67%5 -> identity section67%5
+Module Main rejected; see Main.diagnostics.snap

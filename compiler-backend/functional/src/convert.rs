@@ -62,6 +62,11 @@ pub fn convert_module(
     queries: &impl checking::ExternalQueries,
     file_id: FileId,
 ) -> QueryResult<ModuleResult<Module>> {
+    if checking::has_source_errors(queries, file_id)?
+        || checking::has_checking_errors(queries, file_id)?
+    {
+        return Ok(Err(ModuleError::SourceErrors { file_id }));
+    }
     match convert_module_inner(queries, file_id) {
         Ok(module) => Ok(Ok(module)),
         Err(ConversionError::Query(error)) => Err(error),

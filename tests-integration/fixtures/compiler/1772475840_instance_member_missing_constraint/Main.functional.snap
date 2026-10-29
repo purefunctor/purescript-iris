@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export show = \dictionary%0 -> dictionary%0.show
-
-@export constructor Box/1
-
-@export instance showBox = { show: \$box%2@(Box x%1) -> show (<error>) x%1 }
+Module Main rejected; see Main.diagnostics.snap

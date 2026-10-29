@@ -9,14 +9,3 @@ Error! · [CannotUnify] · Main.purs:7:6
   │   test (a :+ b) = 1
   │        ╰───────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:7:7
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ A pattern could not be translated from its checked representation.
-  │
-  │   test (a :+ b) = 1
-  │         ╰─────
-  •

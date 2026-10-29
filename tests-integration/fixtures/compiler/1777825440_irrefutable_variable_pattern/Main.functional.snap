@@ -1,27 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export variable = \section16%0 ->
-  case section16%0 of
-    [x%1] ->
-      x%1
-    xs%2 ->
-      | length%3 <- arrayLength xs%2 -> length%3
-
-@export wildcard = \section49%4 ->
-  case section49%4 of
-    [x%5] ->
-      x%5
-    xs%6 ->
-      | _ <- arrayLength xs%6 -> 0
-
-@export refutable = \section82%7 ->
-  (\partialDict%8 ->
-    case section82%7 of
-      [x%9] ->
-        x%9
-      xs%10 ->
-        | [y%11] <- xs%10 -> y%11)
-    (<error>)
-
-@export foreign arrayLength
+Module Main rejected; see Main.diagnostics.snap

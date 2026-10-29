@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Nothing/0
-
-@export constructor Just/1
-
-@export constructor Left/1
-
-@export constructor Right/1
-
-@export coerceDifferent = coerce (<error>)
+Module Main rejected; see Main.diagnostics.snap

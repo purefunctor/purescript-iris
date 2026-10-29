@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export unionTypeMismatch = \unionLRowRowDict%0 -> "Proxy"
-
-@export consMissingLabel = \consIntTRowDict%1 -> "Proxy"
-
-@export lacksPresent = \lacksRowDict%2 -> "Proxy"
-
-@export forceSolve = {
-  unionTypeMismatch: unionTypeMismatch <trivial evidence>,
-  consMissingLabel: consMissingLabel <trivial evidence>,
-  lacksPresent: lacksPresent (<error>)
-}
+Module Main rejected; see Main.diagnostics.snap

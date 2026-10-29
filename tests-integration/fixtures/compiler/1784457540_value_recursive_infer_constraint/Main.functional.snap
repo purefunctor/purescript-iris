@@ -1,7 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export append = \dictionary%0 -> dictionary%0.append
-
-@export recursive[1] test = \semigroupDict%1 ->
-  \value%2 -> append semigroupDict%1 value%2 (test value%2)
+Module Main rejected; see Main.diagnostics.snap

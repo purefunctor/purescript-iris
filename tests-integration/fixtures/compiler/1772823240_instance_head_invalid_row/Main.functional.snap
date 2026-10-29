@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Proxy/0
-
-@export instance tRowTypeRow = {  }
-
-@export instance tTypeRecordRow = {  }
-
-@export instance tTypeProxyRowTypeRow = {  }
-
-@export instance tTypeProxyTypeRecordRow = {  }
+Module Main rejected; see Main.diagnostics.snap

@@ -1,19 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign unit
-
-@export foreign pure
-
-@export foreign map
-
-@export foreign apply
-
-@export thing1 = pure "hello"
-
-@export test = map
-  (\a%0 ->
-    let
-      f%1 = a%0
-    in unit)
-  thing1
+Module Main rejected; see Main.diagnostics.snap

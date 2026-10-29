@@ -1,7 +1,0 @@
----
-source: tests-integration/src/fixtures.rs
----
-foreign import observe :: Prim.Int -> Prim.Int
-
-broken :: Prim.Array Prim.Int
-broken = [observe 1, <error>]

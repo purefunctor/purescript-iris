@@ -9,14 +9,3 @@ Error! · [CannotUnify] · Main.purs:7:1
   │   derive instance ordTest :: Ord Test
   │   ╰──────────────────────────────────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:7:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ A pattern could not be translated from its checked representation.
-  │
-  │   derive instance ordTest :: Ord Test
-  │   ╰──────────────────────────────────
-  •

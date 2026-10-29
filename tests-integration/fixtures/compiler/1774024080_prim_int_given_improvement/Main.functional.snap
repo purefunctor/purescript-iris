@@ -1,11 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export addChain = \addNDict%0 addNMDict%1 -> "Proxy"
-
-@export addContradiction = \addDict%2 addMDict%3 -> "Proxy"
-
-@export forceSolve = {
-  addChain: addChain <trivial evidence> <trivial evidence>,
-  addContradiction: addContradiction (<error>) <trivial evidence>
-}
+Module Main rejected; see Main.diagnostics.snap

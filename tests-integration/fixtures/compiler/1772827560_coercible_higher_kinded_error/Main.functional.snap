@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Nothing/0
-
-@export constructor Just/1
-
-@export constructor Nil/0
-
-@export constructor Cons/2
-
-@export coerceContainerDifferent = coerce <trivial evidence>
+Module Main rejected; see Main.diagnostics.snap

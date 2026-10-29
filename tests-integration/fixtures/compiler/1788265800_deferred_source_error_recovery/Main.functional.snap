@@ -1,8 +1,0 @@
----
-source: tests-integration/src/fixtures.rs
----
-@export usable = 42
-
-@export deferred = \$int%0@(_) -> <error>
-
-@export nested = \$int%1@(_) $int%2@(_) -> <error>

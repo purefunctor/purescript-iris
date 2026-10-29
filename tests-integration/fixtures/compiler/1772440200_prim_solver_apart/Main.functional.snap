@@ -1,22 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export invalidAdd = \addDict%0 -> "Proxy"
-
-@export invalidCompare = \compareLTDict%1 -> "Proxy"
-
-@export invalidAppend = \appendDict%2 -> "Proxy"
-
-@export invalidCons = \consDict%3 -> "Proxy"
-
-@export forceSolve = {
-  invalidAdd: invalidAdd (<error>),
-  invalidCompare: invalidCompare (<error>),
-  invalidAppend: invalidAppend (<error>),
-  invalidCons: invalidCons (<error>)
-}
-
-@export forceSolveChecked = {
-  invalidCompare: invalidCompare (<error>),
-  invalidCons: invalidCons (<error>)
-}
+Module Main rejected; see Main.diagnostics.snap

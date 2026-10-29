@@ -1,26 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export pick = \dictionary%0 -> dictionary%0.pick
-
-@export instance pickBoolean = { pick: \$boolean%1@(_) -> "boolean" }
-
-@export instance pickArray = { pick: \$array%2@(_) -> "invalid" }
-
-@export instance pick1 = { pick: \$a%3@(_) -> "other" }
-
-@export picksBoolean = pick (<error>) true
-
-@export picksString = pick (<error>) "string"
-
-@export picksArray = pick (<error>) [1]
-
-@export single = \dictionary%4 -> dictionary%4.single
-
-@export instance single1 = { single: \$argument0%5@(_) -> "invalid" }
-
-@export instance singleBoolean1 = { single: \$boolean%6@(_) -> "boolean" }
-
-@export singleInt = single (<error>) 1
-
-@export singleBoolean = single singleBoolean1 true
+Module Main rejected; see Main.diagnostics.snap

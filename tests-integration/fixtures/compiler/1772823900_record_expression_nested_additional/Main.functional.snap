@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = { outer: { x: 1, y: 2 } }
+Module Main rejected; see Main.diagnostics.snap

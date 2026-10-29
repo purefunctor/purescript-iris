@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export punAndArgument = \$record%2@({ x: x%1 }) x%0 -> x%0
-
-@export punAndField = \$record%5@({ a: x%3, x: x%4 }) -> x%3
-
-@export fields = \$record%8@({ a: x%7, b: x%6 }) -> x%6
+Module Main rejected; see Main.diagnostics.snap

@@ -1,21 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Pair/2
-
-@export multipleScrutinees = \a%0 b%1 ->
-  case a%0, b%1 of
-    x%2, x%3 ->
-      x%3
-
-@export singleScrutinee = \p%4 ->
-  case p%4 of
-    Pair x%5 x%6 ->
-      x%6
-
-@export separateBranches = \a%7 b%8 ->
-  case a%7, b%8 of
-    0, x%9 ->
-      x%9
-    x%10, _ ->
-      x%10
+Module Main rejected; see Main.diagnostics.snap

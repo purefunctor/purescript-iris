@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export coerceHidden = coerce (<error>)
+Module Main rejected; see Main.diagnostics.snap

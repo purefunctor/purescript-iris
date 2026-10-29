@@ -9,12 +9,3 @@ Error! · [CustomFailure] · Main.purs:8:31
   │   test = if true then test else guardedFailure
   │                                 ╰─────────────
   •
-
-Error! · [JavaScriptInitializerCycle] · Main.purs:8:1
-  •
-  │
-  • This declaration is cyclic with other declarations
-  │
-  │   test = if true then test else guardedFailure
-  │   ╰───────────────────────────────────────────
-  •

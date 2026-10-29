@@ -1,17 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Proxy/0
-
-@export rightmostDuplicate = \unionLRowRowDict%0 -> "Proxy"
-
-@export leftmostDuplicateMismatch = \unionLRowRowDict%1 -> "Proxy"
-
-@export openOutputBackwards = \unionLRowRowDict%2 -> "Proxy"
-
-@export forceSolve = \unionRowRowDict%3 ->
-  {
-    rightmostDuplicate: rightmostDuplicate <trivial evidence>,
-    leftmostDuplicateMismatch: leftmostDuplicateMismatch <trivial evidence>,
-    openOutputBackwards: openOutputBackwards unionRowRowDict%3
-  }
+Module Main rejected; see Main.diagnostics.snap

@@ -1,18 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export lift = \dictionary%0 -> dictionary%0.lift
-
-@export constructor Wrap/1
-
-@export instance transformWrap = { lift: Wrap }
-
-@export render = \dictionary%1 -> dictionary%1.render
-
-@export renderer = \dictionary%2 -> dictionary%2.renderer
-
-@export instance rendererString = { renderer: \renderADict%3 -> render renderADict%3 }
-
-@export liftPlain = \dictionary%4 -> dictionary%4.liftPlain
-
-@export instance transformPlainWrap = { liftPlain: \functorFDict%5 -> Wrap }
+Module Main rejected; see Main.diagnostics.snap

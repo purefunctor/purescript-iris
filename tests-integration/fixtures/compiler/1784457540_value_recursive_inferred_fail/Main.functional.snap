@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export guardedFailure = \failTextDict%0 -> 0
-
-@export recursive[1] test = if true then test else guardedFailure (<error>)
+Module Main rejected; see Main.diagnostics.snap

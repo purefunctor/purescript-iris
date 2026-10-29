@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export styles = stylex.create { base: { color: "red" } }
-
-@export baseStyle = (stylex.props styles.base).style
+Module Main rejected; see Main.diagnostics.snap
