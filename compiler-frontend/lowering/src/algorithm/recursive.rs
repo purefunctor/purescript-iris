@@ -147,6 +147,10 @@ fn lower_binder_kind(
                     lower_qualified_name(context.source, &cst, cst::QualifiedName::upper)?;
                 state.resolve_term_reference(context, qualifier.as_deref(), &name)
             });
+            if resolution.is_none() {
+                let id = context.stabilized.lookup_cst(cst).expect_id();
+                state.errors.push(LoweringError::NotInScope(NotInScope::BinderConstructor { id }));
+            }
             let arguments = cst.children().map(|cst| lower_binder(state, context, &cst)).collect();
             BinderKind::Constructor { resolution, arguments }
         }

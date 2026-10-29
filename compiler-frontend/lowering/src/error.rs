@@ -37,6 +37,7 @@ pub enum BinderNameSource {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum NotInScope {
+    BinderConstructor { id: AstId<cst::BinderConstructor> },
     ExprConstructor { id: AstId<cst::ExpressionConstructor> },
     ExprVariable { id: AstId<cst::ExpressionVariable> },
     ExprOperatorName { id: AstId<cst::ExpressionOperatorName> },

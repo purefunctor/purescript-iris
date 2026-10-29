@@ -1,6 +1,15 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [NotInScope] · Main.purs:4:6
+  •
+  │
+  • 'Missing' is not in scope
+  │
+  │   test Missing = 1
+  │        ╰──────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:4:6
   •
   │
