@@ -4,7 +4,7 @@ export function readBeforeWrite(value) {
     let reference = value;
     const before = reference;
     const $value = value + (4 | 0) | 0;
-    const $unit = reference = $value;
+    reference = $value;
     const after = reference;
     const $value$1 = (before * (10 | 0) | 0) + after | 0;
     return $value$1;
@@ -30,7 +30,7 @@ export function escapes(value) {
   return () => {
     const reference = { value };
     const $value = value * (2 | 0) | 0;
-    const $unit = reference.value = $value;
+    reference.value = $value;
     return reference;
   };
 }

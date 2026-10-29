@@ -298,6 +298,14 @@ impl<'a> Writer<'a> {
         ));
     }
 
+    pub(crate) fn expression_statement(&mut self, tree: &mut Tree<'a>, value: ExpressionId) {
+        self.statements.push(Statement::new_expression_statement(
+            self.span(),
+            tree.expression(value),
+            &self.builder,
+        ));
+    }
+
     pub(crate) fn return_expression(&mut self, tree: &mut Tree<'a>, value: ExpressionId) {
         self.statements.push(Statement::new_return_statement(
             self.span(),

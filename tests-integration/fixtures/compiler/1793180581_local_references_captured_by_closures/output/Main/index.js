@@ -8,7 +8,7 @@ export function delayedRead(value) {
     };
     const readLater = $effect;
     const $value = value + (6 | 0) | 0;
-    const $unit = reference = $value;
+    reference = $value;
     return readLater();
   };
 }

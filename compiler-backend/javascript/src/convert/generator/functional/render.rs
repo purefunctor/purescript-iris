@@ -20,7 +20,7 @@ use functional::tree::{
     CaseAlternative, Declaration, DeclarationKind, EffectExpression,
     ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
     GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
-    PatternId, PatternKind, RecordField, RecordUpdate, Storage,
+    PatternId, PatternKind, RecordField, RecordUpdate, Storage, WriteResult,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -126,18 +126,25 @@ enum CapturedEffect {
 enum CapturedOperation {
     ReferenceNew { value: ExpressionId },
     ReferenceRead { target: ExpressionId },
-    ReferenceWrite { target: ExpressionId, value: ExpressionId },
+    ReferenceWrite { target: ExpressionId, value: ExpressionId, result: WriteResult },
     UncurriedApplication { function: ExpressionId, arguments: Vec<ExpressionId> },
 }
 
 impl CapturedOperation {
-    fn result(self, tree: &mut Tree) -> ExpressionId {
+    fn execute<'t>(self, tree: &mut Tree<'t>, writer: &mut Writer<'t>) -> ExpressionId {
         match self {
             CapturedOperation::ReferenceNew { value } => {
                 tree.object(vec![ObjectProperty::Field { name: "value".into(), value }])
             }
             CapturedOperation::ReferenceRead { target } => target,
-            CapturedOperation::ReferenceWrite { target, value } => tree.assignment(target, value),
+            CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Value } => {
+                tree.assignment(target, value)
+            }
+            CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit } => {
+                let assignment = tree.assignment(target, value);
+                writer.expression_statement(tree, assignment);
+                tree.undefined()
+            }
             CapturedOperation::UncurriedApplication { function, arguments } => {
                 tree.call(function, arguments)
             }
@@ -3397,10 +3404,15 @@ fn capture_effect(
             let target = capture_reference_target(renderer, *reference)?;
             Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { target }))
         }
-        EffectExpression::ReferenceWrite { reference, value } => {
+        EffectExpression::ReferenceWrite { reference, value, result } => {
             let target = capture_reference_target(renderer, *reference)?;
             let value = capture_effect_value(renderer, *value, "$value")?;
-            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { target, value }))
+            let result = *result;
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite {
+                target,
+                value,
+                result,
+            }))
         }
         EffectExpression::UncurriedApplication { function, arguments } => {
             let function = capture_effect_value(renderer, *function, "$function")?;
@@ -3451,7 +3463,7 @@ fn reference_stays_local(
             ExpressionKind::Effect { effect: EffectExpression::ReferenceRead(operand) }
                 if is_reference(*operand) => {}
             ExpressionKind::Effect {
-                effect: EffectExpression::ReferenceWrite { reference: operand, value },
+                effect: EffectExpression::ReferenceWrite { reference: operand, value, .. },
             } if is_reference(*operand) => pending.push(*value),
             kind => for_each_expression_child(kind, |child| pending.push(child)),
         }
@@ -3530,6 +3542,19 @@ fn execute_effect(
                 let value = renderer.tree.duplicate(value);
                 renderer.writer.mutable_value(renderer.tree, &name, value);
                 renderer.context.bind_reference(&parameter, name);
+            } else if let CapturedEffectAction::Effect(effect) = &action
+                && let CapturedEffect::Operation(CapturedOperation::ReferenceWrite {
+                    target,
+                    value,
+                    result: WriteResult::Unit,
+                }) = effect.as_ref()
+            {
+                let target = renderer.tree.duplicate(target);
+                let value = renderer.tree.duplicate(value);
+                let operation =
+                    CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit };
+                let result = operation.execute(renderer.tree, renderer.writer);
+                renderer.context.bind_inline(&parameter, result);
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3554,7 +3579,7 @@ fn execute_effect(
             Ok(())
         }
         CapturedEffect::Operation(operation) => {
-            let result = operation.result(renderer.tree);
+            let result = operation.execute(renderer.tree, renderer.writer);
             renderer.generator.render_destination(
                 renderer.tree,
                 renderer.writer,
@@ -3593,7 +3618,9 @@ fn execute_effect_action_value(
             Ok(renderer.tree.call(value, Vec::new()))
         }
         CapturedEffectAction::Effect(effect) => match *effect {
-            CapturedEffect::Operation(operation) => Ok(operation.result(renderer.tree)),
+            CapturedEffect::Operation(operation) => {
+                Ok(operation.execute(renderer.tree, renderer.writer))
+            }
             effect => {
                 let name = renderer.context.allocate(preferred_name);
                 renderer.writer.mutable(&name);
@@ -3621,7 +3648,7 @@ fn execute_effect_action(
                 renderer.writer.constant(renderer.tree, &name, value, false);
             }
             CapturedEffect::Operation(operation) => {
-                let value = operation.result(renderer.tree);
+                let value = operation.execute(renderer.tree, renderer.writer);
                 renderer.writer.constant(renderer.tree, &name, value, false);
             }
             effect => {
@@ -3969,7 +3996,7 @@ fn collect_expression_references(
             EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
                 collect_expression_references(module, *value, seen, globals);
             }
-            EffectExpression::ReferenceWrite { reference, value } => {
+            EffectExpression::ReferenceWrite { reference, value, .. } => {
                 collect_expression_references(module, *reference, seen, globals);
                 collect_expression_references(module, *value, seen, globals);
             }
@@ -4206,7 +4233,7 @@ fn collect_expression_children(
             EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
                 collect_expression_globals(module, *value, false, globals);
             }
-            EffectExpression::ReferenceWrite { reference, value } => {
+            EffectExpression::ReferenceWrite { reference, value, .. } => {
                 collect_expression_globals(module, *reference, false, globals);
                 collect_expression_globals(module, *value, false, globals);
             }

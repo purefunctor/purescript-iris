@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 @export readBeforeWrite = \value%0 ->
   effect.bind (reference.new value%0)
     \reference%1 -> effect.bind (reference.read reference%1)
-      \before%2 -> effect.bind (reference.write reference%1 (integer.add value%0 4))
+      \before%2 -> effect.bind (reference.write.unit reference%1 (integer.add value%0 4))
         \$unit%3 -> effect.bind (reference.read reference%1)
           \after%4 -> effect.pure (integer.add (integer.multiply before%2 10) after%4)
 
@@ -19,7 +19,7 @@ source: tests-integration/src/fixtures.rs
 
 @export escapes = \value%13 ->
   effect.bind (reference.new value%13)
-    \reference%14 -> effect.bind (reference.write reference%14 (integer.multiply value%13 2))
+    \reference%14 -> effect.bind (reference.write.unit reference%14 (integer.multiply value%13 2))
       \$unit%15 -> effect.pure reference%14
 
 @export passedToFunction = \value%16 ->
