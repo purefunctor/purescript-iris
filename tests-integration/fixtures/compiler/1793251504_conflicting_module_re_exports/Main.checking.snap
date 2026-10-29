@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Circle :: Main.Shape
+
+Types
+Shape :: Prim.Type
+
+Roles
+Shape = []
