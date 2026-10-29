@@ -317,6 +317,9 @@ impl ToDiagnostics for LoweringError {
                     lowering::NotInScope::ExprOperatorName { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
+                    lowering::NotInScope::ExprRecordPun { id } => {
+                        (context.stabilized.syntax_ptr(*id), None)
+                    }
                     lowering::NotInScope::TypeClass { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }

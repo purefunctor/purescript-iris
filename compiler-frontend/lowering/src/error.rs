@@ -41,6 +41,7 @@ pub enum NotInScope {
     ExprConstructor { id: AstId<cst::ExpressionConstructor> },
     ExprVariable { id: AstId<cst::ExpressionVariable> },
     ExprOperatorName { id: AstId<cst::ExpressionOperatorName> },
+    ExprRecordPun { id: AstId<cst::RecordPun> },
     TypeClass { id: AstId<cst::InstanceHead> },
     TypeConstructor { id: AstId<cst::TypeConstructor> },
     TypeVariable { id: AstId<cst::TypeVariable> },

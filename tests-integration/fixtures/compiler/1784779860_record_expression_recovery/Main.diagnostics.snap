@@ -1,4 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-
+Error! · [NotInScope] · Main.purs:6:19
+  •
+  │
+  • 'missing' is not in scope
+  │
+  │   unresolvedPun = { missing }
+  │                     ╰──────
+  •

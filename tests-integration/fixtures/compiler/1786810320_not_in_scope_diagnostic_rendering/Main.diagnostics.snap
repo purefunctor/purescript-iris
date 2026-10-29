@@ -145,6 +145,15 @@ Error! · [NotInScope] · Main.purs:26:15
   │                 ╰─────
   •
 
+Error! · [NotInScope] · Main.purs:28:16
+  •
+  │
+  • 'absent' is not in scope
+  │
+  │   missingPun = { absent }
+  │                  ╰─────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:32:1
   •
   │

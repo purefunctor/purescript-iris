@@ -585,6 +585,12 @@ fn lower_expression_kind(
                         state.resolve_term_full(context, qualifier, name)
                     });
 
+                    if resolution.is_none() {
+                        state
+                            .errors
+                            .push(LoweringError::NotInScope(NotInScope::ExprRecordPun { id }));
+                    }
+
                     state.associate_record_pun(id, resolution);
                     ExpressionRecordItem::RecordPun { id, name, resolution }
                 }
