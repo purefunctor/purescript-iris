@@ -356,6 +356,12 @@ impl ToDiagnostics for LoweringError {
                     lowering::NotInScope::TypeOperator { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
+                    lowering::NotInScope::TermOperatorTarget { id } => {
+                        (context.stabilized.syntax_ptr(*id), None)
+                    }
+                    lowering::NotInScope::TypeOperatorTarget { id } => {
+                        (context.stabilized.syntax_ptr(*id), None)
+                    }
                 };
 
                 let Some(ptr) = ptr else { return Ok(Vec::new()) };
@@ -368,6 +374,12 @@ impl ToDiagnostics for LoweringError {
                     lowering::NotInScope::TypeClass { id } => {
                         context.stabilized.ast_ptr(*id).and_then(|ptr| {
                             context.span_from_ast_ptr_child(&ptr, cst::InstanceHead::qualified)
+                        })
+                    }
+                    lowering::NotInScope::TermOperatorTarget { id }
+                    | lowering::NotInScope::TypeOperatorTarget { id } => {
+                        context.stabilized.ast_ptr(*id).and_then(|ptr| {
+                            context.span_from_ast_ptr_child(&ptr, cst::InfixDeclaration::qualified)
                         })
                     }
                     _ => context.span_from_syntax_ptr(&ptr),

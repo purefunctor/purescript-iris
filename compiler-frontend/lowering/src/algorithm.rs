@@ -523,6 +523,12 @@ fn lower_term_item(
                 state.resolve_term_reference(context, qualifier.as_deref(), &name)
             });
 
+            if resolution.is_none() {
+                state
+                    .errors
+                    .push(LoweringError::NotInScope(NotInScope::TermOperatorTarget { id: *id }));
+            }
+
             let kind = TermItemKind::Operator { associativity, precedence, resolution };
             state.tree.term_items.insert(item_id, kind);
         }
@@ -848,6 +854,12 @@ fn lower_type_item(
                 )?;
                 state.resolve_type_reference(context, qualifier.as_deref(), &name)
             });
+
+            if resolution.is_none() {
+                state
+                    .errors
+                    .push(LoweringError::NotInScope(NotInScope::TypeOperatorTarget { id: *id }));
+            }
 
             state.end_kind();
 

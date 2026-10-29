@@ -51,6 +51,8 @@ pub enum NotInScope {
     NegateFn { id: AstId<cst::ExpressionNegate> },
     TermOperator { id: AstId<cst::TermOperator> },
     TypeOperator { id: AstId<cst::TypeOperator> },
+    TermOperatorTarget { id: AstId<cst::InfixDeclaration> },
+    TypeOperatorTarget { id: AstId<cst::InfixDeclaration> },
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -154,6 +154,24 @@ Error! · [NotInScope] · Main.purs:28:16
   │                  ╰─────
   •
 
+Error! · [NotInScope] · Main.purs:32:9
+  •
+  │
+  • 'missingOperatorName' is not in scope
+  │
+  │   infix 5 missingOperatorName as <+>
+  │           ╰──────────────────
+  •
+
+Error! · [NotInScope] · Main.purs:33:14
+  •
+  │
+  • 'MissingTypeOperatorName' is not in scope
+  │
+  │   infix 5 type MissingTypeOperatorName as +
+  │                ╰──────────────────────
+  •
+
 Error! · [FunctionalCodegen] · Main.purs:32:1
   •
   │
