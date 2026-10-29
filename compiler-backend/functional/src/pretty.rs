@@ -7,7 +7,7 @@ use crate::tree::{
     ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
     ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module,
     Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence,
-    ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
+    ReflectableOrdering, SynthesizedEvidence, UnaryOperator, WriteResult,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -543,7 +543,11 @@ impl<'a> Printer<'a, '_> {
                 let reference = self.expression_at(*reference, ExpressionPrecedence::Atom);
                 self.arena.text("reference.read ").append(reference)
             }
-            EffectExpression::ReferenceWrite { reference, value } => {
+            EffectExpression::ReferenceWrite { reference, value, result } => {
+                let operation = match result {
+                    WriteResult::Value => "reference.write",
+                    WriteResult::Unit => "reference.write.unit",
+                };
                 let reference = self.expression_at(*reference, ExpressionPrecedence::Atom);
                 let value = self.expression_at(*value, ExpressionPrecedence::Atom);
                 let arguments = self
@@ -553,7 +557,7 @@ impl<'a> Printer<'a, '_> {
                     .append(self.arena.line())
                     .append(value)
                     .nest(2);
-                self.arena.text("reference.write").append(arguments).group()
+                self.arena.text(operation).append(arguments).group()
             }
             EffectExpression::UncurriedApplication { function, arguments } => {
                 let function = self.expression_at(*function, ExpressionPrecedence::Application);

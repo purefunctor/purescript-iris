@@ -5,7 +5,8 @@ source: tests-integration/src/fixtures.rs
   effect.bind (reference.new value%0)
     \reference%1 -> let
       readLater%3 = reference.read reference%1
-    in effect.bind (reference.write reference%1 (integer.add value%0 6)) \$unit%2 -> readLater%3
+    in effect.bind (reference.write.unit reference%1 (integer.add value%0 6))
+      \$unit%2 -> readLater%3
 
 @export closureWrites = effect.bind (reference.new 0)
   \reference%4 -> let

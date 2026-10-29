@@ -11,7 +11,8 @@ export function readCounter(counter) {
 }
 export function resetCounter(counter) {
   return () => {
-    return counter.value = 0 | 0;
+    counter.value = 0 | 0;
+    return undefined;
   };
 }
 export function incrementCounter(counter) {
@@ -40,7 +41,7 @@ export function countTwice(value) {
     const $value = section163 * (2 | 0) | 0;
     $int = counter = $value;
     const $value$1 = value + (1 | 0) | 0;
-    const $unit = counter = $value$1;
+    counter = $value$1;
     let next;
     const section190 = counter;
     const $value$2 = section190 * (10 | 0) | 0;

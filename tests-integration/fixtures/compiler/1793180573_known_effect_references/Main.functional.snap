@@ -5,7 +5,7 @@ source: tests-integration/src/fixtures.rs
 
 @export readCounter = \counter%1 -> reference.read counter%1
 
-@export resetCounter = \counter%2 -> reference.write counter%2 0
+@export resetCounter = \counter%2 -> reference.write.unit counter%2 0
 
 @export incrementCounter = \counter%4 ->
   effect.bind (reference.read counter%4)
@@ -22,7 +22,7 @@ source: tests-integration/src/fixtures.rs
   effect.bind (reference.new value%10)
     \counter%11 -> effect.bind (effect.bind (reference.read counter%11)
       \section163%12 -> reference.write counter%11 (integer.multiply section163%12 2))
-      \$int%13 -> effect.bind (reference.write counter%11 (integer.add value%10 1))
+      \$int%13 -> effect.bind (reference.write.unit counter%11 (integer.add value%10 1))
         \$unit%14 -> effect.bind (effect.bind (reference.read counter%11)
           \section190%15 -> reference.write counter%11 (integer.multiply section190%15 10))
           \next%16 -> effect.bind (reference.read counter%11)

@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+writeResult :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+boundWriteResult :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+localWriteResult :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+Types

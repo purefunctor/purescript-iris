@@ -351,8 +351,14 @@ pub enum EffectExpression {
     Apply { function_action: ExpressionId, argument_action: ExpressionId },
     ReferenceNew(ExpressionId),
     ReferenceRead(ExpressionId),
-    ReferenceWrite { reference: ExpressionId, value: ExpressionId },
+    ReferenceWrite { reference: ExpressionId, value: ExpressionId, result: WriteResult },
     UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]> },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WriteResult {
+    Value,
+    Unit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

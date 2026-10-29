@@ -10,7 +10,7 @@ use crate::optimize::local_uses;
 use crate::tree::{
     ArrayElement, BinaryOperator, Binding, CaseAlternative, Comparison, EffectExpression,
     ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter,
-    PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
+    PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator, WriteResult,
 };
 
 use super::{Context, ConversionResult};
@@ -74,7 +74,8 @@ const UNCURRIED_EFFECT_FUNCTIONS: &[(&str, &str, &str)] = &[
     ("Control.Monad.ST.Uncurried", "mkSTFn", "runSTFn"),
 ];
 
-const REFERENCE_MODULES: &[&str] = &["Effect.Ref", "Control.Monad.ST.Internal"];
+const REFERENCE_MODULES: &[(&str, WriteResult)] =
+    &[("Effect.Ref", WriteResult::Unit), ("Control.Monad.ST.Internal", WriteResult::Value)];
 
 struct ClassMemberApplication<'a> {
     class: (FileId, TypeItemId),
@@ -711,7 +712,7 @@ where
         function: ExpressionId,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
-        for module_name in REFERENCE_MODULES {
+        for (module_name, write_result) in REFERENCE_MODULES {
             let effect = if self.known_term(function, module_name, "new")?
                 && let [value] = arguments
             {
@@ -723,7 +724,11 @@ where
             } else if self.known_term(function, module_name, "write")?
                 && let [value, reference] = arguments
             {
-                EffectExpression::ReferenceWrite { reference: *reference, value: *value }
+                EffectExpression::ReferenceWrite {
+                    reference: *reference,
+                    value: *value,
+                    result: *write_result,
+                }
             } else if self.known_term(function, module_name, "modify")?
                 && let [function, reference] = arguments
             {
@@ -759,7 +764,11 @@ where
 
         let written_reference =
             self.expression(ExpressionKind::clone(&self.storage[reference].kind));
-        let effect = EffectExpression::ReferenceWrite { reference: written_reference, value };
+        let effect = EffectExpression::ReferenceWrite {
+            reference: written_reference,
+            value,
+            result: WriteResult::Value,
+        };
         let body = self.expression(ExpressionKind::Effect { effect });
         let effect = EffectExpression::ReferenceRead(reference);
         let action = self.expression(ExpressionKind::Effect { effect });

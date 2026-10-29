@@ -317,7 +317,7 @@ pub fn for_each_evaluated_child(
                 }
                 EffectExpression::ReferenceNew(expression)
                 | EffectExpression::ReferenceRead(expression) => visit(*expression, value),
-                EffectExpression::ReferenceWrite { reference, value: written } => {
+                EffectExpression::ReferenceWrite { reference, value: written, .. } => {
                     visit(*reference, value);
                     visit(*written, value);
                 }
@@ -579,7 +579,7 @@ pub fn try_for_each_expression_child<Error>(
             EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
                 visit(*value)?
             }
-            EffectExpression::ReferenceWrite { reference, value } => {
+            EffectExpression::ReferenceWrite { reference, value, .. } => {
                 visit(*reference)?;
                 visit(*value)?;
             }
