@@ -2,10 +2,9 @@ use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 
-use itertools::Itertools;
 use lexing::Lexed;
 use syntax::ast::AstNode;
-use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, WalkEvent, cst};
+use syntax::{SyntaxKind, SyntaxNode, WalkEvent, cst};
 
 use SyntaxKind::*;
 
@@ -287,31 +286,12 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
             | ExpressionAdo
             | ExpressionInfixChain
             | ExpressionInfixPair
+            | ExpressionOperatorChain
             | ExpressionOperatorPair
             | RecordUpdateLeaf
             | DoStatementDiscard
             | CaseTrunk
             | PatternGuardExpression => has_child(cst::Expression::can_cast),
-            ExpressionOperatorChain => {
-                let elements = node
-                    .children_with_tokens()
-                    .filter(|element| !matches!(element.kind(), Annotation | Qualifier));
-                let elements = elements.collect::<Vec<_>>();
-                let is_expression =
-                    |element: &SyntaxElement| cst::Expression::can_cast(element.kind());
-                let starts_with_operand = || elements.first().is_some_and(is_expression);
-                let ends_with_operand_or_pair = || {
-                    elements.last().is_some_and(|element| {
-                        is_expression(element) || element.kind() == ExpressionOperatorPair
-                    })
-                };
-                let every_operator_has_operand = || {
-                    elements.iter().tuple_windows().all(|(previous, next)| {
-                        previous.kind() != QualifiedName || is_expression(next)
-                    })
-                };
-                starts_with_operand() && ends_with_operand_or_pair() && every_operator_has_operand()
-            }
             ExpressionLambda => has_kind(FunctionBinders) && has_child(cst::Expression::can_cast),
             DoStatementBind | PatternGuardBinder => {
                 has_child(cst::Binder::can_cast) && has_child(cst::Expression::can_cast)

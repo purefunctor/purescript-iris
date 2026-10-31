@@ -70,8 +70,12 @@ fn tick_expression_1(p: &mut Parser) {
 
     expression_3(p);
     while p.at_in(names::OPERATOR) {
+        let mut n = p.start();
+        let mut o = p.start();
         names::operator(p);
+        o.end(p, SyntaxKind::TermOperator);
         expression_3(p);
+        n.end(p, SyntaxKind::ExpressionOperatorPair);
         i += 1;
     }
 
@@ -318,7 +322,6 @@ fn do_statement_let(p: &mut Parser) {
     let mut m = p.start();
     p.expect(SyntaxKind::LET);
     binding::let_binding_statements(p);
-    expression(p);
     m.end(p, SyntaxKind::DoStatementLet);
 }
 

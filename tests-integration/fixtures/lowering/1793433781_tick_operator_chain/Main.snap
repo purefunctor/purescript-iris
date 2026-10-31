@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Expressions:
+
+left@8:21
+  -> binder@8:8
+left@10:18
+  -> binder@10:5
+identity@10:37
+  -> top-level
+right@10:47
+  -> binder@10:10
+g@2:19
+  -> binder@2:9
+f@2:15
+  -> binder@2:7
+function@10:25
+  -> top-level
+x@2:20
+  -> binder@2:11
+value@6:16
+  -> binder@6:8
+
+Types:

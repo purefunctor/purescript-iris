@@ -5,7 +5,6 @@ edition = "2024"
 license.workspace = true
 
 [dependencies]
-itertools = "0.15.0"
 lexing = { version = "0.1.0", path = "../lexing" }
 parsing = { version = "0.1.0", path = "../parsing" }
 syntax = { version = "0.1.0", path = "../syntax" }
