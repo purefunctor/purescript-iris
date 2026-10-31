@@ -26,28 +26,26 @@
 
 ## In context of work
 
-Always fix the root cause. Investigate the systems that contribute to a bug instead of patching only
-the point where it becomes visible. Thoughtfully consider whether the bug fix constitutes a design
-change, at which point it should be raised to the user for a discussion.
+Assume in good faith that maintainers will continue to read through and review the code. Unlike a
+frontend project, where you can verify irrefutable proof via the end product, e.g., a working
+feature, compilers are deeply tied to the code that they generate and the code contributors write
+for the compiler itself. Recall the ethos above when writing code that humans will review.
 
-Treat the first explanation for a finding as a hypothesis. Investigate the behavior and its impact,
-and ask whether a rule applies elsewhere before proposing a fix. When raising a finding, explain why
-it may matter, distinguish observations from hypotheses, and state what has not been checked. A
-difference from another implementation is evidence to investigate, not by itself proof of a defect.
+Remember that compilers are both horizontal and vertical: frontend, backend, services that build on
+top of them, and ultimately the command line interface, which is what humans and agents interact
+with daily.
 
-Posterity is the act of authoring code for future readers, human and agent alike. It is not a
-requirement to anticipate every failure mode and to address them. In particular, human developers
-strongly rely on working memory and local understanding of a large system. Implement systems such
-that future readers can understand them with a manageable amount of context. Make responsibilities
-and relationships clear in the code to support that reasoning. Delivering on the task is not
-sufficient if the resulting design and code artefacts are difficult for people to understand and
-maintain.
+Posterity is the act of authoring code for future readers, human and agent alike. It’s not a
+requirement to anticipate every failure mode and to address them all at once. Humans and agents
+strongly rely on working memory and local understanding of a large system. Overload is fatigue.
 
-For new features, start with the requested use case. Add behaviour and safeguards when they become
-necessary for such use, thoughtfully considering the proportion between complexity and benefit.
-Following through to correctness and posterity does not authorise fixing unrelated discoveries. When
-surfacing these discoveries, thoughtfully rank them by decreasing priority and relevance to the task
-at hand.
+For new features, thoughtfully consider the proportionality between complexity and benefit.
+Following through to correctness and posterity does not authorise fixing unrelated discoveries on a
+whim without first informing the user about these discoveries.
+
+When addressing a bug, investigate the underlying systems instead of stopping at the point where the
+bug is visible. Thoughtfully consider whether fixing the bug constitutes a larger refactoring that
+you should raise with the user for a discussion.
 
 ## Code style
 
