@@ -1,26 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export missingScrutinee = case  of
-   ->
-    true
-
-@export mismatchedBinders = \first%0 second%1 ->
-  case first%0, second%1 of
-    _ ->
-      true
-
-@export missingResult = \value%2 ->
-  case value%2 of
-    _ ->
-      <error>
-
-@export missingGuardResult = \value%3 ->
-  case value%3 of
-    _ ->
-      | true -> <error>
-
-@export missingBranchBody = \value%4 ->
-  case value%4 of
-    _ ->
-      <error>
+Module Main rejected; see Main.diagnostics.snap

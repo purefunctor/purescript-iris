@@ -1,11 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export doBind = \action%0 ->
-  bind bindEffect action%0 (\$tuple%3@(Tuple x%1 x%2) -> effect.pure x%2)
-
-@export adoBind = \action%7 -> effect.map (\$tuple%6@(Tuple x%4 x%5) -> x%5) action%7
-
-@export successiveBinds = \action%8 ->
-  effect.bind action%8
-    \x%9 -> effect.bind (effect.pure (integer.add x%9 1)) \x%10 -> effect.pure x%10
+Module Main rejected; see Main.diagnostics.snap

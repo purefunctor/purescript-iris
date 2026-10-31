@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign identityInt
-
-@export foreign integer
-
-@export test = <error>
+Module Main rejected; see Main.diagnostics.snap

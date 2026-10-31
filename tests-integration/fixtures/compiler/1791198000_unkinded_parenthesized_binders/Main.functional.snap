@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Proxy/0
-
-@export identity = \value%0 -> value%0
+Module Main rejected; see Main.diagnostics.snap

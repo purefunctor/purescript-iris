@@ -9,7 +9,6 @@ module Main
   , transitiveMarker
   ) where
 
-import Origin ()
 import Transitive
   ( Option(Just)
   , append

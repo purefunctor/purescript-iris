@@ -380,7 +380,11 @@ pub fn compiler(path: &Path) -> FixtureResult {
         }
         Err((failed_file, error)) => {
             let reported = collected.iter().any(|collection| {
-                collection.file_id == failed_file && !collection.backend_diagnostics().is_empty()
+                collection.file_id == failed_file
+                    && collection
+                        .diagnostics()
+                        .iter()
+                        .any(|diagnostic| diagnostic.severity == Severity::Error)
             });
             if !reported || fixture.join("verify.mjs").exists() {
                 return Err(error.into());

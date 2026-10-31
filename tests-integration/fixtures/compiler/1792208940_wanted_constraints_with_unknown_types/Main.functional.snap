@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export convert = \dictionary%0 -> dictionary%0.convert
-
-@export instance convertIntString = { convert: \$int%1@(_) -> "int" }
-
-@export wantedShow = \value%2 -> show (<error>) value%2
-
-@export wantedShowArray = \value%3 -> show (<error>) value%3
-
-@export wantedDependency = \value%4 -> convert (<error>) value%4
+Module Main rejected; see Main.diagnostics.snap

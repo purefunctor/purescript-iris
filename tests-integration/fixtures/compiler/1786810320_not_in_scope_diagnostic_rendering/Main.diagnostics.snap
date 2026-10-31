@@ -171,14 +171,3 @@ Error! · [NotInScope] · Main.purs:33:14
   │   infix 5 type MissingTypeOperatorName as +
   │                ╰──────────────────────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:32:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The runtime implementation of exported operator '<+>' could not be resolved.
-  │
-  │   infix 5 missingOperatorName as <+>
-  │   ╰─────────────────────────────────
-  •

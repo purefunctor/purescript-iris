@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export value = \dictionary%0 -> dictionary%0.value
-
-@export test = (\valueIntDict%1 -> value valueIntDict%1) (<error>)
+Module Main rejected; see Main.diagnostics.snap

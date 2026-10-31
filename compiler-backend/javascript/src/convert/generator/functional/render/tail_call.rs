@@ -239,8 +239,7 @@ fn function_profile(
             effect_step: false,
             origin: module.storage[expression].origin,
         }),
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
+        ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }
         | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
@@ -340,8 +339,7 @@ fn collect_tail_edges(
             | EffectExpression::ReferenceWrite { .. }
             | EffectExpression::UncurriedApplication { .. } => {}
         },
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
+        ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }
         | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }
@@ -387,8 +385,7 @@ fn application_head(module: &Module, expression: ExpressionId) -> Option<Applica
             let identity = function_identity(module, *function)?;
             Some(ApplicationHead { identity, arity: arguments.len(), uncurried: true })
         }
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
+        ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }
         | ExpressionKind::ArrayConcatenation { .. }
         | ExpressionKind::Record { .. }

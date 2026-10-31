@@ -1,4 +1,13 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-
+Error! · [FunctionalCodegen] · Main.purs:11:27
+  •
+  │
+  • Cannot generate JavaScript for module 'Main'.
+  │
+  │ An expression contains an error.
+  │
+  │   ambiguousNonAssociative = 1 <=> 2 <=> 3
+  │                             ╰────────────
+  •

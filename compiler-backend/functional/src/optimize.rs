@@ -454,7 +454,6 @@ fn is_simple_expression(
                 pending.push(*left);
             }
             ExpressionKind::RecordUpdate { .. }
-            | ExpressionKind::Error
             | ExpressionKind::Application { .. }
             | ExpressionKind::UncurriedApplication { .. }
             | ExpressionKind::StyleX(_)
@@ -482,8 +481,7 @@ pub fn try_for_each_expression_child<Error>(
     mut visit: impl FnMut(ExpressionId) -> Result<(), Error>,
 ) -> Result<(), Error> {
     match kind {
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
+        ExpressionKind::Literal { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }

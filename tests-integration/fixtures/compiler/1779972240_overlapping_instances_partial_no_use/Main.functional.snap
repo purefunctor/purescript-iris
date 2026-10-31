@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Pair/2
-
-@export test = \dictionary%0 -> dictionary%0.test
-
-@export instance testLeft = { test: \$pair%1@(_) -> 0 }
-
-@export instance testRight = { test: \$pair%2@(_) -> 1 }
+Module Main rejected; see Main.diagnostics.snap

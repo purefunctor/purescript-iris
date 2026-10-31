@@ -250,7 +250,6 @@ pub struct Expression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpressionKind {
-    Error,
     Literal { literal: Literal },
     Array { elements: Arc<[ExpressionId]> },
     ArrayConcatenation { elements: Arc<[ArrayElement]> },

@@ -1,16 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Shared/0
-
-@export constructor LocalOnly/0
-
-@export localValue = "LocalOnly"
-
-@export shadowedValue = "LocalOnly"
-
-@export local = <error>
-
-@export remote = <error>
-
-@export binderShadow = \remoteValue%0 -> <error>
+Module Main rejected; see Main.diagnostics.snap

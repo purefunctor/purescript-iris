@@ -1,16 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign unsafeCoerce
-
-@export union = \unionR1R2R3Dict%2 -> \$record%0@(_) $record%1@(_) -> unsafeCoerce {  }
-
-@export addField = \x%3 -> union <trivial evidence> x%3 { b: "hi" }
-
-@export test = addField { a: 1, c: true }
-
-@export insertX = \lacksRDict%5 -> \$record%4@(_) -> unsafeCoerce {  }
-
-@export insertOpen = \lacksRDict%7 -> \x%6 -> insertX <trivial evidence> x%6
-
-@export test2 = insertOpen <trivial evidence> { a: 1, b: "hi" }
+Module Main rejected; see Main.diagnostics.snap

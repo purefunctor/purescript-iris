@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = { a: 1, b: 2 }
+Module Main rejected; see Main.diagnostics.snap

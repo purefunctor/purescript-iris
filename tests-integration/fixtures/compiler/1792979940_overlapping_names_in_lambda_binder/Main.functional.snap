@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Pair/2
-
-@export withinBinder = \$pair%2@(Pair x%0 x%1) -> x%1
+Module Main rejected; see Main.diagnostics.snap

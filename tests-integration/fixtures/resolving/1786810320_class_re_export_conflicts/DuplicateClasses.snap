@@ -24,3 +24,18 @@ Local Classes:
   - Shared
 
 Class Members:
+
+Diagnostics
+Error! · [DuplicateDeclaration] · DuplicateClasses.purs:7:1
+  •
+  │
+  • 'Shared' is declared more than once
+  │
+  │   class Shared a
+  │   ╰─────────────
+  │
+  • Previous declaration
+  │
+  │   class Shared a
+  │   ╰─────────────
+  •

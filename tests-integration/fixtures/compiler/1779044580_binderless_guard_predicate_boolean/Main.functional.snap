@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = \x%0 ->
-  case x%0 of
-    n%1 ->
-      | n%1 -> 0
-      | true -> n%1
+Module Main rejected; see Main.diagnostics.snap

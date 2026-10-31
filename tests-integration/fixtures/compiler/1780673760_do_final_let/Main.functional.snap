@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign bind
-
-@export foreign before
-
-@export foreign expectString
-
-@export test = bind before
-  (\record%0 ->
-    let
-      _ = expectString record%0.field
-    in <error>)
+Module Main rejected; see Main.diagnostics.snap

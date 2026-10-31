@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export instance single = {  }
-
-@export instance single1 = {  }
+Module Main rejected; see Main.diagnostics.snap

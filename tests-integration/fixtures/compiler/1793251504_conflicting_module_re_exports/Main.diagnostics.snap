@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [ExportConflict] · Main.purs:3:1
+  •
+  │
+  • Conflicting exports for 'value'
+  │
+  │   import First
+  │   ╰───────────
+  │
+  • Conflicting export
+  │
+  │   import Second
+  │   ╰────────────
+  •
+
+Error! · [ExportConflict] · Main.purs:3:1
+  •
+  │
+  • Conflicting exports for 'Shape'
+  │
+  │   import First
+  │   ╰───────────
+  │
+  • Conflicting export
+  │
+  │   data Shape = Circle
+  │   ╰──────────────────
+  •

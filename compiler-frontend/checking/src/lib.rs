@@ -265,7 +265,9 @@ where
         return Ok(());
     };
 
-    if has_checking_errors(&state.checked) || has_source_errors(context.queries, context.id)? {
+    if state.checked.errors.iter().any(|error| !error.kind.is_warning())
+        || has_source_errors(context.queries, context.id)?
+    {
         return Ok(());
     }
 
@@ -275,8 +277,9 @@ where
         if !visited.insert(file_id) {
             continue;
         }
-        let checked = context.queries.checked(file_id)?;
-        if has_checking_errors(&checked) || has_source_errors(context.queries, file_id)? {
+        if has_checking_errors(context.queries, file_id)?
+            || has_source_errors(context.queries, file_id)?
+        {
             return Ok(());
         }
         let resolved = context.queries.resolved(file_id)?;
@@ -287,11 +290,12 @@ where
     Ok(())
 }
 
-fn has_checking_errors(checked: &CheckedModule) -> bool {
-    checked.errors.iter().any(|error| !error.kind.is_warning())
+pub fn has_checking_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
+    let checked = queries.checked(file_id)?;
+    Ok(checked.errors.iter().any(|error| !error.kind.is_warning()))
 }
 
-fn has_source_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
+pub fn has_source_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
     let (_, parse_errors) = queries.parsed(file_id)?;
     let lowered = queries.lowered(file_id)?;
     let grouped = queries.grouped(file_id)?;

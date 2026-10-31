@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export pick = \dictionary%0 -> dictionary%0.pick
-
-@export instance pickInt = \showDict%1 -> { pick: \$int%2@(_) -> "int" }
-
-@export instance pick1 = { pick: \$a%3@(_) -> "other" }
-
-@export picksInt = pick (<error>) 1
-
-@export picksString = pick (<error>) "string"
+Module Main rejected; see Main.diagnostics.snap

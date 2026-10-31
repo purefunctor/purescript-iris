@@ -1,16 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Yes/0
-
-@export constructor No/0
-
-@export localOption = "Yes"
-
-@export option = <error>
-
-@export imported = <error>
-
-@export select = \dictionary%0 -> dictionary%0.select
-
-@export method = \selectADict%1 -> <error>
+Module Main rejected; see Main.diagnostics.snap

@@ -1,11 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [ParseError] · Main.purs:12:16
-  •
-  │
-  • Empty import list
-  │
-  │   import Origin ()
-  │                  ╰
-  •
+

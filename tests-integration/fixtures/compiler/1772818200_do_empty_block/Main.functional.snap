@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign pure
-
-@export foreign bind
-
-@export foreign discard
-
-@export test = <error>
+Module Main rejected; see Main.diagnostics.snap

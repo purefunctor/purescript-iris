@@ -23,14 +23,3 @@ Error! · [RecursiveSynonym] · Main.purs:7:1
   │   type Left = Right
   │   ╰────────────────
   •
-
-Error! · [FunctionalCodegen] · Main.purs:1:1
-  •
-  │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ The checked representation of a top-level declaration is unavailable.
-  │
-  │   module Main where
-  │   ╰────────────────
-  •

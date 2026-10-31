@@ -13,9 +13,10 @@ use javascript::{
 };
 use lowering::LoweringError;
 use parsing::ParseError;
-use resolving::ResolvingError;
+use resolving::{ExportSource, ResolvingError};
+use smol_str::SmolStr;
 use syntax::ast::AstNode;
-use syntax::cst;
+use syntax::{SyntaxNodePtr, cst};
 
 use building_types::QueryResult;
 
@@ -52,7 +53,10 @@ impl ToDiagnostics for FunctionalModuleError {
     where
         Q: ExternalQueries,
     {
-        let FunctionalModuleError::Unsupported { file_id, state } = self;
+        let (file_id, state) = match self {
+            FunctionalModuleError::SourceErrors { .. } => return Ok(Vec::new()),
+            FunctionalModuleError::Unsupported { file_id, state } => (file_id, state),
+        };
         let local_global_span = |global| {
             let source_file = match global {
                 GlobalId::Term(file, _) | GlobalId::Generated(file, _) => file,
@@ -71,6 +75,15 @@ impl ToDiagnostics for FunctionalModuleError {
                     BinderSource::Operator(id) => context.stabilized.syntax_ptr(id),
                     BinderSource::Section(id) => context.stabilized.syntax_ptr(id),
                     BinderSource::Generated { derive, .. } => context.stabilized.syntax_ptr(derive),
+                };
+                pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
+            }
+            FunctionalUnsupportedState::ExpressionError(id) => {
+                use checking::tree::ExpressionSource;
+                let pointer = match context.checked.tree[*id].source {
+                    Some(ExpressionSource::Expression(id)) => context.stabilized.syntax_ptr(id),
+                    Some(ExpressionSource::DoStatement(id)) => context.stabilized.syntax_ptr(id),
+                    None => None,
                 };
                 pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
             }
@@ -107,6 +120,8 @@ impl ToDiagnostics for FunctionalModuleError {
         let reason = match state {
             FunctionalUnsupportedState::MissingModuleName =>
                 "A module header with a module name is required.".to_owned(),
+            FunctionalUnsupportedState::ExpressionError(_) =>
+                "An expression contains an error.".to_owned(),
             FunctionalUnsupportedState::BinderError(_) =>
                 "A pattern could not be translated from its checked representation.".to_owned(),
             FunctionalUnsupportedState::RecordUpdateError =>
@@ -115,6 +130,8 @@ impl ToDiagnostics for FunctionalModuleError {
                 "A pattern binding in a let expression contains an error.".to_owned(),
             FunctionalUnsupportedState::UnsolvedEvidence(_) =>
                 "An unresolved type class constraint remains in the checked code.".to_owned(),
+            FunctionalUnsupportedState::EvidenceError(_) =>
+                "A type class dictionary contains an error.".to_owned(),
             FunctionalUnsupportedState::CyclicEvidence(_) =>
                 "The compiler encountered a cycle while constructing type class dictionaries.\n\nThis is an unsupported internal compiler state.".to_owned(),
             FunctionalUnsupportedState::MissingTermDeclaration(_) =>
@@ -474,6 +491,7 @@ where
             IndexedTypeItemKind::Newtype { equation, .. } => {
                 context.stabilized.syntax_ptr(equation?)?
             }
+            IndexedTypeItemKind::Foreign { id, .. } => context.stabilized.syntax_ptr(id)?,
             _ => return None,
         };
         context.span_from_syntax_ptr(&ptr)
@@ -541,10 +559,51 @@ impl ToDiagnostics for ResolvingError {
                 }
                 Ok(vec![diagnostic])
             }
-            ResolvingError::TermExportConflict { .. }
-            | ResolvingError::TypeExportConflict { .. }
-            | ResolvingError::ExistingTerm { .. }
-            | ResolvingError::ExistingType { .. } => Ok(Vec::new()),
+            ResolvingError::TermExportConflict { name, existing, duplicate } => {
+                let (_, _, duplicate_source) = *duplicate;
+                let (_, _, existing_source) = *existing;
+                let pointer = |(_, id, source)| match source {
+                    ExportSource::Local => {
+                        context.indexed.term_item_ptr(context.stabilized, id).next()
+                    }
+                    ExportSource::Import(import) => context.stabilized.syntax_ptr(import),
+                };
+                let duplicate_declaration = matches!(
+                    (existing_source, duplicate_source),
+                    (ExportSource::Local, ExportSource::Local)
+                );
+                Ok(export_conflict(
+                    context,
+                    name,
+                    pointer(*duplicate),
+                    pointer(*existing),
+                    duplicate_declaration,
+                ))
+            }
+            ResolvingError::TypeExportConflict { name, existing, duplicate } => {
+                let (_, _, duplicate_source) = *duplicate;
+                let (_, _, existing_source) = *existing;
+                let pointer = |(_, id, source)| match source {
+                    ExportSource::Local => {
+                        context.indexed.type_item_ptr(context.stabilized, id).next()
+                    }
+                    ExportSource::Import(import) => context.stabilized.syntax_ptr(import),
+                };
+                let duplicate_declaration = matches!(
+                    (existing_source, duplicate_source),
+                    (ExportSource::Local, ExportSource::Local)
+                );
+                Ok(export_conflict(
+                    context,
+                    name,
+                    pointer(*duplicate),
+                    pointer(*existing),
+                    duplicate_declaration,
+                ))
+            }
+            ResolvingError::ExistingTerm { .. } | ResolvingError::ExistingType { .. } => {
+                Ok(Vec::new())
+            }
 
             ResolvingError::InvalidImportStatement { id } => {
                 let Some(ptr) = context.stabilized.ast_ptr(*id) else { return Ok(Vec::new()) };
@@ -575,6 +634,38 @@ impl ToDiagnostics for ResolvingError {
             }
         }
     }
+}
+
+fn export_conflict<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    name: &SmolStr,
+    duplicate: Option<SyntaxNodePtr>,
+    existing: Option<SyntaxNodePtr>,
+    duplicate_declaration: bool,
+) -> Vec<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    let span = |pointer: Option<SyntaxNodePtr>| {
+        pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
+    };
+    let (code, related, message) = if duplicate_declaration {
+        (
+            "DuplicateDeclaration",
+            "Previous declaration",
+            format!("'{name}' is declared more than once"),
+        )
+    } else {
+        ("ExportConflict", "Conflicting export", format!("Conflicting exports for '{name}'"))
+    };
+    let primary = span(duplicate)
+        .or_else(|| context.module_name_span())
+        .unwrap_or_else(|| context.module_span());
+    let mut diagnostic = Diagnostic::error(code, message, primary, "resolving");
+    if let Some(existing) = span(existing) {
+        diagnostic = diagnostic.with_related(existing, related);
+    }
+    vec![diagnostic]
 }
 
 impl ToDiagnostics for IndexingError {

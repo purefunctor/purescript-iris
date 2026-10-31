@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export coerceNominalSame = coerce <trivial evidence>
-
-@export coerceNominalDifferent = coerce (<error>)
+Module Main rejected; see Main.diagnostics.snap

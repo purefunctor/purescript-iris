@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Unit/0
-
-@export constructor Proxy/0
-
-@export foreign consume
-
-@export test = consume (\$unit%0@(_) -> \markerValueDict%1 -> \extra%2 -> "Proxy")
+Module Main rejected; see Main.diagnostics.snap

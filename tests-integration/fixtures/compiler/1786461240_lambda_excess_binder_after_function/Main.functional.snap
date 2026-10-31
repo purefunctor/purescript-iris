@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Unit/0
-
-@export foreign consume
-
-@export test = consume (\value%0 extra%1 -> value%0)
+Module Main rejected; see Main.diagnostics.snap

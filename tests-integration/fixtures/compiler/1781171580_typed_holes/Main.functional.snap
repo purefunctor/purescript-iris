@@ -1,15 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export termHole = \argument%2 ->
-  let
-    localInt%1 = argument%2
-  in let
-    localString%0 = "not relevant"
-  in <error>
-
-@export recordPunHole = \$record%5@({ punInt: punInt%3, punString: punString%4 }) -> <error>
-
-@export instanceTypeHoleMember = \dictionary%6 -> dictionary%6.instanceTypeHoleMember
-
-@export instance instanceTypeHole = { instanceTypeHoleMember: \value%7 -> value%7 }
+Module Main rejected; see Main.diagnostics.snap

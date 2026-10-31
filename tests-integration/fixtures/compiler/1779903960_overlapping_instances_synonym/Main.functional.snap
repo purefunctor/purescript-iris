@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export convert = \dictionary%0 -> dictionary%0.convert
-
-@export instance convertSB = { convert: \s%1 -> s%1 }
-
-@export instance convertSS = { convert: \s%2 -> s%2 }
-
-@export value = convert convertSB "value"
+Module Main rejected; see Main.diagnostics.snap

@@ -1,6 +1,0 @@
----
-source: tests-integration/src/fixtures.rs
----
-@export foreign observe
-
-@export broken = [observe 1, <error>]

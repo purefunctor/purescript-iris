@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = \dictionary%0 -> dictionary%0.test
-
-@export instance testRefl = { test: \x%1 -> x%1 }
-
-@export instance testInt = { test: \$int%2@(_) -> 0 }
+Module Main rejected; see Main.diagnostics.snap

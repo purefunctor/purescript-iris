@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Y/0
-
-@export instance cxy = {  }
-
-@export value = test cxx "X" "Y"
+Module Main rejected; see Main.diagnostics.snap

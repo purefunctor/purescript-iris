@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export coerceOpen = coerce (<error>)
+Module Main rejected; see Main.diagnostics.snap

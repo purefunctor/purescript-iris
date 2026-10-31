@@ -504,7 +504,11 @@ fn add_export_term(
     if let Some(&existing) = items.terms.get(name) {
         let duplicate = (file, id, source);
         if !same_term_export(existing, duplicate) {
-            errors.push(ResolvingError::TermExportConflict { existing, duplicate });
+            errors.push(ResolvingError::TermExportConflict {
+                name: SmolStr::clone(name),
+                existing,
+                duplicate,
+            });
         }
     } else {
         let name = SmolStr::clone(name);
@@ -535,7 +539,11 @@ fn add_export_type(
     if let Some(&existing) = items.types.get(name) {
         let duplicate = (file, id, source);
         if !same_type_export(existing, duplicate) {
-            errors.push(ResolvingError::TypeExportConflict { existing, duplicate });
+            errors.push(ResolvingError::TypeExportConflict {
+                name: SmolStr::clone(name),
+                existing,
+                duplicate,
+            });
         }
     } else {
         let name = SmolStr::clone(name);
@@ -566,7 +574,11 @@ fn add_export_class(
     if let Some(&existing) = items.classes.get(name) {
         let duplicate = (file, id, source);
         if !same_type_export(existing, duplicate) {
-            errors.push(ResolvingError::TypeExportConflict { existing, duplicate });
+            errors.push(ResolvingError::TypeExportConflict {
+                name: SmolStr::clone(name),
+                existing,
+                duplicate,
+            });
         }
     } else {
         let name = SmolStr::clone(name);

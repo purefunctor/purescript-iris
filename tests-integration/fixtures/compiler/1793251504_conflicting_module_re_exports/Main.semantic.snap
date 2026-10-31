@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Shape :: Prim.Type
+data Shape
+  | Circle :: Main.Shape

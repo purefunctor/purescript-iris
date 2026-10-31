@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export test = describe (<error>) "Subject"
+Module Main rejected; see Main.diagnostics.snap

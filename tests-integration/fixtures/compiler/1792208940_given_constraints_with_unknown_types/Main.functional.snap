@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export givenRigid = \showDict%1 -> \value%0 -> show (<error>) value%0
-
-@export givenConcrete = \showDict%2 -> show showInt 1
-
-@export givenPartial = \showArrayDict%4 -> \value%3 -> show (showArray (<error>)) value%3
+Module Main rejected; see Main.diagnostics.snap

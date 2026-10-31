@@ -1,9 +1,0 @@
----
-source: tests-integration/src/fixtures.rs
----
-Terms
-usable :: Prim.Int
-deferred :: Prim.Int -> Prim.Int
-nested :: Prim.Int -> Prim.Int -> Prim.Int
-
-Types

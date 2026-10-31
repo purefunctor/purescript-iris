@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export styles = stylex.create { sized: \width%0 -> { width: width%0 } }
-
-@export sizedProps = stylex.props (styles.sized 4)
+Module Main rejected; see Main.diagnostics.snap

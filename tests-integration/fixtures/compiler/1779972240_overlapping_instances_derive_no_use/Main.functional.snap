@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Box/0
-
-@export instance eqBox1 = {
-  eq:
-    \left%0 right%1 ->
-      case left%0, right%1 of
-        Box, Box ->
-          true
-}
-
-@export instance eqBox = { eq: \$box%2@(_) $box%3@(_) -> true }
+Module Main rejected; see Main.diagnostics.snap

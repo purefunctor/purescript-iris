@@ -1,24 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign unit
-
-@export foreign pure
-
-@export foreign bind
-
-@export foreign discard
-
-@export add = \dictionary%0 -> dictionary%0.add
-
-@export instance semiringInt = { add: addImpl }
-
-@export foreign addImpl
-
-@export thing1 = pure "hello"
-
-@export test = bind thing1
-  (\a%1 ->
-    let
-      f%2 = add (<error>) a%1 123
-    in pure unit)
+Module Main rejected; see Main.diagnostics.snap

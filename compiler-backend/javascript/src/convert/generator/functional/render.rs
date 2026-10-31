@@ -54,7 +54,6 @@ use self::tail_call::{
     local_profiles, tail_call_group,
 };
 
-const SOURCE_ERROR_MESSAGE: &str = "Generated code reached a source error";
 const INITIALIZER_CYCLE_MESSAGE: &str = "Top-level value initializer cycle";
 
 pub(crate) struct Generator<'m> {
@@ -1328,10 +1327,6 @@ impl Generator<'_> {
         }
 
         match &self.module.storage[expression].kind {
-            ExpressionKind::Error => {
-                writer.throw_error(SOURCE_ERROR_MESSAGE);
-                Ok(())
-            }
             ExpressionKind::IfThenElse { condition, then, else_ } => {
                 let condition = self.expression_value(tree, writer, *condition, context)?;
                 writer.if_else_with_state(
@@ -1872,8 +1867,7 @@ impl Generator<'_> {
                 let value = tree.identifier(name);
                 Ok(RenderedExpression { value, pending_evaluation: false })
             }
-            ExpressionKind::Error
-            | ExpressionKind::IfThenElse { .. }
+            ExpressionKind::IfThenElse { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -2017,8 +2011,7 @@ impl Generator<'_> {
                     || !self.expression_can_inline(*then)
                     || !self.expression_can_inline(*else_)
             }
-            ExpressionKind::Error
-            | ExpressionKind::Case { .. }
+            ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
             | ExpressionKind::LetPattern { .. }
@@ -2043,8 +2036,7 @@ impl Generator<'_> {
                     Some(LocalBinding::Direct(_) | LocalBinding::Inline(_))
                 )
             }
-            ExpressionKind::Error
-            | ExpressionKind::Array { .. }
+            ExpressionKind::Array { .. }
             | ExpressionKind::ArrayConcatenation { .. }
             | ExpressionKind::Record { .. }
             | ExpressionKind::RecordUpdate { .. }
@@ -2248,8 +2240,7 @@ impl Generator<'_> {
                 };
                 tree.conditional(condition, then, else_)
             }
-            ExpressionKind::Error
-            | ExpressionKind::RecordUpdate { .. }
+            ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -2317,8 +2308,7 @@ impl Generator<'_> {
                     && self.expression_can_inline(*then)
                     && self.expression_can_inline(*else_)
             }
-            ExpressionKind::Error
-            | ExpressionKind::RecordUpdate { .. }
+            ExpressionKind::RecordUpdate { .. }
             | ExpressionKind::Case { .. }
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
@@ -3894,8 +3884,7 @@ fn collect_expression_references(
     globals: &mut Vec<Global>,
 ) {
     match &module.storage[expression].kind {
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
+        ExpressionKind::Literal { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => {}
@@ -4137,8 +4126,7 @@ fn collect_expression_children(
         return;
     }
     match &module.storage[expression].kind {
-        ExpressionKind::Error
-        | ExpressionKind::Literal { .. }
+        ExpressionKind::Literal { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }
         | ExpressionKind::Local { .. }

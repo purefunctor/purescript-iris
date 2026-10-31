@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export foreign pure
-
-@export foreign map
-
-@export foreign apply
-
-@export test1 = <error>
-
-@export test2 = pure 123
+Module Main rejected; see Main.diagnostics.snap

@@ -1,4 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export invalidConversion = \style%0 -> style%0
+Module Main rejected; see Main.diagnostics.snap

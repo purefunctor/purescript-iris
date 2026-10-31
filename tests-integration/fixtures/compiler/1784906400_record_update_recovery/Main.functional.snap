@@ -1,10 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export record = { nested: { value: 1 }, value: 2 }
-
-@export missingValue = record { value = <error> }
-
-@export nestedMissingValue = record { nested { value = <error> } }
-
-@export validSibling = record { nested { value = <error> }, value = 3 }
+Module Main rejected; see Main.diagnostics.snap

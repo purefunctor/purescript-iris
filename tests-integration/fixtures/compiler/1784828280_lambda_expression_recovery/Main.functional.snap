@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export missingBinder = true
-
-@export missingBody = \value%0 -> <error>
-
-@export missingBinderAndBody = <error>
+Module Main rejected; see Main.diagnostics.snap

@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export showsViaSuperclass = \containerADict%1 -> \value%0 -> show (<error>) value%0
-
-@export showsViaWrapper = \wrapperADict%3 -> \value%2 -> show (<error>) value%2
+Module Main rejected; see Main.diagnostics.snap
