@@ -5,4 +5,4 @@ function :: Prim.Int -> Prim.Int -> Prim.Int
 function = \left -> \_ -> left
 
 x :: Prim.Int -> Prim.Int
-x = \value -> function value value
+x = \value -> compose {semigroupoidFn} function (identity {categoryFn}) value value

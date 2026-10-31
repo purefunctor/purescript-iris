@@ -3,4 +3,9 @@ source: tests-integration/src/fixtures.rs
 ---
 @export function = \left%0 $int%1@(_) -> left%0
 
-@export x = \value%2 -> function value%2 value%2
+@export x = \value%4 ->
+  (let
+    composeInner%2 = identity categoryFn
+  in \composeArgument%3 -> function (composeInner%2 composeArgument%3))
+    value%4
+    value%4

@@ -77,14 +77,16 @@ source: compiler-frontend/parsing/tests/parser.rs
                     ExpressionOperatorChain@66..71
                       ExpressionInteger@66..67
                         INTEGER@66..67 "2"
-                      Annotation@67..68
-                        TEXT@67..68 " "
-                      QualifiedName@68..69
-                        OPERATOR@68..69 "+"
-                      ExpressionInteger@69..71
-                        Annotation@69..70
-                          TEXT@69..70 " "
-                        INTEGER@70..71 "3"
+                      ExpressionOperatorPair@67..71
+                        TermOperator@67..69
+                          Annotation@67..68
+                            TEXT@67..68 " "
+                          QualifiedName@68..69
+                            OPERATOR@68..69 "+"
+                        ExpressionInteger@69..71
+                          Annotation@69..70
+                            TEXT@69..70 " "
+                          INTEGER@70..71 "3"
                     TICK@71..72 "`"
                   ExpressionInteger@72..74
                     Annotation@72..73
@@ -98,14 +100,16 @@ source: compiler-frontend/parsing/tests/parser.rs
                     ExpressionOperatorChain@76..81
                       ExpressionInteger@76..77
                         INTEGER@76..77 "5"
-                      Annotation@77..78
-                        TEXT@77..78 " "
-                      QualifiedName@78..79
-                        OPERATOR@78..79 "+"
-                      ExpressionInteger@79..81
-                        Annotation@79..80
-                          TEXT@79..80 " "
-                        INTEGER@80..81 "6"
+                      ExpressionOperatorPair@77..81
+                        TermOperator@77..79
+                          Annotation@77..78
+                            TEXT@77..78 " "
+                          QualifiedName@78..79
+                            OPERATOR@78..79 "+"
+                        ExpressionInteger@79..81
+                          Annotation@79..80
+                            TEXT@79..80 " "
+                          INTEGER@80..81 "6"
                     TICK@81..82 "`"
                   ExpressionInteger@82..84
                     Annotation@82..83
