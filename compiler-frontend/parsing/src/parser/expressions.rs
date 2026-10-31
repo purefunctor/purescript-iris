@@ -322,7 +322,6 @@ fn do_statement_let(p: &mut Parser) {
     let mut m = p.start();
     p.expect(SyntaxKind::LET);
     binding::let_binding_statements(p);
-    expression(p);
     m.end(p, SyntaxKind::DoStatementLet);
 }
 
