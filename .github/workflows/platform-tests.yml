@@ -31,7 +31,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install tools
-        uses: taiki-e/install-action@v2.87.21
+        uses: taiki-e/install-action@v2.88.0
         with:
           tool: cargo-nextest
 
@@ -104,7 +104,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install tools
-        uses: taiki-e/install-action@v2.87.21
+        uses: taiki-e/install-action@v2.88.0
         with:
           tool: cargo-nextest
 
