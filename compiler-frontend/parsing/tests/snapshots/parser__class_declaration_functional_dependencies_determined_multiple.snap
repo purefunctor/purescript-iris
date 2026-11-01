@@ -1,0 +1,75 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..92
+      ModuleHeader@0..69
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..63
+          UPPER@7..63 "ClassDeclarationFunct ..."
+        Annotation@63..64
+          TEXT@63..64 " "
+        WHERE@64..69 "where"
+      LAYOUT_START@69..69 ""
+      ModuleStatements@69..91
+        ClassDeclaration@69..91
+          Annotation@69..71
+            TEXT@69..71 "\n\n"
+          CLASS@71..76 "class"
+          ClassHead@76..82
+            Annotation@76..77
+              TEXT@76..77 " "
+            UPPER@77..78 "C"
+            TypeVariableBinding@78..80
+              Annotation@78..79
+                TEXT@78..79 " "
+              LOWER@79..80 "a"
+            TypeVariableBinding@80..82
+              Annotation@80..81
+                TEXT@80..81 " "
+              LOWER@81..82 "b"
+          ClassFunctionalDependencies@82..91
+            Annotation@82..83
+              TEXT@82..83 " "
+            PIPE@83..84 "|"
+            FunctionalDependencyDetermined@84..89
+              Annotation@84..85
+                TEXT@84..85 " "
+              RIGHT_ARROW@85..87 "->"
+              TypeVariable@87..89
+                Annotation@87..88
+                  TEXT@87..88 " "
+                LOWER@88..89 "a"
+            ERROR@89..89 ""
+            FunctionalDependencyDetermines@89..91
+              TypeVariable@89..91
+                Annotation@89..90
+                  TEXT@89..90 " "
+                LOWER@90..91 "b"
+              ERROR@91..91 ""
+      LAYOUT_END@91..91 ""
+      Annotation@91..92
+        TEXT@91..92 "\n"
+      END_OF_FILE@92..92 ""
+    ,
+    [
+        ParseError {
+            offset: 90,
+            position: Position {
+                line: 3,
+                column: 20,
+            },
+            message: "Expected COMMA",
+        },
+        ParseError {
+            offset: 92,
+            position: Position {
+                line: 4,
+                column: 1,
+            },
+            message: "Expected RIGHT_ARROW",
+        },
+    ],
+)

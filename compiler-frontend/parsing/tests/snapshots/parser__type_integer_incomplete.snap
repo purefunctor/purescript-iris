@@ -1,0 +1,105 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..117
+      ModuleHeader@0..34
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..28
+          UPPER@7..28 "TypeIntegerIncomplete"
+        Annotation@28..29
+          TEXT@28..29 " "
+        WHERE@29..34 "where"
+      LAYOUT_START@34..34 ""
+      ModuleStatements@34..116
+        ValueSignature@34..52
+          Annotation@34..36
+            TEXT@34..36 "\n\n"
+          LOWER@36..45 "signature"
+          Annotation@45..46
+            TEXT@45..46 " "
+          DOUBLE_COLON@46..48 "::"
+          TypeApplicationChain@48..52
+            TypeConstructor@48..50
+              Annotation@48..49
+                TEXT@48..49 " "
+              QualifiedName@49..50
+                UPPER@49..50 "F"
+            TypeInteger@50..52
+              Annotation@50..51
+                TEXT@50..51 " "
+              MINUS@51..52 "-"
+        LAYOUT_SEPARATOR@52..52 ""
+        ValueEquation@52..73
+          Annotation@52..54
+            TEXT@52..54 "\n\n"
+          LOWER@54..65 "application"
+          Unconditional@65..73
+            Annotation@65..66
+              TEXT@65..66 " "
+            EQUAL@66..67 "="
+            WhereExpression@67..73
+              ExpressionApplicationChain@67..73
+                ExpressionVariable@67..69
+                  Annotation@67..68
+                    TEXT@67..68 " "
+                  QualifiedName@68..69
+                    LOWER@68..69 "f"
+                ExpressionTypeArgument@69..73
+                  Annotation@69..70
+                    TEXT@69..70 " "
+                  AT@70..71 "@"
+                  TypeInteger@71..73
+                    Annotation@71..72
+                      TEXT@71..72 " "
+                    MINUS@72..73 "-"
+        LAYOUT_SEPARATOR@73..73 ""
+        ValueSignature@73..91
+          Annotation@73..75
+            TEXT@73..75 "\n\n"
+          LOWER@75..83 "negative"
+          Annotation@83..84
+            TEXT@83..84 " "
+          DOUBLE_COLON@84..86 "::"
+          TypeApplicationChain@86..91
+            TypeConstructor@86..88
+              Annotation@86..87
+                TEXT@86..87 " "
+              QualifiedName@87..88
+                UPPER@87..88 "F"
+            TypeInteger@88..91
+              Annotation@88..89
+                TEXT@88..89 " "
+              MINUS@89..90 "-"
+              INTEGER@90..91 "1"
+        LAYOUT_SEPARATOR@91..91 ""
+        ValueSignature@91..116
+          Annotation@91..93
+            TEXT@91..93 "\n\n"
+          LOWER@93..106 "parenthesized"
+          Annotation@106..107
+            TEXT@106..107 " "
+          DOUBLE_COLON@107..109 "::"
+          TypeApplicationChain@109..116
+            TypeConstructor@109..111
+              Annotation@109..110
+                TEXT@109..110 " "
+              QualifiedName@110..111
+                UPPER@110..111 "F"
+            TypeParenthesized@111..116
+              Annotation@111..112
+                TEXT@111..112 " "
+              LEFT_PARENTHESIS@112..113 "("
+              TypeInteger@113..115
+                MINUS@113..114 "-"
+                INTEGER@114..115 "1"
+              RIGHT_PARENTHESIS@115..116 ")"
+      LAYOUT_END@116..116 ""
+      Annotation@116..117
+        TEXT@116..117 "\n"
+      END_OF_FILE@117..117 ""
+    ,
+    [],
+)
