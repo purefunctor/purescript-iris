@@ -70,7 +70,7 @@ jobs:
         run: rustup update stable && rustup default stable
 
       - name: Cache build artifacts
-        uses: Swatinem/rust-cache@v2.9.2
+        uses: Swatinem/rust-cache@v2.9.3
         with:
           cache-bin: "false"
           prefix-key: "v9-workspace"

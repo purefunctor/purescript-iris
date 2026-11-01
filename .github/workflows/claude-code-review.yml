@@ -36,7 +36,7 @@ jobs:
           version: 2026.9.3
 
       - name: Cache build artifacts
-        uses: Swatinem/rust-cache@v2.9.2
+        uses: Swatinem/rust-cache@v2.9.3
         with:
           cache-bin: "false"
           prefix-key: "v1-claude-review"
