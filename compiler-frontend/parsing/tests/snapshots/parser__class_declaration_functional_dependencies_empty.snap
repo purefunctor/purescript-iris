@@ -1,0 +1,73 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..98
+      ModuleHeader@0..56
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..50
+          UPPER@7..50 "ClassDeclarationFunct ..."
+        Annotation@50..51
+          TEXT@50..51 " "
+        WHERE@51..56 "where"
+      LAYOUT_START@56..56 ""
+      ModuleStatements@56..97
+        ClassDeclaration@56..69
+          Annotation@56..58
+            TEXT@56..58 "\n\n"
+          CLASS@58..63 "class"
+          ClassHead@63..67
+            Annotation@63..64
+              TEXT@63..64 " "
+            UPPER@64..65 "C"
+            TypeVariableBinding@65..67
+              Annotation@65..66
+                TEXT@65..66 " "
+              LOWER@66..67 "a"
+          ClassFunctionalDependencies@67..69
+            Annotation@67..68
+              TEXT@67..68 " "
+            PIPE@68..69 "|"
+        LAYOUT_SEPARATOR@69..69 ""
+        ClassDeclaration@69..97
+          Annotation@69..71
+            TEXT@69..71 "\n\n"
+          CLASS@71..76 "class"
+          ClassHead@76..80
+            Annotation@76..77
+              TEXT@76..77 " "
+            UPPER@77..78 "D"
+            TypeVariableBinding@78..80
+              Annotation@78..79
+                TEXT@78..79 " "
+              LOWER@79..80 "a"
+          ClassFunctionalDependencies@80..82
+            Annotation@80..81
+              TEXT@80..81 " "
+            PIPE@81..82 "|"
+          Annotation@82..83
+            TEXT@82..83 " "
+          WHERE@83..88 "where"
+          ClassStatements@88..97
+            LAYOUT_START@88..88 ""
+            ClassMemberStatement@88..97
+              Annotation@88..91
+                TEXT@88..91 "\n  "
+              LOWER@91..92 "d"
+              Annotation@92..93
+                TEXT@92..93 " "
+              DOUBLE_COLON@93..95 "::"
+              TypeVariable@95..97
+                Annotation@95..96
+                  TEXT@95..96 " "
+                LOWER@96..97 "a"
+            LAYOUT_END@97..97 ""
+      LAYOUT_END@97..97 ""
+      Annotation@97..98
+        TEXT@97..98 "\n"
+      END_OF_FILE@98..98 ""
+    ,
+    [],
+)
