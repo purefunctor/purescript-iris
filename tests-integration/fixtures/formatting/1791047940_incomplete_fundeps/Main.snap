@@ -1,4 +1,0 @@
----
-source: tests-integration/tests/formatting.rs
----
-cannot format: 3:11: incomplete syntax in ClassFunctionalDependencies

@@ -112,7 +112,7 @@ pub(super) fn type_atom(p: &mut Parser) {
         m.end(p, SyntaxKind::TypeString);
     } else if p.at(SyntaxKind::MINUS) || p.at(SyntaxKind::INTEGER) {
         p.eat(SyntaxKind::MINUS);
-        p.eat(SyntaxKind::INTEGER);
+        p.expect(SyntaxKind::INTEGER);
         m.end(p, SyntaxKind::TypeInteger);
     } else if p.at(SyntaxKind::LEFT_PARENTHESIS) {
         type_parenthesis(p);

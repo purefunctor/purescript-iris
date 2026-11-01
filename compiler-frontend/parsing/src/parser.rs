@@ -804,6 +804,9 @@ const FUNCTIONAL_DEPENDENCY_RECOVERY: TokenSet =
 fn class_functional_dependencies(p: &mut Parser) {
     let mut m = p.start();
     p.expect(SyntaxKind::PIPE);
+    if p.at_in(FUNCTIONAL_DEPENDENCY_END) || p.at_eof() {
+        p.error("Expected LOWER or RIGHT_ARROW");
+    }
     while !p.at_in(FUNCTIONAL_DEPENDENCY_END) && !p.at_eof() {
         if p.at_in(FUNCTIONAL_DEPENDENCY_START) {
             class_functional_dependency(p);
@@ -825,19 +828,24 @@ fn class_functional_dependencies(p: &mut Parser) {
 fn class_functional_dependency(p: &mut Parser) {
     let mut m = p.start();
     if p.eat(SyntaxKind::RIGHT_ARROW) {
-        if p.at_in(names::LOWER) {
-            types::type_variable(p);
-        }
+        class_functional_dependency_variables(p);
         m.end(p, SyntaxKind::FunctionalDependencyDetermined);
     } else {
         while p.at_in(names::LOWER) {
             types::type_variable(p);
         }
         p.expect(SyntaxKind::RIGHT_ARROW);
-        while p.at_in(names::LOWER) {
-            types::type_variable(p);
-        }
+        class_functional_dependency_variables(p);
         m.end(p, SyntaxKind::FunctionalDependencyDetermines);
+    }
+}
+
+fn class_functional_dependency_variables(p: &mut Parser) {
+    if !p.at_in(names::LOWER) {
+        p.error("Expected LOWER");
+    }
+    while p.at_in(names::LOWER) {
+        types::type_variable(p);
     }
 }
 

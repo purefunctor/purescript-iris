@@ -320,7 +320,6 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
                     && (!parenthesized() || kinded())
                     && (!kinded() || has_child(cst::Type::can_cast))
             }
-            TypeInteger => has_token(INTEGER),
             ValueSignature
             | LetBindingSignature
             | InstanceSignatureStatement
@@ -341,12 +340,6 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
             | ClassConstraints
             | InstanceConstraints => has_child(cst::Type::can_cast),
             NewtypeEquation => has_kind_containing(DataConstructor, cst::Type::can_cast),
-            ClassFunctionalDependencies => has_child(cst::FunctionalDependency::can_cast),
-            FunctionalDependencyDetermined => has_kind(TypeVariable),
-            FunctionalDependencyDetermines => node
-                .children_with_tokens()
-                .skip_while(|element| element.kind() != RIGHT_ARROW)
-                .any(|element| element.kind() == TypeVariable),
             TypeRoleDeclaration => has_kind(TypeRole),
             _ => true,
         };
