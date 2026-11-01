@@ -340,7 +340,6 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
             | ClassConstraints
             | InstanceConstraints => has_child(cst::Type::can_cast),
             NewtypeEquation => has_kind_containing(DataConstructor, cst::Type::can_cast),
-            ClassFunctionalDependencies => has_child(cst::FunctionalDependency::can_cast),
             TypeRoleDeclaration => has_kind(TypeRole),
             _ => true,
         };

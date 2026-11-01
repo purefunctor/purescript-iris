@@ -30,6 +30,7 @@ source: compiler-frontend/parsing/tests/parser.rs
             Annotation@67..68
               TEXT@67..68 " "
             PIPE@68..69 "|"
+            ERROR@69..69 ""
         LAYOUT_SEPARATOR@69..69 ""
         ClassDeclaration@69..97
           Annotation@69..71
@@ -47,6 +48,7 @@ source: compiler-frontend/parsing/tests/parser.rs
             Annotation@80..81
               TEXT@80..81 " "
             PIPE@81..82 "|"
+            ERROR@82..82 ""
           Annotation@82..83
             TEXT@82..83 " "
           WHERE@83..88 "where"
@@ -69,5 +71,22 @@ source: compiler-frontend/parsing/tests/parser.rs
         TEXT@97..98 "\n"
       END_OF_FILE@98..98 ""
     ,
-    [],
+    [
+        ParseError {
+            offset: 71,
+            position: Position {
+                line: 5,
+                column: 1,
+            },
+            message: "Expected LOWER or RIGHT_ARROW",
+        },
+        ParseError {
+            offset: 83,
+            position: Position {
+                line: 5,
+                column: 13,
+            },
+            message: "Expected LOWER or RIGHT_ARROW",
+        },
+    ],
 )

@@ -804,6 +804,9 @@ const FUNCTIONAL_DEPENDENCY_RECOVERY: TokenSet =
 fn class_functional_dependencies(p: &mut Parser) {
     let mut m = p.start();
     p.expect(SyntaxKind::PIPE);
+    if p.at_in(FUNCTIONAL_DEPENDENCY_END) || p.at_eof() {
+        p.error("Expected LOWER or RIGHT_ARROW");
+    }
     while !p.at_in(FUNCTIONAL_DEPENDENCY_END) && !p.at_eof() {
         if p.at_in(FUNCTIONAL_DEPENDENCY_START) {
             class_functional_dependency(p);
