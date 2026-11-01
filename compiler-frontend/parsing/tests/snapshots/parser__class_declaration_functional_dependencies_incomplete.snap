@@ -34,6 +34,7 @@ source: compiler-frontend/parsing/tests/parser.rs
               Annotation@74..75
                 TEXT@74..75 " "
               RIGHT_ARROW@75..77 "->"
+              ERROR@77..77 ""
         LAYOUT_SEPARATOR@77..77 ""
         ClassDeclaration@77..97
           Annotation@77..79
@@ -63,10 +64,28 @@ source: compiler-frontend/parsing/tests/parser.rs
               Annotation@94..95
                 TEXT@94..95 " "
               RIGHT_ARROW@95..97 "->"
+              ERROR@97..97 ""
       LAYOUT_END@97..97 ""
       Annotation@97..98
         TEXT@97..98 "\n"
       END_OF_FILE@98..98 ""
     ,
-    [],
+    [
+        ParseError {
+            offset: 79,
+            position: Position {
+                line: 5,
+                column: 1,
+            },
+            message: "Expected LOWER",
+        },
+        ParseError {
+            offset: 98,
+            position: Position {
+                line: 6,
+                column: 1,
+            },
+            message: "Expected LOWER",
+        },
+    ],
 )

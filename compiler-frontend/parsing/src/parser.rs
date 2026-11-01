@@ -825,19 +825,24 @@ fn class_functional_dependencies(p: &mut Parser) {
 fn class_functional_dependency(p: &mut Parser) {
     let mut m = p.start();
     if p.eat(SyntaxKind::RIGHT_ARROW) {
-        if p.at_in(names::LOWER) {
-            types::type_variable(p);
-        }
+        class_functional_dependency_variables(p);
         m.end(p, SyntaxKind::FunctionalDependencyDetermined);
     } else {
         while p.at_in(names::LOWER) {
             types::type_variable(p);
         }
         p.expect(SyntaxKind::RIGHT_ARROW);
-        while p.at_in(names::LOWER) {
-            types::type_variable(p);
-        }
+        class_functional_dependency_variables(p);
         m.end(p, SyntaxKind::FunctionalDependencyDetermines);
+    }
+}
+
+fn class_functional_dependency_variables(p: &mut Parser) {
+    if !p.at_in(names::LOWER) {
+        p.error("Expected LOWER");
+    }
+    while p.at_in(names::LOWER) {
+        types::type_variable(p);
     }
 }
 

@@ -34,7 +34,7 @@ source: compiler-frontend/parsing/tests/parser.rs
             Annotation@82..83
               TEXT@82..83 " "
             PIPE@83..84 "|"
-            FunctionalDependencyDetermined@84..89
+            FunctionalDependencyDetermined@84..91
               Annotation@84..85
                 TEXT@84..85 " "
               RIGHT_ARROW@85..87 "->"
@@ -42,34 +42,14 @@ source: compiler-frontend/parsing/tests/parser.rs
                 Annotation@87..88
                   TEXT@87..88 " "
                 LOWER@88..89 "a"
-            ERROR@89..89 ""
-            FunctionalDependencyDetermines@89..91
               TypeVariable@89..91
                 Annotation@89..90
                   TEXT@89..90 " "
                 LOWER@90..91 "b"
-              ERROR@91..91 ""
       LAYOUT_END@91..91 ""
       Annotation@91..92
         TEXT@91..92 "\n"
       END_OF_FILE@92..92 ""
     ,
-    [
-        ParseError {
-            offset: 90,
-            position: Position {
-                line: 3,
-                column: 20,
-            },
-            message: "Expected COMMA",
-        },
-        ParseError {
-            offset: 92,
-            position: Position {
-                line: 4,
-                column: 1,
-            },
-            message: "Expected RIGHT_ARROW",
-        },
-    ],
+    [],
 )
