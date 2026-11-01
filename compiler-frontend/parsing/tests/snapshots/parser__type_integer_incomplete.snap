@@ -31,6 +31,7 @@ source: compiler-frontend/parsing/tests/parser.rs
               Annotation@50..51
                 TEXT@50..51 " "
               MINUS@51..52 "-"
+              ERROR@52..52 ""
         LAYOUT_SEPARATOR@52..52 ""
         ValueEquation@52..73
           Annotation@52..54
@@ -55,6 +56,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                     Annotation@71..72
                       TEXT@71..72 " "
                     MINUS@72..73 "-"
+                    ERROR@73..73 ""
         LAYOUT_SEPARATOR@73..73 ""
         ValueSignature@73..91
           Annotation@73..75
@@ -101,5 +103,22 @@ source: compiler-frontend/parsing/tests/parser.rs
         TEXT@116..117 "\n"
       END_OF_FILE@117..117 ""
     ,
-    [],
+    [
+        ParseError {
+            offset: 54,
+            position: Position {
+                line: 5,
+                column: 1,
+            },
+            message: "Expected INTEGER",
+        },
+        ParseError {
+            offset: 75,
+            position: Position {
+                line: 7,
+                column: 1,
+            },
+            message: "Expected INTEGER",
+        },
+    ],
 )

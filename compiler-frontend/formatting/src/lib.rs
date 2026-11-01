@@ -320,7 +320,6 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
                     && (!parenthesized() || kinded())
                     && (!kinded() || has_child(cst::Type::can_cast))
             }
-            TypeInteger => has_token(INTEGER),
             ValueSignature
             | LetBindingSignature
             | InstanceSignatureStatement
