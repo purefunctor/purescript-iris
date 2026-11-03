@@ -1,6 +1,9 @@
 use smol_str::SmolStr;
 
-use crate::core::{ForallBinder, ForallBinderId, RowType, RowTypeId, Type, TypeFlags, TypeId};
+use crate::core::{
+    ForallBinder, ForallBinderId, RowType, RowTypeId, SmolStrId, StringLiteralId, Type, TypeFlags,
+    TypeId,
+};
 
 #[derive(Default)]
 pub struct CoreInterners {
@@ -8,6 +11,7 @@ pub struct CoreInterners {
     forall_binders: interner::parallel::Interner<ForallBinder>,
     row_types: interner::parallel::Interner<RowType>,
     smol_strs: interner::parallel::Interner<SmolStr>,
+    string_literals: interner::parallel::Interner<lowering::StringLiteral>,
 }
 
 impl CoreInterners {
@@ -79,13 +83,22 @@ impl CoreInterners {
         &self.row_types[id]
     }
 
-    pub fn intern_smol_str(&self, s: SmolStr) -> crate::core::SmolStrId {
+    pub fn intern_smol_str(&self, s: SmolStr) -> SmolStrId {
         self.smol_strs.intern(s)
     }
 
     #[inline]
-    pub fn lookup_smol_str(&self, id: crate::core::SmolStrId) -> &SmolStr {
+    pub fn lookup_smol_str(&self, id: SmolStrId) -> &SmolStr {
         &self.smol_strs[id]
+    }
+
+    pub fn intern_string_literal(&self, s: lowering::StringLiteral) -> StringLiteralId {
+        self.string_literals.intern(s)
+    }
+
+    #[inline]
+    pub fn lookup_string_literal(&self, id: StringLiteralId) -> &lowering::StringLiteral {
+        &self.string_literals[id]
     }
 }
 

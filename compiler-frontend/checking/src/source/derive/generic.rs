@@ -103,8 +103,8 @@ where
     let field_types = instantiate_constructor_fields(state, context, constructor_type, arguments)?;
     let fields_rep = build_fields_rep(context, known_generic, &field_types);
 
-    let name =
-        context.queries.intern_type(Type::String(StringKind::String, constructor_name.into()));
+    let name = context.queries.intern_string_literal(constructor_name.into());
+    let name = context.queries.intern_type(Type::String(StringKind::String, name));
     let constructor = context.intern_application(known_generic.constructor, name);
     Ok(context.intern_application(constructor, fields_rep))
 }

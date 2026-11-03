@@ -162,7 +162,11 @@ where
 {
     // Only the head is inspected, so expanding it is enough.
     let id = normalise::expand(state, context, id)?;
-    if let Type::String(_, value) = context.lookup_type(id) { Ok(Some(value)) } else { Ok(None) }
+    if let Type::String(_, value) = *context.lookup_type(id) {
+        Ok(Some(context.queries.lookup_string_literal(value)))
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn extract_row<Q>(
@@ -193,6 +197,7 @@ pub fn intern_symbol_literal<Q>(context: &CheckContext<Q>, value: lowering::Stri
 where
     Q: ExternalQueries,
 {
+    let value = context.queries.intern_string_literal(value);
     context.queries.intern_type(Type::String(lowering::StringKind::String, value))
 }
 

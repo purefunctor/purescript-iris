@@ -10,7 +10,8 @@ use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, SmolStrBuilder, format_smolstr};
 
 use crate::core::{
-    ForallBinder, ForallBinderId, Name, RowField, RowType, RowTypeId, SmolStrId, Type, TypeId,
+    ForallBinder, ForallBinderId, Name, RowField, RowType, RowTypeId, SmolStrId, StringLiteralId,
+    Type, TypeId,
 };
 use crate::{CheckedModule, safe_loop};
 
@@ -41,6 +42,8 @@ pub trait PrettyQueries:
     fn lookup_row_type(&self, id: RowTypeId) -> &RowType;
 
     fn lookup_smol_str(&self, id: SmolStrId) -> &SmolStr;
+
+    fn lookup_string_literal(&self, id: StringLiteralId) -> &lowering::StringLiteral;
 }
 
 #[derive(Clone, Debug)]
@@ -504,11 +507,13 @@ where
                 self.parens_if(negative, integer)
             }
 
-            Type::String(kind, string) => match *kind {
+            &Type::String(kind, string) => match kind {
                 StringKind::String => {
+                    let string = queries.lookup_string_literal(string);
                     self.arena.text(lowering::literal::encode_normal_string(string))
                 }
                 StringKind::RawString => {
+                    let string = queries.lookup_string_literal(string);
                     let string = string.to_utf8().unwrap_or_else(|_| {
                         unreachable!("invariant violated: raw string contains a lone surrogate")
                     });

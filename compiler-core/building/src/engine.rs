@@ -1610,6 +1610,14 @@ impl checking::PrettyQueries for QueryEngine {
     fn lookup_smol_str(&self, id: checking::core::SmolStrId) -> &smol_str::SmolStr {
         self.interned.checking.lookup_smol_str(id)
     }
+
+    #[inline]
+    fn lookup_string_literal(
+        &self,
+        id: checking::core::StringLiteralId,
+    ) -> &lowering::StringLiteral {
+        self.interned.checking.lookup_string_literal(id)
+    }
 }
 
 impl checking::ExternalQueries for QueryEngine {
@@ -1639,6 +1647,10 @@ impl checking::ExternalQueries for QueryEngine {
 
     fn intern_smol_str(&self, s: smol_str::SmolStr) -> checking::core::SmolStrId {
         self.interned.checking.intern_smol_str(s)
+    }
+
+    fn intern_string_literal(&self, s: lowering::StringLiteral) -> checking::core::StringLiteralId {
+        self.interned.checking.intern_string_literal(s)
     }
 }
 

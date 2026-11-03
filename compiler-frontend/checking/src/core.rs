@@ -263,7 +263,7 @@ pub enum Type {
     /// A type-level integer literal, `42`.
     Integer(i32),
     /// A type-level string literal, `"life"`.
-    String(lowering::StringKind, lowering::StringLiteral),
+    String(lowering::StringKind, StringLiteralId),
     /// A row type, see [`RowType`].
     Row(RowTypeId),
 
@@ -360,4 +360,5 @@ pub enum Role {
 pub type ForallBinderId = interner::Id<ForallBinder>;
 pub type RowTypeId = interner::Id<RowType>;
 pub type SmolStrId = interner::Id<SmolStr>;
+pub type StringLiteralId = interner::Id<lowering::StringLiteral>;
 pub type TypeId = interner::Id<Type>;
