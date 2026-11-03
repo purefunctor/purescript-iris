@@ -166,7 +166,7 @@ mod tests {
 
         let integer = interners.intern_type(Type::Integer(0));
         let unification = interners.intern_type(Type::Unification(0));
-        let name = Name { file, unique: 0, scope: None };
+        let name = Name { file, unique: 0, scoped: false };
         let rigid = interners.intern_type(Type::Rigid(name, Depth(0), integer));
 
         let closed = interners.intern_type(Type::Function(integer, integer));

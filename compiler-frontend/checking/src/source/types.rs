@@ -493,7 +493,7 @@ where
     state.checked.names.insert(name, text);
     state.checked.node_types.forall_bindings.insert(binding.id, kind);
     state.bindings.bind_forall(binding.id, name, state.depth, kind);
-    Ok(ForallBinder { visible, name, kind, scope: None })
+    Ok(ForallBinder { visible, name, kind })
 }
 
 pub fn infer_application_kind<Q>(

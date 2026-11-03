@@ -26,10 +26,14 @@ use smol_str::{SmolStr, SmolStrBuilder};
 pub struct Name {
     pub file: FileId,
     pub unique: u32,
-    pub scope: Option<SkolemScope>,
+    pub scoped: bool,
 }
 
 impl Name {
+    pub fn scope(self) -> Option<SkolemScope> {
+        self.scoped.then_some(SkolemScope { file: self.file, unique: self.unique })
+    }
+
     /// Renders this name as a stable textual variable like `t42`.
     pub fn as_text(self) -> SmolStr {
         let mut text = SmolStrBuilder::new();
@@ -65,8 +69,6 @@ pub struct ForallBinder {
     pub name: Name,
     /// The kind of the type variable.
     pub kind: TypeId,
-    /// The lexical scope owned by an expected forall during expression checking.
-    pub scope: Option<SkolemScope>,
 }
 
 /// Represents a row type.

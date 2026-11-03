@@ -14,7 +14,7 @@ use crate::core::exhaustive::{
     ExhaustivenessReport, Pattern, PatternConstructor, PatternId, PatternInterner, PatternKind,
 };
 use crate::core::substitute::RigidRenaming;
-use crate::core::{Depth, Name, SkolemScope, SmolStrId, Type, TypeId, constraint};
+use crate::core::{Depth, Name, SmolStrId, Type, TypeId, constraint};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{EvidenceBinderId, EvidenceVarId};
 use crate::implication::{GivenConstraint, Implications, Patterns, WantedConstraint};
@@ -34,14 +34,11 @@ impl Names {
     pub fn fresh(&mut self) -> Name {
         let unique = self.unique;
         self.unique += 1;
-        Name { file: self.file, unique, scope: None }
+        Name { file: self.file, unique, scoped: false }
     }
 
-    pub fn fresh_scoped(&mut self) -> (Name, SkolemScope) {
-        let name = self.fresh();
-        let scope = SkolemScope { file: name.file, unique: name.unique };
-        let name = Name { scope: Some(scope), ..name };
-        (name, scope)
+    pub fn fresh_scoped(&mut self) -> Name {
+        Name { scoped: true, ..self.fresh() }
     }
 }
 
@@ -285,13 +282,13 @@ impl CheckState {
         queries: &impl ExternalQueries,
         kind: TypeId,
         text: Option<SmolStrId>,
-    ) -> (TypeId, Name, SkolemScope) {
-        let (name, scope) = self.names.fresh_scoped();
+    ) -> (TypeId, Name) {
+        let name = self.names.fresh_scoped();
         if let Some(text) = text {
             self.checked.names.insert(name, text);
         }
         let rigid = queries.intern_type(Type::Rigid(name, self.depth, kind));
-        (rigid, name, scope)
+        (rigid, name)
     }
 
     pub fn insert_error(&mut self, kind: ErrorKind) {

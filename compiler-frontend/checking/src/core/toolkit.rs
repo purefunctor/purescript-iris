@@ -425,7 +425,7 @@ where
         }
 
         substitution.insert(binder.name, rigid);
-        freshened.push(ForallBinder { visible: binder.visible, name, kind, scope: None });
+        freshened.push(ForallBinder { visible: binder.visible, name, kind });
     }
 
     let quantified = SubstituteName::many(state, context, &substitution, quantified)?;
