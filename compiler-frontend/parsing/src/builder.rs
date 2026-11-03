@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use lexing::{Lexed, Position};
-use syntax::{SyntaxKind, SyntaxValue, TreeOwner};
+use syntax::{SyntaxFlavor, SyntaxKind, SyntaxValue, TreeOwner};
 use syntree::Builder as SyntreeBuilder;
 
 use crate::{ParseError, ParsedModule};
@@ -37,7 +37,7 @@ struct Builder<'l, 's> {
     position: Position,
     annotated: bool,
     qualified: bool,
-    builder: SyntreeBuilder<SyntaxValue>,
+    builder: SyntreeBuilder<SyntaxValue, SyntaxFlavor>,
     errors: Vec<ParseError>,
 }
 
@@ -52,7 +52,7 @@ impl<'l, 's> Builder<'l, 's> {
         let position = info.position;
         let annotated = false;
         let qualified = false;
-        let builder = SyntreeBuilder::new();
+        let builder = SyntreeBuilder::new_with();
         let errors = Vec::new();
         Builder {
             lexed,

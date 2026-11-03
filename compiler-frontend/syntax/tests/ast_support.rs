@@ -72,7 +72,7 @@ impl AstNode for DivergentAstNode {
 }
 
 fn root_with_children() -> SyntaxNode {
-    let mut builder = syntree::Builder::new();
+    let mut builder = syntree::Builder::new_with();
     builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
     builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
     builder.close().unwrap();
