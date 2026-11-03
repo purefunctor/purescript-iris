@@ -124,7 +124,7 @@ mod tests {
     use super::StabilizedModule;
 
     fn annotation(text_length: usize) -> SyntaxNode {
-        let mut builder = syntree::Builder::new();
+        let mut builder = syntree::Builder::new_with();
         let node = SyntaxValue::node(SyntaxKind::Annotation);
         builder.open(node).unwrap();
         let token = SyntaxValue::token(SyntaxKind::TEXT);

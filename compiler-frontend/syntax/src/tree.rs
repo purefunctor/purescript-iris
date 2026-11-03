@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use parking_lot::Mutex;
-use syntree::pointer::PointerUsize;
+use syntree::pointer::PointerU32;
 pub use text_size::{TextRange, TextSize};
 
 use crate::SyntaxKind;
@@ -30,7 +30,14 @@ impl SyntaxValue {
     }
 }
 
-pub type Syntree = syntree::Tree<SyntaxValue, syntree::FlavorDefault>;
+syntree::flavor! {
+    pub struct SyntaxFlavor {
+        type Index = u32;
+        type Width = u32;
+    }
+}
+
+pub type Syntree = syntree::Tree<SyntaxValue, SyntaxFlavor>;
 
 /// Owns the textless syntax structure shared by syntax handles.
 ///
@@ -43,7 +50,7 @@ pub type Syntree = syntree::Tree<SyntaxValue, syntree::FlavorDefault>;
 #[derive(Debug)]
 pub struct TreeOwner {
     tree: Mutex<Syntree>,
-    root: PointerUsize,
+    root: PointerU32,
 }
 
 impl TreeOwner {
@@ -75,13 +82,13 @@ impl Eq for TreeOwner {}
 #[derive(Clone)]
 pub struct SyntaxNode {
     owner: Arc<TreeOwner>,
-    id: PointerUsize,
+    id: PointerU32,
 }
 
 #[derive(Clone)]
 pub struct SyntaxToken {
     owner: Arc<TreeOwner>,
-    id: PointerUsize,
+    id: PointerU32,
 }
 
 macro_rules! handle_impls {
@@ -106,11 +113,11 @@ macro_rules! handle_impls {
 handle_impls!(SyntaxNode);
 handle_impls!(SyntaxToken);
 
-fn range(node: &syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>) -> TextRange {
+fn range(node: &syntree::Node<'_, SyntaxValue, SyntaxFlavor>) -> TextRange {
     TextRange::new(node.span().start.into(), node.span().end.into())
 }
 
-fn element(owner: &Arc<TreeOwner>, id: PointerUsize, value: SyntaxValue) -> SyntaxElement {
+fn element(owner: &Arc<TreeOwner>, id: PointerU32, value: SyntaxValue) -> SyntaxElement {
     match value.category {
         ElementCategory::Node => SyntaxNode { owner: Arc::clone(owner), id }.into(),
         ElementCategory::Token => SyntaxToken { owner: Arc::clone(owner), id }.into(),
@@ -163,7 +170,7 @@ impl SyntaxNode {
         SyntaxElementChildren { owner: Arc::clone(&self.owner), next: self.first_element_id() }
     }
 
-    fn first_element_id(&self) -> Option<PointerUsize> {
+    fn first_element_id(&self) -> Option<PointerU32> {
         let tree = self.owner.tree.lock();
         Some(tree.get(self.id)?.first()?.id())
     }
@@ -366,7 +373,7 @@ impl From<SyntaxToken> for SyntaxElement {
 /// Iterates child nodes lazily, as most callers stop at the first match.
 pub struct SyntaxNodeChildren {
     owner: Arc<TreeOwner>,
-    next: Option<PointerUsize>,
+    next: Option<PointerU32>,
 }
 
 impl Iterator for SyntaxNodeChildren {
@@ -388,7 +395,7 @@ impl Iterator for SyntaxNodeChildren {
 /// Iterates child elements lazily, as most callers stop at the first match.
 pub struct SyntaxElementChildren {
     owner: Arc<TreeOwner>,
-    next: Option<PointerUsize>,
+    next: Option<PointerU32>,
 }
 
 impl Iterator for SyntaxElementChildren {
@@ -440,7 +447,7 @@ impl Iterator for PreorderWithTokens {
 
 pub struct SyntaxTokens {
     owner: Arc<TreeOwner>,
-    tokens: std::vec::IntoIter<PointerUsize>,
+    tokens: std::vec::IntoIter<PointerU32>,
 }
 
 impl Iterator for SyntaxTokens {
@@ -454,7 +461,7 @@ impl Iterator for SyntaxTokens {
 
 fn collect_events(
     owner: &Arc<TreeOwner>,
-    node: syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>,
+    node: syntree::Node<'_, SyntaxValue, SyntaxFlavor>,
     out: &mut Vec<WalkEvent<SyntaxElement>>,
 ) {
     let value = node.value();
@@ -468,7 +475,7 @@ fn collect_events(
 
 fn collect_node_events(
     owner: &Arc<TreeOwner>,
-    node: syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>,
+    node: syntree::Node<'_, SyntaxValue, SyntaxFlavor>,
     out: &mut Vec<WalkEvent<SyntaxNode>>,
 ) {
     let current = (node.value().category == ElementCategory::Node)
@@ -484,7 +491,7 @@ fn collect_node_events(
     }
 }
 
-fn sibling(owner: &Arc<TreeOwner>, id: PointerUsize, next: bool) -> Option<SyntaxElement> {
+fn sibling(owner: &Arc<TreeOwner>, id: PointerU32, next: bool) -> Option<SyntaxElement> {
     let tree = owner.tree.lock();
     let node = tree.get(id)?;
     let node = if next { node.next()? } else { node.prev()? };
@@ -539,7 +546,7 @@ fn token_at_offset(node: &SyntaxNode, offset: TextSize) -> TokenAtOffset<SyntaxT
         let range = range(&raw);
         if !range.is_empty() && range.start() == offset {
             return left
-                .filter(|(_, range): &(PointerUsize, TextRange)| range.end() == offset)
+                .filter(|(_, range): &(PointerU32, TextRange)| range.end() == offset)
                 .map_or_else(
                     || TokenAtOffset::Single(SyntaxToken { owner: Arc::clone(&node.owner), id }),
                     |(left, _)| {
@@ -565,7 +572,7 @@ fn token_at_offset(node: &SyntaxNode, offset: TextSize) -> TokenAtOffset<SyntaxT
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SyntaxNodePtr {
-    id: PointerUsize,
+    id: PointerU32,
     kind: SyntaxKind,
     range: TextRange,
 }
@@ -576,7 +583,7 @@ impl SyntaxNodePtr {
         SyntaxNodePtr::from_raw(&tree.get(node.id).unwrap())
     }
 
-    fn from_raw(node: &syntree::Node<'_, SyntaxValue, syntree::FlavorDefault>) -> SyntaxNodePtr {
+    fn from_raw(node: &syntree::Node<'_, SyntaxValue, SyntaxFlavor>) -> SyntaxNodePtr {
         SyntaxNodePtr { id: node.id(), kind: node.value().kind, range: range(node) }
     }
 
@@ -688,7 +695,7 @@ mod tests {
     use super::*;
 
     fn root_with_boundary_tokens() -> SyntaxNode {
-        let mut builder = syntree::Builder::new();
+        let mut builder = syntree::Builder::new_with();
         let root = SyntaxValue::node(SyntaxKind::Module);
         builder.open(root).unwrap();
         let lower = SyntaxValue::token(SyntaxKind::LOWER);
@@ -755,7 +762,7 @@ mod tests {
 
     #[test]
     fn tokens_include_nested_raw_tokens_and_stay_inside_the_subtree() {
-        let mut builder = syntree::Builder::new();
+        let mut builder = syntree::Builder::new_with();
         builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
         builder.open(SyntaxValue::token(SyntaxKind::TEXT)).unwrap();
         builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
@@ -784,7 +791,7 @@ mod tests {
 
     #[test]
     fn preorder_finds_nodes_nested_under_raw_token_elements() {
-        let mut builder = syntree::Builder::new();
+        let mut builder = syntree::Builder::new_with();
         builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
         builder.open(SyntaxValue::token(SyntaxKind::TEXT)).unwrap();
         builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
