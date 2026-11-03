@@ -249,7 +249,7 @@ where
             }
         };
 
-        let binder = ForallBinder { visible: false, name, kind, scope: None };
+        let binder = ForallBinder { visible: false, name, kind };
         let binder = context.intern_forall_binder(binder);
         quantified = context.intern_forall(binder, quantified);
         parameters.push(GeneralisedParameter { binder, rigid });
@@ -610,13 +610,13 @@ where
     for implicit_unification in implicits_unifications {
         match implicit_unification {
             ImplicitOrUnification::Implicit(name, kind) => {
-                binders.push(ForallBinder { visible: false, name, kind, scope: None })
+                binders.push(ForallBinder { visible: false, name, kind })
             }
             ImplicitOrUnification::Unification(id, kind) => {
                 let name = state.names.fresh();
                 let rigid = context.intern_rigid(name, depth, kind);
                 state.unifications.solve(id, rigid);
-                binders.push(ForallBinder { visible: false, name, kind, scope: None })
+                binders.push(ForallBinder { visible: false, name, kind })
             }
         }
     }

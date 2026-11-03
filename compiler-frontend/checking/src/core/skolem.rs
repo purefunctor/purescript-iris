@@ -162,7 +162,7 @@ where
     let reported = checked.errors.iter().filter_map(|error| {
         let ErrorKind::EscapedSkolem { skolem, .. } = error.kind else { return None };
         let Type::Rigid(name, _, _) = *context.lookup_type(skolem) else { return None };
-        name.scope
+        name.scope()
     });
     let reported = reported.collect();
 
@@ -638,7 +638,7 @@ fn inspect_type<Q>(
                 pending.extend(row.tail);
             }
             Type::Rigid(name, _, kind) => {
-                if let Some(scope) = name.scope
+                if let Some(scope) = name.scope()
                     && checker.expected_skolems.contains(&scope)
                     && !checker.active.contains_key(&scope)
                     && checker.reported.insert(scope)
@@ -713,7 +713,7 @@ where
     let mut scopes = Vec::new();
     while let Type::Forall(binder, inner) = *context.lookup_type(type_id) {
         let binder = context.lookup_forall_binder(binder);
-        let Some(scope) = binder.scope else { break };
+        let Some(scope) = binder.name.scope() else { break };
         scopes.push(scope);
         type_id = inner;
     }

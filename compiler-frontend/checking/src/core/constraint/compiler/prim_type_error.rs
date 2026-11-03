@@ -32,7 +32,8 @@ where
     Q: ExternalQueries,
 {
     let id = normalise::expand(state, context, id)?;
-    if let Type::String(_, value) = context.lookup_type(id) {
+    if let Type::String(_, value) = *context.lookup_type(id) {
+        let value = context.queries.lookup_string_literal(value);
         let text = value
             .to_utf8()
             .unwrap_or_else(|_| lowering::literal::encode_normal_string_content(value));
@@ -51,8 +52,9 @@ where
     Q: ExternalQueries,
 {
     let id = normalise::expand(state, context, id)?;
-    if let Type::String(kind, value) = context.lookup_type(id) {
-        Ok(Some((*kind, StringLiteral::clone(value))))
+    if let Type::String(kind, value) = *context.lookup_type(id) {
+        let value = context.queries.lookup_string_literal(value);
+        Ok(Some((kind, StringLiteral::clone(value))))
     } else {
         Ok(None)
     }

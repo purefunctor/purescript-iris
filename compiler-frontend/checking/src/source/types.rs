@@ -247,6 +247,7 @@ where
 
         lowering::TypeKind::String { kind, value } => {
             let value = value.clone().unwrap_or_else(|| MISSING_NAME.as_str().into());
+            let value = context.queries.intern_string_literal(value);
 
             let t = context.queries.intern_type(Type::String(*kind, value));
             let k = context.prim.symbol;
@@ -493,7 +494,7 @@ where
     state.checked.names.insert(name, text);
     state.checked.node_types.forall_bindings.insert(binding.id, kind);
     state.bindings.bind_forall(binding.id, name, state.depth, kind);
-    Ok(ForallBinder { visible, name, kind, scope: None })
+    Ok(ForallBinder { visible, name, kind })
 }
 
 pub fn infer_application_kind<Q>(

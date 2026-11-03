@@ -110,7 +110,8 @@ impl<'a> TypeEncoder<'a> {
                 reference: self.resolve_type_reference(file_id, type_id)?,
             },
             checking::Type::Integer(value) => schema::Type::Integer { value },
-            checking::Type::String(kind, ref value) => {
+            checking::Type::String(kind, value) => {
+                let value = self.engine.lookup_string_literal(value);
                 let value = match value.to_utf8() {
                     Ok(value) => schema::StringLiteralValue::Utf8(value),
                     Err(_) => schema::StringLiteralValue::Utf16(value.as_utf16().to_vec()),

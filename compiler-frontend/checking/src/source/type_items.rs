@@ -406,7 +406,7 @@ where
         state.checked.names.insert(name, text);
         let visible = equation_binding.visible;
 
-        binders.push(ForallBinder { visible, name, kind, scope: None });
+        binders.push(ForallBinder { visible, name, kind });
     }
 
     Ok(binders)

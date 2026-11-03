@@ -63,6 +63,8 @@ pub trait ExternalQueries:
     fn intern_row_type(&self, r: RowType) -> RowTypeId;
 
     fn intern_smol_str(&self, s: SmolStr) -> core::SmolStrId;
+
+    fn intern_string_literal(&self, s: lowering::StringLiteral) -> core::StringLiteralId;
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

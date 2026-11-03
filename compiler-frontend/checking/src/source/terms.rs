@@ -158,11 +158,11 @@ where
 
             let kind = normalise::normalise(state, context, binder.kind);
             let text = state.checked.lookup_name(binder.name);
-            let (rigid, name, scope) = state.fresh_scoped_rigid_named(context.queries, kind, text);
+            let (rigid, name) = state.fresh_scoped_rigid_named(context.queries, kind, text);
 
             let inner = SubstituteName::one(state, context, binder.name, rigid, inner)?;
             let checked = check_expected_expression(state, context, inner, check)?;
-            let binder = crate::core::ForallBinder { name, scope: Some(scope), ..binder };
+            let binder = crate::core::ForallBinder { name, ..binder };
             let binder = context.intern_forall_binder(binder);
             let inner = state.checked.tree[checked.expression].type_id;
             let scoped = context.intern_forall(binder, inner);
