@@ -36,6 +36,12 @@ automatically. Create one by creating the directory and its `Main.purs`, for exa
 `$(date +%s)` as the prefix; delete one by deleting the directory. Fixture snapshots live beside
 their sources; `lowering_unit` snapshots live in `tests/snapshots/`.
 
+When you mention a fixture or one of its files in a reply, link it with a Markdown link to its
+absolute path, such as
+`[compiler/1771860360_foreign_check](file:///<checkout>/tests-integration/fixtures/compiler/1771860360_foreign_check/Main.purs)`.
+Name the category with the fixture, because fixture names can repeat across categories. Link a
+fixture to its `Main.purs`, or to the specific report or file under discussion.
+
 ## Categories
 
 | Category     | Alias | Targets                     | Owns                                                                                     | Reports                                                      |
