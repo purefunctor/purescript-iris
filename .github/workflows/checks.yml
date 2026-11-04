@@ -14,16 +14,19 @@ jobs:
     uses: ./.github/workflows/platform-tests.yml
     with:
       os: ubuntu-latest
+      partitions: '["1/4","2/4","3/4","4/4"]'
 
   macos_tests:
     uses: ./.github/workflows/platform-tests.yml
     with:
       os: macos-latest
+      partitions: '["1/3","2/3","3/3"]'
 
   windows_tests:
     uses: ./.github/workflows/platform-tests.yml
     with:
       os: windows-latest
+      partitions: '["1/5","2/5","3/5","4/5","5/5"]'
 
   end_to_end:
     name: End-to-end tests (${{ matrix.os }})
