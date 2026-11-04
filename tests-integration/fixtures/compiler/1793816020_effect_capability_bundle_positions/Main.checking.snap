@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+invalidValue :: ?[invalid capability bundle position] -> ?[invalid capability bundle position]
+invalidService ::
+  { first :: Main.First, second :: Main.Second } -> ?[invalid capability bundle position]
+InvalidField :: Prim.Array ?[invalid capability bundle position] -> Main.InvalidField
+invalidErased :: Main.Ignore ?[invalid capability bundle position]
+lookup ::
+  forall @service (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has service (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> service
+invalidApplication :: { first :: Main.First, second :: Main.Second } -> Prim.Int
+
+Types
+First :: Prim.Type
+Second :: Prim.Type
+Shop :: Prim.Type
+Ignore :: Prim.Type -> Prim.Type
+InvalidField :: Prim.Type
+
+Synonyms
+type Shop = Main.First & Main.Second
+type Ignore value = Prim.Int
+
+Roles
+First = []
+Second = []
+InvalidField = []

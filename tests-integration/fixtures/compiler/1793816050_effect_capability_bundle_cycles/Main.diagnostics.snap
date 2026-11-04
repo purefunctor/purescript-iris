@@ -1,0 +1,38 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [RecursiveSynonym] · Main.purs:7:1
+  •
+  │
+  • Invalid type synonym cycle
+  │
+  │   type Recursive = Service & Recursive
+  │   ╰───────────────────────────────────
+  •
+
+Error! · [RecursiveSynonym] · Main.purs:9:1
+  •
+  │
+  • Invalid type synonym cycle
+  │
+  │   type Growing value = Array (Growing (Array value))
+  │   ╰─────────────────────────────────────────────────
+  •
+
+Error! · [RecursiveSynonymExpansion] · Main.purs:11:35
+  •
+  │
+  • Recursive type synonym expansion
+  │
+  │   recursive :: forall services. Has Recursive services => Record services -> Int
+  │                                     ╰────────
+  •
+
+Error! · [RecursiveSynonymExpansion] · Main.purs:14:12
+  •
+  │
+  • Recursive type synonym expansion
+  │
+  │   growing :: Growing Int -> Int
+  │              ╰──────────
+  •

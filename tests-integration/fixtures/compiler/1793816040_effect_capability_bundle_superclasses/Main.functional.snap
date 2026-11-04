@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance both = \hasFirstServicesDict%0 hasSecondServicesDict%1 ->
+  { "Has0": \() -> hasFirstServicesDict%0, "Has1": \() -> hasSecondServicesDict%1 }
+
+@export reading = \bothServicesDict%2 ->
+  \services%3 ->
+    case getService (bothServicesDict%2."Has0"()) services%3, getService
+      (bothServicesDict%2."Has1"())
+      services%3 of
+      first%4, second%5 ->
+        integer.add (integer.multiply first%4 100) second%5
+
+@export readingValue = reading (both (service "first") (service "second")) { first: 3, second: 7 }

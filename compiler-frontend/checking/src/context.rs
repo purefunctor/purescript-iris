@@ -233,6 +233,10 @@ where
         self.queries.intern_type(Type::Constrained(constraint, inner))
     }
 
+    pub fn intern_constraint_origin(&self, constraint: TypeId, origin: TypeId) -> TypeId {
+        self.queries.intern_type(Type::ConstraintOrigin(constraint, origin))
+    }
+
     /// Interns a [`Type::Function`] node.
     pub fn intern_function(&self, argument: TypeId, result: TypeId) -> TypeId {
         self.queries.intern_type(Type::Function(argument, result))
@@ -645,6 +649,7 @@ impl PrimCoerceCore {
 pub struct IrisEffectCore {
     pub file_id: FileId,
     pub has: TypeItemId,
+    pub bundle: TypeId,
 }
 
 impl IrisEffectCore {
@@ -656,7 +661,11 @@ impl IrisEffectCore {
         let resolved = queries.resolved(file_id)?;
         let lookup = PrimLookup::new(&resolved, queries, "Iris.Effect");
 
-        Ok(IrisEffectCore { file_id, has: lookup.class_item("Has") })
+        Ok(IrisEffectCore {
+            file_id,
+            has: lookup.class_item("Has"),
+            bundle: lookup.type_constructor("Bundle"),
+        })
     }
 }
 

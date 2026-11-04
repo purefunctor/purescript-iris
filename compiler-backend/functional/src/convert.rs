@@ -484,7 +484,8 @@ where
             | checking::Type::KindApplication(function, _)
             | checking::Type::Kinded(function, _)
             | checking::Type::Forall(_, function)
-            | checking::Type::Constrained(_, function) => {
+            | checking::Type::Constrained(_, function)
+            | checking::Type::ConstraintOrigin(function, _) => {
                 return self.type_parameter_name(function, fallback);
             }
             checking::Type::Function(_, _) => Some(SmolStr::new("function")),
@@ -604,6 +605,7 @@ where
             file_id: superclass.file_id,
             class: superclass.type_id,
             source: superclass.source_id,
+            member: superclass.member,
         };
         let checked = if superclass.file_id == self.file_id {
             Arc::clone(&self.checked)
@@ -639,7 +641,8 @@ where
             match *self.queries.lookup_type(current) {
                 checking::Type::Application(function, _)
                 | checking::Type::KindApplication(function, _)
-                | checking::Type::Kinded(function, _) => current = function,
+                | checking::Type::Kinded(function, _)
+                | checking::Type::ConstraintOrigin(function, _) => current = function,
                 checking::Type::Constructor(file_id, type_id)
                 | checking::Type::Synonym(file_id, type_id) => {
                     return self.type_item_name(file_id, type_id);

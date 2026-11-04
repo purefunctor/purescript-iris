@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export reading = \hasFirstServicesDict%0 hasSecondServicesDict%2 ->
+  \services%1 ->
+    case getService hasFirstServicesDict%0 services%1, getService hasSecondServicesDict%2
+      services%1 of
+      first%3, second%4 ->
+        integer.add (integer.multiply first%3 100) second%4
+
+@export inferred = \hasFirstDict%6 hasSecondDict%5 ->
+  \services%7 -> reading hasFirstDict%6 hasSecondDict%5 services%7
+
+@export ranked = \hasFirstServicesDict%9 hasSecondServicesDict%8 ->
+  \action%10 -> action%10 hasFirstServicesDict%9 hasSecondServicesDict%8
+
+@export tagged = \hasFirstServicesDict%14 hasTaggedValueServicesDict%11 hasSecondServicesDict%15 ->
+  \services%12 ->
+    case getService hasTaggedValueServicesDict%11 services%12 of
+      value%13 ->
+        value%13
+
+@export readingValue = reading (service "first") (service "second") { first: 3, second: 7 }
+
+@export inferredValue = inferred (service "red") (service "blue") { red: 11, blue: 13 }
+
+@export rankedValue = ranked (service "first") (service "second")
+  (\hasFirstOtherDict%16 ->
+    \hasSecondOtherDict%17 -> reading hasFirstOtherDict%16 hasSecondOtherDict%17)
+  { second: 2, first: 5 }
+
+@export taggedValue = tagged (service "first") (service "tagged") (service "second")
+  { first: 0, second: 0, tagged: "tagged" }

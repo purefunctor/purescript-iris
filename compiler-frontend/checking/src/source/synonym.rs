@@ -220,7 +220,7 @@ where
     Ok((synonym_type, synonym_kind))
 }
 
-fn is_recursive_synonym<Q>(
+pub fn is_recursive_synonym<Q>(
     context: &CheckContext<Q>,
     file_id: FileId,
     type_id: TypeItemId,

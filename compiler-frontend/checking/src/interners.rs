@@ -39,6 +39,9 @@ impl CoreInterners {
             Type::Application(left, right) | Type::KindApplication(left, right) => {
                 expandable(left) | transitive(left) | transitive(right)
             }
+            Type::ConstraintOrigin(left, right) => {
+                TypeFlags::MAY_EXPAND | transitive(left) | transitive(right)
+            }
             Type::Constrained(left, right)
             | Type::Function(left, right)
             | Type::Kinded(left, right) => transitive(left) | transitive(right),

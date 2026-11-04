@@ -901,7 +901,7 @@ where
                 self.append_type_constructor_names(name, function)?;
                 self.append_type_constructor_names(name, argument)?;
             }
-            Type::Forall(_, inner) | Type::Kinded(inner, _) => {
+            Type::Forall(_, inner) | Type::Kinded(inner, _) | Type::ConstraintOrigin(inner, _) => {
                 self.append_type_constructor_names(name, inner)?;
             }
             Type::Constrained(_, inner) => {

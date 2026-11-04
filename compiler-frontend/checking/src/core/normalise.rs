@@ -163,6 +163,11 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
+        if let Type::ConstraintOrigin(constraint, _) = *context.lookup_type(id) {
+            id = normalise(state, context, constraint);
+            continue;
+        }
+
         if !context.lookup_type_flags(id).may_expand() {
             return Ok(id);
         }

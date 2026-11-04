@@ -231,6 +231,7 @@ pub struct SuperclassIdentity {
     pub file_id: FileId,
     pub class: TypeItemId,
     pub source: SourceTypeId,
+    pub member: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

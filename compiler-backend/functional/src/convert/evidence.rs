@@ -945,7 +945,9 @@ where
             checking::Type::KindApplication(function, _) | checking::Type::Kinded(function, _) => {
                 self.append_evidence_type_name(name, function, fragments)?;
             }
-            checking::Type::Forall(_, inner) | checking::Type::Constrained(_, inner) => {
+            checking::Type::Forall(_, inner)
+            | checking::Type::Constrained(_, inner)
+            | checking::Type::ConstraintOrigin(inner, _) => {
                 self.append_evidence_type_name(name, inner, fragments)?;
             }
             checking::Type::Function(_, _) => {

@@ -28,6 +28,7 @@ use crate::context::CheckContext;
 use crate::core::constraint::{CanonicalConstraintId, ConstraintInScope, compiler, elaborate};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{ForallBinder, Name, Type, TypeFlags, TypeId, normalise, zonk};
+use crate::error::ErrorCrumb;
 use crate::evidence::{Evidence, EvidenceBinderId};
 use crate::state::{CheckState, UnificationEntry, UnificationState};
 use crate::{ExternalQueries, safe_loop};
@@ -71,7 +72,7 @@ where
                 aux(graph, state, context, binder.kind, dependent, visited_kinds)?;
                 aux(graph, state, context, inner, dependent, visited_kinds)?;
             }
-            Type::Constrained(constraint, inner) => {
+            Type::Constrained(constraint, inner) | Type::ConstraintOrigin(constraint, inner) => {
                 aux(graph, state, context, constraint, dependent, visited_kinds)?;
                 aux(graph, state, context, inner, dependent, visited_kinds)?;
             }
@@ -476,7 +477,14 @@ where
         state.checked.evidence.solve(evidence.wanted, proof);
 
         evidences.push((key.wanted, proof));
-        generalised.push(GeneralisedConstraint { constraint: canonical, binder });
+        let constraint = evidence.crumbs.iter().rev().fold(canonical, |constraint, crumb| {
+            if let ErrorCrumb::CapabilityBundle(origin) = *crumb {
+                context.intern_constraint_origin(constraint, origin)
+            } else {
+                constraint
+            }
+        });
+        generalised.push(GeneralisedConstraint { constraint, binder });
     }
 
     let projections = elaborate::elaborate_superclasses_with_evidence(state, context, &evidences)?;

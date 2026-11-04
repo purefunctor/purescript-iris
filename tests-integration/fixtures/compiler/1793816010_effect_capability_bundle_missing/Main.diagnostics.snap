@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CapabilityNotDeclared] · Main.purs:5:19
+  •
+  │
+  • Capability 'Second' is not declared in the capability set '( first :: First )'.
+  │
+  │   missing :: Record (first :: First) -> Int
+  │                     ╰───────────────
+  │
+  • This operation requires the capability
+  │
+  │   missing = reading
+  │             ╰──────
+  • while
+  │
+  │   required via Shop
+  •
+
+Error! · [CapabilityNotDeclared] · Main.purs:8:27
+  •
+  │
+  • Capability 'Second' is not declared in the capability set '( first :: First )'.
+  │
+  │   missingInferred :: Record (first :: First) -> Int
+  │                             ╰───────────────
+  │
+  • This operation requires the capability
+  │
+  │   missingInferred = inferred
+  │                     ╰───────
+  • while
+  │
+  │   required via Shop
+  •

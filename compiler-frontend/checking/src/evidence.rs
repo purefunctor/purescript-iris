@@ -31,6 +31,7 @@ pub struct SuperclassId {
     pub file_id: FileId,
     pub type_id: TypeItemId,
     pub source_id: lowering::TypeId,
+    pub member: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

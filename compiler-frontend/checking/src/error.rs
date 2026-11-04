@@ -13,6 +13,7 @@ pub enum ErrorCrumb {
     InstanceDeclaration(indexing::InstanceItemId),
     DeriveDeclaration(indexing::DeriveItemId),
     ConstructorArgument(lowering::TypeId),
+    CapabilityBundle(TypeId),
 
     InferringKind(lowering::TypeId),
     CheckingKind(lowering::TypeId),
@@ -52,6 +53,12 @@ pub enum ErrorKind {
     UnresolvedCapability {
         service: TypeId,
         services: TypeId,
+    },
+    InvalidCapabilityBundleMember {
+        member: TypeId,
+    },
+    InvalidCapabilityBundlePosition {
+        bundle: TypeId,
     },
     CannotDeriveClass {
         class_file: files::FileId,

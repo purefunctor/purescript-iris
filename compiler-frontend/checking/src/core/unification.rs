@@ -828,6 +828,8 @@ where
             Type::Constrained(constraint, inner) => check(promote, state, context, *constraint)?
                 .and_then(|| check(promote, state, context, *inner)),
 
+            Type::ConstraintOrigin(constraint, _) => check(promote, state, context, *constraint),
+
             Type::Function(argument, result) => check(promote, state, context, *argument)?
                 .and_then(|| check(promote, state, context, *result)),
 

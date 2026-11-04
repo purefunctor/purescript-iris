@@ -190,6 +190,7 @@ where
 
     pub fn span_from_error_crumb(&self, crumb: &ErrorCrumb) -> Option<Span> {
         let ptr = match crumb {
+            ErrorCrumb::CapabilityBundle(_) => return None,
             ErrorCrumb::ConstructorArgument(id) => self.stabilized.syntax_ptr(*id)?,
             ErrorCrumb::InferringKind(id) | ErrorCrumb::CheckingKind(id) => {
                 self.stabilized.syntax_ptr(*id)?

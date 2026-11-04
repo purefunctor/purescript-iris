@@ -348,6 +348,7 @@ enum Precedence {
     Top,
     Constraint,
     Function,
+    Bundle,
     Application,
     Atom,
 }
@@ -446,6 +447,16 @@ where
         Ok(false)
     }
 
+    fn is_bundle_constructor(&self, id: TypeId) -> QueryResult<bool> {
+        if let Type::Constructor(file_id, type_id) = *self.lookup_type(id)
+            && self.queries.module_file("Iris.Effect") == Some(file_id)
+            && let Some(name) = self.lookup_type_name(file_id, type_id)?
+        {
+            return Ok(name == "Bundle");
+        }
+        Ok(false)
+    }
+
     fn is_record_constructor(&self, id: TypeId) -> QueryResult<bool> {
         self.is_prim_type(id, "Record")
     }
@@ -483,6 +494,8 @@ where
                 self.traverse_constrained(precedence, constraint, inner)?
             }
 
+            &Type::ConstraintOrigin(constraint, _) => self.traverse(precedence, constraint)?,
+
             &Type::Function(argument, result) => {
                 self.traverse_function(precedence, argument, result)?
             }
@@ -493,6 +506,8 @@ where
                 let kinded = inner.append(self.arena.text(" :: ")).append(kind);
                 self.parens_if(precedence > Precedence::Atom, kinded)
             }
+
+            &Type::Constructor(..) if self.is_bundle_constructor(id)? => self.arena.text("(&)"),
 
             &Type::Constructor(file_id, type_id) | &Type::Synonym(file_id, type_id) => {
                 let name = self
@@ -577,6 +592,15 @@ where
         while let Type::Application(inner_function, argument) = *self.lookup_type(function) {
             function = inner_function;
             arguments.push(argument);
+        }
+
+        if let &[right, left] = arguments.as_slice()
+            && self.is_bundle_constructor(function)?
+        {
+            let left = self.traverse(Precedence::Application, left)?;
+            let right = self.traverse(Precedence::Bundle, right)?;
+            let bundle = left.append(self.arena.text(" &")).append(self.arena.line()).append(right);
+            return Ok(self.parens_if(precedence > Precedence::Bundle, bundle.group()));
         }
 
         let function = self.traverse(Precedence::Application, function)?;

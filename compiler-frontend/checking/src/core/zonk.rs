@@ -332,6 +332,14 @@ where
             let services = zonk(state, context, services)?;
             ErrorKind::UnresolvedCapability { service, services }
         }
+        ErrorKind::InvalidCapabilityBundleMember { member } => {
+            let member = zonk(state, context, member)?;
+            ErrorKind::InvalidCapabilityBundleMember { member }
+        }
+        ErrorKind::InvalidCapabilityBundlePosition { bundle } => {
+            let bundle = zonk(state, context, bundle)?;
+            ErrorKind::InvalidCapabilityBundlePosition { bundle }
+        }
         ErrorKind::CannotDeriveForType { type_id } => {
             let type_id = zonk(state, context, type_id)?;
             ErrorKind::CannotDeriveForType { type_id }

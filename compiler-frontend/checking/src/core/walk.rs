@@ -89,7 +89,7 @@ where
             walk_child!(binder.kind);
             walk_child!(inner);
         }
-        Type::Constrained(constraint, inner) => {
+        Type::Constrained(constraint, inner) | Type::ConstraintOrigin(constraint, inner) => {
             walk_child!(constraint);
             walk_child!(inner);
         }

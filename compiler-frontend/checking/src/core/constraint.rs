@@ -7,6 +7,7 @@
 //!
 //! [`Implication`]: crate::implication::Implication
 
+pub mod bundles;
 pub mod canonical;
 pub mod compiler;
 pub mod elaborate;
@@ -674,7 +675,14 @@ where
             let given: Rc<[CanonicalConstraintId]> = Rc::from(given);
             let given_evidence: Rc<[EvidenceId]> = Rc::from(given_evidence);
 
-            for WantedConstraint { constraint, evidence: wanted_evidence, crumbs } in wanted {
+            for WantedConstraint { mut constraint, evidence: wanted_evidence, mut crumbs } in wanted
+            {
+                while let Type::ConstraintOrigin(inner, origin) = *context.lookup_type(constraint) {
+                    let mut with_origin = crumbs.to_vec();
+                    with_origin.push(ErrorCrumb::CapabilityBundle(origin));
+                    crumbs = with_origin.into();
+                    constraint = inner;
+                }
                 if let Some(wanted) = canonical::canonicalise(state, context, constraint)? {
                     let given = Rc::clone(&given);
                     let given_evidence = Rc::clone(&given_evidence);

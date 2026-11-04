@@ -1,0 +1,53 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+reading :: forall services.
+  Iris.Effect.Has Capabilities.First services =>
+  Iris.Effect.Has Capabilities.Second services =>
+  {| services } -> Prim.Int
+reading = \{hasDict} -> \{hasDict1} -> \services ->
+  case getService {hasDict} services, getService {hasDict1} services of
+    (First first), (Second second) -> add {semiringInt} (mul {semiringInt} first 100) second
+
+inferred :: forall t0.
+  Iris.Effect.Has Capabilities.First t0 =>
+  Iris.Effect.Has Capabilities.Second t0 =>
+  {| t0 } -> Prim.Int
+inferred = \{hasDict} -> \{hasDict1} -> \services -> reading {hasDict} {hasDict1} services
+
+ranked :: forall services.
+  Iris.Effect.Has Capabilities.First services =>
+  Iris.Effect.Has Capabilities.Second services =>
+  (forall other.
+    Iris.Effect.Has Capabilities.First other =>
+    Iris.Effect.Has Capabilities.Second other =>
+    {| other } -> Prim.Int) ->
+  {| services } ->
+  Prim.Int
+ranked = \{hasDict} -> \{hasDict1} -> \action -> action {hasDict} {hasDict1}
+
+tagged :: forall value services.
+  Iris.Effect.Has Capabilities.First services =>
+  Iris.Effect.Has (Capabilities.Tagged value) services =>
+  Iris.Effect.Has Capabilities.Second services =>
+  {| services } -> value
+tagged = \{hasDict} -> \{hasDict1} -> \{hasDict2} -> \services ->
+  case getService {hasDict1} services of
+    (Tagged value) -> value
+
+readingValue :: Prim.Int
+readingValue = reading {service("first")} {service("second")} { first: First 3, second: Second 7 }
+
+inferredValue :: Prim.Int
+inferredValue = inferred {service("red")} {service("blue")} { red: First 11, blue: Second 13 }
+
+rankedValue :: Prim.Int
+rankedValue =
+  ranked {service("first")} {service("second")}
+    (\{hasDict} -> \{hasDict1} -> reading {hasDict} {hasDict1})
+    { second: Second 2, first: First 5 }
+
+taggedValue :: Prim.String
+taggedValue =
+  tagged {service("first")} {service("tagged")} {service("second")}
+    { first: First 0, second: Second 0, tagged: Tagged "tagged" }

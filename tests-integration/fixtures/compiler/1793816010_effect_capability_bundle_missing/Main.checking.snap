@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+missing :: { first :: Capabilities.First } -> Prim.Int
+missingInferred :: { first :: Capabilities.First } -> Prim.Int
+
+Types

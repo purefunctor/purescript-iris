@@ -109,6 +109,9 @@ where
         Type::Constrained(constraint, inner) => {
             fold_pair!(constraint, inner, intern_constrained)
         }
+        Type::ConstraintOrigin(constraint, origin) => {
+            fold_pair!(constraint, origin, intern_constraint_origin)
+        }
         Type::Function(argument, result) => fold_pair!(argument, result, intern_function),
         Type::Kinded(inner, kind) => fold_pair!(inner, kind, intern_kinded),
         Type::Constructor(_, _) | Type::Synonym(_, _) => id,
