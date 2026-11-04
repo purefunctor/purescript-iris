@@ -454,15 +454,15 @@ pub fn docs(path: &Path) -> FixtureResult {
     Ok(())
 }
 
-fn check_source_errors(
+pub(crate) fn check_source_errors(
     engine: &QueryEngine,
     files: &Files,
-    fixture_files: &HashSet<FileId>,
+    source_files: &HashSet<FileId>,
 ) -> FixtureResult {
-    let mut fixture_files = fixture_files.iter().copied().collect_vec();
-    fixture_files.sort_by_key(|&id| files.path(id));
+    let mut source_files = source_files.iter().copied().collect_vec();
+    source_files.sort_by_key(|&id| files.path(id));
     let mut errors = String::new();
-    for collection in collect_diagnostics(engine, &fixture_files)? {
+    for collection in collect_diagnostics(engine, &source_files)? {
         let diagnostics = collection.diagnostics();
         if !diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error) {
             continue;

@@ -95,6 +95,27 @@ fn load_folder(folder: &Path) -> FixtureResult<Vec<PathBuf>> {
     Ok(glob(&pattern)?.collect::<Result<Vec<_>, _>>()?)
 }
 
+fn library_sources(folder: &Path) -> FixtureResult<Vec<PathBuf>> {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let libraries_path = manifest.join(folder).join("libraries.json");
+    let roots: Vec<PathBuf> = match fs::read(&libraries_path) {
+        Ok(contents) => serde_json::from_slice(&contents)?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error.into()),
+    };
+    let repository = manifest.join("..");
+    let mut sources = Vec::new();
+    for root in roots {
+        let root = repository.join(&root);
+        if !root.is_dir() {
+            let message = format!("library root does not exist: {}", root.display());
+            return Err(std::io::Error::other(message).into());
+        }
+        sources.extend(load_folder(&root)?);
+    }
+    Ok(sources)
+}
+
 pub struct LoadedFixture {
     pub engine: QueryEngine,
     pub files: Files,
@@ -152,6 +173,19 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
     if replacements.values().any(|reason| reason.trim().is_empty()) {
         return Err(std::io::Error::other("module replacements require a reason").into());
     }
+    let mut library_files = HashSet::new();
+    for path in library_sources(folder)? {
+        let id = load_file(
+            &mut engine,
+            &mut files,
+            &mut foreign_files,
+            &path,
+            &HashSet::new(),
+            &HashSet::new(),
+            &mut BTreeMap::new(),
+        )?;
+        library_files.insert(id);
+    }
     let mut fixture_files = HashSet::new();
     for path in load_folder(folder)? {
         let id = load_file(
@@ -173,5 +207,6 @@ pub fn load_fixture(folder: &Path) -> FixtureResult<LoadedFixture> {
         ))
         .into());
     }
+    fixtures::check_source_errors(&engine, &files, &library_files)?;
     Ok(LoadedFixture { engine, files, fixture_files, prim_directory })
 }
