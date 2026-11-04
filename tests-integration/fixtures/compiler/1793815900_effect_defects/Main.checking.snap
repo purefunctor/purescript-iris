@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+boom :: Prim.String -> Effect.Effect Data.Unit.Unit
+throwNull :: Effect.Effect Data.Unit.Unit
+throwHostile :: Effect.Effect Data.Unit.Unit
+setTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int
+clearTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit
+delay :: Prim.Int -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+describe :: forall value. Iris.Effect.Fiber.Exit Prim.String value -> Prim.String
+outcome ::
+  forall value.
+    Main.Report ->
+    Prim.String ->
+    Iris.Effect.Async.Async Prim.String () value ->
+    Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+launchDefect :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit

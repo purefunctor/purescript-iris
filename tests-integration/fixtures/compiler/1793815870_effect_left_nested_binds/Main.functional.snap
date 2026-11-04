@@ -1,0 +1,76 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+counted = foldl
+  (\action%0 $int%1@(_) ->
+    bindAsyncStringRowDictBind action%0
+      (\value%2 -> applicativeAsyncStringRowDictPure (integer.add value%2 1)))
+  (applicativeAsyncStringRowDictPure 0)
+  (range 1 100000)
+
+sequenced = \effects%6 ->
+  foldl
+    (\action%3 $int%4@(_) ->
+      applySecond applyAsync action%3
+        (liftEffect
+          (effect.bind (reference.read effects%6)
+            \section123%5 -> reference.write effects%6 (integer.add section123%5 1))))
+    (applicativeAsyncStringRowDictPure 0)
+    (range 1 100000)
+
+mapped = foldl
+  (\action%7 $int%8@(_) ->
+    functorAsyncStringRowDictMap (\section167%9 -> integer.add section167%9 1) action%7)
+  (applicativeAsyncStringRowDictPure 0)
+  (range 1 100000)
+
+applied = foldl
+  (\action%10 $int%11@(_) ->
+    apply applyAsync (functorAsyncStringRowDictMap (add semiringInt) action%10)
+      (applicativeAsyncStringRowDictPure 1))
+  (applicativeAsyncStringRowDictPure 0)
+  (range 1 100000)
+
+@export run = \report%13 ->
+  void functorEffect
+    (launch { onUncaught: \failure%12 -> report%13 (string.append "uncaught " failure%12) } {  }
+      (bindAsyncStringRowDictBind counted
+        (\total%14 ->
+          discardUnitDictDiscard bindAsync
+            (liftEffect (report%13 (string.append "total " (showIntDictShow total%14))))
+            (\$unit%15@(_) ->
+              bindAsyncStringRowDictBind (liftEffect (reference.new 0))
+                (\effects%16 ->
+                  bindAsyncStringRowDictBind (sequenced effects%16)
+                    (\last%17 ->
+                      bindAsyncStringRowDictBind (liftEffect (reference.read effects%16))
+                        (\performed%18 ->
+                          discardUnitDictDiscard bindAsync
+                            (liftEffect
+                              (report%13
+                                (string.append "effects " (string.append (showIntDictShow
+                                  last%17) (string.append " " (showIntDictShow performed%18))))))
+                            (\$unit%19@(_) ->
+                              bindAsyncStringRowDictBind mapped
+                                (\mappedTotal%20 ->
+                                  discardUnitDictDiscard bindAsync
+                                    (liftEffect
+                                      (report%13
+                                        (string.append "mapped " (showIntDictShow mappedTotal%20))))
+                                    (\$unit%21@(_) ->
+                                      bindAsyncStringRowDictBind applied
+                                        (\appliedTotal%22 ->
+                                          liftEffect
+                                            (report%13
+                                              (string.append "applied " (showIntDictShow
+                                                appliedTotal%22))))))))))))))
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+applicativeAsyncStringRowDictPure = pure applicativeAsync
+
+functorAsyncStringRowDictMap = map functorAsync
+
+discardUnitDictDiscard = discard discardUnit
+
+showIntDictShow = show showInt

@@ -1,0 +1,51 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+describe = \section48%0 ->
+  case section48%0 of
+    Left error%1 ->
+      string.append "failed " error%1
+    Right value%2 ->
+      string.append "succeeded " (show showInt value%2)
+
+guarded = \release%4 body%6 ->
+  attempt
+    (bracket (applicativeAsyncStringRowDictPure unit) (\$unit%3@(_) -> release%4)
+      (\$unit%5@(_) -> body%6))
+
+program = \report%15 ->
+  let
+    report'%8 = \message%16 -> liftEffect (report%15 message%16)
+  in bindAsyncStringRowDictBind (guarded (fail "release") (applicativeAsyncStringRowDictPure 1))
+    (\releaseFailed%7 ->
+      discardUnitDictDiscard bindAsync
+        (report'%8 (string.append "release fails: " (describe releaseFailed%7)))
+        (\$unit%9@(_) ->
+          bindAsyncStringRowDictBind
+            (guarded (applicativeAsyncStringRowDictPure unit) (fail "body"))
+            (\bodyFailed%10 ->
+              discardUnitDictDiscard bindAsync
+                (report'%8 (string.append "body fails: " (describe bodyFailed%10)))
+                (\$unit%11@(_) ->
+                  bindAsyncStringRowDictBind (guarded (fail "release") (fail "body"))
+                    (\bothFailed%12 ->
+                      discardUnitDictDiscard bindAsync
+                        (report'%8 (string.append "both fail: " (describe bothFailed%12)))
+                        (\$unit%13@(_) ->
+                          bindAsyncStringRowDictBind
+                            (guarded (applicativeAsyncStringRowDictPure unit)
+                              (applicativeAsyncStringRowDictPure 2))
+                            (\neitherFailed%14 ->
+                              report'%8
+                                (string.append "neither fails: " (describe neitherFailed%14)))))))))
+
+@export run = \report%18 ->
+  void functorEffect
+    (launch { onUncaught: \error%17 -> report%18 (string.append "uncaught " error%17) } {  }
+      (program report%18))
+
+applicativeAsyncStringRowDictPure = pure applicativeAsync
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+discardUnitDictDiscard = discard discardUnit

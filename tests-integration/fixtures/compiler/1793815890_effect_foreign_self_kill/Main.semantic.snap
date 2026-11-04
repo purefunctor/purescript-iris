@@ -1,0 +1,59 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import later :: Effect.Effect Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
+
+say :: forall services.
+  Main.Report -> Prim.String -> Iris.Effect.Async.Async Prim.String services Data.Unit.Unit
+say = \report -> \message -> liftEffect (report message)
+
+killSelf :: forall services.
+  Iris.Effect.Async.Fiber Prim.String Data.Unit.Unit ->
+  Iris.Effect.Async.Async Prim.String services Data.Unit.Unit
+killSelf = \fiber ->
+  liftEffect (void {functorEffect} (killFiber "self" fiber (pure {applicativeEffect} unit)))
+
+withSelf :: Main.Report ->
+(Iris.Effect.Async.Fiber Prim.String Data.Unit.Unit ->
+Iris.Effect.Async.Async Prim.String () Data.Unit.Unit) ->
+Effect.Effect Data.Unit.Unit
+withSelf = \report -> \body ->
+  void {functorEffect}
+    (launch { onUncaught: \failure -> report (append {semigroupString} "uncaught " failure) } { }
+      (bind {bindAsync} (liftEffect (new Nothing)) \self ->
+        bind {bindAsync}
+          (fork
+            (discard {discardUnit} {bindAsync}
+              (async \callback ->
+                discard {discardUnit} {bindEffect} (later (callback (Right unit))) \_ ->
+                  pure {applicativeEffect} (pure {applicativeAsync} unit)) \_ ->
+              bind {bindAsync} (liftEffect (read self)) \found ->
+                case found of
+                  (Just me) -> body me
+                  Nothing -> say report "missing fiber")) \fiber ->
+          discard {discardUnit} {bindAsync} (liftEffect (write (Just fiber) self)) \_ ->
+            bind {bindAsync} (await fiber) \exit ->
+              say report case exit of
+                (Succeeded _) -> "succeeded"
+                (Failed failure) -> append {semigroupString} "failed " failure
+                (Died _) -> "died"))
+
+insideCatch :: Main.Report -> Effect.Effect Data.Unit.Unit
+insideCatch = \report ->
+  withSelf report \me ->
+    discard {discardUnit} {bindAsync}
+      (catch
+        (discard {discardUnit} {bindAsync} (say report "before kill") \_ ->
+          discard {discardUnit} {bindAsync} (killSelf me) \_ -> say report "after kill") \failure ->
+        say report (append {semigroupString} "caught " failure)) \_ -> say report "after catch"
+
+beforeImmediateCallback :: Main.Report -> Effect.Effect Data.Unit.Unit
+beforeImmediateCallback = \report ->
+  withSelf report \me ->
+    discard {discardUnit} {bindAsync} (say report "before kill") \_ ->
+      discard {discardUnit} {bindAsync} (killSelf me) \_ ->
+        bind {bindAsync}
+          (async \callback ->
+            discard {discardUnit} {bindEffect} (callback (Right 5)) \_ ->
+              pure {applicativeEffect} (pure {applicativeAsync} unit)) \value ->
+          say report (append {semigroupString} "after callback " (show {showInt} value))

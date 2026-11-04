@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+setTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int
+clearTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit
+say :: Main.Report -> Prim.String -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+sleep ::
+  Main.Report -> Prim.String -> Prim.Int -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+describe :: Iris.Effect.Fiber.Exit Prim.String Data.Unit.Unit -> Prim.String
+killed ::
+  Main.Report ->
+  Prim.String ->
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit ->
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit

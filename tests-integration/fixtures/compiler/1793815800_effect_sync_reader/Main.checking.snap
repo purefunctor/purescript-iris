@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+greeting ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Sync.Sync ( name :: Prim.String | (services :: Prim.Row Prim.Type) ) Prim.String
+say ::
+  forall (services :: Prim.Row Prim.Type).
+    Main.Report ->
+    Prim.String ->
+    Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+program ::
+  Main.Report -> Iris.Effect.Sync.Sync ( count :: Prim.Int, name :: Prim.String ) Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit

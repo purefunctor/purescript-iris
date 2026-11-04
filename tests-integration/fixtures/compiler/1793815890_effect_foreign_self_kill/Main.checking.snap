@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+later :: Effect.Effect Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
+say ::
+  forall (services :: Prim.Row Prim.Type).
+    Main.Report ->
+    Prim.String ->
+    Iris.Effect.Async.Async Prim.String (services :: Prim.Row Prim.Type) Data.Unit.Unit
+killSelf ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Async.Fiber Prim.String Data.Unit.Unit ->
+    Iris.Effect.Async.Async Prim.String (services :: Prim.Row Prim.Type) Data.Unit.Unit
+withSelf ::
+  Main.Report ->
+  (Iris.Effect.Async.Fiber Prim.String Data.Unit.Unit ->
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit) ->
+  Effect.Effect Data.Unit.Unit
+insideCatch :: Main.Report -> Effect.Effect Data.Unit.Unit
+beforeImmediateCallback :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit

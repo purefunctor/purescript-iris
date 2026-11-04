@@ -1,0 +1,56 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import step :: Prim.String -> Prim.Int -> Effect.Effect Prim.Int
+
+foreign import complete :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+foreign import failure :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+foreign import mark :: forall value. Prim.String -> value -> value
+
+throughMonad :: forall monad. Control.Monad.Monad monad => monad Prim.Int -> monad Prim.Int
+throughMonad = \{monadDict} -> \action ->
+  bind {monadDict.bindDict} action \value ->
+    pure {monadDict.applicativeDict} (mul {semiringInt} value 3)
+
+offset :: forall error services. Iris.Effect.Async.Async error ( offset :: Prim.Int | services ) Prim.Int
+offset = sync (make \environment -> pure {applicativeEffect} environment.offset)
+
+program :: forall services.
+  Prim.Int -> Iris.Effect.Async.Async Prim.String ( offset :: Prim.Int | services ) Prim.Int
+program = \input ->
+  bind {bindAsync} offset \added ->
+    bind {bindAsync} (liftEffect (step "first" input)) \first ->
+      bind {bindAsync}
+        (throughMonad {monadAsync}
+          (pure {applicativeAsync} (add {semiringInt} first added))) \adjusted ->
+        bind {bindAsync}
+          (apply {applyAsync}
+            (map {functorAsync} (\left right -> sub {ringInt} left right)
+              (liftEffect (step "left" adjusted)))
+            (liftEffect (step "right" added))) \result ->
+          if greaterThan {ordInt} result 0 then
+            pure {applicativeAsync} result
+          else
+            fail "negative result"
+
+runOrdered :: Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
+runOrdered = \_ ->
+  let
+    environment :: { offset :: Prim.Int }
+    environment = mark "environment" { offset: 7 }
+    stored :: { action :: Iris.Effect.Async.Async Prim.String ( offset :: Prim.Int ) Prim.Int }
+    stored = mark "program" { action: program 11 }
+  in
+    bind {bindEffect}
+      (launch { onUncaught: failure } environment
+        (bind {bindAsync} stored.action \result -> liftEffect (complete result))) \_ ->
+      pure {applicativeEffect} unit
+
+provided :: Effect.Effect Data.Unit.Unit
+provided =
+  bind {bindEffect}
+    (launch { onUncaught: failure } { }
+      (bind {bindAsync} (provide { offset: 3 } (program 5)) \result ->
+        liftEffect (complete result))) \_ -> pure {applicativeEffect} unit

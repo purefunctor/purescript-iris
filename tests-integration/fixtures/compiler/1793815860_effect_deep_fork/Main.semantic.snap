@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+nestedForks :: Prim.Int -> Iris.Effect.Async.Async Prim.String () Prim.Int
+nestedForks = \depth ->
+  bind {bindAsync} (pure {applicativeAsync} depth) \value ->
+    if eq {eqInt} value 0 then
+      pure {applicativeAsync} 719
+    else
+      bind {bindAsync} (fork (nestedForks (sub {ringInt} value 1))) \child -> join child
+
+countdown :: Prim.Int -> Iris.Effect.Async.Async Prim.String () Prim.Int
+countdown = \remaining ->
+  if eq {eqInt} remaining 0 then
+    pure {applicativeAsync} 0
+  else
+    bind {bindAsync} (pure {applicativeAsync} remaining) \value ->
+      bind {bindAsync} (countdown (sub {ringInt} value 1)) \next ->
+        pure {applicativeAsync} (add {semiringInt} next 1)
+
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+program = \report ->
+  bind {bindAsync} (nestedForks 10000) \forked ->
+    discard {discardUnit} {bindAsync}
+      (liftEffect (report (append {semigroupString} "nested forks " (show {showInt} forked)))) \_ ->
+      bind {bindAsync} (countdown 100000) \counted ->
+        liftEffect (report (append {semigroupString} "binds " (show {showInt} counted)))
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch { onUncaught: \error -> report (append {semigroupString} "uncaught " error) } { }
+      (program report))

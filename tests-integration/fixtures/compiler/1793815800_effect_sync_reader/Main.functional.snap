@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+greeting = make (\$record%1@({ name: name%0 }) -> effect.pure (string.append "hello " name%0))
+
+say = \report%2 message%3 -> liftEffect (report%2 message%3)
+
+program = \report%4 ->
+  discard discardUnit bindSync (say report%4 "start")
+    (\$unit%5@(_) ->
+      bindSyncRowDictBind greeting
+        (\outer%6 ->
+          bindSyncRowDictBind (provide { name: "inner" } greeting)
+            (\inner%7 ->
+              bindSyncRowDictBind (make (\$record%9@({ count: count%8 }) -> effect.pure count%8))
+                (\count%10 ->
+                  bindSyncRowDictBind
+                    (apply applySync
+                      (functorSyncRowDictMap
+                        (\left%11 right%12 -> string.append left%11 (string.append " & " right%12))
+                        greeting)
+                      (functorSyncRowDictMap (show showInt) (pure applicativeSync count%10)))
+                    (\combined%13 ->
+                      say report%4
+                        (string.append outer%6 (string.append ", " (string.append inner%7 (string.append ", " combined%13)))))))))
+
+@export run = \report%14 ->
+  let
+    action%16 = run { name: "outer", count: 2 } (program report%14)
+  in effect.bind (report%14 "built") \$unit%15 -> effect.bind action%16 \$unit%17 -> action%16
+
+bindSyncRowDictBind = bind bindSync
+
+functorSyncRowDictMap = map functorSync

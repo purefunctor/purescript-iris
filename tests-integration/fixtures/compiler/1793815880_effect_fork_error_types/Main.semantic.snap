@@ -1,0 +1,87 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype OuterError :: Prim.Type
+newtype OuterError
+  | OuterError :: Prim.Int -> Main.OuterError
+
+foreign import setTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int
+
+foreign import clearTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+delay :: forall error. Prim.Int -> Iris.Effect.Async.Async error () Data.Unit.Unit
+delay = \milliseconds ->
+  async \callback ->
+    bind {bindEffect} (setTimeout milliseconds (callback (Right unit))) \identifier ->
+      pure {applicativeEffect} (liftEffect (clearTimeout identifier))
+
+describe :: Data.Either.Either Prim.String Prim.Int -> Prim.String
+describe = \v121 ->
+  case v121 of
+    (Left error) -> append {semigroupString} "failed " error
+    (Right value) -> append {semigroupString} "succeeded " (show {showInt} value)
+
+describeOuter :: Data.Either.Either Main.OuterError Prim.Int -> Prim.String
+describeOuter = \v160 ->
+  case v160 of
+    (Left (OuterError code)) -> append {semigroupString} "failed outer " (show {showInt} code)
+    (Right value) -> append {semigroupString} "succeeded " (show {showInt} value)
+
+innerRelease :: Iris.Effect.Async.Async Prim.String () Prim.Int
+innerRelease =
+  bracket (pure {applicativeAsync} unit) (\_ -> fail "release") \_ ->
+    applySecond {applyAsync} (delay 1000) (pure {applicativeAsync} 9)
+
+innerCanceler :: Iris.Effect.Async.Async Prim.String () Prim.Int
+innerCanceler = async \_ -> pure {applicativeEffect} (fail "cleanup")
+
+children :: Main.Report -> Iris.Effect.Async.Async Prim.String () Prim.Int
+children = \report ->
+  bind {bindAsync} (fork (fail "detached child failure")) \_ ->
+    bind {bindAsync}
+      (fork (applySecond {applyAsync} (delay 10) (fail "joined child failure"))) \failing ->
+      bind {bindAsync}
+        (fork (applySecond {applyAsync} (delay 10) (pure {applicativeAsync} 5))) \succeeding ->
+        bind {bindAsync} (fork innerRelease) \guarded ->
+          discard {discardUnit} {bindAsync} (delay 20) \_ ->
+            discard {discardUnit} {bindAsync} (kill "killed" guarded) \_ ->
+              bind {bindAsync} (attempt (join failing)) \joinedFailing ->
+                bind {bindAsync} (attempt (join succeeding)) \joinedSucceeding ->
+                  bind {bindAsync} (attempt (join guarded)) \joinedGuarded ->
+                    discard {discardUnit} {bindAsync}
+                      (liftEffect
+                        (report
+                          (append {semigroupString} (describe joinedFailing)
+                            (append {semigroupString} ", "
+                              (append {semigroupString} (describe joinedSucceeding)
+                                (append {semigroupString} ", " (describe joinedGuarded))))))) \_ ->
+                      fail "parent failure"
+
+program :: Main.Report -> Iris.Effect.Async.Async Main.OuterError () Data.Unit.Unit
+program = \report ->
+  bind {bindAsync} (fork (catch innerRelease \_ -> fail (OuterError 1))) \mapped ->
+    bind {bindAsync} (fork (catch innerCanceler \_ -> fail (OuterError 2))) \cancelled ->
+      discard {discardUnit} {bindAsync} (delay 20) \_ ->
+        discard {discardUnit} {bindAsync} (kill (OuterError 7) mapped) \_ ->
+          discard {discardUnit} {bindAsync} (kill (OuterError 8) cancelled) \_ ->
+            bind {bindAsync} (attempt (join mapped)) \joinedMapped ->
+              bind {bindAsync} (attempt (join cancelled)) \joinedCancelled ->
+                discard {discardUnit} {bindAsync}
+                  (liftEffect
+                    (report
+                      (append {semigroupString} (describeOuter joinedMapped)
+                        (append {semigroupString} ", " (describeOuter joinedCancelled))))) \_ ->
+                  bind {bindAsync}
+                    (catch (children report) \error ->
+                      discard {discardUnit} {bindAsync}
+                        (liftEffect (report (append {semigroupString} "caught " error))) \_ ->
+                        fail (OuterError 99)) \_ -> pure {applicativeAsync} unit
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch
+      { onUncaught: \(OuterError code) ->
+        report (append {semigroupString} "uncaught " (show {showInt} code)) }
+      { }
+      (program report))

@@ -1,0 +1,107 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign setTimeout
+
+foreign clearTimeout
+
+delay = \milliseconds%1 ->
+  async
+    (\callback%0 ->
+      effect.bind (setTimeout milliseconds%1 (callback%0 { tag: "Right", _1: unit }))
+        \identifier%2 -> effect.pure (liftEffect (clearTimeout identifier%2)))
+
+describe = \section121%3 ->
+  case section121%3 of
+    Left error%4 ->
+      string.append "failed " error%4
+    Right value%5 ->
+      string.append "succeeded " (showIntDictShow value%5)
+
+describeOuter = \section160%6 ->
+  case section160%6 of
+    Left code%7 ->
+      string.append "failed outer " (showIntDictShow code%7)
+    Right value%8 ->
+      string.append "succeeded " (showIntDictShow value%8)
+
+innerRelease = bracket (applicativeAsyncStringRowDictPure unit) (\$unit%9@(_) -> fail "release")
+  (\$unit%10@(_) -> applySecond applyAsync (delay 1000) (applicativeAsyncStringRowDictPure 9))
+
+innerCanceler = async (\$function%11@(_) -> effect.pure (fail "cleanup"))
+
+children = \report%21 ->
+  bindAsyncStringRowDictBind (fork (fail "detached child failure"))
+    (\$fiber%12@(_) ->
+      bindAsyncStringRowDictBind
+        (fork (applySecond applyAsync (delay 10) (fail "joined child failure")))
+        (\failing%13 ->
+          bindAsyncStringRowDictBind
+            (fork (applySecond applyAsync (delay 10) (applicativeAsyncStringRowDictPure 5)))
+            (\succeeding%14 ->
+              bindAsyncStringRowDictBind (fork innerRelease)
+                (\guarded%15 ->
+                  discardUnitDictDiscard bindAsync (delay 20)
+                    (\$unit%16@(_) ->
+                      discardUnitDictDiscard bindAsync (kill "killed" guarded%15)
+                        (\$unit%17@(_) ->
+                          bindAsyncStringRowDictBind (attempt (join failing%13))
+                            (\joinedFailing%18 ->
+                              bindAsyncStringRowDictBind (attempt (join succeeding%14))
+                                (\joinedSucceeding%19 ->
+                                  bindAsyncStringRowDictBind (attempt (join guarded%15))
+                                    (\joinedGuarded%20 ->
+                                      discardUnitDictDiscard bindAsync
+                                        (liftEffect
+                                          (report%21
+                                            (string.append (describe
+                                              joinedFailing%18) (string.append ", " (string.append (describe
+                                              joinedSucceeding%19) (string.append ", " (describe
+                                              joinedGuarded%20)))))))
+                                        (\$unit%22@(_) -> fail "parent failure"))))))))))
+
+program = \report%32 ->
+  bindAsyncStringRowDictBind (fork (catch innerRelease (\$string%23@(_) -> fail 1)))
+    (\mapped%24 ->
+      bindAsyncStringRowDictBind (fork (catch innerCanceler (\$string%25@(_) -> fail 2)))
+        (\cancelled%26 ->
+          discardUnitDictDiscard bindAsync (delay 20)
+            (\$unit%27@(_) ->
+              discardUnitDictDiscard bindAsync (kill 7 mapped%24)
+                (\$unit%28@(_) ->
+                  discardUnitDictDiscard bindAsync (kill 8 cancelled%26)
+                    (\$unit%29@(_) ->
+                      bindAsyncStringRowDictBind (attempt (join mapped%24))
+                        (\joinedMapped%30 ->
+                          bindAsyncStringRowDictBind (attempt (join cancelled%26))
+                            (\joinedCancelled%31 ->
+                              discardUnitDictDiscard bindAsync
+                                (liftEffect
+                                  (report%32
+                                    (string.append (describeOuter
+                                      joinedMapped%30) (string.append ", " (describeOuter
+                                      joinedCancelled%31)))))
+                                (\$unit%33@(_) ->
+                                  bindAsyncStringRowDictBind
+                                    (catch (children report%32)
+                                      (\error%34 ->
+                                        discardUnitDictDiscard bindAsync
+                                          (liftEffect
+                                            (report%32 (string.append "caught " error%34)))
+                                          (\$unit%35@(_) -> fail 99)))
+                                    (\$int%36@(_) -> applicativeAsyncStringRowDictPure unit)))))))))
+
+@export run = \report%38 ->
+  void functorEffect
+    (launch
+      { onUncaught: \code%37 -> report%38 (string.append "uncaught " (showIntDictShow code%37)) }
+      {  }
+      (program report%38))
+
+showIntDictShow = show showInt
+
+applicativeAsyncStringRowDictPure = pure applicativeAsync
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+discardUnitDictDiscard = discard discardUnit

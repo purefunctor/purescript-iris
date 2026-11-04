@@ -1,0 +1,79 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import boom :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+foreign import throwNull :: Effect.Effect Data.Unit.Unit
+
+foreign import throwHostile :: Effect.Effect Data.Unit.Unit
+
+foreign import setTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int
+
+foreign import clearTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+delay :: Prim.Int -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+delay = \milliseconds ->
+  async \callback ->
+    bind {bindEffect} (setTimeout milliseconds (callback (Right unit))) \identifier ->
+      pure {applicativeEffect} (liftEffect (clearTimeout identifier))
+
+describe :: forall value. Iris.Effect.Fiber.Exit Prim.String value -> Prim.String
+describe = \v144 ->
+  case v144 of
+    (Succeeded _) -> "succeeded"
+    (Failed error) -> append {semigroupString} "failed " error
+    (Died defect) -> append {semigroupString} "died " (message defect)
+
+outcome :: forall value.
+  Main.Report ->
+  Prim.String ->
+  Iris.Effect.Async.Async Prim.String () value ->
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+outcome = \report -> \label -> \program ->
+  bind {bindAsync} (fork program) \fiber ->
+    bind {bindAsync} (await fiber) \exit ->
+      liftEffect
+        (report (append {semigroupString} label (append {semigroupString} ": " (describe exit))))
+
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+program = \report ->
+  bind {bindAsync} (fork (finally (say "released") (liftEffect (boom "boom")))) \dying ->
+    bind {bindAsync}
+      (fork (applySecond {applyAsync} (delay 10) (say "sibling completed"))) \other ->
+      bind {bindAsync} (await other) \_ ->
+        discard {discardUnit} {bindAsync} (outcome report "await" (join dying)) \_ ->
+          discard {discardUnit} {bindAsync} (outcome report "attempt" (attempt (join dying))) \_ ->
+            discard {discardUnit} {bindAsync}
+              (outcome report "cleanup over typed"
+                (finally (liftEffect (boom "cleanup")) (fail "typed"))) \_ ->
+              discard {discardUnit} {bindAsync}
+                (outcome report "body over cleanup"
+                  (finally (liftEffect (boom "cleanup")) (liftEffect (boom "body")))) \_ ->
+                bind {bindAsync}
+                  (fork (finally (liftEffect (boom "finalizer")) (delay 1000))) \killed ->
+                  discard {discardUnit} {bindAsync} (kill "killed" killed) \_ ->
+                    bind {bindAsync} (await killed) \killedExit ->
+                      discard {discardUnit} {bindAsync}
+                        (say
+                          (append {semigroupString} "kill with failing finalizer: "
+                            (describe killedExit))) \_ ->
+                        discard {discardUnit} {bindAsync}
+                          (outcome report "null" (liftEffect throwNull)) \_ ->
+                          discard {discardUnit} {bindAsync}
+                            (outcome report "hostile" (liftEffect throwHostile)) \_ ->
+                            say "parent continues"
+  where
+  say :: Prim.String -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+  say = \message -> liftEffect (report message)
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch { onUncaught: \error -> report (append {semigroupString} "uncaught " error) } { }
+      (program report))
+
+launchDefect :: Main.Report -> Effect.Effect Data.Unit.Unit
+launchDefect = \report ->
+  void {functorEffect}
+    (launch { onUncaught: \error -> report (append {semigroupString} "uncaught " error) } { }
+      (liftEffect (boom "root")))

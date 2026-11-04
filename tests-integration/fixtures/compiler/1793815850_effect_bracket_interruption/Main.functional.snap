@@ -1,0 +1,62 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign setTimeout
+
+foreign clearTimeout
+
+say = \report%0 message%1 -> liftEffect (report%0 message%1)
+
+sleep = \report%5 label%6 milliseconds%3 ->
+  async
+    (\callback%2 ->
+      effect.bind (setTimeout milliseconds%3 (callback%2 { tag: "Right", _1: unit }))
+        \identifier%4 -> effect.pure (applySecond applyAsync
+          (say report%5 (string.append "cancel " label%6))
+          (liftEffect (clearTimeout identifier%4))))
+
+describe = \section167%7 ->
+  case section167%7 of
+    Succeeded _ ->
+      "succeeded"
+    Failed error%8 ->
+      string.append "failed " error%8
+    Died _ ->
+      "died"
+
+killed = \report%14 label%11 body%9 ->
+  bindAsyncStringRowDictBind (fork body%9)
+    (\fiber%10 ->
+      discardUnitDictDiscard bindAsync (kill (string.append "kill " label%11) fiber%10)
+        (\$unit%12@(_) ->
+          bindAsyncStringRowDictBind (await fiber%10)
+            (\exit%13 ->
+              say report%14 (string.append label%11 (string.append " " (describe exit%13))))))
+
+program = \report%15 ->
+  discardUnitDictDiscard bindAsync
+    (killed report%15 "during acquire"
+      (bracket (applySecond applyAsync (sleep report%15 "acquire" 10) (say report%15 "acquired"))
+        (\$unit%16@(_) -> say report%15 "released")
+        (\$unit%17@(_) -> say report%15 "used")))
+    (\$unit%18@(_) ->
+      discardUnitDictDiscard bindAsync
+        (killed report%15 "during use"
+          (bracket (say report%15 "acquired")
+            (\$unit%19@(_) ->
+              applySecond applyAsync (sleep report%15 "release" 10) (say report%15 "released"))
+            (\$unit%20@(_) ->
+              applySecond applyAsync (sleep report%15 "use" 1000) (say report%15 "used"))))
+        (\$unit%21@(_) ->
+          killed report%15 "with failing release"
+            (bracket (pure applicativeAsync unit) (\$unit%22@(_) -> fail "release failure")
+              (\$unit%23@(_) -> sleep report%15 "use" 1000))))
+
+@export run = \report%25 ->
+  void functorEffect
+    (launch { onUncaught: \error%24 -> report%25 (string.append "uncaught " error%24) } {  }
+      (program report%25))
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+discardUnitDictDiscard = discard discardUnit
