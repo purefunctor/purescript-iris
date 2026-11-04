@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+lookup ::
+  forall @service (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has service (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> service
+inferred ::
+  forall (t0 :: Prim.Row Prim.Type).
+    Iris.Effect.Has Services.Console (t0 :: Prim.Row Prim.Type) =>
+    {| (t0 :: Prim.Row Prim.Type) } -> Prim.Int
+multiple ::
+  forall (t0 :: Prim.Row Prim.Type).
+    Iris.Effect.Has Services.Http (t0 :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Services.Console (t0 :: Prim.Row Prim.Type) =>
+    {| (t0 :: Prim.Row Prim.Type) } -> { console :: Services.Console, http :: Services.Http }
+delayed ::
+  forall (tail :: Prim.Row Prim.Type).
+    Iris.Effect.Has Services.Console ( network :: Services.Http | (tail :: Prim.Row Prim.Type) ) =>
+    { network :: Services.Http | (tail :: Prim.Row Prim.Type) } -> Services.Console
+inferredValue :: Prim.Int
+multipleValue :: { console :: Services.Console, http :: Services.Http }
+delayedValue :: Services.Console
+
+Types

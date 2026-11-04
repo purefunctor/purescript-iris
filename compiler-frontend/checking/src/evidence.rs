@@ -8,6 +8,7 @@ use std::ops::{Index, IndexMut};
 
 use files::FileId;
 use indexing::TypeItemId;
+use smol_str::SmolStr;
 
 use crate::TypeId;
 pub use crate::core::constraint::instances::InstanceCandidateOrigin;
@@ -54,6 +55,7 @@ pub struct EvidenceBinder {
 pub enum SynthesizedEvidence {
     IsSymbol(lowering::StringLiteral),
     Reflectable(ReflectableEvidence),
+    Service(SmolStr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

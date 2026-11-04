@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [AmbiguousCapability] · Main.purs:7:21
+  •
+  │
+  • Capability 'Storage' is declared more than once, under roles: local, session. Use distinct
+  │ service types for distinct roles.
+  │
+  │   ambiguous :: Record (local :: Storage, session :: Storage) -> Storage
+  │                       ╰─────────────────────────────────────
+  │
+  • This operation requires the capability
+  │
+  │   ambiguous = getService
+  │               ╰─────────
+  •

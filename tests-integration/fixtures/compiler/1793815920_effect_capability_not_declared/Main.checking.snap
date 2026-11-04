@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Console :: Prim.Int -> Main.Console
+Http :: Prim.Int -> Main.Http
+missing :: { console :: Main.Console } -> Main.Http
+wrongIdentity :: { http :: Main.Console } -> Main.Http
+annotated :: {} -> Main.Console
+nested :: { console :: Main.Console } -> Main.Http
+
+Types
+Console :: Prim.Type
+Http :: Prim.Type
+
+Roles
+Console = []
+Http = []

@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Console :: Prim.Type
+newtype Console
+  | Console :: Prim.Int -> Main.Console
+
+newtype Http :: Prim.Type
+newtype Http
+  | Http :: Prim.Int -> Main.Http
+
+missing :: { console :: Main.Console } -> Main.Http
+missing = getService {error}
+
+wrongIdentity :: { http :: Main.Console } -> Main.Http
+wrongIdentity = getService {error}
+
+annotated :: {} -> Main.Console
+annotated = getService {error}
+
+nested :: { console :: Main.Console } -> Main.Http
+nested = \environment -> local environment
+  where
+  local :: { console :: Main.Console } -> Main.Http
+  local = getService {error}

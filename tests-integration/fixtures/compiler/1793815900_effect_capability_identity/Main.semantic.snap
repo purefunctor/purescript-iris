@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+console :: { logger :: Services.Console, network :: Services.Http } -> Services.Console
+console = getService {service("logger")}
+
+http :: { logger :: Services.Console, network :: Services.Http } -> Services.Http
+http = getService {service("network")}
+
+misleading :: { console :: Services.Http, http :: Services.Console } -> Services.Console
+misleading = getService {service("http")}
+
+aliased :: { renamed :: Main.ConsoleAlias } -> Services.Console
+aliased = getService {service("renamed")}
+
+consoleValue :: Services.Console
+consoleValue = console { logger: Console 19, network: Http 23 }
+
+httpValue :: Services.Http
+httpValue = http { logger: Console 19, network: Http 23 }
+
+misleadingValue :: Services.Console
+misleadingValue = misleading { console: Http 9, http: Console 42 }
+
+aliasedValue :: Services.Console
+aliasedValue = aliased { renamed: Console 51 }

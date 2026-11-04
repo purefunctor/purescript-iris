@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Storage :: Prim.Type
+newtype Storage
+  | Storage :: Prim.Int -> Main.Storage
+
+ambiguous :: { local :: Main.Storage, session :: Main.Storage } -> Main.Storage
+ambiguous = getService {error}

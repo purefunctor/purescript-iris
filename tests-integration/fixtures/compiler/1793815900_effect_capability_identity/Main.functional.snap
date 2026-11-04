@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export console = getService (service "logger")
+
+@export http = getService (service "network")
+
+@export misleading = getService (service "http")
+
+@export aliased = getService (service "renamed")
+
+@export consoleValue = console { logger: 19, network: 23 }
+
+@export httpValue = http { logger: 19, network: 23 }
+
+@export misleadingValue = misleading { console: 9, http: 42 }
+
+@export aliasedValue = aliased { renamed: 51 }

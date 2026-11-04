@@ -40,6 +40,19 @@ pub enum ErrorKind {
     AmbiguousConstraint {
         constraint: TypeId,
     },
+    AmbiguousCapability {
+        service: TypeId,
+        services: TypeId,
+        roles: Arc<[SmolStr]>,
+    },
+    CapabilityNotDeclared {
+        service: TypeId,
+        services: TypeId,
+    },
+    UnresolvedCapability {
+        service: TypeId,
+        services: TypeId,
+    },
     CannotDeriveClass {
         class_file: files::FileId,
         class_id: indexing::TypeItemId,

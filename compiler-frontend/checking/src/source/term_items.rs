@@ -961,15 +961,7 @@ where
                 state.checked.errors.push(CheckingError { kind, crumbs });
             }
 
-            let given = error
-                .key
-                .given
-                .iter()
-                .map(|given| state.canonicals.type_id(context, *given))
-                .collect::<Arc<[_]>>();
-
-            let constraint = state.canonicals.type_id(context, error.key.wanted);
-            let kind = ErrorKind::NoInstanceFound { given, constraint };
+            let kind = error.unsatisfied_error(state, context);
             let crumbs = error.evidence.crumbs;
             state.checked.errors.push(CheckingError { kind, crumbs });
         }

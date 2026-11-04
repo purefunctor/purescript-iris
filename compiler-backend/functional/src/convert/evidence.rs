@@ -531,6 +531,9 @@ fn synthesized_evidence(
         checking::evidence::SynthesizedEvidence::IsSymbol(symbol) => {
             SynthesizedEvidence::IsSymbol(symbol.clone())
         }
+        checking::evidence::SynthesizedEvidence::Service(role) => {
+            SynthesizedEvidence::Service(role.clone())
+        }
         checking::evidence::SynthesizedEvidence::Reflectable(reflectable) => {
             let reflectable = match reflectable {
                 checking::evidence::ReflectableEvidence::Integer(value) => {

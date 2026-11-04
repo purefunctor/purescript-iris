@@ -138,6 +138,7 @@ where
         };
     }
 
+    zonk_type_map!(types);
     zonk_type_map!(type_kinds);
     zonk_type_map!(expressions);
     zonk_type_map!(binders);
@@ -315,6 +316,21 @@ where
         ErrorKind::AmbiguousConstraint { constraint } => {
             let constraint = zonk(state, context, constraint)?;
             ErrorKind::AmbiguousConstraint { constraint }
+        }
+        ErrorKind::AmbiguousCapability { service, services, roles } => {
+            let service = zonk(state, context, service)?;
+            let services = zonk(state, context, services)?;
+            ErrorKind::AmbiguousCapability { service, services, roles }
+        }
+        ErrorKind::CapabilityNotDeclared { service, services } => {
+            let service = zonk(state, context, service)?;
+            let services = zonk(state, context, services)?;
+            ErrorKind::CapabilityNotDeclared { service, services }
+        }
+        ErrorKind::UnresolvedCapability { service, services } => {
+            let service = zonk(state, context, service)?;
+            let services = zonk(state, context, services)?;
+            ErrorKind::UnresolvedCapability { service, services }
         }
         ErrorKind::CannotDeriveForType { type_id } => {
             let type_id = zonk(state, context, type_id)?;

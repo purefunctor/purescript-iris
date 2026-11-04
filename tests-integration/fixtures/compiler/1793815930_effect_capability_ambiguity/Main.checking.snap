@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Storage :: Prim.Int -> Main.Storage
+ambiguous :: { local :: Main.Storage, session :: Main.Storage } -> Main.Storage
+
+Types
+Storage :: Prim.Type
+
+Roles
+Storage = []

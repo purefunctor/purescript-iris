@@ -36,6 +36,7 @@ where
     state.with_error_crumb(ErrorCrumb::CheckingKind(source_type), |state| {
         let (inferred_type, inferred_kind) =
             check_kind_core(state, context, source_type, expected_kind)?;
+        state.checked.node_types.types.insert(source_type, inferred_type);
         state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
         Ok((inferred_type, inferred_kind))
     })
@@ -68,6 +69,7 @@ where
 {
     state.with_error_crumb(ErrorCrumb::InferringKind(source_type), |state| {
         let (inferred_type, inferred_kind) = infer_kind_core(state, context, source_type)?;
+        state.checked.node_types.types.insert(source_type, inferred_type);
         state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
         Ok((inferred_type, inferred_kind))
     })

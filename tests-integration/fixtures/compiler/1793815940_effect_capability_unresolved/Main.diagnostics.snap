@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [UnresolvedCapability] · Main.purs:7:39
+  •
+  │
+  • Capability 'Console' cannot be selected uniquely from '(services :: Row Type)'. Close the
+  │ capability set or declare a 'Has' constraint for this service.
+  │
+  │   undeclared :: forall services. Record services -> Console
+  │                                         ╰───────
+  │
+  • This operation requires the capability
+  │
+  │   undeclared = getService
+  │                ╰─────────
+  •
+
+Error! · [UnresolvedCapability] · Main.purs:10:29
+  •
+  │
+  • Capability 'Console' cannot be selected uniquely from '( console :: Console | (tail :: Row
+  │ Type) )'. Close the capability set or declare a 'Has' constraint for this service.
+  │
+  │   open :: forall tail. Record (console :: Console | tail) -> Console
+  │                               ╰──────────────────────────
+  │
+  • This operation requires the capability
+  │
+  │   open = getService
+  │          ╰─────────
+  •

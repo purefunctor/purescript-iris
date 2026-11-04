@@ -1,3 +1,4 @@
+pub mod iris_effect;
 pub mod prim_coerce;
 pub mod prim_int;
 pub mod prim_reflectable;
@@ -14,6 +15,7 @@ use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
 use crate::core::unification::{CanUnify, can_unify};
 use crate::core::{RowField, RowType, SmolStrId, Type, TypeId, normalise};
+use crate::error::ErrorKind;
 use crate::evidence::{ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence};
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
@@ -26,7 +28,7 @@ pub enum CompilerResolution {
     Trivial,
     Synthesized,
     Warning { message_id: SmolStrId },
-    Failure { message_id: SmolStrId },
+    Failure(ErrorKind),
 }
 
 pub enum CompilerMatch {
@@ -238,6 +240,13 @@ where
     let file_id = canonical.file_id;
     let item_id = canonical.type_id;
 
+    if file_id == context.iris_effect.file_id && item_id == context.iris_effect.has {
+        let Some(arguments) = canonical.expect_type_arguments::<2>() else {
+            return Ok(None);
+        };
+        return iris_effect::match_has(state, context, &arguments);
+    }
+
     if file_id == context.prim_type_error.file_id {
         if item_id == context.prim_type_error.warn {
             let Some(arguments) = canonical.expect_type_arguments::<1>() else {
@@ -423,6 +432,18 @@ where
             unreachable!("invariant violated: solved Reflectable constraint has no value");
         };
         return Ok(SynthesizedEvidence::Reflectable(reflected));
+    }
+
+    if class == (context.iris_effect.file_id, context.iris_effect.has) {
+        let Some([service, services]) = canonical.expect_type_arguments::<2>() else {
+            unreachable!("invariant violated: solved Has constraint has invalid arguments");
+        };
+        let Some(iris_effect::ServiceSelection::Unique(role)) =
+            iris_effect::select_service(state, context, service, services)?
+        else {
+            unreachable!("invariant violated: solved Has constraint has no unique service");
+        };
+        return Ok(SynthesizedEvidence::Service(role));
     }
 
     unreachable!("invariant violated: compiler constraint does not synthesize evidence")

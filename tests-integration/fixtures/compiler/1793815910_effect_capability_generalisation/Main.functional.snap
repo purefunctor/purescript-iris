@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export lookup = \hasServiceServicesDict%0 -> getService hasServiceServicesDict%0
+
+@export inferred = \hasConsoleDict%1 ->
+  \environment%2 ->
+    case lookup hasConsoleDict%1 environment%2 of
+      value%3 ->
+        value%3
+
+@export multiple = \hasHttpDict%6 hasConsoleDict%4 ->
+  \environment%5 ->
+    { console: lookup hasConsoleDict%4 environment%5, http: lookup hasHttpDict%6 environment%5 }
+
+@export delayed = \hasConsoleRowDict%7 -> lookup hasConsoleRowDict%7
+
+@export inferredValue = inferred (service "logger") { logger: 37 }
+
+@export multipleValue = multiple (service "network") (service "logger") { logger: 19, network: 23 }
+
+@export delayedValue = delayed (service "logger") { network: 4, logger: 61 }

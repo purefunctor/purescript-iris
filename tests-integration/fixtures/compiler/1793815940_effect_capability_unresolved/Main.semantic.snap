@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Console :: Prim.Type
+newtype Console
+  | Console :: Prim.Int -> Main.Console
+
+undeclared :: forall services. {| services } -> Main.Console
+undeclared = getService {error}
+
+open :: forall tail. { console :: Main.Console | tail } -> Main.Console
+open = getService {error}

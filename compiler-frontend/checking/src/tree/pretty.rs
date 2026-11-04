@@ -2124,6 +2124,7 @@ where
 fn synthesized_evidence_name(evidence: &SynthesizedEvidence) -> SmolStr {
     match evidence {
         SynthesizedEvidence::IsSymbol(symbol) => format_smolstr!("isSymbol({symbol:?})"),
+        SynthesizedEvidence::Service(role) => format_smolstr!("service({role:?})"),
         SynthesizedEvidence::Reflectable(ReflectableEvidence::Integer(value)) => {
             format_smolstr!("reflectable({value})")
         }
