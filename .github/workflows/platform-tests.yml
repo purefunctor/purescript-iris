@@ -7,6 +7,10 @@ on:
         description: Runner image for the build and test jobs
         required: true
         type: string
+      partitions:
+        description: JSON array of nextest hash partitions, one test job each
+        required: true
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -75,30 +79,13 @@ jobs:
           if-no-files-found: error
 
   tests:
-    name: Tests (${{ matrix.category }}${{ matrix.partition && format(', {0}', matrix.partition) || '' }})
+    name: Tests (${{ matrix.partition }})
     needs: build
     runs-on: ${{ inputs.os }}
     strategy:
       fail-fast: false
       matrix:
-        category: [workspace, support, lowering, resolving, lsp, docs, sourcemap, integration-other]
-        include:
-          - category: compiler
-            partition: hash:1/4
-          - category: compiler
-            partition: hash:2/4
-          - category: compiler
-            partition: hash:3/4
-          - category: compiler
-            partition: hash:4/4
-          - category: formatting
-            partition: hash:1/4
-          - category: formatting
-            partition: hash:2/4
-          - category: formatting
-            partition: hash:3/4
-          - category: formatting
-            partition: hash:4/4
+        partition: ${{ fromJSON(inputs.partitions) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -114,13 +101,11 @@ jobs:
           name: nextest-${{ runner.os }}.tar.zst
 
       - name: Install Node.js for backend verification
-        if: matrix.category == 'compiler'
         uses: actions/setup-node@v7
         with:
           node-version: '22'
 
       - name: Download integration packages
-        if: matrix.category == 'compiler' || matrix.category == 'sourcemap'
         uses: actions/download-artifact@v8
         with:
           name: integration-packages-${{ runner.os }}
@@ -129,27 +114,7 @@ jobs:
       - name: Run tests
         shell: bash
         env:
-          CATEGORY: ${{ matrix.category }}
           PARTITION: ${{ matrix.partition }}
-        run: |
-          case "$CATEGORY" in
-            workspace)
-              cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
-                -E 'not package(tests-integration) and not package(tests-support)'
-              ;;
-            support)
-              cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst -E 'package(tests-support)'
-              ;;
-            compiler|formatting)
-              cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
-                -E "package(tests-integration) and binary($CATEGORY)" --partition "$PARTITION"
-              ;;
-            integration-other)
-              cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
-                -E 'package(tests-integration) and not (binary(compiler) or binary(lowering) or binary(resolving) or binary(lsp) or binary(docs) or binary(sourcemap) or binary(formatting))'
-              ;;
-            *)
-              cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst \
-                -E "package(tests-integration) and binary($CATEGORY)"
-              ;;
-          esac
+        run: >-
+          cargo nextest run --archive-file nextest-${{ runner.os }}.tar.zst
+          --partition "hash:$PARTITION"
