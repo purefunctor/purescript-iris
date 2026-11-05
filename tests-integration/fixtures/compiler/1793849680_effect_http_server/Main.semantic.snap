@@ -1,0 +1,177 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Probe :: Prim.Type
+newtype Probe
+  | Probe :: { released :: Signal.Signal, started :: Signal.Signal } -> Main.Probe
+
+data RouteError :: Prim.Type
+data RouteError
+  | MissingName :: Main.RouteError
+  | UnknownRoute :: Prim.String -> Main.RouteError
+
+data ProgramError :: Prim.Type
+data ProgramError
+  | ServerFailed :: Test.HttpServer.ServerError -> Main.ProgramError
+  | ClientFailed :: Iris.Effect.Http.HttpError -> Main.ProgramError
+
+foreign import defect :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+dictionary showProgramError :: Data.Show.Show Main.ProgramError where
+  show :: Main.ProgramError -> Prim.String
+  show = \v146 ->
+    case v146 of
+      (ServerFailed error) -> append {semigroupString} "(ServerFailed "
+        (append {semigroupString} (show {showServerError} error) ")")
+      (ClientFailed error) -> append {semigroupString} "(ClientFailed "
+        (append {semigroupString} (show {showHttpError} error) ")")
+
+text :: Prim.Int -> Prim.String -> Test.HttpServer.ServerResponse
+text = \status -> \body ->
+  { status, headers: [{ name: "content-type", value: "text/plain" }], body }
+
+onError :: Main.RouteError -> Test.HttpServer.ServerResponse
+onError = \v213 ->
+  case v213 of
+    MissingName -> text 400 "missing name"
+    (UnknownRoute path) -> text 404 (append {semigroupString} "unknown route " path)
+
+header :: Prim.String -> Prim.Array Iris.Effect.Http.Header -> Data.Maybe.Maybe Prim.String
+header = \name -> \headers ->
+  map {functorMaybe} (\v261 -> v261.value) (find (\entry -> eq {eqString} entry.name name) headers)
+
+greeting :: forall services.
+  Test.HttpServer.ServerRequest ->
+  Iris.Effect.Async.Async Main.RouteError services Test.HttpServer.ServerResponse
+greeting = \request ->
+  case parse request.body of
+    (Right json)
+      | (Just name) <- bind {bindMaybe} (field "name" json) toString -> pure {applicativeAsync}
+        { status: 200, headers: [{ name: "content-type", value: "application/json" }], body: apply
+          stringify
+          (fromObject
+            [{ name: "greeting", value: fromString
+              (append {semigroupString} "Hello, "
+                (append {semigroupString} name "!")) }, { name: "query", value: fromString
+              request.query }, { name: "contentType", value: fromMaybe null
+              (map {functorMaybe} fromString (header "content-type" request.headers)) }]) }
+    _ -> fail MissingName
+
+handler :: forall services.
+  Iris.Effect.Has Main.Probe services =>
+  Test.HttpServer.ServerRequest ->
+  Iris.Effect.Async.Async Main.RouteError services Test.HttpServer.ServerResponse
+handler = \{hasDict} -> \request ->
+  bind {bindAsync} (service {hasDict}) \(Probe probe) ->
+    case request.method, request.path of
+      "POST", "/greet" -> greeting request
+      "GET", "/crash" -> discard {discardUnit} {bindAsync}
+        (liftEffect (defect "handler crashed")) \_ ->
+        pure {applicativeAsync} (text 200 "unreachable")
+      "GET", "/slow" -> finally (liftEffect (fire probe.released))
+        (discard {discardUnit} {bindAsync} (liftEffect (fire probe.started)) \_ ->
+          async \_ -> pure {applicativeEffect} (pure {applicativeAsync} unit))
+      _, path -> fail (UnknownRoute path)
+
+describe :: forall services.
+  Iris.Effect.Has Iris.Effect.Http.Http services =>
+  Iris.Effect.Has Iris.Effect.Console.Console services =>
+  Iris.Effect.Http.Request -> Iris.Effect.Async.Async Main.ProgramError services Data.Unit.Unit
+describe = \{hasDict} -> \{hasDict1} -> \request ->
+  bind {bindAsync} (mapError ClientFailed (request {hasDict} request)) \response ->
+    apply sync
+      (apply (log {hasDict1})
+        (joinWith " "
+          [request.method, request.url, "->", show {showInt} response.status, fromMaybe "-"
+            (header "content-type" response.headers), response.body]))
+
+program :: forall services.
+  Iris.Effect.Has Test.HttpServer.HttpServer services =>
+  Iris.Effect.Has Iris.Effect.Http.Http services =>
+  Iris.Effect.Has Iris.Effect.Console.Console services =>
+  Iris.Effect.Has Main.Probe services =>
+  Iris.Effect.Async.Async Main.ProgramError services Data.Unit.Unit
+program = \{hasDict} -> \{hasDict1} -> \{hasDict2} -> \{hasDict3} ->
+  bind {bindAsync} (service {hasDict3}) \(Probe probe) ->
+    bind {bindAsync}
+      (mapError ServerFailed
+        (serve {hasDict} { host: "127.0.0.1", port: 0, onError } (handler {hasDict3}))) \server ->
+      let
+        listening :: { host :: Prim.String, port :: Prim.Int }
+        listening = address server
+        origin :: Prim.String
+        origin =
+          append {semigroupString} "http://"
+            (append {semigroupString} listening.host
+              (append {semigroupString} ":" (show {showInt} listening.port)))
+        get :: Prim.String ->
+{ body :: Data.Maybe.Maybe Prim.String
+, headers :: Prim.Array { name :: Prim.String, value :: Prim.String }
+, method :: Prim.String
+, url :: Prim.String
+}
+        get = \path ->
+          { method: "GET", url: append {semigroupString} origin path, headers: [], body: Nothing }
+      in
+        discard {discardUnit} {bindAsync}
+          (describe {hasDict1} {hasDict2}
+            { method: "POST", url: append {semigroupString} origin
+              "/greet?from=test", headers: [{ name: "content-type", value: "application/json" }], body: Just
+              """{"name":"Alice"}""" }) \_ ->
+          discard {discardUnit} {bindAsync}
+            (describe {hasDict1} {hasDict2}
+              { method: "POST", url: append {semigroupString} origin
+                "/greet", headers: [], body: Just "{}" }) \_ ->
+            discard {discardUnit} {bindAsync}
+              (describe {hasDict1} {hasDict2} (get "/missing")) \_ ->
+              discard {discardUnit} {bindAsync}
+                (describe {hasDict1} {hasDict2} (get "/crash")) \_ ->
+                discard {discardUnit} {bindAsync}
+                  (describe {hasDict1} {hasDict2} (get "/missing")) \_ ->
+                  bind {bindAsync}
+                    (fork (get {hasDict1} (append {semigroupString} origin "/slow"))) \pending ->
+                    discard {discardUnit} {bindAsync}
+                      (sync (log {hasDict2} "slow request sent")) \_ ->
+                      discard {discardUnit} {bindAsync} (wait probe.started) \_ ->
+                        discard {discardUnit} {bindAsync}
+                          (mapError ClientFailed (kill (NetworkError "cancelled") pending)) \_ ->
+                          discard {discardUnit} {bindAsync}
+                            (sync (log {hasDict2} "slow request cancelled")) \_ ->
+                            discard {discardUnit} {bindAsync} (wait probe.released) \_ ->
+                              discard {discardUnit} {bindAsync}
+                                (sync (log {hasDict2} "slow handler released")) \_ ->
+                                bind {bindAsync}
+                                  (attempt
+                                    (serve {hasDict}
+                                      { host: "127.0.0.1", port: listening.port, onError }
+                                      (handler {hasDict3}))) \second ->
+                                  discard {discardUnit} {bindAsync}
+                                    (apply sync
+                                      (log {hasDict2} case second of
+                                        (Left error) -> append {semigroupString}
+                                          "second listen rejected "
+                                          (show {showServerError} error)
+                                        (Right _) -> "second listen accepted")) \_ ->
+                                    discard {discardUnit} {bindAsync} (close server) \_ ->
+                                      sync (log {hasDict2} "server closed")
+
+run :: Effect.Effect Data.Unit.Unit
+run =
+  bind {bindEffect}
+    (apply {applyEffect}
+      (map {functorEffect} (\v1006 v1008 -> { started: v1006, released: v1008 }) new)
+      new) \probe ->
+    let
+      environment :: { console :: Iris.Effect.Console.Console
+, http :: Iris.Effect.Http.Http
+, probe :: Main.Probe
+, server :: Test.HttpServer.HttpServer
+}
+      environment = { server: default, http: client, console: default, probe: Probe probe }
+    in
+      void {functorEffect}
+        (launch
+          { onUncaught: \error ->
+            run environment (error {service("console")} (show {showProgramError} error)) }
+          environment
+          (program {service("server")} {service("http")} {service("console")} {service("probe")}))

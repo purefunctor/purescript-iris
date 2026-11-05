@@ -1,0 +1,542 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign defect
+
+constructor MissingName/0
+
+constructor UnknownRoute/1
+
+constructor ServerFailed/1
+
+constructor ClientFailed/1
+
+@export instance showProgramError = {
+  show:
+    \section146%0 ->
+      case section146%0 of
+        ServerFailed error%1 ->
+          string.append "(ServerFailed " (string.append (showServerErrorDictShow error%1) ")")
+        ClientFailed error%2 ->
+          string.append "(ClientFailed " (string.append (show showHttpError error%2) ")")
+}
+
+text = \status%3 body%4 ->
+  { status: status%3, headers: [{ name: "content-type", value: "text/plain" }], body: body%4 }
+
+onError = \section213%5 ->
+  case section213%5 of
+    MissingName ->
+      text 400 "missing name"
+    UnknownRoute path%6 ->
+      text 404 (string.append "unknown route " path%6)
+
+header = \name%9 headers%10 ->
+  functorMaybeDictMap (\section261%7 -> section261%7.value)
+    (find (\entry%8 -> string.equal entry%8.name name%9) headers%10)
+
+greeting = \request%11 ->
+  case parse request%11.body of
+    Right json%12 ->
+      | Just name%13 <- bind bindMaybe (field "name" json%12) toString ->
+        let
+          asyncArgument%14 = {
+            status: 200,
+            headers: [{ name: "content-type", value: "application/json" }],
+            body:
+              stringify
+                (fromObject
+                  [{
+                      name: "greeting",
+                      value: fromString (string.append "Hello, " (string.append name%13 "!"))
+                    },
+                    { name: "query", value: fromString request%11.query },
+                    {
+                      name: "contentType",
+                      value:
+                        fromMaybe null
+                          (functorMaybeDictMap fromString
+                            (header "content-type" request%11.headers))
+                    }])
+          }
+        in \environment%15 -> { tag: "Pure", _1: asyncArgument%14 }
+    _ ->
+      \environment%16 -> { tag: "Throw", _1: "MissingName" }
+
+handler = \services%17 ->
+  \request%20 ->
+    \environment%38 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            let
+              probe%19 = services%17."Main.Probe" environment%38
+            in case request%20.method, request%20.path of
+              "POST", "/greet" ->
+                uncurried.call effect.pure (greeting request%20 environment%38)()
+              "GET", "/crash" ->
+                let
+                  asyncArgument%21 = defect "handler crashed"
+                in uncurried.call effect.bind asyncArgument%21
+                  \$unit%23 -> effect.pure {
+                    tag: "Pure",
+                    _1:
+                      let
+                        asyncArgument%24 = text 200 "unreachable"
+                      in asyncArgument%24
+                  }()
+              "GET", "/slow" ->
+                uncurried.call effect.pure (finally
+                  (let
+                    asyncArgument%27 = fire probe%19.released
+                  in \environment%28 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          uncurried.call effect.bind asyncArgument%27
+                            \value%128 -> effect.pure { tag: "Pure", _1: value%128 }()
+                    })
+                  (let
+                    asyncArgument%29 = fire probe%19.started
+                  in \environment%34 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          uncurried.call effect.bind asyncArgument%29
+                            \$unit%31 -> effect.pure (async
+                              (\$function%32@(_) ->
+                                effect.pure (\environment%33 -> { tag: "Pure", _1: unit }))
+                              environment%34)()
+                    })
+                  environment%38)()
+              _, path%35 ->
+                let
+                  asyncArgument%36 = { tag: "UnknownRoute", _1: path%35 }
+                in uncurried.call effect.pure { tag: "Throw", _1: asyncArgument%36 }()
+      }
+
+describe = \services%39 ->
+  \request%40 ->
+    let
+      asyncArgument%41 = request services%39 request%40
+    in \environment%47 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.pure {
+              tag: "Bind",
+              _1:
+                {
+                  tag: "Catch",
+                  _1: asyncArgument%41 environment%47,
+                  _2:
+                    \caughtError%43 ->
+                      { tag: "Throw", _1: { tag: "ClientFailed", _1: caughtError%43 } }
+                },
+              _2:
+                \response%44 ->
+                  {
+                    tag: "Run",
+                    _1:
+                      uncurried \ ->
+                        let
+                          asyncArgument%45 = log services%39
+                            (joinWith " "
+                              [request%40.method,
+                                request%40.url,
+                                "->",
+                                showIntDictShow response%44.status,
+                                fromMaybe "-" (header "content-type" response%44.headers),
+                                response%44.body])
+                        in uncurried.call effect.bind (asyncArgument%45 environment%47)
+                          \value%129 -> effect.pure { tag: "Pure", _1: value%129 }()
+                  }
+            }()
+      }
+
+program = \services%48 ->
+  \environment%117 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          let
+            probe%50 = services%48."Main.Probe" environment%117
+          in let
+            asyncArgument%51 = serve services%48 { host: "127.0.0.1", port: 0, onError: onError }
+              (handler services%48)
+          in uncurried.call effect.pure {
+            tag: "Bind",
+            _1:
+              {
+                tag: "Catch",
+                _1: asyncArgument%51 environment%117,
+                _2:
+                  \caughtError%53 ->
+                    { tag: "Throw", _1: { tag: "ServerFailed", _1: caughtError%53 } }
+              },
+            _2:
+              \server%54 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        listening%78 = address server%54
+                      in let
+                        origin%55 = string.append "http://" (string.append listening%78.host (string.append ":" (showIntDictShow
+                          listening%78.port)))
+                      in let
+                        get%58 = \path%115 ->
+                          {
+                            method: "GET",
+                            url: string.append origin%55 path%115,
+                            headers: [],
+                            body: "Nothing"
+                          }
+                      in let
+                        asyncArgument%113 = describe services%48
+                          {
+                            method: "POST",
+                            url: string.append origin%55 "/greet?from=test",
+                            headers: [{ name: "content-type", value: "application/json" }],
+                            body: { tag: "Just", _1: "{\"name\":\"Alice\"}" }
+                          }
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%113 environment%117,
+                        _2:
+                          \$unit%56 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  let
+                                    asyncArgument%111 = describe services%48
+                                      {
+                                        method: "POST",
+                                        url: string.append origin%55 "/greet",
+                                        headers: [],
+                                        body: { tag: "Just", _1: "{}" }
+                                      }
+                                  in uncurried.call effect.pure {
+                                    tag: "Bind",
+                                    _1: asyncArgument%111 environment%117,
+                                    _2:
+                                      \$unit%57 ->
+                                        {
+                                          tag: "Run",
+                                          _1:
+                                            uncurried \ ->
+                                              let
+                                                asyncArgument%109 = describe services%48
+                                                  (get%58 "/missing")
+                                              in uncurried.call effect.pure {
+                                                tag: "Bind",
+                                                _1: asyncArgument%109 environment%117,
+                                                _2:
+                                                  \$unit%59 ->
+                                                    {
+                                                      tag: "Run",
+                                                      _1:
+                                                        uncurried \ ->
+                                                          let
+                                                            asyncArgument%107 = describe services%48
+                                                              (get%58 "/crash")
+                                                          in uncurried.call effect.pure {
+                                                            tag: "Bind",
+                                                            _1: asyncArgument%107 environment%117,
+                                                            _2:
+                                                              \$unit%60 ->
+                                                                {
+                                                                  tag: "Run",
+                                                                  _1:
+                                                                    uncurried \ ->
+                                                                      let
+                                                                        asyncArgument%105 = describe
+                                                                          services%48
+                                                                          (get%58 "/missing")
+                                                                      in uncurried.call effect.pure {
+                                                                        tag: "Bind",
+                                                                        _1:
+                                                                          asyncArgument%105
+                                                                            environment%117,
+                                                                        _2:
+                                                                          \$unit%61 ->
+                                                                            {
+                                                                              tag: "Run",
+                                                                              _1:
+                                                                                uncurried \ ->
+                                                                                  let
+                                                                                    asyncArgument%103 = fork
+                                                                                      (get
+                                                                                        services%48
+                                                                                        (string.append origin%55 "/slow"))
+                                                                                  in uncurried.call effect.pure {
+                                                                                    tag: "Bind",
+                                                                                    _1:
+                                                                                      asyncArgument%103
+                                                                                        environment%117,
+                                                                                    _2:
+                                                                                      \pending%62 ->
+                                                                                        {
+                                                                                          tag:
+                                                                                            "Run",
+                                                                                          _1:
+                                                                                            uncurried \ ->
+                                                                                              let
+                                                                                                asyncArgument%63 = log
+                                                                                                  services%48
+                                                                                                  "slow request sent"
+                                                                                              in uncurried.call effect.bind (asyncArgument%63
+                                                                                                environment%117)
+                                                                                                \$unit%65 -> let
+                                                                                                  asyncArgument%100 = wait
+                                                                                                    probe%50.started
+                                                                                                in effect.pure {
+                                                                                                  tag:
+                                                                                                    "Bind",
+                                                                                                  _1:
+                                                                                                    asyncArgument%100
+                                                                                                      environment%117,
+                                                                                                  _2:
+                                                                                                    \$unit%66 ->
+                                                                                                      {
+                                                                                                        tag:
+                                                                                                          "Run",
+                                                                                                        _1:
+                                                                                                          uncurried \ ->
+                                                                                                            let
+                                                                                                              asyncArgument%67 = kill
+                                                                                                                {
+                                                                                                                  tag:
+                                                                                                                    "NetworkError",
+                                                                                                                  _1:
+                                                                                                                    "cancelled"
+                                                                                                                }
+                                                                                                                pending%62
+                                                                                                            in uncurried.call effect.pure {
+                                                                                                              tag:
+                                                                                                                "Bind",
+                                                                                                              _1:
+                                                                                                                {
+                                                                                                                  tag:
+                                                                                                                    "Catch",
+                                                                                                                  _1:
+                                                                                                                    asyncArgument%67
+                                                                                                                      environment%117,
+                                                                                                                  _2:
+                                                                                                                    \caughtError%69 ->
+                                                                                                                      {
+                                                                                                                        tag:
+                                                                                                                          "Throw",
+                                                                                                                        _1:
+                                                                                                                          {
+                                                                                                                            tag:
+                                                                                                                              "ClientFailed",
+                                                                                                                            _1:
+                                                                                                                              caughtError%69
+                                                                                                                          }
+                                                                                                                      }
+                                                                                                                },
+                                                                                                              _2:
+                                                                                                                \$unit%70 ->
+                                                                                                                  {
+                                                                                                                    tag:
+                                                                                                                      "Run",
+                                                                                                                    _1:
+                                                                                                                      uncurried \ ->
+                                                                                                                        let
+                                                                                                                          asyncArgument%71 = log
+                                                                                                                            services%48
+                                                                                                                            "slow request cancelled"
+                                                                                                                        in uncurried.call effect.bind (asyncArgument%71
+                                                                                                                          environment%117)
+                                                                                                                          \$unit%73 -> let
+                                                                                                                            asyncArgument%96 = wait
+                                                                                                                              probe%50.released
+                                                                                                                          in effect.pure {
+                                                                                                                            tag:
+                                                                                                                              "Bind",
+                                                                                                                            _1:
+                                                                                                                              asyncArgument%96
+                                                                                                                                environment%117,
+                                                                                                                            _2:
+                                                                                                                              \$unit%74 ->
+                                                                                                                                {
+                                                                                                                                  tag:
+                                                                                                                                    "Run",
+                                                                                                                                  _1:
+                                                                                                                                    uncurried \ ->
+                                                                                                                                      let
+                                                                                                                                        asyncArgument%75 = log
+                                                                                                                                          services%48
+                                                                                                                                          "slow handler released"
+                                                                                                                                      in uncurried.call effect.bind (asyncArgument%75
+                                                                                                                                        environment%117)
+                                                                                                                                        \$unit%77 -> let
+                                                                                                                                          asyncArgument%79 = serve
+                                                                                                                                            services%48
+                                                                                                                                            {
+                                                                                                                                              host:
+                                                                                                                                                "127.0.0.1",
+                                                                                                                                              port:
+                                                                                                                                                listening%78.port,
+                                                                                                                                              onError:
+                                                                                                                                                onError
+                                                                                                                                            }
+                                                                                                                                            (handler
+                                                                                                                                              services%48)
+                                                                                                                                        in effect.pure {
+                                                                                                                                          tag:
+                                                                                                                                            "Bind",
+                                                                                                                                          _1:
+                                                                                                                                            {
+                                                                                                                                              tag:
+                                                                                                                                                "Catch",
+                                                                                                                                              _1:
+                                                                                                                                                {
+                                                                                                                                                  tag:
+                                                                                                                                                    "Bind",
+                                                                                                                                                  _1:
+                                                                                                                                                    asyncArgument%79
+                                                                                                                                                      environment%117,
+                                                                                                                                                  _2:
+                                                                                                                                                    \attemptValue%81 ->
+                                                                                                                                                      {
+                                                                                                                                                        tag:
+                                                                                                                                                          "Pure",
+                                                                                                                                                        _1:
+                                                                                                                                                          {
+                                                                                                                                                            tag:
+                                                                                                                                                              "Right",
+                                                                                                                                                            _1:
+                                                                                                                                                              attemptValue%81
+                                                                                                                                                          }
+                                                                                                                                                      }
+                                                                                                                                                },
+                                                                                                                                              _2:
+                                                                                                                                                \caughtError%82 ->
+                                                                                                                                                  {
+                                                                                                                                                    tag:
+                                                                                                                                                      "Pure",
+                                                                                                                                                    _1:
+                                                                                                                                                      {
+                                                                                                                                                        tag:
+                                                                                                                                                          "Left",
+                                                                                                                                                        _1:
+                                                                                                                                                          caughtError%82
+                                                                                                                                                      }
+                                                                                                                                                  }
+                                                                                                                                            },
+                                                                                                                                          _2:
+                                                                                                                                            \second%83 ->
+                                                                                                                                              {
+                                                                                                                                                tag:
+                                                                                                                                                  "Run",
+                                                                                                                                                _1:
+                                                                                                                                                  uncurried \ ->
+                                                                                                                                                    let
+                                                                                                                                                      asyncArgument%85 = log
+                                                                                                                                                        services%48
+                                                                                                                                                        (case second%83 of
+                                                                                                                                                          Left error%84 ->
+                                                                                                                                                            string.append "second listen rejected " (showServerErrorDictShow
+                                                                                                                                                              error%84)
+                                                                                                                                                          Right _ ->
+                                                                                                                                                            "second listen accepted")
+                                                                                                                                                    in uncurried.call effect.bind (asyncArgument%85
+                                                                                                                                                      environment%117)
+                                                                                                                                                      \$unit%87 -> let
+                                                                                                                                                        asyncArgument%91 = close
+                                                                                                                                                          server%54
+                                                                                                                                                      in effect.pure {
+                                                                                                                                                        tag:
+                                                                                                                                                          "Bind",
+                                                                                                                                                        _1:
+                                                                                                                                                          asyncArgument%91
+                                                                                                                                                            environment%117,
+                                                                                                                                                        _2:
+                                                                                                                                                          \$unit%88 ->
+                                                                                                                                                            {
+                                                                                                                                                              tag:
+                                                                                                                                                                "Run",
+                                                                                                                                                              _1:
+                                                                                                                                                                uncurried \ ->
+                                                                                                                                                                  let
+                                                                                                                                                                    asyncArgument%89 = log
+                                                                                                                                                                      services%48
+                                                                                                                                                                      "server closed"
+                                                                                                                                                                  in uncurried.call effect.bind (asyncArgument%89
+                                                                                                                                                                    environment%117)
+                                                                                                                                                                    \value%130 -> effect.pure {
+                                                                                                                                                                      tag:
+                                                                                                                                                                        "Pure",
+                                                                                                                                                                      _1:
+                                                                                                                                                                        value%130
+                                                                                                                                                                    }(
+                                                                                                                                                                  )
+                                                                                                                                                            }
+                                                                                                                                                      }(
+                                                                                                                                                    )
+                                                                                                                                              }
+                                                                                                                                        }(
+                                                                                                                                      )
+                                                                                                                                }
+                                                                                                                          }(
+                                                                                                                        )
+                                                                                                                  }
+                                                                                                            }(
+                                                                                                            )
+                                                                                                      }
+                                                                                                }()
+                                                                                        }
+                                                                                  }()
+                                                                            }
+                                                                      }()
+                                                                }
+                                                          }()
+                                                    }
+                                              }()
+                                        }
+                                  }()
+                            }
+                      }()
+                }
+          }()
+    }
+
+@export run = effect.bind (effect.apply
+  (effect.map
+    (\section1006%118 section1008%119 -> { started: section1006%118, released: section1008%119 })
+    new)
+  new)
+  \probe%120 -> let
+    environment%122 = { server: default, http: client, console: default, probe: probe%120 }
+  in void functorEffect
+    (launch
+      {
+        onUncaught:
+          \error%121 ->
+            error { "Iris.Effect.Console.Console": \environment%123 -> environment%123.console }
+              (show showProgramError error%121)
+              environment%122
+      }
+      environment%122
+      (program
+        {
+          "Test.HttpServer.HttpServer": \environment%124 -> environment%124.server,
+          "Iris.Effect.Http.Http": \environment%125 -> environment%125.http,
+          "Iris.Effect.Console.Console": \environment%126 -> environment%126.console,
+          "Main.Probe": \environment%127 -> environment%127.probe
+        }))
+
+showServerErrorDictShow = show showServerError
+
+functorMaybeDictMap = map functorMaybe
+
+showIntDictShow = show showInt

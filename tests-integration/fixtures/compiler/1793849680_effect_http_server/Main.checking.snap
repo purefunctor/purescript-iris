@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+defect :: Prim.String -> Effect.Effect Data.Unit.Unit
+Probe :: { released :: Signal.Signal, started :: Signal.Signal } -> Main.Probe
+MissingName :: Main.RouteError
+UnknownRoute :: Prim.String -> Main.RouteError
+ServerFailed :: Test.HttpServer.ServerError -> Main.ProgramError
+ClientFailed :: Iris.Effect.Http.HttpError -> Main.ProgramError
+text :: Prim.Int -> Prim.String -> Test.HttpServer.ServerResponse
+onError :: Main.RouteError -> Test.HttpServer.ServerResponse
+header :: Prim.String -> Prim.Array Iris.Effect.Http.Header -> Data.Maybe.Maybe Prim.String
+greeting ::
+  forall (services :: Prim.Row Prim.Type).
+    Test.HttpServer.ServerRequest ->
+    Iris.Effect.Async.Async
+      Main.RouteError
+      (services :: Prim.Row Prim.Type)
+      Test.HttpServer.ServerResponse
+handler ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Main.Probe (services :: Prim.Row Prim.Type) =>
+    Test.HttpServer.ServerRequest ->
+    Iris.Effect.Async.Async
+      Main.RouteError
+      (services :: Prim.Row Prim.Type)
+      Test.HttpServer.ServerResponse
+describe ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Iris.Effect.Http.Http (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Iris.Effect.Console.Console (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Http.Request ->
+    Iris.Effect.Async.Async Main.ProgramError (services :: Prim.Row Prim.Type) Data.Unit.Unit
+program ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Test.HttpServer.HttpServer (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Iris.Effect.Http.Http (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Iris.Effect.Console.Console (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Main.Probe (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Async.Async Main.ProgramError (services :: Prim.Row Prim.Type) Data.Unit.Unit
+run :: Effect.Effect Data.Unit.Unit
+
+Types
+Probe :: Prim.Type
+RouteError :: Prim.Type
+ProgramError :: Prim.Type
+
+Instances
+instance Data.Show.Show Main.ProgramError
+
+Roles
+Probe = []
+RouteError = []
+ProgramError = []
