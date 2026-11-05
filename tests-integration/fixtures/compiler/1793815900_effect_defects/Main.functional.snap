@@ -15,78 +15,494 @@ delay = \milliseconds%1 ->
   async
     (\callback%0 ->
       effect.bind (setTimeout milliseconds%1 (callback%0 { tag: "Right", _1: unit }))
-        \identifier%2 -> effect.pure (liftEffect (clearTimeout identifier%2)))
+        \identifier%2 -> effect.pure (let
+          asyncArgument%3 = clearTimeout identifier%2
+        in \environment%4 ->
+          {
+            tag: "Run",
+            _1:
+              uncurried \ ->
+                uncurried.call effect.bind asyncArgument%3
+                  \value%91 -> effect.pure { tag: "Pure", _1: value%91 }()
+          }))
 
-describe = \section144%3 ->
-  case section144%3 of
+describe = \section144%5 ->
+  case section144%5 of
     Succeeded _ ->
       "succeeded"
-    Failed error%4 ->
-      string.append "failed " error%4
-    Died defect%5 ->
-      string.append "died " (message defect%5)
+    Failed error%6 ->
+      string.append "failed " error%6
+    Died defect%7 ->
+      string.append "died " (message defect%7)
 
-outcome = \report%9 label%10 program%6 ->
-  bindAsyncStringRowDictBind (fork program%6)
-    (\fiber%7 ->
-      bindAsyncStringRowDictBind (await fiber%7)
-        (\exit%8 ->
-          liftEffect (report%9 (string.append label%10 (string.append ": " (describe exit%8))))))
-
-program = \report%15 ->
+outcome = \report%11 label%12 program%8 ->
   let
-    say%11 = \message%26 -> liftEffect (report%15 message%26)
-  in bindAsyncStringRowDictBind (fork (finally (say%11 "released") (liftEffect (boom "boom"))))
-    (\dying%12 ->
-      bindAsyncStringRowDictBind
-        (fork (applySecond applyAsync (delay 10) (say%11 "sibling completed")))
-        (\other%13 ->
-          bindAsyncStringRowDictBind (await other%13)
-            (\$exit%14@(_) ->
-              discardUnitDictDiscard bindAsync (outcome report%15 "await" (join dying%12))
-                (\$unit%16@(_) ->
-                  discardUnitDictDiscard bindAsync
-                    (outcome report%15 "attempt" (attempt (join dying%12)))
-                    (\$unit%17@(_) ->
-                      discardUnitDictDiscard bindAsync
-                        (outcome report%15 "cleanup over typed"
-                          (finally (liftEffect (boom "cleanup")) (fail "typed")))
-                        (\$unit%18@(_) ->
-                          discardUnitDictDiscard bindAsync
-                            (outcome report%15 "body over cleanup"
-                              (finally (liftEffect (boom "cleanup")) (liftEffect (boom "body"))))
-                            (\$unit%19@(_) ->
-                              bindAsyncStringRowDictBind
-                                (fork (finally (liftEffect (boom "finalizer")) (delay 1000)))
-                                (\killed%20 ->
-                                  discardUnitDictDiscard bindAsync (kill "killed" killed%20)
-                                    (\$unit%21@(_) ->
-                                      bindAsyncStringRowDictBind (await killed%20)
-                                        (\killedExit%22 ->
-                                          discardUnitDictDiscard bindAsync
-                                            (say%11
-                                              (string.append "kill with failing finalizer: " (describe
-                                                killedExit%22)))
-                                            (\$unit%23@(_) ->
-                                              discardUnitDictDiscard bindAsync
-                                                (outcome report%15 "null" (liftEffect throwNull))
-                                                (\$unit%24@(_) ->
-                                                  discardUnitDictDiscard bindAsync
-                                                    (outcome report%15 "hostile"
-                                                      (liftEffect throwHostile))
-                                                    (\$unit%25@(_) ->
-                                                      say%11 "parent continues")))))))))))))
+    asyncArgument%17 = fork program%8
+  in \environment%18 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1: asyncArgument%17 environment%18,
+            _2:
+              \fiber%9 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%15 = await fiber%9
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%15 environment%18,
+                        _2:
+                          \exit%10 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  let
+                                    asyncArgument%13 = report%11
+                                      (string.append label%12 (string.append ": " (describe
+                                        exit%10)))
+                                  in uncurried.call effect.bind asyncArgument%13
+                                    \value%92 -> effect.pure { tag: "Pure", _1: value%92 }()
+                            }
+                      }()
+                }
+          }()
+    }
 
-@export run = \report%28 ->
+program = \report%30 ->
+  let
+    say%19 = \message%82 ->
+      let
+        asyncArgument%83 = report%30 message%82
+      in \environment%84 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.bind asyncArgument%83
+                \value%100 -> effect.pure { tag: "Pure", _1: value%100 }()
+        }
+  in let
+    asyncArgument%80 = fork
+      (finally (say%19 "released")
+        (let
+          asyncArgument%20 = boom "boom"
+        in \environment%21 ->
+          {
+            tag: "Run",
+            _1:
+              uncurried \ ->
+                uncurried.call effect.bind asyncArgument%20
+                  \value%93 -> effect.pure { tag: "Pure", _1: value%93 }()
+          }))
+  in \environment%81 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1: asyncArgument%80 environment%81,
+            _2:
+              \dying%22 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%78 = fork
+                          (let
+                            asyncArgument%23 = delay 10
+                            asyncArgument%24 = say%19 "sibling completed"
+                          in \environment%25 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  uncurried.call effect.pure {
+                                    tag: "Bind",
+                                    _1: asyncArgument%23 environment%25,
+                                    _2:
+                                      \firstValue%26 ->
+                                        {
+                                          tag: "Bind",
+                                          _1: asyncArgument%24 environment%25,
+                                          _2: \secondValue%27 -> { tag: "Pure", _1: secondValue%27 }
+                                        }
+                                  }()
+                            })
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%78 environment%81,
+                        _2:
+                          \other%28 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  let
+                                    asyncArgument%76 = await other%28
+                                  in uncurried.call effect.pure {
+                                    tag: "Bind",
+                                    _1: asyncArgument%76 environment%81,
+                                    _2:
+                                      \$exit%29 ->
+                                        {
+                                          tag: "Run",
+                                          _1:
+                                            uncurried \ ->
+                                              let
+                                                asyncArgument%74 = outcome report%30 "await"
+                                                  (join dying%22)
+                                              in uncurried.call effect.pure {
+                                                tag: "Bind",
+                                                _1: asyncArgument%74 environment%81,
+                                                _2:
+                                                  \$unit%31 ->
+                                                    {
+                                                      tag: "Run",
+                                                      _1:
+                                                        uncurried \ ->
+                                                          let
+                                                            asyncArgument%72 = outcome report%30
+                                                              "attempt"
+                                                              (let
+                                                                asyncArgument%32 = join dying%22
+                                                              in \environment%33 ->
+                                                                {
+                                                                  tag: "Run",
+                                                                  _1:
+                                                                    uncurried \ ->
+                                                                      uncurried.call effect.pure {
+                                                                        tag: "Catch",
+                                                                        _1:
+                                                                          {
+                                                                            tag: "Bind",
+                                                                            _1:
+                                                                              asyncArgument%32
+                                                                                environment%33,
+                                                                            _2:
+                                                                              \attemptValue%34 ->
+                                                                                {
+                                                                                  tag: "Pure",
+                                                                                  _1:
+                                                                                    {
+                                                                                      tag: "Right",
+                                                                                      _1:
+                                                                                        attemptValue%34
+                                                                                    }
+                                                                                }
+                                                                          },
+                                                                        _2:
+                                                                          \caughtError%35 ->
+                                                                            {
+                                                                              tag: "Pure",
+                                                                              _1:
+                                                                                {
+                                                                                  tag: "Left",
+                                                                                  _1: caughtError%35
+                                                                                }
+                                                                            }
+                                                                      }()
+                                                                })
+                                                          in uncurried.call effect.pure {
+                                                            tag: "Bind",
+                                                            _1: asyncArgument%72 environment%81,
+                                                            _2:
+                                                              \$unit%36 ->
+                                                                {
+                                                                  tag: "Run",
+                                                                  _1:
+                                                                    uncurried \ ->
+                                                                      let
+                                                                        asyncArgument%70 = outcome
+                                                                          report%30
+                                                                          "cleanup over typed"
+                                                                          (finally
+                                                                            (let
+                                                                              asyncArgument%37 = boom
+                                                                                "cleanup"
+                                                                            in \environment%38 ->
+                                                                              {
+                                                                                tag: "Run",
+                                                                                _1:
+                                                                                  uncurried \ ->
+                                                                                    uncurried.call effect.bind asyncArgument%37
+                                                                                      \value%94 -> effect.pure {
+                                                                                        tag: "Pure",
+                                                                                        _1: value%94
+                                                                                      }()
+                                                                              })
+                                                                            (\environment%39 ->
+                                                                              {
+                                                                                tag: "Throw",
+                                                                                _1: "typed"
+                                                                              }))
+                                                                      in uncurried.call effect.pure {
+                                                                        tag: "Bind",
+                                                                        _1:
+                                                                          asyncArgument%70
+                                                                            environment%81,
+                                                                        _2:
+                                                                          \$unit%40 ->
+                                                                            {
+                                                                              tag: "Run",
+                                                                              _1:
+                                                                                uncurried \ ->
+                                                                                  let
+                                                                                    asyncArgument%68 = outcome
+                                                                                      report%30
+                                                                                      "body over cleanup"
+                                                                                      (finally
+                                                                                        (let
+                                                                                          asyncArgument%41 = boom
+                                                                                            "cleanup"
+                                                                                        in \environment%42 ->
+                                                                                          {
+                                                                                            tag:
+                                                                                              "Run",
+                                                                                            _1:
+                                                                                              uncurried \ ->
+                                                                                                uncurried.call effect.bind asyncArgument%41
+                                                                                                  \value%95 -> effect.pure {
+                                                                                                    tag:
+                                                                                                      "Pure",
+                                                                                                    _1:
+                                                                                                      value%95
+                                                                                                  }(
+                                                                                                )
+                                                                                          })
+                                                                                        (let
+                                                                                          asyncArgument%43 = boom
+                                                                                            "body"
+                                                                                        in \environment%44 ->
+                                                                                          {
+                                                                                            tag:
+                                                                                              "Run",
+                                                                                            _1:
+                                                                                              uncurried \ ->
+                                                                                                uncurried.call effect.bind asyncArgument%43
+                                                                                                  \value%96 -> effect.pure {
+                                                                                                    tag:
+                                                                                                      "Pure",
+                                                                                                    _1:
+                                                                                                      value%96
+                                                                                                  }(
+                                                                                                )
+                                                                                          }))
+                                                                                  in uncurried.call effect.pure {
+                                                                                    tag: "Bind",
+                                                                                    _1:
+                                                                                      asyncArgument%68
+                                                                                        environment%81,
+                                                                                    _2:
+                                                                                      \$unit%45 ->
+                                                                                        {
+                                                                                          tag:
+                                                                                            "Run",
+                                                                                          _1:
+                                                                                            uncurried \ ->
+                                                                                              let
+                                                                                                asyncArgument%66 = fork
+                                                                                                  (finally
+                                                                                                    (let
+                                                                                                      asyncArgument%46 = boom
+                                                                                                        "finalizer"
+                                                                                                    in \environment%47 ->
+                                                                                                      {
+                                                                                                        tag:
+                                                                                                          "Run",
+                                                                                                        _1:
+                                                                                                          uncurried \ ->
+                                                                                                            uncurried.call effect.bind asyncArgument%46
+                                                                                                              \value%97 -> effect.pure {
+                                                                                                                tag:
+                                                                                                                  "Pure",
+                                                                                                                _1:
+                                                                                                                  value%97
+                                                                                                              }(
+                                                                                                            )
+                                                                                                      })
+                                                                                                    (delay
+                                                                                                      1000))
+                                                                                              in uncurried.call effect.pure {
+                                                                                                tag:
+                                                                                                  "Bind",
+                                                                                                _1:
+                                                                                                  asyncArgument%66
+                                                                                                    environment%81,
+                                                                                                _2:
+                                                                                                  \killed%48 ->
+                                                                                                    {
+                                                                                                      tag:
+                                                                                                        "Run",
+                                                                                                      _1:
+                                                                                                        uncurried \ ->
+                                                                                                          let
+                                                                                                            asyncArgument%64 = kill
+                                                                                                              "killed"
+                                                                                                              killed%48
+                                                                                                          in uncurried.call effect.pure {
+                                                                                                            tag:
+                                                                                                              "Bind",
+                                                                                                            _1:
+                                                                                                              asyncArgument%64
+                                                                                                                environment%81,
+                                                                                                            _2:
+                                                                                                              \$unit%49 ->
+                                                                                                                {
+                                                                                                                  tag:
+                                                                                                                    "Run",
+                                                                                                                  _1:
+                                                                                                                    uncurried \ ->
+                                                                                                                      let
+                                                                                                                        asyncArgument%62 = await
+                                                                                                                          killed%48
+                                                                                                                      in uncurried.call effect.pure {
+                                                                                                                        tag:
+                                                                                                                          "Bind",
+                                                                                                                        _1:
+                                                                                                                          asyncArgument%62
+                                                                                                                            environment%81,
+                                                                                                                        _2:
+                                                                                                                          \killedExit%50 ->
+                                                                                                                            {
+                                                                                                                              tag:
+                                                                                                                                "Run",
+                                                                                                                              _1:
+                                                                                                                                uncurried \ ->
+                                                                                                                                  let
+                                                                                                                                    asyncArgument%60 = say%19
+                                                                                                                                      (string.append "kill with failing finalizer: " (describe
+                                                                                                                                        killedExit%50))
+                                                                                                                                  in uncurried.call effect.pure {
+                                                                                                                                    tag:
+                                                                                                                                      "Bind",
+                                                                                                                                    _1:
+                                                                                                                                      asyncArgument%60
+                                                                                                                                        environment%81,
+                                                                                                                                    _2:
+                                                                                                                                      \$unit%51 ->
+                                                                                                                                        {
+                                                                                                                                          tag:
+                                                                                                                                            "Run",
+                                                                                                                                          _1:
+                                                                                                                                            uncurried \ ->
+                                                                                                                                              let
+                                                                                                                                                asyncArgument%58 = outcome
+                                                                                                                                                  report%30
+                                                                                                                                                  "null"
+                                                                                                                                                  (\environment%52 ->
+                                                                                                                                                    {
+                                                                                                                                                      tag:
+                                                                                                                                                        "Run",
+                                                                                                                                                      _1:
+                                                                                                                                                        uncurried \ ->
+                                                                                                                                                          uncurried.call effect.bind throwNull
+                                                                                                                                                            \value%98 -> effect.pure {
+                                                                                                                                                              tag:
+                                                                                                                                                                "Pure",
+                                                                                                                                                              _1:
+                                                                                                                                                                value%98
+                                                                                                                                                            }(
+                                                                                                                                                          )
+                                                                                                                                                    })
+                                                                                                                                              in uncurried.call effect.pure {
+                                                                                                                                                tag:
+                                                                                                                                                  "Bind",
+                                                                                                                                                _1:
+                                                                                                                                                  asyncArgument%58
+                                                                                                                                                    environment%81,
+                                                                                                                                                _2:
+                                                                                                                                                  \$unit%53 ->
+                                                                                                                                                    {
+                                                                                                                                                      tag:
+                                                                                                                                                        "Run",
+                                                                                                                                                      _1:
+                                                                                                                                                        uncurried \ ->
+                                                                                                                                                          let
+                                                                                                                                                            asyncArgument%56 = outcome
+                                                                                                                                                              report%30
+                                                                                                                                                              "hostile"
+                                                                                                                                                              (\environment%54 ->
+                                                                                                                                                                {
+                                                                                                                                                                  tag:
+                                                                                                                                                                    "Run",
+                                                                                                                                                                  _1:
+                                                                                                                                                                    uncurried \ ->
+                                                                                                                                                                      uncurried.call effect.bind throwHostile
+                                                                                                                                                                        \value%99 -> effect.pure {
+                                                                                                                                                                          tag:
+                                                                                                                                                                            "Pure",
+                                                                                                                                                                          _1:
+                                                                                                                                                                            value%99
+                                                                                                                                                                        }(
+                                                                                                                                                                      )
+                                                                                                                                                                })
+                                                                                                                                                          in uncurried.call effect.pure {
+                                                                                                                                                            tag:
+                                                                                                                                                              "Bind",
+                                                                                                                                                            _1:
+                                                                                                                                                              asyncArgument%56
+                                                                                                                                                                environment%81,
+                                                                                                                                                            _2:
+                                                                                                                                                              \$unit%55 ->
+                                                                                                                                                                say%19
+                                                                                                                                                                  "parent continues"
+                                                                                                                                                                  environment%81
+                                                                                                                                                          }(
+                                                                                                                                                          )
+                                                                                                                                                    }
+                                                                                                                                              }(
+                                                                                                                                              )
+                                                                                                                                        }
+                                                                                                                                  }(
+                                                                                                                                  )
+                                                                                                                            }
+                                                                                                                      }(
+                                                                                                                      )
+                                                                                                                }
+                                                                                                          }(
+                                                                                                          )
+                                                                                                    }
+                                                                                              }()
+                                                                                        }
+                                                                                  }()
+                                                                            }
+                                                                      }()
+                                                                }
+                                                          }()
+                                                    }
+                                              }()
+                                        }
+                                  }()
+                            }
+                      }()
+                }
+          }()
+    }
+
+@export run = \report%86 ->
   void functorEffect
-    (launch { onUncaught: \error%27 -> report%28 (string.append "uncaught " error%27) } {  }
-      (program report%28))
+    (launch { onUncaught: \error%85 -> report%86 (string.append "uncaught " error%85) } {  }
+      (program report%86))
 
-@export launchDefect = \report%30 ->
+@export launchDefect = \report%88 ->
   void functorEffect
-    (launch { onUncaught: \error%29 -> report%30 (string.append "uncaught " error%29) } {  }
-      (liftEffect (boom "root")))
-
-bindAsyncStringRowDictBind = bind bindAsync
-
-discardUnitDictDiscard = discard discardUnit
+    (launch { onUncaught: \error%87 -> report%88 (string.append "uncaught " error%87) } {  }
+      (let
+        asyncArgument%89 = boom "root"
+      in \environment%90 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.bind asyncArgument%89
+                \value%101 -> effect.pure { tag: "Pure", _1: value%101 }()
+        }))

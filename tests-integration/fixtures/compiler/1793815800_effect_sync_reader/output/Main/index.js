@@ -1,27 +1,57 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Apply from "../Control.Apply/index.js";
-import * as Control_Bind from "../Control.Bind/index.js";
-import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Show from "../Data.Show/index.js";
-import * as Iris_Effect_Sync from "../Iris.Effect.Sync/index.js";
-function greeting(hasNameServicesDict) {
-  return /* @__PURE__ */ bindSyncServicesDictBind(/* @__PURE__ */ Iris_Effect_Sync.service(hasNameServicesDict))((name) => /* @__PURE__ */ applicativeSyncServicesDictPure("hello " + name));
+function greeting(services) {
+  return (environment) => {
+    const $value = services["Main.Name"](environment);
+    return () => {
+      return "hello " + $value;
+    };
+  };
 }
 function say(report) {
   return (message) => {
-    return Iris_Effect_Sync.liftEffect(report(message));
+    const syncArgument = report(message);
+    return (environment) => syncArgument;
   };
 }
-function program(hasNameServicesDict) {
-  return (hasCountServicesDict) => {
-    return (report) => /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit)(Iris_Effect_Sync.bindSync)(say(report)("start"))(($unit) => /* @__PURE__ */ bindSyncServicesDictBind(/* @__PURE__ */ greeting(hasNameServicesDict))((outer) => /* @__PURE__ */ bindSyncServicesDictBind(Iris_Effect_Sync.provide({ renamed: "inner" })(/* @__PURE__ */ greeting({ getService: ($services) => $services.renamed })))((inner) => /* @__PURE__ */ bindSyncServicesDictBind(/* @__PURE__ */ Iris_Effect_Sync.service(hasCountServicesDict))((count) => /* @__PURE__ */ bindSyncServicesDictBind(/* @__PURE__ */ Control_Apply.apply(Iris_Effect_Sync.applySync)(/* @__PURE__ */ functorSyncServicesDictMap((left) => (right) => left + (" & " + right))(/* @__PURE__ */ greeting(hasNameServicesDict)))(/* @__PURE__ */ functorSyncServicesDictMap(/* @__PURE__ */ Data_Show.show(Data_Show.showInt))(/* @__PURE__ */ applicativeSyncServicesDictPure(count))))((combined) => say(report)(outer + (", " + (inner + (", " + combined)))))))));
+function program(services) {
+  return (report) => {
+    const syncArgument = say(report)("start");
+    return (environment) => {
+      const $action = syncArgument(environment);
+      return () => {
+        const $unit = $action();
+        const syncArgument$1 = /* @__PURE__ */ greeting(services);
+        const $action$1 = syncArgument$1(environment);
+        const outer = $action$1();
+        const syncArgument$2 = /* @__PURE__ */ greeting({ "Main.Name": (environment$1) => environment$1.renamed });
+        const $action$2 = syncArgument$2({ renamed: "inner" });
+        const inner = $action$2();
+        const $value = services["Main.Count"](environment);
+        const syncArgument$3 = /* @__PURE__ */ greeting(services);
+        const syncArgument$4 = /* @__PURE__ */ Data_Show.show(Data_Show.showInt);
+        const $function = (left) => (right) => left + (" & " + right);
+        const $action$3 = syncArgument$3(environment);
+        let combined;
+        let $function$1;
+        $function$1 = $function($action$3());
+        let $argument;
+        let $value$1;
+        $value$1 = $value;
+        $argument = syncArgument$4($value$1);
+        combined = $function$1($argument);
+        return say(report)(outer + (", " + (inner + (", " + combined))))(environment)();
+      };
+    };
   };
 }
 export function run(report) {
-  const action = Iris_Effect_Sync.run({
+  const action = /* @__PURE__ */ program({
+    "Main.Name": (environment) => environment.name,
+    "Main.Count": (environment$1) => environment$1.count
+  })(report)({
     name: "outer",
     count: 2 | 0
-  })(/* @__PURE__ */ program({ getService: ($services) => $services.name })({ getService: ($services) => $services.count })(report));
+  });
   const $action = report("built");
   return () => {
     const $unit = $action();
@@ -29,6 +59,3 @@ export function run(report) {
     return action();
   };
 }
-const bindSyncServicesDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Sync.bindSync);
-const applicativeSyncServicesDictPure = /* @__PURE__ */ Control_Applicative.pure(Iris_Effect_Sync.applicativeSync);
-const functorSyncServicesDictMap = /* @__PURE__ */ Data_Functor.map(Iris_Effect_Sync.functorSync);

@@ -1452,6 +1452,11 @@ impl Generator<'_> {
         destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
+        if let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
+            &self.module.storage[expression].kind
+        {
+            return self.render_expression(tree, writer, *value, destination, context);
+        }
         if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
             let mut renderer = self.renderer(tree, writer, context);
             let effect = capture_effect(&mut renderer, effect)?;
@@ -1622,6 +1627,9 @@ impl Generator<'_> {
     ) -> ModuleResult<RenderedExpression> {
         let _origin = tree.enter_origin(self.module.storage[expression].origin);
         match &self.module.storage[expression].kind {
+            ExpressionKind::Async(_) => {
+                unreachable!("invariant violated: Async program was not lowered to steps")
+            }
             ExpressionKind::Array { elements } => {
                 let mut values = Vec::with_capacity(elements.len());
                 for element in elements.iter() {
@@ -2022,7 +2030,8 @@ impl Generator<'_> {
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
             | ExpressionKind::LetPattern { .. }
-            | ExpressionKind::Effect { .. } => true,
+            | ExpressionKind::Effect { .. }
+            | ExpressionKind::Async(_) => true,
         }
     }
 
@@ -2062,6 +2071,7 @@ impl Generator<'_> {
             | ExpressionKind::Let { .. }
             | ExpressionKind::LetPattern { .. }
             | ExpressionKind::Effect { .. }
+            | ExpressionKind::Async(_)
             | ExpressionKind::SynthesizedEvidence { .. }
             | ExpressionKind::TrivialEvidence => false,
         }
@@ -2252,7 +2262,8 @@ impl Generator<'_> {
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
             | ExpressionKind::LetPattern { .. }
-            | ExpressionKind::Effect { .. } => return Ok(None),
+            | ExpressionKind::Effect { .. }
+            | ExpressionKind::Async(_) => return Ok(None),
         };
         Ok(Some(expression))
     }
@@ -2320,7 +2331,8 @@ impl Generator<'_> {
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
             | ExpressionKind::LetPattern { .. }
-            | ExpressionKind::Effect { .. } => false,
+            | ExpressionKind::Effect { .. }
+            | ExpressionKind::Async(_) => false,
         }
     }
 
@@ -3897,6 +3909,9 @@ fn collect_expression_references(
     globals: &mut Vec<Global>,
 ) {
     match &module.storage[expression].kind {
+        ExpressionKind::Async(_) => {
+            unreachable!("invariant violated: Async program was not lowered to steps")
+        }
         ExpressionKind::Literal { .. }
         | ExpressionKind::Local { .. }
         | ExpressionKind::SynthesizedEvidence { .. }
@@ -4139,6 +4154,9 @@ fn collect_expression_children(
         return;
     }
     match &module.storage[expression].kind {
+        ExpressionKind::Async(_) => {
+            unreachable!("invariant violated: Async program was not lowered to steps")
+        }
         ExpressionKind::Literal { .. }
         | ExpressionKind::Constructor { .. }
         | ExpressionKind::Global { .. }

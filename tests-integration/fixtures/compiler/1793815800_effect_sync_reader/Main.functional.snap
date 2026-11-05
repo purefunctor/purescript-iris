@@ -1,42 +1,48 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-greeting = \hasNameServicesDict%0 ->
-  bindSyncServicesDictBind (service hasNameServicesDict%0)
-    (\name%1 -> applicativeSyncServicesDictPure (string.append "hello " name%1))
+greeting = \services%0 ->
+  \environment%5 ->
+    effect.bind (effect.pure (services%0."Main.Name" environment%5))
+      \name%2 -> effect.pure (string.append "hello " name%2)
 
-say = \report%2 message%3 -> liftEffect (report%2 message%3)
-
-program = \hasNameServicesDict%6 hasCountServicesDict%9 ->
-  \report%4 ->
-    discard discardUnit bindSync (say report%4 "start")
-      (\$unit%5@(_) ->
-        bindSyncServicesDictBind (greeting hasNameServicesDict%6)
-          (\outer%7 ->
-            bindSyncServicesDictBind (provide { renamed: "inner" } (greeting (service "renamed")))
-              (\inner%8 ->
-                bindSyncServicesDictBind (service hasCountServicesDict%9)
-                  (\count%10 ->
-                    bindSyncServicesDictBind
-                      (apply applySync
-                        (functorSyncServicesDictMap
-                          (\left%11 right%12 ->
-                            string.append left%11 (string.append " & " right%12))
-                          (greeting hasNameServicesDict%6))
-                        (functorSyncServicesDictMap (show showInt)
-                          (applicativeSyncServicesDictPure count%10)))
-                      (\combined%13 ->
-                        say report%4
-                          (string.append outer%7 (string.append ", " (string.append inner%8 (string.append ", " combined%13)))))))))
-
-@export run = \report%14 ->
+say = \report%6 message%7 ->
   let
-    action%16 = run { name: "outer", count: 2 }
-      (program (service "name") (service "count") report%14)
-  in effect.bind (report%14 "built") \$unit%15 -> effect.bind action%16 \$unit%17 -> action%16
+    syncArgument%8 = report%6 message%7
+  in \environment%9 -> syncArgument%8
 
-bindSyncServicesDictBind = bind bindSync
+program = \services%10 ->
+  \report%11 ->
+    let
+      syncArgument%35 = say report%11 "start"
+    in \environment%36 ->
+      effect.bind (syncArgument%35 environment%36)
+        \$unit%12 -> let
+          syncArgument%33 = greeting services%10
+        in effect.bind (syncArgument%33 environment%36)
+          \outer%13 -> let
+            syncArgument%16 = greeting { "Main.Name": \environment%14 -> environment%14.renamed }
+          in effect.bind (syncArgument%16 { renamed: "inner" })
+            \inner%18 -> effect.bind (effect.pure (services%10."Main.Count" environment%36))
+              \count%20 -> let
+                syncArgument%23 = greeting services%10
+                syncArgument%26 = show showInt
+              in effect.bind (effect.apply
+                (effect.map
+                  (\left%21 right%22 -> string.append left%21 (string.append " & " right%22))
+                  (syncArgument%23 environment%36))
+                (effect.map syncArgument%26 (effect.pure count%20)))
+                \combined%29 -> say report%11
+                  (string.append outer%13 (string.append ", " (string.append inner%18 (string.append ", " combined%29))))
+                  environment%36
 
-applicativeSyncServicesDictPure = pure applicativeSync
-
-functorSyncServicesDictMap = map functorSync
+@export run = \report%37 ->
+  let
+    action%39 = program
+      {
+        "Main.Name": \environment%41 -> environment%41.name,
+        "Main.Count": \environment%42 -> environment%42.count
+      }
+      report%37
+      { name: "outer", count: 2 }
+  in effect.bind (report%37 "built") \$unit%38 -> effect.bind action%39 \$unit%40 -> action%39

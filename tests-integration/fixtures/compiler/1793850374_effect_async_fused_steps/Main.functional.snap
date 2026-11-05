@@ -1,0 +1,91 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign record
+
+foreign later
+
+foreign complete
+
+foreign failed
+
+pause = async
+  (\callback%0 ->
+    effect.bind (later (\composeArgument%1 -> callback%0 { tag: "Right", _1: composeArgument%1 }))
+      \$unit%2 -> effect.pure (\environment%3 -> { tag: "Pure", _1: unit }))
+
+lowered = \services%4 ->
+  \environment%23 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          let
+            offset%6 = services%4."Main.Offset" environment%23
+          in let
+            asyncArgument%7 = record (integer.add offset%6 1)
+          in uncurried.call effect.bind asyncArgument%7
+            \first%9 -> let
+              asyncArgument%10 = record (integer.add first%9 1)
+            in effect.bind asyncArgument%10
+              \second%12 -> effect.pure {
+                tag: "Bind",
+                _1: pause environment%23,
+                _2:
+                  \third%13 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%14 = record (integer.add second%12 third%13)
+                          in uncurried.call effect.bind asyncArgument%14
+                            \fourth%16 -> let
+                              asyncArgument%17 = complete fourth%16
+                            in effect.bind asyncArgument%17
+                              \value%39 -> effect.pure { tag: "Pure", _1: value%39 }()
+                    }
+              }()
+    }
+
+generic = \monadMonadDict%24 ->
+  \step%25 suspend%28 finish%31 ->
+    bind (monadMonadDict%24."Bind1"()) (step%25 4)
+      (\first%26 ->
+        bind (monadMonadDict%24."Bind1"()) (step%25 (integer.add first%26 1))
+          (\second%27 ->
+            bind (monadMonadDict%24."Bind1"()) suspend%28
+              (\third%29 ->
+                bind (monadMonadDict%24."Bind1"()) (step%25 (integer.add second%27 third%29))
+                  (\fourth%30 -> finish%31 fourth%30))))
+
+@export runLowered = void functorEffect
+  (launch { onUncaught: failed } { offset: 3 }
+    (lowered { "Main.Offset": \environment%32 -> environment%32.offset }))
+
+@export runGeneric = void functorEffect
+  (launch { onUncaught: failed } {  }
+    (generic monadAsync
+      (\composeArgument%33 ->
+        let
+          asyncArgument%34 = record composeArgument%33
+        in \environment%35 ->
+          {
+            tag: "Run",
+            _1:
+              uncurried \ ->
+                uncurried.call effect.bind asyncArgument%34
+                  \value%40 -> effect.pure { tag: "Pure", _1: value%40 }()
+          })
+      pause
+      (\composeArgument%36 ->
+        let
+          asyncArgument%37 = complete composeArgument%36
+        in \environment%38 ->
+          {
+            tag: "Run",
+            _1:
+              uncurried \ ->
+                uncurried.call effect.bind asyncArgument%37
+                  \value%41 -> effect.pure { tag: "Pure", _1: value%41 }()
+          })))

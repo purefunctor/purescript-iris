@@ -36,8 +36,7 @@ export function countTwice(value) {
     const $value$2 = section184 * (10 | 0) | 0;
     next = counter = $value$2;
     const current = counter;
-    const $value$3 = (written + next | 0) + current | 0;
-    return $value$3;
+    return (written + next | 0) + current | 0;
   };
   return $function($effect);
 }

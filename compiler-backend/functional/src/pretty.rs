@@ -4,10 +4,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
-    ArrayElement, BinaryOperator, Comparison, Declaration, DeclarationKind, EffectExpression,
-    ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports, Literal, Module,
-    Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate, ReflectableEvidence,
-    ReflectableOrdering, SynthesizedEvidence, UnaryOperator, WriteResult,
+    ArrayElement, AsyncExpression, BinaryOperator, Comparison, Declaration, DeclarationKind,
+    EffectExpression, ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports,
+    Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate,
+    ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence, UnaryOperator, WriteResult,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -101,6 +101,10 @@ impl<'a> Printer<'a, '_> {
             | ExpressionKind::StyleX(_)
             | ExpressionKind::Effect { .. }
             | ExpressionKind::SynthesizedEvidence { .. } => ExpressionPrecedence::Application,
+            ExpressionKind::Async(
+                AsyncExpression::Program { .. } | AsyncExpression::Catch { .. },
+            ) => ExpressionPrecedence::Abstraction,
+            ExpressionKind::Async(_) => ExpressionPrecedence::Application,
             ExpressionKind::RecordUpdate { .. } => ExpressionPrecedence::RecordUpdate,
             ExpressionKind::Literal { .. }
             | ExpressionKind::Array { .. }
@@ -346,6 +350,7 @@ impl<'a> Printer<'a, '_> {
                     .append(body)
             }
             ExpressionKind::Effect { effect } => self.effect(effect),
+            ExpressionKind::Async(asynchronous) => self.asynchronous(asynchronous),
             ExpressionKind::SynthesizedEvidence { evidence } => self.synthesized_evidence(evidence),
             ExpressionKind::TrivialEvidence => self.arena.text("<trivial evidence>"),
         }
@@ -564,6 +569,42 @@ impl<'a> Printer<'a, '_> {
                     .map(|argument| self.expression_at(*argument, ExpressionPrecedence::Atom));
                 let arguments = self.delimited("(", arguments, ")");
                 self.arena.text("effect.uncurried.call ").append(function).append(arguments)
+            }
+        }
+    }
+
+    fn asynchronous(&self, asynchronous: &AsyncExpression) -> Doc<'a> {
+        match asynchronous {
+            AsyncExpression::Program { environment, body } => {
+                let environment = self.parameter(environment);
+                let body = self.arena.line().append(self.expression(*body)).nest(2);
+                self.arena.text("async \\").append(environment).append(" ->").append(body).group()
+            }
+            AsyncExpression::Step(step) => {
+                let step = self.expression_at(*step, ExpressionPrecedence::Atom);
+                self.arena.text("async.step ").append(step)
+            }
+            AsyncExpression::Effect(action) => {
+                let action = self.expression_at(*action, ExpressionPrecedence::Atom);
+                self.arena.text("async.effect ").append(action)
+            }
+            AsyncExpression::Fail(error) => {
+                let error = self.expression_at(*error, ExpressionPrecedence::Atom);
+                self.arena.text("async.fail ").append(error)
+            }
+            AsyncExpression::Catch { body, parameter, handler } => {
+                let body = self.expression_at(*body, ExpressionPrecedence::Atom);
+                let parameter = self.parameter(parameter);
+                let handler = self.expression(*handler);
+                let handler = self
+                    .arena
+                    .line()
+                    .append("\\")
+                    .append(parameter)
+                    .append(" -> ")
+                    .append(handler)
+                    .nest(2);
+                self.arena.text("async.catch ").append(body).append(handler).group()
             }
         }
     }

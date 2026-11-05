@@ -274,6 +274,7 @@ pub enum ExpressionKind {
     Let { recursive: bool, bindings: Arc<[Binding]>, body: ExpressionId },
     LetPattern { pattern: PatternId, value: ExpressionId, body: ExpressionId },
     Effect { effect: EffectExpression },
+    Async(AsyncExpression),
     SynthesizedEvidence { evidence: SynthesizedEvidence },
     TrivialEvidence,
 }
@@ -353,6 +354,15 @@ pub enum EffectExpression {
     ReferenceRead(ExpressionId),
     ReferenceWrite { reference: ExpressionId, value: ExpressionId, result: WriteResult },
     UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AsyncExpression {
+    Program { environment: Parameter, body: ExpressionId },
+    Step(ExpressionId),
+    Effect(ExpressionId),
+    Fail(ExpressionId),
+    Catch { body: ExpressionId, parameter: Parameter, handler: ExpressionId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

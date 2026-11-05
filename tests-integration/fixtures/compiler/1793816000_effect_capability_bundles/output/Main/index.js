@@ -1,49 +1,55 @@
-import * as Iris_Effect from "../Iris.Effect/index.js";
-export function reading(hasFirstServicesDict) {
-  return (hasSecondServicesDict) => {
-    return (services) => {
-      const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(hasFirstServicesDict)(services);
-      const $scrutinee$1 = /* @__PURE__ */ Iris_Effect.getService(hasSecondServicesDict)(services);
-      const first = $scrutinee;
-      const second = $scrutinee$1;
-      return (first * (100 | 0) | 0) + second | 0;
-    };
+export function reading(services) {
+  return (services$1) => {
+    const $scrutinee = services["Capabilities.First"](services$1);
+    const $scrutinee$1 = services["Capabilities.Second"](services$1);
+    const first = $scrutinee;
+    const second = $scrutinee$1;
+    return (first * (100 | 0) | 0) + second | 0;
   };
 }
-export function inferred(hasFirstDict) {
-  return (hasSecondDict) => {
-    return (services) => /* @__PURE__ */ reading(hasFirstDict)(hasSecondDict)(services);
-  };
+export function inferred(services) {
+  return (services$1) => /* @__PURE__ */ reading(services)(services$1);
 }
-export function ranked(hasFirstServicesDict) {
-  return (hasSecondServicesDict) => {
-    return (action) => /* @__PURE__ */ action(hasFirstServicesDict)(hasSecondServicesDict);
-  };
+export function ranked(services) {
+  return (action) => /* @__PURE__ */ action({ getService: services["Capabilities.First"] })({ getService: services["Capabilities.Second"] });
 }
-export function tagged(hasFirstServicesDict) {
+export function tagged(services) {
   return (hasTaggedValueServicesDict) => {
-    return (hasSecondServicesDict) => {
-      return (services) => {
-        const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(hasTaggedValueServicesDict)(services);
-        const value = $scrutinee;
-        return value;
-      };
+    return (services$1) => {
+      const $scrutinee = hasTaggedValueServicesDict.getService(services$1);
+      const value = $scrutinee;
+      return value;
     };
   };
 }
-export const readingValue = /* @__PURE__ */ reading({ getService: ($services) => $services.first })({ getService: ($services) => $services.second })({
+export const readingValue = /* @__PURE__ */ reading({
+  "Capabilities.First": (environment) => environment.first,
+  "Capabilities.Second": (environment$1) => environment$1.second
+})({
   first: 3 | 0,
   second: 7 | 0
 });
-export const inferredValue = /* @__PURE__ */ inferred({ getService: ($services) => $services.red })({ getService: ($services) => $services.blue })({
+export const inferredValue = /* @__PURE__ */ inferred({
+  "Capabilities.First": (environment) => environment.red,
+  "Capabilities.Second": (environment$1) => environment$1.blue
+})({
   red: 11 | 0,
   blue: 13 | 0
 });
-export const rankedValue = /* @__PURE__ */ ranked({ getService: ($services) => $services.first })({ getService: ($services) => $services.second })((hasFirstOtherDict) => (hasSecondOtherDict) => /* @__PURE__ */ reading(hasFirstOtherDict)(hasSecondOtherDict))({
+export const rankedValue = /* @__PURE__ */ ranked({
+  "Capabilities.First": (environment) => environment.first,
+  "Capabilities.Second": (environment$1) => environment$1.second
+})((hasFirstOtherDict) => (hasSecondOtherDict) => /* @__PURE__ */ reading({
+  "Capabilities.First": hasFirstOtherDict.getService,
+  "Capabilities.Second": hasSecondOtherDict.getService
+}))({
   second: 2 | 0,
   first: 5 | 0
 });
-export const taggedValue = /* @__PURE__ */ tagged({ getService: ($services) => $services.first })({ getService: ($services) => $services.tagged })({ getService: ($services) => $services.second })({
+export const taggedValue = /* @__PURE__ */ tagged({
+  "Capabilities.First": (environment) => environment.first,
+  "Capabilities.Second": (environment$1) => environment$1.second
+})({ getService: ($services) => $services.tagged })({
   first: 0 | 0,
   second: 0 | 0,
   tagged: "tagged"

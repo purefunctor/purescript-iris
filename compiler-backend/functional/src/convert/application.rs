@@ -133,17 +133,7 @@ where
             };
             let arity = self.constructor_arity(file_id, term_id)?;
             if known_arguments.len() == arity {
-                let tag = self.expression(ExpressionKind::Literal {
-                    literal: Literal::String(global.item_name.into()),
-                });
-                let mut fields = Vec::with_capacity(known_arguments.len() + 1);
-                let field = self.label_field("tag".into());
-                fields.push(RecordField { field, expression: tag });
-                for (index, expression) in known_arguments.into_iter().enumerate() {
-                    let field = self.label_field(format_smolstr!("_{}", index + 1));
-                    fields.push(RecordField { field, expression });
-                }
-                return Ok(self.expression(ExpressionKind::Record { fields: fields.into() }));
+                return Ok(self.constructor_value(&global.item_name, known_arguments));
             }
             synthetic = true;
         }
@@ -231,6 +221,17 @@ where
         {
             return Ok(reference);
         }
+        if let Some(expression) =
+            self.known_service_application(known_function, &known_arguments)?
+        {
+            return Ok(expression);
+        }
+        if let Some(expression) = self.known_sync_application(known_function, &known_arguments)? {
+            return Ok(expression);
+        }
+        if let Some(expression) = self.known_async_application(known_function, &known_arguments)? {
+            return Ok(expression);
+        }
         if let Some(effect) = self.known_effect_application(known_function, &known_arguments)? {
             return Ok(self.expression(ExpressionKind::Effect { effect }));
         }
@@ -281,6 +282,22 @@ where
             arguments: arguments.into(),
             synthetic,
         }))
+    }
+
+    pub(super) fn constructor_value(
+        &mut self,
+        name: &str,
+        arguments: impl IntoIterator<Item = ExpressionId>,
+    ) -> ExpressionId {
+        let tag =
+            self.expression(ExpressionKind::Literal { literal: Literal::String(name.into()) });
+        let mut fields =
+            vec![RecordField { field: self.label_field("tag".into()), expression: tag }];
+        for (index, expression) in arguments.into_iter().enumerate() {
+            let field = self.label_field(format_smolstr!("_{}", index + 1));
+            fields.push(RecordField { field, expression });
+        }
+        self.expression(ExpressionKind::Record { fields: fields.into() })
     }
 
     fn known_composition_application(
@@ -798,7 +815,7 @@ where
         Ok(local)
     }
 
-    fn effect_continuation(
+    pub(super) fn effect_continuation(
         &mut self,
         continuation: ExpressionId,
     ) -> ConversionResult<Option<(Parameter, ExpressionId)>> {
@@ -1039,7 +1056,7 @@ where
         )
     }
 
-    fn known_term(
+    pub(super) fn known_term(
         &self,
         expression: ExpressionId,
         module_name: &str,
@@ -1073,7 +1090,7 @@ where
         Ok((arity <= 10 && global.item_name == canonical_name).then_some(arity))
     }
 
-    fn known_instance_member_arguments<'a>(
+    pub(super) fn known_instance_member_arguments<'a>(
         &self,
         expression: ExpressionId,
         arguments: &'a [ExpressionId],
@@ -1141,7 +1158,7 @@ where
         Ok(Some(ClassMemberApplication { class, record: *record, arguments }))
     }
 
-    fn known_named_instance(
+    pub(super) fn known_named_instance(
         &self,
         expression: ExpressionId,
         module_name: &str,

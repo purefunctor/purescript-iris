@@ -1,13 +1,13 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export console = getService (service "logger")
+@export console = \environment%0 -> environment%0.logger
 
-@export http = getService (service "network")
+@export http = \environment%1 -> environment%1.network
 
-@export misleading = getService (service "http")
+@export misleading = \environment%2 -> environment%2.http
 
-@export aliased = getService (service "renamed")
+@export aliased = \environment%3 -> environment%3.renamed
 
 @export consoleValue = console { logger: 19, network: 23 }
 

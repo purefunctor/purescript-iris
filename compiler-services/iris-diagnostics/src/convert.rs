@@ -166,6 +166,8 @@ impl ToDiagnostics for FunctionalModuleError {
                 format!("'{function}' must be called directly with all of its arguments.\n\nIt cannot be passed around as a function or partially applied."),
             FunctionalUnsupportedState::InvalidStyleXContext { function, requirement, .. } =>
                 format!("'{function}' {requirement}."),
+            FunctionalUnsupportedState::ServiceEvidenceMismatch =>
+                "The service dictionaries supplied at a call do not match the callee's service constraints.\n\nThis is an unsupported internal compiler state.".to_owned(),
             FunctionalUnsupportedState::VirtualModuleRuntimeReference { module_name, item_name } =>
                 format!("'{module_name}.{item_name}' is a compile-time declaration and cannot be used at runtime."),
         };

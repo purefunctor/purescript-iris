@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Clock :: Prim.Type
+newtype Clock
+  | Clock :: Prim.Int -> Main.Clock
+
+newtype Label :: Prim.Type -> Prim.Type
+newtype Label @value
+  | Label :: value -> Main.Label value
+
+handle :: forall services.
+  Iris.Effect.Has Logging.Logger services =>
+  Iris.Effect.Has Main.Clock services =>
+  Prim.String -> Iris.Effect.Sync.Sync services Data.Unit.Unit
+handle = \{hasDict} -> \{hasDict1} -> \request ->
+  bind {bindSync} (service {hasDict1}) \(Clock now) ->
+    logLine {hasDict}
+      (append {semigroupString} (show {showInt} now) (append {semigroupString} " " request))
+
+labelled :: forall @value services.
+  Data.Show.Show value =>
+  Iris.Effect.Has (Main.Label value) services =>
+  Iris.Effect.Has Logging.Logger services =>
+  Iris.Effect.Sync.Sync services Data.Unit.Unit
+labelled = \{showDict} -> \{hasDict} -> \{hasDict1} ->
+  bind {bindSync} (service {hasDict}) \(Label value) -> logLine {hasDict1} (show {showDict} value)
+
+run :: (Prim.String -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+run = \write ->
+  run { clock: Clock 12, log: Logger write, label: Label true }
+    (discard {discardUnit} {bindSync} (handle {service("log")} {service("clock")} "first") \_ ->
+      labelled {showBoolean} {service("label")} {service("log")})

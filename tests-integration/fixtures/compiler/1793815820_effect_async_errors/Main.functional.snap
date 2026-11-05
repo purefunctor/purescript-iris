@@ -1,61 +1,315 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-say = \report%0 message%1 -> liftEffect (report%0 message%1)
+say = \report%0 message%1 ->
+  let
+    asyncArgument%2 = report%0 message%1
+  in \environment%3 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.bind asyncArgument%2
+            \value%76 -> effect.pure { tag: "Pure", _1: value%76 }()
+    }
 
-describe = \section78%2 ->
-  case section78%2 of
-    Left error%3 ->
-      string.append "left " error%3
-    Right value%4 ->
-      string.append "right " (showIntDictShow value%4)
+describe = \section78%4 ->
+  case section78%4 of
+    Left error%5 ->
+      string.append "left " error%5
+    Right value%6 ->
+      string.append "right " (showIntDictShow value%6)
 
-program = \report%5 ->
-  bindAsyncCodeRowDictBind
-    (catch
-      (applySecond applyAsync
-        (applySecond applyAsync (applySecond applyAsync (say report%5 "before fail") (fail "boom"))
-          (say report%5 "after fail"))
-        (applicativeAsyncStringRowDictPure 0))
-      (\error%6 ->
-        discardUnitDictDiscard bindAsync (say report%5 (string.append "caught " error%6))
-          (\$unit%7@(_) -> applicativeAsyncStringRowDictPure 7)))
-    (\recovered%8 ->
-      discardUnitDictDiscard bindAsync
-        (say report%5 (string.append "recovered " (showIntDictShow recovered%8)))
-        (\$unit%9@(_) ->
-          bindAsyncCodeRowDictBind
-            (attempt (mapError (\error%10 -> string.append "mapped " error%10) (fail "inner")))
-            (\mapped%11 ->
-              discardUnitDictDiscard bindAsync (say report%5 (describe mapped%11))
-                (\$unit%12@(_) ->
-                  bindAsyncCodeRowDictBind
-                    (attempt
-                      (catch (fail "first")
-                        (\error%13 -> fail (string.append "handled " error%13))))
-                    (\rethrown%14 ->
-                      discardUnitDictDiscard bindAsync (say report%5 (describe rethrown%14))
-                        (\$unit%15@(_) ->
-                          bindAsyncCodeRowDictBind (attempt (applicativeAsyncStringRowDictPure 3))
-                            (\succeeded%16 ->
-                              discardUnitDictDiscard bindAsync
-                                (say report%5 (describe succeeded%16))
-                                (\$unit%17@(_) ->
-                                  discardUnitDictDiscard bindAsync
-                                    (mapError (\value%18 -> value%18) (fail 42))
-                                    (\$unit%19@(_) -> say report%5 "after uncaught")))))))))
+program = \report%7 ->
+  let
+    asyncArgument%9 = say report%7 "before fail"
+    asyncArgument%13 = say report%7 "after fail"
+  in \environment%73 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1:
+              {
+                tag: "Catch",
+                _1:
+                  {
+                    tag: "Run",
+                    _1:
+                      uncurried \ ->
+                        uncurried.call effect.pure {
+                          tag: "Bind",
+                          _1: asyncArgument%9 environment%73,
+                          _2: \firstValue%11 -> { tag: "Throw", _1: "boom" }
+                        }()
+                  },
+                _2:
+                  \caughtError%27 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%24 = say report%7 (string.append "caught " caughtError%27)
+                          in uncurried.call effect.pure {
+                            tag: "Bind",
+                            _1: asyncArgument%24 environment%73,
+                            _2: \$unit%22 -> { tag: "Pure", _1: 7 }
+                          }()
+                    }
+              },
+            _2:
+              \recovered%28 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%71 = say report%7
+                          (string.append "recovered " (showIntDictShow recovered%28))
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%71 environment%73,
+                        _2:
+                          \$unit%29 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  uncurried.call effect.pure {
+                                    tag: "Bind",
+                                    _1:
+                                      {
+                                        tag: "Catch",
+                                        _1:
+                                          {
+                                            tag: "Bind",
+                                            _1:
+                                              {
+                                                tag: "Catch",
+                                                _1: { tag: "Throw", _1: "inner" },
+                                                _2:
+                                                  \caughtError%33 ->
+                                                    {
+                                                      tag: "Throw",
+                                                      _1: string.append "mapped " caughtError%33
+                                                    }
+                                              },
+                                            _2:
+                                              \attemptValue%35 ->
+                                                {
+                                                  tag: "Pure",
+                                                  _1: { tag: "Right", _1: attemptValue%35 }
+                                                }
+                                          },
+                                        _2:
+                                          \caughtError%36 ->
+                                            { tag: "Pure", _1: { tag: "Left", _1: caughtError%36 } }
+                                      },
+                                    _2:
+                                      \mapped%37 ->
+                                        {
+                                          tag: "Run",
+                                          _1:
+                                            uncurried \ ->
+                                              let
+                                                asyncArgument%68 = say report%7 (describe mapped%37)
+                                              in uncurried.call effect.pure {
+                                                tag: "Bind",
+                                                _1: asyncArgument%68 environment%73,
+                                                _2:
+                                                  \$unit%38 ->
+                                                    {
+                                                      tag: "Run",
+                                                      _1:
+                                                        uncurried \ ->
+                                                          uncurried.call effect.pure {
+                                                            tag: "Bind",
+                                                            _1:
+                                                              {
+                                                                tag: "Catch",
+                                                                _1:
+                                                                  {
+                                                                    tag: "Bind",
+                                                                    _1:
+                                                                      {
+                                                                        tag: "Catch",
+                                                                        _1:
+                                                                          {
+                                                                            tag: "Throw",
+                                                                            _1: "first"
+                                                                          },
+                                                                        _2:
+                                                                          \caughtError%44 ->
+                                                                            {
+                                                                              tag: "Run",
+                                                                              _1:
+                                                                                uncurried \ ->
+                                                                                  let
+                                                                                    asyncArgument%41 = string.append "handled " caughtError%44
+                                                                                  in uncurried.call effect.pure {
+                                                                                    tag: "Throw",
+                                                                                    _1:
+                                                                                      asyncArgument%41
+                                                                                  }()
+                                                                            }
+                                                                      },
+                                                                    _2:
+                                                                      \attemptValue%46 ->
+                                                                        {
+                                                                          tag: "Pure",
+                                                                          _1:
+                                                                            {
+                                                                              tag: "Right",
+                                                                              _1: attemptValue%46
+                                                                            }
+                                                                        }
+                                                                  },
+                                                                _2:
+                                                                  \caughtError%47 ->
+                                                                    {
+                                                                      tag: "Pure",
+                                                                      _1:
+                                                                        {
+                                                                          tag: "Left",
+                                                                          _1: caughtError%47
+                                                                        }
+                                                                    }
+                                                              },
+                                                            _2:
+                                                              \rethrown%48 ->
+                                                                {
+                                                                  tag: "Run",
+                                                                  _1:
+                                                                    uncurried \ ->
+                                                                      let
+                                                                        asyncArgument%65 = say
+                                                                          report%7
+                                                                          (describe rethrown%48)
+                                                                      in uncurried.call effect.pure {
+                                                                        tag: "Bind",
+                                                                        _1:
+                                                                          asyncArgument%65
+                                                                            environment%73,
+                                                                        _2:
+                                                                          \$unit%49 ->
+                                                                            {
+                                                                              tag: "Run",
+                                                                              _1:
+                                                                                uncurried \ ->
+                                                                                  uncurried.call effect.pure {
+                                                                                    tag: "Bind",
+                                                                                    _1:
+                                                                                      {
+                                                                                        tag:
+                                                                                          "Catch",
+                                                                                        _1:
+                                                                                          {
+                                                                                            tag:
+                                                                                              "Pure",
+                                                                                            _1:
+                                                                                              {
+                                                                                                tag:
+                                                                                                  "Right",
+                                                                                                _1:
+                                                                                                  3
+                                                                                              }
+                                                                                          },
+                                                                                        _2:
+                                                                                          \caughtError%53 ->
+                                                                                            {
+                                                                                              tag:
+                                                                                                "Pure",
+                                                                                              _1:
+                                                                                                {
+                                                                                                  tag:
+                                                                                                    "Left",
+                                                                                                  _1:
+                                                                                                    caughtError%53
+                                                                                                }
+                                                                                            }
+                                                                                      },
+                                                                                    _2:
+                                                                                      \succeeded%54 ->
+                                                                                        {
+                                                                                          tag:
+                                                                                            "Run",
+                                                                                          _1:
+                                                                                            uncurried \ ->
+                                                                                              let
+                                                                                                asyncArgument%62 = say
+                                                                                                  report%7
+                                                                                                  (describe
+                                                                                                    succeeded%54)
+                                                                                              in uncurried.call effect.pure {
+                                                                                                tag:
+                                                                                                  "Bind",
+                                                                                                _1:
+                                                                                                  asyncArgument%62
+                                                                                                    environment%73,
+                                                                                                _2:
+                                                                                                  \$unit%55 ->
+                                                                                                    {
+                                                                                                      tag:
+                                                                                                        "Run",
+                                                                                                      _1:
+                                                                                                        uncurried \ ->
+                                                                                                          uncurried.call effect.pure {
+                                                                                                            tag:
+                                                                                                              "Bind",
+                                                                                                            _1:
+                                                                                                              {
+                                                                                                                tag:
+                                                                                                                  "Catch",
+                                                                                                                _1:
+                                                                                                                  {
+                                                                                                                    tag:
+                                                                                                                      "Throw",
+                                                                                                                    _1:
+                                                                                                                      42
+                                                                                                                  },
+                                                                                                                _2:
+                                                                                                                  \caughtError%59 ->
+                                                                                                                    {
+                                                                                                                      tag:
+                                                                                                                        "Throw",
+                                                                                                                      _1:
+                                                                                                                        caughtError%59
+                                                                                                                    }
+                                                                                                              },
+                                                                                                            _2:
+                                                                                                              \$unit%60 ->
+                                                                                                                say
+                                                                                                                  report%7
+                                                                                                                  "after uncaught"
+                                                                                                                  environment%73
+                                                                                                          }(
+                                                                                                          )
+                                                                                                    }
+                                                                                              }()
+                                                                                        }
+                                                                                  }()
+                                                                            }
+                                                                      }()
+                                                                }
+                                                          }()
+                                                    }
+                                              }()
+                                        }
+                                  }()
+                            }
+                      }()
+                }
+          }()
+    }
 
-@export run = \report%21 ->
+@export run = \report%75 ->
   void functorEffect
     (launch
-      { onUncaught: \code%20 -> report%21 (string.append "uncaught " (showIntDictShow code%20)) }
+      { onUncaught: \code%74 -> report%75 (string.append "uncaught " (showIntDictShow code%74)) }
       {  }
-      (program report%21))
+      (program report%75))
 
 showIntDictShow = show showInt
-
-bindAsyncCodeRowDictBind = bind bindAsync
-
-applicativeAsyncStringRowDictPure = pure applicativeAsync
-
-discardUnitDictDiscard = discard discardUnit

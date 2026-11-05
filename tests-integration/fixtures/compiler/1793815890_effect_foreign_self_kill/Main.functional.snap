@@ -3,74 +3,211 @@ source: tests-integration/src/fixtures.rs
 ---
 foreign later
 
-say = \report%0 message%1 -> liftEffect (report%0 message%1)
+say = \report%0 message%1 ->
+  let
+    asyncArgument%2 = report%0 message%1
+  in \environment%3 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.bind asyncArgument%2
+            \value%63 -> effect.pure { tag: "Pure", _1: value%63 }()
+    }
 
-killSelf = \fiber%2 -> liftEffect (void functorEffect (killFiber "self" fiber%2 (effect.pure unit)))
+killSelf = \fiber%4 ->
+  let
+    asyncArgument%5 = void functorEffect (killFiber "self" fiber%4 (effect.pure unit))
+  in \environment%6 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.bind asyncArgument%5
+            \value%64 -> effect.pure { tag: "Pure", _1: value%64 }()
+    }
 
-withSelf = \report%4 body%11 ->
+withSelf = \report%8 body%20 ->
   void functorEffect
-    (launch { onUncaught: \failure%3 -> report%4 (string.append "uncaught " failure%3) } {  }
-      (bindAsyncStringRowDictBind (liftEffect (reference.new "Nothing"))
-        (\self%5 ->
-          bindAsyncStringRowDictBind
-            (fork
-              (discardUnitDictDiscard bindAsync
-                (async
-                  (\callback%6 ->
-                    effect.bind (later (callback%6 { tag: "Right", _1: unit }))
-                      \$unit%7 -> effect.pure (applicativeAsyncStringRowDictPure unit)))
-                (\$unit%8@(_) ->
-                  bindAsyncStringRowDictBind (liftEffect (reference.read self%5))
-                    (\found%9 ->
-                      case found%9 of
-                        Just me%10 ->
-                          body%11 me%10
-                        Nothing ->
-                          say report%4 "missing fiber"))))
-            (\fiber%12 ->
-              discardUnitDictDiscard bindAsync
-                (liftEffect (reference.write.unit self%5 { tag: "Just", _1: fiber%12 }))
-                (\$unit%13@(_) ->
-                  bindAsyncStringRowDictBind (await fiber%12)
-                    (\exit%14 ->
-                      say report%4
-                        (case exit%14 of
-                          Succeeded _ ->
-                            "succeeded"
-                          Failed failure%15 ->
-                            string.append "failed " failure%15
-                          Died _ ->
-                            "died")))))))
+    (launch { onUncaught: \failure%7 -> report%8 (string.append "uncaught " failure%7) } {  }
+      (let
+        asyncArgument%9 = reference.new "Nothing"
+      in \environment%35 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.bind asyncArgument%9
+                \self%11 -> let
+                  asyncArgument%33 = fork
+                    (let
+                      asyncArgument%22 = async
+                        (\callback%12 ->
+                          effect.bind (later (callback%12 { tag: "Right", _1: unit }))
+                            \$unit%13 -> effect.pure (\environment%14 -> { tag: "Pure", _1: unit }))
+                    in \environment%23 ->
+                      {
+                        tag: "Run",
+                        _1:
+                          uncurried \ ->
+                            uncurried.call effect.pure {
+                              tag: "Bind",
+                              _1: asyncArgument%22 environment%23,
+                              _2:
+                                \$unit%15 ->
+                                  {
+                                    tag: "Run",
+                                    _1:
+                                      uncurried \ ->
+                                        let
+                                          asyncArgument%16 = reference.read self%11
+                                        in uncurried.call effect.bind asyncArgument%16
+                                          \found%18 -> case found%18 of
+                                            Just me%19 ->
+                                              effect.pure (body%20 me%19 environment%23)
+                                            Nothing ->
+                                              effect.pure (say report%8 "missing fiber"
+                                                environment%23)()
+                                  }
+                            }()
+                      })
+                in effect.pure {
+                  tag: "Bind",
+                  _1: asyncArgument%33 environment%35,
+                  _2:
+                    \fiber%24 ->
+                      {
+                        tag: "Run",
+                        _1:
+                          uncurried \ ->
+                            let
+                              asyncArgument%25 = reference.write.unit
+                                self%11
+                                { tag: "Just", _1: fiber%24 }
+                            in uncurried.call effect.bind asyncArgument%25
+                              \$unit%27 -> let
+                                asyncArgument%30 = await fiber%24
+                              in effect.pure {
+                                tag: "Bind",
+                                _1: asyncArgument%30 environment%35,
+                                _2:
+                                  \exit%28 ->
+                                    say report%8
+                                      (case exit%28 of
+                                        Succeeded _ ->
+                                          "succeeded"
+                                        Failed failure%29 ->
+                                          string.append "failed " failure%29
+                                        Died _ ->
+                                          "died")
+                                      environment%35
+                              }()
+                      }
+                }()
+        }))
 
-@export insideCatch = \report%16 ->
-  withSelf report%16
-    (\me%17 ->
-      discardUnitDictDiscard bindAsync
-        (catch
-          (discardUnitDictDiscard bindAsync (say report%16 "before kill")
-            (\$unit%18@(_) ->
-              discardUnitDictDiscard bindAsync (killSelf me%17)
-                (\$unit%19@(_) -> say report%16 "after kill")))
-          (\failure%20 -> say report%16 (string.append "caught " failure%20)))
-        (\$unit%21@(_) -> say report%16 "after catch"))
+@export insideCatch = \report%36 ->
+  withSelf report%36
+    (\me%37 ->
+      let
+        asyncArgument%42 = say report%36 "before kill"
+      in \environment%48 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.pure {
+                tag: "Bind",
+                _1:
+                  {
+                    tag: "Catch",
+                    _1:
+                      {
+                        tag: "Run",
+                        _1:
+                          uncurried \ ->
+                            uncurried.call effect.pure {
+                              tag: "Bind",
+                              _1: asyncArgument%42 environment%48,
+                              _2:
+                                \$unit%38 ->
+                                  {
+                                    tag: "Run",
+                                    _1:
+                                      uncurried \ ->
+                                        let
+                                          asyncArgument%40 = killSelf me%37
+                                        in uncurried.call effect.pure {
+                                          tag: "Bind",
+                                          _1: asyncArgument%40 environment%48,
+                                          _2: \$unit%39 -> say report%36 "after kill" environment%48
+                                        }()
+                                  }
+                            }()
+                      },
+                    _2:
+                      \caughtError%46 ->
+                        {
+                          tag: "Run",
+                          _1:
+                            uncurried \ ->
+                              uncurried.call effect.pure (say report%36
+                                (string.append "caught " caughtError%46)
+                                environment%48)()
+                        }
+                  },
+                _2: \$unit%47 -> say report%36 "after catch" environment%48
+              }()
+        })
 
-@export beforeImmediateCallback = \report%22 ->
-  withSelf report%22
-    (\me%23 ->
-      discardUnitDictDiscard bindAsync (say report%22 "before kill")
-        (\$unit%24@(_) ->
-          discardUnitDictDiscard bindAsync (killSelf me%23)
-            (\$unit%25@(_) ->
-              bindAsyncStringRowDictBind
-                (async
-                  (\callback%26 ->
-                    effect.bind (callback%26 { tag: "Right", _1: 5 })
-                      \$unit%27 -> effect.pure (applicativeAsyncStringRowDictPure unit)))
-                (\value%28 ->
-                  say report%22 (string.append "after callback " (show showInt value%28))))))
-
-bindAsyncStringRowDictBind = bind bindAsync
-
-discardUnitDictDiscard = discard discardUnit
-
-applicativeAsyncStringRowDictPure = pure applicativeAsync
+@export beforeImmediateCallback = \report%49 ->
+  withSelf report%49
+    (\me%50 ->
+      let
+        asyncArgument%61 = say report%49 "before kill"
+      in \environment%62 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.pure {
+                tag: "Bind",
+                _1: asyncArgument%61 environment%62,
+                _2:
+                  \$unit%51 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%59 = killSelf me%50
+                          in uncurried.call effect.pure {
+                            tag: "Bind",
+                            _1: asyncArgument%59 environment%62,
+                            _2:
+                              \$unit%52 ->
+                                {
+                                  tag: "Run",
+                                  _1:
+                                    uncurried \ ->
+                                      let
+                                        asyncArgument%57 = async
+                                          (\callback%53 ->
+                                            effect.bind (callback%53 { tag: "Right", _1: 5 })
+                                              \$unit%54 -> effect.pure (\environment%55 ->
+                                                { tag: "Pure", _1: unit }))
+                                      in uncurried.call effect.pure {
+                                        tag: "Bind",
+                                        _1: asyncArgument%57 environment%62,
+                                        _2:
+                                          \value%56 ->
+                                            say report%49
+                                              (string.append "after callback " (show showInt
+                                                value%56))
+                                              environment%62
+                                      }()
+                                }
+                          }()
+                    }
+              }()
+        })

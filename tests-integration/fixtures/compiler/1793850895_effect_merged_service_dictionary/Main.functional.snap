@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+handle = \services%0 ->
+  \request%3 ->
+    \environment%4 ->
+      effect.bind (effect.pure (services%0."Main.Clock" environment%4))
+        \now%2 -> logLine services%0
+          (string.append (show showInt now%2) (string.append " " request%3))
+          environment%4
+
+labelled = \showValueDict%9 hasLabelValueServicesDict%6 services%5 ->
+  \environment%10 ->
+    effect.bind (effect.pure (hasLabelValueServicesDict%6.getService environment%10))
+      \value%8 -> logLine services%5 (show showValueDict%9 value%8) environment%10
+
+@export run = \write%11 ->
+  let
+    syncArgument%16 = handle
+      {
+        "Logging.Logger": \environment%12 -> environment%12.log,
+        "Main.Clock": \environment%13 -> environment%13.clock
+      }
+      "first"
+  in let
+    environment%17 = { clock: 12, log: write%11, label: true }
+  in effect.bind (syncArgument%16 environment%17)
+    \$unit%14 -> labelled showBoolean (service "label")
+      { "Logging.Logger": \environment%15 -> environment%15.log }
+      environment%17

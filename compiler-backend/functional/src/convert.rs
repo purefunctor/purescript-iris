@@ -1,10 +1,13 @@
 //! Conversion from the checked semantic tree into the owned functional tree.
 
 mod application;
+mod asynchronous;
 mod declaration;
 mod evidence;
 mod expression;
+mod services;
 mod stylex;
+mod synchronous;
 
 use std::cell::{OnceCell, RefCell};
 use std::sync::Arc;
@@ -99,6 +102,9 @@ struct Context<'c, Q> {
     referenced_stylex_modules: FxHashSet<FileId>,
     thunk_modules: OnceCell<[Option<FileId>; 2]>,
     canonical_thunk_instances: RefCell<FxHashMap<(FileId, indexing::InstanceId), bool>>,
+    lowering_constructors_available: Option<bool>,
+    service_binders: FxHashMap<EvidenceBinderId, (Parameter, SmolStr)>,
+    service_plans: FxHashMap<(FileId, TermItemId), Option<services::ServicePlan>>,
 
     parameters: FxHashMap<BindingSource, Parameter>,
     next_local: u32,
@@ -164,6 +170,9 @@ where
             referenced_stylex_modules: FxHashSet::default(),
             thunk_modules: OnceCell::new(),
             canonical_thunk_instances: RefCell::default(),
+            lowering_constructors_available: None,
+            service_binders: FxHashMap::default(),
+            service_plans: FxHashMap::default(),
 
             parameters: FxHashMap::default(),
             next_local: 0,
@@ -201,6 +210,7 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
     }
     validate_runtime_exports(&context, &declarations, &surface)?;
     context.hoist_closed_evidence(&mut declarations)?;
+    context.lower_async_programs(&declarations)?;
 
     let recursive_globals = declarations
         .iter()

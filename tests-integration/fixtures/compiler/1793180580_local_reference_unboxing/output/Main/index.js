@@ -6,8 +6,7 @@ export function readBeforeWrite(value) {
     const $value = value + (4 | 0) | 0;
     reference = $value;
     const after = reference;
-    const $value$1 = (before * (10 | 0) | 0) + after | 0;
-    return $value$1;
+    return (before * (10 | 0) | 0) + after | 0;
   };
 }
 export function sumTwo(left) {
@@ -21,8 +20,7 @@ export function sumTwo(left) {
       $int = first = $value;
       const a = first;
       const b = second;
-      const $value$1 = a + b | 0;
-      return $value$1;
+      return a + b | 0;
     };
   };
 }

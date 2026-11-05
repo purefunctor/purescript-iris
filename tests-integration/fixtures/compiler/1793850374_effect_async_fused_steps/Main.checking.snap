@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Offset :: Prim.Int -> Main.Offset
+record :: Prim.Int -> Effect.Effect Prim.Int
+later :: (Prim.Int -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+complete :: Prim.Int -> Effect.Effect Data.Unit.Unit
+failed :: Prim.String -> Effect.Effect Data.Unit.Unit
+pause ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Async.Async Prim.String (services :: Prim.Row Prim.Type) Prim.Int
+lowered ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Main.Offset (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Async.Async Prim.String (services :: Prim.Row Prim.Type) Data.Unit.Unit
+generic ::
+  forall (monad :: Prim.Type -> Prim.Type).
+    Control.Monad.Monad (monad :: Prim.Type -> Prim.Type) =>
+    (Prim.Int -> (monad :: Prim.Type -> Prim.Type) Prim.Int) ->
+    (monad :: Prim.Type -> Prim.Type) Prim.Int ->
+    (Prim.Int -> (monad :: Prim.Type -> Prim.Type) Data.Unit.Unit) ->
+    (monad :: Prim.Type -> Prim.Type) Data.Unit.Unit
+runLowered :: Effect.Effect Data.Unit.Unit
+runGeneric :: Effect.Effect Data.Unit.Unit
+
+Types
+Offset :: Prim.Type
+
+Roles
+Offset = []

@@ -1,0 +1,137 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Data_Unit from "../Data.Unit/index.js";
+   | ^ 3:1 import Prelude
+ 2 | import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
+   | ^ 8:1 import Iris.Effect.Async (Async)
+ 3 | import * as $foreign from "./foreign.js";
+   | ^ 13:1 foreign import record :: Int -> Effect Int
+ 4 | export function program(services) {
+   | ^ 23:1 program = do
+   |        ^ (program) 23:1 program = do
+   |                                   ^ 23:1 program = do
+ 5 |   return (environment) => {
+   |   ^ 23:11 do
+   |           ^ (program) 23:11 do
+   |                           ^ 23:11 do
+ 6 |     return {
+   |     ^ 23:11 do
+ 7 |       tag: "Run",
+   |       ^ 23:11 do
+ 8 |       _1: () => {
+   |       ^ 23:11 do
+ 9 |         const offset = services["Main.Offset"](environment);
+   |         ^ 24:3 Offset offset <- Async.service @Offset
+   |                        ^ 23:11 do
+10 |         const asyncArgument = record(offset);
+   |         ^ 25:30 record offset)
+   |                                      ^ 25:37 offset)
+   |                                            ^ 25:30 record offset)
+11 |         const first = asyncArgument();
+   |         ^ 25:30 record offset)
+12 |         return {
+   |         ^ 26:13 pause
+13 |           tag: "Bind",
+   |           ^ 26:13 pause
+14 |           _1: pause(environment),
+   |           ^ 26:13 pause
+   |                     ^ 23:11 do
+   |                                ^ 26:13 pause
+15 |           _2: (second) => {
+   |           ^ 26:13 pause
+   |                ^ (_2) 26:3 second <- pause
+   |                           ^ 26:3 second <- pause
+16 |             return {
+   |             ^ 26:13 pause
+17 |               tag: "Run",
+   |               ^ 26:13 pause
+18 |               _1: () => {
+   |               ^ 26:13 pause
+19 |                 if (first > second) {
+   |                 ^ 27:3 if first > second then Async.fail "first is larger"
+   |                     ^ 27:6 first > second then Async.fail "first is larger"
+   |                             ^ 27:14 second then Async.fail "first is larger"
+   |                                     ^ 27:3 if first > second then Async.fail "first is larger"
+20 |                   return {
+   |                   ^ 27:26 Async.fail "first is larger"
+21 |                     tag: "Throw",
+   |                     ^ 27:26 Async.fail "first is larger"
+22 |                     _1: "first is larger"
+   |                     ^ 27:26 Async.fail "first is larger"
+   |                         ^ 27:37 "first is larger"
+23 |                   };
+   |                   ^ 27:26 Async.fail "first is larger"
+24 |                 } else {
+   |                 ^ 27:3 if first > second then Async.fail "first is larger"
+25 |                   return {
+   |                   ^ 28:8 pure (first + second)
+26 |                     tag: "Pure",
+   |                     ^ 28:8 pure (first + second)
+27 |                     _1: first + second | 0
+   |                     ^ 28:8 pure (first + second)
+   |                         ^ 28:14 first + second)
+   |                                 ^ 28:22 second)
+   |                                          ^ 28:14 first + second)
+28 |                   };
+   |                   ^ 28:8 pure (first + second)
+29 |                 }
+   |                 ^ 27:3 if first > second then Async.fail "first is larger"
+30 |               }
+   |               ^ 26:13 pause
+31 |             };
+   |             ^ 26:13 pause
+32 |           }
+   |           ^ 26:3 second <- pause
+33 |         };
+   |         ^ 26:13 pause
+34 |       }
+   |       ^ 23:11 do
+35 |     };
+   |     ^ 23:11 do
+36 |   };
+   |   ^ 23:11 do
+37 | }
+   | ^ 23:1 program = do
+38 | export const record = $foreign["record"];
+   | ^ 13:1 foreign import record :: Int -> Effect Int
+39 | export const later = $foreign["later"];
+   | ^ 15:1 foreign import later :: (Int -> Effect Unit) -> Effect Unit
+40 | export const pause = /* @__PURE__ */ (() => {
+   | ^ 18:1 pause = Async.async \callback -> do
+   |              ^ (pause) 18:1 pause = Async.async \callback -> do
+   |                                             ^ 18:1 pause = Async.async \callback -> do
+41 |   return Iris_Effect_Async.async((callback) => {
+   |   ^ 18:9 Async.async \callback -> do
+   |                                   ^ 18:21 \callback -> do
+42 |     const $action = later((composeArgument) => /* @__PURE__ */ callback({
+   |     ^ 19:3 later (callback <<< Right)
+   |                            ^ 19:10 callback <<< Right)
+43 |       tag: "Right",
+   |       ^ 19:10 callback <<< Right)
+44 |       _1: composeArgument
+   |       ^ 19:10 callback <<< Right)
+45 |     }));
+   |     ^ 19:10 callback <<< Right)
+   |       ^ 19:3 later (callback <<< Right)
+46 |     return () => {
+   |     ^ 18:34 do
+47 |       const $unit = $action();
+   |       ^ 19:3 later (callback <<< Right)
+48 |       return (environment) => ({
+   |       ^ 20:9 pure unit)
+   |                                ^ 20:14 unit)
+49 |         tag: "Pure",
+   |         ^ 20:14 unit)
+50 |         _1: Data_Unit.unit
+   |         ^ 20:14 unit)
+51 |       });
+   |       ^ 20:14 unit)
+52 |     };
+   |     ^ 18:34 do
+53 |   });
+   |   ^ 18:21 \callback -> do
+   |    ^ 18:9 Async.async \callback -> do
+54 | })();
+   | ^ 18:1 pause = Async.async \callback -> do
+   |   ^ (pause) 18:1 pause = Async.async \callback -> do

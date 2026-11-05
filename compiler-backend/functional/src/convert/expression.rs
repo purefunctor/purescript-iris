@@ -119,6 +119,9 @@ fn convert_expression_kind(
             return context.typed_application(function, [argument], expression.type_id);
         }
         checking_tree::ExpressionKind::EvidenceApplication { function, evidence, constraint } => {
+            if let Some(application) = context.service_application(expression_id)? {
+                return Ok(application);
+            }
             let evidence_expression = evidence_variable(context, *evidence, Some(*constraint))?;
             let function = convert_expression(context, *function)?;
             let selection = context.synthetic_application(function, [evidence_expression])?;

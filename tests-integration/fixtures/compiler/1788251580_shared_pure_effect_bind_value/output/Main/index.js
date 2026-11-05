@@ -1,10 +1,9 @@
 export function sharedBind($unit) {
   return () => {
     const value = 42 | 0;
-    const $value = {
+    return {
       left: value,
       right: value
     };
-    return $value;
   };
 }

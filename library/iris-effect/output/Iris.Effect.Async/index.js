@@ -1,12 +1,8 @@
 import * as Control_Applicative from "../Control.Applicative/index.js";
 import * as Control_Category from "../Control.Category/index.js";
-import * as Data_Either from "../Data.Either/index.js";
-import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect_Exception from "../Effect.Exception/index.js";
-import * as Iris_Effect from "../Iris.Effect/index.js";
 import * as Iris_Effect_Fiber from "../Iris.Effect.Fiber/index.js";
-import * as Iris_Effect_Sync from "../Iris.Effect.Sync/index.js";
 export function make(value) {
   return value;
 }
@@ -18,7 +14,7 @@ export function toStep(environment) {
 export function sync(program) {
   return (environment) => ({
     tag: "Sync",
-    _1: Iris_Effect_Sync.run(environment)(program)
+    _1: program(environment)
   });
 }
 export function liftEffect(effect) {
@@ -30,7 +26,7 @@ export function liftEffect(effect) {
 export function service(hasServiceServicesDict) {
   return (environment) => ({
     tag: "Pure",
-    _1: /* @__PURE__ */ Iris_Effect.getService(hasServiceServicesDict)(environment)
+    _1: hasServiceServicesDict.getService(environment)
   });
 }
 export function provide(environment) {
@@ -51,14 +47,65 @@ function $catch(program) {
 }
 export function mapError($function) {
   return (program) => {
-    return $catch(program)((composeArgument) => /* @__PURE__ */ fail(/* @__PURE__ */ $function(composeArgument)));
+    return (environment) => {
+      return {
+        tag: "Run",
+        _1: () => {
+          return {
+            tag: "Catch",
+            _1: program(environment),
+            _2: (caughtError) => {
+              return {
+                tag: "Run",
+                _1: () => {
+                  const asyncArgument = /* @__PURE__ */ $function(caughtError);
+                  return {
+                    tag: "Throw",
+                    _1: asyncArgument
+                  };
+                }
+              };
+            }
+          };
+        }
+      };
+    };
   };
 }
 export function attempt(program) {
-  return $catch(/* @__PURE__ */ Data_Functor.map(functorAsync)(Data_Either.Right)(program))((composeArgument) => /* @__PURE__ */ applicativeAsyncErrorServicesDictPure({
-    tag: "Left",
-    _1: composeArgument
-  }));
+  const composeOuter = /* @__PURE__ */ Control_Applicative.pure(applicativeAsync);
+  return (environment) => {
+    return {
+      tag: "Catch",
+      _1: {
+        tag: "Run",
+        _1: () => {
+          return {
+            tag: "Bind",
+            _1: program(environment),
+            _2: (mappedValue) => ({
+              tag: "Pure",
+              _1: {
+                tag: "Right",
+                _1: mappedValue
+              }
+            })
+          };
+        }
+      },
+      _2: (caughtError) => {
+        return {
+          tag: "Run",
+          _1: () => {
+            return /* @__PURE__ */ composeOuter({
+              tag: "Left",
+              _1: caughtError
+            })(environment);
+          }
+        };
+      }
+    };
+  };
 }
 export function async(register) {
   return (environment) => {
@@ -68,8 +115,7 @@ export function async(register) {
         const $action = register(callback);
         return () => {
           const canceler = $action();
-          const $value = canceler(environment);
-          return $value;
+          return canceler(environment);
         };
       }
     };
@@ -119,11 +165,10 @@ function awaitStep(fiber) {
       }));
       return () => {
         const cancel = $action();
-        const $value = {
+        return {
           tag: "Sync",
           _1: cancel
         };
-        return $value;
       };
     }
   };
@@ -140,11 +185,10 @@ export function kill(error) {
           }));
           return () => {
             const cancel = $action();
-            const $value = {
+            return {
               tag: "Sync",
               _1: cancel
             };
-            return $value;
           };
         }
       };
@@ -173,7 +217,10 @@ export function bracket(acquire) {
 }
 function $finally(release) {
   return (program) => {
-    return bracket(/* @__PURE__ */ applicativeAsyncErrorServicesDictPure(Data_Unit.unit))(($unit) => release)(($unit$1) => program);
+    return bracket((environment) => ({
+      tag: "Pure",
+      _1: Data_Unit.unit
+    }))(($unit) => release)(($unit$1) => program);
   };
 }
 export function launch($record) {
@@ -225,7 +272,6 @@ export const applicativeAsync = {
     _1: value
   })
 };
-const applicativeAsyncErrorServicesDictPure = /* @__PURE__ */ Control_Applicative.pure(applicativeAsync);
 export const bindAsync = {
   Apply0: () => applyAsync,
   bind: (program) => (continuation) => (environment) => Iris_Effect_Fiber.bindStep(deferred(environment)(program))((value) => toStep(environment)(continuation(value)))
