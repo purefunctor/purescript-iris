@@ -12,7 +12,7 @@ use url::Url;
 use super::compile::{self, CompileError};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
 use super::output::BuildOutput;
-use super::ownership::SourcePackage;
+use super::ownership::SourceOwner;
 use super::packages::DiscoveredPackage;
 use super::workspace::{Workspace, WorkspaceError};
 
@@ -119,7 +119,7 @@ pub struct PreparedProject {
 
 pub struct InitializedProject {
     pub(crate) project: PreparedProject,
-    pub(crate) build: compile::InitialBuild<(), Option<SourcePackage>>,
+    pub(crate) build: compile::InitialBuild<(), SourceOwner>,
 }
 
 impl PreparedProject {

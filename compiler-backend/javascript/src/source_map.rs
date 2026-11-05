@@ -39,7 +39,7 @@ impl SourceMap {
         &self.mappings
     }
 
-    pub fn to_json(&self, source: &str) -> String {
+    pub fn to_json(&self, source: &str, content: Option<&str>) -> String {
         let mut names = Vec::new();
         let mut name_ids = FxHashMap::default();
         let tokens = self.mappings.iter().map(|mapping| {
@@ -61,7 +61,7 @@ impl SourceMap {
             names,
             None,
             vec![source.into()],
-            Vec::new(),
+            content.map(|content| vec![Some(content.into())]).unwrap_or_default(),
             tokens,
             None,
         );

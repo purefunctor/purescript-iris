@@ -395,6 +395,69 @@ foreign import render :: Int -> Int
 }
 
 #[test]
+fn builds_modules_that_import_iris_effect() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main (module Main, module Iris.Effect) where
+
+import Iris.Effect (class Has, getService)
+
+newtype Greeting = Greeting String
+
+service :: forall service services. Has service services => Record services -> service
+service = getService
+
+greeting :: Greeting
+greeting = service { greeting: Greeting "hello" }
+"#,
+    );
+    workspace.write(
+        "main.mjs",
+        r#"import { getService, greeting } from "./output/Main/index.js";
+console.log(greeting, getService({ getService: (services) => services.name })({ name: "effect" }));
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    --- stderr
+    ");
+    assert!(workspace.path().join("output/Iris.Effect/index.js").is_file());
+    insta::assert_snapshot!(workspace.metadata_modules().join("\n"), @"Main");
+    let output = Command::new("node")
+        .arg("main.mjs")
+        .current_dir(dunce::canonicalize(workspace.path()).unwrap())
+        .output()
+        .unwrap();
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 0
+    --- stdout
+    hello effect
+    --- stderr
+    ");
+
+    let source_map = workspace.read("output/Iris.Effect/index.js.map");
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    assert_eq!(workspace.read("output/Iris.Effect/index.js.map"), source_map);
+    let source_map: serde_json::Value = serde_json::from_str(&source_map).unwrap();
+    insta::assert_snapshot!(source_map["sources"], @r#"["Iris.Effect.purs"]"#);
+    let content = source_map["sourcesContent"][0].as_str().unwrap();
+    assert!(content.starts_with("module Iris.Effect where\n"));
+}
+
+#[test]
 fn replaces_module_metadata_only_when_a_successful_build_changes_it() {
     let workspace = TestWorkspace::empty();
     workspace.write(
