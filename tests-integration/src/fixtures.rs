@@ -88,8 +88,11 @@ fn check_declaration_crumbs(engine: &QueryEngine, file_ids: &[FileId]) -> Fixtur
     Ok(())
 }
 
-const UPDATE_JAVASCRIPT_OUTPUT: &str = "IRIS_UPDATE_JAVASCRIPT_OUTPUT";
 const JAVASCRIPT_VERIFICATION_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn update_javascript_output() -> bool {
+    matches!(env::var("INSTA_UPDATE").as_deref(), Ok("always" | "1" | "force"))
+}
 
 struct JavaScriptModules {
     modules: Vec<Arc<javascript::Module>>,
@@ -207,7 +210,7 @@ fn copy_output(source: &BTreeMap<PathBuf, String>, destination: &Path) -> io::Re
 }
 
 fn verify_output(expected: &Path, generated_files: &BTreeMap<PathBuf, String>) -> FixtureResult {
-    if env::var_os(UPDATE_JAVASCRIPT_OUTPUT).is_some() {
+    if update_javascript_output() {
         copy_output(generated_files, expected)?;
         return Ok(());
     }
@@ -417,7 +420,7 @@ pub fn library(path: &Path) -> FixtureResult {
     let filename = PathBuf::from(generated.filename());
     let source = generated.files().index_source();
     let output = snapshot_path(package).join("output");
-    if env::var_os(UPDATE_JAVASCRIPT_OUTPUT).is_some() {
+    if update_javascript_output() {
         let destination = output.join(&filename);
         let parent = destination
             .parent()

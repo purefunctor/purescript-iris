@@ -50,7 +50,7 @@ t category *filters: integration-prepare
     lsp|docs|formatting|sourcemap|library) targets=(--test "{{category}}") ;;
     *) echo "unknown category '{{category}}', expected: compiler (c)|lowering (l)|resolving (r)|lsp|docs|formatting|sourcemap|library" >&2; exit 2 ;;
   esac
-  INSTA_UPDATE=always IRIS_UPDATE_JAVASCRIPT_OUTPUT=1 cargo nextest run -p tests-integration "${targets[@]}" "$@" \
+  INSTA_UPDATE=always cargo nextest run -p tests-integration "${targets[@]}" "$@" \
     --status-level=fail --final-status-level=fail --failure-output=final
   status=$?
   git status --short -- tests-integration library
