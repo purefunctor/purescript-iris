@@ -798,9 +798,10 @@ where
         }
 
         match (context.lookup_type(left), context.lookup_type(right)) {
-            (&Type::Constructor(left_file, left_id), &Type::Constructor(right_file, right_id)) => {
-                left_file == right_file && left_id == right_id
-            }
+            (
+                &Type::Constructor(left_file, left_id) | &Type::Synonym(left_file, left_id),
+                &Type::Constructor(right_file, right_id) | &Type::Synonym(right_file, right_id),
+            ) => left_file == right_file && left_id == right_id,
             // Generalisation can reconstruct a rigid's kind while preserving the binder
             // name. Constructor-head availability depends on that binder identity, not
             // its kind ID.

@@ -709,11 +709,9 @@ pub fn contains_unknown<Q>(
 where
     Q: ExternalQueries,
 {
-    // Type flags do not track unknown types, and solved unification variables
-    // may contain them, so every type is visited.
     struct ContainsUnknown {
         contains: bool,
-        constructors: FxHashSet<(FileId, TypeItemId)>,
+        synonyms: FxHashSet<(FileId, TypeItemId)>,
     }
 
     impl TypeWalker for ContainsUnknown {
@@ -726,9 +724,7 @@ where
         ) -> QueryResult<walk::WalkAction> {
             match *t {
                 Type::Unknown(_) => self.contains = true,
-                Type::Constructor(file_id, type_id)
-                    if self.constructors.insert((file_id, type_id)) =>
-                {
+                Type::Synonym(file_id, type_id) if self.synonyms.insert((file_id, type_id)) => {
                     let synonym = lookup_file_synonym(state, context, file_id, type_id)?;
                     if let Some(synonym) = synonym {
                         walk::walk_type(state, context, synonym.expansion, self)?;
@@ -739,9 +735,13 @@ where
 
             if self.contains { Ok(walk::WalkAction::Break) } else { Ok(walk::WalkAction::Continue) }
         }
+
+        fn may_visit(&self, flags: TypeFlags) -> bool {
+            flags.may_contain_unknown()
+        }
     }
 
-    let mut walker = ContainsUnknown { contains: false, constructors: FxHashSet::default() };
+    let mut walker = ContainsUnknown { contains: false, synonyms: FxHashSet::default() };
     walk::walk_type(state, context, id, &mut walker)?;
     Ok(walker.contains)
 }
@@ -826,6 +826,33 @@ where
     }
 }
 
+pub fn intern_type_reference<Q>(
+    context: &CheckContext<Q>,
+    file_id: FileId,
+    item_id: TypeItemId,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
+    let is_synonym = |lowered: &lowering::LoweredModule| {
+        matches!(lowered.tree.get_type_item_kind(item_id), Some(TypeItemKind::Synonym { .. }))
+    };
+
+    let is_synonym = if file_id == context.id {
+        is_synonym(&context.lowered)
+    } else {
+        is_synonym(&*context.queries.lowered(file_id)?)
+    };
+
+    let t = if is_synonym {
+        Type::Synonym(file_id, item_id)
+    } else {
+        Type::Constructor(file_id, item_id)
+    };
+
+    Ok(context.queries.intern_type(t))
+}
+
 pub fn is_newtype<Q>(
     context: &CheckContext<Q>,
     file_id: FileId,
@@ -857,7 +884,9 @@ where
     safe_loop! {
         id = normalise::expand(state, context, id)?;
         match *context.lookup_type(id) {
-            Type::Constructor(file_id, item_id) => return Ok(Some((file_id, item_id))),
+            Type::Constructor(file_id, item_id) | Type::Synonym(file_id, item_id) => {
+                return Ok(Some((file_id, item_id)));
+            }
             Type::Application(function, _) | Type::KindApplication(function, _) => {
                 id = function;
             }

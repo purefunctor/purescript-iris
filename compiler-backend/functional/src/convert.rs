@@ -488,7 +488,8 @@ where
                 return self.type_parameter_name(function, fallback);
             }
             checking::Type::Function(_, _) => Some(SmolStr::new("function")),
-            checking::Type::Constructor(file_id, type_id) => self
+            checking::Type::Constructor(file_id, type_id)
+            | checking::Type::Synonym(file_id, type_id) => self
                 .type_item_name(file_id, type_id)?
                 .and_then(|name| lowercase_initial(&name).map(SmolStr::new)),
             checking::Type::Row(_) => Some(SmolStr::new("record")),
@@ -639,7 +640,8 @@ where
                 checking::Type::Application(function, _)
                 | checking::Type::KindApplication(function, _)
                 | checking::Type::Kinded(function, _) => current = function,
-                checking::Type::Constructor(file_id, type_id) => {
+                checking::Type::Constructor(file_id, type_id)
+                | checking::Type::Synonym(file_id, type_id) => {
                     return self.type_item_name(file_id, type_id);
                 }
                 checking::Type::Forall(_, _)

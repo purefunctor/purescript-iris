@@ -259,6 +259,7 @@ pub enum Type {
 
     /// A resolved type constructor reference.
     Constructor(FileId, TypeItemId),
+    Synonym(FileId, TypeItemId),
 
     /// A type-level integer literal, `42`.
     Integer(i32),
@@ -291,9 +292,15 @@ impl TypeFlags {
     pub(crate) const HAS_UNIFICATION: u8 = 1 << 1;
     pub(crate) const HAS_RIGID: u8 = 1 << 2;
     pub(crate) const HAS_NESTED_ROW: u8 = 1 << 3;
+    pub(crate) const MAY_EXPAND: u8 = 1 << 4;
+    pub(crate) const HAS_UNKNOWN: u8 = 1 << 5;
+    pub(crate) const HAS_SYNONYM: u8 = 1 << 6;
 
-    const TRANSITIVE: u8 =
-        TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_RIGID | TypeFlags::HAS_NESTED_ROW;
+    const TRANSITIVE: u8 = TypeFlags::HAS_UNIFICATION
+        | TypeFlags::HAS_RIGID
+        | TypeFlags::HAS_NESTED_ROW
+        | TypeFlags::HAS_UNKNOWN
+        | TypeFlags::HAS_SYNONYM;
 
     pub(crate) fn from_bits(bits: u8) -> TypeFlags {
         TypeFlags(bits)
@@ -307,6 +314,14 @@ impl TypeFlags {
     /// Whether head normalisation may change this type.
     pub fn may_normalise(self) -> bool {
         self.0 & TypeFlags::MAY_NORMALISE != 0
+    }
+
+    pub fn may_expand(self) -> bool {
+        self.0 & (TypeFlags::MAY_NORMALISE | TypeFlags::MAY_EXPAND) != 0
+    }
+
+    pub fn may_contain_unknown(self) -> bool {
+        self.0 & (TypeFlags::HAS_UNKNOWN | TypeFlags::HAS_SYNONYM | TypeFlags::HAS_UNIFICATION) != 0
     }
 
     /// Whether zonking may change this type.
@@ -345,7 +360,8 @@ impl TypeFlags {
     /// Unification variables are included since their solutions may contain
     /// the rigid variables being substituted.
     pub fn may_substitute(self) -> bool {
-        self.0 & TypeFlags::TRANSITIVE != 0
+        self.0 & (TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_RIGID | TypeFlags::HAS_NESTED_ROW)
+            != 0
     }
 }
 

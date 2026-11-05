@@ -583,8 +583,8 @@ impl<Q: ExternalQueries> IsOperator<Q> for lowering::TypeId {
             return Ok((elaborated_type, result_kind));
         }
 
-        let function_type = Type::Constructor(target_file_id, target_item_id);
-        let function_type = context.queries.intern_type(function_type);
+        let function_type =
+            toolkit::intern_type_reference(context, target_file_id, target_item_id)?;
 
         let function: application::FnTypeKind = (function_type, operator_kind);
         let arguments = [

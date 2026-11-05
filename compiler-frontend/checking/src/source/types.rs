@@ -161,7 +161,7 @@ where
                 return synonym::infer_synonym_constructor(state, context, synonym, id);
             }
 
-            let t = context.queries.intern_type(Type::Constructor(file_id, type_id));
+            let t = toolkit::intern_type_reference(context, file_id, type_id)?;
             let k = toolkit::lookup_file_type(state, context, file_id, type_id)?;
 
             Ok((t, k))
@@ -235,7 +235,7 @@ where
                 return Ok(unknown("missing operator"));
             };
 
-            let t = context.queries.intern_type(Type::Constructor(file_id, type_id));
+            let t = toolkit::intern_type_reference(context, file_id, type_id)?;
             let k = toolkit::lookup_file_type(state, context, file_id, type_id)?;
 
             Ok((t, k))
@@ -627,7 +627,7 @@ where
         Type::Forall(_, _) => context.prim.t,
         Type::Function(_, _) => context.prim.t,
 
-        Type::Constructor(file_id, type_id) => {
+        Type::Constructor(file_id, type_id) | Type::Synonym(file_id, type_id) => {
             toolkit::lookup_file_type(state, context, file_id, type_id)?
         }
 

@@ -32,20 +32,22 @@ impl CoreInterners {
 
     fn type_flags(&self, t: &Type) -> TypeFlags {
         let transitive = |id: TypeId| self.types.metadata(id).transitive();
+        let expandable = |id: TypeId| {
+            if self.types.metadata(id).may_expand() { TypeFlags::MAY_EXPAND } else { 0 }
+        };
         let bits = match *t {
-            Type::Application(left, right)
-            | Type::KindApplication(left, right)
-            | Type::Constrained(left, right)
+            Type::Application(left, right) | Type::KindApplication(left, right) => {
+                expandable(left) | transitive(left) | transitive(right)
+            }
+            Type::Constrained(left, right)
             | Type::Function(left, right)
             | Type::Kinded(left, right) => transitive(left) | transitive(right),
             Type::Forall(binder_id, inner) => {
                 transitive(self.forall_binders[binder_id].kind) | transitive(inner)
             }
-            Type::Constructor(..)
-            | Type::Integer(_)
-            | Type::String(..)
-            | Type::Free(_)
-            | Type::Unknown(_) => 0,
+            Type::Synonym(..) => TypeFlags::MAY_EXPAND | TypeFlags::HAS_SYNONYM,
+            Type::Constructor(..) | Type::Integer(_) | Type::String(..) | Type::Free(_) => 0,
+            Type::Unknown(_) => TypeFlags::HAS_UNKNOWN,
             Type::Row(row_id) => {
                 let row = &self.row_types[row_id];
                 let fields = row.fields.iter().fold(0, |bits, field| bits | transitive(field.id));
@@ -53,7 +55,7 @@ impl CoreInterners {
                     if matches!(self.types[tail], Type::Row(_)) {
                         TypeFlags::MAY_NORMALISE | TypeFlags::HAS_NESTED_ROW | transitive(tail)
                     } else {
-                        transitive(tail)
+                        expandable(tail) | transitive(tail)
                     }
                 });
                 fields | tail
