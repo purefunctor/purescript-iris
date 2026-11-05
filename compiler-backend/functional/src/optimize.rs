@@ -7,8 +7,8 @@ use rustc_hash::FxHashSet;
 use smol_str::{SmolStr, format_smolstr};
 
 use crate::tree::{
-    Binding, EffectExpression, ExpressionId, ExpressionKind, GlobalId, Guard, Literal, LocalId,
-    RecordUpdate, Storage, UnaryOperator,
+    AsyncExpression, Binding, EffectExpression, ExpressionId, ExpressionKind, GlobalId, Guard,
+    Literal, LocalId, RecordUpdate, Storage, UnaryOperator,
 };
 
 pub fn inline_simple_bindings(
@@ -462,7 +462,8 @@ fn is_simple_expression(
             | ExpressionKind::Guarded { .. }
             | ExpressionKind::Let { .. }
             | ExpressionKind::LetPattern { .. }
-            | ExpressionKind::Effect { .. } => return false,
+            | ExpressionKind::Effect { .. }
+            | ExpressionKind::Async(_) => return false,
         }
     }
     true
@@ -586,6 +587,16 @@ pub fn try_for_each_expression_child<Error>(
                 for argument in arguments.iter() {
                     visit(*argument)?;
                 }
+            }
+        },
+        ExpressionKind::Async(asynchronous) => match asynchronous {
+            AsyncExpression::Program { body, .. } => visit(*body)?,
+            AsyncExpression::Step(value)
+            | AsyncExpression::Effect(value)
+            | AsyncExpression::Fail(value) => visit(*value)?,
+            AsyncExpression::Catch { body, handler, .. } => {
+                visit(*body)?;
+                visit(*handler)?;
             }
         },
     }

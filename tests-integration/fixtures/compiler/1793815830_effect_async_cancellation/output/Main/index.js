@@ -1,6 +1,3 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Apply from "../Control.Apply/index.js";
-import * as Control_Bind from "../Control.Bind/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
@@ -9,7 +6,20 @@ import * as Iris_Effect_Fiber from "../Iris.Effect.Fiber/index.js";
 import * as $foreign from "./foreign.js";
 function say(report) {
   return (message) => {
-    return Iris_Effect_Async.liftEffect(report(message));
+    const asyncArgument = report(message);
+    return (environment) => {
+      return {
+        tag: "Run",
+        _1: () => {
+          const value = asyncArgument();
+          const $value = {
+            tag: "Pure",
+            _1: value
+          };
+          return $value;
+        }
+      };
+    };
   };
 }
 function sleep(report) {
@@ -21,8 +31,34 @@ function sleep(report) {
       }));
       return () => {
         const identifier = $action();
-        const $value = /* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(say(report)("canceler"))(Iris_Effect_Async.liftEffect(clearTimeout(identifier)));
-        return $value;
+        const asyncArgument = say(report)("canceler");
+        const asyncArgument$1 = clearTimeout(identifier);
+        const $result = (environment) => {
+          return {
+            tag: "Run",
+            _1: () => {
+              const $value$1 = {
+                tag: "Bind",
+                _1: asyncArgument(environment),
+                _2: (firstValue) => {
+                  return {
+                    tag: "Run",
+                    _1: () => {
+                      const secondValue = asyncArgument$1();
+                      const $value = {
+                        tag: "Pure",
+                        _1: secondValue
+                      };
+                      return $value;
+                    }
+                  };
+                }
+              };
+              return $value$1;
+            }
+          };
+        };
+        return $result;
       };
     });
   };
@@ -41,12 +77,192 @@ function describe(section159) {
   throw new Error("Pattern match failure");
 }
 function program(report) {
-  return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.fork(/* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(sleep(report)(1e3 | 0))(say(report)("woke"))))((sleeping) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("forked"))(($unit) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.kill("stop")(sleeping))(($unit$1) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("killed"))(($unit$2) => /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.await(sleeping))((sleepingExit) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("sleeping " + describe(sleepingExit)))(($unit$3) => /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.fork(/* @__PURE__ */ Control_Applicative.pure(Iris_Effect_Async.applicativeAsync)(Data_Unit.unit)))((finished) => /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.await(finished))(($exit) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.kill("too late")(finished))(($unit$4) => /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.await(finished))((finishedExit) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("finished " + describe(finishedExit)))(($unit$5) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(sleep(report)(20 | 0))(($unit$6) => say(report)("done")))))))))))));
+  const $function = Iris_Effect_Async.fork;
+  const asyncArgument$1 = sleep(report)(1e3 | 0);
+  const asyncArgument$2 = say(report)("woke");
+  const $result = (environment) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value = {
+          tag: "Bind",
+          _1: asyncArgument$1(environment),
+          _2: (firstValue) => ({
+            tag: "Bind",
+            _1: asyncArgument$2(environment),
+            _2: (secondValue) => ({
+              tag: "Pure",
+              _1: secondValue
+            })
+          })
+        };
+        return $value;
+      }
+    };
+  };
+  const asyncArgument = $function($result);
+  return (environment$1) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value$12 = {
+          tag: "Bind",
+          _1: asyncArgument(environment$1),
+          _2: (sleeping) => {
+            return {
+              tag: "Run",
+              _1: () => {
+                const asyncArgument$3 = say(report)("forked");
+                const $value$11 = {
+                  tag: "Bind",
+                  _1: asyncArgument$3(environment$1),
+                  _2: ($unit) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const asyncArgument$4 = Iris_Effect_Async.kill("stop")(sleeping);
+                        const $value$10 = {
+                          tag: "Bind",
+                          _1: asyncArgument$4(environment$1),
+                          _2: ($unit$1) => {
+                            return {
+                              tag: "Run",
+                              _1: () => {
+                                const asyncArgument$5 = say(report)("killed");
+                                const $value$9 = {
+                                  tag: "Bind",
+                                  _1: asyncArgument$5(environment$1),
+                                  _2: ($unit$2) => {
+                                    return {
+                                      tag: "Run",
+                                      _1: () => {
+                                        const asyncArgument$6 = Iris_Effect_Async.await(sleeping);
+                                        const $value$8 = {
+                                          tag: "Bind",
+                                          _1: asyncArgument$6(environment$1),
+                                          _2: (sleepingExit) => {
+                                            return {
+                                              tag: "Run",
+                                              _1: () => {
+                                                const asyncArgument$7 = say(report)("sleeping " + describe(sleepingExit));
+                                                const $value$7 = {
+                                                  tag: "Bind",
+                                                  _1: asyncArgument$7(environment$1),
+                                                  _2: ($unit$3) => {
+                                                    return {
+                                                      tag: "Run",
+                                                      _1: () => {
+                                                        const asyncArgument$8 = Iris_Effect_Async.fork((environment$2) => ({
+                                                          tag: "Pure",
+                                                          _1: Data_Unit.unit
+                                                        }));
+                                                        const $value$6 = {
+                                                          tag: "Bind",
+                                                          _1: asyncArgument$8(environment$1),
+                                                          _2: (finished) => {
+                                                            return {
+                                                              tag: "Run",
+                                                              _1: () => {
+                                                                const asyncArgument$9 = Iris_Effect_Async.await(finished);
+                                                                const $value$5 = {
+                                                                  tag: "Bind",
+                                                                  _1: asyncArgument$9(environment$1),
+                                                                  _2: ($exit) => {
+                                                                    return {
+                                                                      tag: "Run",
+                                                                      _1: () => {
+                                                                        const asyncArgument$10 = Iris_Effect_Async.kill("too late")(finished);
+                                                                        const $value$4 = {
+                                                                          tag: "Bind",
+                                                                          _1: asyncArgument$10(environment$1),
+                                                                          _2: ($unit$4) => {
+                                                                            return {
+                                                                              tag: "Run",
+                                                                              _1: () => {
+                                                                                const asyncArgument$11 = Iris_Effect_Async.await(finished);
+                                                                                const $value$3 = {
+                                                                                  tag: "Bind",
+                                                                                  _1: asyncArgument$11(environment$1),
+                                                                                  _2: (finishedExit) => {
+                                                                                    return {
+                                                                                      tag: "Run",
+                                                                                      _1: () => {
+                                                                                        const asyncArgument$12 = say(report)("finished " + describe(finishedExit));
+                                                                                        const $value$2 = {
+                                                                                          tag: "Bind",
+                                                                                          _1: asyncArgument$12(environment$1),
+                                                                                          _2: ($unit$5) => {
+                                                                                            return {
+                                                                                              tag: "Run",
+                                                                                              _1: () => {
+                                                                                                const asyncArgument$13 = sleep(report)(20 | 0);
+                                                                                                const $value$1 = {
+                                                                                                  tag: "Bind",
+                                                                                                  _1: asyncArgument$13(environment$1),
+                                                                                                  _2: ($unit$6) => say(report)("done")(environment$1)
+                                                                                                };
+                                                                                                return $value$1;
+                                                                                              }
+                                                                                            };
+                                                                                          }
+                                                                                        };
+                                                                                        return $value$2;
+                                                                                      }
+                                                                                    };
+                                                                                  }
+                                                                                };
+                                                                                return $value$3;
+                                                                              }
+                                                                            };
+                                                                          }
+                                                                        };
+                                                                        return $value$4;
+                                                                      }
+                                                                    };
+                                                                  }
+                                                                };
+                                                                return $value$5;
+                                                              }
+                                                            };
+                                                          }
+                                                        };
+                                                        return $value$6;
+                                                      }
+                                                    };
+                                                  }
+                                                };
+                                                return $value$7;
+                                              }
+                                            };
+                                          }
+                                        };
+                                        return $value$8;
+                                      }
+                                    };
+                                  }
+                                };
+                                return $value$9;
+                              }
+                            };
+                          }
+                        };
+                        return $value$10;
+                      }
+                    };
+                  }
+                };
+                return $value$11;
+              }
+            };
+          }
+        };
+        return $value$12;
+      }
+    };
+  };
 }
 export function run(report) {
   return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: (error) => report("uncaught " + error) })({})(program(report)));
 }
 const setTimeout = $foreign["setTimeout"];
 const clearTimeout = $foreign["clearTimeout"];
-const bindAsyncStringRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Async.bindAsync);
-const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);

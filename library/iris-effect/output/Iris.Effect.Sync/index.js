@@ -1,4 +1,3 @@
-import * as Iris_Effect from "../Iris.Effect/index.js";
 export function make(value) {
   return value;
 }
@@ -9,7 +8,7 @@ export function run(environment) {
 }
 export function service(hasServiceServicesDict) {
   return (environment) => {
-    const $value = /* @__PURE__ */ Iris_Effect.getService(hasServiceServicesDict)(environment);
+    const $value = hasServiceServicesDict.getService(environment);
     return () => {
       return $value;
     };
@@ -72,7 +71,7 @@ export const bindSync = /* @__PURE__ */ (() => {
           const $action = program(environment);
           return () => {
             const value = $action();
-            return run(environment)(continuation(value))();
+            return continuation(value)(environment)();
           };
         };
       };

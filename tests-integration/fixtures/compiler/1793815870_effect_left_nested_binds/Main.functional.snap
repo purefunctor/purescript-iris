@@ -3,74 +3,175 @@ source: tests-integration/src/fixtures.rs
 ---
 counted = foldl
   (\action%0 $int%1@(_) ->
-    bindAsyncStringRowDictBind action%0
-      (\value%2 -> applicativeAsyncStringRowDictPure (integer.add value%2 1)))
-  (applicativeAsyncStringRowDictPure 0)
+    \environment%5 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.pure {
+              tag: "Bind",
+              _1: action%0 environment%5,
+              _2: \value%2 -> { tag: "Pure", _1: integer.add value%2 1 }
+            }()
+      })
+  (\environment%6 -> { tag: "Pure", _1: 0 })
   (range 1 100000)
 
-sequenced = \effects%6 ->
+sequenced = \effects%10 ->
   foldl
-    (\action%3 $int%4@(_) ->
-      applySecond applyAsync action%3
-        (liftEffect
-          (effect.bind (reference.read effects%6)
-            \section123%5 -> reference.write effects%6 (integer.add section123%5 1))))
-    (applicativeAsyncStringRowDictPure 0)
+    (\action%7 $int%8@(_) ->
+      let
+        asyncArgument%11 = effect.bind (reference.read effects%10)
+          \section123%9 -> reference.write effects%10 (integer.add section123%9 1)
+      in \environment%13 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.pure {
+                tag: "Bind",
+                _1: action%7 environment%13,
+                _2:
+                  \firstValue%14 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          uncurried.call effect.bind asyncArgument%11
+                            \secondValue%15 -> effect.pure { tag: "Pure", _1: secondValue%15 }()
+                    }
+              }()
+        })
+    (\environment%16 -> { tag: "Pure", _1: 0 })
     (range 1 100000)
 
 mapped = foldl
-  (\action%7 $int%8@(_) ->
-    functorAsyncStringRowDictMap (\section167%9 -> integer.add section167%9 1) action%7)
-  (applicativeAsyncStringRowDictPure 0)
+  (\action%17 $int%18@(_) ->
+    \environment%20 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.pure {
+              tag: "Bind",
+              _1: action%17 environment%20,
+              _2: \mappedValue%21 -> { tag: "Pure", _1: integer.add mappedValue%21 1 }
+            }()
+      })
+  (\environment%22 -> { tag: "Pure", _1: 0 })
   (range 1 100000)
 
 applied = foldl
-  (\action%10 $int%11@(_) ->
-    apply applyAsync (functorAsyncStringRowDictMap (add semiringInt) action%10)
-      (applicativeAsyncStringRowDictPure 1))
-  (applicativeAsyncStringRowDictPure 0)
+  (\action%23 $int%24@(_) ->
+    let
+      asyncArgument%25 = add semiringInt
+    in \environment%29 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.pure {
+              tag: "Bind",
+              _1: action%23 environment%29,
+              _2:
+                \mappedValue%27 ->
+                  {
+                    tag: "Run",
+                    _1:
+                      uncurried \ ->
+                        let
+                          appliedFunction%30 = asyncArgument%25 mappedValue%27
+                        in uncurried.call effect.pure { tag: "Pure", _1: appliedFunction%30 1 }()
+                  }
+            }()
+      })
+  (\environment%32 -> { tag: "Pure", _1: 0 })
   (range 1 100000)
 
-@export run = \report%13 ->
+@export run = \report%34 ->
   void functorEffect
-    (launch { onUncaught: \failure%12 -> report%13 (string.append "uncaught " failure%12) } {  }
-      (bindAsyncStringRowDictBind counted
-        (\total%14 ->
-          discardUnitDictDiscard bindAsync
-            (liftEffect (report%13 (string.append "total " (showIntDictShow total%14))))
-            (\$unit%15@(_) ->
-              bindAsyncStringRowDictBind (liftEffect (reference.new 0))
-                (\effects%16 ->
-                  bindAsyncStringRowDictBind (sequenced effects%16)
-                    (\last%17 ->
-                      bindAsyncStringRowDictBind (liftEffect (reference.read effects%16))
-                        (\performed%18 ->
-                          discardUnitDictDiscard bindAsync
-                            (liftEffect
-                              (report%13
-                                (string.append "effects " (string.append (showIntDictShow
-                                  last%17) (string.append " " (showIntDictShow performed%18))))))
-                            (\$unit%19@(_) ->
-                              bindAsyncStringRowDictBind mapped
-                                (\mappedTotal%20 ->
-                                  discardUnitDictDiscard bindAsync
-                                    (liftEffect
-                                      (report%13
-                                        (string.append "mapped " (showIntDictShow mappedTotal%20))))
-                                    (\$unit%21@(_) ->
-                                      bindAsyncStringRowDictBind applied
-                                        (\appliedTotal%22 ->
-                                          liftEffect
-                                            (report%13
-                                              (string.append "applied " (showIntDictShow
-                                                appliedTotal%22))))))))))))))
-
-bindAsyncStringRowDictBind = bind bindAsync
-
-applicativeAsyncStringRowDictPure = pure applicativeAsync
-
-functorAsyncStringRowDictMap = map functorAsync
-
-discardUnitDictDiscard = discard discardUnit
+    (launch { onUncaught: \failure%33 -> report%34 (string.append "uncaught " failure%33) } {  }
+      (\environment%65 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.pure {
+                tag: "Bind",
+                _1: counted environment%65,
+                _2:
+                  \total%35 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%36 = report%34
+                              (string.append "total " (showIntDictShow total%35))
+                          in uncurried.call effect.bind asyncArgument%36
+                            \$unit%38 -> let
+                              asyncArgument%39 = reference.new 0
+                            in effect.bind asyncArgument%39
+                              \effects%41 -> let
+                                asyncArgument%61 = sequenced effects%41
+                              in effect.pure {
+                                tag: "Bind",
+                                _1: asyncArgument%61 environment%65,
+                                _2:
+                                  \last%42 ->
+                                    {
+                                      tag: "Run",
+                                      _1:
+                                        uncurried \ ->
+                                          let
+                                            asyncArgument%43 = reference.read effects%41
+                                          in uncurried.call effect.bind asyncArgument%43
+                                            \performed%45 -> let
+                                              asyncArgument%46 = report%34
+                                                (string.append "effects " (string.append (showIntDictShow
+                                                  last%42) (string.append " " (showIntDictShow
+                                                  performed%45))))
+                                            in effect.bind asyncArgument%46
+                                              \$unit%48 -> effect.pure {
+                                                tag: "Bind",
+                                                _1: mapped environment%65,
+                                                _2:
+                                                  \mappedTotal%49 ->
+                                                    {
+                                                      tag: "Run",
+                                                      _1:
+                                                        uncurried \ ->
+                                                          let
+                                                            asyncArgument%50 = report%34
+                                                              (string.append "mapped " (showIntDictShow
+                                                                mappedTotal%49))
+                                                          in uncurried.call effect.bind asyncArgument%50
+                                                            \$unit%52 -> effect.pure {
+                                                              tag: "Bind",
+                                                              _1: applied environment%65,
+                                                              _2:
+                                                                \appliedTotal%53 ->
+                                                                  {
+                                                                    tag: "Run",
+                                                                    _1:
+                                                                      uncurried \ ->
+                                                                        let
+                                                                          asyncArgument%54 = report%34
+                                                                            (string.append "applied " (showIntDictShow
+                                                                              appliedTotal%53))
+                                                                        in uncurried.call effect.bind asyncArgument%54
+                                                                          \value%66 -> effect.pure {
+                                                                            tag: "Pure",
+                                                                            _1: value%66
+                                                                          }()
+                                                                  }
+                                                            }()
+                                                    }
+                                              }()
+                                    }
+                              }()
+                    }
+              }()
+        }))
 
 showIntDictShow = show showInt

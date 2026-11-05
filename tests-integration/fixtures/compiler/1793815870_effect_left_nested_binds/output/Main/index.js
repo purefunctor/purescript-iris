@@ -1,6 +1,3 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Apply from "../Control.Apply/index.js";
-import * as Control_Bind from "../Control.Bind/index.js";
 import * as Data_Array from "../Data.Array/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Semiring from "../Data.Semiring/index.js";
@@ -10,41 +7,207 @@ import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 function sequenced(effects) {
   return Data_Array.foldl((action) => {
     return ($int) => {
-      const $function = Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(action);
-      const $function$1 = Iris_Effect_Async.liftEffect;
       const $effect = () => {
         const section123 = effects.value;
         const $value = section123 + (1 | 0) | 0;
         return effects.value = $value;
       };
-      return /* @__PURE__ */ $function($function$1($effect));
+      const asyncArgument = $effect;
+      return (environment) => {
+        return {
+          tag: "Run",
+          _1: () => {
+            const $value$2 = {
+              tag: "Bind",
+              _1: action(environment),
+              _2: (firstValue) => {
+                return {
+                  tag: "Run",
+                  _1: () => {
+                    const secondValue = asyncArgument();
+                    const $value$1 = {
+                      tag: "Pure",
+                      _1: secondValue
+                    };
+                    return $value$1;
+                  }
+                };
+              }
+            };
+            return $value$2;
+          }
+        };
+      };
     };
-  })(/* @__PURE__ */ applicativeAsyncStringRowDictPure(0 | 0))(Data_Array.range(1 | 0)(1e5 | 0));
+  })((environment$1) => ({
+    tag: "Pure",
+    _1: 0 | 0
+  }))(Data_Array.range(1 | 0)(1e5 | 0));
 }
 export function run(report) {
-  return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: (failure) => report("uncaught " + failure) })({})(/* @__PURE__ */ bindAsyncStringRowDictBind(counted)((total) => {
-    return /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.liftEffect(report("total " + /* @__PURE__ */ showIntDictShow(total))))(($unit) => {
-      const $function = Iris_Effect_Async.liftEffect;
-      const $effect = () => {
-        return { value: 0 | 0 };
-      };
-      return /* @__PURE__ */ bindAsyncStringRowDictBind($function($effect))((effects) => {
-        return /* @__PURE__ */ bindAsyncStringRowDictBind(sequenced(effects))((last) => {
-          const $function$1 = Iris_Effect_Async.liftEffect;
-          const $effect$1 = () => {
-            return effects.value;
-          };
-          return /* @__PURE__ */ bindAsyncStringRowDictBind($function$1($effect$1))((performed) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.liftEffect(report("effects " + (/* @__PURE__ */ showIntDictShow(last) + (" " + /* @__PURE__ */ showIntDictShow(performed))))))(($unit$1) => /* @__PURE__ */ bindAsyncStringRowDictBind(mapped)((mappedTotal) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.liftEffect(report("mapped " + /* @__PURE__ */ showIntDictShow(mappedTotal))))(($unit$2) => /* @__PURE__ */ bindAsyncStringRowDictBind(applied)((appliedTotal) => Iris_Effect_Async.liftEffect(report("applied " + /* @__PURE__ */ showIntDictShow(appliedTotal))))))));
-        });
-      });
-    });
-  })));
+  return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: (failure) => report("uncaught " + failure) })({})((environment) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value$4 = {
+          tag: "Bind",
+          _1: counted(environment),
+          _2: (total) => {
+            return {
+              tag: "Run",
+              _1: () => {
+                const asyncArgument = report("total " + /* @__PURE__ */ showIntDictShow(total));
+                const $unit = asyncArgument();
+                const $effect = () => {
+                  return { value: 0 | 0 };
+                };
+                const asyncArgument$1 = $effect;
+                const effects = asyncArgument$1();
+                const asyncArgument$2 = sequenced(effects);
+                const $value$3 = {
+                  tag: "Bind",
+                  _1: asyncArgument$2(environment),
+                  _2: (last) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const $effect$1 = () => {
+                          return effects.value;
+                        };
+                        const asyncArgument$3 = $effect$1;
+                        const performed = asyncArgument$3();
+                        const asyncArgument$4 = report("effects " + (/* @__PURE__ */ showIntDictShow(last) + (" " + /* @__PURE__ */ showIntDictShow(performed))));
+                        const $unit$1 = asyncArgument$4();
+                        const $value$2 = {
+                          tag: "Bind",
+                          _1: mapped(environment),
+                          _2: (mappedTotal) => {
+                            return {
+                              tag: "Run",
+                              _1: () => {
+                                const asyncArgument$5 = report("mapped " + /* @__PURE__ */ showIntDictShow(mappedTotal));
+                                const $unit$2 = asyncArgument$5();
+                                const $value$1 = {
+                                  tag: "Bind",
+                                  _1: applied(environment),
+                                  _2: (appliedTotal) => {
+                                    return {
+                                      tag: "Run",
+                                      _1: () => {
+                                        const asyncArgument$6 = report("applied " + /* @__PURE__ */ showIntDictShow(appliedTotal));
+                                        const value = asyncArgument$6();
+                                        const $value = {
+                                          tag: "Pure",
+                                          _1: value
+                                        };
+                                        return $value;
+                                      }
+                                    };
+                                  }
+                                };
+                                return $value$1;
+                              }
+                            };
+                          }
+                        };
+                        return $value$2;
+                      }
+                    };
+                  }
+                };
+                return $value$3;
+              }
+            };
+          }
+        };
+        return $value$4;
+      }
+    };
+  }));
 }
-const bindAsyncStringRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Async.bindAsync);
-const applicativeAsyncStringRowDictPure = /* @__PURE__ */ Control_Applicative.pure(Iris_Effect_Async.applicativeAsync);
-const functorAsyncStringRowDictMap = /* @__PURE__ */ Data_Functor.map(Iris_Effect_Async.functorAsync);
-const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);
 const showIntDictShow = /* @__PURE__ */ Data_Show.show(Data_Show.showInt);
-const counted = Data_Array.foldl((action) => ($int) => /* @__PURE__ */ bindAsyncStringRowDictBind(action)((value) => /* @__PURE__ */ applicativeAsyncStringRowDictPure(value + (1 | 0) | 0)))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(0 | 0))(Data_Array.range(1 | 0)(1e5 | 0));
-const mapped = Data_Array.foldl((action) => ($int) => /* @__PURE__ */ functorAsyncStringRowDictMap((section167) => section167 + (1 | 0) | 0)(action))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(0 | 0))(Data_Array.range(1 | 0)(1e5 | 0));
-const applied = Data_Array.foldl((action) => ($int) => /* @__PURE__ */ Control_Apply.apply(Iris_Effect_Async.applyAsync)(/* @__PURE__ */ functorAsyncStringRowDictMap(/* @__PURE__ */ Data_Semiring.add(Data_Semiring.semiringInt))(action))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(1 | 0)))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(0 | 0))(Data_Array.range(1 | 0)(1e5 | 0));
+const counted = /* @__PURE__ */ (() => {
+  return Data_Array.foldl((action) => {
+    return ($int) => {
+      return (environment) => {
+        return {
+          tag: "Run",
+          _1: () => {
+            const $value = {
+              tag: "Bind",
+              _1: action(environment),
+              _2: (value) => ({
+                tag: "Pure",
+                _1: value + (1 | 0) | 0
+              })
+            };
+            return $value;
+          }
+        };
+      };
+    };
+  })((environment$1) => ({
+    tag: "Pure",
+    _1: 0 | 0
+  }))(Data_Array.range(1 | 0)(1e5 | 0));
+})();
+const mapped = /* @__PURE__ */ (() => {
+  return Data_Array.foldl((action) => {
+    return ($int) => {
+      return (environment) => {
+        return {
+          tag: "Run",
+          _1: () => {
+            const $value = {
+              tag: "Bind",
+              _1: action(environment),
+              _2: (mappedValue) => ({
+                tag: "Pure",
+                _1: mappedValue + (1 | 0) | 0
+              })
+            };
+            return $value;
+          }
+        };
+      };
+    };
+  })((environment$1) => ({
+    tag: "Pure",
+    _1: 0 | 0
+  }))(Data_Array.range(1 | 0)(1e5 | 0));
+})();
+const applied = /* @__PURE__ */ (() => {
+  return Data_Array.foldl((action) => {
+    return ($int) => {
+      const asyncArgument = /* @__PURE__ */ Data_Semiring.add(Data_Semiring.semiringInt);
+      return (environment) => {
+        return {
+          tag: "Run",
+          _1: () => {
+            const $value$1 = {
+              tag: "Bind",
+              _1: action(environment),
+              _2: (mappedValue) => {
+                return {
+                  tag: "Run",
+                  _1: () => {
+                    const appliedFunction = asyncArgument(mappedValue);
+                    const $value = {
+                      tag: "Pure",
+                      _1: appliedFunction(1 | 0)
+                    };
+                    return $value;
+                  }
+                };
+              }
+            };
+            return $value$1;
+          }
+        };
+      };
+    };
+  })((environment$1) => ({
+    tag: "Pure",
+    _1: 0 | 0
+  }))(Data_Array.range(1 | 0)(1e5 | 0));
+})();

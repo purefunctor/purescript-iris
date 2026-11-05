@@ -6,9 +6,8 @@ source: tests-integration/src/fixtures.rs
 
 @export reading = \bothServicesDict%2 ->
   \services%3 ->
-    case getService (bothServicesDict%2."Has0"()) services%3, getService
-      (bothServicesDict%2."Has1"())
-      services%3 of
+    case (bothServicesDict%2."Has0"()).getService
+      services%3, (bothServicesDict%2."Has1"()).getService services%3 of
       first%4, second%5 ->
         integer.add (integer.multiply first%4 100) second%5
 

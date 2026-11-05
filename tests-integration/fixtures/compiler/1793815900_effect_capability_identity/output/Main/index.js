@@ -1,8 +1,15 @@
-import * as Iris_Effect from "../Iris.Effect/index.js";
-export const console = /* @__PURE__ */ Iris_Effect.getService({ getService: ($services) => $services.logger });
-export const http = /* @__PURE__ */ Iris_Effect.getService({ getService: ($services) => $services.network });
-export const misleading = /* @__PURE__ */ Iris_Effect.getService({ getService: ($services) => $services.http });
-export const aliased = /* @__PURE__ */ Iris_Effect.getService({ getService: ($services) => $services.renamed });
+export function console(environment) {
+  return environment.logger;
+}
+export function http(environment) {
+  return environment.network;
+}
+export function misleading(environment) {
+  return environment.http;
+}
+export function aliased(environment) {
+  return environment.renamed;
+}
 export const consoleValue = console({
   logger: 19 | 0,
   network: 23 | 0

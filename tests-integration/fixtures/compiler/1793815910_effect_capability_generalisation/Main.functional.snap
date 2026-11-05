@@ -1,7 +1,7 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export lookup = \hasServiceServicesDict%0 -> getService hasServiceServicesDict%0
+@export lookup = \hasServiceServicesDict%0 -> hasServiceServicesDict%0.getService
 
 @export inferred = \hasConsoleDict%1 ->
   \environment%2 ->

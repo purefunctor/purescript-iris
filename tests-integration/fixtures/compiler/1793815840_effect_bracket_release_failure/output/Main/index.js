@@ -1,5 +1,3 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Bind from "../Control.Bind/index.js";
 import * as Data_Either from "../Data.Either/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Show from "../Data.Show/index.js";
@@ -19,18 +17,175 @@ function describe(section48) {
 }
 function guarded(release) {
   return (body) => {
-    return Iris_Effect_Async.attempt(Iris_Effect_Async.bracket(/* @__PURE__ */ applicativeAsyncStringRowDictPure(Data_Unit.unit))(($unit) => release)(($unit$1) => body));
+    const asyncArgument = Iris_Effect_Async.bracket((environment) => ({
+      tag: "Pure",
+      _1: Data_Unit.unit
+    }))(($unit) => release)(($unit$1) => body);
+    return (environment$1) => {
+      return {
+        tag: "Run",
+        _1: () => {
+          const $value = {
+            tag: "Catch",
+            _1: {
+              tag: "Bind",
+              _1: asyncArgument(environment$1),
+              _2: (attemptValue) => ({
+                tag: "Pure",
+                _1: {
+                  tag: "Right",
+                  _1: attemptValue
+                }
+              })
+            },
+            _2: (caughtError) => ({
+              tag: "Pure",
+              _1: {
+                tag: "Left",
+                _1: caughtError
+              }
+            })
+          };
+          return $value;
+        }
+      };
+    };
   };
 }
 function program(report) {
   const report_ = (message) => {
-    return Iris_Effect_Async.liftEffect(report(message));
+    const asyncArgument = report(message);
+    return (environment) => {
+      return {
+        tag: "Run",
+        _1: () => {
+          const value = asyncArgument();
+          const $value = {
+            tag: "Pure",
+            _1: value
+          };
+          return $value;
+        }
+      };
+    };
   };
-  return /* @__PURE__ */ bindAsyncStringRowDictBind(guarded(Iris_Effect_Async.fail("release"))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(1 | 0)))((releaseFailed) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(report_("release fails: " + describe(releaseFailed)))(($unit) => /* @__PURE__ */ bindAsyncStringRowDictBind(guarded(/* @__PURE__ */ applicativeAsyncStringRowDictPure(Data_Unit.unit))(Iris_Effect_Async.fail("body")))((bodyFailed) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(report_("body fails: " + describe(bodyFailed)))(($unit$1) => /* @__PURE__ */ bindAsyncStringRowDictBind(guarded(Iris_Effect_Async.fail("release"))(Iris_Effect_Async.fail("body")))((bothFailed) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(report_("both fail: " + describe(bothFailed)))(($unit$2) => /* @__PURE__ */ bindAsyncStringRowDictBind(guarded(/* @__PURE__ */ applicativeAsyncStringRowDictPure(Data_Unit.unit))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(2 | 0)))((neitherFailed) => report_("neither fails: " + describe(neitherFailed)))))))));
+  const asyncArgument$1 = guarded((environment$1) => ({
+    tag: "Throw",
+    _1: "release"
+  }))((environment$2) => ({
+    tag: "Pure",
+    _1: 1 | 0
+  }));
+  return (environment$3) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value$7 = {
+          tag: "Bind",
+          _1: asyncArgument$1(environment$3),
+          _2: (releaseFailed) => {
+            return {
+              tag: "Run",
+              _1: () => {
+                const asyncArgument$2 = report_("release fails: " + describe(releaseFailed));
+                const $value$6 = {
+                  tag: "Bind",
+                  _1: asyncArgument$2(environment$3),
+                  _2: ($unit) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const asyncArgument$3 = guarded((environment$4) => ({
+                          tag: "Pure",
+                          _1: Data_Unit.unit
+                        }))((environment$5) => ({
+                          tag: "Throw",
+                          _1: "body"
+                        }));
+                        const $value$5 = {
+                          tag: "Bind",
+                          _1: asyncArgument$3(environment$3),
+                          _2: (bodyFailed) => {
+                            return {
+                              tag: "Run",
+                              _1: () => {
+                                const asyncArgument$4 = report_("body fails: " + describe(bodyFailed));
+                                const $value$4 = {
+                                  tag: "Bind",
+                                  _1: asyncArgument$4(environment$3),
+                                  _2: ($unit$1) => {
+                                    return {
+                                      tag: "Run",
+                                      _1: () => {
+                                        const asyncArgument$5 = guarded((environment$6) => ({
+                                          tag: "Throw",
+                                          _1: "release"
+                                        }))((environment$7) => ({
+                                          tag: "Throw",
+                                          _1: "body"
+                                        }));
+                                        const $value$3 = {
+                                          tag: "Bind",
+                                          _1: asyncArgument$5(environment$3),
+                                          _2: (bothFailed) => {
+                                            return {
+                                              tag: "Run",
+                                              _1: () => {
+                                                const asyncArgument$6 = report_("both fail: " + describe(bothFailed));
+                                                const $value$2 = {
+                                                  tag: "Bind",
+                                                  _1: asyncArgument$6(environment$3),
+                                                  _2: ($unit$2) => {
+                                                    return {
+                                                      tag: "Run",
+                                                      _1: () => {
+                                                        const asyncArgument$7 = guarded((environment$8) => ({
+                                                          tag: "Pure",
+                                                          _1: Data_Unit.unit
+                                                        }))((environment$9) => ({
+                                                          tag: "Pure",
+                                                          _1: 2 | 0
+                                                        }));
+                                                        const $value$1 = {
+                                                          tag: "Bind",
+                                                          _1: asyncArgument$7(environment$3),
+                                                          _2: (neitherFailed) => report_("neither fails: " + describe(neitherFailed))(environment$3)
+                                                        };
+                                                        return $value$1;
+                                                      }
+                                                    };
+                                                  }
+                                                };
+                                                return $value$2;
+                                              }
+                                            };
+                                          }
+                                        };
+                                        return $value$3;
+                                      }
+                                    };
+                                  }
+                                };
+                                return $value$4;
+                              }
+                            };
+                          }
+                        };
+                        return $value$5;
+                      }
+                    };
+                  }
+                };
+                return $value$6;
+              }
+            };
+          }
+        };
+        return $value$7;
+      }
+    };
+  };
 }
 export function run(report) {
   return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: (error) => report("uncaught " + error) })({})(program(report)));
 }
-const applicativeAsyncStringRowDictPure = /* @__PURE__ */ Control_Applicative.pure(Iris_Effect_Async.applicativeAsync);
-const bindAsyncStringRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Async.bindAsync);
-const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);

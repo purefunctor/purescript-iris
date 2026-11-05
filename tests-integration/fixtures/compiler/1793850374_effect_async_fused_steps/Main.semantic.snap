@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Offset :: Prim.Type
+newtype Offset
+  | Offset :: Prim.Int -> Main.Offset
+
+foreign import record :: Prim.Int -> Effect.Effect Prim.Int
+
+foreign import later :: (Prim.Int -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+
+foreign import complete :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+foreign import failed :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+pause :: forall services. Iris.Effect.Async.Async Prim.String services Prim.Int
+pause =
+  async \callback ->
+    discard {discardUnit} {bindEffect} (later (compose {semigroupoidFn} callback Right)) \_ ->
+      pure {applicativeEffect} (pure {applicativeAsync} unit)
+
+lowered :: forall services.
+  Iris.Effect.Has Main.Offset services =>
+  Iris.Effect.Async.Async Prim.String services Data.Unit.Unit
+lowered = \{hasDict} ->
+  bind {bindAsync} (service {hasDict}) \(Offset offset) ->
+    bind {bindAsync} (liftEffect (record (add {semiringInt} offset 1))) \first ->
+      bind {bindAsync} (liftEffect (record (add {semiringInt} first 1))) \second ->
+        bind {bindAsync} pause \third ->
+          bind {bindAsync} (liftEffect (record (add {semiringInt} second third))) \fourth ->
+            liftEffect (complete fourth)
+
+generic :: forall monad.
+  Control.Monad.Monad monad =>
+  (Prim.Int -> monad Prim.Int) ->
+  monad Prim.Int ->
+  (Prim.Int -> monad Data.Unit.Unit) ->
+  monad Data.Unit.Unit
+generic = \{monadDict} -> \step -> \suspend -> \finish ->
+  bind {monadDict.bindDict} (step 4) \first ->
+    bind {monadDict.bindDict} (step (add {semiringInt} first 1)) \second ->
+      bind {monadDict.bindDict} suspend \third ->
+        bind {monadDict.bindDict} (step (add {semiringInt} second third)) \fourth -> finish fourth
+
+runLowered :: Effect.Effect Data.Unit.Unit
+runLowered =
+  void {functorEffect}
+    (launch { onUncaught: failed } { offset: Offset 3 } (lowered {service("offset")}))
+
+runGeneric :: Effect.Effect Data.Unit.Unit
+runGeneric =
+  void {functorEffect}
+    (launch { onUncaught: failed } { }
+      (generic {monadAsync} (compose {semigroupoidFn} liftEffect record) pause
+        (compose {semigroupoidFn} liftEffect complete)))

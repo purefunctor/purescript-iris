@@ -1,6 +1,3 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Apply from "../Control.Apply/index.js";
-import * as Control_Bind from "../Control.Bind/index.js";
 import * as Data_Either from "../Data.Either/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Show from "../Data.Show/index.js";
@@ -8,7 +5,20 @@ import * as Effect from "../Effect/index.js";
 import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 function say(report) {
   return (message) => {
-    return Iris_Effect_Async.liftEffect(report(message));
+    const asyncArgument = report(message);
+    return (environment) => {
+      return {
+        tag: "Run",
+        _1: () => {
+          const value = asyncArgument();
+          const $value = {
+            tag: "Pure",
+            _1: value
+          };
+          return $value;
+        }
+      };
+    };
   };
 }
 function describe(section78) {
@@ -23,12 +33,251 @@ function describe(section78) {
   throw new Error("Pattern match failure");
 }
 function program(report) {
-  return /* @__PURE__ */ bindAsyncCodeRowDictBind(Iris_Effect_Async.catch(/* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(/* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(/* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(say(report)("before fail"))(Iris_Effect_Async.fail("boom")))(say(report)("after fail")))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(0 | 0)))((error) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("caught " + error))(($unit) => /* @__PURE__ */ applicativeAsyncStringRowDictPure(7 | 0))))((recovered) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("recovered " + /* @__PURE__ */ showIntDictShow(recovered)))(($unit$1) => /* @__PURE__ */ bindAsyncCodeRowDictBind(Iris_Effect_Async.attempt(Iris_Effect_Async.mapError((error$1) => "mapped " + error$1)(Iris_Effect_Async.fail("inner"))))((mapped) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)(describe(mapped)))(($unit$2) => /* @__PURE__ */ bindAsyncCodeRowDictBind(Iris_Effect_Async.attempt(Iris_Effect_Async.catch(Iris_Effect_Async.fail("first"))((error$2) => Iris_Effect_Async.fail("handled " + error$2))))((rethrown) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)(describe(rethrown)))(($unit$3) => /* @__PURE__ */ bindAsyncCodeRowDictBind(Iris_Effect_Async.attempt(/* @__PURE__ */ applicativeAsyncStringRowDictPure(3 | 0)))((succeeded) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)(describe(succeeded)))(($unit$4) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.mapError((value) => value)(Iris_Effect_Async.fail(42 | 0)))(($unit$5) => say(report)("after uncaught"))))))))));
+  const asyncArgument = say(report)("before fail");
+  const asyncArgument$1 = say(report)("after fail");
+  return (environment) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value$11 = {
+          tag: "Bind",
+          _1: {
+            tag: "Catch",
+            _1: {
+              tag: "Run",
+              _1: () => {
+                const $value = {
+                  tag: "Bind",
+                  _1: asyncArgument(environment),
+                  _2: (firstValue) => ({
+                    tag: "Throw",
+                    _1: "boom"
+                  })
+                };
+                return $value;
+              }
+            },
+            _2: (caughtError) => {
+              return {
+                tag: "Run",
+                _1: () => {
+                  const asyncArgument$2 = say(report)("caught " + caughtError);
+                  const $value$1 = {
+                    tag: "Bind",
+                    _1: asyncArgument$2(environment),
+                    _2: ($unit) => ({
+                      tag: "Pure",
+                      _1: 7 | 0
+                    })
+                  };
+                  return $value$1;
+                }
+              };
+            }
+          },
+          _2: (recovered) => {
+            return {
+              tag: "Run",
+              _1: () => {
+                const asyncArgument$3 = say(report)("recovered " + /* @__PURE__ */ showIntDictShow(recovered));
+                const $value$10 = {
+                  tag: "Bind",
+                  _1: asyncArgument$3(environment),
+                  _2: ($unit$1) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const $value$9 = {
+                          tag: "Bind",
+                          _1: {
+                            tag: "Catch",
+                            _1: {
+                              tag: "Bind",
+                              _1: {
+                                tag: "Catch",
+                                _1: {
+                                  tag: "Throw",
+                                  _1: "inner"
+                                },
+                                _2: (caughtError$1) => ({
+                                  tag: "Throw",
+                                  _1: "mapped " + caughtError$1
+                                })
+                              },
+                              _2: (attemptValue) => ({
+                                tag: "Pure",
+                                _1: {
+                                  tag: "Right",
+                                  _1: attemptValue
+                                }
+                              })
+                            },
+                            _2: (caughtError$2) => ({
+                              tag: "Pure",
+                              _1: {
+                                tag: "Left",
+                                _1: caughtError$2
+                              }
+                            })
+                          },
+                          _2: (mapped) => {
+                            return {
+                              tag: "Run",
+                              _1: () => {
+                                const asyncArgument$4 = say(report)(describe(mapped));
+                                const $value$8 = {
+                                  tag: "Bind",
+                                  _1: asyncArgument$4(environment),
+                                  _2: ($unit$2) => {
+                                    return {
+                                      tag: "Run",
+                                      _1: () => {
+                                        const $value$7 = {
+                                          tag: "Bind",
+                                          _1: {
+                                            tag: "Catch",
+                                            _1: {
+                                              tag: "Bind",
+                                              _1: {
+                                                tag: "Catch",
+                                                _1: {
+                                                  tag: "Throw",
+                                                  _1: "first"
+                                                },
+                                                _2: (caughtError$3) => {
+                                                  return {
+                                                    tag: "Run",
+                                                    _1: () => {
+                                                      const asyncArgument$5 = "handled " + caughtError$3;
+                                                      const $value$2 = {
+                                                        tag: "Throw",
+                                                        _1: asyncArgument$5
+                                                      };
+                                                      return $value$2;
+                                                    }
+                                                  };
+                                                }
+                                              },
+                                              _2: (attemptValue$1) => ({
+                                                tag: "Pure",
+                                                _1: {
+                                                  tag: "Right",
+                                                  _1: attemptValue$1
+                                                }
+                                              })
+                                            },
+                                            _2: (caughtError$4) => ({
+                                              tag: "Pure",
+                                              _1: {
+                                                tag: "Left",
+                                                _1: caughtError$4
+                                              }
+                                            })
+                                          },
+                                          _2: (rethrown) => {
+                                            return {
+                                              tag: "Run",
+                                              _1: () => {
+                                                const asyncArgument$6 = say(report)(describe(rethrown));
+                                                const $value$6 = {
+                                                  tag: "Bind",
+                                                  _1: asyncArgument$6(environment),
+                                                  _2: ($unit$3) => {
+                                                    return {
+                                                      tag: "Run",
+                                                      _1: () => {
+                                                        const $value$5 = {
+                                                          tag: "Bind",
+                                                          _1: {
+                                                            tag: "Catch",
+                                                            _1: {
+                                                              tag: "Pure",
+                                                              _1: {
+                                                                tag: "Right",
+                                                                _1: 3 | 0
+                                                              }
+                                                            },
+                                                            _2: (caughtError$5) => ({
+                                                              tag: "Pure",
+                                                              _1: {
+                                                                tag: "Left",
+                                                                _1: caughtError$5
+                                                              }
+                                                            })
+                                                          },
+                                                          _2: (succeeded) => {
+                                                            return {
+                                                              tag: "Run",
+                                                              _1: () => {
+                                                                const asyncArgument$7 = say(report)(describe(succeeded));
+                                                                const $value$4 = {
+                                                                  tag: "Bind",
+                                                                  _1: asyncArgument$7(environment),
+                                                                  _2: ($unit$4) => {
+                                                                    return {
+                                                                      tag: "Run",
+                                                                      _1: () => {
+                                                                        const $value$3 = {
+                                                                          tag: "Bind",
+                                                                          _1: {
+                                                                            tag: "Catch",
+                                                                            _1: {
+                                                                              tag: "Throw",
+                                                                              _1: 42 | 0
+                                                                            },
+                                                                            _2: (caughtError$6) => ({
+                                                                              tag: "Throw",
+                                                                              _1: caughtError$6
+                                                                            })
+                                                                          },
+                                                                          _2: ($unit$5) => say(report)("after uncaught")(environment)
+                                                                        };
+                                                                        return $value$3;
+                                                                      }
+                                                                    };
+                                                                  }
+                                                                };
+                                                                return $value$4;
+                                                              }
+                                                            };
+                                                          }
+                                                        };
+                                                        return $value$5;
+                                                      }
+                                                    };
+                                                  }
+                                                };
+                                                return $value$6;
+                                              }
+                                            };
+                                          }
+                                        };
+                                        return $value$7;
+                                      }
+                                    };
+                                  }
+                                };
+                                return $value$8;
+                              }
+                            };
+                          }
+                        };
+                        return $value$9;
+                      }
+                    };
+                  }
+                };
+                return $value$10;
+              }
+            };
+          }
+        };
+        return $value$11;
+      }
+    };
+  };
 }
 export function run(report) {
   return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: (code) => report("uncaught " + /* @__PURE__ */ showIntDictShow(code)) })({})(program(report)));
 }
 const showIntDictShow = /* @__PURE__ */ Data_Show.show(Data_Show.showInt);
-const bindAsyncCodeRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Async.bindAsync);
-const applicativeAsyncStringRowDictPure = /* @__PURE__ */ Control_Applicative.pure(Iris_Effect_Async.applicativeAsync);
-const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);

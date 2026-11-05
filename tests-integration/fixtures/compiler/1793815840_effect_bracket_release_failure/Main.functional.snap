@@ -8,44 +8,167 @@ describe = \section48%0 ->
     Right value%2 ->
       string.append "succeeded " (show showInt value%2)
 
-guarded = \release%4 body%6 ->
-  attempt
-    (bracket (applicativeAsyncStringRowDictPure unit) (\$unit%3@(_) -> release%4)
-      (\$unit%5@(_) -> body%6))
-
-program = \report%15 ->
+guarded = \release%5 body%7 ->
   let
-    report'%8 = \message%16 -> liftEffect (report%15 message%16)
-  in bindAsyncStringRowDictBind (guarded (fail "release") (applicativeAsyncStringRowDictPure 1))
-    (\releaseFailed%7 ->
-      discardUnitDictDiscard bindAsync
-        (report'%8 (string.append "release fails: " (describe releaseFailed%7)))
-        (\$unit%9@(_) ->
-          bindAsyncStringRowDictBind
-            (guarded (applicativeAsyncStringRowDictPure unit) (fail "body"))
-            (\bodyFailed%10 ->
-              discardUnitDictDiscard bindAsync
-                (report'%8 (string.append "body fails: " (describe bodyFailed%10)))
-                (\$unit%11@(_) ->
-                  bindAsyncStringRowDictBind (guarded (fail "release") (fail "body"))
-                    (\bothFailed%12 ->
-                      discardUnitDictDiscard bindAsync
-                        (report'%8 (string.append "both fail: " (describe bothFailed%12)))
-                        (\$unit%13@(_) ->
-                          bindAsyncStringRowDictBind
-                            (guarded (applicativeAsyncStringRowDictPure unit)
-                              (applicativeAsyncStringRowDictPure 2))
-                            (\neitherFailed%14 ->
-                              report'%8
-                                (string.append "neither fails: " (describe neitherFailed%14)))))))))
+    asyncArgument%8 = bracket (\environment%3 -> { tag: "Pure", _1: unit })
+      (\$unit%4@(_) -> release%5)
+      (\$unit%6@(_) -> body%7)
+  in \environment%9 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Catch",
+            _1:
+              {
+                tag: "Bind",
+                _1: asyncArgument%8 environment%9,
+                _2: \attemptValue%10 -> { tag: "Pure", _1: { tag: "Right", _1: attemptValue%10 } }
+              },
+            _2: \caughtError%11 -> { tag: "Pure", _1: { tag: "Left", _1: caughtError%11 } }
+          }()
+    }
 
-@export run = \report%18 ->
+program = \report%42 ->
+  let
+    report'%15 = \message%43 ->
+      let
+        asyncArgument%44 = report%42 message%43
+      in \environment%45 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.bind asyncArgument%44
+                \value%48 -> effect.pure { tag: "Pure", _1: value%48 }()
+        }
+  in let
+    asyncArgument%40 = guarded (\environment%12 -> { tag: "Throw", _1: "release" })
+      (\environment%13 -> { tag: "Pure", _1: 1 })
+  in \environment%41 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1: asyncArgument%40 environment%41,
+            _2:
+              \releaseFailed%14 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%38 = report'%15
+                          (string.append "release fails: " (describe releaseFailed%14))
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%38 environment%41,
+                        _2:
+                          \$unit%16 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  let
+                                    asyncArgument%36 = guarded
+                                      (\environment%17 -> { tag: "Pure", _1: unit })
+                                      (\environment%18 -> { tag: "Throw", _1: "body" })
+                                  in uncurried.call effect.pure {
+                                    tag: "Bind",
+                                    _1: asyncArgument%36 environment%41,
+                                    _2:
+                                      \bodyFailed%19 ->
+                                        {
+                                          tag: "Run",
+                                          _1:
+                                            uncurried \ ->
+                                              let
+                                                asyncArgument%34 = report'%15
+                                                  (string.append "body fails: " (describe
+                                                    bodyFailed%19))
+                                              in uncurried.call effect.pure {
+                                                tag: "Bind",
+                                                _1: asyncArgument%34 environment%41,
+                                                _2:
+                                                  \$unit%20 ->
+                                                    {
+                                                      tag: "Run",
+                                                      _1:
+                                                        uncurried \ ->
+                                                          let
+                                                            asyncArgument%32 = guarded
+                                                              (\environment%21 ->
+                                                                { tag: "Throw", _1: "release" })
+                                                              (\environment%22 ->
+                                                                { tag: "Throw", _1: "body" })
+                                                          in uncurried.call effect.pure {
+                                                            tag: "Bind",
+                                                            _1: asyncArgument%32 environment%41,
+                                                            _2:
+                                                              \bothFailed%23 ->
+                                                                {
+                                                                  tag: "Run",
+                                                                  _1:
+                                                                    uncurried \ ->
+                                                                      let
+                                                                        asyncArgument%30 = report'%15
+                                                                          (string.append "both fail: " (describe
+                                                                            bothFailed%23))
+                                                                      in uncurried.call effect.pure {
+                                                                        tag: "Bind",
+                                                                        _1:
+                                                                          asyncArgument%30
+                                                                            environment%41,
+                                                                        _2:
+                                                                          \$unit%24 ->
+                                                                            {
+                                                                              tag: "Run",
+                                                                              _1:
+                                                                                uncurried \ ->
+                                                                                  let
+                                                                                    asyncArgument%28 = guarded
+                                                                                      (\environment%25 ->
+                                                                                        {
+                                                                                          tag:
+                                                                                            "Pure",
+                                                                                          _1: unit
+                                                                                        })
+                                                                                      (\environment%26 ->
+                                                                                        {
+                                                                                          tag:
+                                                                                            "Pure",
+                                                                                          _1: 2
+                                                                                        })
+                                                                                  in uncurried.call effect.pure {
+                                                                                    tag: "Bind",
+                                                                                    _1:
+                                                                                      asyncArgument%28
+                                                                                        environment%41,
+                                                                                    _2:
+                                                                                      \neitherFailed%27 ->
+                                                                                        report'%15
+                                                                                          (string.append "neither fails: " (describe
+                                                                                            neitherFailed%27))
+                                                                                          environment%41
+                                                                                  }()
+                                                                            }
+                                                                      }()
+                                                                }
+                                                          }()
+                                                    }
+                                              }()
+                                        }
+                                  }()
+                            }
+                      }()
+                }
+          }()
+    }
+
+@export run = \report%47 ->
   void functorEffect
-    (launch { onUncaught: \error%17 -> report%18 (string.append "uncaught " error%17) } {  }
-      (program report%18))
-
-applicativeAsyncStringRowDictPure = pure applicativeAsync
-
-bindAsyncStringRowDictBind = bind bindAsync
-
-discardUnitDictDiscard = discard discardUnit
+    (launch { onUncaught: \error%46 -> report%47 (string.append "uncaught " error%46) } {  }
+      (program report%47))

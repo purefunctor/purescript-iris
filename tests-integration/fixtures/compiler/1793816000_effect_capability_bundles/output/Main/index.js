@@ -1,9 +1,8 @@
-import * as Iris_Effect from "../Iris.Effect/index.js";
 export function reading(hasFirstServicesDict) {
   return (hasSecondServicesDict) => {
     return (services) => {
-      const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(hasFirstServicesDict)(services);
-      const $scrutinee$1 = /* @__PURE__ */ Iris_Effect.getService(hasSecondServicesDict)(services);
+      const $scrutinee = hasFirstServicesDict.getService(services);
+      const $scrutinee$1 = hasSecondServicesDict.getService(services);
       const first = $scrutinee;
       const second = $scrutinee$1;
       return (first * (100 | 0) | 0) + second | 0;
@@ -24,7 +23,7 @@ export function tagged(hasFirstServicesDict) {
   return (hasTaggedValueServicesDict) => {
     return (hasSecondServicesDict) => {
       return (services) => {
-        const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(hasTaggedValueServicesDict)(services);
+        const $scrutinee = hasTaggedValueServicesDict.getService(services);
         const value = $scrutinee;
         return value;
       };

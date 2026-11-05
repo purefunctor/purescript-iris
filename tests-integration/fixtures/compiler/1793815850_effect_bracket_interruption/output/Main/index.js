@@ -1,6 +1,3 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
-import * as Control_Apply from "../Control.Apply/index.js";
-import * as Control_Bind from "../Control.Bind/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
@@ -9,7 +6,20 @@ import * as Iris_Effect_Fiber from "../Iris.Effect.Fiber/index.js";
 import * as $foreign from "./foreign.js";
 function say(report) {
   return (message) => {
-    return Iris_Effect_Async.liftEffect(report(message));
+    const asyncArgument = report(message);
+    return (environment) => {
+      return {
+        tag: "Run",
+        _1: () => {
+          const value = asyncArgument();
+          const $value = {
+            tag: "Pure",
+            _1: value
+          };
+          return $value;
+        }
+      };
+    };
   };
 }
 function sleep(report) {
@@ -22,8 +32,34 @@ function sleep(report) {
         }));
         return () => {
           const identifier = $action();
-          const $value = /* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(say(report)("cancel " + label))(Iris_Effect_Async.liftEffect(clearTimeout(identifier)));
-          return $value;
+          const asyncArgument = say(report)("cancel " + label);
+          const asyncArgument$1 = clearTimeout(identifier);
+          const $result = (environment) => {
+            return {
+              tag: "Run",
+              _1: () => {
+                const $value$1 = {
+                  tag: "Bind",
+                  _1: asyncArgument(environment),
+                  _2: (firstValue) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const secondValue = asyncArgument$1();
+                        const $value = {
+                          tag: "Pure",
+                          _1: secondValue
+                        };
+                        return $value;
+                      }
+                    };
+                  }
+                };
+                return $value$1;
+              }
+            };
+          };
+          return $result;
         };
       });
     };
@@ -45,17 +81,156 @@ function describe(section167) {
 function killed(report) {
   return (label) => {
     return (body) => {
-      return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.fork(body))((fiber) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.kill("kill " + label)(fiber))(($unit) => /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.await(fiber))((exit) => say(report)(label + (" " + describe(exit))))));
+      const asyncArgument = Iris_Effect_Async.fork(body);
+      return (environment) => {
+        return {
+          tag: "Run",
+          _1: () => {
+            const $value$2 = {
+              tag: "Bind",
+              _1: asyncArgument(environment),
+              _2: (fiber) => {
+                return {
+                  tag: "Run",
+                  _1: () => {
+                    const asyncArgument$1 = Iris_Effect_Async.kill("kill " + label)(fiber);
+                    const $value$1 = {
+                      tag: "Bind",
+                      _1: asyncArgument$1(environment),
+                      _2: ($unit) => {
+                        return {
+                          tag: "Run",
+                          _1: () => {
+                            const asyncArgument$2 = Iris_Effect_Async.await(fiber);
+                            const $value = {
+                              tag: "Bind",
+                              _1: asyncArgument$2(environment),
+                              _2: (exit) => say(report)(label + (" " + describe(exit)))(environment)
+                            };
+                            return $value;
+                          }
+                        };
+                      }
+                    };
+                    return $value$1;
+                  }
+                };
+              }
+            };
+            return $value$2;
+          }
+        };
+      };
     };
   };
 }
 function program(report) {
-  return /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(killed(report)("during acquire")(Iris_Effect_Async.bracket(/* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(sleep(report)("acquire")(10 | 0))(say(report)("acquired")))(($unit) => say(report)("released"))(($unit$1) => say(report)("used"))))(($unit$2) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(killed(report)("during use")(Iris_Effect_Async.bracket(say(report)("acquired"))(($unit$3) => /* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(sleep(report)("release")(10 | 0))(say(report)("released")))(($unit$4) => /* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(sleep(report)("use")(1e3 | 0))(say(report)("used")))))(($unit$5) => killed(report)("with failing release")(Iris_Effect_Async.bracket(/* @__PURE__ */ Control_Applicative.pure(Iris_Effect_Async.applicativeAsync)(Data_Unit.unit))(($unit$6) => Iris_Effect_Async.fail("release failure"))(($unit$7) => sleep(report)("use")(1e3 | 0)))));
+  const $function = killed(report)("during acquire");
+  const $function$1 = Iris_Effect_Async.bracket;
+  const asyncArgument$1 = sleep(report)("acquire")(10 | 0);
+  const asyncArgument$2 = say(report)("acquired");
+  const $result = (environment) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value = {
+          tag: "Bind",
+          _1: asyncArgument$1(environment),
+          _2: (firstValue) => ({
+            tag: "Bind",
+            _1: asyncArgument$2(environment),
+            _2: (secondValue) => ({
+              tag: "Pure",
+              _1: secondValue
+            })
+          })
+        };
+        return $value;
+      }
+    };
+  };
+  const asyncArgument = $function($function$1($result)(($unit) => say(report)("released"))(($unit$1) => say(report)("used")));
+  return (environment$1) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        const $value$4 = {
+          tag: "Bind",
+          _1: asyncArgument(environment$1),
+          _2: ($unit$2) => {
+            return {
+              tag: "Run",
+              _1: () => {
+                const asyncArgument$3 = killed(report)("during use")(Iris_Effect_Async.bracket(say(report)("acquired"))(($unit$3) => {
+                  const asyncArgument$4 = sleep(report)("release")(10 | 0);
+                  const asyncArgument$5 = say(report)("released");
+                  return (environment$2) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const $value$1 = {
+                          tag: "Bind",
+                          _1: asyncArgument$4(environment$2),
+                          _2: (firstValue$1) => ({
+                            tag: "Bind",
+                            _1: asyncArgument$5(environment$2),
+                            _2: (secondValue$1) => ({
+                              tag: "Pure",
+                              _1: secondValue$1
+                            })
+                          })
+                        };
+                        return $value$1;
+                      }
+                    };
+                  };
+                })(($unit$4) => {
+                  const asyncArgument$6 = sleep(report)("use")(1e3 | 0);
+                  const asyncArgument$7 = say(report)("used");
+                  return (environment$3) => {
+                    return {
+                      tag: "Run",
+                      _1: () => {
+                        const $value$2 = {
+                          tag: "Bind",
+                          _1: asyncArgument$6(environment$3),
+                          _2: (firstValue$2) => ({
+                            tag: "Bind",
+                            _1: asyncArgument$7(environment$3),
+                            _2: (secondValue$2) => ({
+                              tag: "Pure",
+                              _1: secondValue$2
+                            })
+                          })
+                        };
+                        return $value$2;
+                      }
+                    };
+                  };
+                }));
+                const $value$3 = {
+                  tag: "Bind",
+                  _1: asyncArgument$3(environment$1),
+                  _2: ($unit$5) => killed(report)("with failing release")(Iris_Effect_Async.bracket((environment$4) => ({
+                    tag: "Pure",
+                    _1: Data_Unit.unit
+                  }))(($unit$6) => (environment$5) => ({
+                    tag: "Throw",
+                    _1: "release failure"
+                  }))(($unit$7) => sleep(report)("use")(1e3 | 0)))(environment$1)
+                };
+                return $value$3;
+              }
+            };
+          }
+        };
+        return $value$4;
+      }
+    };
+  };
 }
 export function run(report) {
   return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: (error) => report("uncaught " + error) })({})(program(report)));
 }
 const setTimeout = $foreign["setTimeout"];
 const clearTimeout = $foreign["clearTimeout"];
-const bindAsyncStringRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Async.bindAsync);
-const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);

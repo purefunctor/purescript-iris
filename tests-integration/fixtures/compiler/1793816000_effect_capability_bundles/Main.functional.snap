@@ -3,7 +3,7 @@ source: tests-integration/src/fixtures.rs
 ---
 @export reading = \hasFirstServicesDict%0 hasSecondServicesDict%2 ->
   \services%1 ->
-    case getService hasFirstServicesDict%0 services%1, getService hasSecondServicesDict%2
+    case hasFirstServicesDict%0.getService services%1, hasSecondServicesDict%2.getService
       services%1 of
       first%3, second%4 ->
         integer.add (integer.multiply first%3 100) second%4
@@ -16,7 +16,7 @@ source: tests-integration/src/fixtures.rs
 
 @export tagged = \hasFirstServicesDict%14 hasTaggedValueServicesDict%11 hasSecondServicesDict%15 ->
   \services%12 ->
-    case getService hasTaggedValueServicesDict%11 services%12 of
+    case hasTaggedValueServicesDict%11.getService services%12 of
       value%13 ->
         value%13
 

@@ -15,40 +15,104 @@ throughMonad = \monadMonadDict%0 ->
       (\value%2 -> pure (monadMonadDict%0."Applicative0"()) (integer.multiply value%2 3))
 
 program = \hasCounterServicesDict%3 ->
-  \input%5 ->
-    bindAsyncStringServicesDictBind (service hasCounterServicesDict%3)
-      (\offset%4 ->
-        bindAsyncStringServicesDictBind (liftEffect (step "first" input%5))
-          (\first%6 ->
-            bindAsyncStringServicesDictBind
-              (throughMonad monadAsync
-                (applicativeAsyncStringServicesDictPure (integer.add first%6 offset%4)))
-              (\adjusted%7 ->
-                bindAsyncStringServicesDictBind
-                  (apply applyAsync
-                    (map functorAsync (\left%8 right%9 -> integer.subtract left%8 right%9)
-                      (liftEffect (step "left" adjusted%7)))
-                    (liftEffect (step "right" offset%4)))
-                  (\result%10 ->
-                    if integer.greater_than result%10 0
-                      then applicativeAsyncStringServicesDictPure result%10
-                      else fail "negative result"))))
+  \input%6 ->
+    \environment%31 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            let
+              offset%5 = hasCounterServicesDict%3.getService environment%31
+            in let
+              asyncArgument%7 = step "first" input%6
+            in uncurried.call effect.bind asyncArgument%7
+              \first%9 -> let
+                asyncArgument%28 = throughMonad monadAsync
+                  (let
+                    asyncArgument%10 = integer.add first%9 offset%5
+                  in \environment%11 -> { tag: "Pure", _1: asyncArgument%10 })
+              in effect.pure {
+                tag: "Bind",
+                _1: asyncArgument%28 environment%31,
+                _2:
+                  \adjusted%12 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%15 = step "left" adjusted%12
+                          in let
+                            asyncArgument%19 = step "right" offset%5
+                          in uncurried.call effect.bind asyncArgument%15
+                            \mappedValue%18 -> let
+                              appliedFunction%22 = (\left%13 right%14 ->
+                                integer.subtract left%13 right%14)
+                                mappedValue%18
+                            in effect.bind asyncArgument%19
+                              \appliedArgument%23 -> let
+                                result%24 = appliedFunction%22 appliedArgument%23
+                              in if integer.greater_than result%24 0
+                                then effect.pure { tag: "Pure", _1: result%24 }
+                                else effect.pure { tag: "Throw", _1: "negative result" }()
+                    }
+              }()
+      }
 
-@export runOrdered = \$unit%15@(_) ->
+@export runOrdered = \$unit%40@(_) ->
   let
-    environment%11 = mark "environment" { choice: 7 }
+    environment%32 = mark "environment" { choice: 7 }
   in let
-    stored%12 = mark "program" { action: program (service "choice") 11 }
-  in effect.bind (launch { onUncaught: failure } environment%11
-    (bindAsyncStringServicesDictBind stored%12.action
-      (\result%13 -> liftEffect (complete result%13))))
-    \$fiber%14 -> effect.pure unit
+    stored%33 = mark "program" { action: program (service "choice") 11 }
+  in effect.bind (launch { onUncaught: failure } environment%32
+    (let
+      asyncArgument%37 = stored%33.action
+    in \environment%38 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.pure {
+              tag: "Bind",
+              _1: asyncArgument%37 environment%38,
+              _2:
+                \result%34 ->
+                  {
+                    tag: "Run",
+                    _1:
+                      uncurried \ ->
+                        let
+                          asyncArgument%35 = complete result%34
+                        in uncurried.call effect.bind asyncArgument%35
+                          \value%49 -> effect.pure { tag: "Pure", _1: value%49 }()
+                  }
+            }()
+      }))
+    \$fiber%39 -> effect.pure unit
 
 @export provided = effect.bind (launch { onUncaught: failure } {  }
-  (bindAsyncStringServicesDictBind (provide { renamed: 3 } (program (service "renamed") 5))
-    (\result%16 -> liftEffect (complete result%16))))
-  \$fiber%17 -> effect.pure unit
-
-bindAsyncStringServicesDictBind = bind bindAsync
-
-applicativeAsyncStringServicesDictPure = pure applicativeAsync
+  (let
+    asyncArgument%41 = { renamed: 3 }
+    asyncArgument%42 = program (service "renamed") 5
+  in \environment%47 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1: asyncArgument%42 asyncArgument%41,
+            _2:
+              \result%44 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%45 = complete result%44
+                      in uncurried.call effect.bind asyncArgument%45
+                        \value%50 -> effect.pure { tag: "Pure", _1: value%50 }()
+                }
+          }()
+    }))
+  \$fiber%48 -> effect.pure unit

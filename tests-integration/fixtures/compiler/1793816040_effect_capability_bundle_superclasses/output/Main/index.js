@@ -1,4 +1,3 @@
-import * as Iris_Effect from "../Iris.Effect/index.js";
 export function both(hasFirstServicesDict) {
   return (hasSecondServicesDict) => {
     return {
@@ -9,8 +8,8 @@ export function both(hasFirstServicesDict) {
 }
 export function reading(bothServicesDict) {
   return (services) => {
-    const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(/* @__PURE__ */ bothServicesDict.Has0())(services);
-    const $scrutinee$1 = /* @__PURE__ */ Iris_Effect.getService(/* @__PURE__ */ bothServicesDict.Has1())(services);
+    const $scrutinee = (/* @__PURE__ */ bothServicesDict.Has0()).getService(services);
+    const $scrutinee$1 = (/* @__PURE__ */ bothServicesDict.Has1()).getService(services);
     const first = $scrutinee;
     const second = $scrutinee$1;
     return (first * (100 | 0) | 0) + second | 0;

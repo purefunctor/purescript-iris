@@ -5,58 +5,206 @@ foreign setTimeout
 
 foreign clearTimeout
 
-say = \report%0 message%1 -> liftEffect (report%0 message%1)
+say = \report%0 message%1 ->
+  let
+    asyncArgument%2 = report%0 message%1
+  in \environment%3 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.bind asyncArgument%2
+            \value%61 -> effect.pure { tag: "Pure", _1: value%61 }()
+    }
 
-sleep = \report%5 label%6 milliseconds%3 ->
+sleep = \report%7 label%8 milliseconds%5 ->
   async
-    (\callback%2 ->
-      effect.bind (setTimeout milliseconds%3 (callback%2 { tag: "Right", _1: unit }))
-        \identifier%4 -> effect.pure (applySecond applyAsync
-          (say report%5 (string.append "cancel " label%6))
-          (liftEffect (clearTimeout identifier%4))))
+    (\callback%4 ->
+      effect.bind (setTimeout milliseconds%5 (callback%4 { tag: "Right", _1: unit }))
+        \identifier%6 -> effect.pure (let
+          asyncArgument%11 = say report%7 (string.append "cancel " label%8)
+          asyncArgument%9 = clearTimeout identifier%6
+        in \environment%12 ->
+          {
+            tag: "Run",
+            _1:
+              uncurried \ ->
+                uncurried.call effect.pure {
+                  tag: "Bind",
+                  _1: asyncArgument%11 environment%12,
+                  _2:
+                    \firstValue%13 ->
+                      {
+                        tag: "Run",
+                        _1:
+                          uncurried \ ->
+                            uncurried.call effect.bind asyncArgument%9
+                              \secondValue%14 -> effect.pure { tag: "Pure", _1: secondValue%14 }()
+                      }
+                }()
+          }))
 
-describe = \section167%7 ->
-  case section167%7 of
+describe = \section167%15 ->
+  case section167%15 of
     Succeeded _ ->
       "succeeded"
-    Failed error%8 ->
-      string.append "failed " error%8
+    Failed error%16 ->
+      string.append "failed " error%16
     Died _ ->
       "died"
 
-killed = \report%14 label%11 body%9 ->
-  bindAsyncStringRowDictBind (fork body%9)
-    (\fiber%10 ->
-      discardUnitDictDiscard bindAsync (kill (string.append "kill " label%11) fiber%10)
-        (\$unit%12@(_) ->
-          bindAsyncStringRowDictBind (await fiber%10)
-            (\exit%13 ->
-              say report%14 (string.append label%11 (string.append " " (describe exit%13))))))
+killed = \report%22 label%19 body%17 ->
+  let
+    asyncArgument%27 = fork body%17
+  in \environment%28 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1: asyncArgument%27 environment%28,
+            _2:
+              \fiber%18 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%25 = kill (string.append "kill " label%19) fiber%18
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%25 environment%28,
+                        _2:
+                          \$unit%20 ->
+                            {
+                              tag: "Run",
+                              _1:
+                                uncurried \ ->
+                                  let
+                                    asyncArgument%23 = await fiber%18
+                                  in uncurried.call effect.pure {
+                                    tag: "Bind",
+                                    _1: asyncArgument%23 environment%28,
+                                    _2:
+                                      \exit%21 ->
+                                        say report%22
+                                          (string.append label%19 (string.append " " (describe
+                                            exit%21)))
+                                          environment%28
+                                  }()
+                            }
+                      }()
+                }
+          }()
+    }
 
-program = \report%15 ->
-  discardUnitDictDiscard bindAsync
-    (killed report%15 "during acquire"
-      (bracket (applySecond applyAsync (sleep report%15 "acquire" 10) (say report%15 "acquired"))
-        (\$unit%16@(_) -> say report%15 "released")
-        (\$unit%17@(_) -> say report%15 "used")))
-    (\$unit%18@(_) ->
-      discardUnitDictDiscard bindAsync
-        (killed report%15 "during use"
-          (bracket (say report%15 "acquired")
-            (\$unit%19@(_) ->
-              applySecond applyAsync (sleep report%15 "release" 10) (say report%15 "released"))
-            (\$unit%20@(_) ->
-              applySecond applyAsync (sleep report%15 "use" 1000) (say report%15 "used"))))
-        (\$unit%21@(_) ->
-          killed report%15 "with failing release"
-            (bracket (pure applicativeAsync unit) (\$unit%22@(_) -> fail "release failure")
-              (\$unit%23@(_) -> sleep report%15 "use" 1000))))
+program = \report%29 ->
+  let
+    asyncArgument%57 = killed report%29 "during acquire"
+      (bracket
+        (let
+          asyncArgument%30 = sleep report%29 "acquire" 10
+          asyncArgument%31 = say report%29 "acquired"
+        in \environment%32 ->
+          {
+            tag: "Run",
+            _1:
+              uncurried \ ->
+                uncurried.call effect.pure {
+                  tag: "Bind",
+                  _1: asyncArgument%30 environment%32,
+                  _2:
+                    \firstValue%33 ->
+                      {
+                        tag: "Bind",
+                        _1: asyncArgument%31 environment%32,
+                        _2: \secondValue%34 -> { tag: "Pure", _1: secondValue%34 }
+                      }
+                }()
+          })
+        (\$unit%35@(_) -> say report%29 "released")
+        (\$unit%36@(_) -> say report%29 "used"))
+  in \environment%58 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.pure {
+            tag: "Bind",
+            _1: asyncArgument%57 environment%58,
+            _2:
+              \$unit%37 ->
+                {
+                  tag: "Run",
+                  _1:
+                    uncurried \ ->
+                      let
+                        asyncArgument%55 = killed report%29 "during use"
+                          (bracket (say report%29 "acquired")
+                            (\$unit%38@(_) ->
+                              let
+                                asyncArgument%39 = sleep report%29 "release" 10
+                                asyncArgument%40 = say report%29 "released"
+                              in \environment%41 ->
+                                {
+                                  tag: "Run",
+                                  _1:
+                                    uncurried \ ->
+                                      uncurried.call effect.pure {
+                                        tag: "Bind",
+                                        _1: asyncArgument%39 environment%41,
+                                        _2:
+                                          \firstValue%42 ->
+                                            {
+                                              tag: "Bind",
+                                              _1: asyncArgument%40 environment%41,
+                                              _2:
+                                                \secondValue%43 ->
+                                                  { tag: "Pure", _1: secondValue%43 }
+                                            }
+                                      }()
+                                })
+                            (\$unit%44@(_) ->
+                              let
+                                asyncArgument%45 = sleep report%29 "use" 1000
+                                asyncArgument%46 = say report%29 "used"
+                              in \environment%47 ->
+                                {
+                                  tag: "Run",
+                                  _1:
+                                    uncurried \ ->
+                                      uncurried.call effect.pure {
+                                        tag: "Bind",
+                                        _1: asyncArgument%45 environment%47,
+                                        _2:
+                                          \firstValue%48 ->
+                                            {
+                                              tag: "Bind",
+                                              _1: asyncArgument%46 environment%47,
+                                              _2:
+                                                \secondValue%49 ->
+                                                  { tag: "Pure", _1: secondValue%49 }
+                                            }
+                                      }()
+                                }))
+                      in uncurried.call effect.pure {
+                        tag: "Bind",
+                        _1: asyncArgument%55 environment%58,
+                        _2:
+                          \$unit%50 ->
+                            killed report%29 "with failing release"
+                              (bracket (\environment%51 -> { tag: "Pure", _1: unit })
+                                (\$unit%52@(_) ->
+                                  \environment%53 -> { tag: "Throw", _1: "release failure" })
+                                (\$unit%54@(_) -> sleep report%29 "use" 1000))
+                              environment%58
+                      }()
+                }
+          }()
+    }
 
-@export run = \report%25 ->
+@export run = \report%60 ->
   void functorEffect
-    (launch { onUncaught: \error%24 -> report%25 (string.append "uncaught " error%24) } {  }
-      (program report%25))
-
-bindAsyncStringRowDictBind = bind bindAsync
-
-discardUnitDictDiscard = discard discardUnit
+    (launch { onUncaught: \error%59 -> report%60 (string.append "uncaught " error%59) } {  }
+      (program report%60))

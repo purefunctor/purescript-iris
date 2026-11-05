@@ -260,6 +260,7 @@ fn function_profile(
         | ExpressionKind::Let { .. }
         | ExpressionKind::LetPattern { .. }
         | ExpressionKind::Effect { .. }
+        | ExpressionKind::Async(_)
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => None,
     }
@@ -356,6 +357,7 @@ fn collect_tail_edges(
         | ExpressionKind::Application { .. }
         | ExpressionKind::UncurriedApplication { .. }
         | ExpressionKind::StyleX(_)
+        | ExpressionKind::Async(_)
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => {}
     }
@@ -406,6 +408,7 @@ fn application_head(module: &Module, expression: ExpressionId) -> Option<Applica
         | ExpressionKind::Let { .. }
         | ExpressionKind::LetPattern { .. }
         | ExpressionKind::Effect { .. }
+        | ExpressionKind::Async(_)
         | ExpressionKind::SynthesizedEvidence { .. }
         | ExpressionKind::TrivialEvidence => None,
     }

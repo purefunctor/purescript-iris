@@ -1,6 +1,5 @@
-import * as Iris_Effect from "../Iris.Effect/index.js";
 export function lookup(hasServiceServicesDict) {
-  return /* @__PURE__ */ Iris_Effect.getService(hasServiceServicesDict);
+  return hasServiceServicesDict.getService;
 }
 export function inferred(hasConsoleDict) {
   return (environment) => {
