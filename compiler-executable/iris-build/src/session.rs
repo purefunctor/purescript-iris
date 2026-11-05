@@ -14,7 +14,7 @@ use url::Url;
 
 use super::compile::{self, CompileError, Compiled, InitialBuildReport, ProjectCompilation};
 use super::output::{BuildOutput, OutputError};
-use super::ownership::{SourceOwnership, SourcePackage};
+use super::ownership::{SourceOwner, SourceOwnership, SourcePackage};
 use super::packages::PackagesError;
 use super::project::InitializedProject;
 use super::walk;
@@ -253,7 +253,8 @@ impl BuildSession {
         let file_id = self.compilation.source_id(unit.source());
         let recorded = file_id.and_then(|file_id| self.compilation.source_metadata(file_id));
         match recorded {
-            Some(package) => Ok(Option::clone(package)),
+            Some(SourceOwner::Package(package)) => Ok(Some(SourcePackage::clone(package))),
+            Some(SourceOwner::Builtin) => Ok(None),
             None => Ok(self.ownership.owner(path)?.cloned()),
         }
     }
@@ -316,8 +317,11 @@ fn observe_source_unit(
     let previous_name = compilation.module_name(unit.source())?;
 
     let source = observe_disk(source_path);
-    let mut lifecycle =
-        compilation.observe_source(SourceUnitKey::clone(&unit), source, Some(package));
+    let mut lifecycle = compilation.observe_source(
+        SourceUnitKey::clone(&unit),
+        source,
+        SourceOwner::Package(package),
+    );
     for kind in ForeignSourceKind::ALL {
         let foreign = observe_disk(&source_path.with_extension(kind.extension()));
         lifecycle.combine(compilation.observe_foreign(SourceUnitKey::clone(&unit), kind, foreign));

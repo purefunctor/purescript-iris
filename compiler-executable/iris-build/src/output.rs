@@ -9,6 +9,7 @@ use thiserror::Error;
 use url::Url;
 
 use super::compile::ProjectCompilation;
+use super::ownership::{SourceOwner, SourcePackage};
 
 const METADATA_VERSION: u32 = 1;
 const METADATA_FILENAME: &str = "metadata.json";
@@ -103,8 +104,14 @@ impl BuildOutput {
                 .expect("invariant violated: generated module requires missing foreign content");
             write_if_changed(&path, foreign.as_bytes())?;
         }
+        let owner = compilation
+            .source_metadata(module.file_id())
+            .expect("invariant violated: a generated module has no source owner");
+        let SourceOwner::Package(package) = owner else {
+            return Ok(());
+        };
         let path = index.with_file_name(METADATA_FILENAME);
-        let metadata = self.module_metadata(compilation, module, source);
+        let metadata = self.module_metadata(package, module, source);
         let mut content = serde_json::to_vec_pretty(&metadata)
             .map_err(|source| OutputError::Serialize { path: PathBuf::clone(&path), source })?;
         content.push(b'\n');
@@ -113,13 +120,10 @@ impl BuildOutput {
 
     fn module_metadata<'a>(
         &'a self,
-        compilation: &'a ProjectCompilation,
+        package: &'a SourcePackage,
         module: &javascript::Module,
         source: PathBuf,
     ) -> ModuleMetadata<'a> {
-        let file_id = module.file_id();
-        let package = compilation.source_metadata(file_id).and_then(Option::as_ref);
-        let package = package.expect("invariant violated: a generated module has no package");
         ModuleMetadata {
             version: METADATA_VERSION,
             iris: &self.iris,

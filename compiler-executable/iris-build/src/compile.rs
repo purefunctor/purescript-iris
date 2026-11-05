@@ -18,7 +18,7 @@ use url::Url;
 use super::compilation::{CompilationState, MaterializedPrim};
 use super::events::{BuildEvent, BuildEventSink, BuildOutcome};
 use super::output::{BuildOutput, GeneratedModule, OutputError};
-use super::ownership::SourcePackage;
+use super::ownership::{SourceOwner, SourcePackage};
 use super::packages::DiscoveredPackage;
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
 use super::{executor, walk};
@@ -53,7 +53,7 @@ pub enum CompileError {
     Walk(#[from] walk::Error),
 }
 
-pub(crate) type ProjectCompilation = CompilationState<(), Option<SourcePackage>>;
+pub(crate) type ProjectCompilation = CompilationState<(), SourceOwner>;
 
 pub(crate) enum Compiled {
     NoInputs,
@@ -218,7 +218,7 @@ pub(crate) fn build_initial_packages(
     output: &Path,
     packages: &[DiscoveredPackage],
     events: &dyn BuildEventSink,
-) -> Result<InitialBuild<(), Option<SourcePackage>>, CompileError> {
+) -> Result<InitialBuild<(), SourceOwner>, CompileError> {
     let owners = packages
         .iter()
         .flat_map(|package| package.files.iter().map(move |file| (file.as_path(), package)))
@@ -234,10 +234,11 @@ pub(crate) fn build_initial_packages(
         source_globs,
         excluded: &excluded,
         packages: inputs.collect(),
-        prim_metadata: None,
+        prim_metadata: SourceOwner::Builtin,
         source_metadata: |path: &Path| {
-            let package = owners.get(path).map(|package| SourcePackage::new(package));
-            Some(package.expect("invariant violated: a planned source was not discovered"))
+            let package = owners.get(path);
+            let package = package.expect("invariant violated: a planned source was not discovered");
+            SourceOwner::Package(SourcePackage::new(package))
         },
         execution: PackageExecution::Parallel,
         events,

@@ -12,6 +12,12 @@ pub(crate) struct SourcePackage {
     pub(crate) editable: bool,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) enum SourceOwner {
+    Builtin,
+    Package(SourcePackage),
+}
+
 impl SourcePackage {
     pub(crate) fn new(package: &DiscoveredPackage) -> SourcePackage {
         SourcePackage { name: SmolStr::clone(&package.name), editable: package.editable }
