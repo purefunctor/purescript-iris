@@ -338,7 +338,8 @@ fn collect_tail_edges(
             | EffectExpression::ReferenceNew(_)
             | EffectExpression::ReferenceRead(_)
             | EffectExpression::ReferenceWrite { .. }
-            | EffectExpression::UncurriedApplication { .. } => {}
+            | EffectExpression::UncurriedApplication { .. }
+            | EffectExpression::Loop(_) => {}
         },
         ExpressionKind::Literal { .. }
         | ExpressionKind::Array { .. }

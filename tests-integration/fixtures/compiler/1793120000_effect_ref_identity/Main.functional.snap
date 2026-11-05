@@ -20,7 +20,9 @@ source: tests-integration/src/fixtures.rs
 
 @export allocated = \count%6 ->
   effect.bind (reference.new [])
-    \references%5 -> effect.bind (forE 0 count%6
+    \references%5 -> effect.bind (effect.forRange
+      0
+      count%6
       (\index%7 ->
         effect.bind (reference.new index%7)
           \reference%8 -> let

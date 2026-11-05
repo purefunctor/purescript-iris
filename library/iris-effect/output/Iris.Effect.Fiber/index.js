@@ -220,37 +220,43 @@ function drain(scheduler) {
     $reference.value = true;
     const $reference$1 = scheduler.escaped;
     $reference$1.value = "Nothing";
-    const $function = Effect.untilE;
     const $reference$2 = scheduler.front;
-    const $effect = () => {
+    while (true) {
+      let $condition;
       const front = $reference$2.value;
-      if (front.tag === "Cons") {
-        const { _1: thunk, _2: rest } = front;
-        const $reference$3 = scheduler.front;
-        $reference$3.value = rest;
-        const $action = tryEffect(thunk);
-        const escaped = $action();
-        const $action$1 = recordFirstEscape(scheduler.escaped)(escaped);
-        const $unit = $action$1();
-        return false;
-      }
-      if (front === "Nil") {
-        const $reference$4 = scheduler.back;
-        const back = $reference$4.value;
-        if (back === "Nil") {
-          return true;
+      $case: {
+        if (front.tag === "Cons") {
+          const { _1: thunk, _2: rest } = front;
+          const $reference$3 = scheduler.front;
+          $reference$3.value = rest;
+          const $action = tryEffect(thunk);
+          const escaped = $action();
+          const $action$1 = recordFirstEscape(scheduler.escaped)(escaped);
+          const $unit = $action$1();
+          $condition = false;
+          break $case;
         }
-        const $reference$5 = scheduler.back;
-        $reference$5.value = "Nil";
-        const $reference$6 = scheduler.front;
-        const $value = Data_List.reverse(back);
-        $reference$6.value = $value;
-        return false;
+        if (front === "Nil") {
+          const $reference$4 = scheduler.back;
+          const back = $reference$4.value;
+          if (back === "Nil") {
+            $condition = true;
+            break $case;
+          }
+          const $reference$5 = scheduler.back;
+          $reference$5.value = "Nil";
+          const $reference$6 = scheduler.front;
+          const $value = Data_List.reverse(back);
+          $reference$6.value = $value;
+          $condition = false;
+          break $case;
+        }
+        throw new Error("Pattern match failure");
       }
-      throw new Error("Pattern match failure");
-    };
-    const $action$2 = $function($effect);
-    const $unit$1 = $action$2();
+      if ($condition) {
+        break;
+      }
+    }
     const $reference$7 = scheduler.draining;
     $reference$7.value = false;
     return rethrowEscaped(scheduler.escaped)();
@@ -619,29 +625,34 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
       // run
       case 0: {
         const $currentArgument0 = $argument0;
-        const $function = Effect.untilE;
         const $action = tryEffect(runFromStatus($currentArgument0));
-        const $effect = () => {
-          const escaped = $action();
-          if (escaped.tag === "Just") {
-            const { _1: defect } = escaped;
-            const $action$1 = die($currentArgument0)(defect);
-            const $unit = $action$1();
-            const $reference = $currentArgument0.runTick;
-            const runTick = $reference.value;
-            const $reference$1 = $currentArgument0.runTick;
-            const $value = runTick + (1 | 0) | 0;
-            $reference$1.value = $value;
-            return false;
-          }
-          if (escaped === "Nothing") {
-            return true;
-          }
-          throw new Error("Pattern match failure");
-        };
-        const $action$2 = $function($effect);
         return () => {
-          const $unit$1 = $action$2();
+          while (true) {
+            let $condition;
+            const escaped = $action();
+            $case: {
+              if (escaped.tag === "Just") {
+                const { _1: defect } = escaped;
+                const $action$1 = die($currentArgument0)(defect);
+                const $unit = $action$1();
+                const $reference = $currentArgument0.runTick;
+                const runTick = $reference.value;
+                const $reference$1 = $currentArgument0.runTick;
+                const $value = runTick + (1 | 0) | 0;
+                $reference$1.value = $value;
+                $condition = false;
+                break $case;
+              }
+              if (escaped === "Nothing") {
+                $condition = true;
+                break $case;
+              }
+              throw new Error("Pattern match failure");
+            }
+            if ($condition) {
+              break;
+            }
+          }
           const $reference$2 = $currentArgument0.status;
           const status = $reference$2.value;
           if (status === "Completed") {
@@ -674,15 +685,15 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             const result = $reference$7.value;
             const $reference$8 = $currentArgument0$1.runnableResult;
             $reference$8.value = noResult;
-            const $action$3 = deliver($currentArgument0$1)(result);
-            const stop = $action$3();
+            const $action$2 = deliver($currentArgument0$1)(result);
+            const stop = $action$2();
             return [false, (/* @__PURE__ */ Control_Applicative.unless(Effect.applicativeEffect)(stop)(runSteps($currentArgument0$1)))()];
           }
           if (status$1 === "Return") {
             const $reference$9 = $currentArgument0$1.status;
             $reference$9.value = "Running";
-            const $action$4 = returnStep($currentArgument0$1);
-            const stop$1 = $action$4();
+            const $action$3 = returnStep($currentArgument0$1);
+            const stop$1 = $action$3();
             return [false, (/* @__PURE__ */ Control_Applicative.unless(Effect.applicativeEffect)(stop$1)(runSteps($currentArgument0$1)))()];
           }
           if (status$1 === "Running") {
@@ -700,239 +711,265 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
       // runSteps
       case 2: {
         const $currentArgument0$2 = $argument0;
-        const $function$1 = Effect.untilE;
         const $reference$10 = $currentArgument0$2.current;
-        const $effect$1 = () => {
-          const step = $reference$10.value;
-          if (step.tag === "Bind") {
-            const { _1: inner, _2: continuation } = step;
-            if (inner.tag === "Pure") {
-              const { _1: value } = inner;
-              return continueWith($currentArgument0$2)(continuation(value))();
-            }
-            if (inner.tag === "Sync") {
-              const { _1: effect } = inner;
-              const value$1 = effect();
-              return continueWith($currentArgument0$2)(continuation(value$1))();
-            }
-            if (inner.tag === "Fallible") {
-              const { _1: effect$1 } = inner;
-              const result$1 = effect$1();
-              if (result$1.tag === "Left") {
-                const { _1: error } = result$1;
-                return failWith($currentArgument0$2)(error)();
-              }
-              if (result$1.tag === "Right") {
-                const { _1: value$2 } = result$1;
-                return continueWith($currentArgument0$2)(continuation(value$2))();
-              }
-              throw new Error("Pattern match failure");
-            }
-            if (inner.tag === "Throw") {
-              const { _1: error$1 } = inner;
-              return failWith($currentArgument0$2)(error$1)();
-            }
-            if (inner.tag === "Run") {
-              const { _1: effect$2 } = inner;
-              const next = effect$2();
-              if (next.tag === "Pure") {
-                const { _1: value$3 } = next;
-                return continueWith($currentArgument0$2)(continuation(value$3))();
-              }
-              if (next.tag === "Sync") {
-                const { _1: nextEffect } = next;
-                const value$4 = nextEffect();
-                return continueWith($currentArgument0$2)(continuation(value$4))();
-              }
-              if (next.tag === "Fallible") {
-                const { _1: nextEffect$1 } = next;
-                const result$2 = nextEffect$1();
-                if (result$2.tag === "Left") {
-                  const { _1: error$2 } = result$2;
-                  return failWith($currentArgument0$2)(error$2)();
+        return () => {
+          while (true) {
+            let $condition$1;
+            const step = $reference$10.value;
+            $case$1: {
+              if (step.tag === "Bind") {
+                const { _1: inner, _2: continuation } = step;
+                if (inner.tag === "Pure") {
+                  const { _1: value } = inner;
+                  $condition$1 = continueWith($currentArgument0$2)(continuation(value))();
+                  break $case$1;
                 }
-                if (result$2.tag === "Right") {
-                  const { _1: value$5 } = result$2;
-                  return continueWith($currentArgument0$2)(continuation(value$5))();
+                if (inner.tag === "Sync") {
+                  const { _1: effect } = inner;
+                  const value$1 = effect();
+                  $condition$1 = continueWith($currentArgument0$2)(continuation(value$1))();
+                  break $case$1;
+                }
+                if (inner.tag === "Fallible") {
+                  const { _1: effect$1 } = inner;
+                  const result$1 = effect$1();
+                  if (result$1.tag === "Left") {
+                    const { _1: error } = result$1;
+                    $condition$1 = failWith($currentArgument0$2)(error)();
+                    break $case$1;
+                  }
+                  if (result$1.tag === "Right") {
+                    const { _1: value$2 } = result$1;
+                    $condition$1 = continueWith($currentArgument0$2)(continuation(value$2))();
+                    break $case$1;
+                  }
+                  throw new Error("Pattern match failure");
+                }
+                if (inner.tag === "Throw") {
+                  const { _1: error$1 } = inner;
+                  $condition$1 = failWith($currentArgument0$2)(error$1)();
+                  break $case$1;
+                }
+                if (inner.tag === "Run") {
+                  const { _1: effect$2 } = inner;
+                  const next = effect$2();
+                  if (next.tag === "Pure") {
+                    const { _1: value$3 } = next;
+                    $condition$1 = continueWith($currentArgument0$2)(continuation(value$3))();
+                    break $case$1;
+                  }
+                  if (next.tag === "Sync") {
+                    const { _1: nextEffect } = next;
+                    const value$4 = nextEffect();
+                    $condition$1 = continueWith($currentArgument0$2)(continuation(value$4))();
+                    break $case$1;
+                  }
+                  if (next.tag === "Fallible") {
+                    const { _1: nextEffect$1 } = next;
+                    const result$2 = nextEffect$1();
+                    if (result$2.tag === "Left") {
+                      const { _1: error$2 } = result$2;
+                      $condition$1 = failWith($currentArgument0$2)(error$2)();
+                      break $case$1;
+                    }
+                    if (result$2.tag === "Right") {
+                      const { _1: value$5 } = result$2;
+                      $condition$1 = continueWith($currentArgument0$2)(continuation(value$5))();
+                      break $case$1;
+                    }
+                    throw new Error("Pattern match failure");
+                  }
+                  if (next.tag === "Throw") {
+                    const { _1: error$3 } = next;
+                    $condition$1 = failWith($currentArgument0$2)(error$3)();
+                    break $case$1;
+                  }
+                  const $action$4 = pushContinuation($currentArgument0$2)(continuation);
+                  const $unit$1 = $action$4();
+                  $condition$1 = continueWith($currentArgument0$2)(next)();
+                  break $case$1;
+                }
+                const $action$5 = pushContinuation($currentArgument0$2)(continuation);
+                const $unit$2 = $action$5();
+                $condition$1 = continueWith($currentArgument0$2)(inner)();
+                break $case$1;
+              }
+              if (step.tag === "Pure") {
+                const { _1: value$6 } = step;
+                $condition$1 = succeedWith($currentArgument0$2)(value$6)();
+                break $case$1;
+              }
+              if (step.tag === "Sync") {
+                const { _1: effect$3 } = step;
+                const value$7 = effect$3();
+                $condition$1 = succeedWith($currentArgument0$2)(value$7)();
+                break $case$1;
+              }
+              if (step.tag === "Fallible") {
+                const { _1: effect$4 } = step;
+                const result$3 = effect$4();
+                if (result$3.tag === "Left") {
+                  const { _1: error$4 } = result$3;
+                  $condition$1 = failWith($currentArgument0$2)(error$4)();
+                  break $case$1;
+                }
+                if (result$3.tag === "Right") {
+                  const { _1: value$8 } = result$3;
+                  $condition$1 = succeedWith($currentArgument0$2)(value$8)();
+                  break $case$1;
                 }
                 throw new Error("Pattern match failure");
               }
-              if (next.tag === "Throw") {
-                const { _1: error$3 } = next;
-                return failWith($currentArgument0$2)(error$3)();
+              if (step.tag === "Throw") {
+                const { _1: error$5 } = step;
+                $condition$1 = failWith($currentArgument0$2)(error$5)();
+                break $case$1;
               }
-              const $action$5 = pushContinuation($currentArgument0$2)(continuation);
-              const $unit$2 = $action$5();
-              return continueWith($currentArgument0$2)(next)();
-            }
-            const $action$6 = pushContinuation($currentArgument0$2)(continuation);
-            const $unit$3 = $action$6();
-            return continueWith($currentArgument0$2)(inner)();
-          }
-          if (step.tag === "Pure") {
-            const { _1: value$6 } = step;
-            return succeedWith($currentArgument0$2)(value$6)();
-          }
-          if (step.tag === "Sync") {
-            const { _1: effect$3 } = step;
-            const value$7 = effect$3();
-            return succeedWith($currentArgument0$2)(value$7)();
-          }
-          if (step.tag === "Fallible") {
-            const { _1: effect$4 } = step;
-            const result$3 = effect$4();
-            if (result$3.tag === "Left") {
-              const { _1: error$4 } = result$3;
-              return failWith($currentArgument0$2)(error$4)();
-            }
-            if (result$3.tag === "Right") {
-              const { _1: value$8 } = result$3;
-              return succeedWith($currentArgument0$2)(value$8)();
-            }
-            throw new Error("Pattern match failure");
-          }
-          if (step.tag === "Throw") {
-            const { _1: error$5 } = step;
-            return failWith($currentArgument0$2)(error$5)();
-          }
-          if (step.tag === "Run") {
-            const { _1: effect$5 } = step;
-            const next$1 = effect$5();
-            return continueWith($currentArgument0$2)(next$1)();
-          }
-          if (step.tag === "Async") {
-            const { _1: register } = step;
-            const $reference$11 = $currentArgument0$2.runTick;
-            const localRunTick = $reference$11.value;
-            const $reference$12 = $currentArgument0$2.status;
-            $reference$12.value = "Pending";
-            const $reference$13 = $currentArgument0$2.pendingCanceler;
-            $reference$13.value = "Nothing";
-            const $scrutinee = $currentArgument0$2.runtime;
-            const runtime = $scrutinee;
-            const $action$7 = register((result$4) => {
-              const $reference$14 = $currentArgument0$2.runTick;
-              return () => {
-                const tick = $reference$14.value;
-                const $function$2 = Control_Applicative.when(Effect.applicativeEffect)(tick === localRunTick);
-                const $reference$15 = $currentArgument0$2.runTick;
-                const $value$1 = tick + (1 | 0) | 0;
-                const $effect$2 = () => {
-                  $reference$15.value = $value$1;
-                  const $function$3 = enqueue(runtime.scheduler);
-                  const $reference$16 = $currentArgument0$2.runTick;
-                  const $effect$3 = () => {
-                    const resumeTick = $reference$16.value;
-                    const $function$4 = Control_Applicative.when(Effect.applicativeEffect)(resumeTick === (localRunTick + (1 | 0) | 0));
-                    const $reference$17 = $currentArgument0$2.pendingCanceler;
-                    const $effect$4 = () => {
-                      $reference$17.value = "Nothing";
-                      const $reference$18 = $currentArgument0$2.runnableResult;
-                      $reference$18.value = result$4;
-                      const $reference$19 = $currentArgument0$2.status;
-                      $reference$19.value = "Runnable";
-                      return run($currentArgument0$2)();
+              if (step.tag === "Run") {
+                const { _1: effect$5 } = step;
+                const next$1 = effect$5();
+                $condition$1 = continueWith($currentArgument0$2)(next$1)();
+                break $case$1;
+              }
+              if (step.tag === "Async") {
+                const { _1: register } = step;
+                const $reference$11 = $currentArgument0$2.runTick;
+                const localRunTick = $reference$11.value;
+                const $reference$12 = $currentArgument0$2.status;
+                $reference$12.value = "Pending";
+                const $reference$13 = $currentArgument0$2.pendingCanceler;
+                $reference$13.value = "Nothing";
+                const $scrutinee = $currentArgument0$2.runtime;
+                const runtime = $scrutinee;
+                const $action$6 = register((result$4) => {
+                  const $reference$14 = $currentArgument0$2.runTick;
+                  return () => {
+                    const tick = $reference$14.value;
+                    const $function = Control_Applicative.when(Effect.applicativeEffect)(tick === localRunTick);
+                    const $reference$15 = $currentArgument0$2.runTick;
+                    const $value$1 = tick + (1 | 0) | 0;
+                    const $effect = () => {
+                      $reference$15.value = $value$1;
+                      const $function$1 = enqueue(runtime.scheduler);
+                      const $reference$16 = $currentArgument0$2.runTick;
+                      const $effect$1 = () => {
+                        const resumeTick = $reference$16.value;
+                        const $function$2 = Control_Applicative.when(Effect.applicativeEffect)(resumeTick === (localRunTick + (1 | 0) | 0));
+                        const $reference$17 = $currentArgument0$2.pendingCanceler;
+                        const $effect$2 = () => {
+                          $reference$17.value = "Nothing";
+                          const $reference$18 = $currentArgument0$2.runnableResult;
+                          $reference$18.value = result$4;
+                          const $reference$19 = $currentArgument0$2.status;
+                          $reference$19.value = "Runnable";
+                          return run($currentArgument0$2)();
+                        };
+                        return (/* @__PURE__ */ $function$2($effect$2))();
+                      };
+                      return $function$1($effect$1)();
                     };
-                    return (/* @__PURE__ */ $function$4($effect$4))();
+                    return (/* @__PURE__ */ $function($effect))();
                   };
-                  return $function$3($effect$3)();
-                };
-                return (/* @__PURE__ */ $function$2($effect$2))();
-              };
-            });
-            const canceler = $action$7();
-            const $reference$20 = $currentArgument0$2.status;
-            const status$2 = $reference$20.value;
-            let $result;
-            $case: {
-              if (status$2 === "Pending") {
-                const $reference$21 = $currentArgument0$2.pendingCanceler;
-                $result = () => {
-                  const pendingCanceler = $reference$21.value;
-                  const $function$5 = Control_Applicative.when(Effect.applicativeEffect)(Data_Maybe.isNothing(pendingCanceler));
-                  const $reference$22 = $currentArgument0$2.pendingCanceler;
-                  const $value$2 = {
-                    tag: "Just",
-                    _1: canceler
+                });
+                const canceler = $action$6();
+                const $reference$20 = $currentArgument0$2.status;
+                const status$2 = $reference$20.value;
+                let $result;
+                $case$2: {
+                  if (status$2 === "Pending") {
+                    const $reference$21 = $currentArgument0$2.pendingCanceler;
+                    $result = () => {
+                      const pendingCanceler = $reference$21.value;
+                      const $function$3 = Control_Applicative.when(Effect.applicativeEffect)(Data_Maybe.isNothing(pendingCanceler));
+                      const $reference$22 = $currentArgument0$2.pendingCanceler;
+                      const $value$2 = {
+                        tag: "Just",
+                        _1: canceler
+                      };
+                      const $effect$3 = () => {
+                        $reference$22.value = $value$2;
+                        return undefined;
+                      };
+                      return (/* @__PURE__ */ $function$3($effect$3))();
+                    };
+                    break $case$2;
+                  }
+                  const $value$3 = Data_Unit.unit;
+                  $result = () => {
+                    return $value$3;
                   };
-                  const $effect$5 = () => {
-                    $reference$22.value = $value$2;
-                    return undefined;
-                  };
-                  return (/* @__PURE__ */ $function$5($effect$5))();
-                };
-                break $case;
+                  break $case$2;
+                }
+                const $unit$3 = $result();
+                $condition$1 = true;
+                break $case$1;
               }
-              const $value$3 = Data_Unit.unit;
-              $result = () => {
-                return $value$3;
-              };
-              break $case;
+              if (step.tag === "Catch") {
+                const { _1: inner$1, _2: handler } = step;
+                const $reference$23 = $currentArgument0$2.interrupt;
+                const interrupt = $reference$23.value;
+                const $action$7 = suspendContinuations($currentArgument0$2);
+                const $unit$4 = $action$7();
+                const $action$8 = pushAttempt($currentArgument0$2)({
+                  tag: "AttemptCatch",
+                  _1: handler,
+                  _2: Data_Maybe.isJust(interrupt)
+                });
+                const $unit$5 = $action$8();
+                $condition$1 = continueWith($currentArgument0$2)(opaqueStep(inner$1))();
+                break $case$1;
+              }
+              if (step.tag === "Bracket") {
+                const { _1: acquire, _2: conditions, _3: use } = step;
+                const $reference$24 = $currentArgument0$2.bracketCount;
+                const bracketCount = $reference$24.value;
+                const $reference$25 = $currentArgument0$2.bracketCount;
+                const $value$4 = bracketCount + (1 | 0) | 0;
+                $reference$25.value = $value$4;
+                const $reference$26 = $currentArgument0$2.interrupt;
+                const interrupt$1 = $reference$26.value;
+                const $action$9 = suspendContinuations($currentArgument0$2);
+                const $unit$6 = $action$9();
+                const $action$10 = pushAttempt($currentArgument0$2)({
+                  tag: "AttemptBracket",
+                  _1: conditions,
+                  _2: use,
+                  _3: Data_Maybe.isJust(interrupt$1)
+                });
+                const $unit$7 = $action$10();
+                $condition$1 = continueWith($currentArgument0$2)(acquire)();
+                break $case$1;
+              }
+              if (step.tag === "Fork") {
+                const { _1: child, _2: continuation$1 } = step;
+                const $action$11 = makeFiber($currentArgument0$2.runtime)(child);
+                const forked = $action$11();
+                const $scrutinee$1 = $currentArgument0$2.runtime;
+                const runtime$1 = $scrutinee$1;
+                const $reference$27 = $currentArgument0$2.runnableResult;
+                const $value$5 = {
+                  tag: "Right",
+                  _1: continuation$1(forked)
+                };
+                $reference$27.value = $value$5;
+                const $reference$28 = $currentArgument0$2.status;
+                $reference$28.value = "Runnable";
+                const $action$12 = prioritize(runtime$1.scheduler)(run($currentArgument0$2));
+                const $unit$8 = $action$12();
+                const $action$13 = prioritize(runtime$1.scheduler)(run(forked));
+                const $unit$9 = $action$13();
+                const $action$14 = drainUnlessDraining(runtime$1.scheduler);
+                const $unit$10 = $action$14();
+                $condition$1 = true;
+                break $case$1;
+              }
+              throw new Error("Pattern match failure");
             }
-            const $unit$4 = $result();
-            return true;
+            if ($condition$1) {
+              break;
+            }
           }
-          if (step.tag === "Catch") {
-            const { _1: inner$1, _2: handler } = step;
-            const $reference$23 = $currentArgument0$2.interrupt;
-            const interrupt = $reference$23.value;
-            const $action$8 = suspendContinuations($currentArgument0$2);
-            const $unit$5 = $action$8();
-            const $action$9 = pushAttempt($currentArgument0$2)({
-              tag: "AttemptCatch",
-              _1: handler,
-              _2: Data_Maybe.isJust(interrupt)
-            });
-            const $unit$6 = $action$9();
-            return continueWith($currentArgument0$2)(opaqueStep(inner$1))();
-          }
-          if (step.tag === "Bracket") {
-            const { _1: acquire, _2: conditions, _3: use } = step;
-            const $reference$24 = $currentArgument0$2.bracketCount;
-            const bracketCount = $reference$24.value;
-            const $reference$25 = $currentArgument0$2.bracketCount;
-            const $value$4 = bracketCount + (1 | 0) | 0;
-            $reference$25.value = $value$4;
-            const $reference$26 = $currentArgument0$2.interrupt;
-            const interrupt$1 = $reference$26.value;
-            const $action$10 = suspendContinuations($currentArgument0$2);
-            const $unit$7 = $action$10();
-            const $action$11 = pushAttempt($currentArgument0$2)({
-              tag: "AttemptBracket",
-              _1: conditions,
-              _2: use,
-              _3: Data_Maybe.isJust(interrupt$1)
-            });
-            const $unit$8 = $action$11();
-            return continueWith($currentArgument0$2)(acquire)();
-          }
-          if (step.tag === "Fork") {
-            const { _1: child, _2: continuation$1 } = step;
-            const $action$12 = makeFiber($currentArgument0$2.runtime)(child);
-            const forked = $action$12();
-            const $scrutinee$1 = $currentArgument0$2.runtime;
-            const runtime$1 = $scrutinee$1;
-            const $reference$27 = $currentArgument0$2.runnableResult;
-            const $value$5 = {
-              tag: "Right",
-              _1: continuation$1(forked)
-            };
-            $reference$27.value = $value$5;
-            const $reference$28 = $currentArgument0$2.status;
-            $reference$28.value = "Runnable";
-            const $action$13 = prioritize(runtime$1.scheduler)(run($currentArgument0$2));
-            const $unit$9 = $action$13();
-            const $action$14 = prioritize(runtime$1.scheduler)(run(forked));
-            const $unit$10 = $action$14();
-            const $action$15 = drainUnlessDraining(runtime$1.scheduler);
-            const $unit$11 = $action$15();
-            return true;
-          }
-          throw new Error("Pattern match failure");
-        };
-        const $effect$6 = $function$1($effect$1);
-        return () => {
-          return [false, $effect$6()];
+          return [false, undefined];
         };
       }
     }
@@ -1053,236 +1090,251 @@ function returnStep(fiber) {
   const $reference = fiber.continuations;
   return () => {
     $reference.value = "Nil";
-    const $function = Effect.untilE;
     const $reference$1 = fiber.attempts;
-    const $effect = () => {
+    while (true) {
+      let $condition;
       const attempts = $reference$1.value;
-      if (attempts === "Nil") {
-        const $reference$2 = fiber.defect;
-        const defect = $reference$2.value;
-        const $reference$3 = fiber.interrupt;
-        const interrupt = $reference$3.value;
-        const $reference$4 = fiber.failure;
-        const failure = $reference$4.value;
-        const $reference$5 = fiber.returnValue;
-        const returnValue = $reference$5.value;
-        let $result;
-        $case: {
-          if (defect.tag === "Just") {
-            const { _1: error } = defect;
-            $result = {
-              tag: "Died",
-              _1: error
-            };
-            break $case;
-          }
-          if (interrupt.tag === "Just") {
-            const { _1: error$1 } = interrupt;
-            $result = {
-              tag: "Failed",
-              _1: error$1
-            };
-            break $case;
-          }
-          if (failure.tag === "Just") {
-            const { _1: error$2 } = failure;
-            $result = {
-              tag: "Failed",
-              _1: error$2
-            };
-            break $case;
-          }
-          $result = {
-            tag: "Succeeded",
-            _1: orUnit(returnValue)
-          };
-          break $case;
-        }
-        const result = $result;
-        const $reference$6 = fiber.exit;
-        $reference$6.value = result;
-        const $reference$7 = fiber.current;
-        $reference$7.value = noStep;
-        const $reference$8 = fiber.status;
-        $reference$8.value = "Completed";
-        return true;
-      }
-      if (attempts.tag === "Cons") {
-        const { _1: attempt, _2: rest } = attempts;
-        const $reference$9 = fiber.attempts;
-        $reference$9.value = rest;
-        const $reference$10 = fiber.interrupt;
-        const interrupt$1 = $reference$10.value;
-        const $reference$11 = fiber.bracketCount;
-        const bracketCount = $reference$11.value;
-        const $reference$12 = fiber.failure;
-        const failure$1 = $reference$12.value;
-        const $reference$13 = fiber.defect;
-        const defect$1 = $reference$13.value;
-        const interruptedSince = (enqueuedInterrupted) => {
-          return Data_Maybe.isJust(interrupt$1) && !enqueuedInterrupted;
-        };
-        const killed = (enqueuedInterrupted$1) => {
-          return interruptedSince(enqueuedInterrupted$1) && bracketCount === (0 | 0);
-        };
-        if (attempt.tag === "AttemptCatch") {
-          const { _1: handler, _2: enqueuedInterrupted$2 } = attempt;
-          if (failure$1.tag === "Just") {
-            const { _1: error$3 } = failure$1;
-            if (!killed(enqueuedInterrupted$2)) {
-              const $reference$14 = fiber.failure;
-              $reference$14.value = "Nothing";
-              const $reference$15 = fiber.current;
-              const $value = handler(error$3);
-              $reference$15.value = $value;
-              return true;
-            }
-          }
-          return false;
-        }
-        if (attempt.tag === "AttemptResume") {
-          const { _1: continuations, _2: enqueuedInterrupted$3 } = attempt;
-          if (killed(enqueuedInterrupted$3) || Data_Maybe.isJust(failure$1) || Data_Maybe.isJust(defect$1)) {
-            return false;
-          } else {
-            const $reference$16 = fiber.returnValue;
-            const returnValue$1 = $reference$16.value;
-            if (continuations.tag === "Cons") {
-              const { _1: continuation, _2: others } = continuations;
-              const $reference$17 = fiber.continuations;
-              $reference$17.value = others;
-              const $reference$18 = fiber.current;
-              const $value$1 = continuation(orUnit(returnValue$1));
-              $reference$18.value = $value$1;
-              return true;
-            }
-            if (continuations === "Nil") {
-              return false;
-            }
-            throw new Error("Pattern match failure");
-          }
-        }
-        if (attempt.tag === "AttemptBracket") {
-          const { _1: conditions, _2: use, _3: enqueuedInterrupted$4 } = attempt;
-          const $reference$19 = fiber.bracketCount;
-          const $value$2 = bracketCount - (1 | 0) | 0;
-          $reference$19.value = $value$2;
-          if (Data_Maybe.isJust(failure$1) || Data_Maybe.isJust(defect$1)) {
-            return false;
-          } else {
-            const $reference$20 = fiber.returnValue;
-            const returnValue$2 = $reference$20.value;
-            const resource = orUnit(returnValue$2);
-            const $action = pushAttempt(fiber)({
-              tag: "AttemptRelease",
-              _1: conditions,
-              _2: resource,
-              _3: enqueuedInterrupted$4
-            });
-            const $unit = $action();
-            if (!interruptedSince(enqueuedInterrupted$4) || (bracketCount - (1 | 0) | 0) > (0 | 0)) {
-              const $reference$21 = fiber.current;
-              const $value$3 = use(resource);
-              $reference$21.value = $value$3;
-              return true;
-            } else {
-              return false;
-            }
-          }
-        }
-        if (attempt.tag === "AttemptRelease") {
-          const { _1: conditions$1, _2: resource$1, _3: enqueuedInterrupted$5 } = attempt;
-          const $reference$22 = fiber.returnValue;
-          const returnValue$3 = $reference$22.value;
-          let $result$1;
+      $case: {
+        if (attempts === "Nil") {
+          const $reference$2 = fiber.defect;
+          const defect = $reference$2.value;
+          const $reference$3 = fiber.interrupt;
+          const interrupt = $reference$3.value;
+          const $reference$4 = fiber.failure;
+          const failure = $reference$4.value;
+          const $reference$5 = fiber.returnValue;
+          const returnValue = $reference$5.value;
+          let $result;
           $case$1: {
-            {
-              if (killed(enqueuedInterrupted$5)) {
-                $result$1 = conditions$1.killed(resource$1);
-                break $case$1;
-              }
-            }
-            if (defect$1.tag === "Just") {
-              const { _1: error$4 } = defect$1;
-              $result$1 = conditions$1.died(error$4)(resource$1);
+            if (defect.tag === "Just") {
+              const { _1: error } = defect;
+              $result = {
+                tag: "Died",
+                _1: error
+              };
               break $case$1;
             }
-            if (failure$1.tag === "Just") {
-              const { _1: error$5 } = failure$1;
-              $result$1 = conditions$1.failed(error$5)(resource$1);
+            if (interrupt.tag === "Just") {
+              const { _1: error$1 } = interrupt;
+              $result = {
+                tag: "Failed",
+                _1: error$1
+              };
               break $case$1;
             }
-            $result$1 = conditions$1.completed(orUnit(returnValue$3))(resource$1);
+            if (failure.tag === "Just") {
+              const { _1: error$2 } = failure;
+              $result = {
+                tag: "Failed",
+                _1: error$2
+              };
+              break $case$1;
+            }
+            $result = {
+              tag: "Succeeded",
+              _1: orUnit(returnValue)
+            };
             break $case$1;
           }
-          const finalizer = $result$1;
-          const $action$1 = enterFinalizer(fiber);
-          const $unit$1 = $action$1();
-          const $reference$23 = fiber.current;
-          const $value$4 = opaqueStep(finalizer);
-          $reference$23.value = $value$4;
-          return true;
+          const result = $result;
+          const $reference$6 = fiber.exit;
+          $reference$6.value = result;
+          const $reference$7 = fiber.current;
+          $reference$7.value = noStep;
+          const $reference$8 = fiber.status;
+          $reference$8.value = "Completed";
+          $condition = true;
+          break $case;
         }
-        if (attempt.tag === "AttemptFinalizer") {
-          const { _1: finalizer$1 } = attempt;
-          const $action$2 = enterFinalizer(fiber);
-          const $unit$2 = $action$2();
-          const $reference$24 = fiber.current;
-          $reference$24.value = finalizer$1;
-          return true;
-        }
-        if (attempt.tag === "AttemptFinalized") {
-          const { _1: savedValue, _2: savedFailure, _3: savedDefect } = attempt;
-          const $reference$25 = fiber.bracketCount;
-          const $value$5 = bracketCount - (1 | 0) | 0;
-          $reference$25.value = $value$5;
-          let $result$2;
-          if (Data_Maybe.isJust(savedDefect)) {
-            const $reference$26 = fiber.defect;
-            $result$2 = () => {
-              $reference$26.value = savedDefect;
-              const $reference$27 = fiber.returnValue;
-              $reference$27.value = "Nothing";
-              const $reference$28 = fiber.failure;
-              $reference$28.value = "Nothing";
-              return undefined;
-            };
-          } else {
-            if (Data_Maybe.isJust(defect$1)) {
-              const $reference$29 = fiber.returnValue;
+        if (attempts.tag === "Cons") {
+          const { _1: attempt, _2: rest } = attempts;
+          const $reference$9 = fiber.attempts;
+          $reference$9.value = rest;
+          const $reference$10 = fiber.interrupt;
+          const interrupt$1 = $reference$10.value;
+          const $reference$11 = fiber.bracketCount;
+          const bracketCount = $reference$11.value;
+          const $reference$12 = fiber.failure;
+          const failure$1 = $reference$12.value;
+          const $reference$13 = fiber.defect;
+          const defect$1 = $reference$13.value;
+          const interruptedSince = (enqueuedInterrupted) => {
+            return Data_Maybe.isJust(interrupt$1) && !enqueuedInterrupted;
+          };
+          const killed = (enqueuedInterrupted$1) => {
+            return interruptedSince(enqueuedInterrupted$1) && bracketCount === (0 | 0);
+          };
+          if (attempt.tag === "AttemptCatch") {
+            const { _1: handler, _2: enqueuedInterrupted$2 } = attempt;
+            if (failure$1.tag === "Just") {
+              const { _1: error$3 } = failure$1;
+              if (!killed(enqueuedInterrupted$2)) {
+                const $reference$14 = fiber.failure;
+                $reference$14.value = "Nothing";
+                const $reference$15 = fiber.current;
+                const $value = handler(error$3);
+                $reference$15.value = $value;
+                $condition = true;
+                break $case;
+              }
+            }
+            $condition = false;
+            break $case;
+          }
+          if (attempt.tag === "AttemptResume") {
+            const { _1: continuations, _2: enqueuedInterrupted$3 } = attempt;
+            if (killed(enqueuedInterrupted$3) || Data_Maybe.isJust(failure$1) || Data_Maybe.isJust(defect$1)) {
+              $condition = false;
+              break $case;
+            } else {
+              const $reference$16 = fiber.returnValue;
+              const returnValue$1 = $reference$16.value;
+              if (continuations.tag === "Cons") {
+                const { _1: continuation, _2: others } = continuations;
+                const $reference$17 = fiber.continuations;
+                $reference$17.value = others;
+                const $reference$18 = fiber.current;
+                const $value$1 = continuation(orUnit(returnValue$1));
+                $reference$18.value = $value$1;
+                $condition = true;
+                break $case;
+              }
+              if (continuations === "Nil") {
+                $condition = false;
+                break $case;
+              }
+              throw new Error("Pattern match failure");
+            }
+          }
+          if (attempt.tag === "AttemptBracket") {
+            const { _1: conditions, _2: use, _3: enqueuedInterrupted$4 } = attempt;
+            const $reference$19 = fiber.bracketCount;
+            const $value$2 = bracketCount - (1 | 0) | 0;
+            $reference$19.value = $value$2;
+            if (Data_Maybe.isJust(failure$1) || Data_Maybe.isJust(defect$1)) {
+              $condition = false;
+              break $case;
+            } else {
+              const $reference$20 = fiber.returnValue;
+              const returnValue$2 = $reference$20.value;
+              const resource = orUnit(returnValue$2);
+              const $action = pushAttempt(fiber)({
+                tag: "AttemptRelease",
+                _1: conditions,
+                _2: resource,
+                _3: enqueuedInterrupted$4
+              });
+              const $unit = $action();
+              if (!interruptedSince(enqueuedInterrupted$4) || (bracketCount - (1 | 0) | 0) > (0 | 0)) {
+                const $reference$21 = fiber.current;
+                const $value$3 = use(resource);
+                $reference$21.value = $value$3;
+                $condition = true;
+                break $case;
+              } else {
+                $condition = false;
+                break $case;
+              }
+            }
+          }
+          if (attempt.tag === "AttemptRelease") {
+            const { _1: conditions$1, _2: resource$1, _3: enqueuedInterrupted$5 } = attempt;
+            const $reference$22 = fiber.returnValue;
+            const returnValue$3 = $reference$22.value;
+            let $result$1;
+            $case$2: {
+              {
+                if (killed(enqueuedInterrupted$5)) {
+                  $result$1 = conditions$1.killed(resource$1);
+                  break $case$2;
+                }
+              }
+              if (defect$1.tag === "Just") {
+                const { _1: error$4 } = defect$1;
+                $result$1 = conditions$1.died(error$4)(resource$1);
+                break $case$2;
+              }
+              if (failure$1.tag === "Just") {
+                const { _1: error$5 } = failure$1;
+                $result$1 = conditions$1.failed(error$5)(resource$1);
+                break $case$2;
+              }
+              $result$1 = conditions$1.completed(orUnit(returnValue$3))(resource$1);
+              break $case$2;
+            }
+            const finalizer = $result$1;
+            const $action$1 = enterFinalizer(fiber);
+            const $unit$1 = $action$1();
+            const $reference$23 = fiber.current;
+            const $value$4 = opaqueStep(finalizer);
+            $reference$23.value = $value$4;
+            $condition = true;
+            break $case;
+          }
+          if (attempt.tag === "AttemptFinalizer") {
+            const { _1: finalizer$1 } = attempt;
+            const $action$2 = enterFinalizer(fiber);
+            const $unit$2 = $action$2();
+            const $reference$24 = fiber.current;
+            $reference$24.value = finalizer$1;
+            $condition = true;
+            break $case;
+          }
+          if (attempt.tag === "AttemptFinalized") {
+            const { _1: savedValue, _2: savedFailure, _3: savedDefect } = attempt;
+            const $reference$25 = fiber.bracketCount;
+            const $value$5 = bracketCount - (1 | 0) | 0;
+            $reference$25.value = $value$5;
+            let $result$2;
+            if (Data_Maybe.isJust(savedDefect)) {
+              const $reference$26 = fiber.defect;
               $result$2 = () => {
-                $reference$29.value = "Nothing";
-                const $reference$30 = fiber.failure;
-                $reference$30.value = "Nothing";
+                $reference$26.value = savedDefect;
+                const $reference$27 = fiber.returnValue;
+                $reference$27.value = "Nothing";
+                const $reference$28 = fiber.failure;
+                $reference$28.value = "Nothing";
                 return undefined;
               };
             } else {
-              if (Data_Maybe.isNothing(savedFailure) && Data_Maybe.isJust(failure$1)) {
-                const $reference$31 = fiber.returnValue;
+              if (Data_Maybe.isJust(defect$1)) {
+                const $reference$29 = fiber.returnValue;
                 $result$2 = () => {
-                  $reference$31.value = "Nothing";
+                  $reference$29.value = "Nothing";
+                  const $reference$30 = fiber.failure;
+                  $reference$30.value = "Nothing";
                   return undefined;
                 };
               } else {
-                const $reference$32 = fiber.returnValue;
-                $result$2 = () => {
-                  $reference$32.value = savedValue;
-                  const $reference$33 = fiber.failure;
-                  $reference$33.value = savedFailure;
-                  return undefined;
-                };
+                if (Data_Maybe.isNothing(savedFailure) && Data_Maybe.isJust(failure$1)) {
+                  const $reference$31 = fiber.returnValue;
+                  $result$2 = () => {
+                    $reference$31.value = "Nothing";
+                    return undefined;
+                  };
+                } else {
+                  const $reference$32 = fiber.returnValue;
+                  $result$2 = () => {
+                    $reference$32.value = savedValue;
+                    const $reference$33 = fiber.failure;
+                    $reference$33.value = savedFailure;
+                    return undefined;
+                  };
+                }
               }
             }
+            const $unit$3 = $result$2();
+            $condition = false;
+            break $case;
           }
-          const $unit$3 = $result$2();
-          return false;
+          throw new Error("Pattern match failure");
         }
         throw new Error("Pattern match failure");
       }
-      throw new Error("Pattern match failure");
-    };
-    const $action$3 = $function($effect);
-    const $unit$4 = $action$3();
+      if ($condition) {
+        break;
+      }
+    }
     const $reference$34 = fiber.status;
     const status = $reference$34.value;
     if (status === "Completed") {
@@ -1301,25 +1353,30 @@ function complete(fiber) {
       const escaped = { value: "Nothing" };
       const $value = Data_List.reverse(joins);
       let remaining = $value;
-      const $function = Effect.untilE;
-      const $effect = () => {
+      while (true) {
+        let $condition;
         const pending = remaining;
-        if (pending.tag === "Cons") {
-          const { _1: entry, _2: rest } = pending;
-          remaining = rest;
-          const $action = tryEffect(entry.join(exit));
-          const outcome = $action();
-          const $action$1 = recordFirstEscape(escaped)(outcome);
-          const $unit = $action$1();
-          return false;
+        $case: {
+          if (pending.tag === "Cons") {
+            const { _1: entry, _2: rest } = pending;
+            remaining = rest;
+            const $action = tryEffect(entry.join(exit));
+            const outcome = $action();
+            const $action$1 = recordFirstEscape(escaped)(outcome);
+            const $unit = $action$1();
+            $condition = false;
+            break $case;
+          }
+          if (pending === "Nil") {
+            $condition = true;
+            break $case;
+          }
+          throw new Error("Pattern match failure");
         }
-        if (pending === "Nil") {
-          return true;
+        if ($condition) {
+          break;
         }
-        throw new Error("Pattern match failure");
-      };
-      const $action$2 = $function($effect);
-      const $unit$1 = $action$2();
+      }
       return rethrowEscaped(escaped)();
     };
   };

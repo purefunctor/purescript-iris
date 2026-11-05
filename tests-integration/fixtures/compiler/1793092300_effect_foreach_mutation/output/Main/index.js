@@ -7,19 +7,17 @@ export function visit(values) {
   const $value = [];
   return () => {
     let seen = $value;
-    const $action$2 = Effect.foreachE(values)((value) => {
+    const $length = values.length;
+    for (let $index = 0; $index < $length; $index++) {
+      const value = values[$index];
       const $action = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(value === (1 | 0))(poke(values)(2 | 0)(99 | 0));
-      return () => {
-        const $unit = $action();
-        const $action$1 = push(values)(value);
-        const $unit$1 = $action$1();
-        const section125 = seen;
-        const $value$1 = [...section125, value];
-        seen = $value$1;
-        return undefined;
-      };
-    });
-    const $unit$2 = $action$2();
+      const $unit = $action();
+      const $action$1 = push(values)(value);
+      const $unit$1 = $action$1();
+      const section125 = seen;
+      const $value$1 = [...section125, value];
+      seen = $value$1;
+    }
     return seen;
   };
 }
@@ -37,8 +35,11 @@ export function visitWithFunction(values) {
   const $value = [];
   return () => {
     const seen = { value: $value };
-    const $action = Effect.foreachE(values)(record(seen));
-    const $unit = $action();
+    const $body = record(seen);
+    const $length = values.length;
+    for (let $index = 0; $index < $length; $index++) {
+      $body(values[$index])();
+    }
     return seen.value;
   };
 }
@@ -46,16 +47,17 @@ export function sumState(values) {
   const $function = Control_Monad_ST_Internal.run;
   const $effect = () => {
     let total = 0 | 0;
-    const $action = Control_Monad_ST_Internal.foreach(values)((value) => {
+    const $length = values.length;
+    for (let $index = 0; $index < $length; $index++) {
+      const value = values[$index];
       const $function$1 = Data_Functor.void(Control_Monad_ST_Internal.functorST);
       const $effect$1 = () => {
         const section256 = total;
         const $value = section256 + value | 0;
         return total = $value;
       };
-      return /* @__PURE__ */ $function$1($effect$1);
-    });
-    const $unit = $action();
+      (/* @__PURE__ */ $function$1($effect$1))();
+    }
     return total;
   };
   return $function($effect);

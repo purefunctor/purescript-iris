@@ -5,7 +5,9 @@ source: tests-integration/src/fixtures.rs
 
 @export sumRange = \start%1 end%2 ->
   effect.bind (reference.new 0)
-    \total%0 -> effect.bind (forE (traced "start" start%1) (traced "end" end%2)
+    \total%0 -> effect.bind (effect.forRange
+      (traced "start" start%1)
+      (traced "end" end%2)
       (\index%3 ->
         effect.bind (reference.read total%0)
           \section91%4 -> reference.write.unit total%0 (integer.add section91%4 index%3)))
@@ -17,12 +19,15 @@ source: tests-integration/src/fixtures.rs
 
 @export sumWithFunction = \end%10 ->
   effect.bind (reference.new 0)
-    \total%9 -> effect.bind (forE 0 end%10 (addTo total%9)) \$unit%11 -> reference.read total%9
+    \total%9 -> effect.bind (effect.forRange 0 end%10 (addTo total%9))
+      \$unit%11 -> reference.read total%9
 
 @export productRange = \end%13 ->
   run
     (effect.bind (reference.new 1)
-      \total%12 -> effect.bind (for 1 end%13
+      \total%12 -> effect.bind (effect.forRange
+        1
+        end%13
         (\index%14 ->
           effect.bind (reference.read total%12)
             \section210%15 -> reference.write total%12 (integer.multiply section210%15 index%14)))

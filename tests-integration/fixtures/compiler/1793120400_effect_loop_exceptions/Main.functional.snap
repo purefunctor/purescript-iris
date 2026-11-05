@@ -22,7 +22,9 @@ source: tests-integration/src/fixtures.rs
 
 @export forAborts = observe
   (\visited%11 ->
-    effect.bind (forE 0 5
+    effect.bind (effect.forRange
+      0
+      5
       (\index%12 ->
         effect.bind (when applicativeEffect (integer.equal index%12 3) (throw "stop at 3"))
           \$unit%13 -> record visited%11 (showIntDictShow index%12)))
@@ -31,7 +33,7 @@ source: tests-integration/src/fixtures.rs
 @export untilAborts = observe
   (\visited%15 ->
     effect.bind (reference.new 0)
-      \counter%16 -> effect.bind (untilE
+      \counter%16 -> effect.bind (effect.until
         (effect.bind (effect.bind (reference.read counter%16)
           \section300%17 -> reference.write counter%16 (integer.add section300%17 1))
           \count%18 -> effect.bind (record visited%15 (showIntDictShow count%18))
@@ -43,7 +45,7 @@ source: tests-integration/src/fixtures.rs
 @export whileAborts = observe
   (\visited%22 ->
     effect.bind (reference.new 0)
-      \counter%23 -> whileE
+      \counter%23 -> effect.while
         (effect.map
           (\section384%24 -> integer.less_than section384%24 5)
           (reference.read counter%23))
@@ -55,17 +57,22 @@ source: tests-integration/src/fixtures.rs
 
 @export foreachAborts = observe
   (\visited%28 ->
-    foreachE ["a", "b", "c", "d"]
+    effect.forEach
+      ["a", "b", "c", "d"]
       (\element%29 ->
         effect.bind (when applicativeEffect (string.equal element%29 "c") (throw "stop at c"))
           \$unit%30 -> record visited%28 element%29))
 
 @export nestedAborts = observe
   (\visited%31 ->
-    forE 0 3
+    effect.forRange
+      0
+      3
       (\row%32 ->
         effect.bind (record visited%31 (string.append "row " (showIntDictShow row%32)))
-          \$unit%33 -> forE 0 3
+          \$unit%33 -> effect.forRange
+            0
+            3
             (\column%34 ->
               effect.bind (when applicativeEffect
                 (boolean.and (integer.equal row%32 1) (integer.equal column%34 1))
@@ -76,7 +83,9 @@ source: tests-integration/src/fixtures.rs
 
 @export recovers = observe
   (\visited%36 ->
-    forE 0 4
+    effect.forRange
+      0
+      4
       (\index%37 ->
         catchException (\error%38 -> record visited%36 (string.append "caught " (message error%38)))
           (effect.bind (when applicativeEffect (integer.equal index%37 1) (throw "one"))
