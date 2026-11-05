@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+welcome :: forall services.
+  Iris.Effect.Has Iris.Effect.Console.Console services =>
+  Prim.String -> Iris.Effect.Sync.Sync services Data.Unit.Unit
+welcome = \{hasDict} -> \name ->
+  discard {discardUnit} {bindSync} (log {hasDict} (append {semigroupString} "Welcome, " name)) \_ ->
+    error {hasDict} (append {semigroupString} "Audit: " name)
+
+greet :: Effect.Effect Data.Unit.Unit
+greet =
+  runDefaults {trivial} {defaultServicesCons {isSymbol("console")} {defaultServiceConsole} {defaultServicesNil} {trivial} {trivial}}
+    (discard {discardUnit} {bindSync} (welcome {service("console")} "Alice") \_ ->
+      welcome {service("console")} "Bob")
+
+fetched :: forall services.
+  Iris.Effect.Has Iris.Effect.Console.Console services =>
+  Iris.Effect.Has Iris.Effect.Http.Http services =>
+  Prim.String -> Iris.Effect.Async.Async Iris.Effect.Http.HttpError services Data.Unit.Unit
+fetched = \{hasDict} -> \{hasDict1} -> \url ->
+  bind {bindAsync} (get {hasDict1} url) \response ->
+    sync
+      (log {hasDict}
+        (append {semigroupString} (show {showInt} response.status)
+          (append {semigroupString} " " response.body)))
+
+fetchGreeting :: Prim.String -> Effect.Effect Data.Unit.Unit
+fetchGreeting = \url ->
+  void {functorEffect}
+    (launchDefaults {trivial} {defaultServicesCons {isSymbol("console")} {defaultServiceConsole} {defaultServicesCons {isSymbol("http")} {defaultServiceHttp} {defaultServicesNil} {trivial} {trivial}} {trivial} {trivial}}
+      { onUncaught: \error ->
+        runDefaults {trivial} {defaultServicesCons {isSymbol("console")} {defaultServiceConsole} {defaultServicesNil} {trivial} {trivial}}
+          (error {service("console")} (show {showHttpError} error)) }
+      (fetched {service("console")} {service("http")} url))

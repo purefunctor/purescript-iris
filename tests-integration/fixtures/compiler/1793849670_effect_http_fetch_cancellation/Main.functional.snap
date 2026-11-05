@@ -1,0 +1,104 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+arrival = \options%1 ->
+  async
+    (\callback%0 ->
+      effect.bind (options%1.onArrived (callback%0 { tag: "Right", _1: unit }))
+        \$unit%2 -> effect.pure (\environment%3 -> { tag: "Pure", _1: unit }))
+
+@export cancelFetch = \options%4 ->
+  void functorEffect
+    (launchDefaults <trivial evidence>
+      (defaultServicesCons
+        (symbol "http")
+        defaultServiceHttp
+        defaultServicesNil
+        <trivial evidence>
+        <trivial evidence>)
+      {
+        onUncaught:
+          let
+            composeOuter%5 = options%4.report
+          in \composeArgument%7 -> composeOuter%5 (showHttpErrorDictShow composeArgument%7)
+      }
+      (let
+        asyncArgument%23 = fork
+          (get { "Iris.Effect.Http.Http": \environment%8 -> environment%8.http } options%4.url)
+      in \environment%24 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.pure {
+                tag: "Bind",
+                _1: asyncArgument%23 environment%24,
+                _2:
+                  \pending%9 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%21 = arrival options%4
+                          in uncurried.call effect.pure {
+                            tag: "Bind",
+                            _1: asyncArgument%21 environment%24,
+                            _2:
+                              \$unit%10 ->
+                                {
+                                  tag: "Run",
+                                  _1:
+                                    uncurried \ ->
+                                      let
+                                        asyncArgument%19 = kill
+                                          { tag: "NetworkError", _1: "cancelled" }
+                                          pending%9
+                                      in uncurried.call effect.pure {
+                                        tag: "Bind",
+                                        _1: asyncArgument%19 environment%24,
+                                        _2:
+                                          \$unit%11 ->
+                                            {
+                                              tag: "Run",
+                                              _1:
+                                                uncurried \ ->
+                                                  let
+                                                    asyncArgument%17 = await pending%9
+                                                  in uncurried.call effect.pure {
+                                                    tag: "Bind",
+                                                    _1: asyncArgument%17 environment%24,
+                                                    _2:
+                                                      \exit%12 ->
+                                                        {
+                                                          tag: "Run",
+                                                          _1:
+                                                            uncurried \ ->
+                                                              let
+                                                                asyncArgument%15 = options%4.report
+                                                                  (case exit%12 of
+                                                                    Succeeded response%13 ->
+                                                                      string.append "succeeded " (show
+                                                                        showInt
+                                                                        response%13.status)
+                                                                    Failed error%14 ->
+                                                                      string.append "failed " (showHttpErrorDictShow
+                                                                        error%14)
+                                                                    Died _ ->
+                                                                      "died")
+                                                              in uncurried.call effect.bind asyncArgument%15
+                                                                \value%25 -> effect.pure {
+                                                                  tag: "Pure",
+                                                                  _1: value%25
+                                                                }()
+                                                        }
+                                                  }()
+                                            }
+                                      }()
+                                }
+                          }()
+                    }
+              }()
+        }))
+
+showHttpErrorDictShow = show showHttpError

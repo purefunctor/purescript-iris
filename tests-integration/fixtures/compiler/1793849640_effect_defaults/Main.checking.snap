@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+welcome ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Iris.Effect.Console.Console (services :: Prim.Row Prim.Type) =>
+    Prim.String -> Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+greet :: Effect.Effect Data.Unit.Unit
+fetched ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Iris.Effect.Console.Console (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Iris.Effect.Http.Http (services :: Prim.Row Prim.Type) =>
+    Prim.String ->
+    Iris.Effect.Async.Async
+      Iris.Effect.Http.HttpError
+      (services :: Prim.Row Prim.Type)
+      Data.Unit.Unit
+fetchGreeting :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+Types

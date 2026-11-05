@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+arrival ::
+  forall error (services :: Prim.Row Prim.Type).
+    Main.Options -> Iris.Effect.Async.Async error (services :: Prim.Row Prim.Type) Data.Unit.Unit
+cancelFetch :: Main.Options -> Effect.Effect Data.Unit.Unit
+
+Types
+Options :: Prim.Type
+
+Synonyms
+type Options = { onArrived :: Effect.Effect Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
+, report :: Prim.String -> Effect.Effect Data.Unit.Unit
+, url :: Prim.String
+}

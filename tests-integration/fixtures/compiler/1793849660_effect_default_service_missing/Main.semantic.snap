@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Logger :: Prim.Type
+newtype Logger
+  | Logger :: (Prim.String -> Effect.Effect Data.Unit.Unit) -> Main.Logger
+
+notInRow :: Effect.Effect Data.Unit.Unit
+notInRow =
+  runDefaults {trivial} {defaultServicesCons {isSymbol("http")} {defaultServiceHttp} {defaultServicesNil} {trivial} {trivial}}
+    (log {error} "No console")
+
+noDefault :: Effect.Effect Data.Unit.Unit
+noDefault =
+  runDefaults {trivial} {defaultServicesCons {isSymbol("console")} {defaultServiceConsole} {defaultServicesCons {isSymbol("logger")} {error} {defaultServicesNil} {trivial} {trivial}} {trivial} {trivial}}
+    (log {service("console")} "No default logger")

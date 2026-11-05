@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+undeclared :: Prim.String ->
+Iris.Effect.Async.Async
+  Iris.Effect.Http.HttpError
+  ( console :: Iris.Effect.Console.Console )
+  Iris.Effect.Http.Response
+undeclared = \url -> get {error} url
+
+unconstrained :: forall services. Prim.String -> Iris.Effect.Sync.Sync services Data.Unit.Unit
+unconstrained = \message -> log {error} message
+
+unprovided :: Effect.Effect Data.Unit.Unit
+unprovided = run { http: default } (log {error} "No console")

@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+arrival :: forall error services. Main.Options -> Iris.Effect.Async.Async error services Data.Unit.Unit
+arrival = \options ->
+  async \callback ->
+    discard {discardUnit} {bindEffect} (options.onArrived (callback (Right unit))) \_ ->
+      pure {applicativeEffect} (pure {applicativeAsync} unit)
+
+cancelFetch :: Main.Options -> Effect.Effect Data.Unit.Unit
+cancelFetch = \options ->
+  void {functorEffect}
+    (launchDefaults {trivial} {defaultServicesCons {isSymbol("http")} {defaultServiceHttp} {defaultServicesNil} {trivial} {trivial}}
+      { onUncaught: compose {semigroupoidFn} options.report (show {showHttpError}) }
+      (bind {bindAsync} (fork (get {service("http")} options.url)) \pending ->
+        discard {discardUnit} {bindAsync} (arrival options) \_ ->
+          discard {discardUnit} {bindAsync} (kill (NetworkError "cancelled") pending) \_ ->
+            bind {bindAsync} (await pending) \exit ->
+              apply liftEffect
+                (options.report case exit of
+                  (Succeeded response) -> append {semigroupString} "succeeded "
+                    (show {showInt} response.status)
+                  (Failed error) -> append {semigroupString} "failed " (show {showHttpError} error)
+                  (Died _) -> "died")))

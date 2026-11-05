@@ -1,0 +1,40 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CapabilityNotDeclared] · Main.purs:14:41
+  •
+  │
+  • Capability 'Http' is not declared in the capability set '( console :: Console )'.
+  │
+  │   undeclared :: String -> Async HttpError (console :: Console) Response
+  │                                           ╰───────────────────
+  │
+  • This operation requires the capability
+  │
+  │   undeclared url = Http.get url
+  │                    ╰───────────
+  •
+
+Error! · [UnresolvedCapability] · Main.purs:17:50
+  •
+  │
+  • Capability 'Console' cannot be selected uniquely from '(services :: Row Type)'. Close the
+  │ capability set or declare a 'Has' constraint for this service.
+  │
+  │   unconstrained :: forall services. String -> Sync services Unit
+  │                                                    ╰───────
+  │
+  • This operation requires the capability
+  │
+  │   unconstrained message = Console.log message
+  │                           ╰──────────────────
+  •
+
+Error! · [CapabilityNotDeclared] · Main.purs:21:47
+  •
+  │
+  • Capability 'Console' is not declared in the capability set '( http :: Http )'.
+  │
+  │   unprovided = Sync.run { http: Http.default } (Console.log "No console")
+  │                                                 ╰───────────────────────
+  •

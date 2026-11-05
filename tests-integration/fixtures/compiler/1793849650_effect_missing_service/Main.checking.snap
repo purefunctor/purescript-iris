@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+undeclared ::
+  Prim.String ->
+  Iris.Effect.Async.Async
+    Iris.Effect.Http.HttpError
+    ( console :: Iris.Effect.Console.Console )
+    Iris.Effect.Http.Response
+unconstrained ::
+  forall (services :: Prim.Row Prim.Type).
+    Prim.String -> Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+unprovided :: Effect.Effect Data.Unit.Unit
+
+Types

@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CapabilityNotDeclared] · Main.purs:14:25
+  •
+  │
+  • Capability 'Console' is not declared in the capability set '( http :: Http )'.
+  │
+  │   notInRow = runDefaults @(http :: Http) (Console.log "No console")
+  │                           ╰─────────────
+  │
+  • This operation requires the capability
+  │
+  │   notInRow = runDefaults @(http :: Http) (Console.log "No console")
+  │                                           ╰───────────────────────
+  •
+
+Error! · [NoInstanceFound] · Main.purs:17:13
+  •
+  │
+  • No instance found for: DefaultService Logger
+  │
+  │   noDefault = runDefaults @(console :: Console, logger :: Logger) (Console.log "No default logger")
+  │               ╰────────────────────────────────────────────────────────────────────────────────────
+  •

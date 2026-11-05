@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Logger :: (Prim.String -> Effect.Effect Data.Unit.Unit) -> Main.Logger
+notInRow :: Effect.Effect Data.Unit.Unit
+noDefault :: Effect.Effect Data.Unit.Unit
+
+Types
+Logger :: Prim.Type
+
+Roles
+Logger = []

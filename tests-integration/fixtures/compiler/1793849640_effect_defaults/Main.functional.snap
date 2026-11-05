@@ -1,0 +1,89 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+welcome = \services%0 ->
+  \name%1 ->
+    let
+      syncArgument%3 = log services%0 (string.append "Welcome, " name%1)
+    in \environment%4 ->
+      effect.bind (syncArgument%3 environment%4)
+        \$unit%2 -> error services%0 (string.append "Audit: " name%1) environment%4
+
+@export greet = runDefaults <trivial evidence>
+  (defaultServicesCons
+    (symbol "console")
+    defaultServiceConsole
+    defaultServicesNil
+    <trivial evidence>
+    <trivial evidence>)
+  (let
+    syncArgument%8 = welcome
+      { "Iris.Effect.Console.Console": \environment%5 -> environment%5.console }
+      "Alice"
+  in \environment%9 ->
+    effect.bind (syncArgument%8 environment%9)
+      \$unit%6 -> welcome { "Iris.Effect.Console.Console": \environment%7 -> environment%7.console }
+        "Bob"
+        environment%9)
+
+fetched = \services%10 ->
+  \url%11 ->
+    let
+      asyncArgument%15 = get services%10 url%11
+    in \environment%16 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.pure {
+              tag: "Bind",
+              _1: asyncArgument%15 environment%16,
+              _2:
+                \response%12 ->
+                  {
+                    tag: "Run",
+                    _1:
+                      uncurried \ ->
+                        let
+                          asyncArgument%13 = log services%10
+                            (string.append (show showInt
+                              response%12.status) (string.append " " response%12.body))
+                        in uncurried.call effect.bind (asyncArgument%13 environment%16)
+                          \value%22 -> effect.pure { tag: "Pure", _1: value%22 }()
+                  }
+            }()
+      }
+
+@export fetchGreeting = \url%21 ->
+  void functorEffect
+    (launchDefaults <trivial evidence>
+      (defaultServicesCons
+        (symbol "console")
+        defaultServiceConsole
+        (defaultServicesCons
+          (symbol "http")
+          defaultServiceHttp
+          defaultServicesNil
+          <trivial evidence>
+          <trivial evidence>)
+        <trivial evidence>
+        <trivial evidence>)
+      {
+        onUncaught:
+          \error%17 ->
+            runDefaults <trivial evidence>
+              (defaultServicesCons
+                (symbol "console")
+                defaultServiceConsole
+                defaultServicesNil
+                <trivial evidence>
+                <trivial evidence>)
+              (error { "Iris.Effect.Console.Console": \environment%18 -> environment%18.console }
+                (show showHttpError error%17))
+      }
+      (fetched
+        {
+          "Iris.Effect.Console.Console": \environment%19 -> environment%19.console,
+          "Iris.Effect.Http.Http": \environment%20 -> environment%20.http
+        }
+        url%21))
