@@ -17,13 +17,13 @@ JavaScript in place, so git is the review tool: `git diff` shows what changed, `
 before a run so the diff shows only what the run produced.
 
 `just t <category> [filters...]` prepares registry packages, runs the category's targets with
-`INSTA_UPDATE=always IRIS_UPDATE_JAVASCRIPT_OUTPUT=1`, and prints `git status` for this crate.
-Filters are ordinary nextest filters, such as a fixture timestamp or name fragment. The direct
-equivalent is:
+`INSTA_UPDATE=always`, and prints `git status` for this crate. Generated JavaScript under `output/`
+follows the same variable as insta snapshots. Filters are ordinary nextest filters, such as a
+fixture timestamp or name fragment. The direct equivalent is:
 
 ```bash
 just integration-prepare
-INSTA_UPDATE=always IRIS_UPDATE_JAVASCRIPT_OUTPUT=1 \
+INSTA_UPDATE=always \
   cargo nextest run -p tests-integration --test <target> [filters...]
 ```
 
