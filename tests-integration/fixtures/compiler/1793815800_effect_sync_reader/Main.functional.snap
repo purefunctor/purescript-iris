@@ -1,9 +1,9 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-greeting = \hasNameServicesDict%0 ->
+greeting = \services%0 ->
   \environment%5 ->
-    effect.bind (effect.pure (hasNameServicesDict%0.getService environment%5))
+    effect.bind (effect.pure (services%0."Main.Name" environment%5))
       \name%2 -> effect.pure (string.append "hello " name%2)
 
 say = \report%6 message%7 ->
@@ -11,33 +11,38 @@ say = \report%6 message%7 ->
     syncArgument%8 = report%6 message%7
   in \environment%9 -> syncArgument%8
 
-program = \hasNameServicesDict%12 hasCountServicesDict%18 ->
-  \report%10 ->
+program = \services%10 ->
+  \report%11 ->
     let
-      syncArgument%35 = say report%10 "start"
+      syncArgument%35 = say report%11 "start"
     in \environment%36 ->
       effect.bind (syncArgument%35 environment%36)
-        \$unit%11 -> let
-          syncArgument%33 = greeting hasNameServicesDict%12
+        \$unit%12 -> let
+          syncArgument%33 = greeting services%10
         in effect.bind (syncArgument%33 environment%36)
           \outer%13 -> let
-            syncArgument%15 = greeting (service "renamed")
-          in effect.bind (syncArgument%15 { renamed: "inner" })
-            \inner%17 -> effect.bind (effect.pure (hasCountServicesDict%18.getService
-              environment%36))
+            syncArgument%16 = greeting { "Main.Name": \environment%14 -> environment%14.renamed }
+          in effect.bind (syncArgument%16 { renamed: "inner" })
+            \inner%18 -> effect.bind (effect.pure (services%10."Main.Count" environment%36))
               \count%20 -> let
-                syncArgument%23 = greeting hasNameServicesDict%12
+                syncArgument%23 = greeting services%10
                 syncArgument%26 = show showInt
               in effect.bind (effect.apply
                 (effect.map
                   (\left%21 right%22 -> string.append left%21 (string.append " & " right%22))
                   (syncArgument%23 environment%36))
                 (effect.map syncArgument%26 (effect.pure count%20)))
-                \combined%29 -> say report%10
-                  (string.append outer%13 (string.append ", " (string.append inner%17 (string.append ", " combined%29))))
+                \combined%29 -> say report%11
+                  (string.append outer%13 (string.append ", " (string.append inner%18 (string.append ", " combined%29))))
                   environment%36
 
 @export run = \report%37 ->
   let
-    action%39 = program (service "name") (service "count") report%37 { name: "outer", count: 2 }
+    action%39 = program
+      {
+        "Main.Name": \environment%41 -> environment%41.name,
+        "Main.Count": \environment%42 -> environment%42.count
+      }
+      report%37
+      { name: "outer", count: 2 }
   in effect.bind (report%37 "built") \$unit%38 -> effect.bind action%39 \$unit%40 -> action%39

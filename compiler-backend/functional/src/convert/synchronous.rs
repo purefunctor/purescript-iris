@@ -38,6 +38,12 @@ where
         &mut self,
         dictionary: ExpressionId,
     ) -> ConversionResult<ExpressionId> {
+        if let ExpressionKind::Record { fields } = &self.storage[dictionary].kind
+            && let [field] = fields.as_ref()
+            && field.field.name == "getService"
+        {
+            return Ok(field.expression);
+        }
         if let ExpressionKind::SynthesizedEvidence {
             evidence: SynthesizedEvidence::Service(label),
         } = &self.storage[dictionary].kind
@@ -125,7 +131,10 @@ where
         let (operands, bindings) =
             self.construction_operands(operands, "syncArgument", |kind| match operation {
                 SyncOperation::Service => {
-                    matches!(kind, ExpressionKind::SynthesizedEvidence { .. })
+                    matches!(
+                        kind,
+                        ExpressionKind::SynthesizedEvidence { .. } | ExpressionKind::Record { .. }
+                    )
                 }
                 _ => false,
             })?;

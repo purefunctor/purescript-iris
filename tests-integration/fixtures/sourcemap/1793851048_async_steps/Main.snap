@@ -7,10 +7,10 @@ source: tests-integration/src/fixtures.rs
    | ^ 8:1 import Iris.Effect.Async (Async)
  3 | import * as $foreign from "./foreign.js";
    | ^ 13:1 foreign import record :: Int -> Effect Int
- 4 | export function program(hasOffsetServicesDict) {
+ 4 | export function program(services) {
    | ^ 23:1 program = do
    |        ^ (program) 23:1 program = do
-   |                                                ^ 23:1 program = do
+   |                                   ^ 23:1 program = do
  5 |   return (environment) => {
    |   ^ 23:11 do
    |           ^ (program) 23:11 do
@@ -21,7 +21,7 @@ source: tests-integration/src/fixtures.rs
    |       ^ 23:11 do
  8 |       _1: () => {
    |       ^ 23:11 do
- 9 |         const offset = hasOffsetServicesDict.getService(environment);
+ 9 |         const offset = services["Main.Offset"](environment);
    |         ^ 24:3 Offset offset <- Async.service @Offset
    |                        ^ 23:11 do
 10 |         const asyncArgument = record(offset);

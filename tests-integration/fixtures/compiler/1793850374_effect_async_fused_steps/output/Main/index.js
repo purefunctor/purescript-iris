@@ -4,12 +4,12 @@ import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
 import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 import * as $foreign from "./foreign.js";
-function lowered(hasOffsetServicesDict) {
+function lowered(services) {
   return (environment) => {
     return {
       tag: "Run",
       _1: () => {
-        const offset = hasOffsetServicesDict.getService(environment);
+        const offset = services["Main.Offset"](environment);
         const asyncArgument = record(offset + (1 | 0) | 0);
         const first = asyncArgument();
         const asyncArgument$1 = record(first + (1 | 0) | 0);
@@ -62,7 +62,7 @@ const pause = /* @__PURE__ */ (() => {
     };
   });
 })();
-export const runLowered = /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: failed })({ offset: 3 | 0 })(/* @__PURE__ */ lowered({ getService: ($services) => $services.offset })));
+export const runLowered = /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: failed })({ offset: 3 | 0 })(/* @__PURE__ */ lowered({ "Main.Offset": (environment) => environment.offset })));
 export const runGeneric = /* @__PURE__ */ (() => {
   return /* @__PURE__ */ Data_Functor.void(Effect.functorEffect)(Iris_Effect_Async.launch({ onUncaught: failed })({})(/* @__PURE__ */ generic(Iris_Effect_Async.monadAsync)((composeArgument) => {
     const asyncArgument = /* @__PURE__ */ record(composeArgument);

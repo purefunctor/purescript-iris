@@ -6,13 +6,13 @@ import * as $foreign from "./foreign.js";
 function throughMonad(monadMonadDict) {
   return (action) => /* @__PURE__ */ Control_Bind.bind(/* @__PURE__ */ monadMonadDict.Bind1())(action)((value) => /* @__PURE__ */ Control_Applicative.pure(/* @__PURE__ */ monadMonadDict.Applicative0())(value * (3 | 0) | 0));
 }
-function program(hasCounterServicesDict) {
+function program(services) {
   return (input) => {
     return (environment) => {
       return {
         tag: "Run",
         _1: () => {
-          const offset = hasCounterServicesDict.getService(environment);
+          const offset = services["Main.Counter"](environment);
           const asyncArgument = step("first")(input);
           const first = asyncArgument();
           const $function = throughMonad(Iris_Effect_Async.monadAsync);
@@ -60,16 +60,16 @@ function program(hasCounterServicesDict) {
 }
 export function runOrdered($unit) {
   const environment = mark("environment")({ choice: 7 | 0 });
-  const stored = mark("program")({ action: /* @__PURE__ */ program({ getService: ($services) => $services.choice })(11 | 0) });
+  const stored = mark("program")({ action: /* @__PURE__ */ program({ "Main.Counter": (environment$1) => environment$1.choice })(11 | 0) });
   const $function = Iris_Effect_Async.launch({ onUncaught: failure })(environment);
   const asyncArgument = stored.action;
-  const $result = (environment$1) => {
+  const $result = (environment$2) => {
     return {
       tag: "Run",
       _1: () => {
         const $value$1 = {
           tag: "Bind",
-          _1: asyncArgument(environment$1),
+          _1: asyncArgument(environment$2),
           _2: (result) => {
             return {
               tag: "Run",
@@ -103,8 +103,8 @@ const mark = $foreign["mark"];
 export const provided = /* @__PURE__ */ (() => {
   const $function = Iris_Effect_Async.launch({ onUncaught: failure })({});
   const asyncArgument = { renamed: 3 | 0 };
-  const asyncArgument$1 = /* @__PURE__ */ program({ getService: ($services) => $services.renamed })(5 | 0);
-  const $result = (environment) => {
+  const asyncArgument$1 = /* @__PURE__ */ program({ "Main.Counter": (environment) => environment.renamed })(5 | 0);
+  const $result = (environment$1) => {
     return {
       tag: "Run",
       _1: () => {

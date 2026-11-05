@@ -14,7 +14,7 @@ throughMonad = \monadMonadDict%0 ->
     bind (monadMonadDict%0."Bind1"()) action%1
       (\value%2 -> pure (monadMonadDict%0."Applicative0"()) (integer.multiply value%2 3))
 
-program = \hasCounterServicesDict%3 ->
+program = \services%3 ->
   \input%6 ->
     \environment%31 ->
       {
@@ -22,7 +22,7 @@ program = \hasCounterServicesDict%3 ->
         _1:
           uncurried \ ->
             let
-              offset%5 = hasCounterServicesDict%3.getService environment%31
+              offset%5 = services%3."Main.Counter" environment%31
             in let
               asyncArgument%7 = step "first" input%6
             in uncurried.call effect.bind asyncArgument%7
@@ -59,11 +59,12 @@ program = \hasCounterServicesDict%3 ->
               }()
       }
 
-@export runOrdered = \$unit%40@(_) ->
+@export runOrdered = \$unit%41@(_) ->
   let
     environment%32 = mark "environment" { choice: 7 }
   in let
-    stored%33 = mark "program" { action: program (service "choice") 11 }
+    stored%33 = mark "program"
+      { action: program { "Main.Counter": \environment%40 -> environment%40.choice } 11 }
   in effect.bind (launch { onUncaught: failure } environment%32
     (let
       asyncArgument%37 = stored%33.action
@@ -84,7 +85,7 @@ program = \hasCounterServicesDict%3 ->
                         let
                           asyncArgument%35 = complete result%34
                         in uncurried.call effect.bind asyncArgument%35
-                          \value%49 -> effect.pure { tag: "Pure", _1: value%49 }()
+                          \value%51 -> effect.pure { tag: "Pure", _1: value%51 }()
                   }
             }()
       }))
@@ -92,27 +93,27 @@ program = \hasCounterServicesDict%3 ->
 
 @export provided = effect.bind (launch { onUncaught: failure } {  }
   (let
-    asyncArgument%41 = { renamed: 3 }
-    asyncArgument%42 = program (service "renamed") 5
-  in \environment%47 ->
+    asyncArgument%43 = { renamed: 3 }
+    asyncArgument%44 = program { "Main.Counter": \environment%42 -> environment%42.renamed } 5
+  in \environment%49 ->
     {
       tag: "Run",
       _1:
         uncurried \ ->
           uncurried.call effect.pure {
             tag: "Bind",
-            _1: asyncArgument%42 asyncArgument%41,
+            _1: asyncArgument%44 asyncArgument%43,
             _2:
-              \result%44 ->
+              \result%46 ->
                 {
                   tag: "Run",
                   _1:
                     uncurried \ ->
                       let
-                        asyncArgument%45 = complete result%44
-                      in uncurried.call effect.bind asyncArgument%45
-                        \value%50 -> effect.pure { tag: "Pure", _1: value%50 }()
+                        asyncArgument%47 = complete result%46
+                      in uncurried.call effect.bind asyncArgument%47
+                        \value%52 -> effect.pure { tag: "Pure", _1: value%52 }()
                 }
           }()
     }))
-  \$fiber%48 -> effect.pure unit
+  \$fiber%50 -> effect.pure unit

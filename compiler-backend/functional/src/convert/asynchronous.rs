@@ -162,7 +162,10 @@ where
         let (operands, bindings) =
             self.construction_operands(operands, "asyncArgument", |kind| match operation {
                 AsyncOperation::Service => {
-                    matches!(kind, ExpressionKind::SynthesizedEvidence { .. })
+                    matches!(
+                        kind,
+                        ExpressionKind::SynthesizedEvidence { .. } | ExpressionKind::Record { .. }
+                    )
                 }
                 _ => matches!(kind, ExpressionKind::Async(AsyncExpression::Program { .. })),
             })?;

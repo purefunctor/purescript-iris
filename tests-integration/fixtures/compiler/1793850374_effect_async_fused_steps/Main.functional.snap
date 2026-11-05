@@ -14,14 +14,14 @@ pause = async
     effect.bind (later (\composeArgument%1 -> callback%0 { tag: "Right", _1: composeArgument%1 }))
       \$unit%2 -> effect.pure (\environment%3 -> { tag: "Pure", _1: unit }))
 
-lowered = \hasOffsetServicesDict%4 ->
+lowered = \services%4 ->
   \environment%23 ->
     {
       tag: "Run",
       _1:
         uncurried \ ->
           let
-            offset%6 = hasOffsetServicesDict%4.getService environment%23
+            offset%6 = services%4."Main.Offset" environment%23
           in let
             asyncArgument%7 = record (integer.add offset%6 1)
           in uncurried.call effect.bind asyncArgument%7
@@ -43,7 +43,7 @@ lowered = \hasOffsetServicesDict%4 ->
                             \fourth%16 -> let
                               asyncArgument%17 = complete fourth%16
                             in effect.bind asyncArgument%17
-                              \value%38 -> effect.pure { tag: "Pure", _1: value%38 }()
+                              \value%39 -> effect.pure { tag: "Pure", _1: value%39 }()
                     }
               }()
     }
@@ -60,31 +60,32 @@ generic = \monadMonadDict%24 ->
                   (\fourth%30 -> finish%31 fourth%30))))
 
 @export runLowered = void functorEffect
-  (launch { onUncaught: failed } { offset: 3 } (lowered (service "offset")))
+  (launch { onUncaught: failed } { offset: 3 }
+    (lowered { "Main.Offset": \environment%32 -> environment%32.offset }))
 
 @export runGeneric = void functorEffect
   (launch { onUncaught: failed } {  }
     (generic monadAsync
-      (\composeArgument%32 ->
+      (\composeArgument%33 ->
         let
-          asyncArgument%33 = record composeArgument%32
-        in \environment%34 ->
+          asyncArgument%34 = record composeArgument%33
+        in \environment%35 ->
           {
             tag: "Run",
             _1:
               uncurried \ ->
-                uncurried.call effect.bind asyncArgument%33
-                  \value%39 -> effect.pure { tag: "Pure", _1: value%39 }()
+                uncurried.call effect.bind asyncArgument%34
+                  \value%40 -> effect.pure { tag: "Pure", _1: value%40 }()
           })
       pause
-      (\composeArgument%35 ->
+      (\composeArgument%36 ->
         let
-          asyncArgument%36 = complete composeArgument%35
-        in \environment%37 ->
+          asyncArgument%37 = complete composeArgument%36
+        in \environment%38 ->
           {
             tag: "Run",
             _1:
               uncurried \ ->
-                uncurried.call effect.bind asyncArgument%36
-                  \value%40 -> effect.pure { tag: "Pure", _1: value%40 }()
+                uncurried.call effect.bind asyncArgument%37
+                  \value%41 -> effect.pure { tag: "Pure", _1: value%41 }()
           })))

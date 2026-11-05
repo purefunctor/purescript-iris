@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Clock :: Prim.Int -> Main.Clock
+Label :: forall @value. value -> Main.Label value
+handle ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Logging.Logger (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Main.Clock (services :: Prim.Row Prim.Type) =>
+    Prim.String -> Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+labelled ::
+  forall @value (services :: Prim.Row Prim.Type).
+    Data.Show.Show value =>
+    Iris.Effect.Has (Main.Label value) (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Logging.Logger (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+run :: (Prim.String -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+
+Types
+Clock :: Prim.Type
+Label :: Prim.Type -> Prim.Type
+
+Roles
+Clock = []
+Label = [Representational]

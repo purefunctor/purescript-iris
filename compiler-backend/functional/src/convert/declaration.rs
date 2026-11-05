@@ -49,6 +49,7 @@ pub(super) fn term_declaration(
     let declaration = &checked.tree[declaration_id];
     let kind = match &declaration.kind {
         checking_tree::TermDeclarationKind::Value(value) => {
+            context.register_service_binders(&value.abstractions)?;
             let value = context.with_origin(origin, |context| value_declaration(context, value))?;
             DeclarationKind::Value(value)
         }
@@ -310,11 +311,20 @@ fn declaration_abstraction(
         matches!(abstraction, checking_tree::DeclarationAbstraction::Evidence { .. })
     });
     let mut parameter_groups = Vec::new();
+    let mut service_parameters = Vec::new();
     for (_, group) in &groups {
         let mut parameters = Vec::new();
         for abstraction in group {
             match abstraction {
                 checking_tree::DeclarationAbstraction::Evidence { binder, .. } => {
+                    if let Some((parameter, _)) = context.service_binder(*binder) {
+                        if !service_parameters.contains(&parameter.id) {
+                            service_parameters.push(parameter.id);
+                            let parameter = parameter.clone();
+                            parameters.push(context.pattern(PatternKind::Variable(parameter)));
+                        }
+                        continue;
+                    }
                     let parameter = context.evidence_parameter(*binder)?;
                     parameters.push(context.pattern(PatternKind::Variable(parameter)));
                 }

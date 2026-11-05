@@ -1,33 +1,57 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export reading = \hasFirstServicesDict%0 hasSecondServicesDict%2 ->
+@export reading = \services%0 ->
   \services%1 ->
-    case hasFirstServicesDict%0.getService services%1, hasSecondServicesDict%2.getService
-      services%1 of
-      first%3, second%4 ->
-        integer.add (integer.multiply first%3 100) second%4
+    case services%0."Capabilities.First" services%1, services%0."Capabilities.Second" services%1 of
+      first%2, second%3 ->
+        integer.add (integer.multiply first%2 100) second%3
 
-@export inferred = \hasFirstDict%6 hasSecondDict%5 ->
-  \services%7 -> reading hasFirstDict%6 hasSecondDict%5 services%7
+@export inferred = \services%4 -> \services%5 -> reading services%4 services%5
 
-@export ranked = \hasFirstServicesDict%9 hasSecondServicesDict%8 ->
-  \action%10 -> action%10 hasFirstServicesDict%9 hasSecondServicesDict%8
+@export ranked = \services%6 ->
+  \action%7 ->
+    action%7 { getService: services%6."Capabilities.First" }
+      { getService: services%6."Capabilities.Second" }
 
-@export tagged = \hasFirstServicesDict%14 hasTaggedValueServicesDict%11 hasSecondServicesDict%15 ->
-  \services%12 ->
-    case hasTaggedValueServicesDict%11.getService services%12 of
-      value%13 ->
-        value%13
+@export tagged = \services%8 hasTaggedValueServicesDict%9 ->
+  \services%10 ->
+    case hasTaggedValueServicesDict%9.getService services%10 of
+      value%11 ->
+        value%11
 
-@export readingValue = reading (service "first") (service "second") { first: 3, second: 7 }
+@export readingValue = reading
+  {
+    "Capabilities.First": \environment%12 -> environment%12.first,
+    "Capabilities.Second": \environment%13 -> environment%13.second
+  }
+  { first: 3, second: 7 }
 
-@export inferredValue = inferred (service "red") (service "blue") { red: 11, blue: 13 }
+@export inferredValue = inferred
+  {
+    "Capabilities.First": \environment%14 -> environment%14.red,
+    "Capabilities.Second": \environment%15 -> environment%15.blue
+  }
+  { red: 11, blue: 13 }
 
-@export rankedValue = ranked (service "first") (service "second")
-  (\hasFirstOtherDict%16 ->
-    \hasSecondOtherDict%17 -> reading hasFirstOtherDict%16 hasSecondOtherDict%17)
+@export rankedValue = ranked
+  {
+    "Capabilities.First": \environment%16 -> environment%16.first,
+    "Capabilities.Second": \environment%17 -> environment%17.second
+  }
+  (\hasFirstOtherDict%18 ->
+    \hasSecondOtherDict%19 ->
+      reading
+        {
+          "Capabilities.First": hasFirstOtherDict%18.getService,
+          "Capabilities.Second": hasSecondOtherDict%19.getService
+        })
   { second: 2, first: 5 }
 
-@export taggedValue = tagged (service "first") (service "tagged") (service "second")
+@export taggedValue = tagged
+  {
+    "Capabilities.First": \environment%20 -> environment%20.first,
+    "Capabilities.Second": \environment%21 -> environment%21.second
+  }
+  (service "tagged")
   { first: 0, second: 0, tagged: "tagged" }
