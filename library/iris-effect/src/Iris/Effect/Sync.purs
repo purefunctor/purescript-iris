@@ -2,6 +2,7 @@ module Iris.Effect.Sync
   ( Sync
   , make
   , run
+  , service
   , liftEffect
   , provide
   ) where
@@ -9,6 +10,7 @@ module Iris.Effect.Sync
 import Prelude
 
 import Effect (Effect)
+import Iris.Effect (class Has, getService)
 
 newtype Sync :: Row Type -> Type -> Type
 newtype Sync services value = Sync (Record services -> Effect value)
@@ -18,6 +20,9 @@ make = Sync
 
 run :: forall services value. Record services -> Sync services value -> Effect value
 run environment (Sync program) = program environment
+
+service :: forall @service services. Has service services => Sync services service
+service = Sync \environment -> pure (getService environment)
 
 liftEffect :: forall services value. Effect value -> Sync services value
 liftEffect effect = Sync \_ -> effect

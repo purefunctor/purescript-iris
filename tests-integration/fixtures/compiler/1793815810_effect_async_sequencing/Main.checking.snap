@@ -2,6 +2,7 @@
 source: tests-integration/src/fixtures.rs
 ---
 Terms
+Counter :: Prim.Int -> Main.Counter
 step :: Prim.String -> Prim.Int -> Effect.Effect Prim.Int
 complete :: Prim.Int -> Effect.Effect Data.Unit.Unit
 failure :: Prim.String -> Effect.Effect Data.Unit.Unit
@@ -10,17 +11,15 @@ throughMonad ::
   forall (monad :: Prim.Type -> Prim.Type).
     Control.Monad.Monad (monad :: Prim.Type -> Prim.Type) =>
     (monad :: Prim.Type -> Prim.Type) Prim.Int -> (monad :: Prim.Type -> Prim.Type) Prim.Int
-offset ::
-  forall error (services :: Prim.Row Prim.Type).
-    Iris.Effect.Async.Async error ( offset :: Prim.Int | (services :: Prim.Row Prim.Type) ) Prim.Int
 program ::
   forall (services :: Prim.Row Prim.Type).
-    Prim.Int ->
-    Iris.Effect.Async.Async
-      Prim.String
-      ( offset :: Prim.Int | (services :: Prim.Row Prim.Type) )
-      Prim.Int
+    Iris.Effect.Has Main.Counter (services :: Prim.Row Prim.Type) =>
+    Prim.Int -> Iris.Effect.Async.Async Prim.String (services :: Prim.Row Prim.Type) Prim.Int
 runOrdered :: Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
 provided :: Effect.Effect Data.Unit.Unit
 
 Types
+Counter :: Prim.Type
+
+Roles
+Counter = []

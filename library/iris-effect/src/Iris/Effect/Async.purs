@@ -4,6 +4,7 @@ module Iris.Effect.Async
   , toStep
   , sync
   , liftEffect
+  , service
   , provide
   , fail
   , catch
@@ -25,6 +26,7 @@ import Prelude
 import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Exception (throwException)
+import Iris.Effect (class Has, getService)
 import Iris.Effect.Fiber (Exit(..), Step)
 import Iris.Effect.Fiber as Fiber
 import Iris.Effect.Sync (Sync)
@@ -48,6 +50,9 @@ sync program = Async \environment -> Fiber.Sync (Sync.run environment program)
 
 liftEffect :: forall error services value. Effect value -> Async error services value
 liftEffect effect = Async \_ -> Fiber.Sync effect
+
+service :: forall @service error services. Has service services => Async error services service
+service = Async \environment -> Fiber.Pure (getService environment)
 
 provide ::
   forall error inner outer value. Record inner -> Async error inner value -> Async error outer value
