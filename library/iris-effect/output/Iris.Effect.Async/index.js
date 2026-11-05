@@ -51,7 +51,7 @@ export function mapError($function) {
       return {
         tag: "Run",
         _1: () => {
-          const $value$1 = {
+          return {
             tag: "Catch",
             _1: program(environment),
             _2: (caughtError) => {
@@ -59,16 +59,14 @@ export function mapError($function) {
                 tag: "Run",
                 _1: () => {
                   const asyncArgument = /* @__PURE__ */ $function(caughtError);
-                  const $value = {
+                  return {
                     tag: "Throw",
                     _1: asyncArgument
                   };
-                  return $value;
                 }
               };
             }
           };
-          return $value$1;
         }
       };
     };
@@ -82,7 +80,7 @@ export function attempt(program) {
       _1: {
         tag: "Run",
         _1: () => {
-          const $value = {
+          return {
             tag: "Bind",
             _1: program(environment),
             _2: (mappedValue) => ({
@@ -93,18 +91,16 @@ export function attempt(program) {
               }
             })
           };
-          return $value;
         }
       },
       _2: (caughtError) => {
         return {
           tag: "Run",
           _1: () => {
-            const $value$1 = /* @__PURE__ */ composeOuter({
+            return /* @__PURE__ */ composeOuter({
               tag: "Left",
               _1: caughtError
             })(environment);
-            return $value$1;
           }
         };
       }
@@ -119,8 +115,7 @@ export function async(register) {
         const $action = register(callback);
         return () => {
           const canceler = $action();
-          const $value = canceler(environment);
-          return $value;
+          return canceler(environment);
         };
       }
     };
@@ -170,11 +165,10 @@ function awaitStep(fiber) {
       }));
       return () => {
         const cancel = $action();
-        const $value = {
+        return {
           tag: "Sync",
           _1: cancel
         };
-        return $value;
       };
     }
   };
@@ -191,11 +185,10 @@ export function kill(error) {
           }));
           return () => {
             const cancel = $action();
-            const $value = {
+            return {
               tag: "Sync",
               _1: cancel
             };
-            return $value;
           };
         }
       };

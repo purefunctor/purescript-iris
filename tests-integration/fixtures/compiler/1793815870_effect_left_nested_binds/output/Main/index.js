@@ -17,7 +17,7 @@ function sequenced(effects) {
         return {
           tag: "Run",
           _1: () => {
-            const $value$2 = {
+            return {
               tag: "Bind",
               _1: action(environment),
               _2: (firstValue) => {
@@ -25,16 +25,14 @@ function sequenced(effects) {
                   tag: "Run",
                   _1: () => {
                     const secondValue = asyncArgument();
-                    const $value$1 = {
+                    return {
                       tag: "Pure",
                       _1: secondValue
                     };
-                    return $value$1;
                   }
                 };
               }
             };
-            return $value$2;
           }
         };
       };
@@ -49,7 +47,7 @@ export function run(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$4 = {
+        return {
           tag: "Bind",
           _1: counted(environment),
           _2: (total) => {
@@ -64,7 +62,7 @@ export function run(report) {
                 const asyncArgument$1 = $effect;
                 const effects = asyncArgument$1();
                 const asyncArgument$2 = sequenced(effects);
-                const $value$3 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$2(environment),
                   _2: (last) => {
@@ -78,7 +76,7 @@ export function run(report) {
                         const performed = asyncArgument$3();
                         const asyncArgument$4 = report("effects " + (/* @__PURE__ */ showIntDictShow(last) + (" " + /* @__PURE__ */ showIntDictShow(performed))));
                         const $unit$1 = asyncArgument$4();
-                        const $value$2 = {
+                        return {
                           tag: "Bind",
                           _1: mapped(environment),
                           _2: (mappedTotal) => {
@@ -87,7 +85,7 @@ export function run(report) {
                               _1: () => {
                                 const asyncArgument$5 = report("mapped " + /* @__PURE__ */ showIntDictShow(mappedTotal));
                                 const $unit$2 = asyncArgument$5();
-                                const $value$1 = {
+                                return {
                                   tag: "Bind",
                                   _1: applied(environment),
                                   _2: (appliedTotal) => {
@@ -96,31 +94,26 @@ export function run(report) {
                                       _1: () => {
                                         const asyncArgument$6 = report("applied " + /* @__PURE__ */ showIntDictShow(appliedTotal));
                                         const value = asyncArgument$6();
-                                        const $value = {
+                                        return {
                                           tag: "Pure",
                                           _1: value
                                         };
-                                        return $value;
                                       }
                                     };
                                   }
                                 };
-                                return $value$1;
                               }
                             };
                           }
                         };
-                        return $value$2;
                       }
                     };
                   }
                 };
-                return $value$3;
               }
             };
           }
         };
-        return $value$4;
       }
     };
   }));
@@ -133,7 +126,7 @@ const counted = /* @__PURE__ */ (() => {
         return {
           tag: "Run",
           _1: () => {
-            const $value = {
+            return {
               tag: "Bind",
               _1: action(environment),
               _2: (value) => ({
@@ -141,7 +134,6 @@ const counted = /* @__PURE__ */ (() => {
                 _1: value + (1 | 0) | 0
               })
             };
-            return $value;
           }
         };
       };
@@ -158,7 +150,7 @@ const mapped = /* @__PURE__ */ (() => {
         return {
           tag: "Run",
           _1: () => {
-            const $value = {
+            return {
               tag: "Bind",
               _1: action(environment),
               _2: (mappedValue) => ({
@@ -166,7 +158,6 @@ const mapped = /* @__PURE__ */ (() => {
                 _1: mappedValue + (1 | 0) | 0
               })
             };
-            return $value;
           }
         };
       };
@@ -184,7 +175,7 @@ const applied = /* @__PURE__ */ (() => {
         return {
           tag: "Run",
           _1: () => {
-            const $value$1 = {
+            return {
               tag: "Bind",
               _1: action(environment),
               _2: (mappedValue) => {
@@ -192,16 +183,14 @@ const applied = /* @__PURE__ */ (() => {
                   tag: "Run",
                   _1: () => {
                     const appliedFunction = asyncArgument(mappedValue);
-                    const $value = {
+                    return {
                       tag: "Pure",
                       _1: appliedFunction(1 | 0)
                     };
-                    return $value;
                   }
                 };
               }
             };
-            return $value$1;
           }
         };
       };

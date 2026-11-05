@@ -12,11 +12,10 @@ function say(report) {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -33,11 +32,11 @@ function sleep(report) {
         const identifier = $action();
         const asyncArgument = say(report)("canceler");
         const asyncArgument$1 = clearTimeout(identifier);
-        const $result = (environment) => {
+        return (environment) => {
           return {
             tag: "Run",
             _1: () => {
-              const $value$1 = {
+              return {
                 tag: "Bind",
                 _1: asyncArgument(environment),
                 _2: (firstValue) => {
@@ -45,20 +44,17 @@ function sleep(report) {
                     tag: "Run",
                     _1: () => {
                       const secondValue = asyncArgument$1();
-                      const $value = {
+                      return {
                         tag: "Pure",
                         _1: secondValue
                       };
-                      return $value;
                     }
                   };
                 }
               };
-              return $value$1;
             }
           };
         };
-        return $result;
       };
     });
   };
@@ -84,7 +80,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value = {
+        return {
           tag: "Bind",
           _1: asyncArgument$1(environment),
           _2: (firstValue) => ({
@@ -96,7 +92,6 @@ function program(report) {
             })
           })
         };
-        return $value;
       }
     };
   };
@@ -105,7 +100,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$12 = {
+        return {
           tag: "Bind",
           _1: asyncArgument(environment$1),
           _2: (sleeping) => {
@@ -113,7 +108,7 @@ function program(report) {
               tag: "Run",
               _1: () => {
                 const asyncArgument$3 = say(report)("forked");
-                const $value$11 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$3(environment$1),
                   _2: ($unit) => {
@@ -121,7 +116,7 @@ function program(report) {
                       tag: "Run",
                       _1: () => {
                         const asyncArgument$4 = Iris_Effect_Async.kill("stop")(sleeping);
-                        const $value$10 = {
+                        return {
                           tag: "Bind",
                           _1: asyncArgument$4(environment$1),
                           _2: ($unit$1) => {
@@ -129,7 +124,7 @@ function program(report) {
                               tag: "Run",
                               _1: () => {
                                 const asyncArgument$5 = say(report)("killed");
-                                const $value$9 = {
+                                return {
                                   tag: "Bind",
                                   _1: asyncArgument$5(environment$1),
                                   _2: ($unit$2) => {
@@ -137,7 +132,7 @@ function program(report) {
                                       tag: "Run",
                                       _1: () => {
                                         const asyncArgument$6 = Iris_Effect_Async.await(sleeping);
-                                        const $value$8 = {
+                                        return {
                                           tag: "Bind",
                                           _1: asyncArgument$6(environment$1),
                                           _2: (sleepingExit) => {
@@ -145,7 +140,7 @@ function program(report) {
                                               tag: "Run",
                                               _1: () => {
                                                 const asyncArgument$7 = say(report)("sleeping " + describe(sleepingExit));
-                                                const $value$7 = {
+                                                return {
                                                   tag: "Bind",
                                                   _1: asyncArgument$7(environment$1),
                                                   _2: ($unit$3) => {
@@ -156,7 +151,7 @@ function program(report) {
                                                           tag: "Pure",
                                                           _1: Data_Unit.unit
                                                         }));
-                                                        const $value$6 = {
+                                                        return {
                                                           tag: "Bind",
                                                           _1: asyncArgument$8(environment$1),
                                                           _2: (finished) => {
@@ -164,7 +159,7 @@ function program(report) {
                                                               tag: "Run",
                                                               _1: () => {
                                                                 const asyncArgument$9 = Iris_Effect_Async.await(finished);
-                                                                const $value$5 = {
+                                                                return {
                                                                   tag: "Bind",
                                                                   _1: asyncArgument$9(environment$1),
                                                                   _2: ($exit) => {
@@ -172,7 +167,7 @@ function program(report) {
                                                                       tag: "Run",
                                                                       _1: () => {
                                                                         const asyncArgument$10 = Iris_Effect_Async.kill("too late")(finished);
-                                                                        const $value$4 = {
+                                                                        return {
                                                                           tag: "Bind",
                                                                           _1: asyncArgument$10(environment$1),
                                                                           _2: ($unit$4) => {
@@ -180,7 +175,7 @@ function program(report) {
                                                                               tag: "Run",
                                                                               _1: () => {
                                                                                 const asyncArgument$11 = Iris_Effect_Async.await(finished);
-                                                                                const $value$3 = {
+                                                                                return {
                                                                                   tag: "Bind",
                                                                                   _1: asyncArgument$11(environment$1),
                                                                                   _2: (finishedExit) => {
@@ -188,7 +183,7 @@ function program(report) {
                                                                                       tag: "Run",
                                                                                       _1: () => {
                                                                                         const asyncArgument$12 = say(report)("finished " + describe(finishedExit));
-                                                                                        const $value$2 = {
+                                                                                        return {
                                                                                           tag: "Bind",
                                                                                           _1: asyncArgument$12(environment$1),
                                                                                           _2: ($unit$5) => {
@@ -196,67 +191,55 @@ function program(report) {
                                                                                               tag: "Run",
                                                                                               _1: () => {
                                                                                                 const asyncArgument$13 = sleep(report)(20 | 0);
-                                                                                                const $value$1 = {
+                                                                                                return {
                                                                                                   tag: "Bind",
                                                                                                   _1: asyncArgument$13(environment$1),
                                                                                                   _2: ($unit$6) => say(report)("done")(environment$1)
                                                                                                 };
-                                                                                                return $value$1;
                                                                                               }
                                                                                             };
                                                                                           }
                                                                                         };
-                                                                                        return $value$2;
                                                                                       }
                                                                                     };
                                                                                   }
                                                                                 };
-                                                                                return $value$3;
                                                                               }
                                                                             };
                                                                           }
                                                                         };
-                                                                        return $value$4;
                                                                       }
                                                                     };
                                                                   }
                                                                 };
-                                                                return $value$5;
                                                               }
                                                             };
                                                           }
                                                         };
-                                                        return $value$6;
                                                       }
                                                     };
                                                   }
                                                 };
-                                                return $value$7;
                                               }
                                             };
                                           }
                                         };
-                                        return $value$8;
                                       }
                                     };
                                   }
                                 };
-                                return $value$9;
                               }
                             };
                           }
                         };
-                        return $value$10;
                       }
                     };
                   }
                 };
-                return $value$11;
               }
             };
           }
         };
-        return $value$12;
       }
     };
   };

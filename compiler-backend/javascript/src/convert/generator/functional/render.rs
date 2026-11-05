@@ -1452,6 +1452,11 @@ impl Generator<'_> {
         destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
+        if let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
+            &self.module.storage[expression].kind
+        {
+            return self.render_expression(tree, writer, *value, destination, context);
+        }
         if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
             let mut renderer = self.renderer(tree, writer, context);
             let effect = capture_effect(&mut renderer, effect)?;

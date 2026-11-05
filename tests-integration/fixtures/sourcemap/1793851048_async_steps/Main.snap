@@ -30,7 +30,7 @@ source: tests-integration/src/fixtures.rs
    |                                            ^ 25:30 record offset)
 11 |         const first = asyncArgument();
    |         ^ 25:30 record offset)
-12 |         const $value$2 = {
+12 |         return {
    |         ^ 26:13 pause
 13 |           tag: "Bind",
    |           ^ 26:13 pause
@@ -53,7 +53,7 @@ source: tests-integration/src/fixtures.rs
    |                     ^ 27:6 first > second then Async.fail "first is larger"
    |                             ^ 27:14 second then Async.fail "first is larger"
    |                                     ^ 27:3 if first > second then Async.fail "first is larger"
-20 |                   const $value = {
+20 |                   return {
    |                   ^ 27:26 Async.fail "first is larger"
 21 |                     tag: "Throw",
    |                     ^ 27:26 Async.fail "first is larger"
@@ -62,85 +62,76 @@ source: tests-integration/src/fixtures.rs
    |                         ^ 27:37 "first is larger"
 23 |                   };
    |                   ^ 27:26 Async.fail "first is larger"
-24 |                   return $value;
-   |                   ^ 27:26 Async.fail "first is larger"
-25 |                 } else {
+24 |                 } else {
    |                 ^ 27:3 if first > second then Async.fail "first is larger"
-26 |                   const $value$1 = {
+25 |                   return {
    |                   ^ 28:8 pure (first + second)
-27 |                     tag: "Pure",
+26 |                     tag: "Pure",
    |                     ^ 28:8 pure (first + second)
-28 |                     _1: first + second | 0
+27 |                     _1: first + second | 0
    |                     ^ 28:8 pure (first + second)
    |                         ^ 28:14 first + second)
    |                                 ^ 28:22 second)
    |                                          ^ 28:14 first + second)
-29 |                   };
+28 |                   };
    |                   ^ 28:8 pure (first + second)
-30 |                   return $value$1;
-   |                   ^ 28:8 pure (first + second)
-31 |                 }
+29 |                 }
    |                 ^ 27:3 if first > second then Async.fail "first is larger"
-32 |               }
+30 |               }
    |               ^ 26:13 pause
-33 |             };
+31 |             };
    |             ^ 26:13 pause
-34 |           }
+32 |           }
    |           ^ 26:3 second <- pause
-35 |         };
+33 |         };
    |         ^ 26:13 pause
-36 |         return $value$2;
-   |         ^ 26:13 pause
-37 |       }
+34 |       }
    |       ^ 23:11 do
-38 |     };
+35 |     };
    |     ^ 23:11 do
-39 |   };
+36 |   };
    |   ^ 23:11 do
-40 | }
+37 | }
    | ^ 23:1 program = do
-41 | export const record = $foreign["record"];
+38 | export const record = $foreign["record"];
    | ^ 13:1 foreign import record :: Int -> Effect Int
-42 | export const later = $foreign["later"];
+39 | export const later = $foreign["later"];
    | ^ 15:1 foreign import later :: (Int -> Effect Unit) -> Effect Unit
-43 | export const pause = /* @__PURE__ */ (() => {
+40 | export const pause = /* @__PURE__ */ (() => {
    | ^ 18:1 pause = Async.async \callback -> do
    |              ^ (pause) 18:1 pause = Async.async \callback -> do
    |                                             ^ 18:1 pause = Async.async \callback -> do
-44 |   return Iris_Effect_Async.async((callback) => {
+41 |   return Iris_Effect_Async.async((callback) => {
    |   ^ 18:9 Async.async \callback -> do
    |                                   ^ 18:21 \callback -> do
-45 |     const $action = later((composeArgument) => /* @__PURE__ */ callback({
+42 |     const $action = later((composeArgument) => /* @__PURE__ */ callback({
    |     ^ 19:3 later (callback <<< Right)
    |                            ^ 19:10 callback <<< Right)
-46 |       tag: "Right",
+43 |       tag: "Right",
    |       ^ 19:10 callback <<< Right)
-47 |       _1: composeArgument
+44 |       _1: composeArgument
    |       ^ 19:10 callback <<< Right)
-48 |     }));
+45 |     }));
    |     ^ 19:10 callback <<< Right)
    |       ^ 19:3 later (callback <<< Right)
-49 |     return () => {
+46 |     return () => {
    |     ^ 18:34 do
-50 |       const $unit = $action();
+47 |       const $unit = $action();
    |       ^ 19:3 later (callback <<< Right)
-51 |       const $value = (environment) => ({
+48 |       return (environment) => ({
    |       ^ 20:9 pure unit)
-   |                                        ^ 20:14 unit)
-52 |         tag: "Pure",
+   |                                ^ 20:14 unit)
+49 |         tag: "Pure",
    |         ^ 20:14 unit)
-53 |         _1: Data_Unit.unit
+50 |         _1: Data_Unit.unit
    |         ^ 20:14 unit)
-54 |       });
+51 |       });
    |       ^ 20:14 unit)
-55 |       return $value;
-   |       ^ 20:3 pure (pure unit)
-   |              ^ 20:9 pure unit)
-56 |     };
+52 |     };
    |     ^ 18:34 do
-57 |   });
+53 |   });
    |   ^ 18:21 \callback -> do
    |    ^ 18:9 Async.async \callback -> do
-58 | })();
+54 | })();
    | ^ 18:1 pause = Async.async \callback -> do
    |   ^ (pause) 18:1 pause = Async.async \callback -> do

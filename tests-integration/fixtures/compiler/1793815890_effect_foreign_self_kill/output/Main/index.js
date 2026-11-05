@@ -14,11 +14,10 @@ function say(report) {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -37,11 +36,10 @@ function killSelf(fiber) {
       tag: "Run",
       _1: () => {
         const value = asyncArgument();
-        const $value$1 = {
+        return {
           tag: "Pure",
           _1: value
         };
-        return $value$1;
       }
     };
   };
@@ -67,18 +65,17 @@ function withSelf(report) {
             }));
             return () => {
               const $unit = $action();
-              const $value = (environment$1) => ({
+              return (environment$1) => ({
                 tag: "Pure",
                 _1: Data_Unit.unit
               });
-              return $value;
             };
           });
           const $result$1 = (environment$2) => {
             return {
               tag: "Run",
               _1: () => {
-                const $value$3 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$2(environment$2),
                   _2: ($unit$1) => {
@@ -92,42 +89,39 @@ function withSelf(report) {
                         const found = asyncArgument$3();
                         if (found.tag === "Just") {
                           const { _1: me } = found;
-                          const $value$1 = body(me)(environment$2);
-                          return $value$1;
+                          return body(me)(environment$2);
                         }
                         if (found === "Nothing") {
-                          const $value$2 = say(report)("missing fiber")(environment$2);
-                          return $value$2;
+                          return say(report)("missing fiber")(environment$2);
                         }
                         throw new Error("Pattern match failure");
                       }
                     };
                   }
                 };
-                return $value$3;
               }
             };
           };
           const asyncArgument$1 = $function$2($result$1);
-          const $value$6 = {
+          return {
             tag: "Bind",
             _1: asyncArgument$1(environment),
             _2: (fiber) => {
               return {
                 tag: "Run",
                 _1: () => {
-                  const $value$4 = {
+                  const $value = {
                     tag: "Just",
                     _1: fiber
                   };
                   const $effect$2 = () => {
-                    self.value = $value$4;
+                    self.value = $value;
                     return undefined;
                   };
                   const asyncArgument$4 = $effect$2;
                   const $unit$2 = asyncArgument$4();
                   const asyncArgument$5 = Iris_Effect_Async.await(fiber);
-                  const $value$5 = {
+                  return {
                     tag: "Bind",
                     _1: asyncArgument$5(environment),
                     _2: (exit) => {
@@ -152,12 +146,10 @@ function withSelf(report) {
                       return $function$3($result$2)(environment);
                     }
                   };
-                  return $value$5;
                 }
               };
             }
           };
-          return $value$6;
         }
       };
     };
@@ -171,14 +163,14 @@ export function insideCatch(report) {
       return {
         tag: "Run",
         _1: () => {
-          const $value$3 = {
+          return {
             tag: "Bind",
             _1: {
               tag: "Catch",
               _1: {
                 tag: "Run",
                 _1: () => {
-                  const $value$1 = {
+                  return {
                     tag: "Bind",
                     _1: asyncArgument(environment),
                     _2: ($unit) => {
@@ -186,32 +178,28 @@ export function insideCatch(report) {
                         tag: "Run",
                         _1: () => {
                           const asyncArgument$1 = killSelf(me);
-                          const $value = {
+                          return {
                             tag: "Bind",
                             _1: asyncArgument$1(environment),
                             _2: ($unit$1) => say(report)("after kill")(environment)
                           };
-                          return $value;
                         }
                       };
                     }
                   };
-                  return $value$1;
                 }
               },
               _2: (caughtError) => {
                 return {
                   tag: "Run",
                   _1: () => {
-                    const $value$2 = say(report)("caught " + caughtError)(environment);
-                    return $value$2;
+                    return say(report)("caught " + caughtError)(environment);
                   }
                 };
               }
             },
             _2: ($unit$2) => say(report)("after catch")(environment)
           };
-          return $value$3;
         }
       };
     };
@@ -224,7 +212,7 @@ export function beforeImmediateCallback(report) {
       return {
         tag: "Run",
         _1: () => {
-          const $value$3 = {
+          return {
             tag: "Bind",
             _1: asyncArgument(environment),
             _2: ($unit) => {
@@ -232,7 +220,7 @@ export function beforeImmediateCallback(report) {
                 tag: "Run",
                 _1: () => {
                   const asyncArgument$1 = killSelf(me);
-                  const $value$2 = {
+                  return {
                     tag: "Bind",
                     _1: asyncArgument$1(environment),
                     _2: ($unit$1) => {
@@ -246,29 +234,25 @@ export function beforeImmediateCallback(report) {
                             });
                             return () => {
                               const $unit$2 = $action();
-                              const $value = (environment$1) => ({
+                              return (environment$1) => ({
                                 tag: "Pure",
                                 _1: Data_Unit.unit
                               });
-                              return $value;
                             };
                           });
-                          const $value$1 = {
+                          return {
                             tag: "Bind",
                             _1: asyncArgument$2(environment),
                             _2: (value) => say(report)("after callback " + /* @__PURE__ */ Data_Show.show(Data_Show.showInt)(value))(environment)
                           };
-                          return $value$1;
                         }
                       };
                     }
                   };
-                  return $value$2;
                 }
               };
             }
           };
-          return $value$3;
         }
       };
     };

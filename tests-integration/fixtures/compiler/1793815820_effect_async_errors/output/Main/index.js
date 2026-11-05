@@ -11,11 +11,10 @@ function say(report) {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -39,14 +38,14 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$11 = {
+        return {
           tag: "Bind",
           _1: {
             tag: "Catch",
             _1: {
               tag: "Run",
               _1: () => {
-                const $value = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument(environment),
                   _2: (firstValue) => ({
@@ -54,7 +53,6 @@ function program(report) {
                     _1: "boom"
                   })
                 };
-                return $value;
               }
             },
             _2: (caughtError) => {
@@ -62,7 +60,7 @@ function program(report) {
                 tag: "Run",
                 _1: () => {
                   const asyncArgument$2 = say(report)("caught " + caughtError);
-                  const $value$1 = {
+                  return {
                     tag: "Bind",
                     _1: asyncArgument$2(environment),
                     _2: ($unit) => ({
@@ -70,7 +68,6 @@ function program(report) {
                       _1: 7 | 0
                     })
                   };
-                  return $value$1;
                 }
               };
             }
@@ -80,14 +77,14 @@ function program(report) {
               tag: "Run",
               _1: () => {
                 const asyncArgument$3 = say(report)("recovered " + /* @__PURE__ */ showIntDictShow(recovered));
-                const $value$10 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$3(environment),
                   _2: ($unit$1) => {
                     return {
                       tag: "Run",
                       _1: () => {
-                        const $value$9 = {
+                        return {
                           tag: "Bind",
                           _1: {
                             tag: "Catch",
@@ -125,14 +122,14 @@ function program(report) {
                               tag: "Run",
                               _1: () => {
                                 const asyncArgument$4 = say(report)(describe(mapped));
-                                const $value$8 = {
+                                return {
                                   tag: "Bind",
                                   _1: asyncArgument$4(environment),
                                   _2: ($unit$2) => {
                                     return {
                                       tag: "Run",
                                       _1: () => {
-                                        const $value$7 = {
+                                        return {
                                           tag: "Bind",
                                           _1: {
                                             tag: "Catch",
@@ -149,11 +146,10 @@ function program(report) {
                                                     tag: "Run",
                                                     _1: () => {
                                                       const asyncArgument$5 = "handled " + caughtError$3;
-                                                      const $value$2 = {
+                                                      return {
                                                         tag: "Throw",
                                                         _1: asyncArgument$5
                                                       };
-                                                      return $value$2;
                                                     }
                                                   };
                                                 }
@@ -179,14 +175,14 @@ function program(report) {
                                               tag: "Run",
                                               _1: () => {
                                                 const asyncArgument$6 = say(report)(describe(rethrown));
-                                                const $value$6 = {
+                                                return {
                                                   tag: "Bind",
                                                   _1: asyncArgument$6(environment),
                                                   _2: ($unit$3) => {
                                                     return {
                                                       tag: "Run",
                                                       _1: () => {
-                                                        const $value$5 = {
+                                                        return {
                                                           tag: "Bind",
                                                           _1: {
                                                             tag: "Catch",
@@ -210,14 +206,14 @@ function program(report) {
                                                               tag: "Run",
                                                               _1: () => {
                                                                 const asyncArgument$7 = say(report)(describe(succeeded));
-                                                                const $value$4 = {
+                                                                return {
                                                                   tag: "Bind",
                                                                   _1: asyncArgument$7(environment),
                                                                   _2: ($unit$4) => {
                                                                     return {
                                                                       tag: "Run",
                                                                       _1: () => {
-                                                                        const $value$3 = {
+                                                                        return {
                                                                           tag: "Bind",
                                                                           _1: {
                                                                             tag: "Catch",
@@ -232,47 +228,38 @@ function program(report) {
                                                                           },
                                                                           _2: ($unit$5) => say(report)("after uncaught")(environment)
                                                                         };
-                                                                        return $value$3;
                                                                       }
                                                                     };
                                                                   }
                                                                 };
-                                                                return $value$4;
                                                               }
                                                             };
                                                           }
                                                         };
-                                                        return $value$5;
                                                       }
                                                     };
                                                   }
                                                 };
-                                                return $value$6;
                                               }
                                             };
                                           }
                                         };
-                                        return $value$7;
                                       }
                                     };
                                   }
                                 };
-                                return $value$8;
                               }
                             };
                           }
                         };
-                        return $value$9;
                       }
                     };
                   }
                 };
-                return $value$10;
               }
             };
           }
         };
-        return $value$11;
       }
     };
   };

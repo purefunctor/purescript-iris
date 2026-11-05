@@ -22,7 +22,7 @@ function program(services) {
             _1: asyncArgument$2
           });
           const asyncArgument$1 = /* @__PURE__ */ $function($result);
-          const $value$2 = {
+          return {
             tag: "Bind",
             _1: asyncArgument$1(environment),
             _2: (adjusted) => {
@@ -36,23 +36,20 @@ function program(services) {
                   const appliedArgument = asyncArgument$4();
                   const result = appliedFunction(appliedArgument);
                   if (result > (0 | 0)) {
-                    const $value = {
+                    return {
                       tag: "Pure",
                       _1: result
                     };
-                    return $value;
                   } else {
-                    const $value$1 = {
+                    return {
                       tag: "Throw",
                       _1: "negative result"
                     };
-                    return $value$1;
                   }
                 }
               };
             }
           };
-          return $value$2;
         }
       };
     };
@@ -67,7 +64,7 @@ export function runOrdered($unit) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$1 = {
+        return {
           tag: "Bind",
           _1: asyncArgument(environment$2),
           _2: (result) => {
@@ -76,24 +73,21 @@ export function runOrdered($unit) {
               _1: () => {
                 const asyncArgument$1 = complete(result);
                 const value = asyncArgument$1();
-                const $value = {
+                return {
                   tag: "Pure",
                   _1: value
                 };
-                return $value;
               }
             };
           }
         };
-        return $value$1;
       }
     };
   };
   const $action = $function($result);
   return () => {
     const $fiber = $action();
-    const $value$2 = Data_Unit.unit;
-    return $value$2;
+    return Data_Unit.unit;
   };
 }
 const step = $foreign["step"];
@@ -108,7 +102,7 @@ export const provided = /* @__PURE__ */ (() => {
     return {
       tag: "Run",
       _1: () => {
-        const $value$1 = {
+        return {
           tag: "Bind",
           _1: asyncArgument$1(asyncArgument),
           _2: (result) => {
@@ -117,23 +111,20 @@ export const provided = /* @__PURE__ */ (() => {
               _1: () => {
                 const asyncArgument$2 = complete(result);
                 const value = asyncArgument$2();
-                const $value = {
+                return {
                   tag: "Pure",
                   _1: value
                 };
-                return $value;
               }
             };
           }
         };
-        return $value$1;
       }
     };
   };
   const $action = $function($result);
   return () => {
     const $fiber = $action();
-    const $value$2 = Data_Unit.unit;
-    return $value$2;
+    return Data_Unit.unit;
   };
 })();

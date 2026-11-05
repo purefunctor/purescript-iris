@@ -47,7 +47,6 @@ export function countTwice(value) {
     const $value$2 = section190 * (10 | 0) | 0;
     next = counter = $value$2;
     const current = counter;
-    const $value$3 = next + current | 0;
-    return $value$3;
+    return next + current | 0;
   };
 }

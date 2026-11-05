@@ -14,20 +14,18 @@ function delay(milliseconds) {
     return () => {
       const identifier = $action();
       const asyncArgument = clearTimeout(identifier);
-      const $result = (environment) => {
+      return (environment) => {
         return {
           tag: "Run",
           _1: () => {
             const value = asyncArgument();
-            const $value = {
+            return {
               tag: "Pure",
               _1: value
             };
-            return $value;
           }
         };
       };
-      return $result;
     };
   });
 }
@@ -53,7 +51,7 @@ function outcome(report) {
         return {
           tag: "Run",
           _1: () => {
-            const $value$2 = {
+            return {
               tag: "Bind",
               _1: asyncArgument(environment),
               _2: (fiber) => {
@@ -61,7 +59,7 @@ function outcome(report) {
                   tag: "Run",
                   _1: () => {
                     const asyncArgument$1 = Iris_Effect_Async.await(fiber);
-                    const $value$1 = {
+                    return {
                       tag: "Bind",
                       _1: asyncArgument$1(environment),
                       _2: (exit) => {
@@ -70,21 +68,18 @@ function outcome(report) {
                           _1: () => {
                             const asyncArgument$2 = report(label + (": " + describe(exit)));
                             const value = asyncArgument$2();
-                            const $value = {
+                            return {
                               tag: "Pure",
                               _1: value
                             };
-                            return $value;
                           }
                         };
                       }
                     };
-                    return $value$1;
                   }
                 };
               }
             };
-            return $value$2;
           }
         };
       };
@@ -99,11 +94,10 @@ function program(report) {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -116,11 +110,10 @@ function program(report) {
       tag: "Run",
       _1: () => {
         const value$1 = asyncArgument$2();
-        const $value$1 = {
+        return {
           tag: "Pure",
           _1: value$1
         };
-        return $value$1;
       }
     };
   };
@@ -129,7 +122,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$22 = {
+        return {
           tag: "Bind",
           _1: asyncArgument$1(environment$2),
           _2: (dying) => {
@@ -143,7 +136,7 @@ function program(report) {
                   return {
                     tag: "Run",
                     _1: () => {
-                      const $value$2 = {
+                      return {
                         tag: "Bind",
                         _1: asyncArgument$4(environment$3),
                         _2: (firstValue) => ({
@@ -155,12 +148,11 @@ function program(report) {
                           })
                         })
                       };
-                      return $value$2;
                     }
                   };
                 };
                 const asyncArgument$3 = $function$2($result$1);
-                const $value$21 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$3(environment$2),
                   _2: (other) => {
@@ -168,7 +160,7 @@ function program(report) {
                       tag: "Run",
                       _1: () => {
                         const asyncArgument$6 = Iris_Effect_Async.await(other);
-                        const $value$20 = {
+                        return {
                           tag: "Bind",
                           _1: asyncArgument$6(environment$2),
                           _2: ($exit) => {
@@ -176,7 +168,7 @@ function program(report) {
                               tag: "Run",
                               _1: () => {
                                 const asyncArgument$7 = outcome(report)("await")(Iris_Effect_Async.join(dying));
-                                const $value$19 = {
+                                return {
                                   tag: "Bind",
                                   _1: asyncArgument$7(environment$2),
                                   _2: ($unit) => {
@@ -189,7 +181,7 @@ function program(report) {
                                           return {
                                             tag: "Run",
                                             _1: () => {
-                                              const $value$3 = {
+                                              return {
                                                 tag: "Catch",
                                                 _1: {
                                                   tag: "Bind",
@@ -210,12 +202,11 @@ function program(report) {
                                                   }
                                                 })
                                               };
-                                              return $value$3;
                                             }
                                           };
                                         };
                                         const asyncArgument$8 = $function$3($result$2);
-                                        const $value$18 = {
+                                        return {
                                           tag: "Bind",
                                           _1: asyncArgument$8(environment$2),
                                           _2: ($unit$1) => {
@@ -230,11 +221,10 @@ function program(report) {
                                                     tag: "Run",
                                                     _1: () => {
                                                       const value$2 = asyncArgument$11();
-                                                      const $value$4 = {
+                                                      return {
                                                         tag: "Pure",
                                                         _1: value$2
                                                       };
-                                                      return $value$4;
                                                     }
                                                   };
                                                 };
@@ -242,7 +232,7 @@ function program(report) {
                                                   tag: "Throw",
                                                   _1: "typed"
                                                 })));
-                                                const $value$17 = {
+                                                return {
                                                   tag: "Bind",
                                                   _1: asyncArgument$10(environment$2),
                                                   _2: ($unit$2) => {
@@ -257,11 +247,10 @@ function program(report) {
                                                             tag: "Run",
                                                             _1: () => {
                                                               const value$3 = asyncArgument$13();
-                                                              const $value$5 = {
+                                                              return {
                                                                 tag: "Pure",
                                                                 _1: value$3
                                                               };
-                                                              return $value$5;
                                                             }
                                                           };
                                                         };
@@ -272,16 +261,15 @@ function program(report) {
                                                             tag: "Run",
                                                             _1: () => {
                                                               const value$4 = asyncArgument$14();
-                                                              const $value$6 = {
+                                                              return {
                                                                 tag: "Pure",
                                                                 _1: value$4
                                                               };
-                                                              return $value$6;
                                                             }
                                                           };
                                                         };
                                                         const asyncArgument$12 = $function$6($function$8($result$5));
-                                                        const $value$16 = {
+                                                        return {
                                                           tag: "Bind",
                                                           _1: asyncArgument$12(environment$2),
                                                           _2: ($unit$3) => {
@@ -296,16 +284,15 @@ function program(report) {
                                                                     tag: "Run",
                                                                     _1: () => {
                                                                       const value$5 = asyncArgument$16();
-                                                                      const $value$7 = {
+                                                                      return {
                                                                         tag: "Pure",
                                                                         _1: value$5
                                                                       };
-                                                                      return $value$7;
                                                                     }
                                                                   };
                                                                 };
                                                                 const asyncArgument$15 = $function$9($function$10($result$6)(delay(1e3 | 0)));
-                                                                const $value$15 = {
+                                                                return {
                                                                   tag: "Bind",
                                                                   _1: asyncArgument$15(environment$2),
                                                                   _2: (killed) => {
@@ -313,7 +300,7 @@ function program(report) {
                                                                       tag: "Run",
                                                                       _1: () => {
                                                                         const asyncArgument$17 = Iris_Effect_Async.kill("killed")(killed);
-                                                                        const $value$14 = {
+                                                                        return {
                                                                           tag: "Bind",
                                                                           _1: asyncArgument$17(environment$2),
                                                                           _2: ($unit$4) => {
@@ -321,7 +308,7 @@ function program(report) {
                                                                               tag: "Run",
                                                                               _1: () => {
                                                                                 const asyncArgument$18 = Iris_Effect_Async.await(killed);
-                                                                                const $value$13 = {
+                                                                                return {
                                                                                   tag: "Bind",
                                                                                   _1: asyncArgument$18(environment$2),
                                                                                   _2: (killedExit) => {
@@ -329,7 +316,7 @@ function program(report) {
                                                                                       tag: "Run",
                                                                                       _1: () => {
                                                                                         const asyncArgument$19 = say("kill with failing finalizer: " + describe(killedExit));
-                                                                                        const $value$12 = {
+                                                                                        return {
                                                                                           tag: "Bind",
                                                                                           _1: asyncArgument$19(environment$2),
                                                                                           _2: ($unit$5) => {
@@ -341,15 +328,14 @@ function program(report) {
                                                                                                     tag: "Run",
                                                                                                     _1: () => {
                                                                                                       const value$6 = throwNull();
-                                                                                                      const $value$8 = {
+                                                                                                      return {
                                                                                                         tag: "Pure",
                                                                                                         _1: value$6
                                                                                                       };
-                                                                                                      return $value$8;
                                                                                                     }
                                                                                                   };
                                                                                                 });
-                                                                                                const $value$11 = {
+                                                                                                return {
                                                                                                   tag: "Bind",
                                                                                                   _1: asyncArgument$20(environment$2),
                                                                                                   _2: ($unit$6) => {
@@ -361,80 +347,66 @@ function program(report) {
                                                                                                             tag: "Run",
                                                                                                             _1: () => {
                                                                                                               const value$7 = throwHostile();
-                                                                                                              const $value$9 = {
+                                                                                                              return {
                                                                                                                 tag: "Pure",
                                                                                                                 _1: value$7
                                                                                                               };
-                                                                                                              return $value$9;
                                                                                                             }
                                                                                                           };
                                                                                                         });
-                                                                                                        const $value$10 = {
+                                                                                                        return {
                                                                                                           tag: "Bind",
                                                                                                           _1: asyncArgument$21(environment$2),
                                                                                                           _2: ($unit$7) => say("parent continues")(environment$2)
                                                                                                         };
-                                                                                                        return $value$10;
                                                                                                       }
                                                                                                     };
                                                                                                   }
                                                                                                 };
-                                                                                                return $value$11;
                                                                                               }
                                                                                             };
                                                                                           }
                                                                                         };
-                                                                                        return $value$12;
                                                                                       }
                                                                                     };
                                                                                   }
                                                                                 };
-                                                                                return $value$13;
                                                                               }
                                                                             };
                                                                           }
                                                                         };
-                                                                        return $value$14;
                                                                       }
                                                                     };
                                                                   }
                                                                 };
-                                                                return $value$15;
                                                               }
                                                             };
                                                           }
                                                         };
-                                                        return $value$16;
                                                       }
                                                     };
                                                   }
                                                 };
-                                                return $value$17;
                                               }
                                             };
                                           }
                                         };
-                                        return $value$18;
                                       }
                                     };
                                   }
                                 };
-                                return $value$19;
                               }
                             };
                           }
                         };
-                        return $value$20;
                       }
                     };
                   }
                 };
-                return $value$21;
               }
             };
           }
         };
-        return $value$22;
       }
     };
   };
@@ -451,11 +423,10 @@ export function launchDefect(report) {
       tag: "Run",
       _1: () => {
         const value = asyncArgument();
-        const $value = {
+        return {
           tag: "Pure",
           _1: value
         };
-        return $value;
       }
     };
   };

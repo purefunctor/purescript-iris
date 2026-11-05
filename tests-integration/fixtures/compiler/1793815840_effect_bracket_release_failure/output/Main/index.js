@@ -25,7 +25,7 @@ function guarded(release) {
       return {
         tag: "Run",
         _1: () => {
-          const $value = {
+          return {
             tag: "Catch",
             _1: {
               tag: "Bind",
@@ -46,7 +46,6 @@ function guarded(release) {
               }
             })
           };
-          return $value;
         }
       };
     };
@@ -60,11 +59,10 @@ function program(report) {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -80,7 +78,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$7 = {
+        return {
           tag: "Bind",
           _1: asyncArgument$1(environment$3),
           _2: (releaseFailed) => {
@@ -88,7 +86,7 @@ function program(report) {
               tag: "Run",
               _1: () => {
                 const asyncArgument$2 = report_("release fails: " + describe(releaseFailed));
-                const $value$6 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$2(environment$3),
                   _2: ($unit) => {
@@ -102,7 +100,7 @@ function program(report) {
                           tag: "Throw",
                           _1: "body"
                         }));
-                        const $value$5 = {
+                        return {
                           tag: "Bind",
                           _1: asyncArgument$3(environment$3),
                           _2: (bodyFailed) => {
@@ -110,7 +108,7 @@ function program(report) {
                               tag: "Run",
                               _1: () => {
                                 const asyncArgument$4 = report_("body fails: " + describe(bodyFailed));
-                                const $value$4 = {
+                                return {
                                   tag: "Bind",
                                   _1: asyncArgument$4(environment$3),
                                   _2: ($unit$1) => {
@@ -124,7 +122,7 @@ function program(report) {
                                           tag: "Throw",
                                           _1: "body"
                                         }));
-                                        const $value$3 = {
+                                        return {
                                           tag: "Bind",
                                           _1: asyncArgument$5(environment$3),
                                           _2: (bothFailed) => {
@@ -132,7 +130,7 @@ function program(report) {
                                               tag: "Run",
                                               _1: () => {
                                                 const asyncArgument$6 = report_("both fail: " + describe(bothFailed));
-                                                const $value$2 = {
+                                                return {
                                                   tag: "Bind",
                                                   _1: asyncArgument$6(environment$3),
                                                   _2: ($unit$2) => {
@@ -146,42 +144,35 @@ function program(report) {
                                                           tag: "Pure",
                                                           _1: 2 | 0
                                                         }));
-                                                        const $value$1 = {
+                                                        return {
                                                           tag: "Bind",
                                                           _1: asyncArgument$7(environment$3),
                                                           _2: (neitherFailed) => report_("neither fails: " + describe(neitherFailed))(environment$3)
                                                         };
-                                                        return $value$1;
                                                       }
                                                     };
                                                   }
                                                 };
-                                                return $value$2;
                                               }
                                             };
                                           }
                                         };
-                                        return $value$3;
                                       }
                                     };
                                   }
                                 };
-                                return $value$4;
                               }
                             };
                           }
                         };
-                        return $value$5;
                       }
                     };
                   }
                 };
-                return $value$6;
               }
             };
           }
         };
-        return $value$7;
       }
     };
   };

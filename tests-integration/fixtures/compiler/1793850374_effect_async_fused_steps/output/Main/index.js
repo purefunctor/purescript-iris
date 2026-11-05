@@ -14,7 +14,7 @@ function lowered(services) {
         const first = asyncArgument();
         const asyncArgument$1 = record(first + (1 | 0) | 0);
         const second = asyncArgument$1();
-        const $value$1 = {
+        return {
           tag: "Bind",
           _1: pause(environment),
           _2: (third) => {
@@ -25,16 +25,14 @@ function lowered(services) {
                 const fourth = asyncArgument$2();
                 const asyncArgument$3 = complete(fourth);
                 const value = asyncArgument$3();
-                const $value = {
+                return {
                   tag: "Pure",
                   _1: value
                 };
-                return $value;
               }
             };
           }
         };
-        return $value$1;
       }
     };
   };
@@ -54,11 +52,10 @@ const pause = /* @__PURE__ */ (() => {
     }));
     return () => {
       const $unit = $action();
-      const $value = (environment) => ({
+      return (environment) => ({
         tag: "Pure",
         _1: Data_Unit.unit
       });
-      return $value;
     };
   });
 })();
@@ -71,11 +68,10 @@ export const runGeneric = /* @__PURE__ */ (() => {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -86,11 +82,10 @@ export const runGeneric = /* @__PURE__ */ (() => {
         tag: "Run",
         _1: () => {
           const value$1 = asyncArgument$1();
-          const $value$1 = {
+          return {
             tag: "Pure",
             _1: value$1
           };
-          return $value$1;
         }
       };
     };

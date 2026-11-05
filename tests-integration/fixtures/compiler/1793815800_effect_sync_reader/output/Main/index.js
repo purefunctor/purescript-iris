@@ -3,8 +3,7 @@ function greeting(services) {
   return (environment) => {
     const $value = services["Main.Name"](environment);
     return () => {
-      const $value$1 = "hello " + $value;
-      return $value$1;
+      return "hello " + $value;
     };
   };
 }

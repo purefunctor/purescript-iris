@@ -24,8 +24,7 @@ export function pureAfterBind(seed) {
   const $action = constructST("pure-action")(seed);
   return () => {
     const value = $action();
-    const $value = mark("pure-body")({ value });
-    return $value;
+    return mark("pure-body")({ value });
   };
 }
 export const constructST = $foreign["constructST"];

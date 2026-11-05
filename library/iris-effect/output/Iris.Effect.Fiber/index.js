@@ -279,8 +279,7 @@ function rethrowEscaped(recorded) {
       return Effect_Exception.throwException(error)();
     }
     if (escaped === "Nothing") {
-      const $value = Data_Unit.unit;
-      return $value;
+      return Data_Unit.unit;
     }
     throw new Error("Pattern match failure");
   };
@@ -304,7 +303,7 @@ export function makeFiber(runtime) {
       const joins = { value: "Nil" };
       const joinIdentifier = { value: 0 | 0 };
       const runTick = { value: 0 | 0 };
-      const $value$1 = {
+      return {
         runtime,
         status,
         runnableResult,
@@ -322,7 +321,6 @@ export function makeFiber(runtime) {
         joinIdentifier,
         runTick
       };
-      return $value$1;
     };
   };
 }
@@ -365,15 +363,14 @@ export function killFiber(error) {
         if (status === "Completed") {
           const $unit = callback();
           const $value = Data_Unit.unit;
-          const $effect = () => {
+          return () => {
             return $value;
           };
-          return $effect;
         }
         const $action = onComplete(fiber)(($exit) => callback);
         const canceler = $action();
         const $reference$1 = fiber.interrupt;
-        const $effect$1 = () => {
+        const $effect = () => {
           const interrupt = $reference$1.value;
           const $function = Control_Applicative.when(Effect.applicativeEffect)(Data_Maybe.isNothing(interrupt));
           const $reference$2 = fiber.interrupt;
@@ -381,15 +378,15 @@ export function killFiber(error) {
             tag: "Just",
             _1: toOpaque(error)
           };
-          const $effect$2 = () => {
+          const $effect$1 = () => {
             $reference$2.value = $value$1;
             return undefined;
           };
-          return (/* @__PURE__ */ $function($effect$2))();
+          return (/* @__PURE__ */ $function($effect$1))();
         };
-        const markInterrupted = $effect$1;
+        const markInterrupted = $effect;
         const $reference$3 = fiber.status;
-        const $effect$3 = () => {
+        const $effect$2 = () => {
           $reference$3.value = "Return";
           const $reference$4 = fiber.returnValue;
           $reference$4.value = "Nothing";
@@ -397,7 +394,7 @@ export function killFiber(error) {
           $reference$5.value = "Nothing";
           return undefined;
         };
-        const abandon = $effect$3;
+        const abandon = $effect$2;
         let $result;
         $case: {
           if (status === "Suspended") {
@@ -429,7 +426,7 @@ export function killFiber(error) {
               const bracketCount = $reference$10.value;
               const $function$1 = Control_Applicative.when(Effect.applicativeEffect)(bracketCount === (0 | 0));
               const $reference$11 = fiber.pendingCanceler;
-              const $effect$4 = () => {
+              const $effect$3 = () => {
                 const pendingCanceler = $reference$11.value;
                 const $reference$12 = fiber.pendingCanceler;
                 $reference$12.value = "Nothing";
@@ -461,7 +458,7 @@ export function killFiber(error) {
                 $reference$14.value = $value$5;
                 return run(fiber)();
               };
-              return (/* @__PURE__ */ $function$1($effect$4))();
+              return (/* @__PURE__ */ $function$1($effect$3))();
             };
             break $case;
           }
@@ -494,10 +491,9 @@ function onComplete(fiber) {
         const $action = join(exit);
         const $unit = $action();
         const $value = Data_Unit.unit;
-        const $effect = () => {
+        return () => {
           return $value;
         };
-        return $effect;
       }
       const $reference$2 = fiber.joinIdentifier;
       const identifier = $reference$2.value;
@@ -517,14 +513,13 @@ function onComplete(fiber) {
       };
       $reference$5.value = $value$2;
       const $reference$6 = fiber.joins;
-      const $effect$1 = () => {
+      return () => {
         const remaining = $reference$6.value;
         const $reference$7 = fiber.joins;
         const $value$3 = Data_List.filter((entry) => entry.identifier !== identifier)(remaining);
         $reference$7.value = $value$3;
         return undefined;
       };
-      return $effect$1;
     };
   };
 }
@@ -654,8 +649,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             const exit = $reference$3.value;
             return complete($currentArgument0)(exit)();
           }
-          const $value$1 = Data_Unit.unit;
-          return $value$1;
+          return Data_Unit.unit;
         };
       }
       // runFromStatus
@@ -692,16 +686,13 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             return [false, (/* @__PURE__ */ Control_Applicative.unless(Effect.applicativeEffect)(stop$1)(runSteps($currentArgument0$1)))()];
           }
           if (status$1 === "Running") {
-            const $value$2 = Data_Unit.unit;
-            return [false, $value$2];
+            return [false, Data_Unit.unit];
           }
           if (status$1 === "Pending") {
-            const $value$3 = Data_Unit.unit;
-            return [false, $value$3];
+            return [false, Data_Unit.unit];
           }
           if (status$1 === "Completed") {
-            const $value$4 = Data_Unit.unit;
-            return [false, $value$4];
+            return [false, Data_Unit.unit];
           }
           throw new Error("Pattern match failure");
         };
@@ -825,9 +816,9 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                 const tick = $reference$14.value;
                 const $function$2 = Control_Applicative.when(Effect.applicativeEffect)(tick === localRunTick);
                 const $reference$15 = $currentArgument0$2.runTick;
-                const $value$5 = tick + (1 | 0) | 0;
+                const $value$1 = tick + (1 | 0) | 0;
                 const $effect$2 = () => {
-                  $reference$15.value = $value$5;
+                  $reference$15.value = $value$1;
                   const $function$3 = enqueue(runtime.scheduler);
                   const $reference$16 = $currentArgument0$2.runTick;
                   const $effect$3 = () => {
@@ -860,21 +851,21 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                   const pendingCanceler = $reference$21.value;
                   const $function$5 = Control_Applicative.when(Effect.applicativeEffect)(Data_Maybe.isNothing(pendingCanceler));
                   const $reference$22 = $currentArgument0$2.pendingCanceler;
-                  const $value$6 = {
+                  const $value$2 = {
                     tag: "Just",
                     _1: canceler
                   };
                   const $effect$5 = () => {
-                    $reference$22.value = $value$6;
+                    $reference$22.value = $value$2;
                     return undefined;
                   };
                   return (/* @__PURE__ */ $function$5($effect$5))();
                 };
                 break $case;
               }
-              const $value$7 = Data_Unit.unit;
+              const $value$3 = Data_Unit.unit;
               $result = () => {
-                return $value$7;
+                return $value$3;
               };
               break $case;
             }
@@ -900,8 +891,8 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             const $reference$24 = $currentArgument0$2.bracketCount;
             const bracketCount = $reference$24.value;
             const $reference$25 = $currentArgument0$2.bracketCount;
-            const $value$8 = bracketCount + (1 | 0) | 0;
-            $reference$25.value = $value$8;
+            const $value$4 = bracketCount + (1 | 0) | 0;
+            $reference$25.value = $value$4;
             const $reference$26 = $currentArgument0$2.interrupt;
             const interrupt$1 = $reference$26.value;
             const $action$10 = suspendContinuations($currentArgument0$2);
@@ -922,11 +913,11 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             const $scrutinee$1 = $currentArgument0$2.runtime;
             const runtime$1 = $scrutinee$1;
             const $reference$27 = $currentArgument0$2.runnableResult;
-            const $value$9 = {
+            const $value$5 = {
               tag: "Right",
               _1: continuation$1(forked)
             };
-            $reference$27.value = $value$9;
+            $reference$27.value = $value$5;
             const $reference$28 = $currentArgument0$2.status;
             $reference$28.value = "Runnable";
             const $action$13 = prioritize(runtime$1.scheduler)(run($currentArgument0$2));
@@ -1294,16 +1285,10 @@ function returnStep(fiber) {
     const $unit$4 = $action$3();
     const $reference$34 = fiber.status;
     const status = $reference$34.value;
-    let $result$3;
-    $case$2: {
-      if (status === "Completed") {
-        $result$3 = true;
-        break $case$2;
-      }
-      $result$3 = false;
-      break $case$2;
+    if (status === "Completed") {
+      return true;
     }
-    return $result$3;
+    return false;
   };
 }
 function complete(fiber) {
@@ -1348,13 +1333,12 @@ export const newRuntime = /* @__PURE__ */ (() => {
     const back = { value: "Nil" };
     const draining = { value: false };
     const escaped = { value: "Nothing" };
-    const $value = { scheduler: {
+    return { scheduler: {
       front,
       back,
       draining,
       escaped
     } };
-    return $value;
   };
 })();
 const noResult = {

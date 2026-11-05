@@ -12,11 +12,10 @@ function say(report) {
         tag: "Run",
         _1: () => {
           const value = asyncArgument();
-          const $value = {
+          return {
             tag: "Pure",
             _1: value
           };
-          return $value;
         }
       };
     };
@@ -34,11 +33,11 @@ function sleep(report) {
           const identifier = $action();
           const asyncArgument = say(report)("cancel " + label);
           const asyncArgument$1 = clearTimeout(identifier);
-          const $result = (environment) => {
+          return (environment) => {
             return {
               tag: "Run",
               _1: () => {
-                const $value$1 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument(environment),
                   _2: (firstValue) => {
@@ -46,20 +45,17 @@ function sleep(report) {
                       tag: "Run",
                       _1: () => {
                         const secondValue = asyncArgument$1();
-                        const $value = {
+                        return {
                           tag: "Pure",
                           _1: secondValue
                         };
-                        return $value;
                       }
                     };
                   }
                 };
-                return $value$1;
               }
             };
           };
-          return $result;
         };
       });
     };
@@ -86,7 +82,7 @@ function killed(report) {
         return {
           tag: "Run",
           _1: () => {
-            const $value$2 = {
+            return {
               tag: "Bind",
               _1: asyncArgument(environment),
               _2: (fiber) => {
@@ -94,7 +90,7 @@ function killed(report) {
                   tag: "Run",
                   _1: () => {
                     const asyncArgument$1 = Iris_Effect_Async.kill("kill " + label)(fiber);
-                    const $value$1 = {
+                    return {
                       tag: "Bind",
                       _1: asyncArgument$1(environment),
                       _2: ($unit) => {
@@ -102,22 +98,19 @@ function killed(report) {
                           tag: "Run",
                           _1: () => {
                             const asyncArgument$2 = Iris_Effect_Async.await(fiber);
-                            const $value = {
+                            return {
                               tag: "Bind",
                               _1: asyncArgument$2(environment),
                               _2: (exit) => say(report)(label + (" " + describe(exit)))(environment)
                             };
-                            return $value;
                           }
                         };
                       }
                     };
-                    return $value$1;
                   }
                 };
               }
             };
-            return $value$2;
           }
         };
       };
@@ -133,7 +126,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value = {
+        return {
           tag: "Bind",
           _1: asyncArgument$1(environment),
           _2: (firstValue) => ({
@@ -145,7 +138,6 @@ function program(report) {
             })
           })
         };
-        return $value;
       }
     };
   };
@@ -154,7 +146,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$4 = {
+        return {
           tag: "Bind",
           _1: asyncArgument(environment$1),
           _2: ($unit$2) => {
@@ -168,7 +160,7 @@ function program(report) {
                     return {
                       tag: "Run",
                       _1: () => {
-                        const $value$1 = {
+                        return {
                           tag: "Bind",
                           _1: asyncArgument$4(environment$2),
                           _2: (firstValue$1) => ({
@@ -180,7 +172,6 @@ function program(report) {
                             })
                           })
                         };
-                        return $value$1;
                       }
                     };
                   };
@@ -191,7 +182,7 @@ function program(report) {
                     return {
                       tag: "Run",
                       _1: () => {
-                        const $value$2 = {
+                        return {
                           tag: "Bind",
                           _1: asyncArgument$6(environment$3),
                           _2: (firstValue$2) => ({
@@ -203,12 +194,11 @@ function program(report) {
                             })
                           })
                         };
-                        return $value$2;
                       }
                     };
                   };
                 }));
-                const $value$3 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$3(environment$1),
                   _2: ($unit$5) => killed(report)("with failing release")(Iris_Effect_Async.bracket((environment$4) => ({
@@ -219,12 +209,10 @@ function program(report) {
                     _1: "release failure"
                   }))(($unit$7) => sleep(report)("use")(1e3 | 0)))(environment$1)
                 };
-                return $value$3;
               }
             };
           }
         };
-        return $value$4;
       }
     };
   };

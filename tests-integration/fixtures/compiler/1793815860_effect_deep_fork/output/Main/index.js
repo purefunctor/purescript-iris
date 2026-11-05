@@ -8,19 +8,17 @@ function nestedForks(depth) {
       tag: "Run",
       _1: () => {
         if (depth === (0 | 0)) {
-          const $value = {
+          return {
             tag: "Pure",
             _1: 719 | 0
           };
-          return $value;
         } else {
           const asyncArgument = Iris_Effect_Async.fork(nestedForks(depth - (1 | 0) | 0));
-          const $value$1 = {
+          return {
             tag: "Bind",
             _1: asyncArgument(environment),
             _2: (child) => Iris_Effect_Async.join(child)(environment)
           };
-          return $value$1;
         }
       }
     };
@@ -38,7 +36,7 @@ function countdown(remaining) {
         tag: "Run",
         _1: () => {
           const asyncArgument = countdown(remaining - (1 | 0) | 0);
-          const $value = {
+          return {
             tag: "Bind",
             _1: asyncArgument(environment$1),
             _2: (next) => ({
@@ -46,7 +44,6 @@ function countdown(remaining) {
               _1: next + (1 | 0) | 0
             })
           };
-          return $value;
         }
       };
     };
@@ -58,7 +55,7 @@ function program(report) {
     return {
       tag: "Run",
       _1: () => {
-        const $value$2 = {
+        return {
           tag: "Bind",
           _1: asyncArgument(environment),
           _2: (forked) => {
@@ -68,7 +65,7 @@ function program(report) {
                 const asyncArgument$1 = report("nested forks " + /* @__PURE__ */ showIntDictShow(forked));
                 const $unit = asyncArgument$1();
                 const asyncArgument$2 = countdown(1e5 | 0);
-                const $value$1 = {
+                return {
                   tag: "Bind",
                   _1: asyncArgument$2(environment),
                   _2: (counted) => {
@@ -77,21 +74,18 @@ function program(report) {
                       _1: () => {
                         const asyncArgument$3 = report("binds " + /* @__PURE__ */ showIntDictShow(counted));
                         const value = asyncArgument$3();
-                        const $value = {
+                        return {
                           tag: "Pure",
                           _1: value
                         };
-                        return $value;
                       }
                     };
                   }
                 };
-                return $value$1;
               }
             };
           }
         };
-        return $value$2;
       }
     };
   };
