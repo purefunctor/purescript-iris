@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+start :: Main.Options -> Effect.Effect Data.Unit.Unit
+runScenario ::
+  { baseUrl :: Prim.String
+  , onFailure :: Prim.String -> Effect.Effect Data.Unit.Unit
+  , onResult :: Prim.Array Prim.String -> Effect.Effect Data.Unit.Unit
+  } ->
+  Effect.Effect Data.Unit.Unit
+
+Types
+Options :: Prim.Type
+
+Synonyms
+type Options = { cacheCapacity :: Prim.Int
+, host :: Prim.String
+, log :: Prim.String -> Effect.Effect Data.Unit.Unit
+, onFailure :: Prim.String -> Effect.Effect Data.Unit.Unit
+, onListening ::
+    { port :: Prim.Int, stop :: Effect.Effect Data.Unit.Unit -> Effect.Effect Data.Unit.Unit } ->
+    Effect.Effect Data.Unit.Unit
+, port :: Prim.Int
+, upstream :: Prim.String
+}

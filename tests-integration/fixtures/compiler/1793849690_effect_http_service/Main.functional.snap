@@ -1,0 +1,128 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export start = \options%0 ->
+  effect.bind (make { capacity: options%0.cacheCapacity })
+    \cache%1 -> effect.bind make
+      \orders%2 -> let
+        environment%6 = {
+          server: default,
+          catalog: make { baseUrl: options%0.upstream } client,
+          cache: cache%1,
+          orders: orders%2,
+          logger: { write: options%0.log }
+        }
+      in void functorEffect
+        (launch
+          {
+            onUncaught:
+              let
+                composeOuter%3 = options%0.onFailure
+                composeInner%4 = show showServerError
+              in \composeArgument%5 -> composeOuter%3 (composeInner%4 composeArgument%5)
+          }
+          environment%6
+          (let
+            asyncArgument%16 = serve
+              { "Test.HttpServer.HttpServer": \environment%7 -> environment%7.server }
+              { host: options%0.host, port: options%0.port, onError: errorResponse }
+              (handle
+                {
+                  "Catalog.Catalog": \environment%8 -> environment%8.catalog,
+                  "ProductCache.ProductCache": \environment%9 -> environment%9.cache,
+                  "OrderStore.OrderStore": \environment%10 -> environment%10.orders,
+                  "Logger.Logger": \environment%11 -> environment%11.logger
+                })
+          in \environment%17 ->
+            {
+              tag: "Run",
+              _1:
+                uncurried \ ->
+                  uncurried.call effect.pure {
+                    tag: "Bind",
+                    _1: asyncArgument%16 environment%17,
+                    _2:
+                      \server%12 ->
+                        {
+                          tag: "Run",
+                          _1:
+                            uncurried \ ->
+                              let
+                                asyncArgument%14 = options%0.onListening
+                                  {
+                                    port: (address server%12).port,
+                                    stop:
+                                      (\server%18 done%20 ->
+                                        void functorEffect
+                                          (launch { onUncaught: options%0.onFailure } environment%6
+                                            (let
+                                              asyncArgument%22 = close server%18
+                                            in \environment%23 ->
+                                              {
+                                                tag: "Run",
+                                                _1:
+                                                  uncurried \ ->
+                                                    uncurried.call effect.pure {
+                                                      tag: "Bind",
+                                                      _1: asyncArgument%22 environment%23,
+                                                      _2:
+                                                        \$unit%19 ->
+                                                          {
+                                                            tag: "Run",
+                                                            _1:
+                                                              uncurried \ ->
+                                                                uncurried.call effect.bind done%20
+                                                                  \value%37 -> effect.pure {
+                                                                    tag: "Pure",
+                                                                    _1: value%37
+                                                                  }()
+                                                          }
+                                                    }()
+                                              })))
+                                        server%12
+                                  }
+                              in uncurried.call effect.bind asyncArgument%14
+                                \value%36 -> effect.pure { tag: "Pure", _1: value%36 }()
+                        }
+                  }()
+            }))
+
+@export runScenario = \$record%35@({
+  baseUrl: baseUrl%28,
+  onFailure: onFailure%24,
+  onResult: onResult%30
+}) ->
+  void functorEffect
+    (launch
+      {
+        onUncaught:
+          let
+            composeInner%25 = show showHttpError
+          in \composeArgument%26 -> onFailure%24 (composeInner%25 composeArgument%26)
+      }
+      { http: client }
+      (let
+        asyncArgument%33 = scenario
+          { "Iris.Effect.Http.Http": \environment%27 -> environment%27.http }
+          baseUrl%28
+      in \environment%34 ->
+        {
+          tag: "Run",
+          _1:
+            uncurried \ ->
+              uncurried.call effect.pure {
+                tag: "Bind",
+                _1: asyncArgument%33 environment%34,
+                _2:
+                  \lines%29 ->
+                    {
+                      tag: "Run",
+                      _1:
+                        uncurried \ ->
+                          let
+                            asyncArgument%31 = onResult%30 lines%29
+                          in uncurried.call effect.bind asyncArgument%31
+                            \value%38 -> effect.pure { tag: "Pure", _1: value%38 }()
+                    }
+              }()
+        }))

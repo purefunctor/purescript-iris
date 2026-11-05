@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+start :: Main.Options -> Effect.Effect Data.Unit.Unit
+start = \options ->
+  bind {bindEffect} (make { capacity: options.cacheCapacity }) \cache ->
+    bind {bindEffect} make \orders ->
+      let
+        environment :: { cache :: ProductCache.ProductCache
+, catalog :: Catalog.Catalog
+, logger :: Logger.Logger
+, orders :: OrderStore.OrderStore
+, server :: Test.HttpServer.HttpServer
+}
+        environment =
+          { server: default, catalog: make { baseUrl: options.upstream }
+            client, cache, orders, logger: Logger { write: options.log } }
+        stop :: Test.HttpServer.Server -> Effect.Effect Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
+        stop = \server -> \done ->
+          void {functorEffect}
+            (launch { onUncaught: options.onFailure } environment
+              (discard {discardUnit} {bindAsync} (close server) \_ -> liftEffect done))
+      in
+        void {functorEffect}
+          (launch
+            { onUncaught: compose {semigroupoidFn} options.onFailure (show {showServerError}) }
+            environment
+            (bind {bindAsync}
+              (serve {service("server")}
+                { host: options.host, port: options.port, onError: errorResponse }
+                (handle {service("catalog")} {service("cache")} {service("orders")} {service("logger")})) \server ->
+              liftEffect (options.onListening { port: (address server).port, stop: stop server })))
+
+runScenario :: { baseUrl :: Prim.String
+, onFailure :: Prim.String -> Effect.Effect Data.Unit.Unit
+, onResult :: Prim.Array Prim.String -> Effect.Effect Data.Unit.Unit
+} ->
+Effect.Effect Data.Unit.Unit
+runScenario = \{ baseUrl, onFailure, onResult } ->
+  void {functorEffect}
+    (launch { onUncaught: compose {semigroupoidFn} onFailure (show {showHttpError}) }
+      { http: client }
+      (bind {bindAsync} (scenario {service("http")} baseUrl) \lines -> liftEffect (onResult lines)))
