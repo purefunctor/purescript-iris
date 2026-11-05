@@ -1,0 +1,60 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+counted :: Iris.Effect.Async.Async Prim.String () Prim.Int
+counted =
+  foldl
+    (\action _ ->
+      bind {bindAsync} action \value -> pure {applicativeAsync} (add {semiringInt} value 1))
+    (pure {applicativeAsync} 0)
+    (range 1 100000)
+
+sequenced :: Effect.Ref.Ref Prim.Int -> Iris.Effect.Async.Async Prim.String () Prim.Int
+sequenced = \effects ->
+  foldl
+    (\action _ ->
+      applySecond {applyAsync} action
+        (liftEffect (modify (\v123 -> add {semiringInt} v123 1) effects)))
+    (pure {applicativeAsync} 0)
+    (range 1 100000)
+
+mapped :: Iris.Effect.Async.Async Prim.String () Prim.Int
+mapped =
+  foldl (\action _ -> map {functorAsync} (\v167 -> add {semiringInt} v167 1) action)
+    (pure {applicativeAsync} 0)
+    (range 1 100000)
+
+applied :: Iris.Effect.Async.Async Prim.String () Prim.Int
+applied =
+  foldl
+    (\action _ ->
+      apply {applyAsync} (map {functorAsync} (add {semiringInt}) action)
+        (pure {applicativeAsync} 1))
+    (pure {applicativeAsync} 0)
+    (range 1 100000)
+
+run :: (Prim.String -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch { onUncaught: \failure -> report (append {semigroupString} "uncaught " failure) } { }
+      (bind {bindAsync} counted \total ->
+        discard {discardUnit} {bindAsync}
+          (liftEffect (report (append {semigroupString} "total " (show {showInt} total)))) \_ ->
+          bind {bindAsync} (liftEffect (new 0)) \effects ->
+            bind {bindAsync} (sequenced effects) \last ->
+              bind {bindAsync} (liftEffect (read effects)) \performed ->
+                discard {discardUnit} {bindAsync}
+                  (liftEffect
+                    (report
+                      (append {semigroupString} "effects "
+                        (append {semigroupString} (show {showInt} last)
+                          (append {semigroupString} " " (show {showInt} performed)))))) \_ ->
+                  bind {bindAsync} mapped \mappedTotal ->
+                    discard {discardUnit} {bindAsync}
+                      (liftEffect
+                        (report
+                          (append {semigroupString} "mapped " (show {showInt} mappedTotal)))) \_ ->
+                      bind {bindAsync} applied \appliedTotal ->
+                        liftEffect
+                          (report
+                            (append {semigroupString} "applied " (show {showInt} appliedTotal)))))

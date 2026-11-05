@@ -52,6 +52,7 @@ fixture to its `Main.purs`, or to the specific report or file under discussion.
 | `lsp`        | -     | `lsp`                       | Hover, definition, completion, import edits, reported positions                          | `Main.purs` only                                             |
 | `sourcemap`  | -     | `sourcemap`                 | Source positions that generated JavaScript maps back to                                  | `Main.snap`, optional foreign `Main.js`                      |
 | `docs`       | -     | `docs`                      | Generated documentation                                                                  |                                                              |
+| `library`    | -     | `library`                   | Generated JavaScript for modules under `library/*/src`                                   | `library/<package>/output/`, one `index.js` per module       |
 | `formatting` | -     | `formatting`                | Formatter fixtures and corpus; see `CONTRIBUTING.md`                                     |                                                              |
 
 When a behavior spans phases, test the earliest category that directly owns it. Add a later-phase

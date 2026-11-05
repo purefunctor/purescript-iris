@@ -1,0 +1,50 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Name :: Prim.Type
+newtype Name
+  | Name :: Prim.String -> Main.Name
+
+newtype Count :: Prim.Type
+newtype Count
+  | Count :: Prim.Int -> Main.Count
+
+greeting :: forall services. Iris.Effect.Has Main.Name services => Iris.Effect.Sync.Sync services Prim.String
+greeting = \{hasDict} ->
+  bind {bindSync} (service {hasDict}) \(Name name) ->
+    pure {applicativeSync} (append {semigroupString} "hello " name)
+
+say :: forall services. Main.Report -> Prim.String -> Iris.Effect.Sync.Sync services Data.Unit.Unit
+say = \report -> \message -> liftEffect (report message)
+
+program :: forall services.
+  Iris.Effect.Has Main.Name services =>
+  Iris.Effect.Has Main.Count services =>
+  Main.Report -> Iris.Effect.Sync.Sync services Data.Unit.Unit
+program = \{hasDict} -> \{hasDict1} -> \report ->
+  discard {discardUnit} {bindSync} (say report "start") \_ ->
+    bind {bindSync} (greeting {hasDict}) \outer ->
+      bind {bindSync} (provide { renamed: Name "inner" } (greeting {service("renamed")})) \inner ->
+        bind {bindSync} (service {hasDict1}) \(Count count) ->
+          bind {bindSync}
+            (apply {applySync}
+              (map {functorSync}
+                (\left right ->
+                  append {semigroupString} left (append {semigroupString} " & " right))
+                (greeting {hasDict}))
+              (map {functorSync} (show {showInt}) (pure {applicativeSync} count))) \combined ->
+            say report
+              (append {semigroupString} outer
+                (append {semigroupString} ", "
+                  (append {semigroupString} inner (append {semigroupString} ", " combined))))
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  let
+    action :: Effect.Effect Data.Unit.Unit
+    action =
+      run { name: Name "outer", count: Count 2 }
+        (program {service("name")} {service("count")} report)
+  in
+    discard {discardUnit} {bindEffect} (report "built") \_ ->
+      discard {discardUnit} {bindEffect} action \_ -> action

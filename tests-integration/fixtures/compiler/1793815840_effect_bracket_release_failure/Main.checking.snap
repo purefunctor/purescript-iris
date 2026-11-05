@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+describe :: Data.Either.Either Prim.String Prim.Int -> Prim.String
+guarded ::
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit ->
+  Iris.Effect.Async.Async Prim.String () Prim.Int ->
+  Iris.Effect.Async.Async Prim.String () (Data.Either.Either Prim.String Prim.Int)
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit

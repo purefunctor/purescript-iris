@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+describe :: Data.Either.Either Prim.String Prim.Int -> Prim.String
+describe = \v48 ->
+  case v48 of
+    (Left error) -> append {semigroupString} "failed " error
+    (Right value) -> append {semigroupString} "succeeded " (show {showInt} value)
+
+guarded :: Iris.Effect.Async.Async Prim.String () Data.Unit.Unit ->
+Iris.Effect.Async.Async Prim.String () Prim.Int ->
+Iris.Effect.Async.Async Prim.String () (Data.Either.Either Prim.String Prim.Int)
+guarded = \release -> \body ->
+  attempt (bracket (pure {applicativeAsync} unit) (\_ -> release) \_ -> body)
+
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+program = \report ->
+  bind {bindAsync} (guarded (fail "release") (pure {applicativeAsync} 1)) \releaseFailed ->
+    discard {discardUnit} {bindAsync}
+      (report' (append {semigroupString} "release fails: " (describe releaseFailed))) \_ ->
+      bind {bindAsync} (guarded (pure {applicativeAsync} unit) (fail "body")) \bodyFailed ->
+        discard {discardUnit} {bindAsync}
+          (report' (append {semigroupString} "body fails: " (describe bodyFailed))) \_ ->
+          bind {bindAsync} (guarded (fail "release") (fail "body")) \bothFailed ->
+            discard {discardUnit} {bindAsync}
+              (report' (append {semigroupString} "both fail: " (describe bothFailed))) \_ ->
+              bind {bindAsync}
+                (guarded (pure {applicativeAsync} unit)
+                  (pure {applicativeAsync} 2)) \neitherFailed ->
+                report' (append {semigroupString} "neither fails: " (describe neitherFailed))
+  where
+  report' :: Prim.String -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+  report' = \message -> liftEffect (report message)
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch { onUncaught: \error -> report (append {semigroupString} "uncaught " error) } { }
+      (program report))

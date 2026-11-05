@@ -1,0 +1,92 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign boom
+
+foreign throwNull
+
+foreign throwHostile
+
+foreign setTimeout
+
+foreign clearTimeout
+
+delay = \milliseconds%1 ->
+  async
+    (\callback%0 ->
+      effect.bind (setTimeout milliseconds%1 (callback%0 { tag: "Right", _1: unit }))
+        \identifier%2 -> effect.pure (liftEffect (clearTimeout identifier%2)))
+
+describe = \section144%3 ->
+  case section144%3 of
+    Succeeded _ ->
+      "succeeded"
+    Failed error%4 ->
+      string.append "failed " error%4
+    Died defect%5 ->
+      string.append "died " (message defect%5)
+
+outcome = \report%9 label%10 program%6 ->
+  bindAsyncStringRowDictBind (fork program%6)
+    (\fiber%7 ->
+      bindAsyncStringRowDictBind (await fiber%7)
+        (\exit%8 ->
+          liftEffect (report%9 (string.append label%10 (string.append ": " (describe exit%8))))))
+
+program = \report%15 ->
+  let
+    say%11 = \message%26 -> liftEffect (report%15 message%26)
+  in bindAsyncStringRowDictBind (fork (finally (say%11 "released") (liftEffect (boom "boom"))))
+    (\dying%12 ->
+      bindAsyncStringRowDictBind
+        (fork (applySecond applyAsync (delay 10) (say%11 "sibling completed")))
+        (\other%13 ->
+          bindAsyncStringRowDictBind (await other%13)
+            (\$exit%14@(_) ->
+              discardUnitDictDiscard bindAsync (outcome report%15 "await" (join dying%12))
+                (\$unit%16@(_) ->
+                  discardUnitDictDiscard bindAsync
+                    (outcome report%15 "attempt" (attempt (join dying%12)))
+                    (\$unit%17@(_) ->
+                      discardUnitDictDiscard bindAsync
+                        (outcome report%15 "cleanup over typed"
+                          (finally (liftEffect (boom "cleanup")) (fail "typed")))
+                        (\$unit%18@(_) ->
+                          discardUnitDictDiscard bindAsync
+                            (outcome report%15 "body over cleanup"
+                              (finally (liftEffect (boom "cleanup")) (liftEffect (boom "body"))))
+                            (\$unit%19@(_) ->
+                              bindAsyncStringRowDictBind
+                                (fork (finally (liftEffect (boom "finalizer")) (delay 1000)))
+                                (\killed%20 ->
+                                  discardUnitDictDiscard bindAsync (kill "killed" killed%20)
+                                    (\$unit%21@(_) ->
+                                      bindAsyncStringRowDictBind (await killed%20)
+                                        (\killedExit%22 ->
+                                          discardUnitDictDiscard bindAsync
+                                            (say%11
+                                              (string.append "kill with failing finalizer: " (describe
+                                                killedExit%22)))
+                                            (\$unit%23@(_) ->
+                                              discardUnitDictDiscard bindAsync
+                                                (outcome report%15 "null" (liftEffect throwNull))
+                                                (\$unit%24@(_) ->
+                                                  discardUnitDictDiscard bindAsync
+                                                    (outcome report%15 "hostile"
+                                                      (liftEffect throwHostile))
+                                                    (\$unit%25@(_) ->
+                                                      say%11 "parent continues")))))))))))))
+
+@export run = \report%28 ->
+  void functorEffect
+    (launch { onUncaught: \error%27 -> report%28 (string.append "uncaught " error%27) } {  }
+      (program report%28))
+
+@export launchDefect = \report%30 ->
+  void functorEffect
+    (launch { onUncaught: \error%29 -> report%30 (string.append "uncaught " error%29) } {  }
+      (liftEffect (boom "root")))
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+discardUnitDictDiscard = discard discardUnit

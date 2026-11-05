@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+counted :: Iris.Effect.Async.Async Prim.String () Prim.Int
+sequenced :: Effect.Ref.Ref Prim.Int -> Iris.Effect.Async.Async Prim.String () Prim.Int
+mapped :: Iris.Effect.Async.Async Prim.String () Prim.Int
+applied :: Iris.Effect.Async.Async Prim.String () Prim.Int
+run :: (Prim.String -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+
+Types

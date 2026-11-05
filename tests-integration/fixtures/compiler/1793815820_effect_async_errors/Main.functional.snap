@@ -1,0 +1,61 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+say = \report%0 message%1 -> liftEffect (report%0 message%1)
+
+describe = \section78%2 ->
+  case section78%2 of
+    Left error%3 ->
+      string.append "left " error%3
+    Right value%4 ->
+      string.append "right " (showIntDictShow value%4)
+
+program = \report%5 ->
+  bindAsyncCodeRowDictBind
+    (catch
+      (applySecond applyAsync
+        (applySecond applyAsync (applySecond applyAsync (say report%5 "before fail") (fail "boom"))
+          (say report%5 "after fail"))
+        (applicativeAsyncStringRowDictPure 0))
+      (\error%6 ->
+        discardUnitDictDiscard bindAsync (say report%5 (string.append "caught " error%6))
+          (\$unit%7@(_) -> applicativeAsyncStringRowDictPure 7)))
+    (\recovered%8 ->
+      discardUnitDictDiscard bindAsync
+        (say report%5 (string.append "recovered " (showIntDictShow recovered%8)))
+        (\$unit%9@(_) ->
+          bindAsyncCodeRowDictBind
+            (attempt (mapError (\error%10 -> string.append "mapped " error%10) (fail "inner")))
+            (\mapped%11 ->
+              discardUnitDictDiscard bindAsync (say report%5 (describe mapped%11))
+                (\$unit%12@(_) ->
+                  bindAsyncCodeRowDictBind
+                    (attempt
+                      (catch (fail "first")
+                        (\error%13 -> fail (string.append "handled " error%13))))
+                    (\rethrown%14 ->
+                      discardUnitDictDiscard bindAsync (say report%5 (describe rethrown%14))
+                        (\$unit%15@(_) ->
+                          bindAsyncCodeRowDictBind (attempt (applicativeAsyncStringRowDictPure 3))
+                            (\succeeded%16 ->
+                              discardUnitDictDiscard bindAsync
+                                (say report%5 (describe succeeded%16))
+                                (\$unit%17@(_) ->
+                                  discardUnitDictDiscard bindAsync
+                                    (mapError (\value%18 -> value%18) (fail 42))
+                                    (\$unit%19@(_) -> say report%5 "after uncaught")))))))))
+
+@export run = \report%21 ->
+  void functorEffect
+    (launch
+      { onUncaught: \code%20 -> report%21 (string.append "uncaught " (showIntDictShow code%20)) }
+      {  }
+      (program report%21))
+
+showIntDictShow = show showInt
+
+bindAsyncCodeRowDictBind = bind bindAsync
+
+applicativeAsyncStringRowDictPure = pure applicativeAsync
+
+discardUnitDictDiscard = discard discardUnit

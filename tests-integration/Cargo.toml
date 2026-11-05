@@ -75,3 +75,7 @@ harness = false
 [[test]]
 name = "sourcemap"
 harness = false
+
+[[test]]
+name = "library"
+harness = false

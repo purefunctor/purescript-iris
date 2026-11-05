@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+recursive[0] nestedForks = \depth%0 ->
+  bindAsyncStringRowDictBind (applicativeAsyncStringRowDictPure depth%0)
+    (\value%1 ->
+      if integer.equal value%1 0
+        then applicativeAsyncStringRowDictPure 719
+        else bindAsyncStringRowDictBind (fork (nestedForks (integer.subtract value%1 1)))
+          (\child%2 -> join child%2))
+
+recursive[1] countdown = \remaining%3 ->
+  if integer.equal remaining%3 0
+    then applicativeAsyncStringRowDictPure 0
+    else bindAsyncStringRowDictBind (applicativeAsyncStringRowDictPure remaining%3)
+      (\value%4 ->
+        bindAsyncStringRowDictBind (countdown (integer.subtract value%4 1))
+          (\next%5 -> applicativeAsyncStringRowDictPure (integer.add next%5 1)))
+
+program = \report%7 ->
+  bindAsyncStringRowDictBind (nestedForks 10000)
+    (\forked%6 ->
+      discard discardUnit bindAsync
+        (liftEffect (report%7 (string.append "nested forks " (showIntDictShow forked%6))))
+        (\$unit%8@(_) ->
+          bindAsyncStringRowDictBind (countdown 100000)
+            (\counted%9 ->
+              liftEffect (report%7 (string.append "binds " (showIntDictShow counted%9))))))
+
+@export run = \report%11 ->
+  void functorEffect
+    (launch { onUncaught: \error%10 -> report%11 (string.append "uncaught " error%10) } {  }
+      (program report%11))
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+applicativeAsyncStringRowDictPure = pure applicativeAsync
+
+showIntDictShow = show showInt

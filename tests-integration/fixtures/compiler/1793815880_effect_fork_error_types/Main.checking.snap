@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+OuterError :: Prim.Int -> Main.OuterError
+setTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int
+clearTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit
+delay :: forall error. Prim.Int -> Iris.Effect.Async.Async error () Data.Unit.Unit
+describe :: Data.Either.Either Prim.String Prim.Int -> Prim.String
+describeOuter :: Data.Either.Either Main.OuterError Prim.Int -> Prim.String
+innerRelease :: Iris.Effect.Async.Async Prim.String () Prim.Int
+innerCanceler :: Iris.Effect.Async.Async Prim.String () Prim.Int
+children :: Main.Report -> Iris.Effect.Async.Async Prim.String () Prim.Int
+program :: Main.Report -> Iris.Effect.Async.Async Main.OuterError () Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+OuterError :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit
+
+Roles
+OuterError = []

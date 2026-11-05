@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+greeting = \hasNameServicesDict%0 ->
+  bindSyncServicesDictBind (service hasNameServicesDict%0)
+    (\name%1 -> applicativeSyncServicesDictPure (string.append "hello " name%1))
+
+say = \report%2 message%3 -> liftEffect (report%2 message%3)
+
+program = \hasNameServicesDict%6 hasCountServicesDict%9 ->
+  \report%4 ->
+    discard discardUnit bindSync (say report%4 "start")
+      (\$unit%5@(_) ->
+        bindSyncServicesDictBind (greeting hasNameServicesDict%6)
+          (\outer%7 ->
+            bindSyncServicesDictBind (provide { renamed: "inner" } (greeting (service "renamed")))
+              (\inner%8 ->
+                bindSyncServicesDictBind (service hasCountServicesDict%9)
+                  (\count%10 ->
+                    bindSyncServicesDictBind
+                      (apply applySync
+                        (functorSyncServicesDictMap
+                          (\left%11 right%12 ->
+                            string.append left%11 (string.append " & " right%12))
+                          (greeting hasNameServicesDict%6))
+                        (functorSyncServicesDictMap (show showInt)
+                          (applicativeSyncServicesDictPure count%10)))
+                      (\combined%13 ->
+                        say report%4
+                          (string.append outer%7 (string.append ", " (string.append inner%8 (string.append ", " combined%13)))))))))
+
+@export run = \report%14 ->
+  let
+    action%16 = run { name: "outer", count: 2 }
+      (program (service "name") (service "count") report%14)
+  in effect.bind (report%14 "built") \$unit%15 -> effect.bind action%16 \$unit%17 -> action%16
+
+bindSyncServicesDictBind = bind bindSync
+
+applicativeSyncServicesDictPure = pure applicativeSync
+
+functorSyncServicesDictMap = map functorSync

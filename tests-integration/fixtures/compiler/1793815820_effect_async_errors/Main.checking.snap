@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Code :: Prim.Int -> Main.Code
+say :: forall error. Main.Report -> Prim.String -> Iris.Effect.Async.Async error () Data.Unit.Unit
+describe :: Data.Either.Either Prim.String Prim.Int -> Prim.String
+program :: Main.Report -> Iris.Effect.Async.Async Main.Code () Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+Code :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit
+
+Roles
+Code = []

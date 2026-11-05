@@ -1,0 +1,58 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Counter :: Prim.Type
+newtype Counter
+  | Counter :: Prim.Int -> Main.Counter
+
+foreign import step :: Prim.String -> Prim.Int -> Effect.Effect Prim.Int
+
+foreign import complete :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+foreign import failure :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+foreign import mark :: forall value. Prim.String -> value -> value
+
+throughMonad :: forall monad. Control.Monad.Monad monad => monad Prim.Int -> monad Prim.Int
+throughMonad = \{monadDict} -> \action ->
+  bind {monadDict.bindDict} action \value ->
+    pure {monadDict.applicativeDict} (mul {semiringInt} value 3)
+
+program :: forall services.
+  Iris.Effect.Has Main.Counter services =>
+  Prim.Int -> Iris.Effect.Async.Async Prim.String services Prim.Int
+program = \{hasDict} -> \input ->
+  bind {bindAsync} (service {hasDict}) \(Counter offset) ->
+    bind {bindAsync} (liftEffect (step "first" input)) \first ->
+      bind {bindAsync}
+        (throughMonad {monadAsync}
+          (pure {applicativeAsync} (add {semiringInt} first offset))) \adjusted ->
+        bind {bindAsync}
+          (apply {applyAsync}
+            (map {functorAsync} (\left right -> sub {ringInt} left right)
+              (liftEffect (step "left" adjusted)))
+            (liftEffect (step "right" offset))) \result ->
+          if greaterThan {ordInt} result 0 then
+            pure {applicativeAsync} result
+          else
+            fail "negative result"
+
+runOrdered :: Data.Unit.Unit -> Effect.Effect Data.Unit.Unit
+runOrdered = \_ ->
+  let
+    environment :: { choice :: Main.Counter }
+    environment = mark "environment" { choice: Counter 7 }
+    stored :: { action :: Iris.Effect.Async.Async Prim.String ( choice :: Main.Counter ) Prim.Int }
+    stored = mark "program" { action: program {service("choice")} 11 }
+  in
+    bind {bindEffect}
+      (launch { onUncaught: failure } environment
+        (bind {bindAsync} stored.action \result -> liftEffect (complete result))) \_ ->
+      pure {applicativeEffect} unit
+
+provided :: Effect.Effect Data.Unit.Unit
+provided =
+  bind {bindEffect}
+    (launch { onUncaught: failure } { }
+      (bind {bindAsync} (provide { renamed: Counter 3 } (program {service("renamed")} 5)) \result ->
+        liftEffect (complete result))) \_ -> pure {applicativeEffect} unit

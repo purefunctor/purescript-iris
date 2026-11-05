@@ -1,0 +1,76 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign later
+
+say = \report%0 message%1 -> liftEffect (report%0 message%1)
+
+killSelf = \fiber%2 -> liftEffect (void functorEffect (killFiber "self" fiber%2 (effect.pure unit)))
+
+withSelf = \report%4 body%11 ->
+  void functorEffect
+    (launch { onUncaught: \failure%3 -> report%4 (string.append "uncaught " failure%3) } {  }
+      (bindAsyncStringRowDictBind (liftEffect (reference.new "Nothing"))
+        (\self%5 ->
+          bindAsyncStringRowDictBind
+            (fork
+              (discardUnitDictDiscard bindAsync
+                (async
+                  (\callback%6 ->
+                    effect.bind (later (callback%6 { tag: "Right", _1: unit }))
+                      \$unit%7 -> effect.pure (applicativeAsyncStringRowDictPure unit)))
+                (\$unit%8@(_) ->
+                  bindAsyncStringRowDictBind (liftEffect (reference.read self%5))
+                    (\found%9 ->
+                      case found%9 of
+                        Just me%10 ->
+                          body%11 me%10
+                        Nothing ->
+                          say report%4 "missing fiber"))))
+            (\fiber%12 ->
+              discardUnitDictDiscard bindAsync
+                (liftEffect (reference.write.unit self%5 { tag: "Just", _1: fiber%12 }))
+                (\$unit%13@(_) ->
+                  bindAsyncStringRowDictBind (await fiber%12)
+                    (\exit%14 ->
+                      say report%4
+                        (case exit%14 of
+                          Succeeded _ ->
+                            "succeeded"
+                          Failed failure%15 ->
+                            string.append "failed " failure%15
+                          Died _ ->
+                            "died")))))))
+
+@export insideCatch = \report%16 ->
+  withSelf report%16
+    (\me%17 ->
+      discardUnitDictDiscard bindAsync
+        (catch
+          (discardUnitDictDiscard bindAsync (say report%16 "before kill")
+            (\$unit%18@(_) ->
+              discardUnitDictDiscard bindAsync (killSelf me%17)
+                (\$unit%19@(_) -> say report%16 "after kill")))
+          (\failure%20 -> say report%16 (string.append "caught " failure%20)))
+        (\$unit%21@(_) -> say report%16 "after catch"))
+
+@export beforeImmediateCallback = \report%22 ->
+  withSelf report%22
+    (\me%23 ->
+      discardUnitDictDiscard bindAsync (say report%22 "before kill")
+        (\$unit%24@(_) ->
+          discardUnitDictDiscard bindAsync (killSelf me%23)
+            (\$unit%25@(_) ->
+              bindAsyncStringRowDictBind
+                (async
+                  (\callback%26 ->
+                    effect.bind (callback%26 { tag: "Right", _1: 5 })
+                      \$unit%27 -> effect.pure (applicativeAsyncStringRowDictPure unit)))
+                (\value%28 ->
+                  say report%22 (string.append "after callback " (show showInt value%28))))))
+
+bindAsyncStringRowDictBind = bind bindAsync
+
+discardUnitDictDiscard = discard discardUnit
+
+applicativeAsyncStringRowDictPure = pure applicativeAsync

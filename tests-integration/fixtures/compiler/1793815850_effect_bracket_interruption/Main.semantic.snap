@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import setTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit -> Effect.Effect Prim.Int
+
+foreign import clearTimeout :: Prim.Int -> Effect.Effect Data.Unit.Unit
+
+say :: Main.Report -> Prim.String -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+say = \report -> \message -> liftEffect (report message)
+
+sleep :: Main.Report -> Prim.String -> Prim.Int -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+sleep = \report -> \label -> \milliseconds ->
+  async \callback ->
+    bind {bindEffect} (setTimeout milliseconds (callback (Right unit))) \identifier ->
+      pure {applicativeEffect}
+        (applySecond {applyAsync} (say report (append {semigroupString} "cancel " label))
+          (liftEffect (clearTimeout identifier)))
+
+describe :: Iris.Effect.Fiber.Exit Prim.String Data.Unit.Unit -> Prim.String
+describe = \v167 ->
+  case v167 of
+    (Succeeded _) -> "succeeded"
+    (Failed error) -> append {semigroupString} "failed " error
+    (Died _) -> "died"
+
+killed :: Main.Report ->
+Prim.String ->
+Iris.Effect.Async.Async Prim.String () Data.Unit.Unit ->
+Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+killed = \report -> \label -> \body ->
+  bind {bindAsync} (fork body) \fiber ->
+    discard {discardUnit} {bindAsync} (kill (append {semigroupString} "kill " label) fiber) \_ ->
+      bind {bindAsync} (await fiber) \exit ->
+        say report (append {semigroupString} label (append {semigroupString} " " (describe exit)))
+
+program :: Main.Report -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+program = \report ->
+  discard {discardUnit} {bindAsync}
+    (killed report "during acquire"
+      (bracket (applySecond {applyAsync} (sleep report "acquire" 10) (say report "acquired"))
+        (\_ -> say report "released") \_ -> say report "used")) \_ ->
+    discard {discardUnit} {bindAsync}
+      (killed report "during use"
+        (bracket (say report "acquired")
+          (\_ -> applySecond {applyAsync} (sleep report "release" 10) (say report "released")) \_ ->
+          applySecond {applyAsync} (sleep report "use" 1000) (say report "used"))) \_ ->
+      killed report "with failing release"
+        (bracket (pure {applicativeAsync} unit) (\_ -> fail "release failure") \_ ->
+          sleep report "use" 1000)
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch { onUncaught: \error -> report (append {semigroupString} "uncaught " error) } { }
+      (program report))

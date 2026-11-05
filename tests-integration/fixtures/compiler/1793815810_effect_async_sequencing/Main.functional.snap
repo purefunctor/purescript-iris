@@ -1,0 +1,54 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign step
+
+foreign complete
+
+foreign failure
+
+foreign mark
+
+throughMonad = \monadMonadDict%0 ->
+  \action%1 ->
+    bind (monadMonadDict%0."Bind1"()) action%1
+      (\value%2 -> pure (monadMonadDict%0."Applicative0"()) (integer.multiply value%2 3))
+
+program = \hasCounterServicesDict%3 ->
+  \input%5 ->
+    bindAsyncStringServicesDictBind (service hasCounterServicesDict%3)
+      (\offset%4 ->
+        bindAsyncStringServicesDictBind (liftEffect (step "first" input%5))
+          (\first%6 ->
+            bindAsyncStringServicesDictBind
+              (throughMonad monadAsync
+                (applicativeAsyncStringServicesDictPure (integer.add first%6 offset%4)))
+              (\adjusted%7 ->
+                bindAsyncStringServicesDictBind
+                  (apply applyAsync
+                    (map functorAsync (\left%8 right%9 -> integer.subtract left%8 right%9)
+                      (liftEffect (step "left" adjusted%7)))
+                    (liftEffect (step "right" offset%4)))
+                  (\result%10 ->
+                    if integer.greater_than result%10 0
+                      then applicativeAsyncStringServicesDictPure result%10
+                      else fail "negative result"))))
+
+@export runOrdered = \$unit%15@(_) ->
+  let
+    environment%11 = mark "environment" { choice: 7 }
+  in let
+    stored%12 = mark "program" { action: program (service "choice") 11 }
+  in effect.bind (launch { onUncaught: failure } environment%11
+    (bindAsyncStringServicesDictBind stored%12.action
+      (\result%13 -> liftEffect (complete result%13))))
+    \$fiber%14 -> effect.pure unit
+
+@export provided = effect.bind (launch { onUncaught: failure } {  }
+  (bindAsyncStringServicesDictBind (provide { renamed: 3 } (program (service "renamed") 5))
+    (\result%16 -> liftEffect (complete result%16))))
+  \$fiber%17 -> effect.pure unit
+
+bindAsyncStringServicesDictBind = bind bindAsync
+
+applicativeAsyncStringServicesDictPure = pure applicativeAsync

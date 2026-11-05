@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Name :: Prim.String -> Main.Name
+Count :: Prim.Int -> Main.Count
+greeting ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Main.Name (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Prim.String
+say ::
+  forall (services :: Prim.Row Prim.Type).
+    Main.Report ->
+    Prim.String ->
+    Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+program ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Main.Name (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Main.Count (services :: Prim.Row Prim.Type) =>
+    Main.Report -> Iris.Effect.Sync.Sync (services :: Prim.Row Prim.Type) Data.Unit.Unit
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+
+Types
+Report :: Prim.Type
+Name :: Prim.Type
+Count :: Prim.Type
+
+Synonyms
+type Report = Prim.String -> Effect.Effect Data.Unit.Unit
+
+Roles
+Name = []
+Count = []

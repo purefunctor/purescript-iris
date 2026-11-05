@@ -1,0 +1,52 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Code :: Prim.Type
+newtype Code
+  | Code :: Prim.Int -> Main.Code
+
+say :: forall error. Main.Report -> Prim.String -> Iris.Effect.Async.Async error () Data.Unit.Unit
+say = \report -> \message -> liftEffect (report message)
+
+describe :: Data.Either.Either Prim.String Prim.Int -> Prim.String
+describe = \v78 ->
+  case v78 of
+    (Left error) -> append {semigroupString} "left " error
+    (Right value) -> append {semigroupString} "right " (show {showInt} value)
+
+program :: Main.Report -> Iris.Effect.Async.Async Main.Code () Data.Unit.Unit
+program = \report ->
+  bind {bindAsync}
+    (catch
+      (applySecond {applyAsync}
+        (applySecond {applyAsync}
+          (applySecond {applyAsync} (say report "before fail") (fail "boom"))
+          (say report "after fail"))
+        (pure {applicativeAsync} 0)) \error ->
+      discard {discardUnit} {bindAsync}
+        (say report (append {semigroupString} "caught " error)) \_ ->
+        pure {applicativeAsync} 7) \recovered ->
+    discard {discardUnit} {bindAsync}
+      (say report (append {semigroupString} "recovered " (show {showInt} recovered))) \_ ->
+      bind {bindAsync}
+        (attempt
+          (mapError (\error -> append {semigroupString} "mapped " error) (fail "inner"))) \mapped ->
+        discard {discardUnit} {bindAsync} (say report (describe mapped)) \_ ->
+          bind {bindAsync}
+            (attempt
+              (catch (fail "first") \error ->
+                fail (append {semigroupString} "handled " error))) \rethrown ->
+            discard {discardUnit} {bindAsync} (say report (describe rethrown)) \_ ->
+              bind {bindAsync} (attempt (pure {applicativeAsync} 3)) \succeeded ->
+                discard {discardUnit} {bindAsync} (say report (describe succeeded)) \_ ->
+                  discard {discardUnit} {bindAsync} (mapError Code (fail 42)) \_ ->
+                    say report "after uncaught"
+
+run :: Main.Report -> Effect.Effect Data.Unit.Unit
+run = \report ->
+  void {functorEffect}
+    (launch
+      { onUncaught: \(Code code) ->
+        report (append {semigroupString} "uncaught " (show {showInt} code)) }
+      { }
+      (program report))
