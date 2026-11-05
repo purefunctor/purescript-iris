@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+untilLimit :: { limit :: Prim.Int } -> Effect.Effect Prim.Int
+whileLimit :: { limit :: Prim.Int } -> Effect.Effect Prim.Int
+
+Types

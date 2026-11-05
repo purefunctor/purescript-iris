@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign mark
+
+@export fresh = reference.new 0
+
+@export forCaptured = \counter%2 ->
+  forE 0 (mark "high" 3)
+    (mark "callback"
+      (\index%0 ->
+        effect.bind (reference.read counter%2)
+          \section90%1 -> reference.write.unit counter%2 (integer.add section90%1 index%0)))
+
+@export forInlineBody = \counter%4 ->
+  forE 0 3 (\index%3 -> reference.write.unit counter%4 (mark "body" index%3))
+
+@export untilCaptured = \counter%7 ->
+  untilE
+    (mark "action"
+      (effect.map
+        (\section160%5 -> integer.greater_than_or_equal section160%5 2)
+        (effect.bind (reference.read counter%7)
+          \section172%6 -> reference.write counter%7 (integer.add section172%6 1))))
+
+@export whileCaptured = \counter%9 ->
+  whileE
+    (mark "condition"
+      (effect.map (\section206%8 -> integer.less_than section206%8 3) (reference.read counter%9)))
+    (mark "action"
+      (effect.bind (reference.read counter%9)
+        \section231%10 -> reference.write.unit counter%9 (integer.add section231%10 1)))
+
+@export foreachCaptured = \counter%14 elements%11 ->
+  foreachE (mark "elements" elements%11)
+    (mark "callback"
+      (\element%12 ->
+        effect.bind (reference.read counter%14)
+          \section281%13 -> reference.write.unit counter%14 (integer.add section281%13 element%12)))
+
+@export forPartial = \count%15 -> forE 0 count%15

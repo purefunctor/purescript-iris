@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+push :: Prim.Array Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
+poke :: Prim.Array Prim.Int -> Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
+visit :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array Prim.Int)
+record :: Effect.Ref.Ref (Prim.Array Prim.Int) -> Prim.Int -> Effect.Effect Data.Unit.Unit
+visitWithFunction :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array Prim.Int)
+sumState :: Prim.Array Prim.Int -> Prim.Int
+
+Types

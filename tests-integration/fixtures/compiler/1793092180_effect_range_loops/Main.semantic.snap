@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import traced :: Prim.String -> Prim.Int -> Prim.Int
+
+sumRange :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+sumRange = \start -> \end ->
+  bind {bindEffect} (new 0) \total ->
+    discard {discardUnit} {bindEffect}
+      (forE (traced "start" start) (traced "end" end) \index ->
+        modify_ (\v91 -> add {semiringInt} v91 index) total) \_ -> read total
+
+addTo :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
+addTo = \total -> \index -> modify_ (\v125 -> add {semiringInt} v125 index) total
+
+sumWithFunction :: Prim.Int -> Effect.Effect Prim.Int
+sumWithFunction = \end ->
+  bind {bindEffect} (new 0) \total ->
+    discard {discardUnit} {bindEffect} (forE 0 end (addTo total)) \_ -> read total
+
+productRange :: Prim.Int -> Prim.Int
+productRange = \end ->
+  run
+    (bind {bindST} (new 1) \total ->
+      discard {discardUnit} {bindST}
+        (for 1 end \index -> modify (\v210 -> mul {semiringInt} v210 index) total) \_ -> read total)

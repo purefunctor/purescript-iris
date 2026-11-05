@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export rangeClosures = effect.bind (reference.new [])
+  \closures%0 -> effect.bind (forE 0 3
+    (\index%1 ->
+      effect.bind (reference.read closures%0)
+        \section68%2 -> reference.write.unit closures%0 [...section68%2, \$unit%3@(_) -> index%1]))
+    \$unit%4 -> reference.read closures%0
+
+@export elementClosures = \values%6 ->
+  effect.bind (reference.new [])
+    \closures%5 -> effect.bind (foreachE values%6
+      (\value%7 ->
+        effect.bind (reference.read closures%5)
+          \section127%8 -> reference.write.unit
+            closures%5
+            [...section127%8, \$unit%9@(_) -> value%7]))
+      \$unit%10 -> reference.read closures%5
+
+@export stateClosures = run
+  (effect.bind (reference.new [])
+    \closures%11 -> effect.bind (for 5 8
+      (\index%12 ->
+        effect.bind (reference.read closures%11)
+          \section184%13 -> reference.write
+            closures%11
+            [...section184%13, \$unit%14@(_) -> index%12]))
+      \$unit%15 -> reference.read closures%11)

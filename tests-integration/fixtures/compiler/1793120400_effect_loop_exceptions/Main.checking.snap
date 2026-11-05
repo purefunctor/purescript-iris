@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+describe ::
+  forall value.
+    Data.Either.Either Effect.Exception.Error value -> Data.Either.Either Prim.String value
+observe ::
+  forall value.
+    (Effect.Ref.Ref (Prim.Array Prim.String) -> Effect.Effect value) ->
+    Effect.Effect (Main.Observed value)
+record :: Effect.Ref.Ref (Prim.Array Prim.String) -> Prim.String -> Effect.Effect Data.Unit.Unit
+forAborts :: Effect.Effect (Main.Observed Prim.Int)
+untilAborts :: Effect.Effect (Main.Observed Prim.Int)
+whileAborts :: Effect.Effect (Main.Observed Data.Unit.Unit)
+foreachAborts :: Effect.Effect (Main.Observed Data.Unit.Unit)
+nestedAborts :: Effect.Effect (Main.Observed Data.Unit.Unit)
+recovers :: Effect.Effect (Main.Observed Data.Unit.Unit)
+
+Types
+Observed :: Prim.Type -> Prim.Type
+
+Synonyms
+type Observed value = { outcome :: Data.Either.Either Prim.String value, visited :: Prim.Array Prim.String }

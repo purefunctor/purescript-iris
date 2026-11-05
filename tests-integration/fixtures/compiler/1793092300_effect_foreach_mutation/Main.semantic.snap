@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import push :: Prim.Array Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
+
+foreign import poke :: Prim.Array Prim.Int -> Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
+
+visit :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array Prim.Int)
+visit = \values ->
+  bind {bindEffect} (new []) \seen ->
+    discard {discardUnit} {bindEffect}
+      (foreachE values \value ->
+        discard {discardUnit} {bindEffect}
+          (when {applicativeEffect} (eq {eqInt} value 1) (poke values 2 99)) \_ ->
+          discard {discardUnit} {bindEffect} (push values value) \_ ->
+            modify_ (\v125 -> append {semigroupArray} v125 [value]) seen) \_ -> read seen
+
+record :: Effect.Ref.Ref (Prim.Array Prim.Int) -> Prim.Int -> Effect.Effect Data.Unit.Unit
+record = \seen -> \value -> modify_ (\v163 -> append {semigroupArray} v163 [value]) seen
+
+visitWithFunction :: Prim.Array Prim.Int -> Effect.Effect (Prim.Array Prim.Int)
+visitWithFunction = \values ->
+  bind {bindEffect} (new []) \seen ->
+    discard {discardUnit} {bindEffect} (foreachE values (record seen)) \_ -> read seen
+
+sumState :: Prim.Array Prim.Int -> Prim.Int
+sumState = \values ->
+  run
+    (bind {bindST} (new 0) \total ->
+      discard {discardUnit} {bindST}
+        (foreach values \value ->
+          void {functorST} (modify (\v256 -> add {semiringInt} v256 value) total)) \_ -> read total)

@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+traced :: Prim.String -> Prim.Int -> Prim.Int
+sumRange :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+addTo :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
+sumWithFunction :: Prim.Int -> Effect.Effect Prim.Int
+productRange :: Prim.Int -> Prim.Int
+
+Types

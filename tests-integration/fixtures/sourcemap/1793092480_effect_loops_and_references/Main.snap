@@ -1,0 +1,109 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Effect from "../Effect/index.js";
+   | ^ 5:1 import Effect (Effect, forE, foreachE, whileE)
+ 2 | export function total(values) {
+   | ^ 9:1 total values = do
+   |        ^ (total) 9:1 total values = do
+   |                               ^ 9:1 total values = do
+ 3 |   return () => {
+   |   ^ (total) 9:16 do
+   |                ^ 9:16 do
+ 4 |     let sum = 0 | 0;
+   |     ^ 9:16 do
+   |               ^ 10:18 0
+ 5 |     const $action = Effect.forE(0 | 0)(3 | 0)((index) => {
+   |     ^ 11:3 forE 0 3 \index ->
+   |                                 ^ 11:8 0 3 \index ->
+   |                                      ^ 11:3 forE 0 3 \index ->
+   |                                        ^ 11:10 3 \index ->
+   |                                             ^ 11:3 forE 0 3 \index ->
+   |                                                ^ 11:12 \index ->
+ 6 |       return () => {
+   |       ^ 12:5 Ref.modify_ (_ + index) sum
+ 7 |         const section59 = sum;
+   |         ^ 12:5 Ref.modify_ (_ + index) sum
+   |                           ^ 12:29 sum
+ 8 |         const $value = section59 + index | 0;
+   |         ^ 12:18 _ + index) sum
+   |                                    ^ 12:22 index) sum
+   |                                            ^ 12:18 _ + index) sum
+ 9 |         sum = $value;
+   |         ^ 12:5 Ref.modify_ (_ + index) sum
+   |               ^ 12:18 _ + index) sum
+10 |         return undefined;
+   |         ^ 12:5 Ref.modify_ (_ + index) sum
+11 |       };
+   |       ^ 12:5 Ref.modify_ (_ + index) sum
+12 |     });
+   |     ^ 11:12 \index ->
+   |      ^ 11:3 forE 0 3 \index ->
+13 |     const $unit = $action();
+   |     ^ 11:3 forE 0 3 \index ->
+14 |     const $action$1 = Effect.foreachE(values)((value) => {
+   |     ^ 13:3 foreachE values \value ->
+   |                                       ^ 13:12 values \value ->
+   |                                             ^ 13:3 foreachE values \value ->
+   |                                                ^ 13:19 \value ->
+15 |       return () => {
+   |       ^ 14:5 Ref.write value sum
+16 |         sum = value;
+   |         ^ 14:21 sum
+   |               ^ 14:15 value sum
+17 |         return undefined;
+   |         ^ 14:5 Ref.write value sum
+18 |       };
+   |       ^ 14:5 Ref.write value sum
+19 |     });
+   |     ^ 13:19 \value ->
+   |      ^ 13:3 foreachE values \value ->
+20 |     const $unit$1 = $action$1();
+   |     ^ 13:3 foreachE values \value ->
+21 |     const $function = Effect.whileE;
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+22 |     const $function$1 = (section91) => section91 < (10 | 0);
+   |     ^ 15:16 _ < 10) (Ref.read sum)) do
+   |                                                     ^ 15:20 10) (Ref.read sum)) do
+23 |     const $effect = () => {
+   |     ^ 15:11 map (_ < 10) (Ref.read sum)) do
+24 |       return $function$1(sum);
+   |       ^ 15:11 map (_ < 10) (Ref.read sum)) do
+   |              ^ 15:16 _ < 10) (Ref.read sum)) do
+   |                          ^ 15:34 sum)) do
+   |                             ^ 15:11 map (_ < 10) (Ref.read sum)) do
+25 |     };
+   |     ^ 15:11 map (_ < 10) (Ref.read sum)) do
+26 |     const $function$2 = $function($effect);
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+   |                                   ^ 15:11 map (_ < 10) (Ref.read sum)) do
+   |                                          ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+27 |     const $effect$1 = () => {
+   |     ^ 16:5 Ref.modify_ (_ + 1) sum
+28 |       const section112 = sum;
+   |       ^ 16:5 Ref.modify_ (_ + 1) sum
+   |                          ^ 16:25 sum
+29 |       const $value$1 = section112 + (1 | 0) | 0;
+   |       ^ 16:18 _ + 1) sum
+   |                                      ^ 16:22 1) sum
+   |                                               ^ 16:18 _ + 1) sum
+30 |       sum = $value$1;
+   |       ^ 16:5 Ref.modify_ (_ + 1) sum
+   |             ^ 16:18 _ + 1) sum
+31 |       return undefined;
+   |       ^ 16:5 Ref.modify_ (_ + 1) sum
+32 |     };
+   |     ^ 16:5 Ref.modify_ (_ + 1) sum
+33 |     const $action$2 = $function$2($effect$1);
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+   |                                   ^ 16:5 Ref.modify_ (_ + 1) sum
+   |                                            ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+34 |     const $unit$2 = $action$2();
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+35 |     return sum;
+   |     ^ 17:3 Ref.read sum
+   |            ^ 17:12 sum
+36 |   };
+   |   ^ 9:16 do
+37 | }
+   | ^ 9:1 total values = do

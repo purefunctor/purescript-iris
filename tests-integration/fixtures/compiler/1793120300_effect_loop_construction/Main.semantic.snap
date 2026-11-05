@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import mark :: forall value. Prim.String -> value -> value
+
+fresh :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+fresh = new 0
+
+forCaptured :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+forCaptured = \counter ->
+  forE 0 (mark "high" 3)
+    (mark "callback" \index -> modify_ (\v90 -> add {semiringInt} v90 index) counter)
+
+forInlineBody :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+forInlineBody = \counter -> forE 0 3 \index -> write (mark "body" index) counter
+
+untilCaptured :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+untilCaptured = \counter ->
+  untilE
+    (mark "action"
+      (map {functorEffect} (\v160 -> greaterThanOrEq {ordInt} v160 2)
+        (modify (\v172 -> add {semiringInt} v172 1) counter)))
+
+whileCaptured :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+whileCaptured = \counter ->
+  whileE (mark "condition" (map {functorEffect} (\v206 -> lessThan {ordInt} v206 3) (read counter)))
+    (mark "action" (modify_ (\v231 -> add {semiringInt} v231 1) counter))
+
+foreachCaptured :: Effect.Ref.Ref Prim.Int -> Prim.Array Prim.Int -> Effect.Effect Data.Unit.Unit
+foreachCaptured = \counter -> \elements ->
+  foreachE (mark "elements" elements)
+    (mark "callback" \element -> modify_ (\v281 -> add {semiringInt} v281 element) counter)
+
+forPartial :: Prim.Int -> (Prim.Int -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+forPartial = \count -> forE 0 count
