@@ -22,3 +22,11 @@ countTwice = \value ->
           bind {bindST} (modify (\v184 -> mul {semiringInt} v184 10) counter) \next ->
             bind {bindST} (read counter) \current ->
               pure {applicativeST} (add {semiringInt} (add {semiringInt} written next) current))
+
+swapCounter :: Prim.Int -> { current :: Prim.Int, previous :: Prim.Int }
+swapCounter = \value ->
+  run
+    (bind {bindST} (new value) \counter ->
+      bind {bindST}
+        (modify' (\old -> { state: add {semiringInt} old 1, value: old }) counter) \previous ->
+        bind {bindST} (read counter) \current -> pure {applicativeST} { previous, current })

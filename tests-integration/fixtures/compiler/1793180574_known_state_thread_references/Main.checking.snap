@@ -21,5 +21,6 @@ incrementCounter ::
     Control.Monad.ST.Internal.STRef (r :: Control.Monad.ST.Internal.Region) Prim.Int ->
     Control.Monad.ST.Internal.ST (r :: Control.Monad.ST.Internal.Region) Prim.Int
 countTwice :: Prim.Int -> Prim.Int
+swapCounter :: Prim.Int -> { current :: Prim.Int, previous :: Prim.Int }
 
 Types

@@ -1,0 +1,52 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign mark
+
+@export foreign peek
+
+@export fresh = reference.new 0
+
+@export writeArgument = \reference%0 ->
+  effect.bind (reference.write.unit reference%0 (mark "write argument" 5))
+    \$unit%1 -> effect.bind (let
+      modifyFunction%3 = mark "modify function" (\section94%2 -> integer.add section94%2 1)
+    in effect.bind (reference.read reference%0)
+      \value%4 -> reference.write reference%0 (modifyFunction%3 value%4))
+      \$int%5 -> reference.read reference%0
+
+@export readLater = \reference%6 -> reference.read reference%6
+
+@export reusedRead = \reference%9 ->
+  let
+    read%7 = reference.read reference%9
+  in effect.bind read%7
+    \before%8 -> effect.bind (reference.write.unit reference%9 7)
+      \$unit%10 -> effect.bind read%7 \after%11 -> effect.pure { before: before%8, after: after%11 }
+
+@export modifyOrder = \reference%13 ->
+  effect.bind (modify'
+    (\old%12 ->
+      {
+        state: integer.multiply old%12 10,
+        value: { returned: integer.add old%12 1, seen: peek reference%13 }
+      })
+    reference%13)
+    \returned%14 -> effect.bind (reference.read reference%13)
+      \state%15 -> effect.pure {
+        returned: returned%14.returned,
+        seen: returned%14.seen,
+        state: state%15
+      }
+
+@export modifyResults = \reference%17 ->
+  effect.bind (effect.bind (reference.read reference%17)
+    \section277%16 -> reference.write reference%17 (integer.add section277%16 1))
+    \modified%18 -> effect.bind (modify_ (\section291%19 -> integer.multiply section291%19 2)
+      reference%17)
+      \discarded%20 -> effect.bind (reference.read reference%17)
+        \final%21 -> effect.pure { modified: modified%18, discarded: discarded%20, final: final%21 }
+
+@export newPerExecution = effect.bind (reference.new 0)
+  \reference%22 -> effect.bind (reference.read reference%22)
+    \section335%23 -> reference.write reference%22 (integer.add section335%23 1)

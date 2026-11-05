@@ -1,4 +1,4 @@
-import { strictEqual } from "node:assert/strict";
+import { deepStrictEqual, strictEqual } from "node:assert/strict";
 import * as STRef from "./output/Control.Monad.ST.Internal/index.js";
 import * as Main from "./output/Main/index.js";
 
@@ -26,3 +26,4 @@ strictEqual(incrementCounter(), 43);
 strictEqual(STRef.read(libraryCounter)(), 43);
 
 strictEqual(Main.countTwice(3), 84);
+deepStrictEqual(Main.swapCounter(7), { previous: 7, current: 8 });

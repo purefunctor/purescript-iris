@@ -1,0 +1,49 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign sameReference
+
+@export foreign incrementForeign
+
+@export fresh = reference.new 0
+
+@export pair = effect.bind (reference.new 0)
+  \left%0 -> effect.bind (reference.new 0)
+    \right%1 -> effect.bind (reference.write.unit left%0 1)
+      \$unit%2 -> effect.bind (reference.read left%0)
+        \leftValue%3 -> effect.bind (reference.read right%1)
+          \rightValue%4 -> effect.pure {
+            same: sameReference left%0 right%1,
+            left: leftValue%3,
+            right: rightValue%4
+          }
+
+@export allocated = \count%6 ->
+  effect.bind (reference.new [])
+    \references%5 -> effect.bind (forE 0 count%6
+      (\index%7 ->
+        effect.bind (reference.new index%7)
+          \reference%8 -> modify_ (flip snoc reference%8) references%5))
+      \$unit%9 -> reference.read references%5
+
+@export throughCallback = \reference%11 callback%10 ->
+  effect.bind (callback%10 reference%11) \$unit%12 -> reference.read reference%11
+
+@export incrementTwice = \reference%14 ->
+  effect.bind (modify_ (\section253%13 -> integer.add section253%13 1) reference%14)
+    \$unit%15 -> modify_ (\section266%16 -> integer.add section266%16 1) reference%14
+
+@export throughForeign = effect.bind (reference.new 1)
+  \reference%17 -> effect.bind (incrementForeign reference%17)
+    \$unit%18 -> effect.bind (reference.read reference%17)
+      \section300%19 -> reference.write reference%17 (integer.multiply section300%19 10)
+
+@export shared = effect.bind (reference.new 0)
+  \reference%20 -> let
+    holder%21 = { counter: reference%20 }
+  in effect.bind (reference.write.unit holder%21.counter 5)
+    \$unit%22 -> effect.bind (reference.read reference%20)
+      \first%23 -> effect.bind (effect.bind (reference.read reference%20)
+        \section359%24 -> reference.write reference%20 (integer.add section359%24 1))
+        \$int%25 -> effect.bind (reference.read holder%21.counter)
+          \second%26 -> effect.pure { first: first%23, second: second%26 }
