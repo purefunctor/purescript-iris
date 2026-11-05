@@ -399,6 +399,44 @@ pub fn compiler(path: &Path) -> FixtureResult {
     Ok(())
 }
 
+pub fn library(path: &Path) -> FixtureResult {
+    let source_root =
+        path.ancestors().find(|ancestor| ancestor.ends_with("src")).ok_or_else(|| {
+            invalid_data(format!("library module is outside a src directory: {}", path.display()))
+        })?;
+    let package = fixture_folder(source_root)?;
+    let module = path.strip_prefix(source_root)?.with_extension("");
+    let module = module.iter().map(|component| component.to_string_lossy()).join(".");
+    let loaded = crate::load_fixture(package)?;
+    let Some(id) = loaded.engine.module_file(&module) else {
+        return Err(missing_module(path, &module).into());
+    };
+    check_source_errors(&loaded.engine, &loaded.files, &loaded.fixture_files)?;
+
+    let generated = loaded.engine.javascript(id)??;
+    let filename = PathBuf::from(generated.filename());
+    let source = generated.files().index_source();
+    let output = snapshot_path(package).join("output");
+    if env::var_os(UPDATE_JAVASCRIPT_OUTPUT).is_some() {
+        let destination = output.join(&filename);
+        let parent = destination
+            .parent()
+            .ok_or_else(|| invalid_data("library output file has no parent directory"))?;
+        std::fs::create_dir_all(parent)?;
+        std::fs::write(destination, source)?;
+        return Ok(());
+    }
+    let expected = std::fs::read_to_string(output.join(&filename)).unwrap_or_default();
+    if expected.replace("\r\n", "\n") == source {
+        return Ok(());
+    }
+    let message = format!(
+        "generated JavaScript differs from {}\nrun `just t library {module}` to update library output",
+        output.join(&filename).display()
+    );
+    Err(FixtureFailure(message).into())
+}
+
 pub fn lowering(path: &Path) -> FixtureResult {
     let folder = fixture_folder(path)?;
     let file = module_name(path)?;

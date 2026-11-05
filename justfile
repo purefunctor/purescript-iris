@@ -38,7 +38,7 @@ coverage-html:
 @e2e *args="":
   cargo nextest run -p tests-e2e -j 1 "$@"
 
-[doc("Run integration tests and update expectations in place: compiler (c)|lowering (l)|resolving (r)|lsp|docs|formatting|sourcemap")]
+[doc("Run integration tests and update expectations in place: compiler (c)|lowering (l)|resolving (r)|lsp|docs|formatting|sourcemap|library")]
 t category *filters: integration-prepare
   #!/usr/bin/env bash
   set -uo pipefail
@@ -47,13 +47,13 @@ t category *filters: integration-prepare
     c|compiler) targets=(--test compiler) ;;
     l|lowering) targets=(--test lowering --test lowering_unit) ;;
     r|resolving) targets=(--test resolving) ;;
-    lsp|docs|formatting|sourcemap) targets=(--test "{{category}}") ;;
-    *) echo "unknown category '{{category}}', expected: compiler (c)|lowering (l)|resolving (r)|lsp|docs|formatting|sourcemap" >&2; exit 2 ;;
+    lsp|docs|formatting|sourcemap|library) targets=(--test "{{category}}") ;;
+    *) echo "unknown category '{{category}}', expected: compiler (c)|lowering (l)|resolving (r)|lsp|docs|formatting|sourcemap|library" >&2; exit 2 ;;
   esac
   INSTA_UPDATE=always IRIS_UPDATE_JAVASCRIPT_OUTPUT=1 cargo nextest run -p tests-integration "${targets[@]}" "$@" \
     --status-level=fail --final-status-level=fail --failure-output=final
   status=$?
-  git status --short -- tests-integration
+  git status --short -- tests-integration library
   exit $status
 
 [doc("Run package-set benchmarks (e.g. just bench --bench checking_single_core)")]
