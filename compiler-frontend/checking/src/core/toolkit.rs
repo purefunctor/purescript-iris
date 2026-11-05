@@ -709,8 +709,6 @@ pub fn contains_unknown<Q>(
 where
     Q: ExternalQueries,
 {
-    // Type flags do not track unknown types, and solved unification variables
-    // may contain them, so every type is visited.
     struct ContainsUnknown {
         contains: bool,
         synonyms: FxHashSet<(FileId, TypeItemId)>,
@@ -736,6 +734,10 @@ where
             }
 
             if self.contains { Ok(walk::WalkAction::Break) } else { Ok(walk::WalkAction::Continue) }
+        }
+
+        fn may_visit(&self, flags: TypeFlags) -> bool {
+            flags.may_contain_unknown()
         }
     }
 

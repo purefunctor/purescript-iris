@@ -45,12 +45,9 @@ impl CoreInterners {
             Type::Forall(binder_id, inner) => {
                 transitive(self.forall_binders[binder_id].kind) | transitive(inner)
             }
-            Type::Synonym(..) => TypeFlags::MAY_EXPAND,
-            Type::Constructor(..)
-            | Type::Integer(_)
-            | Type::String(..)
-            | Type::Free(_)
-            | Type::Unknown(_) => 0,
+            Type::Synonym(..) => TypeFlags::MAY_EXPAND | TypeFlags::HAS_SYNONYM,
+            Type::Constructor(..) | Type::Integer(_) | Type::String(..) | Type::Free(_) => 0,
+            Type::Unknown(_) => TypeFlags::HAS_UNKNOWN,
             Type::Row(row_id) => {
                 let row = &self.row_types[row_id];
                 let fields = row.fields.iter().fold(0, |bits, field| bits | transitive(field.id));
