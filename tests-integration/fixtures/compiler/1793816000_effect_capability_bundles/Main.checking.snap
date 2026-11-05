@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+reading ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Capabilities.First (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Capabilities.Second (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> Prim.Int
+inferred ::
+  forall (t0 :: Prim.Row Prim.Type).
+    Iris.Effect.Has Capabilities.First (t0 :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Capabilities.Second (t0 :: Prim.Row Prim.Type) =>
+    {| (t0 :: Prim.Row Prim.Type) } -> Prim.Int
+ranked ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Capabilities.First (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Capabilities.Second (services :: Prim.Row Prim.Type) =>
+    (forall (other :: Prim.Row Prim.Type).
+      Iris.Effect.Has Capabilities.First (other :: Prim.Row Prim.Type) =>
+      Iris.Effect.Has Capabilities.Second (other :: Prim.Row Prim.Type) =>
+      {| (other :: Prim.Row Prim.Type) } -> Prim.Int) ->
+    {| (services :: Prim.Row Prim.Type) } ->
+    Prim.Int
+tagged ::
+  forall value (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Capabilities.First (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has (Capabilities.Tagged value) (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Capabilities.Second (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> value
+readingValue :: Prim.Int
+inferredValue :: Prim.Int
+rankedValue :: Prim.Int
+taggedValue :: Prim.String
+
+Types

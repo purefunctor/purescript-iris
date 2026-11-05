@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Logger :: Prim.Type
+data Logger
+
+data Box :: Prim.Type -> Prim.Type
+data Box @value
+
+invalid :: forall @service services.
+  Iris.Effect.Has service services =>
+  Iris.Effect.Has Main.Logger services =>
+  {| services } -> service
+invalid = \{hasDict} -> \{hasDict1} -> getService {hasDict}
+
+valid :: forall value services.
+  Iris.Effect.Has (Main.Box value) services =>
+  Iris.Effect.Has Main.Logger services =>
+  {| services } -> Main.Box value
+valid = \{hasDict} -> \{hasDict1} -> getService {hasDict}

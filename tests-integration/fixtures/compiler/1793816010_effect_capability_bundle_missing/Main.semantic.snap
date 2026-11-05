@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+missing :: { first :: Capabilities.First } -> Prim.Int
+missing = reading {service("first")} {error}
+
+missingInferred :: { first :: Capabilities.First } -> Prim.Int
+missingInferred = inferred {service("first")} {error}

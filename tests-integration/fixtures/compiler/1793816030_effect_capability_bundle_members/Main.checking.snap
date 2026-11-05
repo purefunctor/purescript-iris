@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+invalid ::
+  forall @service (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has service (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Main.Logger (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> service
+valid ::
+  forall value (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has (Main.Box value) (services :: Prim.Row Prim.Type) =>
+    Iris.Effect.Has Main.Logger (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> Main.Box value
+
+Types
+Logger :: Prim.Type
+Box :: Prim.Type -> Prim.Type
+With :: Prim.Type -> Prim.Type
+
+Synonyms
+type With service = service & Main.Logger
+
+Roles
+Logger = []
+Box = [Phantom]

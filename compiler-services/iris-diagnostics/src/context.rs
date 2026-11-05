@@ -190,6 +190,7 @@ where
 
     pub fn span_from_error_crumb(&self, crumb: &ErrorCrumb) -> Option<Span> {
         let ptr = match crumb {
+            ErrorCrumb::CapabilityBundle(_) => return None,
             ErrorCrumb::ConstructorArgument(id) => self.stabilized.syntax_ptr(*id)?,
             ErrorCrumb::InferringKind(id) | ErrorCrumb::CheckingKind(id) => {
                 self.stabilized.syntax_ptr(*id)?
@@ -245,5 +246,43 @@ where
     pub fn primary_span_from_crumbs(&self, crumbs: &[ErrorCrumb]) -> Span {
         let primary = crumbs.iter().rev().find_map(|crumb| self.span_from_error_crumb(crumb));
         if let Some(primary) = primary { primary } else { self.module_span() }
+    }
+
+    pub fn written_type_span(
+        &self,
+        crumbs: &[ErrorCrumb],
+        type_id: TypeId,
+    ) -> QueryResult<Option<Span>> {
+        let pretty = Pretty::new(self.queries, self.checked);
+        let rendered = pretty.render(type_id)?;
+        for crumb in crumbs.iter().rev() {
+            let Some(enclosing) = self.span_from_error_crumb(crumb) else {
+                continue;
+            };
+            let mut written = None;
+            for (&source, &checked) in &self.checked.node_types.types {
+                let Some(span) = self
+                    .stabilized
+                    .syntax_ptr(source)
+                    .and_then(|pointer| self.span_from_syntax_ptr(&pointer))
+                else {
+                    continue;
+                };
+                if span.start < enclosing.start || enclosing.end < span.end {
+                    continue;
+                }
+                let smaller = written.is_none_or(|written: Span| {
+                    (span.end - span.start, span.start)
+                        < (written.end - written.start, written.start)
+                });
+                if smaller && pretty.render(checked)? == rendered {
+                    written = Some(span);
+                }
+            }
+            if written.is_some() {
+                return Ok(written);
+            }
+        }
+        Ok(None)
     }
 }

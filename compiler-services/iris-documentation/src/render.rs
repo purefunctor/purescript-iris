@@ -98,6 +98,7 @@ impl<'a> TypeEncoder<'a> {
                 constraint: self.encode_boxed_type(constraint)?,
                 body: self.encode_boxed_type(body)?,
             },
+            checking::Type::ConstraintOrigin(constraint, _) => return self.encode_type(constraint),
             checking::Type::Function(argument, result) => schema::Type::Function {
                 argument: self.encode_boxed_type(argument)?,
                 result: self.encode_boxed_type(result)?,

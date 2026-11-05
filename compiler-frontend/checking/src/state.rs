@@ -173,6 +173,8 @@ pub struct CheckState {
     pub canonical_errors: FxHashMap<CanonicalConstraintId, Vec<ErrorKind>>,
 
     pub defer_expansion: bool,
+    pub type_nesting: usize,
+    pub allow_bundle_synonym: bool,
     pub depth: Depth,
 
     pub crumbs: Vec<ErrorCrumb>,
@@ -197,6 +199,8 @@ impl CheckState {
             canonicals: Default::default(),
             canonical_errors: Default::default(),
             defer_expansion: Default::default(),
+            type_nesting: Default::default(),
+            allow_bundle_synonym: Default::default(),
             depth: Depth(0),
             crumbs: Default::default(),
             absorbed_unknown: None,

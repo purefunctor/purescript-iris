@@ -163,7 +163,8 @@ where
     for &constraint in constraints {
         let (constraint_type, _) =
             types::check_kind(state, context, constraint, context.prim.constraint)?;
-        checked_constraints.push(constraint_type);
+        let constraints = constraint::bundles::expand_constraint(state, context, constraint_type)?;
+        checked_constraints.extend(constraints);
     }
 
     let mut canonical = class_type;
@@ -592,6 +593,7 @@ where
             file_id: class_file,
             type_id: class_id,
             source_id: superclass.source_id,
+            member: superclass.member,
         };
         checked_superclasses.push(tree::InstanceSuperclass { id, constraint, evidence });
     }
@@ -961,15 +963,7 @@ where
                 state.checked.errors.push(CheckingError { kind, crumbs });
             }
 
-            let given = error
-                .key
-                .given
-                .iter()
-                .map(|given| state.canonicals.type_id(context, *given))
-                .collect::<Arc<[_]>>();
-
-            let constraint = state.canonicals.type_id(context, error.key.wanted);
-            let kind = ErrorKind::NoInstanceFound { given, constraint };
+            let kind = error.unsatisfied_error(state, context);
             let crumbs = error.evidence.crumbs;
             state.checked.errors.push(CheckingError { kind, crumbs });
         }

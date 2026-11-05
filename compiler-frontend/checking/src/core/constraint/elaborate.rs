@@ -139,7 +139,7 @@ where
             continue;
         };
 
-        for crate::core::CheckedSuperclass { source_id, constraint } in class.superclasses {
+        for crate::core::CheckedSuperclass { source_id, member, constraint } in class.superclasses {
             let child = SubstituteName::many(state, context, &substitutions, constraint)?;
             if toolkit::contains_unknown(state, context, child)? {
                 state.absorb_unknown(child);
@@ -148,7 +148,7 @@ where
             if let Some(child) = canonical::canonicalise(state, context, child)?
                 && seen.insert(child)
             {
-                let superclass_id = SuperclassId { file_id, type_id, source_id };
+                let superclass_id = SuperclassId { file_id, type_id, source_id, member };
                 edges.push(SuperclassEdge { parent, child, superclass_id });
                 pending.push_back(child);
             }

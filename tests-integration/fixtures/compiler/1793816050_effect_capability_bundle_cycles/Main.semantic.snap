@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Service :: Prim.Type
+data Service
+
+recursive :: forall services. Iris.Effect.Has Main.Recursive services => {| services } -> Prim.Int
+recursive = \{hasDict} -> \_ -> 0
+
+growing :: Main.Growing Prim.Int -> Prim.Int
+growing = \_ -> 0

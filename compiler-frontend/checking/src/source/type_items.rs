@@ -12,6 +12,7 @@ use lowering::{
 use smol_str::SmolStr;
 
 use crate::context::CheckContext;
+use crate::core::constraint::bundles;
 use crate::core::{
     CheckedClass, CheckedClassMember, CheckedDataDeclaration, CheckedSuperclass, CheckedSynonym,
     ForallBinder, Role, Type, TypeId, fd, fold, generalise, signature, toolkit, unification, zonk,
@@ -695,7 +696,10 @@ where
     };
 
     let synonym = if let Some(synonym) = synonym {
-        let (synonym, _) = types::check_kind(state, context, synonym, result)?;
+        let allow_bundle = mem::replace(&mut state.allow_bundle_synonym, true);
+        let checked = types::check_kind(state, context, synonym, result);
+        state.allow_bundle_synonym = allow_bundle;
+        let (synonym, _) = checked?;
         synonym
     } else {
         context.unknown("invalid synonym type")
@@ -789,7 +793,10 @@ where
     for &source_id in constraints.iter() {
         let (constraint, _) =
             types::check_kind(state, context, source_id, context.prim.constraint)?;
-        superclasses.push(CheckedSuperclass { source_id, constraint });
+        let constraints = bundles::expand_constraint(state, context, constraint)?;
+        for (member, constraint) in constraints.into_iter().enumerate() {
+            superclasses.push(CheckedSuperclass { source_id, member, constraint });
+        }
     }
 
     let functional_dependencies =
@@ -949,7 +956,7 @@ where
             .into_iter()
             .map(|superclass| {
                 let constraint = zonk::zonk(state, context, superclass.constraint)?;
-                Ok(CheckedSuperclass { source_id: superclass.source_id, constraint })
+                Ok(CheckedSuperclass { constraint, ..superclass })
             })
             .collect::<QueryResult<Vec<_>>>()?;
 
@@ -958,6 +965,7 @@ where
                 file_id: context.id,
                 type_id: item_id,
                 source_id: superclass.source_id,
+                member: superclass.member,
             },
             constraint: superclass.constraint,
         });

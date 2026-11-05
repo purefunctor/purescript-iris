@@ -1,0 +1,58 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CapabilityNotDeclared] · Main.purs:9:19
+  •
+  │
+  • Capability 'Http' is not declared in the capability set '( console :: Console )'.
+  │
+  │   missing :: Record (console :: Console) -> Http
+  │                     ╰───────────────────
+  │
+  • This operation requires the capability
+  │
+  │   missing = getService
+  │             ╰─────────
+  •
+
+Error! · [CapabilityNotDeclared] · Main.purs:12:25
+  •
+  │
+  • Capability 'Http' is not declared in the capability set '( http :: Console )'.
+  │
+  │   wrongIdentity :: Record (http :: Console) -> Http
+  │                           ╰────────────────
+  │
+  • This operation requires the capability
+  │
+  │   wrongIdentity = getService
+  │                   ╰─────────
+  •
+
+Error! · [CapabilityNotDeclared] · Main.purs:15:35
+  •
+  │
+  • Capability 'Console' is not declared in the capability set '()'.
+  │
+  │   annotated = (getService :: Record () -> Console)
+  │                                     ╰─
+  │
+  • This operation requires the capability
+  │
+  │   annotated = (getService :: Record () -> Console)
+  │                ╰─────────
+  •
+
+Error! · [CapabilityNotDeclared] · Main.purs:19:19
+  •
+  │
+  • Capability 'Http' is not declared in the capability set '( console :: Console )'.
+  │
+  │     local :: Record (console :: Console) -> Http
+  │                     ╰───────────────────
+  │
+  • This operation requires the capability
+  │
+  │     local = getService
+  │             ╰─────────
+  •

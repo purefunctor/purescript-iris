@@ -7,6 +7,7 @@
 //!
 //! [`Implication`]: crate::implication::Implication
 
+pub mod bundles;
 pub mod canonical;
 pub mod compiler;
 pub mod elaborate;
@@ -329,8 +330,7 @@ where
                         state.checked.errors.push(CheckingError { kind, crumbs });
                         solve_with_evidence(state, Evidence::Trivial);
                     }
-                    compiler::CompilerResolution::Failure { message_id } => {
-                        let kind = ErrorKind::CustomFailure { message_id };
+                    compiler::CompilerResolution::Failure(kind) => {
                         let crumbs = Arc::clone(&constraint.evidence.crumbs);
                         state.checked.errors.push(CheckingError { kind, crumbs });
                         state.checked.evidence.mark_error(constraint.evidence.wanted);
@@ -561,6 +561,24 @@ impl ConstraintInScope {
         state.canonicals.type_id(context, self.key.wanted)
     }
 
+    pub fn unsatisfied_error<Q>(&self, state: &CheckState, context: &CheckContext<Q>) -> ErrorKind
+    where
+        Q: ExternalQueries,
+    {
+        let canonical = &state.canonicals[self.key.wanted];
+        if (canonical.file_id, canonical.type_id)
+            == (context.iris_effect.file_id, context.iris_effect.has)
+            && let Some([service, services]) = canonical.expect_type_arguments::<2>()
+        {
+            return ErrorKind::UnresolvedCapability { service, services };
+        }
+
+        let given = self.key.given.iter().map(|&given| state.canonicals.type_id(context, given));
+        let given = given.collect();
+        let constraint = self.canonical(state, context);
+        ErrorKind::NoInstanceFound { given, constraint }
+    }
+
     pub fn is_partial<Q>(&self, state: &CheckState, context: &CheckContext<Q>) -> bool
     where
         Q: ExternalQueries,
@@ -657,7 +675,14 @@ where
             let given: Rc<[CanonicalConstraintId]> = Rc::from(given);
             let given_evidence: Rc<[EvidenceId]> = Rc::from(given_evidence);
 
-            for WantedConstraint { constraint, evidence: wanted_evidence, crumbs } in wanted {
+            for WantedConstraint { mut constraint, evidence: wanted_evidence, mut crumbs } in wanted
+            {
+                while let Type::ConstraintOrigin(inner, origin) = *context.lookup_type(constraint) {
+                    let mut with_origin = crumbs.to_vec();
+                    with_origin.push(ErrorCrumb::CapabilityBundle(origin));
+                    crumbs = with_origin.into();
+                    constraint = inner;
+                }
                 if let Some(wanted) = canonical::canonicalise(state, context, constraint)? {
                     let given = Rc::clone(&given);
                     let given_evidence = Rc::clone(&given_evidence);

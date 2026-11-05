@@ -11,6 +11,7 @@ use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
 
 use crate::context::CheckContext;
+use crate::core::constraint::bundles;
 use crate::core::substitute::SubstituteName;
 use crate::core::{ForallBinder, RowField, Type, TypeId, normalise, toolkit, unification};
 use crate::error::{ErrorCrumb, ErrorKind};
@@ -36,6 +37,7 @@ where
     state.with_error_crumb(ErrorCrumb::CheckingKind(source_type), |state| {
         let (inferred_type, inferred_kind) =
             check_kind_core(state, context, source_type, expected_kind)?;
+        state.checked.node_types.types.insert(source_type, inferred_type);
         state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
         Ok((inferred_type, inferred_kind))
     })
@@ -67,7 +69,15 @@ where
     Q: ExternalQueries,
 {
     state.with_error_crumb(ErrorCrumb::InferringKind(source_type), |state| {
-        let (inferred_type, inferred_kind) = infer_kind_core(state, context, source_type)?;
+        state.type_nesting += 1;
+        let inferred = infer_kind_core(state, context, source_type);
+        state.type_nesting -= 1;
+        let (mut inferred_type, inferred_kind) = inferred?;
+        if state.type_nesting == 0 {
+            let allow_bundle = state.allow_bundle_synonym;
+            inferred_type = bundles::validate(state, context, inferred_type, allow_bundle)?;
+        }
+        state.checked.node_types.types.insert(source_type, inferred_type);
         state.checked.node_types.type_kinds.insert(source_type, inferred_kind);
         Ok((inferred_type, inferred_kind))
     })
@@ -146,7 +156,10 @@ where
                 context.unknown("missing constrained")
             };
 
-            let t = context.intern_constrained(constraint, constrained);
+            let constraints = bundles::expand_constraint(state, context, constraint)?;
+            let t = constraints.into_iter().rev().fold(constrained, |constrained, constraint| {
+                context.intern_constrained(constraint, constrained)
+            });
             let k = context.prim.t;
 
             Ok((t, k))
@@ -624,6 +637,7 @@ where
         }
 
         Type::Constrained(_, _) => context.prim.t,
+        Type::ConstraintOrigin(constraint, _) => elaborate_kind(state, context, constraint)?,
         Type::Forall(_, _) => context.prim.t,
         Type::Function(_, _) => context.prim.t,
 

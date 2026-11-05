@@ -134,6 +134,7 @@ pub struct CheckedSynonym {
 pub struct CheckedSuperclass {
     /// Stable source identity of this occurrence in the defining file.
     pub source_id: lowering::TypeId,
+    pub member: usize,
     /// Constraint expressed in terms of the class head's rigids.
     pub constraint: TypeId,
 }
@@ -252,6 +253,7 @@ pub enum Type {
     Forall(ForallBinderId, TypeId),
     /// A constrained type, `Constraint => Constrained`.
     Constrained(TypeId, TypeId),
+    ConstraintOrigin(TypeId, TypeId),
     /// A function type, `a -> b`.
     Function(TypeId, TypeId),
     /// A type with an explicit kind, `T :: K`.

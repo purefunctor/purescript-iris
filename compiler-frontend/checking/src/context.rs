@@ -151,6 +151,7 @@ pub struct CheckedCore {
     pub prim_row: PrimRowCore,
     pub prim_row_list: PrimRowListCore,
     pub prim_coerce: PrimCoerceCore,
+    pub iris_effect: IrisEffectCore,
     pub prim_type_error: PrimTypeErrorCore,
     pub known_types: KnownTypesCore,
     pub known_terms: KnownTermsCore,
@@ -170,6 +171,7 @@ impl CheckedCore {
         let prim_row = PrimRowCore::collect(queries)?;
         let prim_row_list = PrimRowListCore::collect(queries)?;
         let prim_coerce = PrimCoerceCore::collect(queries)?;
+        let iris_effect = IrisEffectCore::collect(queries)?;
         let prim_type_error = PrimTypeErrorCore::collect(queries)?;
         let known_types = KnownTypesCore::collect(queries)?;
         let known_terms = KnownTermsCore::collect(queries)?;
@@ -189,6 +191,7 @@ impl CheckedCore {
             prim_row,
             prim_row_list,
             prim_coerce,
+            iris_effect,
             prim_type_error,
             known_types,
             known_terms,
@@ -228,6 +231,10 @@ where
     /// Interns a [`Type::Constrained`] node.
     pub fn intern_constrained(&self, constraint: TypeId, inner: TypeId) -> TypeId {
         self.queries.intern_type(Type::Constrained(constraint, inner))
+    }
+
+    pub fn intern_constraint_origin(&self, constraint: TypeId, origin: TypeId) -> TypeId {
+        self.queries.intern_type(Type::ConstraintOrigin(constraint, origin))
     }
 
     /// Interns a [`Type::Function`] node.
@@ -635,6 +642,30 @@ impl PrimCoerceCore {
             .unwrap_or_else(|| unreachable!("invariant violated: Coercible not in Prim.Coerce"));
 
         Ok(PrimCoerceCore { file_id, coercible })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct IrisEffectCore {
+    pub file_id: FileId,
+    pub has: TypeItemId,
+    pub bundle: TypeId,
+}
+
+impl IrisEffectCore {
+    fn collect(queries: &impl ExternalQueries) -> QueryResult<IrisEffectCore> {
+        let file_id = queries
+            .module_file("Iris.Effect")
+            .unwrap_or_else(|| unreachable!("invariant violated: Iris.Effect not found"));
+
+        let resolved = queries.resolved(file_id)?;
+        let lookup = PrimLookup::new(&resolved, queries, "Iris.Effect");
+
+        Ok(IrisEffectCore {
+            file_id,
+            has: lookup.class_item("Has"),
+            bundle: lookup.type_constructor("Bundle"),
+        })
     }
 }
 

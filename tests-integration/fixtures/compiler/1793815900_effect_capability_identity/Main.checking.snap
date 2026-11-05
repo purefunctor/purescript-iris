@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+console :: { logger :: Services.Console, network :: Services.Http } -> Services.Console
+http :: { logger :: Services.Console, network :: Services.Http } -> Services.Http
+misleading :: { console :: Services.Http, http :: Services.Console } -> Services.Console
+aliased :: { renamed :: Main.ConsoleAlias } -> Services.Console
+consoleValue :: Services.Console
+httpValue :: Services.Http
+misleadingValue :: Services.Console
+aliasedValue :: Services.Console
+
+Types
+ConsoleAlias :: Prim.Type
+
+Synonyms
+type ConsoleAlias = Services.Console

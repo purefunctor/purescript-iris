@@ -231,6 +231,7 @@ pub struct SuperclassIdentity {
     pub file_id: FileId,
     pub class: TypeItemId,
     pub source: SourceTypeId,
+    pub member: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -426,6 +427,7 @@ pub struct RecordPatternField {
 pub enum SynthesizedEvidence {
     IsSymbol(lowering::StringLiteral),
     Reflectable(ReflectableEvidence),
+    Service(SmolStr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

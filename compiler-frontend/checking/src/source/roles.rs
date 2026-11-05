@@ -193,6 +193,10 @@ where
             infer_roles(inference, inner, mode)?;
         }
 
+        Type::ConstraintOrigin(constraint, _) => {
+            infer_roles(inference, constraint, mode)?;
+        }
+
         Type::Forall(binder_id, inner) => {
             let binder = inference.context.lookup_forall_binder(binder_id);
 

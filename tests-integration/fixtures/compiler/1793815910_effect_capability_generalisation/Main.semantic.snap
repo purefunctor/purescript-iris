@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+lookup :: forall @service services. Iris.Effect.Has service services => {| services } -> service
+lookup = \{hasDict} -> getService {hasDict}
+
+inferred :: forall t0. Iris.Effect.Has Services.Console t0 => {| t0 } -> Prim.Int
+inferred = \{hasDict} -> \environment ->
+  case lookup {hasDict} environment of
+    (Console value) -> value
+
+multiple :: forall t0.
+  Iris.Effect.Has Services.Http t0 =>
+  Iris.Effect.Has Services.Console t0 =>
+  {| t0 } -> { console :: Services.Console, http :: Services.Http }
+multiple = \{hasDict} -> \{hasDict1} -> \environment ->
+  { console: lookup {hasDict1} environment, http: lookup {hasDict} environment }
+
+delayed :: forall tail.
+  Iris.Effect.Has Services.Console ( network :: Services.Http | tail ) =>
+  { network :: Services.Http | tail } -> Services.Console
+delayed = \{hasDict} -> lookup {hasDict}
+
+inferredValue :: Prim.Int
+inferredValue = inferred {service("logger")} { logger: Console 37 }
+
+multipleValue :: { console :: Services.Console, http :: Services.Http }
+multipleValue =
+  multiple {service("network")} {service("logger")} { logger: Console 19, network: Http 23 }
+
+delayedValue :: Services.Console
+delayedValue = delayed {service("logger")} { network: Http 4, logger: Console 61 }

@@ -901,7 +901,7 @@ where
                 self.append_type_constructor_names(name, function)?;
                 self.append_type_constructor_names(name, argument)?;
             }
-            Type::Forall(_, inner) | Type::Kinded(inner, _) => {
+            Type::Forall(_, inner) | Type::Kinded(inner, _) | Type::ConstraintOrigin(inner, _) => {
                 self.append_type_constructor_names(name, inner)?;
             }
             Type::Constrained(_, inner) => {
@@ -2124,6 +2124,7 @@ where
 fn synthesized_evidence_name(evidence: &SynthesizedEvidence) -> SmolStr {
     match evidence {
         SynthesizedEvidence::IsSymbol(symbol) => format_smolstr!("isSymbol({symbol:?})"),
+        SynthesizedEvidence::Service(role) => format_smolstr!("service({role:?})"),
         SynthesizedEvidence::Reflectable(ReflectableEvidence::Integer(value)) => {
             format_smolstr!("reflectable({value})")
         }

@@ -621,6 +621,7 @@ fn inspect_type<Q>(
             Type::Application(function, argument)
             | Type::KindApplication(function, argument)
             | Type::Constrained(function, argument)
+            | Type::ConstraintOrigin(function, argument)
             | Type::Function(function, argument)
             | Type::Kinded(function, argument) => {
                 pending.push(function);

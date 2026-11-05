@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Console :: Prim.Int -> Main.Console
+undeclared ::
+  forall (services :: Prim.Row Prim.Type). {| (services :: Prim.Row Prim.Type) } -> Main.Console
+open ::
+  forall (tail :: Prim.Row Prim.Type).
+    { console :: Main.Console | (tail :: Prim.Row Prim.Type) } -> Main.Console
+
+Types
+Console :: Prim.Type
+
+Roles
+Console = []

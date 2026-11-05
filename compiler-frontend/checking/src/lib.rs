@@ -94,6 +94,7 @@ pub struct CheckedHoles {
 /// Checked types and kinds keyed by stable node IDs from lowering.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CheckedNodeTypes {
+    pub types: FxHashMap<lowering::TypeId, TypeId>,
     pub type_kinds: FxHashMap<lowering::TypeId, TypeId>,
     pub expressions: FxHashMap<lowering::ExpressionId, TypeId>,
     pub binders: FxHashMap<lowering::BinderId, TypeId>,

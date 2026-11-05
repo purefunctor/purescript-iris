@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+recursive ::
+  forall (services :: Prim.Row Prim.Type).
+    Iris.Effect.Has Main.Recursive (services :: Prim.Row Prim.Type) =>
+    {| (services :: Prim.Row Prim.Type) } -> Prim.Int
+growing :: Main.Growing Prim.Int -> Prim.Int
+
+Types
+Service :: Prim.Type
+Recursive :: Prim.Type
+Growing :: Prim.Type -> Prim.Type
+
+Synonyms
+type Recursive = Main.Service & Main.Recursive
+type Growing value = Prim.Array (Main.Growing (Prim.Array value))
+
+Roles
+Service = []

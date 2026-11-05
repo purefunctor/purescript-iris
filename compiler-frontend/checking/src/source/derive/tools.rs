@@ -9,7 +9,7 @@ use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::substitute::SubstituteName;
 use crate::core::{CheckedClass, Type, TypeId, toolkit};
-use crate::error::{CheckingError, ErrorKind};
+use crate::error::CheckingError;
 use crate::state::CheckState;
 
 pub fn emit_constraint<Q>(
@@ -145,15 +145,7 @@ where
             state.checked.errors.push(CheckingError { kind, crumbs });
         }
 
-        let given = residual
-            .key
-            .given
-            .iter()
-            .map(|given| state.canonicals.type_id(context, *given))
-            .collect::<Arc<[_]>>();
-
-        let constraint = state.canonicals.type_id(context, residual.key.wanted);
-        let kind = ErrorKind::NoInstanceFound { given, constraint };
+        let kind = residual.unsatisfied_error(state, context);
         let crumbs = residual.evidence.crumbs;
         state.checked.errors.push(CheckingError { kind, crumbs });
     }

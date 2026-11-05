@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype First :: Prim.Type
+newtype First
+  | First :: Prim.Int -> Main.First
+
+newtype Second :: Prim.Type
+newtype Second
+  | Second :: Prim.Int -> Main.Second
+
+interface Both :: Prim.Row Prim.Type -> Prim.Constraint
+interface Both services where
+  superclass hasDict :: Iris.Effect.Has Main.First services
+  superclass hasDict1 :: Iris.Effect.Has Main.Second services
+
+dictionary both ::
+  forall services.
+  { hasDict :: Iris.Effect.Has Main.First services } =>
+  { hasDict1 :: Iris.Effect.Has Main.Second services } =>
+  Main.Both services
+  where
+  superclass hasDict = hasDict
+  superclass hasDict1 = hasDict1
+
+reading :: forall services. Main.Both services => {| services } -> Prim.Int
+reading = \{bothDict} -> \services ->
+  case getService {bothDict.hasDict} services, getService {bothDict.hasDict1} services of
+    (First first), (Second second) -> add {semiringInt} (mul {semiringInt} first 100) second
+
+readingValue :: Prim.Int
+readingValue =
+  reading {both {service("first")} {service("second")}} { first: First 3, second: Second 7 }

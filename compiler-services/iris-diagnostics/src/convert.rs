@@ -1,3 +1,4 @@
+use checking::core::pretty::Pretty;
 use checking::error::{CheckingError, ErrorCrumb, ErrorKind};
 use checking::holes::HoleBinding;
 use foreign_javascript::ForeignError;
@@ -717,6 +718,54 @@ impl ToDiagnostics for CheckingError {
                 let message = render_type(*constraint)?;
                 ("AmbiguousConstraint", format!("Ambiguous constraint: {message}"))
             }
+            ErrorKind::AmbiguousCapability { service, roles, .. } => {
+                let service = render_type(*service)?;
+                let roles = roles.join(", ");
+                (
+                    "AmbiguousCapability",
+                    format!(
+                        "Capability '{service}' is declared more than once, under roles: {roles}. Use distinct service types for distinct roles."
+                    ),
+                )
+            }
+            ErrorKind::CapabilityNotDeclared { service, services } => {
+                let service = render_type(*service)?;
+                let services = render_type(*services)?;
+                (
+                    "CapabilityNotDeclared",
+                    format!(
+                        "Capability '{service}' is not declared in the capability set '{services}'."
+                    ),
+                )
+            }
+            ErrorKind::UnresolvedCapability { service, services } => {
+                let service = render_type(*service)?;
+                let services = render_type(*services)?;
+                (
+                    "UnresolvedCapability",
+                    format!(
+                        "Capability '{service}' cannot be selected uniquely from '{services}'. Close the capability set or declare a 'Has' constraint for this service."
+                    ),
+                )
+            }
+            ErrorKind::InvalidCapabilityBundleMember { member } => {
+                let member = Pretty::new(context.queries, context.checked).render(*member)?;
+                (
+                    "InvalidCapabilityBundleMember",
+                    format!(
+                        "Capability bundle member '{member}' is a type variable. Name each service explicitly; synonym parameters cannot stand for bundle members."
+                    ),
+                )
+            }
+            ErrorKind::InvalidCapabilityBundlePosition { bundle } => {
+                let bundle = render_type(*bundle)?;
+                (
+                    "InvalidCapabilityBundlePosition",
+                    format!(
+                        "Capability bundle '{bundle}' is only allowed as the first argument of 'Has', or in a bundle type synonym. It is not a service type."
+                    ),
+                )
+            }
             ErrorKind::CannotDeriveClass { .. } => {
                 ("CannotDeriveClass", "Cannot derive this class".to_string())
             }
@@ -934,6 +983,22 @@ impl ToDiagnostics for CheckingError {
         } else {
             Diagnostic::error(code, message, span, "checking")
         };
+
+        if let ErrorKind::AmbiguousCapability { services, .. }
+        | ErrorKind::CapabilityNotDeclared { services, .. }
+        | ErrorKind::UnresolvedCapability { services, .. } = self.kind
+            && let Some(declared) = context.written_type_span(&self.crumbs, services)?
+        {
+            diagnostic = diagnostic.with_related(span, "This operation requires the capability");
+            diagnostic.span = declared;
+        }
+
+        for crumb in self.crumbs.iter() {
+            if let ErrorCrumb::CapabilityBundle(origin) = *crumb {
+                let origin = render_type(origin)?;
+                diagnostic = diagnostic.with_trivia(format!("required via {origin}"));
+            }
+        }
 
         if let ErrorKind::NoInstanceFound { given, .. } = &self.kind {
             for &given in given.iter() {
