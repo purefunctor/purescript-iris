@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::{fs, io, process};
 
 use files::FileId;
+use prim_constants::MODULE_MAP;
 use rayon::prelude::*;
 use serde::Serialize;
 use thiserror::Error;
@@ -90,8 +91,20 @@ impl BuildOutput {
         let comment = javascript::source_mapping_url_comment();
         let index_source = format!("{}{comment}", files.index_source());
         write_if_changed(&index, index_source.as_bytes())?;
+        let owner = compilation
+            .source_metadata(module.file_id())
+            .expect("invariant violated: a generated module has no source owner");
         let source_map_path = self.directory.join(javascript::source_map_module_filename(name));
-        let source_map = source_map.to_json(&source_map_source_url(&source_map_path, &source));
+        let source_map = match owner {
+            SourceOwner::Builtin => {
+                let builtin = MODULE_MAP.iter().find(|(builtin, _)| *builtin == name);
+                let (_, content) = builtin.expect("invariant violated: a builtin has no source");
+                source_map.to_json(&format!("{name}.purs"), Some(content))
+            }
+            SourceOwner::Package(_) => {
+                source_map.to_json(&source_map_source_url(&source_map_path, &source), None)
+            }
+        };
         write_if_changed(&source_map_path, source_map.as_bytes())?;
         if let Some(source) = files.stylex_theme_source() {
             let path = self.directory.join(javascript::stylex_theme_module_filename(name));
@@ -104,9 +117,6 @@ impl BuildOutput {
                 .expect("invariant violated: generated module requires missing foreign content");
             write_if_changed(&path, foreign.as_bytes())?;
         }
-        let owner = compilation
-            .source_metadata(module.file_id())
-            .expect("invariant violated: a generated module has no source owner");
         let SourceOwner::Package(package) = owner else {
             return Ok(());
         };

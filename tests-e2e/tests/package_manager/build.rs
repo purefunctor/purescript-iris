@@ -447,6 +447,14 @@ console.log(greeting, getService({ getService: (services) => services.name })({ 
     hello effect
     --- stderr
     ");
+
+    let source_map = workspace.read("output/Iris.Effect/index.js.map");
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    assert_eq!(workspace.read("output/Iris.Effect/index.js.map"), source_map);
+    let source_map: serde_json::Value = serde_json::from_str(&source_map).unwrap();
+    insta::assert_snapshot!(source_map["sources"], @r#"["Iris.Effect.purs"]"#);
+    let content = source_map["sourcesContent"][0].as_str().unwrap();
+    assert!(content.starts_with("module Iris.Effect where\n"));
 }
 
 #[test]
