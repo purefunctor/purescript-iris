@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+whenConfigured :: { enabled :: Prim.Boolean, value :: Prim.Int } ->
+Effect.Ref.Ref Prim.Int ->
+Effect.Effect Data.Unit.Unit
+whenConfigured = \configuration -> \reference ->
+  when {applicativeEffect} configuration.enabled (write configuration.value reference)
+
+unlessConfigured :: { enabled :: Prim.Boolean, value :: Prim.Int } ->
+Effect.Ref.Ref Prim.Int ->
+Effect.Effect Data.Unit.Unit
+unlessConfigured = \configuration -> \reference ->
+  unless {applicativeEffect} configuration.enabled (write configuration.value reference)
+
+diagonal :: Prim.Int -> Effect.Effect Prim.Int
+diagonal = \size ->
+  bind {bindEffect} (new 0) \count ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 size \row ->
+        forE 0 size \column ->
+          when {applicativeEffect} (eq {eqInt} row column)
+            (modify_ (\v152 -> add {semiringInt} v152 1) count)) \_ -> read count
+
+genericWhen :: forall effect.
+  Control.Applicative.Applicative effect =>
+  Prim.Boolean -> effect Data.Unit.Unit -> effect Data.Unit.Unit
+genericWhen = \{applicativeDict} -> when {applicativeDict}

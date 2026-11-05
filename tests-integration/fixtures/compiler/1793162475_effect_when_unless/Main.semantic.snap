@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import record :: Prim.String -> Effect.Effect Data.Unit.Unit
+
+foreign import takeLog :: Effect.Effect (Prim.Array Prim.String)
+
+statementWhen :: Prim.Boolean -> Effect.Effect Prim.Int
+statementWhen = \flag ->
+  bind {bindEffect} (new 0) \ref ->
+    discard {discardUnit} {bindEffect} (when {applicativeEffect} flag (write 5 ref)) \_ ->
+      discard {discardUnit} {bindEffect}
+        (unless {applicativeEffect} flag (modify_ (\v87 -> add {semiringInt} v87 1) ref)) \_ ->
+        read ref
+
+finalWhen :: Prim.Boolean -> Effect.Effect Data.Unit.Unit
+finalWhen = \flag ->
+  discard {discardUnit} {bindEffect} (record "before") \_ ->
+    when {applicativeEffect} flag (record "inside")
+
+stateUnless :: Prim.Int -> Prim.Int
+stateUnless = \count ->
+  run
+    (bind {bindST} (new count) \ref ->
+      discard {discardUnit} {bindST}
+        (unless {applicativeST} (greaterThan {ordInt} count 0)
+          (void {functorST} (write 0 ref))) \_ -> read ref)

@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+whenConfigured :: { enabled :: Prim.Boolean, value :: Prim.Int } ->
+Effect.Ref.Ref Prim.Int ->
+Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+whenConfigured = \configuration -> \reference ->
+  when {applicativeAsync} configuration.enabled (liftEffect (write configuration.value reference))
+
+unlessConfigured :: { enabled :: Prim.Boolean, value :: Prim.Int } ->
+Effect.Ref.Ref Prim.Int ->
+Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+unlessConfigured = \configuration -> \reference ->
+  unless {applicativeAsync} configuration.enabled (liftEffect (write configuration.value reference))
+
+failWhen :: Prim.Boolean -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+failWhen = \condition -> when {applicativeAsync} condition (fail "failure")
+
+run :: Iris.Effect.Async.Async Prim.String () Data.Unit.Unit ->
+(Iris.Effect.Fiber.Exit Prim.String Data.Unit.Unit -> Effect.Effect Data.Unit.Unit) ->
+Effect.Effect Data.Unit.Unit
+run = \program -> \callback ->
+  bind {bindEffect} newRuntime \runtime ->
+    bind {bindEffect} (makeFiber runtime (toStep { } program)) \fiber ->
+      void {functorEffect} (joinFiber fiber callback)

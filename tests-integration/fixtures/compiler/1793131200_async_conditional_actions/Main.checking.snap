@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+whenConfigured ::
+  { enabled :: Prim.Boolean, value :: Prim.Int } ->
+  Effect.Ref.Ref Prim.Int ->
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+unlessConfigured ::
+  { enabled :: Prim.Boolean, value :: Prim.Int } ->
+  Effect.Ref.Ref Prim.Int ->
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+failWhen :: Prim.Boolean -> Iris.Effect.Async.Async Prim.String () Data.Unit.Unit
+run ::
+  Iris.Effect.Async.Async Prim.String () Data.Unit.Unit ->
+  (Iris.Effect.Fiber.Exit Prim.String Data.Unit.Unit -> Effect.Effect Data.Unit.Unit) ->
+  Effect.Effect Data.Unit.Unit
+
+Types

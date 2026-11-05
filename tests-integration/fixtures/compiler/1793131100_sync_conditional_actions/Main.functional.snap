@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export whenConfigured = \configuration%0 reference%1 ->
+  when applicativeSync configuration%0.enabled
+    (let
+      syncArgument%2 = reference.write.unit reference%1 configuration%0.value
+    in \environment%3 -> syncArgument%2)
+
+@export unlessConfigured = \configuration%4 reference%5 ->
+  unless applicativeSync configuration%4.enabled
+    (let
+      syncArgument%6 = reference.write.unit reference%5 configuration%4.value
+    in \environment%7 -> syncArgument%6)
+
+@export step = \reference%8 limit%12 ->
+  let
+    syncArgument%9 = reference.read reference%8
+  in \environment%25 ->
+    effect.bind syncArgument%9
+      \current%11 -> let
+        syncArgument%23 = when applicativeSync (integer.less_than current%11 limit%12)
+          (let
+            syncArgument%13 = reference.write.unit reference%8 (integer.add current%11 1)
+          in \environment%14 -> syncArgument%13)
+      in effect.bind (syncArgument%23 environment%25)
+        \$unit%15 -> let
+          syncArgument%21 = unless applicativeSync (integer.less_than current%11 limit%12)
+            (let
+              syncArgument%16 = reference.write.unit reference%8 0
+            in \environment%17 -> syncArgument%16)
+        in effect.bind (syncArgument%21 environment%25)
+          \$unit%18 -> let
+            syncArgument%19 = reference.read reference%8
+          in syncArgument%19
+
+@export run = run {  }

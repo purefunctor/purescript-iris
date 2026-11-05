@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export whenConfigured = \configuration%0 reference%1 ->
+  when applicativeAsync configuration%0.enabled
+    (let
+      asyncArgument%2 = reference.write.unit reference%1 configuration%0.value
+    in \environment%3 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.bind asyncArgument%2
+              \value%14 -> effect.pure { tag: "Pure", _1: value%14 }()
+      })
+
+@export unlessConfigured = \configuration%4 reference%5 ->
+  unless applicativeAsync configuration%4.enabled
+    (let
+      asyncArgument%6 = reference.write.unit reference%5 configuration%4.value
+    in \environment%7 ->
+      {
+        tag: "Run",
+        _1:
+          uncurried \ ->
+            uncurried.call effect.bind asyncArgument%6
+              \value%15 -> effect.pure { tag: "Pure", _1: value%15 }()
+      })
+
+@export failWhen = \condition%8 ->
+  when applicativeAsync condition%8 (\environment%9 -> { tag: "Throw", _1: "failure" })
+
+@export run = \program%11 callback%13 ->
+  effect.bind newRuntime
+    \runtime%10 -> effect.bind (makeFiber runtime%10 (toStep {  } program%11))
+      \fiber%12 -> void functorEffect (joinFiber fiber%12 callback%13)
