@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+parsedInt = \text%0 -> either (const "Nothing") toInt (parse text%0)
+
+prototypeField = fromObject [{ name: "__proto__", value: fromString "data" }]
+
+order = fromObject
+  [{ name: "product", value: fromString "p1" },
+    { name: "quantity", value: fromInt 2 },
+    { name: "gift", value: fromBoolean false },
+    { name: "tags", value: fromArray [fromString "new", null] },
+    { name: "price", value: fromNumber 2.5 }]
+
+describeParse = \text%1 ->
+  case parse text%1 of
+    Left _ ->
+      "invalid"
+    Right json%2 ->
+      case bindMaybeDictBind (field "product" json%2) toString of
+        Just product%3 ->
+          string.append "product " product%3
+        Nothing ->
+          "no product"
+
+@export results = [stringify order,
+  show (showArray showMaybeIntDict)
+    (functorArrayDictMap parsedInt
+      ["2147483647", "2147483648", "-2147483648", "-2147483649", "1.5"]),
+  stringify prototypeField,
+  showMaybeStringDictShow (bindMaybeDictBind (field "__proto__" prototypeField) toString),
+  showMaybeStringDictShow (bindMaybeDictBind (field "__proto__" (fromObject [])) toString),
+  showMaybeStringDictShow (bindMaybeDictBind (field "toString" (fromObject [])) toString),
+  showMaybeIntDictShow (bindMaybeDictBind (field "length" (fromArray [])) toInt),
+  show (showMaybe (showArray showString))
+    (map functorMaybe (functorArrayDictMap stringify)
+      (bindMaybeDictBind (field "tags" order) toArray)),
+  show (showMaybe showBoolean) (bindMaybeDictBind (field "gift" order) toBoolean),
+  show (showMaybe showNumber) (bindMaybeDictBind (field "price" order) toNumber),
+  showMaybeIntDictShow (bindMaybeDictBind (field "price" order) toInt),
+  describeParse (stringify order),
+  describeParse "[1, 2]",
+  describeParse "{"]
+
+bindMaybeDictBind = bind bindMaybe
+
+showMaybeIntDict = showMaybe showInt
+
+functorArrayDictMap = map functorArray
+
+showMaybeStringDict = showMaybe showString
+
+showMaybeStringDictShow = show showMaybeStringDict
+
+showMaybeIntDictShow = show showMaybeIntDict

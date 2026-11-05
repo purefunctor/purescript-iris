@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+parsedInt :: Prim.String -> Data.Maybe.Maybe Prim.Int
+prototypeField :: Iris.Effect.Json.Json
+order :: Iris.Effect.Json.Json
+describeParse :: Prim.String -> Prim.String
+results :: Prim.Array Prim.String
+
+Types

@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+parsedInt :: Prim.String -> Data.Maybe.Maybe Prim.Int
+parsedInt = \text -> either (const Nothing) toInt (parse text)
+
+prototypeField :: Iris.Effect.Json.Json
+prototypeField = fromObject [{ name: "__proto__", value: fromString "data" }]
+
+order :: Iris.Effect.Json.Json
+order =
+  fromObject
+    [{ name: "product", value: fromString "p1" }, { name: "quantity", value: fromInt
+      2 }, { name: "gift", value: fromBoolean false }, { name: "tags", value: fromArray
+      [fromString "new", null] }, { name: "price", value: fromNumber 2.5 }]
+
+describeParse :: Prim.String -> Prim.String
+describeParse = \text ->
+  case parse text of
+    (Left _) -> "invalid"
+    (Right json) ->
+      case bind {bindMaybe} (field "product" json) toString of
+        (Just product) -> append {semigroupString} "product " product
+        Nothing -> "no product"
+
+results :: Prim.Array Prim.String
+results =
+  [stringify order, show {showArray {showMaybe {showInt}}}
+    (map {functorArray} parsedInt
+      ["2147483647", "2147483648", "-2147483648", "-2147483649", "1.5"]), stringify
+    prototypeField, show {showMaybe {showString}}
+    (bind {bindMaybe} (field "__proto__" prototypeField) toString), show {showMaybe {showString}}
+    (bind {bindMaybe} (field "__proto__" (fromObject [])) toString), show {showMaybe {showString}}
+    (bind {bindMaybe} (field "toString" (fromObject [])) toString), show {showMaybe {showInt}}
+    (bind {bindMaybe} (field "length" (fromArray []))
+      toInt), show {showMaybe {showArray {showString}}}
+    (map {functorMaybe} (map {functorArray} stringify)
+      (bind {bindMaybe} (field "tags" order) toArray)), show {showMaybe {showBoolean}}
+    (bind {bindMaybe} (field "gift" order) toBoolean), show {showMaybe {showNumber}}
+    (bind {bindMaybe} (field "price" order) toNumber), show {showMaybe {showInt}}
+    (bind {bindMaybe} (field "price" order) toInt), describeParse (stringify order), describeParse
+    "[1, 2]", describeParse "{"]
