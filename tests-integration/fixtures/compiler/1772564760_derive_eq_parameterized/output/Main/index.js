@@ -5,7 +5,7 @@ export const Just = ($value0) => ({
   _1: $value0
 });
 export function eqMaybe(eqADict) {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left === "Nothing" && right === "Nothing") {
         return true;
@@ -21,6 +21,5 @@ export function eqMaybe(eqADict) {
       }
       return false;
     };
-  };
-  return { eq: $closure };
+  } };
 }

@@ -21,7 +21,7 @@ export function foldrWithIndex(dictionary) {
   return dictionary.foldrWithIndex;
 }
 export function foldableNonEmpty(foldableFDict) {
-  const $closure = (f) => {
+  return { foldMap: (f) => {
     return ($nonEmpty) => {
       if ($nonEmpty.tag === "NonEmpty") {
         const { _1: a, _2: fa } = $nonEmpty;
@@ -30,54 +30,50 @@ export function foldableNonEmpty(foldableFDict) {
         throw new Error("Pattern match failure");
       }
     };
-  };
-  return { foldMap: $closure };
+  } };
 }
 export function foldableWithIndexMaybeNonEmpty(foldableWithIndexIFDict) {
-  const $closure = (f) => {
-    return ($nonEmpty) => {
-      if ($nonEmpty.tag === "NonEmpty") {
-        const { _1: a, _2: fa } = $nonEmpty;
-        return f("Nothing")(a);
-      } else {
-        throw new Error("Pattern match failure");
-      }
-    };
-  };
-  const $closure$1 = (f$1) => {
-    return (b) => {
-      return ($nonEmpty$1) => {
-        if ($nonEmpty$1.tag === "NonEmpty") {
-          const { _1: a$1, _2: fa$1 } = $nonEmpty$1;
-          return /* @__PURE__ */ foldlWithIndex(foldableWithIndexIFDict)((composeArgument) => /* @__PURE__ */ f$1({
-            tag: "Just",
-            _1: composeArgument
-          }))(f$1("Nothing")(b)(a$1))(fa$1);
-        } else {
-          throw new Error("Pattern match failure");
-        }
-      };
-    };
-  };
-  const $closure$2 = (f$2) => {
-    return (b$1) => {
-      return ($nonEmpty$2) => {
-        if ($nonEmpty$2.tag === "NonEmpty") {
-          const { _1: a$2, _2: fa$2 } = $nonEmpty$2;
-          return f$2("Nothing")(a$2)(/* @__PURE__ */ foldrWithIndex(foldableWithIndexIFDict)((composeArgument$1) => /* @__PURE__ */ f$2({
-            tag: "Just",
-            _1: composeArgument$1
-          }))(b$1)(fa$2));
-        } else {
-          throw new Error("Pattern match failure");
-        }
-      };
-    };
-  };
   return {
     Foldable0: () => /* @__PURE__ */ foldableNonEmpty(/* @__PURE__ */ foldableWithIndexIFDict.Foldable0()),
-    foldMapWithIndex: $closure,
-    foldlWithIndex: $closure$1,
-    foldrWithIndex: $closure$2
+    foldMapWithIndex: (f) => {
+      return ($nonEmpty) => {
+        if ($nonEmpty.tag === "NonEmpty") {
+          const { _1: a, _2: fa } = $nonEmpty;
+          return f("Nothing")(a);
+        } else {
+          throw new Error("Pattern match failure");
+        }
+      };
+    },
+    foldlWithIndex: (f$1) => {
+      return (b) => {
+        return ($nonEmpty$1) => {
+          if ($nonEmpty$1.tag === "NonEmpty") {
+            const { _1: a$1, _2: fa$1 } = $nonEmpty$1;
+            return /* @__PURE__ */ foldlWithIndex(foldableWithIndexIFDict)((composeArgument) => /* @__PURE__ */ f$1({
+              tag: "Just",
+              _1: composeArgument
+            }))(f$1("Nothing")(b)(a$1))(fa$1);
+          } else {
+            throw new Error("Pattern match failure");
+          }
+        };
+      };
+    },
+    foldrWithIndex: (f$2) => {
+      return (b$1) => {
+        return ($nonEmpty$2) => {
+          if ($nonEmpty$2.tag === "NonEmpty") {
+            const { _1: a$2, _2: fa$2 } = $nonEmpty$2;
+            return f$2("Nothing")(a$2)(/* @__PURE__ */ foldrWithIndex(foldableWithIndexIFDict)((composeArgument$1) => /* @__PURE__ */ f$2({
+              tag: "Just",
+              _1: composeArgument$1
+            }))(b$1)(fa$2));
+          } else {
+            throw new Error("Pattern match failure");
+          }
+        };
+      };
+    }
   };
 }

@@ -13,7 +13,7 @@ source: tests-integration/src/fixtures.rs
    | ^ 8:1 unbox box = helper box
    |        ^ (unbox) 8:1 unbox box = helper box
    |                            ^ 8:1 unbox box = helper box
- 6 |   const $closure = ($box) => {
+ 6 |   return (($box) => {
    |   ^ 8:13 helper box
  7 |     if ($box.tag === "Box") {
    |     ^ 10:3 helper (Box value) = value + 1
@@ -29,39 +29,37 @@ source: tests-integration/src/fixtures.rs
    |       ^ 10:3 helper (Box value) = value + 1
 12 |     }
    |     ^ 10:3 helper (Box value) = value + 1
-13 |   };
+13 |   })(box);
    |   ^ 8:13 helper box
-14 |   return $closure(box);
-   |   ^ 8:13 helper box
-   |                   ^ 8:20 box
-   |                      ^ 8:13 helper box
-15 | }
+   |      ^ 8:20 box
+   |         ^ 8:13 helper box
+14 | }
    | ^ 8:1 unbox box = helper box
-16 | export function size($array) {
+15 | export function size($array) {
    | ^ 13:1 size _ = 0
    |        ^ (size) 13:1 size _ = 0
    |                              ^ 13:1 size _ = 0
-17 |   return 0 | 0;
+16 |   return 0 | 0;
    |   ^ 13:10 0
-18 | }
+17 | }
    | ^ 13:1 size _ = 0
-19 | export function count(values) {
+18 | export function count(values) {
    | ^ 16:1 count values =
    |        ^ (count) 16:1 count values =
    |                               ^ 16:1 count values =
-20 |   return size(values);
+19 |   return size(values);
    |   ^ 20:5 measure values
    |               ^ 20:13 values
    |                     ^ 20:5 measure values
-21 | }
+20 | }
    | ^ 16:1 count values =
-22 | export function distance(composeArgument) {
+21 | export function distance(composeArgument) {
    | ^ 27:1 distance = Meters >>> Distance
    |        ^ (distance) 27:1 distance = Meters >>> Distance
    |                                           ^ 27:1 distance = Meters >>> Distance
-23 |   return /* @__PURE__ */ ((value) => value)(/* @__PURE__ */ ((value$1) => value$1)(composeArgument));
+22 |   return /* @__PURE__ */ ((value) => value)(/* @__PURE__ */ ((value$1) => value$1)(composeArgument));
    |   ^ 27:12 Meters >>> Distance
    |                            ^ 27:23 Distance
    |                                             ^ 27:12 Meters >>> Distance
-24 | }
+23 | }
    | ^ 27:1 distance = Meters >>> Distance

@@ -4,8 +4,8 @@ export const Chosen = ($value0) => ({
 });
 export const Other = "Other";
 export function test(partialDict) {
-  const $closure = (partialDict$1) => {
-    const $closure$1 = ($choice) => {
+  return [/* @__PURE__ */ ((partialDict$1) => {
+    return ($choice) => {
       if ($choice.tag === "Chosen") {
         const { _1: value } = $choice;
         return value;
@@ -13,56 +13,48 @@ export function test(partialDict) {
         throw new Error("Pattern match failure");
       }
     };
-    return $closure$1;
-  };
-  const $closure$2 = (partialDict$2) => {
-    const $closure$3 = ($choice$1) => {
+  })(partialDict), /* @__PURE__ */ ((partialDict$2) => {
+    return ($choice$1) => {
       if ($choice$1.tag === "Chosen") {
         return 23 | 0;
       } else {
         throw new Error("Pattern match failure");
       }
     };
-    return $closure$3;
-  };
-  return [/* @__PURE__ */ $closure(partialDict), /* @__PURE__ */ $closure$2(partialDict)];
+  })(partialDict)];
 }
 function test_(partialDict) {
-  const $closure = ($choice) => {
+  return [($choice) => {
     if ($choice.tag === "Chosen") {
       const { _1: value } = $choice;
       return value;
     } else {
       throw new Error("Pattern match failure");
     }
-  };
-  const $closure$1 = ($choice$1) => {
+  }, ($choice$1) => {
     if ($choice$1.tag === "Chosen") {
       return 23 | 0;
     } else {
       throw new Error("Pattern match failure");
     }
-  };
-  return [$closure, $closure$1];
+  }];
 }
 export function extract(dictionary) {
   return dictionary.extract;
 }
 export function test2(partialDict) {
-  const $closure = (partialDict$1) => {
-    const $closure$1 = ($choice) => {
+  return [/* @__PURE__ */ extract(extractChoice), /* @__PURE__ */ ((partialDict$1) => {
+    return ($choice) => {
       if ($choice.tag === "Chosen") {
         return 29 | 0;
       } else {
         throw new Error("Pattern match failure");
       }
     };
-    return $closure$1;
-  };
-  return [/* @__PURE__ */ extract(extractChoice), /* @__PURE__ */ $closure(partialDict)];
+  })(partialDict)];
 }
 export const extractChoice = /* @__PURE__ */ (() => {
-  const $closure = ($choice) => {
+  return { extract: ($choice) => {
     if ($choice.tag === "Chosen") {
       const { _1: value } = $choice;
       return value;
@@ -71,7 +63,6 @@ export const extractChoice = /* @__PURE__ */ (() => {
       return 41 | 0;
     }
     throw new Error("Pattern match failure");
-  };
-  return { extract: $closure };
+  } };
 })();
 export { test_ as "test'" };

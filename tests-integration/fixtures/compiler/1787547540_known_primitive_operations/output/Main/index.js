@@ -101,11 +101,10 @@ export function conjPatternFunctionOrder(left) {
     const $function = observe("function")((value) => value);
     let $result;
     if (observe("left")(left)) {
-      const $closure = ($record) => {
+      $result = (($record) => {
         const value$1 = $record.value;
         return value$1;
-      };
-      $result = $closure({ value: observe("right")(right) });
+      })({ value: observe("right")(right) });
     } else {
       $result = false;
     }

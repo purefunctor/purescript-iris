@@ -17,7 +17,7 @@ export const Branch = ($value0) => ($value1) => ({
   _2: $value1
 });
 export function eqList(eqADict) {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left === "Nil" && right === "Nil") {
         return true;
@@ -37,46 +37,44 @@ export function eqList(eqADict) {
       }
       return false;
     };
-  };
-  return { eq: $closure };
+  } };
 }
 export function ordList(ordADict) {
-  const $closure = (left) => {
-    return (right) => {
-      if (left === "Nil" && right === "Nil") {
-        return "EQ";
-      }
-      if (left === "Nil") {
-        return "LT";
-      }
-      if (right === "Nil") {
-        return "GT";
-      }
-      if (left.tag === "Cons" && right.tag === "Cons") {
-        const { _1: left0, _2: left1 } = left;
-        const { _1: right0, _2: right1 } = right;
-        const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
-        if ($scrutinee === "EQ") {
-          const $scrutinee$1 = /* @__PURE__ */ Data_Ord.compare(/* @__PURE__ */ ordList(ordADict))(left1)(right1);
-          if ($scrutinee$1 === "EQ") {
-            return "EQ";
-          }
-          const ordering = $scrutinee$1;
-          return ordering;
-        }
-        const ordering$1 = $scrutinee;
-        return ordering$1;
-      }
-      throw new Error("Pattern match failure");
-    };
-  };
   return {
     Eq0: () => /* @__PURE__ */ eqList(/* @__PURE__ */ ordADict.Eq0()),
-    compare: $closure
+    compare: (left) => {
+      return (right) => {
+        if (left === "Nil" && right === "Nil") {
+          return "EQ";
+        }
+        if (left === "Nil") {
+          return "LT";
+        }
+        if (right === "Nil") {
+          return "GT";
+        }
+        if (left.tag === "Cons" && right.tag === "Cons") {
+          const { _1: left0, _2: left1 } = left;
+          const { _1: right0, _2: right1 } = right;
+          const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
+          if ($scrutinee === "EQ") {
+            const $scrutinee$1 = /* @__PURE__ */ Data_Ord.compare(/* @__PURE__ */ ordList(ordADict))(left1)(right1);
+            if ($scrutinee$1 === "EQ") {
+              return "EQ";
+            }
+            const ordering = $scrutinee$1;
+            return ordering;
+          }
+          const ordering$1 = $scrutinee;
+          return ordering$1;
+        }
+        throw new Error("Pattern match failure");
+      };
+    }
   };
 }
 export function eqTree(eqADict) {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       const eqTreeDict = /* @__PURE__ */ eqTree(eqADict);
       if (left.tag === "Leaf" && right.tag === "Leaf") {
@@ -103,50 +101,48 @@ export function eqTree(eqADict) {
       }
       return false;
     };
-  };
-  return { eq: $closure };
+  } };
 }
 export function ordTree(ordADict) {
-  const $closure = (left) => {
-    return (right) => {
-      const ordTreeDict = /* @__PURE__ */ ordTree(ordADict);
-      if (left.tag === "Leaf" && right.tag === "Leaf") {
-        const { _1: left0 } = left;
-        const { _1: right0 } = right;
-        const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
-        if ($scrutinee === "EQ") {
-          return "EQ";
-        }
-        const ordering = $scrutinee;
-        return ordering;
-      }
-      if (left.tag === "Leaf") {
-        return "LT";
-      }
-      if (right.tag === "Leaf") {
-        return "GT";
-      }
-      if (left.tag === "Branch" && right.tag === "Branch") {
-        const { _1: left0$1, _2: left1 } = left;
-        const { _1: right0$1, _2: right1 } = right;
-        const $scrutinee$1 = /* @__PURE__ */ Data_Ord.compare(ordTreeDict)(left0$1)(right0$1);
-        if ($scrutinee$1 === "EQ") {
-          const $scrutinee$2 = /* @__PURE__ */ Data_Ord.compare(ordTreeDict)(left1)(right1);
-          if ($scrutinee$2 === "EQ") {
-            return "EQ";
-          }
-          const ordering$1 = $scrutinee$2;
-          return ordering$1;
-        }
-        const ordering$2 = $scrutinee$1;
-        return ordering$2;
-      }
-      throw new Error("Pattern match failure");
-    };
-  };
   return {
     Eq0: () => /* @__PURE__ */ eqTree(/* @__PURE__ */ ordADict.Eq0()),
-    compare: $closure
+    compare: (left) => {
+      return (right) => {
+        const ordTreeDict = /* @__PURE__ */ ordTree(ordADict);
+        if (left.tag === "Leaf" && right.tag === "Leaf") {
+          const { _1: left0 } = left;
+          const { _1: right0 } = right;
+          const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
+          if ($scrutinee === "EQ") {
+            return "EQ";
+          }
+          const ordering = $scrutinee;
+          return ordering;
+        }
+        if (left.tag === "Leaf") {
+          return "LT";
+        }
+        if (right.tag === "Leaf") {
+          return "GT";
+        }
+        if (left.tag === "Branch" && right.tag === "Branch") {
+          const { _1: left0$1, _2: left1 } = left;
+          const { _1: right0$1, _2: right1 } = right;
+          const $scrutinee$1 = /* @__PURE__ */ Data_Ord.compare(ordTreeDict)(left0$1)(right0$1);
+          if ($scrutinee$1 === "EQ") {
+            const $scrutinee$2 = /* @__PURE__ */ Data_Ord.compare(ordTreeDict)(left1)(right1);
+            if ($scrutinee$2 === "EQ") {
+              return "EQ";
+            }
+            const ordering$1 = $scrutinee$2;
+            return ordering$1;
+          }
+          const ordering$2 = $scrutinee$1;
+          return ordering$2;
+        }
+        throw new Error("Pattern match failure");
+      };
+    }
   };
 }
 export const eq1List = { eq1: (eqADict) => /* @__PURE__ */ Data_Eq.eq(/* @__PURE__ */ eqList(eqADict)) };

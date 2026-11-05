@@ -8,7 +8,7 @@ export const Tuple = ($value0) => ($value1) => ({
 });
 export function eqTuple(eqADict) {
   return (eqBDict) => {
-    const $closure = (left) => {
+    return { eq: (left) => {
       return (right) => {
         if (left.tag === "Tuple" && right.tag === "Tuple") {
           const { _1: left0, _2: left1 } = left;
@@ -25,35 +25,33 @@ export function eqTuple(eqADict) {
         }
         throw new Error("Pattern match failure");
       };
-    };
-    return { eq: $closure };
+    } };
   };
 }
 export function ordTuple(ordADict) {
   return (ordBDict) => {
-    const $closure = (left) => {
-      return (right) => {
-        if (left.tag === "Tuple" && right.tag === "Tuple") {
-          const { _1: left0, _2: left1 } = left;
-          const { _1: right0, _2: right1 } = right;
-          const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
-          if ($scrutinee === "EQ") {
-            const $scrutinee$1 = /* @__PURE__ */ Data_Ord.compare(ordBDict)(left1)(right1);
-            if ($scrutinee$1 === "EQ") {
-              return "EQ";
-            }
-            const ordering = $scrutinee$1;
-            return ordering;
-          }
-          const ordering$1 = $scrutinee;
-          return ordering$1;
-        }
-        throw new Error("Pattern match failure");
-      };
-    };
     return {
       Eq0: () => /* @__PURE__ */ eqTuple(/* @__PURE__ */ ordADict.Eq0())(/* @__PURE__ */ ordBDict.Eq0()),
-      compare: $closure
+      compare: (left) => {
+        return (right) => {
+          if (left.tag === "Tuple" && right.tag === "Tuple") {
+            const { _1: left0, _2: left1 } = left;
+            const { _1: right0, _2: right1 } = right;
+            const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
+            if ($scrutinee === "EQ") {
+              const $scrutinee$1 = /* @__PURE__ */ Data_Ord.compare(ordBDict)(left1)(right1);
+              if ($scrutinee$1 === "EQ") {
+                return "EQ";
+              }
+              const ordering = $scrutinee$1;
+              return ordering;
+            }
+            const ordering$1 = $scrutinee;
+            return ordering$1;
+          }
+          throw new Error("Pattern match failure");
+        };
+      }
     };
   };
 }

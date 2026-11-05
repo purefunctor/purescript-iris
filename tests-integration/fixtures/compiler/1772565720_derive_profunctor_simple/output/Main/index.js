@@ -15,7 +15,7 @@ export const GoRight = ($value0) => ({
   _1: $value0
 });
 export const profunctorFn = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Fn") {
@@ -28,11 +28,10 @@ export const profunctorFn = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();
 export const profunctorConstRType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "ConstR") {
@@ -45,11 +44,10 @@ export const profunctorConstRType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();
 export const profunctorChoice = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "GoLeft") {
@@ -69,6 +67,5 @@ export const profunctorChoice = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();

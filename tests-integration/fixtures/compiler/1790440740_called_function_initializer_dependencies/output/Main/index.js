@@ -6,17 +6,16 @@ export function bindFlipped(callback) {
   return ($parser) => {
     if ($parser.tag === "Parser") {
       const { _1: parser } = $parser;
-      const $closure = (state) => {
-        const $scrutinee = callback(parser(state));
-        if ($scrutinee.tag === "Parser") {
-          const { _1: next } = $scrutinee;
-          return next(state);
-        }
-        throw new Error("Pattern match failure");
-      };
       return {
         tag: "Parser",
-        _1: $closure
+        _1: (state) => {
+          const $scrutinee = callback(parser(state));
+          if ($scrutinee.tag === "Parser") {
+            const { _1: next } = $scrutinee;
+            return next(state);
+          }
+          throw new Error("Pattern match failure");
+        }
       };
     } else {
       throw new Error("Pattern match failure");

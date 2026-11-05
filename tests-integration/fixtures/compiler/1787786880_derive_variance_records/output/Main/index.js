@@ -18,37 +18,34 @@ export const ProfunctorRecord = ($value0) => ({
   _1: $value0
 });
 const $lazy_traversableCovariantRecord = $runtime.binding("traversableCovariantRecord", () => {
-  const $closure = (applicativeMDict) => {
-    const $closure$1 = ($function) => {
-      return (value) => {
-        const Functor0Dict = /* @__PURE__ */ (/* @__PURE__ */ applicativeMDict.Apply0()).Functor0();
-        if (value.tag === "CovariantRecord") {
-          const { _1: field0 } = value;
-          const $closure$2 = (recordField0) => {
-            return {
-              ...field0,
-              value: recordField0
-            };
-          };
-          return /* @__PURE__ */ Data_Functor.map(Functor0Dict)((field0Result) => ({
-            tag: "CovariantRecord",
-            _1: field0Result
-          }))(/* @__PURE__ */ Data_Functor.map(Functor0Dict)($closure$2)($function(field0.value)));
-        }
-        throw new Error("Pattern match failure");
-      };
-    };
-    return $closure$1;
-  };
   return {
     Functor0: () => functorCovariantRecord,
     Foldable1: () => foldableCovariantRecord,
-    traverse: $closure,
+    traverse: (applicativeMDict) => {
+      return ($function) => {
+        return (value) => {
+          const Functor0Dict = /* @__PURE__ */ (/* @__PURE__ */ applicativeMDict.Apply0()).Functor0();
+          if (value.tag === "CovariantRecord") {
+            const { _1: field0 } = value;
+            return /* @__PURE__ */ Data_Functor.map(Functor0Dict)((field0Result) => ({
+              tag: "CovariantRecord",
+              _1: field0Result
+            }))(/* @__PURE__ */ Data_Functor.map(Functor0Dict)((recordField0) => {
+              return {
+                ...field0,
+                value: recordField0
+              };
+            })($function(field0.value)));
+          }
+          throw new Error("Pattern match failure");
+        };
+      };
+    },
     sequence: (applicativeMDict$1) => (value$1) => /* @__PURE__ */ Data_Traversable.traverse($lazy_traversableCovariantRecord())(applicativeMDict$1)((effect0) => effect0)(value$1)
   };
 });
 export const functorCovariantRecord = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "CovariantRecord") {
         const { _1: field0 } = value;
@@ -62,53 +59,48 @@ export const functorCovariantRecord = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const foldableCovariantRecord = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
-    return (accumulator) => {
-      return (value) => {
-        if (value.tag === "CovariantRecord") {
-          const { _1: field0 } = value;
-          return $function(field0.value)(accumulator);
-        }
-        throw new Error("Pattern match failure");
-      };
-    };
-  };
-  const $closure$1 = ($function$1) => {
-    return (accumulator$1) => {
-      return (value$1) => {
-        if (value$1.tag === "CovariantRecord") {
-          const { _1: field0$1 } = value$1;
-          return $function$1(accumulator$1)(field0$1.value);
-        }
-        throw new Error("Pattern match failure");
-      };
-    };
-  };
-  const $closure$2 = (monoidMDict) => {
-    const $closure$3 = ($function$2) => {
-      return (value$2) => {
-        if (value$2.tag === "CovariantRecord") {
-          const { _1: field0$2 } = value$2;
-          return $function$2(field0$2.value);
-        }
-        throw new Error("Pattern match failure");
-      };
-    };
-    return $closure$3;
-  };
   return {
-    foldr: $closure,
-    foldl: $closure$1,
-    foldMap: $closure$2
+    foldr: ($function) => {
+      return (accumulator) => {
+        return (value) => {
+          if (value.tag === "CovariantRecord") {
+            const { _1: field0 } = value;
+            return $function(field0.value)(accumulator);
+          }
+          throw new Error("Pattern match failure");
+        };
+      };
+    },
+    foldl: ($function$1) => {
+      return (accumulator$1) => {
+        return (value$1) => {
+          if (value$1.tag === "CovariantRecord") {
+            const { _1: field0$1 } = value$1;
+            return $function$1(accumulator$1)(field0$1.value);
+          }
+          throw new Error("Pattern match failure");
+        };
+      };
+    },
+    foldMap: (monoidMDict) => {
+      return ($function$2) => {
+        return (value$2) => {
+          if (value$2.tag === "CovariantRecord") {
+            const { _1: field0$2 } = value$2;
+            return $function$2(field0$2.value);
+          }
+          throw new Error("Pattern match failure");
+        };
+      };
+    }
   };
 })();
 export const traversableCovariantRecord = $lazy_traversableCovariantRecord();
 export const bifunctorBivariantRecord = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "BivariantRecord") {
@@ -125,11 +117,10 @@ export const bifunctorBivariantRecord = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const contravariantContravariantRecord = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "ContravariantRecord") {
         const { _1: field0 } = value;
@@ -143,11 +134,10 @@ export const contravariantContravariantRecord = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const profunctorProfunctorRecord = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "ProfunctorRecord") {
@@ -163,6 +153,5 @@ export const profunctorProfunctorRecord = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();

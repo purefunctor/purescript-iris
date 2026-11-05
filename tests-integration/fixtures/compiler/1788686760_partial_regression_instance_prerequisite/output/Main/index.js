@@ -6,7 +6,7 @@ export function select(dictionary) {
   return dictionary.select;
 }
 export function selectWrapped(selectADict) {
-  const $closure = ($wrapped) => {
+  return { select: ($wrapped) => {
     if ($wrapped.tag === "Wrapped") {
       const { _1: first } = $wrapped;
       return ($wrapped$1) => {
@@ -23,8 +23,7 @@ export function selectWrapped(selectADict) {
     } else {
       throw new Error("Pattern match failure");
     }
-  };
-  return { select: $closure };
+  } };
 }
 export const selectInt = { select: (first) => (second) => second };
 export const ordinaryPrerequisite = /* @__PURE__ */ select(/* @__PURE__ */ selectWrapped(selectInt))({

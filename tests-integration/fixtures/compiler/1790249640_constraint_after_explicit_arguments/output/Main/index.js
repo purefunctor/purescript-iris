@@ -10,8 +10,8 @@ export function before(showADict) {
   return (prefix) => (value) => prefix + /* @__PURE__ */ Data_Show.show(showADict)(value);
 }
 export function branches($boolean) {
-  const $closure = (showADict) => {
-    const $closure$1 = ($a) => {
+  return (showADict) => {
+    return ($a) => {
       if ($boolean === true) {
         const value = $a;
         return "true=" + /* @__PURE__ */ Data_Show.show(showADict)(value);
@@ -21,9 +21,7 @@ export function branches($boolean) {
       }
       throw new Error("Pattern match failure");
     };
-    return $closure$1;
   };
-  return $closure;
 }
 export function interleaved(showADict) {
   return (value) => (eqBDict) => (left) => (right) => /* @__PURE__ */ Data_Eq.eq(eqBDict)(left)(right) ? /* @__PURE__ */ Data_Show.show(showADict)(value) : "different";

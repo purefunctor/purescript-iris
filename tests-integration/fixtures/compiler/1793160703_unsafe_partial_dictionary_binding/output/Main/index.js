@@ -1,13 +1,12 @@
 import * as Data_Show from "../Data.Show/index.js";
 import * as Partial from "../Partial/index.js";
 export function positive(partialDict) {
-  const $closure = (value) => {
+  return (value) => {
     if (value > (0 | 0)) {
       return value;
     }
     throw new Error("Pattern match failure");
   };
-  return $closure;
 }
 export function unusedDictionary(value) {
   return value + (1 | 0) | 0;

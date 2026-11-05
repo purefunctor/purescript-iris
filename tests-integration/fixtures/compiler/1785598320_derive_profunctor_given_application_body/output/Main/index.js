@@ -4,7 +4,7 @@ export const Nested = ($value0) => ({
   _1: $value0
 });
 export function profunctorNestedTypeType(profunctorPDict) {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Nested") {
@@ -17,6 +17,5 @@ export function profunctorNestedTypeType(profunctorPDict) {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 }

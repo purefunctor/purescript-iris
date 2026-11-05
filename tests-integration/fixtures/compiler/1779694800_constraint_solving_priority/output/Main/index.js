@@ -27,17 +27,15 @@ export function produce1(rowToListInputInputListDict) {
 }
 export function test(rowToListOutputOutputListDict) {
   return (produceContextInputOutputDict) => {
-    const $closure = (input) => {
-      const $closure$1 = (context) => {
+    return (input) => {
+      return bind(/* @__PURE__ */ ask(askM))((context) => {
         const output = /* @__PURE__ */ produce(produceContextInputOutputDict)(context)(input);
         return {
           tag: "M",
           _1: /* @__PURE__ */ consume(rowToListOutputOutputListDict)(output)
         };
-      };
-      return bind(/* @__PURE__ */ ask(askM))($closure$1);
+      });
     };
-    return $closure;
   };
 }
 export const unsafeCoerce = $foreign["unsafeCoerce"];

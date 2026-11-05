@@ -8,13 +8,12 @@ export function run(environment) {
   };
 }
 export function service(hasServiceServicesDict) {
-  const $closure = (environment) => {
+  return (environment) => {
     const $value = /* @__PURE__ */ Iris_Effect.getService(hasServiceServicesDict)(environment);
     return () => {
       return $value;
     };
   };
-  return $closure;
 }
 export function liftEffect(effect) {
   return ($record) => effect;
@@ -25,67 +24,59 @@ export function provide(environment) {
   };
 }
 export const functorSync = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (program) => {
-      const $closure$1 = (environment) => {
+      return (environment) => {
         const $action = program(environment);
         return () => {
           return $function($action());
         };
       };
-      return $closure$1;
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const applySync = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
-    return (argument) => {
-      const $closure$1 = (environment) => {
-        const $functionAction = $function(environment);
-        const $argumentAction = argument(environment);
-        return () => {
-          return $functionAction()($argumentAction());
-        };
-      };
-      return $closure$1;
-    };
-  };
   return {
     Functor0: () => functorSync,
-    apply: $closure
+    apply: ($function) => {
+      return (argument) => {
+        return (environment) => {
+          const $functionAction = $function(environment);
+          const $argumentAction = argument(environment);
+          return () => {
+            return $functionAction()($argumentAction());
+          };
+        };
+      };
+    }
   };
 })();
 export const applicativeSync = /* @__PURE__ */ (() => {
-  const $closure = (value) => {
-    const $closure$1 = ($record) => {
-      return () => {
-        return value;
-      };
-    };
-    return $closure$1;
-  };
   return {
     Apply0: () => applySync,
-    pure: $closure
+    pure: (value) => {
+      return ($record) => {
+        return () => {
+          return value;
+        };
+      };
+    }
   };
 })();
 export const bindSync = /* @__PURE__ */ (() => {
-  const $closure = (program) => {
-    return (continuation) => {
-      const $closure$1 = (environment) => {
-        const $action = program(environment);
-        return () => {
-          const value = $action();
-          return run(environment)(continuation(value))();
-        };
-      };
-      return $closure$1;
-    };
-  };
   return {
     Apply0: () => applySync,
-    bind: $closure
+    bind: (program) => {
+      return (continuation) => {
+        return (environment) => {
+          const $action = program(environment);
+          return () => {
+            const value = $action();
+            return run(environment)(continuation(value))();
+          };
+        };
+      };
+    }
   };
 })();
 export const monadSync = {

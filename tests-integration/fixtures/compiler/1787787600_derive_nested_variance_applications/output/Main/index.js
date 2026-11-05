@@ -44,7 +44,7 @@ export const NestedProfunctor = ($value0) => ({
   _1: $value0
 });
 export const bifunctorPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Pair") {
@@ -58,12 +58,11 @@ export const bifunctorPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 const bifunctorPairDictBimap = /* @__PURE__ */ Data_Bifunctor.bimap(bifunctorPair);
 export const contravariantPredicate = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Predicate") {
         const { _1: field0 } = value;
@@ -74,11 +73,10 @@ export const contravariantPredicate = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const contravariantUnaryContravariant = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "UnaryContravariant") {
         const { _1: field0 } = value;
@@ -89,11 +87,10 @@ export const contravariantUnaryContravariant = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const functorBox = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Box") {
         const { _1: field0 } = value;
@@ -104,11 +101,10 @@ export const functorBox = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const contravariantUnaryCovariant = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "UnaryCovariant") {
         const { _1: field0 } = value;
@@ -119,11 +115,10 @@ export const contravariantUnaryCovariant = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const functorPair = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Pair") {
         const { _1: field0, _2: field1 } = value;
@@ -135,11 +130,10 @@ export const functorPair = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const contravariantBinaryFirst = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "BinaryFirst") {
         const { _1: field0 } = value;
@@ -150,11 +144,10 @@ export const contravariantBinaryFirst = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const contravariantBinarySecond = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "BinarySecond") {
         const { _1: field0 } = value;
@@ -165,11 +158,10 @@ export const contravariantBinarySecond = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const contravariantBinaryBoth = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "BinaryBoth") {
         const { _1: field0 } = value;
@@ -180,11 +172,10 @@ export const contravariantBinaryBoth = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const profunctorFunctionLike = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "FunctionLike") {
@@ -197,11 +188,10 @@ export const profunctorFunctionLike = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();
 export const profunctorNestedProfunctor = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "NestedProfunctor") {
@@ -214,6 +204,5 @@ export const profunctorNestedProfunctor = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();

@@ -3,7 +3,7 @@ import * as Data_Ord from "../Data.Ord/index.js";
 import * as Data_Ordering from "../Data.Ordering/index.js";
 export function eqAppType(eq1FDict) {
   return (eqADict) => {
-    const $closure = (left) => {
+    return { eq: (left) => {
       return (right) => {
         const left0 = left;
         const right0 = right;
@@ -13,8 +13,7 @@ export function eqAppType(eq1FDict) {
           return false;
         }
       };
-    };
-    return { eq: $closure };
+    } };
   };
 }
 export function eq1AppType(eq1FDict) {
@@ -22,21 +21,20 @@ export function eq1AppType(eq1FDict) {
 }
 export function ordAppType(ord1FDict) {
   return (ordADict) => {
-    const $closure = (left) => {
-      return (right) => {
-        const left0 = left;
-        const right0 = right;
-        const $scrutinee = /* @__PURE__ */ Data_Ord.compare1(ord1FDict)(ordADict)(left0)(right0);
-        if ($scrutinee === "EQ") {
-          return "EQ";
-        }
-        const ordering = $scrutinee;
-        return ordering;
-      };
-    };
     return {
       Eq0: () => /* @__PURE__ */ eqAppType(/* @__PURE__ */ ord1FDict.Eq10())(/* @__PURE__ */ ordADict.Eq0()),
-      compare: $closure
+      compare: (left) => {
+        return (right) => {
+          const left0 = left;
+          const right0 = right;
+          const $scrutinee = /* @__PURE__ */ Data_Ord.compare1(ord1FDict)(ordADict)(left0)(right0);
+          if ($scrutinee === "EQ") {
+            return "EQ";
+          }
+          const ordering = $scrutinee;
+          return ordering;
+        };
+      }
     };
   };
 }

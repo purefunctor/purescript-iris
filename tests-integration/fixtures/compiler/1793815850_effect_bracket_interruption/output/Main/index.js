@@ -15,7 +15,7 @@ function say(report) {
 function sleep(report) {
   return (label) => {
     return (milliseconds) => {
-      const $closure = (callback) => {
+      return Iris_Effect_Async.async((callback) => {
         const $action = setTimeout(milliseconds)(callback({
           tag: "Right",
           _1: Data_Unit.unit
@@ -25,8 +25,7 @@ function sleep(report) {
           const $value = /* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(say(report)("cancel " + label))(Iris_Effect_Async.liftEffect(clearTimeout(identifier)));
           return $value;
         };
-      };
-      return Iris_Effect_Async.async($closure);
+      });
     };
   };
 }

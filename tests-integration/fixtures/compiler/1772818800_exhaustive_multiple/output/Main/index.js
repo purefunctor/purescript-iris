@@ -21,9 +21,9 @@ export function complete(section15) {
   };
 }
 export function incomplete1(partialDict) {
-  const $closure = (section55) => {
+  return (section55) => {
     return (section56) => {
-      const $closure$1 = (partialDict$1) => {
+      return /* @__PURE__ */ ((partialDict$1) => {
         if (section55.tag === "Just" && section56 === "Nothing") {
           return 2 | 0;
         }
@@ -34,16 +34,14 @@ export function incomplete1(partialDict) {
           return 4 | 0;
         }
         throw new Error("Pattern match failure");
-      };
-      return /* @__PURE__ */ $closure$1(partialDict);
+      })(partialDict);
     };
   };
-  return $closure;
 }
 export function incomplete2(partialDict) {
-  const $closure = (section86) => {
+  return (section86) => {
     return (section87) => {
-      const $closure$1 = (partialDict$1) => {
+      return /* @__PURE__ */ ((partialDict$1) => {
         if (section86.tag === "Just" && section87.tag === "Just") {
           return 1 | 0;
         }
@@ -54,16 +52,14 @@ export function incomplete2(partialDict) {
           return 4 | 0;
         }
         throw new Error("Pattern match failure");
-      };
-      return /* @__PURE__ */ $closure$1(partialDict);
+      })(partialDict);
     };
   };
-  return $closure;
 }
 export function incomplete3(partialDict) {
-  const $closure = (section118) => {
+  return (section118) => {
     return (section119) => {
-      const $closure$1 = (partialDict$1) => {
+      return /* @__PURE__ */ ((partialDict$1) => {
         if (section118.tag === "Just" && section119.tag === "Just") {
           return 1 | 0;
         }
@@ -74,16 +70,14 @@ export function incomplete3(partialDict) {
           return 4 | 0;
         }
         throw new Error("Pattern match failure");
-      };
-      return /* @__PURE__ */ $closure$1(partialDict);
+      })(partialDict);
     };
   };
-  return $closure;
 }
 export function incomplete4(partialDict) {
-  const $closure = (section150) => {
+  return (section150) => {
     return (section151) => {
-      const $closure$1 = (partialDict$1) => {
+      return /* @__PURE__ */ ((partialDict$1) => {
         if (section150.tag === "Just" && section151.tag === "Just") {
           return 1 | 0;
         }
@@ -94,9 +88,7 @@ export function incomplete4(partialDict) {
           return 3 | 0;
         }
         throw new Error("Pattern match failure");
-      };
-      return /* @__PURE__ */ $closure$1(partialDict);
+      })(partialDict);
     };
   };
-  return $closure;
 }

@@ -1,12 +1,11 @@
 export function safeZero(partialDict) {
-  const $closure = ($int) => {
+  return ($int) => {
     if ($int === (0 | 0)) {
       return 0 | 0;
     } else {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
 export function unsafeZeroLambda($int) {
   if ($int === (0 | 0)) {

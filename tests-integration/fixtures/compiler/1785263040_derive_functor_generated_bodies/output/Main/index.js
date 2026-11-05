@@ -41,7 +41,7 @@ export const OpenRecord = ($value0) => ({
   _1: $value0
 });
 export function functorWrapType(functorFDict) {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Wrap") {
         const { _1: field0 } = value;
@@ -52,12 +52,11 @@ export function functorWrapType(functorFDict) {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 }
 export function functorComposeTypeType(functorFDict) {
   return (functorGDict) => {
-    const $closure = ($function) => {
+    return { map: ($function) => {
       return (value) => {
         if (value.tag === "Compose") {
           const { _1: field0 } = value;
@@ -68,12 +67,11 @@ export function functorComposeTypeType(functorFDict) {
         }
         throw new Error("Pattern match failure");
       };
-    };
-    return { map: $closure };
+    } };
   };
 }
 export const functorIdentity = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Identity") {
         const { _1: field0 } = value;
@@ -84,11 +82,10 @@ export const functorIdentity = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorConstType = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Const") {
         const { _1: field0 } = value;
@@ -99,11 +96,10 @@ export const functorConstType = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorMaybe = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value === "Nothing") {
         return "Nothing";
@@ -117,11 +113,10 @@ export const functorMaybe = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorReader = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Reader") {
         const { _1: field0 } = value;
@@ -132,11 +127,10 @@ export const functorReader = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorNestedReader = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "NestedReader") {
         const { _1: field0 } = value;
@@ -147,11 +141,10 @@ export const functorNestedReader = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorCont = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Cont") {
         const { _1: field0 } = value;
@@ -162,11 +155,10 @@ export const functorCont = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorRecord = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Record") {
         const { _1: field0 } = value;
@@ -180,11 +172,10 @@ export const functorRecord = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorOpenRecord = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "OpenRecord") {
         const { _1: field0 } = value;
@@ -198,6 +189,5 @@ export const functorOpenRecord = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();

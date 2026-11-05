@@ -4,7 +4,7 @@ export const Just = ($value0) => ({
 });
 export const Nothing = "Nothing";
 export function unwrap(partialDict) {
-  const $closure = (choice) => {
+  return (choice) => {
     if (choice.tag === "Just") {
       const { _1: value } = choice;
       return value;
@@ -12,5 +12,4 @@ export function unwrap(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }

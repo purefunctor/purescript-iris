@@ -5,15 +5,14 @@ export function showIdentity(showADict) {
   return showADict;
 }
 export const eqBox = /* @__PURE__ */ (() => {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left === "Box" && right === "Box") {
         return true;
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { eq: $closure };
+  } };
 })();
 export const equal = /* @__PURE__ */ Data_Eq.eq(eqBox)("Box")("Box");
 export const rendered = /* @__PURE__ */ Data_Show.show(/* @__PURE__ */ showIdentity(Data_Show.showInt))(42 | 0);

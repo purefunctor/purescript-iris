@@ -11,7 +11,7 @@ export const Op = ($value0) => ({
   _1: $value0
 });
 export const contravariantPredicate = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Predicate") {
         const { _1: field0 } = value;
@@ -22,11 +22,10 @@ export const contravariantPredicate = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const contravariantComparison = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Comparison") {
         const { _1: field0 } = value;
@@ -37,11 +36,10 @@ export const contravariantComparison = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 export const contravariantOp = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Op") {
         const { _1: field0 } = value;
@@ -52,6 +50,5 @@ export const contravariantOp = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();

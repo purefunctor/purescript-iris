@@ -84,7 +84,7 @@ impl<'a> Tree<'a> {
         self.program_text.named_span(source_name)
     }
 
-    fn allocate(&mut self, expression: Expression<'a>) -> ExpressionId {
+    pub(crate) fn allocate(&mut self, expression: Expression<'a>) -> ExpressionId {
         ExpressionId(self.expressions.alloc(Some(expression)).into_raw())
     }
 

@@ -5,7 +5,7 @@ export const Just = ($value0) => ({
 });
 export const Nothing = "Nothing";
 export function inferred(partialDict) {
-  const $closure = (choice) => {
+  return (choice) => {
     if (choice.tag === "Just") {
       const { _1: value } = choice;
       return value;
@@ -13,7 +13,6 @@ export function inferred(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
 export function signed(partialDict) {
   return (choice) => /* @__PURE__ */ inferred(partialDict)(choice);

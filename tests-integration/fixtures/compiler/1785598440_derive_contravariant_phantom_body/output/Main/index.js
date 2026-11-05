@@ -3,7 +3,7 @@ export const Constant = ($value0) => ({
   _1: $value0
 });
 export const contravariantConstantType = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Constant") {
         const { _1: field0 } = value;
@@ -14,6 +14,5 @@ export const contravariantConstantType = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();

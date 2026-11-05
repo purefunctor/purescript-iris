@@ -27,7 +27,7 @@ export function second($list) {
   }
 }
 export function inferred(partialDict) {
-  const $closure = ($list) => {
+  return ($list) => {
     if ($list.tag === "Cons") {
       const { _1: value } = $list;
       return value;
@@ -35,7 +35,6 @@ export function inferred(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
 function second_($snoc) {
   if ($snoc.tag === "Snoc" && $snoc._1.tag === "Snoc") {

@@ -4,7 +4,7 @@ export const Some = ($value0) => ({
   _1: $value0
 });
 export const contravariantOptionalPredicate = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value === "None") {
         return "None";
@@ -18,6 +18,5 @@ export const contravariantOptionalPredicate = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();

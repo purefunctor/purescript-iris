@@ -15,10 +15,10 @@ source: tests-integration/src/fixtures.rs
    | ^ 4:3 describe :: a -> String
  6 | export const describeColour = /* @__PURE__ */ (() => {
    | ^ 8:1 instance Describe Colour where
- 7 |   const $closure = ($colour) => {
-   |   ^ 9:3 describe Red = "red"
-   |         ^ (describe) 9:3 describe Red = "red"
-   |                                 ^ 9:3 describe Red = "red"
+ 7 |   return { describe: ($colour) => {
+   |   ^ 8:1 instance Describe Colour where
+   |                       ^ (describe) 9:3 describe Red = "red"
+   |                                   ^ 9:3 describe Red = "red"
  8 |     if ($colour === "Red") {
    |     ^ 9:3 describe Red = "red"
  9 |       return "red";
@@ -33,11 +33,8 @@ source: tests-integration/src/fixtures.rs
    |     ^ 10:3 describe Green = "green"
 14 |     throw new Error("Pattern match failure");
    |     ^ 9:3 describe Red = "red"
-15 |   };
+15 |   } };
    |   ^ 9:3 describe Red = "red"
-16 |   return { describe: $closure };
-   |   ^ 8:1 instance Describe Colour where
-   |                      ^ 9:3 describe Red = "red"
-   |                               ^ 8:1 instance Describe Colour where
-17 | })();
+   |     ^ 8:1 instance Describe Colour where
+16 | })();
    | ^ 8:1 instance Describe Colour where

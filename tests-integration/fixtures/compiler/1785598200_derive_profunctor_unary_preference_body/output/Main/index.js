@@ -8,7 +8,7 @@ export const NestedRight = ($value0) => ({
   _1: $value0
 });
 export const profunctorFunction = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Function") {
@@ -21,11 +21,10 @@ export const profunctorFunction = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();
 export const functorFunction = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Function") {
         const { _1: field0 } = value;
@@ -36,11 +35,10 @@ export const functorFunction = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const profunctorNestedRightType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "NestedRight") {
@@ -53,6 +51,5 @@ export const profunctorNestedRightType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();

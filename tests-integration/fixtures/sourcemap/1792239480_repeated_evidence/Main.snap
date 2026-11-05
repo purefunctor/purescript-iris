@@ -7,10 +7,10 @@ source: tests-integration/src/fixtures.rs
    | ^ 6:1 showBoth first second =
    |        ^ (showBoth) 6:1 showBoth first second =
    |                                     ^ 6:1 showBoth first second =
- 3 |   const $closure = (first) => {
+ 3 |   return (first) => {
    |   ^ 6:1 showBoth first second =
-   |         ^ (showBoth) 6:1 showBoth first second =
-   |                               ^ 6:1 showBoth first second =
+   |           ^ (showBoth) 6:1 showBoth first second =
+   |                     ^ 6:1 showBoth first second =
  4 |     return (second) => {
    |     ^ (showBoth) 6:1 showBoth first second =
    |                        ^ 6:1 showBoth first second =
@@ -27,29 +27,27 @@ source: tests-integration/src/fixtures.rs
    |     ^ 6:1 showBoth first second =
  8 |   };
    |   ^ 6:1 showBoth first second =
- 9 |   return $closure;
-   |   ^ 6:1 showBoth first second =
-10 | }
+ 9 | }
    | ^ 6:1 showBoth first second =
-11 | export function showIntegers(first) {
+10 | export function showIntegers(first) {
    | ^ 10:1 showIntegers first second =
    |        ^ (showIntegers) 10:1 showIntegers first second =
    |                                     ^ 10:1 showIntegers first second =
-12 |   return (second) => {
+11 |   return (second) => {
    |   ^ (showIntegers) 10:1 showIntegers first second =
    |                      ^ 10:1 showIntegers first second =
-13 |     return /* @__PURE__ */ showArrayIntDictShow(first) + /* @__PURE__ */ showArrayIntDictShow(second);
+12 |     return /* @__PURE__ */ showArrayIntDictShow(first) + /* @__PURE__ */ showArrayIntDictShow(second);
    |     ^ 11:3 show first <> show second
    |                                                 ^ 11:8 first <> show second
    |                                                      ^ 11:3 show first <> show second
    |                                                          ^ 11:17 show second
    |                                                                                               ^ 11:22 second
    |                                                                                                     ^ 11:17 show second
-14 |   };
+13 |   };
    |   ^ 10:1 showIntegers first second =
-15 | }
+14 | }
    | ^ 10:1 showIntegers first second =
-16 | const showArrayIntDict = /* @__PURE__ */ Data_Show.showArray(Data_Show.showInt);
+15 | const showArrayIntDict = /* @__PURE__ */ Data_Show.showArray(Data_Show.showInt);
    | ^ 11:3 show first <> show second
-17 | const showArrayIntDictShow = /* @__PURE__ */ Data_Show.show(showArrayIntDict);
+16 | const showArrayIntDictShow = /* @__PURE__ */ Data_Show.show(showArrayIntDict);
    | ^ 11:3 show first <> show second

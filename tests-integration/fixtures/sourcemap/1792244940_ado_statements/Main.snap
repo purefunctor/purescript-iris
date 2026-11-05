@@ -34,15 +34,16 @@ source: tests-integration/src/fixtures.rs
    | ^ 13:1 records left right = ado
    |        ^ (records) 13:1 records left right = ado
    |                                     ^ 13:1 records left right = ado
- 7 |   const $closure = (left) => {
+ 7 |   return (left) => {
    |   ^ 13:1 records left right = ado
-   |         ^ (records) 13:1 records left right = ado
-   |                              ^ 13:1 records left right = ado
+   |           ^ (records) 13:1 records left right = ado
+   |                    ^ 13:1 records left right = ado
  8 |     return (right) => {
    |     ^ (records) 13:1 records left right = ado
    |                       ^ 13:1 records left right = ado
- 9 |       const $closure$1 = ($record) => {
-   |       ^ 14:3 { x } <- left
+ 9 |       return /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())(($record) => {
+   |       ^ 13:22 ado
+   |                                                              ^ 14:3 { x } <- left
 10 |         const x = $record.x;
    |         ^ 14:3 { x } <- left
 11 |         return ($record$1) => {
@@ -55,21 +56,16 @@ source: tests-integration/src/fixtures.rs
    |                          ^ 16:6 x + y
 14 |         };
    |         ^ 15:3 { y } <- right
-15 |       };
+15 |       })(left))(right);
    |       ^ 14:3 { x } <- left
-16 |       return /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())($closure$1)(left))(right);
-   |       ^ 13:22 ado
-   |                                                              ^ 14:3 { x } <- left
-   |                                                                                                                                                  ^ 14:12 left
-   |                                                                                                                                                      ^ 14:3 { x } <- left
-   |                                                                                                                                                       ^ 13:22 ado
-   |                                                                                                                                                         ^ 15:12 right
-   |                                                                                                                                                              ^ 13:22 ado
-17 |     };
+   |          ^ 14:12 left
+   |              ^ 14:3 { x } <- left
+   |               ^ 13:22 ado
+   |                 ^ 15:12 right
+   |                      ^ 13:22 ado
+16 |     };
    |     ^ 13:1 records left right = ado
-18 |   };
+17 |   };
    |   ^ 13:1 records left right = ado
-19 |   return $closure;
-   |   ^ 13:1 records left right = ado
-20 | }
+18 | }
    | ^ 13:1 records left right = ado

@@ -7,7 +7,7 @@ export const Just = ($value0) => ({
   _1: $value0
 });
 export function eqMaybe(eqADict) {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left === "Nothing" && right === "Nothing") {
         return true;
@@ -23,36 +23,34 @@ export function eqMaybe(eqADict) {
       }
       return false;
     };
-  };
-  return { eq: $closure };
+  } };
 }
 export function ordMaybe(ordADict) {
-  const $closure = (left) => {
-    return (right) => {
-      if (left === "Nothing" && right === "Nothing") {
-        return "EQ";
-      }
-      if (left === "Nothing") {
-        return "LT";
-      }
-      if (right === "Nothing") {
-        return "GT";
-      }
-      if (left.tag === "Just" && right.tag === "Just") {
-        const { _1: left0 } = left;
-        const { _1: right0 } = right;
-        const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
-        if ($scrutinee === "EQ") {
-          return "EQ";
-        }
-        const ordering = $scrutinee;
-        return ordering;
-      }
-      throw new Error("Pattern match failure");
-    };
-  };
   return {
     Eq0: () => /* @__PURE__ */ eqMaybe(/* @__PURE__ */ ordADict.Eq0()),
-    compare: $closure
+    compare: (left) => {
+      return (right) => {
+        if (left === "Nothing" && right === "Nothing") {
+          return "EQ";
+        }
+        if (left === "Nothing") {
+          return "LT";
+        }
+        if (right === "Nothing") {
+          return "GT";
+        }
+        if (left.tag === "Just" && right.tag === "Just") {
+          const { _1: left0 } = left;
+          const { _1: right0 } = right;
+          const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
+          if ($scrutinee === "EQ") {
+            return "EQ";
+          }
+          const ordering = $scrutinee;
+          return ordering;
+        }
+        throw new Error("Pattern match failure");
+      };
+    }
   };
 }

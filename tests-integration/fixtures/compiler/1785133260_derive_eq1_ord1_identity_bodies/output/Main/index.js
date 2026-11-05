@@ -6,7 +6,7 @@ export const Identity = ($value0) => ({
   _1: $value0
 });
 export function eqIdentity(eqADict) {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left.tag === "Identity" && right.tag === "Identity") {
         const { _1: left0 } = left;
@@ -19,28 +19,26 @@ export function eqIdentity(eqADict) {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { eq: $closure };
+  } };
 }
 export function ordIdentity(ordADict) {
-  const $closure = (left) => {
-    return (right) => {
-      if (left.tag === "Identity" && right.tag === "Identity") {
-        const { _1: left0 } = left;
-        const { _1: right0 } = right;
-        const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
-        if ($scrutinee === "EQ") {
-          return "EQ";
-        }
-        const ordering = $scrutinee;
-        return ordering;
-      }
-      throw new Error("Pattern match failure");
-    };
-  };
   return {
     Eq0: () => /* @__PURE__ */ eqIdentity(/* @__PURE__ */ ordADict.Eq0()),
-    compare: $closure
+    compare: (left) => {
+      return (right) => {
+        if (left.tag === "Identity" && right.tag === "Identity") {
+          const { _1: left0 } = left;
+          const { _1: right0 } = right;
+          const $scrutinee = /* @__PURE__ */ Data_Ord.compare(ordADict)(left0)(right0);
+          if ($scrutinee === "EQ") {
+            return "EQ";
+          }
+          const ordering = $scrutinee;
+          return ordering;
+        }
+        throw new Error("Pattern match failure");
+      };
+    }
   };
 }
 export const eq1Identity = { eq1: (eqADict) => /* @__PURE__ */ Data_Eq.eq(/* @__PURE__ */ eqIdentity(eqADict)) };

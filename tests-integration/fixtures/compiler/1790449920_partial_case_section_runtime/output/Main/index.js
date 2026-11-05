@@ -3,8 +3,8 @@ import * as Effect from "../Effect/index.js";
 export const Blob = "Blob";
 export const ArrayBuffer = "ArrayBuffer";
 export function test(source) {
-  const $closure = (section48) => {
-    const $closure$1 = (partialDict) => {
+  return /* @__PURE__ */ Data_Functor.mapFlipped(Effect.functorEffect)(source)((section48) => {
+    return /* @__PURE__ */ ((partialDict) => {
       if (section48 === "blob") {
         return "Blob";
       }
@@ -12,13 +12,11 @@ export function test(source) {
         return "ArrayBuffer";
       }
       throw new Error("Pattern match failure");
-    };
-    return /* @__PURE__ */ $closure$1({});
-  };
-  return /* @__PURE__ */ Data_Functor.mapFlipped(Effect.functorEffect)(source)($closure);
+    })({});
+  });
 }
 function test_(partialDict) {
-  const $closure = (value) => {
+  return (value) => {
     if (value === "blob") {
       return "Blob";
     }
@@ -27,17 +25,15 @@ function test_(partialDict) {
     }
     throw new Error("Pattern match failure");
   };
-  return $closure;
 }
 export function test2(partialDict) {
-  const $closure = ($binaryType) => {
+  return ($binaryType) => {
     if ($binaryType === "Blob") {
       return 17 | 0;
     } else {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
 export function test3(value) {
   return /* @__PURE__ */ test_({})(value);
@@ -46,26 +42,23 @@ export function test4(value) {
   return /* @__PURE__ */ test2({})(value);
 }
 export function test5(source) {
-  const $closure = ($binaryType) => {
+  return /* @__PURE__ */ Data_Functor.mapFlipped(Effect.functorEffect)(source)(($binaryType) => {
     if ($binaryType === "Blob") {
       return 17 | 0;
     } else {
       throw new Error("Pattern match failure");
     }
-  };
-  return /* @__PURE__ */ Data_Functor.mapFlipped(Effect.functorEffect)(source)($closure);
+  });
 }
 export function test6(value) {
-  const $closure = (partialDict) => {
-    const $closure$1 = ($binaryType) => {
+  return /* @__PURE__ */ ((partialDict) => {
+    return ($binaryType) => {
       if ($binaryType === "Blob") {
         return 23 | 0;
       } else {
         throw new Error("Pattern match failure");
       }
     };
-    return $closure$1;
-  };
-  return /* @__PURE__ */ $closure({})(value);
+  })({})(value);
 }
 export { test_ as "test'" };

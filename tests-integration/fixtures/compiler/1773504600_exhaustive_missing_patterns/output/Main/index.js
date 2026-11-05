@@ -4,7 +4,7 @@ export const Just = ($value0) => ({
 });
 export const Nothing = "Nothing";
 export function fromJust(partialDict) {
-  const $closure = ($maybe) => {
+  return ($maybe) => {
     if ($maybe.tag === "Just") {
       const { _1: x } = $maybe;
       return x;
@@ -12,11 +12,10 @@ export function fromJust(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
 export const test = /* @__PURE__ */ (() => {
   const silent = (partialDict) => {
-    const $closure = ($maybe) => {
+    return ($maybe) => {
       if ($maybe.tag === "Just") {
         const { _1: x } = $maybe;
         return x;
@@ -24,7 +23,6 @@ export const test = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       }
     };
-    return $closure;
   };
   const loud = ($maybe$1) => {
     if ($maybe$1 === "Nothing") {

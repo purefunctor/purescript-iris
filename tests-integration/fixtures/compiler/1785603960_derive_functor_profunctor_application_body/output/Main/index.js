@@ -8,7 +8,7 @@ export const DoubleInput = ($value0) => ({
   _1: $value0
 });
 export const profunctorFunction = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Function") {
@@ -21,12 +21,11 @@ export const profunctorFunction = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();
 const profunctorFunctionDictDimap = /* @__PURE__ */ Data_Profunctor.dimap(profunctorFunction);
 export const functorDoubleInput = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "DoubleInput") {
         const { _1: field0 } = value;
@@ -37,6 +36,5 @@ export const functorDoubleInput = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();

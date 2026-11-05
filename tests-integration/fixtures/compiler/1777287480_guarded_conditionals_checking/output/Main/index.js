@@ -8,7 +8,7 @@ export function identity(x) {
   return x;
 }
 export function test(buildFDict) {
-  const $closure = (section62) => {
+  return (section62) => {
     return (section63) => {
       {
         const from = section62;
@@ -26,5 +26,4 @@ export function test(buildFDict) {
       throw new Error("Pattern match failure");
     };
   };
-  return $closure;
 }

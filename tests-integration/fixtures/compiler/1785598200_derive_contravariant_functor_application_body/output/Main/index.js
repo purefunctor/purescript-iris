@@ -8,7 +8,7 @@ export const BoxedPredicate = ($value0) => ({
   _1: $value0
 });
 export const functorBox = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Box") {
         const { _1: field0 } = value;
@@ -19,11 +19,10 @@ export const functorBox = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const contravariantBoxedPredicate = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "BoxedPredicate") {
         const { _1: field0 } = value;
@@ -34,6 +33,5 @@ export const contravariantBoxedPredicate = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();

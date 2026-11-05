@@ -9,7 +9,7 @@ export function select(dictionary) {
 }
 export function mixed(partialDict) {
   return (selectDict) => {
-    const $closure = (choice) => {
+    return (choice) => {
       return (fallback) => {
         if (choice.tag === "Just") {
           const { _1: value } = choice;
@@ -19,7 +19,6 @@ export function mixed(partialDict) {
         }
       };
     };
-    return $closure;
   };
 }
 export const unsafePartial = $foreign["unsafePartial"];

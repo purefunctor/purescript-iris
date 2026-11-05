@@ -14,9 +14,8 @@ export const convertFG = {
   convertExplicit: unsafeCoerce
 };
 export const clash1 = /* @__PURE__ */ (() => {
-  const $closure = (value) => {
+  return { clash: (value) => {
     const matched = value;
     return unsafeCoerce(matched);
-  };
-  return { clash: $closure };
+  } };
 })();

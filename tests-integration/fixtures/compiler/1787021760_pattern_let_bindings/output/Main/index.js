@@ -13,7 +13,7 @@ export function select(record) {
   return second;
 }
 export function unwrapOne(partialDict) {
-  const $closure = (choice) => {
+  return (choice) => {
     if (choice.tag === "One") {
       const { _1: value } = choice;
       return value;
@@ -21,5 +21,4 @@ export function unwrapOne(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
