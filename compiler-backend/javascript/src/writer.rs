@@ -395,6 +395,20 @@ impl<'a> Writer<'a> {
         result
     }
 
+    pub(crate) fn arrow<R>(
+        &mut self,
+        tree: &mut Tree<'a>,
+        source_name: Option<SmolStr>,
+        parameters: Vec<SmolStr>,
+        render: impl FnOnce(&mut Tree<'a>, &mut Writer<'a>) -> R,
+    ) -> (ExpressionId, R) {
+        let _function_name = self.program_text.enter_function_name(source_name);
+        let mut body = self.child();
+        let result = render(tree, &mut body);
+        let expression = self.arrow_expression(&parameters, body.statements);
+        (tree.allocate(expression), result)
+    }
+
     pub(crate) fn return_arrow<R>(
         &mut self,
         parameters: Vec<SmolStr>,

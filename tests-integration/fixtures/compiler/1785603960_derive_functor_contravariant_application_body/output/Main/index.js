@@ -8,7 +8,7 @@ export const DoubleNegative = ($value0) => ({
   _1: $value0
 });
 export const contravariantPredicate = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Predicate") {
         const { _1: field0 } = value;
@@ -19,12 +19,11 @@ export const contravariantPredicate = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();
 const contravariantPredicateDictCmap = /* @__PURE__ */ Data_Functor_Contravariant.cmap(contravariantPredicate);
 export const functorDoubleNegative = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "DoubleNegative") {
         const { _1: field0 } = value;
@@ -35,6 +34,5 @@ export const functorDoubleNegative = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();

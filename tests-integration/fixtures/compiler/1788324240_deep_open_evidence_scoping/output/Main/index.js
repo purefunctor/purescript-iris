@@ -17,7 +17,7 @@ export function chainValue(chainValueNumberDict) {
   return ($proxy) => ($proxy$1) => /* @__PURE__ */ chain(chainValueNumberDict);
 }
 export function useTwice(baseValueDict) {
-  const $closure = (proxy) => {
+  return (proxy) => {
     const chainZeroDict = /* @__PURE__ */ chainZero(baseValueDict);
     const chainNextDict = /* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(chainZeroDict)))))))))))))))))))))))))))))));
     const chainNextDict$1 = /* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(chainNextDict))))))))))))))))))))))))))))))));
@@ -28,7 +28,6 @@ export function useTwice(baseValueDict) {
     const $result$1 = /* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(/* @__PURE__ */ chainNext({})(chainNextDict$3)))))));
     return [$element, /* @__PURE__ */ chainValue($result$1)(proxy)("Proxy")];
   };
-  return $closure;
 }
 export const baseInt = { base: 42 | 0 };
 export const result = /* @__PURE__ */ useTwice(baseInt)("Proxy");

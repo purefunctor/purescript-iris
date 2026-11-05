@@ -19,7 +19,7 @@ export const foreignValue = $foreign["foreignValue"];
 const hidden = 13 | 0;
 const $await = 17 | 0;
 export const eqOption = /* @__PURE__ */ (() => {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left.tag === "Just" && right.tag === "Just") {
         const { _1: left0 } = left;
@@ -35,8 +35,7 @@ export const eqOption = /* @__PURE__ */ (() => {
       }
       return false;
     };
-  };
-  return { eq: $closure };
+  } };
 })();
 export const measureInt = { measure: (value) => value };
 export { $await as "await" };

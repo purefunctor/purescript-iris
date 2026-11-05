@@ -4,7 +4,7 @@ export const Nested = ($value0) => ({
   _1: $value0
 });
 export function contravariantNestedType(contravariantFDict) {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Nested") {
         const { _1: field0 } = value;
@@ -15,6 +15,5 @@ export function contravariantNestedType(contravariantFDict) {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 }

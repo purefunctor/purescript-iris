@@ -31,8 +31,8 @@ function withSelf(report) {
     const $effect = () => {
       return { value: "Nothing" };
     };
-    const $closure = (self) => {
-      const $closure$1 = (callback) => {
+    return /* @__PURE__ */ $function($function$1(/* @__PURE__ */ bindAsyncStringRowDictBind($function$2($effect))((self) => {
+      return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.fork(/* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.async((callback) => {
         const $action = later(callback({
           tag: "Right",
           _1: Data_Unit.unit
@@ -42,13 +42,12 @@ function withSelf(report) {
           const $value = /* @__PURE__ */ applicativeAsyncStringRowDictPure(Data_Unit.unit);
           return $value;
         };
-      };
-      const $closure$2 = ($unit$1) => {
+      }))(($unit$1) => {
         const $function$3 = Iris_Effect_Async.liftEffect;
         const $effect$1 = () => {
           return self.value;
         };
-        const $closure$3 = (found) => {
+        return /* @__PURE__ */ bindAsyncStringRowDictBind($function$3($effect$1))((found) => {
           if (found.tag === "Just") {
             const { _1: me } = found;
             return body(me);
@@ -57,10 +56,8 @@ function withSelf(report) {
             return say(report)("missing fiber");
           }
           throw new Error("Pattern match failure");
-        };
-        return /* @__PURE__ */ bindAsyncStringRowDictBind($function$3($effect$1))($closure$3);
-      };
-      const $closure$4 = (fiber) => {
+        });
+      })))((fiber) => {
         const $function$4 = discardUnitDictDiscard(Iris_Effect_Async.bindAsync);
         const $function$5 = Iris_Effect_Async.liftEffect;
         const $value$1 = {
@@ -71,8 +68,8 @@ function withSelf(report) {
           self.value = $value$1;
           return undefined;
         };
-        const $closure$5 = ($unit$2) => {
-          const $closure$6 = (exit) => {
+        return /* @__PURE__ */ $function$4($function$5($effect$2))(($unit$2) => {
+          return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.await(fiber))((exit) => {
             const $function$6 = say(report);
             let $result;
             $case: {
@@ -92,24 +89,20 @@ function withSelf(report) {
               throw new Error("Pattern match failure");
             }
             return $function$6($result);
-          };
-          return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.await(fiber))($closure$6);
-        };
-        return /* @__PURE__ */ $function$4($function$5($effect$2))($closure$5);
-      };
-      return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.fork(/* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.async($closure$1))($closure$2)))($closure$4);
-    };
-    return /* @__PURE__ */ $function($function$1(/* @__PURE__ */ bindAsyncStringRowDictBind($function$2($effect))($closure)));
+          });
+        });
+      });
+    })));
   };
 }
 export function insideCatch(report) {
   return withSelf(report)((me) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(Iris_Effect_Async.catch(/* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("before kill"))(($unit) => /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(killSelf(me))(($unit$1) => say(report)("after kill"))))((failure) => say(report)("caught " + failure)))(($unit$2) => say(report)("after catch")));
 }
 export function beforeImmediateCallback(report) {
-  const $closure = (me) => {
-    const $closure$1 = ($unit) => {
-      const $closure$2 = ($unit$1) => {
-        const $closure$3 = (callback) => {
+  return withSelf(report)((me) => {
+    return /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("before kill"))(($unit) => {
+      return /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(killSelf(me))(($unit$1) => {
+        return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.async((callback) => {
           const $action = callback({
             tag: "Right",
             _1: 5 | 0
@@ -119,14 +112,10 @@ export function beforeImmediateCallback(report) {
             const $value = /* @__PURE__ */ applicativeAsyncStringRowDictPure(Data_Unit.unit);
             return $value;
           };
-        };
-        return /* @__PURE__ */ bindAsyncStringRowDictBind(Iris_Effect_Async.async($closure$3))((value) => say(report)("after callback " + /* @__PURE__ */ Data_Show.show(Data_Show.showInt)(value)));
-      };
-      return /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(killSelf(me))($closure$2);
-    };
-    return /* @__PURE__ */ discardUnitDictDiscard(Iris_Effect_Async.bindAsync)(say(report)("before kill"))($closure$1);
-  };
-  return withSelf(report)($closure);
+        }))((value) => say(report)("after callback " + /* @__PURE__ */ Data_Show.show(Data_Show.showInt)(value)));
+      });
+    });
+  });
 }
 const later = $foreign["later"];
 const bindAsyncStringRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect_Async.bindAsync);

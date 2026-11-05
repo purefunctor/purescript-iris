@@ -3,7 +3,7 @@ export const PredicateRecord = ($value0) => ({
   _1: $value0
 });
 export const contravariantPredicateRecord = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "PredicateRecord") {
         const { _1: field0 } = value;
@@ -17,6 +17,5 @@ export const contravariantPredicateRecord = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();

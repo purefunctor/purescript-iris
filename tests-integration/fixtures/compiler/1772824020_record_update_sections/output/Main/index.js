@@ -96,11 +96,10 @@ export function add(x) {
   };
 }
 export const higherOrderContext = /* @__PURE__ */ (() => {
-  const $closure = (section74) => {
+  return map((section74) => {
     return {
       ...section74,
       x: 10 | 0
     };
-  };
-  return map($closure);
+  });
 })();

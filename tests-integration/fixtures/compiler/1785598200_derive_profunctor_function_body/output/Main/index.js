@@ -3,7 +3,7 @@ export const Function = ($value0) => ({
   _1: $value0
 });
 export const profunctorFunction = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { dimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Function") {
@@ -16,6 +16,5 @@ export const profunctorFunction = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { dimap: $closure };
+  } };
 })();

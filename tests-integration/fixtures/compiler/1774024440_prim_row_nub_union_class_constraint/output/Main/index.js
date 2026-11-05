@@ -11,13 +11,12 @@ export function combine(collectItemsDict) {
   return (unionRowPartialRowDict) => {
     return (nubRowDedupedDict) => {
       return (unionDedupedDeduped_RequiredDict) => {
-        const $closure = (provided) => {
+        return (provided) => {
           return ($items) => {
             const merged = /* @__PURE__ */ merge(unionRowPartialRowDict)(nubRowDedupedDict)({ key: "value" })(provided);
             return /* @__PURE__ */ consume(unionDedupedDeduped_RequiredDict)(merged);
           };
         };
-        return $closure;
       };
     };
   };

@@ -10,35 +10,33 @@ export const Pair = ($value0) => ($value1) => ($value2) => ({
   _3: $value2
 });
 const $lazy_bitraversablePair = $runtime.binding("bitraversablePair", () => {
-  const $closure = (applicativeFDict) => {
-    const $closure$1 = (firstFunction) => {
-      return (secondFunction) => {
-        return (value) => {
-          const Apply0Dict = /* @__PURE__ */ applicativeFDict.Apply0();
-          if (value.tag === "Pair") {
-            const { _1: field0, _2: field1, _3: field2 } = value;
-            return /* @__PURE__ */ Control_Apply.apply(Apply0Dict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ Apply0Dict.Functor0())((field0Result) => (field2Result) => ({
-              tag: "Pair",
-              _1: field0Result,
-              _2: field1,
-              _3: field2Result
-            }))(firstFunction(field0)))(secondFunction(field2));
-          }
-          throw new Error("Pattern match failure");
-        };
-      };
-    };
-    return $closure$1;
-  };
   return {
     Bifunctor0: () => bifunctorPair,
     Bifoldable1: () => bifoldablePair,
-    bitraverse: $closure,
+    bitraverse: (applicativeFDict) => {
+      return (firstFunction) => {
+        return (secondFunction) => {
+          return (value) => {
+            const Apply0Dict = /* @__PURE__ */ applicativeFDict.Apply0();
+            if (value.tag === "Pair") {
+              const { _1: field0, _2: field1, _3: field2 } = value;
+              return /* @__PURE__ */ Control_Apply.apply(Apply0Dict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ Apply0Dict.Functor0())((field0Result) => (field2Result) => ({
+                tag: "Pair",
+                _1: field0Result,
+                _2: field1,
+                _3: field2Result
+              }))(firstFunction(field0)))(secondFunction(field2));
+            }
+            throw new Error("Pattern match failure");
+          };
+        };
+      };
+    },
     bisequence: (applicativeFDict$1) => (value$1) => /* @__PURE__ */ Data_Bitraversable.bitraverse($lazy_bitraversablePair())(applicativeFDict$1)((effect0) => effect0)((effect1) => effect1)(value$1)
   };
 });
 export const bifunctorPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Pair") {
@@ -53,54 +51,49 @@ export const bifunctorPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifoldablePair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
-    return (secondFunction) => {
-      return (accumulator) => {
-        return (value) => {
-          if (value.tag === "Pair") {
-            const { _1: field0, _2: field1, _3: field2 } = value;
-            return firstFunction(field0)(secondFunction(field2)(accumulator));
-          }
-          throw new Error("Pattern match failure");
-        };
-      };
-    };
-  };
-  const $closure$1 = (firstFunction$1) => {
-    return (secondFunction$1) => {
-      return (accumulator$1) => {
-        return (value$1) => {
-          if (value$1.tag === "Pair") {
-            const { _1: field0$1, _2: field1$1, _3: field2$1 } = value$1;
-            return secondFunction$1(firstFunction$1(accumulator$1)(field0$1))(field2$1);
-          }
-          throw new Error("Pattern match failure");
-        };
-      };
-    };
-  };
-  const $closure$2 = (monoidMDict) => {
-    const $closure$3 = (firstFunction$2) => {
-      return (secondFunction$2) => {
-        return (value$2) => {
-          if (value$2.tag === "Pair") {
-            const { _1: field0$2, _2: field1$2, _3: field2$2 } = value$2;
-            return /* @__PURE__ */ Data_Semigroup.append(/* @__PURE__ */ monoidMDict.Semigroup0())(firstFunction$2(field0$2))(secondFunction$2(field2$2));
-          }
-          throw new Error("Pattern match failure");
-        };
-      };
-    };
-    return $closure$3;
-  };
   return {
-    bifoldr: $closure,
-    bifoldl: $closure$1,
-    bifoldMap: $closure$2
+    bifoldr: (firstFunction) => {
+      return (secondFunction) => {
+        return (accumulator) => {
+          return (value) => {
+            if (value.tag === "Pair") {
+              const { _1: field0, _2: field1, _3: field2 } = value;
+              return firstFunction(field0)(secondFunction(field2)(accumulator));
+            }
+            throw new Error("Pattern match failure");
+          };
+        };
+      };
+    },
+    bifoldl: (firstFunction$1) => {
+      return (secondFunction$1) => {
+        return (accumulator$1) => {
+          return (value$1) => {
+            if (value$1.tag === "Pair") {
+              const { _1: field0$1, _2: field1$1, _3: field2$1 } = value$1;
+              return secondFunction$1(firstFunction$1(accumulator$1)(field0$1))(field2$1);
+            }
+            throw new Error("Pattern match failure");
+          };
+        };
+      };
+    },
+    bifoldMap: (monoidMDict) => {
+      return (firstFunction$2) => {
+        return (secondFunction$2) => {
+          return (value$2) => {
+            if (value$2.tag === "Pair") {
+              const { _1: field0$2, _2: field1$2, _3: field2$2 } = value$2;
+              return /* @__PURE__ */ Data_Semigroup.append(/* @__PURE__ */ monoidMDict.Semigroup0())(firstFunction$2(field0$2))(secondFunction$2(field2$2));
+            }
+            throw new Error("Pattern match failure");
+          };
+        };
+      };
+    }
   };
 })();
 export const bitraversablePair = $lazy_bitraversablePair();

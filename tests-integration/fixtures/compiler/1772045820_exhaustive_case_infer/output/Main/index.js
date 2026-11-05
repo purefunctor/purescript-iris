@@ -4,14 +4,12 @@ export const Just = ($value0) => ({
 });
 export const Nothing = "Nothing";
 export function test(partialDict) {
-  const $closure = (section15) => {
-    const $closure$1 = (partialDict$1) => {
+  return (section15) => {
+    return /* @__PURE__ */ ((partialDict$1) => {
       if (section15.tag === "Just") {
         return 1 | 0;
       }
       throw new Error("Pattern match failure");
-    };
-    return /* @__PURE__ */ $closure$1(partialDict);
+    })(partialDict);
   };
-  return $closure;
 }

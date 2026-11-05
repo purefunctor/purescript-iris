@@ -70,16 +70,14 @@ export function ordinaryBind(identity) {
   return bind(identity)((value) => value);
 }
 export function partialBind(partialDict) {
-  const $closure = (choice) => {
-    const $closure$1 = ($choice) => {
+  return (choice) => {
+    return bind(choice)(($choice) => {
       if ($choice.tag === "One") {
         const { _1: value } = $choice;
         return value;
       } else {
         throw new Error("Pattern match failure");
       }
-    };
-    return bind(choice)($closure$1);
+    });
   };
-  return $closure;
 }

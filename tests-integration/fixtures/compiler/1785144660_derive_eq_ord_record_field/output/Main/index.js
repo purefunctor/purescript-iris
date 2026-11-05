@@ -6,7 +6,7 @@ export const Box = ($value0) => ({
   _1: $value0
 });
 export const eqBox = /* @__PURE__ */ (() => {
-  const $closure = (left) => {
+  return { eq: (left) => {
     return (right) => {
       if (left.tag === "Box" && right.tag === "Box") {
         const { _1: left0 } = left;
@@ -19,27 +19,25 @@ export const eqBox = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { eq: $closure };
+  } };
 })();
 export const ordBox = /* @__PURE__ */ (() => {
-  const $closure = (left) => {
-    return (right) => {
-      if (left.tag === "Box" && right.tag === "Box") {
-        const { _1: left0 } = left;
-        const { _1: right0 } = right;
-        const $scrutinee = /* @__PURE__ */ Data_Ord.compare(/* @__PURE__ */ Data_Ord.ordRecord({})(/* @__PURE__ */ Data_Ord.ordRecordCons(Data_Ord.ordRecordNil)({})({ reflectSymbol: ($proxy) => "value" })(Data_Ord.ordInt)))(left0)(right0);
-        if ($scrutinee === "EQ") {
-          return "EQ";
-        }
-        const ordering = $scrutinee;
-        return ordering;
-      }
-      throw new Error("Pattern match failure");
-    };
-  };
   return {
     Eq0: () => eqBox,
-    compare: $closure
+    compare: (left) => {
+      return (right) => {
+        if (left.tag === "Box" && right.tag === "Box") {
+          const { _1: left0 } = left;
+          const { _1: right0 } = right;
+          const $scrutinee = /* @__PURE__ */ Data_Ord.compare(/* @__PURE__ */ Data_Ord.ordRecord({})(/* @__PURE__ */ Data_Ord.ordRecordCons(Data_Ord.ordRecordNil)({})({ reflectSymbol: ($proxy) => "value" })(Data_Ord.ordInt)))(left0)(right0);
+          if ($scrutinee === "EQ") {
+            return "EQ";
+          }
+          const ordering = $scrutinee;
+          return ordering;
+        }
+        throw new Error("Pattern match failure");
+      };
+    }
   };
 })();

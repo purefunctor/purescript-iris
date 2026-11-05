@@ -27,7 +27,7 @@ export function compareArraysOnce(left) {
   };
 }
 export function compareGenericArraysTwice(eqADict) {
-  const $closure = (left) => {
+  return (left) => {
     return (right) => {
       const eqArrayDict = /* @__PURE__ */ Data_Eq.eqArray(eqADict);
       if (/* @__PURE__ */ Data_Eq.eq(eqArrayDict)(left)(right)) {
@@ -37,7 +37,6 @@ export function compareGenericArraysTwice(eqADict) {
       }
     };
   };
-  return $closure;
 }
 export function compareNestedArraysTwice(left) {
   return (right) => {
@@ -54,7 +53,7 @@ export function compareNestedArraysTwice(left) {
 }
 export function distinctGivens(eqADict) {
   return (eqBDict) => {
-    const $closure = (leftA) => {
+    return (leftA) => {
       return (rightA) => {
         return (leftB) => {
           return (rightB) => {
@@ -73,7 +72,6 @@ export function distinctGivens(eqADict) {
         };
       };
     };
-    return $closure;
   };
 }
 export function distinctSubgoals(leftInt) {
@@ -116,7 +114,7 @@ export function compareNestedArraysWhole(left) {
   };
 }
 export function compareSuperclassArraysTwice(orderedADict) {
-  const $closure = (left) => {
+  return (left) => {
     return (right) => {
       const eqArrayDict = /* @__PURE__ */ Data_Eq.eqArray(/* @__PURE__ */ orderedADict.Eq0());
       if (/* @__PURE__ */ Data_Eq.eq(eqArrayDict)(left)(right)) {
@@ -126,10 +124,9 @@ export function compareSuperclassArraysTwice(orderedADict) {
       }
     };
   };
-  return $closure;
 }
 export function compareSuperclassTwice(orderedADict) {
-  const $closure = (left) => {
+  return (left) => {
     return (right) => {
       const Eq0Dict = /* @__PURE__ */ orderedADict.Eq0();
       if (/* @__PURE__ */ Data_Eq.eq(Eq0Dict)(left)(right)) {
@@ -139,7 +136,6 @@ export function compareSuperclassTwice(orderedADict) {
       }
     };
   };
-  return $closure;
 }
 export function lambdaScope(left) {
   return (right) => {

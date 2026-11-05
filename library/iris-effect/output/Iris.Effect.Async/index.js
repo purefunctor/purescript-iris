@@ -61,28 +61,26 @@ export function attempt(program) {
   }));
 }
 export function async(register) {
-  const $closure = (environment) => {
-    const $closure$1 = (callback) => {
-      const $action = register(callback);
-      return () => {
-        const canceler = $action();
-        const $value = canceler(environment);
-        return $value;
-      };
-    };
+  return (environment) => {
     return {
       tag: "Async",
-      _1: $closure$1
+      _1: (callback) => {
+        const $action = register(callback);
+        return () => {
+          const canceler = $action();
+          const $value = canceler(environment);
+          return $value;
+        };
+      }
     };
   };
-  return $closure;
 }
 export function fork(program) {
   return (environment) => Iris_Effect_Fiber.forkStep(program(environment))(/* @__PURE__ */ Control_Category.identity(Control_Category.categoryFn));
 }
 export function join(fiber) {
-  const $closure = ($record) => {
-    const $closure$1 = (section622) => {
+  return ($record) => {
+    return Iris_Effect_Fiber.bindStep(awaitStep(fiber))((section622) => {
       if (section622.tag === "Succeeded") {
         const { _1: value } = section622;
         return {
@@ -105,63 +103,58 @@ export function join(fiber) {
         };
       }
       throw new Error("Pattern match failure");
-    };
-    return Iris_Effect_Fiber.bindStep(awaitStep(fiber))($closure$1);
+    });
   };
-  return $closure;
 }
 function $await(fiber) {
   return ($record) => awaitStep(fiber);
 }
 function awaitStep(fiber) {
-  const $closure = (callback) => {
-    const $action = Iris_Effect_Fiber.joinFiber(fiber)((exit) => callback({
-      tag: "Right",
-      _1: exit
-    }));
-    return () => {
-      const cancel = $action();
-      const $value = {
-        tag: "Sync",
-        _1: cancel
-      };
-      return $value;
-    };
-  };
   return {
     tag: "Async",
-    _1: $closure
+    _1: (callback) => {
+      const $action = Iris_Effect_Fiber.joinFiber(fiber)((exit) => callback({
+        tag: "Right",
+        _1: exit
+      }));
+      return () => {
+        const cancel = $action();
+        const $value = {
+          tag: "Sync",
+          _1: cancel
+        };
+        return $value;
+      };
+    }
   };
 }
 export function kill(error) {
   return (fiber) => {
-    const $closure = ($record) => {
-      const $closure$1 = (callback) => {
-        const $action = Iris_Effect_Fiber.killFiber(error)(fiber)(callback({
-          tag: "Right",
-          _1: Data_Unit.unit
-        }));
-        return () => {
-          const cancel = $action();
-          const $value = {
-            tag: "Sync",
-            _1: cancel
-          };
-          return $value;
-        };
-      };
+    return ($record) => {
       return {
         tag: "Async",
-        _1: $closure$1
+        _1: (callback) => {
+          const $action = Iris_Effect_Fiber.killFiber(error)(fiber)(callback({
+            tag: "Right",
+            _1: Data_Unit.unit
+          }));
+          return () => {
+            const cancel = $action();
+            const $value = {
+              tag: "Sync",
+              _1: cancel
+            };
+            return $value;
+          };
+        }
       };
     };
-    return $closure;
   };
 }
 export function bracket(acquire) {
   return (release) => {
     return (use) => {
-      const $closure = (environment) => {
+      return (environment) => {
         const releaseStep = (resource) => {
           return toStep(environment)(release(resource));
         };
@@ -175,7 +168,6 @@ export function bracket(acquire) {
         const $result = (composeArgument) => /* @__PURE__ */ composeOuter(/* @__PURE__ */ use(composeArgument));
         return $function($result);
       };
-      return $closure;
     };
   };
 }
@@ -193,7 +185,7 @@ export function launch($record) {
         const runtime = $action();
         const $action$1 = Iris_Effect_Fiber.makeFiber(runtime)(program(environment));
         const fiber = $action$1();
-        const $closure = (section1050) => {
+        const $action$2 = Iris_Effect_Fiber.joinFiber(fiber)((section1050) => {
           if (section1050.tag === "Succeeded") {
             const $value = Data_Unit.unit;
             return () => {
@@ -209,8 +201,7 @@ export function launch($record) {
             return Effect_Exception.throwException(defect);
           }
           throw new Error("Pattern match failure");
-        };
-        const $action$2 = Iris_Effect_Fiber.joinFiber(fiber)($closure);
+        });
         const $effect = $action$2();
         return fiber;
       };

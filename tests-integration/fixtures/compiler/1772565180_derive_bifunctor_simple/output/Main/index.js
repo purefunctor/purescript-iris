@@ -16,7 +16,7 @@ export const Const2 = ($value0) => ({
   _1: $value0
 });
 export const bifunctorEither = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Left") {
@@ -36,11 +36,10 @@ export const bifunctorEither = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Pair") {
@@ -54,11 +53,10 @@ export const bifunctorPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorConst2TypeType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Const2") {
@@ -71,6 +69,5 @@ export const bifunctorConst2TypeType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();

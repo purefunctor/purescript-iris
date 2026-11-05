@@ -9,7 +9,7 @@ export const Nested = ($value0) => ({
   _1: $value0
 });
 export const bifunctorPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Pair") {
@@ -23,11 +23,10 @@ export const bifunctorPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const contravariantNested = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { cmap: ($function) => {
     return (value) => {
       if (value.tag === "Nested") {
         const { _1: field0 } = value;
@@ -38,6 +37,5 @@ export const contravariantNested = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { cmap: $closure };
+  } };
 })();

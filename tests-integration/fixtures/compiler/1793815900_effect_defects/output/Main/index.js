@@ -8,7 +8,7 @@ import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 import * as Iris_Effect_Fiber from "../Iris.Effect.Fiber/index.js";
 import * as $foreign from "./foreign.js";
 function delay(milliseconds) {
-  const $closure = (callback) => {
+  return Iris_Effect_Async.async((callback) => {
     const $action = setTimeout(milliseconds)(callback({
       tag: "Right",
       _1: Data_Unit.unit
@@ -18,8 +18,7 @@ function delay(milliseconds) {
       const $value = Iris_Effect_Async.liftEffect(clearTimeout(identifier));
       return $value;
     };
-  };
-  return Iris_Effect_Async.async($closure);
+  });
 }
 function describe(section144) {
   if (section144.tag === "Succeeded") {

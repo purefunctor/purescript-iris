@@ -15,10 +15,9 @@ export function lens(pack) {
   };
 }
 export function wrapped(profunctorPDict) {
-  const $closure = (section183) => {
+  return /* @__PURE__ */ apply(lens((value) => value))((section183) => {
     const a = section183;
     return a;
-  };
-  return /* @__PURE__ */ apply(lens((value) => value))($closure)(profunctorPDict);
+  })(profunctorPDict);
 }
 export const profunctorFn = { dimap: (ab) => (cd) => (bc) => (a) => cd(bc(ab(a))) };

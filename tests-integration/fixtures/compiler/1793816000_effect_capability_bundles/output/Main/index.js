@@ -1,14 +1,13 @@
 import * as Iris_Effect from "../Iris.Effect/index.js";
 export function reading(hasFirstServicesDict) {
   return (hasSecondServicesDict) => {
-    const $closure = (services) => {
+    return (services) => {
       const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(hasFirstServicesDict)(services);
       const $scrutinee$1 = /* @__PURE__ */ Iris_Effect.getService(hasSecondServicesDict)(services);
       const first = $scrutinee;
       const second = $scrutinee$1;
       return (first * (100 | 0) | 0) + second | 0;
     };
-    return $closure;
   };
 }
 export function inferred(hasFirstDict) {
@@ -24,12 +23,11 @@ export function ranked(hasFirstServicesDict) {
 export function tagged(hasFirstServicesDict) {
   return (hasTaggedValueServicesDict) => {
     return (hasSecondServicesDict) => {
-      const $closure = (services) => {
+      return (services) => {
         const $scrutinee = /* @__PURE__ */ Iris_Effect.getService(hasTaggedValueServicesDict)(services);
         const value = $scrutinee;
         return value;
       };
-      return $closure;
     };
   };
 }

@@ -4,7 +4,7 @@ export const Just = ($value0) => ({
   _1: $value0
 });
 export function checked(partialDict) {
-  const $closure = ($maybe) => {
+  return ($maybe) => {
     if ($maybe.tag === "Just") {
       const { _1: value } = $maybe;
       return value;
@@ -12,10 +12,9 @@ export function checked(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }
 export function inferred(partialDict) {
-  const $closure = ($maybe) => {
+  return ($maybe) => {
     if ($maybe.tag === "Just") {
       const { _1: value } = $maybe;
       return value;
@@ -23,5 +22,4 @@ export function inferred(partialDict) {
       throw new Error("Pattern match failure");
     }
   };
-  return $closure;
 }

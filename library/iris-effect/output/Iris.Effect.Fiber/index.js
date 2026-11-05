@@ -819,7 +819,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             $reference$13.value = "Nothing";
             const $scrutinee = $currentArgument0$2.runtime;
             const runtime = $scrutinee;
-            const $closure = (result$4) => {
+            const $action$7 = register((result$4) => {
               const $reference$14 = $currentArgument0$2.runTick;
               return () => {
                 const tick = $reference$14.value;
@@ -848,8 +848,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                 };
                 return (/* @__PURE__ */ $function$2($effect$2))();
               };
-            };
-            const $action$7 = register($closure);
+            });
             const canceler = $action$7();
             const $reference$20 = $currentArgument0$2.status;
             const status$2 = $reference$20.value;

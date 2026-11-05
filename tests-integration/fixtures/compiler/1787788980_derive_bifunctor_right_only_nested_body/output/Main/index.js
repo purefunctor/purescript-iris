@@ -8,7 +8,7 @@ export const NestedRightOnly = ($value0) => ({
   _1: $value0
 });
 export const bifunctorRightOnlyType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "RightOnly") {
@@ -21,11 +21,10 @@ export const bifunctorRightOnlyType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorNestedRightOnlyType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "NestedRightOnly") {
@@ -38,6 +37,5 @@ export const bifunctorNestedRightOnlyType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();

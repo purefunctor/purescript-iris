@@ -210,6 +210,13 @@ struct UncurriedParameters<'a> {
     body: FunctionalExpressionId,
 }
 
+#[derive(Clone, Copy)]
+struct Abstraction<'a> {
+    parameters: &'a [PatternId],
+    body: FunctionalExpressionId,
+    uncurried: bool,
+}
+
 struct AbstractionBinding<'a> {
     name: &'a str,
     source_name: Option<SmolStr>,
@@ -2434,19 +2441,24 @@ impl Generator<'_> {
         source_name: Option<SmolStr>,
         context: &mut FunctionContext,
     ) -> ModuleResult<ExpressionId> {
-        let (parameters, body, uncurried) = match &self.module.storage[expression].kind {
-            ExpressionKind::Abstraction { parameters, body } => (parameters, *body, false),
-            ExpressionKind::UncurriedAbstraction { parameters, body } => (parameters, *body, true),
+        let abstraction = match &self.module.storage[expression].kind {
+            ExpressionKind::Abstraction { parameters, body } => {
+                Abstraction { parameters, body: *body, uncurried: false }
+            }
+            ExpressionKind::UncurriedAbstraction { parameters, body } => {
+                Abstraction { parameters, body: *body, uncurried: true }
+            }
             _ => unreachable!("invariant violated: closure is not an abstraction"),
         };
-        let name = context.allocate("$closure");
-        self.render_abstraction_binding(
-            tree,
-            writer,
-            AbstractionBinding { name: &name, source_name, parameters, body, uncurried },
-            context,
-        )?;
-        Ok(tree.identifier(name))
+        let outer_tail_calls = context.tail_calls.take();
+        let arguments = self.abstraction_arguments(&abstraction, context);
+        let (closure, result) =
+            writer.arrow(tree, source_name, arguments.clone(), |tree, writer| {
+                self.render_abstraction_body(tree, writer, &abstraction, &arguments, context)
+            });
+        context.tail_calls = outer_tail_calls;
+        result?;
+        Ok(closure)
     }
 
     fn render_abstraction_binding<'t>(
@@ -2457,50 +2469,51 @@ impl Generator<'_> {
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
         let AbstractionBinding { name, source_name, parameters, body, uncurried } = binding;
+        let abstraction = Abstraction { parameters, body, uncurried };
         // A recursive call in a nested closure starts a distinct invocation; it cannot continue
         // the loop whose current iteration created that closure.
         let outer_tail_calls = context.tail_calls.take();
-        let result = if uncurried {
-            let arguments = parameters
-                .iter()
-                .map(|pattern| self.allocate_pattern_argument(*pattern, context))
-                .collect_vec();
-            writer.constant_arrow(name, source_name, arguments.clone(), |writer| {
-                self.render_uncurried_parameters(
-                    tree,
-                    writer,
-                    UncurriedParameters {
-                        patterns: parameters,
-                        arguments: &arguments,
-                        position: 0,
-                        body,
-                    },
-                    context,
-                )
-            })
-        } else {
-            let (argument, parameter) = self.first_argument(parameters, context);
-            let arguments = if parameter.is_some() { vec![argument.clone()] } else { Vec::new() };
-            writer.constant_arrow(name, source_name, arguments, |writer| {
-                if let Some(parameter) = parameter {
-                    self.render_curried_parameter(
-                        tree,
-                        writer,
-                        CurriedParameter {
-                            pattern: parameter,
-                            argument: &argument,
-                            remaining: &parameters[1..],
-                            body,
-                        },
-                        context,
-                    )
-                } else {
-                    self.render_expression(tree, writer, body, Destination::Return, context)
-                }
-            })
-        };
+        let arguments = self.abstraction_arguments(&abstraction, context);
+        let result = writer.constant_arrow(name, source_name, arguments.clone(), |writer| {
+            self.render_abstraction_body(tree, writer, &abstraction, &arguments, context)
+        });
         context.tail_calls = outer_tail_calls;
         result
+    }
+
+    fn abstraction_arguments(
+        &self,
+        abstraction: &Abstraction<'_>,
+        context: &mut FunctionContext,
+    ) -> Vec<SmolStr> {
+        let parameters = if abstraction.uncurried {
+            abstraction.parameters
+        } else {
+            &abstraction.parameters[..abstraction.parameters.len().min(1)]
+        };
+        parameters.iter().map(|pattern| self.allocate_pattern_argument(*pattern, context)).collect()
+    }
+
+    fn render_abstraction_body<'t>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        abstraction: &Abstraction<'_>,
+        arguments: &[SmolStr],
+        context: &mut FunctionContext,
+    ) -> ModuleResult<()> {
+        let Abstraction { parameters, body, uncurried } = *abstraction;
+        if uncurried {
+            let parameters =
+                UncurriedParameters { patterns: parameters, arguments, position: 0, body };
+            return self.render_uncurried_parameters(tree, writer, parameters, context);
+        }
+        let (Some(pattern), Some(argument)) = (parameters.first(), arguments.first()) else {
+            return self.render_expression(tree, writer, body, Destination::Return, context);
+        };
+        let parameter =
+            CurriedParameter { pattern: *pattern, argument, remaining: &parameters[1..], body };
+        self.render_curried_parameter(tree, writer, parameter, context)
     }
 }
 

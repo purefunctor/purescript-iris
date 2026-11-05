@@ -29,19 +29,18 @@ const $lazy_applicativeBox = $runtime.binding("applicativeBox", () => {
   };
 });
 const $lazy_bindBox = $runtime.binding("bindBox", () => {
-  const $closure = ($box) => {
-    if ($box.tag === "Box") {
-      const { _1: value } = $box;
-      return (continuation) => {
-        return continuation(value);
-      };
-    } else {
-      throw new Error("Pattern match failure");
-    }
-  };
   return {
     Apply0: () => $lazy_applyBox(),
-    bind: $closure
+    bind: ($box) => {
+      if ($box.tag === "Box") {
+        const { _1: value } = $box;
+        return (continuation) => {
+          return continuation(value);
+        };
+      } else {
+        throw new Error("Pattern match failure");
+      }
+    }
   };
 });
 const $lazy_monadBox = $runtime.binding("monadBox", () => {

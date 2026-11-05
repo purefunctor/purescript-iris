@@ -3,12 +3,11 @@ export function lookup(hasServiceServicesDict) {
   return /* @__PURE__ */ Iris_Effect.getService(hasServiceServicesDict);
 }
 export function inferred(hasConsoleDict) {
-  const $closure = (environment) => {
+  return (environment) => {
     const $scrutinee = /* @__PURE__ */ lookup(hasConsoleDict)(environment);
     const value = $scrutinee;
     return value;
   };
-  return $closure;
 }
 export function multiple(hasHttpDict) {
   return (hasConsoleDict) => {

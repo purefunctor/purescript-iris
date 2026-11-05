@@ -7,7 +7,7 @@ export const Wrap = ($value0) => ({
 });
 export function eqWrapType(eq1FDict) {
   return (eqADict) => {
-    const $closure = (left) => {
+    return { eq: (left) => {
       return (right) => {
         if (left.tag === "Wrap" && right.tag === "Wrap") {
           const { _1: left0 } = left;
@@ -20,8 +20,7 @@ export function eqWrapType(eq1FDict) {
         }
         throw new Error("Pattern match failure");
       };
-    };
-    return { eq: $closure };
+    } };
   };
 }
 export function eq1WrapType(eq1FDict) {
@@ -29,24 +28,23 @@ export function eq1WrapType(eq1FDict) {
 }
 export function ordWrapType(ord1FDict) {
   return (ordADict) => {
-    const $closure = (left) => {
-      return (right) => {
-        if (left.tag === "Wrap" && right.tag === "Wrap") {
-          const { _1: left0 } = left;
-          const { _1: right0 } = right;
-          const $scrutinee = /* @__PURE__ */ Data_Ord.compare1(ord1FDict)(ordADict)(left0)(right0);
-          if ($scrutinee === "EQ") {
-            return "EQ";
-          }
-          const ordering = $scrutinee;
-          return ordering;
-        }
-        throw new Error("Pattern match failure");
-      };
-    };
     return {
       Eq0: () => /* @__PURE__ */ eqWrapType(/* @__PURE__ */ ord1FDict.Eq10())(/* @__PURE__ */ ordADict.Eq0()),
-      compare: $closure
+      compare: (left) => {
+        return (right) => {
+          if (left.tag === "Wrap" && right.tag === "Wrap") {
+            const { _1: left0 } = left;
+            const { _1: right0 } = right;
+            const $scrutinee = /* @__PURE__ */ Data_Ord.compare1(ord1FDict)(ordADict)(left0)(right0);
+            if ($scrutinee === "EQ") {
+              return "EQ";
+            }
+            const ordering = $scrutinee;
+            return ordering;
+          }
+          throw new Error("Pattern match failure");
+        };
+      }
     };
   };
 }

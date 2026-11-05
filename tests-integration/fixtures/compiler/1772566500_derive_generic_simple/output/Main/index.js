@@ -38,136 +38,124 @@ export function getWrapper(genericWrapperARepDict) {
   return "Proxy";
 }
 const $lazy_genericVoidNoConstructors = $runtime.binding("genericVoidNoConstructors", () => {
-  const $closure = (value) => {
-    return /* @__PURE__ */ Data_Generic_Rep.to($lazy_genericVoidNoConstructors())(value);
-  };
-  const $closure$1 = (value$1) => {
-    return /* @__PURE__ */ Data_Generic_Rep.from($lazy_genericVoidNoConstructors())(value$1);
-  };
   return {
-    to: $closure,
-    from: $closure$1
+    to: (value) => {
+      return /* @__PURE__ */ Data_Generic_Rep.to($lazy_genericVoidNoConstructors())(value);
+    },
+    from: (value$1) => {
+      return /* @__PURE__ */ Data_Generic_Rep.from($lazy_genericVoidNoConstructors())(value$1);
+    }
   };
 });
 export const genericVoidNoConstructors = $lazy_genericVoidNoConstructors();
 export const genericMyUnitConstructorNoArguments = /* @__PURE__ */ (() => {
-  const $closure = (representation) => {
-    if (representation === "NoArguments") {
-      return "MyUnit";
-    }
-    throw new Error("Pattern match failure");
-  };
-  const $closure$1 = (value) => {
-    if (value === "MyUnit") {
-      return "NoArguments";
-    }
-    throw new Error("Pattern match failure");
-  };
   return {
-    to: $closure,
-    from: $closure$1
+    to: (representation) => {
+      if (representation === "NoArguments") {
+        return "MyUnit";
+      }
+      throw new Error("Pattern match failure");
+    },
+    from: (value) => {
+      if (value === "MyUnit") {
+        return "NoArguments";
+      }
+      throw new Error("Pattern match failure");
+    }
   };
 })();
 export const genericIdentityConstructorArgument = /* @__PURE__ */ (() => {
-  const $closure = (representation) => {
-    const field0 = representation;
-    return {
-      tag: "Identity",
-      _1: field0
-    };
-  };
-  const $closure$1 = (value) => {
-    if (value.tag === "Identity") {
-      const { _1: field0$1 } = value;
-      return field0$1;
-    }
-    throw new Error("Pattern match failure");
-  };
   return {
-    to: $closure,
-    from: $closure$1
+    to: (representation) => {
+      const field0 = representation;
+      return {
+        tag: "Identity",
+        _1: field0
+      };
+    },
+    from: (value) => {
+      if (value.tag === "Identity") {
+        const { _1: field0$1 } = value;
+        return field0$1;
+      }
+      throw new Error("Pattern match failure");
+    }
   };
 })();
 export const genericEitherSumConstructorArgumentConstructorArgument = /* @__PURE__ */ (() => {
-  const $closure = (representation) => {
-    if (representation.tag === "Inl") {
-      const { _1: field0 } = representation;
-      return {
-        tag: "Left",
-        _1: field0
-      };
-    }
-    if (representation.tag === "Inr") {
-      const { _1: field0$1 } = representation;
-      return {
-        tag: "Right",
-        _1: field0$1
-      };
-    }
-    throw new Error("Pattern match failure");
-  };
-  const $closure$1 = (value) => {
-    if (value.tag === "Left") {
-      const { _1: field0$2 } = value;
-      return {
-        tag: "Inl",
-        _1: field0$2
-      };
-    }
-    if (value.tag === "Right") {
-      const { _1: field0$3 } = value;
-      return {
-        tag: "Inr",
-        _1: field0$3
-      };
-    }
-    throw new Error("Pattern match failure");
-  };
   return {
-    to: $closure,
-    from: $closure$1
+    to: (representation) => {
+      if (representation.tag === "Inl") {
+        const { _1: field0 } = representation;
+        return {
+          tag: "Left",
+          _1: field0
+        };
+      }
+      if (representation.tag === "Inr") {
+        const { _1: field0$1 } = representation;
+        return {
+          tag: "Right",
+          _1: field0$1
+        };
+      }
+      throw new Error("Pattern match failure");
+    },
+    from: (value) => {
+      if (value.tag === "Left") {
+        const { _1: field0$2 } = value;
+        return {
+          tag: "Inl",
+          _1: field0$2
+        };
+      }
+      if (value.tag === "Right") {
+        const { _1: field0$3 } = value;
+        return {
+          tag: "Inr",
+          _1: field0$3
+        };
+      }
+      throw new Error("Pattern match failure");
+    }
   };
 })();
 export const genericTupleConstructorProductArgumentArgument = /* @__PURE__ */ (() => {
-  const $closure = (representation) => {
-    if (representation.tag === "Product") {
-      const { _1: field0, _2: field1 } = representation;
-      return {
-        tag: "Tuple",
-        _1: field0,
-        _2: field1
-      };
-    }
-    throw new Error("Pattern match failure");
-  };
-  const $closure$1 = (value) => {
-    if (value.tag === "Tuple") {
-      const { _1: field0$1, _2: field1$1 } = value;
-      return {
-        tag: "Product",
-        _1: field0$1,
-        _2: field1$1
-      };
-    }
-    throw new Error("Pattern match failure");
-  };
   return {
-    to: $closure,
-    from: $closure$1
+    to: (representation) => {
+      if (representation.tag === "Product") {
+        const { _1: field0, _2: field1 } = representation;
+        return {
+          tag: "Tuple",
+          _1: field0,
+          _2: field1
+        };
+      }
+      throw new Error("Pattern match failure");
+    },
+    from: (value) => {
+      if (value.tag === "Tuple") {
+        const { _1: field0$1, _2: field1$1 } = value;
+        return {
+          tag: "Product",
+          _1: field0$1,
+          _2: field1$1
+        };
+      }
+      throw new Error("Pattern match failure");
+    }
   };
 })();
 export const genericWrapperConstructorArgument = /* @__PURE__ */ (() => {
-  const $closure = (representation) => {
-    const field0 = representation;
-    return field0;
-  };
-  const $closure$1 = (value) => {
-    const field0$1 = value;
-    return field0$1;
-  };
   return {
-    to: $closure,
-    from: $closure$1
+    to: (representation) => {
+      const field0 = representation;
+      return field0;
+    },
+    from: (value) => {
+      const field0$1 = value;
+      return field0$1;
+    }
   };
 })();
 export const forceSolve = {

@@ -9,7 +9,7 @@ import * as Effect from "../Effect/index.js";
 import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 import * as $foreign from "./foreign.js";
 function delay(milliseconds) {
-  const $closure = (callback) => {
+  return Iris_Effect_Async.async((callback) => {
     const $action = setTimeout(milliseconds)(callback({
       tag: "Right",
       _1: Data_Unit.unit
@@ -19,8 +19,7 @@ function delay(milliseconds) {
       const $value = Iris_Effect_Async.liftEffect(clearTimeout(identifier));
       return $value;
     };
-  };
-  return Iris_Effect_Async.async($closure);
+  });
 }
 function describe(section121) {
   if (section121.tag === "Left") {
@@ -61,11 +60,10 @@ const bindAsyncStringRowDictBind = /* @__PURE__ */ Control_Bind.bind(Iris_Effect
 const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);
 const innerRelease = Iris_Effect_Async.bracket(/* @__PURE__ */ applicativeAsyncStringRowDictPure(Data_Unit.unit))(($unit) => Iris_Effect_Async.fail("release"))(($unit$1) => /* @__PURE__ */ Control_Apply.applySecond(Iris_Effect_Async.applyAsync)(delay(1e3 | 0))(/* @__PURE__ */ applicativeAsyncStringRowDictPure(9 | 0)));
 const innerCanceler = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return Iris_Effect_Async.async(($function) => {
     const $value = Iris_Effect_Async.fail("cleanup");
     return () => {
       return $value;
     };
-  };
-  return Iris_Effect_Async.async($closure);
+  });
 })();

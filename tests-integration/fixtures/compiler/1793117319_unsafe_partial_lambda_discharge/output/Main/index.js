@@ -1,11 +1,10 @@
 export function positive(partialDict) {
-  const $closure = (value) => {
+  return (value) => {
     if (value > (0 | 0)) {
       return value;
     }
     throw new Error("Pattern match failure");
   };
-  return $closure;
 }
 export function unsafePositive(value) {
   return /* @__PURE__ */ positive({})(value);

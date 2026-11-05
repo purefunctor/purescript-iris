@@ -12,7 +12,7 @@ export const Just = ($value0) => ({
   _1: $value0
 });
 export const functorIdentity = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Identity") {
         const { _1: field0 } = value;
@@ -23,11 +23,10 @@ export const functorIdentity = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorConstType = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Const") {
         const { _1: field0 } = value;
@@ -38,11 +37,10 @@ export const functorConstType = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const functorMaybe = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value === "Nothing") {
         return "Nothing";
@@ -56,6 +54,5 @@ export const functorMaybe = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();

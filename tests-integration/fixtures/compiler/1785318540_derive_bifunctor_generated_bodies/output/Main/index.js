@@ -71,7 +71,7 @@ export const RecordPair = ($value0) => ({
 });
 export function bifunctorWrapBothTypeType(functorFDict) {
   return (functorGDict) => {
-    const $closure = (firstFunction) => {
+    return { bimap: (firstFunction) => {
       return (secondFunction) => {
         return (value) => {
           if (value.tag === "WrapBoth") {
@@ -85,12 +85,11 @@ export function bifunctorWrapBothTypeType(functorFDict) {
           throw new Error("Pattern match failure");
         };
       };
-    };
-    return { bimap: $closure };
+    } };
   };
 }
 export const bifunctorTuple = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Tuple") {
@@ -104,12 +103,11 @@ export const bifunctorTuple = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 const bifunctorTupleDictBimap = /* @__PURE__ */ Data_Bifunctor.bimap(bifunctorTuple);
 export const bifunctorEither = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Left") {
@@ -129,11 +127,10 @@ export const bifunctorEither = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Pair") {
@@ -147,11 +144,10 @@ export const bifunctorPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorConst2TypeType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Const2") {
@@ -164,11 +160,10 @@ export const bifunctorConst2TypeType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const functorTuple = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Tuple") {
         const { _1: field0, _2: field1 } = value;
@@ -180,11 +175,10 @@ export const functorTuple = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const bifunctorBoth = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Both") {
@@ -197,11 +191,10 @@ export const bifunctorBoth = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorOneSided = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "OneSidedFirst") {
@@ -221,11 +214,10 @@ export const bifunctorOneSided = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const functorBox = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Box") {
         const { _1: field0 } = value;
@@ -236,11 +228,10 @@ export const functorBox = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const bifunctorNested = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Nested") {
@@ -253,11 +244,10 @@ export const bifunctorNested = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorTriple = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "Triple") {
@@ -272,11 +262,10 @@ export const bifunctorTriple = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const functorTriple = /* @__PURE__ */ (() => {
-  const $closure = ($function) => {
+  return { map: ($function) => {
     return (value) => {
       if (value.tag === "Triple") {
         const { _1: field0, _2: field1, _3: field2 } = value;
@@ -289,11 +278,10 @@ export const functorTriple = /* @__PURE__ */ (() => {
       }
       throw new Error("Pattern match failure");
     };
-  };
-  return { map: $closure };
+  } };
 })();
 export const bifunctorNestedTriple = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "NestedTriple") {
@@ -306,11 +294,10 @@ export const bifunctorNestedTriple = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorNestedTripleLastType = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "NestedTripleLast") {
@@ -323,11 +310,10 @@ export const bifunctorNestedTripleLastType = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorReaderPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "ReaderPair") {
@@ -340,11 +326,10 @@ export const bifunctorReaderPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();
 export const bifunctorRecordPair = /* @__PURE__ */ (() => {
-  const $closure = (firstFunction) => {
+  return { bimap: (firstFunction) => {
     return (secondFunction) => {
       return (value) => {
         if (value.tag === "RecordPair") {
@@ -361,6 +346,5 @@ export const bifunctorRecordPair = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       };
     };
-  };
-  return { bimap: $closure };
+  } };
 })();

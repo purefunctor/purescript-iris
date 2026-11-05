@@ -6,7 +6,7 @@ export function map(dictionary) {
   return dictionary.map;
 }
 export const functorBox = /* @__PURE__ */ (() => {
-  const $closure = (f) => {
+  return { map: (f) => {
     return ($box) => {
       if ($box.tag === "Box") {
         const { _1: x } = $box;
@@ -18,6 +18,5 @@ export const functorBox = /* @__PURE__ */ (() => {
         throw new Error("Pattern match failure");
       }
     };
-  };
-  return { map: $closure };
+  } };
 })();
