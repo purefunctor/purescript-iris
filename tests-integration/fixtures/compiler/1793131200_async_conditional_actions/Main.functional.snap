@@ -2,35 +2,45 @@
 source: tests-integration/src/fixtures.rs
 ---
 @export whenConfigured = \configuration%0 reference%1 ->
-  when applicativeAsync configuration%0.enabled
-    (let
-      asyncArgument%2 = reference.write.unit reference%1 configuration%0.value
-    in \environment%3 ->
-      {
-        tag: "Run",
-        _1:
-          uncurried \ ->
-            uncurried.call effect.bind asyncArgument%2
-              \value%14 -> effect.pure { tag: "Pure", _1: value%14 }()
-      })
+  let
+    asyncArgument%4 = configuration%0.enabled
+    asyncArgument%2 = reference.write.unit reference%1 configuration%0.value
+  in \environment%5 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.bind (if asyncArgument%4 then asyncArgument%2 else effect.pure unit)
+            \value%19 -> effect.pure { tag: "Pure", _1: value%19 }()
+    }
 
-@export unlessConfigured = \configuration%4 reference%5 ->
-  unless applicativeAsync configuration%4.enabled
-    (let
-      asyncArgument%6 = reference.write.unit reference%5 configuration%4.value
-    in \environment%7 ->
-      {
-        tag: "Run",
-        _1:
-          uncurried \ ->
-            uncurried.call effect.bind asyncArgument%6
-              \value%15 -> effect.pure { tag: "Pure", _1: value%15 }()
-      })
+@export unlessConfigured = \configuration%6 reference%7 ->
+  let
+    asyncArgument%10 = boolean.not configuration%6.enabled
+    asyncArgument%8 = reference.write.unit reference%7 configuration%6.value
+  in \environment%11 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          uncurried.call effect.bind (if asyncArgument%10
+            then asyncArgument%8
+            else effect.pure unit)
+            \value%20 -> effect.pure { tag: "Pure", _1: value%20 }()
+    }
 
-@export failWhen = \condition%8 ->
-  when applicativeAsync condition%8 (\environment%9 -> { tag: "Throw", _1: "failure" })
+@export failWhen = \condition%12 ->
+  \environment%14 ->
+    {
+      tag: "Run",
+      _1:
+        uncurried \ ->
+          if condition%12
+            then uncurried.call effect.pure { tag: "Throw", _1: "failure" }()
+            else uncurried.call effect.pure { tag: "Pure", _1: unit }()
+    }
 
-@export run = \program%11 callback%13 ->
+@export run = \program%16 callback%18 ->
   effect.bind newRuntime
-    \runtime%10 -> effect.bind (makeFiber runtime%10 (toStep {  } program%11))
-      \fiber%12 -> void functorEffect (joinFiber fiber%12 callback%13)
+    \runtime%15 -> effect.bind (makeFiber runtime%15 (toStep {  } program%16))
+      \fiber%17 -> void functorEffect (joinFiber fiber%17 callback%18)

@@ -1,22 +1,27 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
 import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 import * as Iris_Effect_Fiber from "../Iris.Effect.Fiber/index.js";
 export function whenConfigured(configuration) {
   return (reference) => {
-    const $function = Control_Applicative.when(Iris_Effect_Async.applicativeAsync)(configuration.enabled);
+    const asyncArgument = configuration.enabled;
     const $value = configuration.value;
     const $effect = () => {
       reference.value = $value;
       return undefined;
     };
-    const asyncArgument = $effect;
-    const $result = (environment) => {
+    const asyncArgument$1 = $effect;
+    return (environment) => {
       return {
         tag: "Run",
         _1: () => {
-          const value = asyncArgument();
+          let value;
+          if (asyncArgument) {
+            value = asyncArgument$1();
+          } else {
+            value = Data_Unit.unit;
+          }
           return {
             tag: "Pure",
             _1: value
@@ -24,23 +29,27 @@ export function whenConfigured(configuration) {
         }
       };
     };
-    return /* @__PURE__ */ $function($result);
   };
 }
 export function unlessConfigured(configuration) {
   return (reference) => {
-    const $function = Control_Applicative.unless(Iris_Effect_Async.applicativeAsync)(configuration.enabled);
+    const asyncArgument = !configuration.enabled;
     const $value = configuration.value;
     const $effect = () => {
       reference.value = $value;
       return undefined;
     };
-    const asyncArgument = $effect;
-    const $result = (environment) => {
+    const asyncArgument$1 = $effect;
+    return (environment) => {
       return {
         tag: "Run",
         _1: () => {
-          const value = asyncArgument();
+          let value;
+          if (asyncArgument) {
+            value = asyncArgument$1();
+          } else {
+            value = Data_Unit.unit;
+          }
           return {
             tag: "Pure",
             _1: value
@@ -48,14 +57,27 @@ export function unlessConfigured(configuration) {
         }
       };
     };
-    return /* @__PURE__ */ $function($result);
   };
 }
 export function failWhen(condition) {
-  return /* @__PURE__ */ Control_Applicative.when(Iris_Effect_Async.applicativeAsync)(condition)((environment) => ({
-    tag: "Throw",
-    _1: "failure"
-  }));
+  return (environment) => {
+    return {
+      tag: "Run",
+      _1: () => {
+        if (condition) {
+          return {
+            tag: "Throw",
+            _1: "failure"
+          };
+        } else {
+          return {
+            tag: "Pure",
+            _1: Data_Unit.unit
+          };
+        }
+      }
+    };
+  };
 }
 export function run(program) {
   return (callback) => {

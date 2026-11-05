@@ -1,9 +1,7 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
 import * as Data_Array from "../Data.Array/index.js";
 import * as Data_Either from "../Data.Either/index.js";
 import * as Data_Function from "../Data.Function/index.js";
 import * as Data_Show from "../Data.Show/index.js";
-import * as Effect from "../Effect/index.js";
 import * as Effect_Exception from "../Effect.Exception/index.js";
 export function describe(section75) {
   if (section75.tag === "Left") {
@@ -51,8 +49,11 @@ export const forAborts = /* @__PURE__ */ (() => {
   return observe((visited) => {
     return () => {
       for (let index = 0 | 0; index < (5 | 0); index++) {
-        const $action = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(index === (3 | 0))(Effect_Exception.throw("stop at 3"));
-        const $unit = $action();
+        const $condition = index === (3 | 0);
+        const $action = Effect_Exception.throw("stop at 3");
+        if ($condition) {
+          $action();
+        }
         record(visited)(/* @__PURE__ */ showIntDictShow(index))();
       }
       return 99 | 0;
@@ -71,8 +72,11 @@ export const untilAborts = /* @__PURE__ */ (() => {
         count = counter = $value;
         const $action = record(visited)(/* @__PURE__ */ showIntDictShow(count));
         const $unit = $action();
-        const $action$1 = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(count === (2 | 0))(Effect_Exception.throw("stop at 2"));
-        const $unit$1 = $action$1();
+        const $condition$1 = count === (2 | 0);
+        const $action$1 = Effect_Exception.throw("stop at 2");
+        if ($condition$1) {
+          $action$1();
+        }
         $condition = count >= (5 | 0);
         if ($condition) {
           break;
@@ -97,8 +101,11 @@ export const whileAborts = /* @__PURE__ */ (() => {
         const section406 = counter;
         const $value = section406 + (1 | 0) | 0;
         count = counter = $value;
-        const $action = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(count === (3 | 0))(Effect_Exception.throw("stop at 3"));
-        const $unit = $action();
+        const $condition$1 = count === (3 | 0);
+        const $action = Effect_Exception.throw("stop at 3");
+        if ($condition$1) {
+          $action();
+        }
         record(visited)(/* @__PURE__ */ showIntDictShow(count))();
       }
       return;
@@ -117,8 +124,11 @@ export const foreachAborts = /* @__PURE__ */ (() => {
       const $length = $array.length;
       for (let $index = 0; $index < $length; $index++) {
         const element = $array[$index];
-        const $action = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(element === "c")(Effect_Exception.throw("stop at c"));
-        const $unit = $action();
+        const $condition = element === "c";
+        const $action = Effect_Exception.throw("stop at c");
+        if ($condition) {
+          $action();
+        }
         record(visited)(element)();
       }
       return;
@@ -132,8 +142,11 @@ export const nestedAborts = /* @__PURE__ */ (() => {
         const $action = record(visited)("row " + /* @__PURE__ */ showIntDictShow(row));
         const $unit = $action();
         for (let column = 0 | 0; column < (3 | 0); column++) {
-          const $action$1 = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(row === (1 | 0) && column === (1 | 0))(Effect_Exception.throw("stop at 1:1"));
-          const $unit$1 = $action$1();
+          const $condition = row === (1 | 0) && column === (1 | 0);
+          const $action$1 = Effect_Exception.throw("stop at 1:1");
+          if ($condition) {
+            $action$1();
+          }
           record(visited)(/* @__PURE__ */ showIntDictShow(row) + (":" + /* @__PURE__ */ showIntDictShow(column)))();
         }
       }
@@ -146,9 +159,12 @@ export const recovers = /* @__PURE__ */ (() => {
     return () => {
       for (let index = 0 | 0; index < (4 | 0); index++) {
         const $function = Effect_Exception.catchException((error) => record(visited)("caught " + Effect_Exception.message(error)));
-        const $action = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(index === (1 | 0))(Effect_Exception.throw("one"));
+        const $condition = index === (1 | 0);
+        const $action = Effect_Exception.throw("one");
         const $effect = () => {
-          const $unit = $action();
+          if ($condition) {
+            $action();
+          }
           return record(visited)(/* @__PURE__ */ showIntDictShow(index))();
         };
         $function($effect)();

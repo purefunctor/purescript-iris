@@ -586,6 +586,18 @@ impl<'a> Printer<'a, '_> {
                 let operands = self.arena.concat(operands).nest(2);
                 self.arena.text(name).append(operands).group()
             }
+            EffectExpression::When { condition, action } => {
+                let condition = self.expression_at(*condition, ExpressionPrecedence::Atom);
+                let action = self.expression_at(*action, ExpressionPrecedence::Atom);
+                let arguments = self
+                    .arena
+                    .line()
+                    .append(condition)
+                    .append(self.arena.line())
+                    .append(action)
+                    .nest(2);
+                self.arena.text("effect.when").append(arguments).group()
+            }
         }
     }
 

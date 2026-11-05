@@ -2,11 +2,11 @@
 source: tests-integration/src/fixtures.rs
 ---
 @export whenConfigured = \configuration%0 reference%1 ->
-  when applicativeEffect configuration%0.enabled
-    (reference.write.unit reference%1 configuration%0.value)
+  effect.when configuration%0.enabled (reference.write.unit reference%1 configuration%0.value)
 
 @export unlessConfigured = \configuration%2 reference%3 ->
-  unless applicativeEffect configuration%2.enabled
+  effect.when
+    (boolean.not configuration%2.enabled)
     (reference.write.unit reference%3 configuration%2.value)
 
 @export diagonal = \size%5 ->
@@ -19,7 +19,8 @@ source: tests-integration/src/fixtures.rs
           0
           size%5
           (\column%7 ->
-            when applicativeEffect (integer.equal row%6 column%7)
+            effect.when
+              (integer.equal row%6 column%7)
               (effect.bind (reference.read count%4)
                 \section152%8 -> reference.write.unit count%4 (integer.add section152%8 1)))))
       \$unit%9 -> reference.read count%4

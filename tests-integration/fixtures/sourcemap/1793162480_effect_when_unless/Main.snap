@@ -1,69 +1,46 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
- 1 | import * as Control_Applicative from "../Control.Applicative/index.js";
-   | ^ 3:1 import Prelude
- 2 | import * as Effect from "../Effect/index.js";
-   | ^ 5:1 import Effect (Effect)
- 3 | export function counter(flag) {
+ 1 | export function counter(flag) {
    | ^ 9:1 counter flag = do
    |        ^ (counter) 9:1 counter flag = do
    |                               ^ 9:1 counter flag = do
- 4 |   return () => {
+ 2 |   return () => {
    |   ^ (counter) 9:16 do
    |                ^ 9:16 do
- 5 |     let count = 0 | 0;
+ 3 |     let count = 0 | 0;
    |     ^ 9:16 do
    |                 ^ 10:20 0
- 6 |     const $function = Control_Applicative.when(Effect.applicativeEffect)(flag);
+ 4 |     if (flag) {
    |     ^ 11:3 when flag do
-   |                                                                          ^ 11:8 flag do
-   |                                                                              ^ 11:3 when flag do
- 7 |     const $effect = () => {
-   |     ^ 12:5 Ref.modify_ (_ + 1) count
- 8 |       const section52 = count;
+   |         ^ 11:8 flag do
+   |               ^ 11:3 when flag do
+ 5 |       const section52 = count;
    |       ^ 12:5 Ref.modify_ (_ + 1) count
    |                         ^ 12:25 count
- 9 |       const $value = section52 + (1 | 0) | 0;
+ 6 |       const $value = section52 + (1 | 0) | 0;
    |       ^ 12:18 _ + 1) count
    |                                   ^ 12:22 1) count
    |                                            ^ 12:18 _ + 1) count
-10 |       count = $value;
+ 7 |       count = $value;
    |       ^ 12:5 Ref.modify_ (_ + 1) count
    |               ^ 12:18 _ + 1) count
-11 |       return undefined;
-   |       ^ 12:5 Ref.modify_ (_ + 1) count
-12 |     };
-   |     ^ 12:5 Ref.modify_ (_ + 1) count
-13 |     const $action = /* @__PURE__ */ $function($effect);
+ 8 |     }
    |     ^ 11:3 when flag do
-   |                                               ^ 12:5 Ref.modify_ (_ + 1) count
-   |                                                      ^ 11:3 when flag do
-14 |     const $unit = $action();
-   |     ^ 11:3 when flag do
-15 |     const $function$1 = Control_Applicative.unless(Effect.applicativeEffect)(flag);
+ 9 |     const $condition = !flag;
    |     ^ 13:3 unless flag (Ref.write 10 count)
-   |                                                                              ^ 13:10 flag (Ref.write 10 count)
-   |                                                                                  ^ 13:3 unless flag (Ref.write 10 count)
-16 |     const $effect$1 = () => {
-   |     ^ 13:16 Ref.write 10 count)
-17 |       count = 10 | 0;
+   |                         ^ 13:10 flag (Ref.write 10 count)
+10 |     if ($condition) {
+   |     ^ 13:3 unless flag (Ref.write 10 count)
+11 |       count = 10 | 0;
    |       ^ 13:29 count)
    |               ^ 13:26 10 count)
-18 |       return undefined;
-   |       ^ 13:16 Ref.write 10 count)
-19 |     };
-   |     ^ 13:16 Ref.write 10 count)
-20 |     const $action$1 = /* @__PURE__ */ $function$1($effect$1);
+12 |     }
    |     ^ 13:3 unless flag (Ref.write 10 count)
-   |                                                   ^ 13:16 Ref.write 10 count)
-   |                                                            ^ 13:3 unless flag (Ref.write 10 count)
-21 |     const $unit$1 = $action$1();
-   |     ^ 13:3 unless flag (Ref.write 10 count)
-22 |     return count;
+13 |     return count;
    |     ^ 14:3 Ref.read count
    |            ^ 14:12 count
-23 |   };
+14 |   };
    |   ^ 9:16 do
-24 | }
+15 | }
    | ^ 9:1 counter flag = do

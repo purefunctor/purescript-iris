@@ -355,6 +355,7 @@ pub enum EffectExpression {
     ReferenceWrite { reference: ExpressionId, value: ExpressionId, result: WriteResult },
     UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]> },
     Loop(EffectLoop),
+    When { condition: ExpressionId, action: ExpressionId },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

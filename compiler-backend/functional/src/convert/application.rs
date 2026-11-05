@@ -734,7 +734,37 @@ where
                 argument_action: *argument_action,
             }));
         }
+        if let Some((condition, action)) =
+            self.known_conditional_arguments(function, arguments, |context, dictionary| {
+                context.known_thunk_instance(dictionary, None)
+            })?
+        {
+            return Ok(Some(EffectExpression::When { condition, action }));
+        }
         Ok(self.known_effect_loop(function, arguments)?.map(EffectExpression::Loop))
+    }
+
+    pub(super) fn known_conditional_arguments(
+        &mut self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+        known_applicative: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
+    ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
+        for (item_name, negated) in [("when", false), ("unless", true)] {
+            if self.known_term(function, "Control.Applicative", item_name)?
+                && let [dictionary, condition, action] = *arguments
+                && known_applicative(self, dictionary)?
+            {
+                let condition = if negated {
+                    let operator = UnaryOperator::BooleanNot;
+                    self.expression(ExpressionKind::Unary { operator, value: condition })
+                } else {
+                    condition
+                };
+                return Ok(Some((condition, action)));
+            }
+        }
+        Ok(None)
     }
 
     fn known_effect_loop(
