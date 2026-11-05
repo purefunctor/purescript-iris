@@ -101,7 +101,7 @@ where
             walk_child!(inner);
             walk_child!(kind);
         }
-        Type::Constructor(_, _) => {}
+        Type::Constructor(_, _) | Type::Synonym(_, _) => {}
         Type::Integer(_) | Type::String(_, _) => {}
         Type::Row(row_id) => {
             let row = context.lookup_row_type(row_id);

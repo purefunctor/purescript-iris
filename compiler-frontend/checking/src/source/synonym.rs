@@ -62,7 +62,7 @@ where
 
     if arity > 0 {
         if state.defer_expansion {
-            let synonym_type = context.queries.intern_type(Type::Constructor(file_id, type_id));
+            let synonym_type = context.queries.intern_type(Type::Synonym(file_id, type_id));
             return Ok((synonym_type, kind));
         }
 
@@ -75,7 +75,7 @@ where
         state.insert_error(ErrorKind::RecursiveSynonymExpansion { file_id, type_id });
     }
 
-    let synonym_type = context.queries.intern_type(Type::Constructor(file_id, type_id));
+    let synonym_type = context.queries.intern_type(Type::Synonym(file_id, type_id));
 
     Ok((synonym_type, kind))
 }
@@ -172,7 +172,7 @@ where
         state.insert_error(ErrorKind::RecursiveSynonymExpansion { file_id, type_id });
     }
 
-    let function_type = context.queries.intern_type(Type::Constructor(file_id, type_id));
+    let function_type = context.queries.intern_type(Type::Synonym(file_id, type_id));
     let (synonym_arguments, excess_arguments) = arguments.split_at(arity);
 
     let (mut synonym_type, mut synonym_kind) = application::infer_application_arguments(
@@ -206,7 +206,7 @@ fn infer_partial_synonym_application<Q>(
 where
     Q: ExternalQueries,
 {
-    let function_type = context.queries.intern_type(Type::Constructor(file_id, type_id));
+    let function_type = context.queries.intern_type(Type::Synonym(file_id, type_id));
     let arguments = arguments.iter().copied().map(application::Argument::Syntax).collect_vec();
 
     let (synonym_type, synonym_kind) = application::infer_application_arguments(

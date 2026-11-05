@@ -905,7 +905,8 @@ where
                 }
                 checking::Type::KindApplication(function, _)
                 | checking::Type::Kinded(function, _) => current = function,
-                checking::Type::Constructor(file_id, type_id) => {
+                checking::Type::Constructor(file_id, type_id)
+                | checking::Type::Synonym(file_id, type_id) => {
                     let Some(class_name) = self.type_item_name(file_id, type_id)? else {
                         return Ok(SmolStr::new("dictionary"));
                     };
@@ -947,7 +948,8 @@ where
             checking::Type::Function(_, _) => {
                 append_evidence_name_fragment(name, "Function", fragments)
             }
-            checking::Type::Constructor(file_id, type_id) => {
+            checking::Type::Constructor(file_id, type_id)
+            | checking::Type::Synonym(file_id, type_id) => {
                 if let Some(type_name) = self.type_item_name(file_id, type_id)? {
                     append_evidence_name_fragment(name, &type_name, fragments);
                 }

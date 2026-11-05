@@ -111,7 +111,7 @@ where
         }
         Type::Function(argument, result) => fold_pair!(argument, result, intern_function),
         Type::Kinded(inner, kind) => fold_pair!(inner, kind, intern_kinded),
-        Type::Constructor(_, _) => id,
+        Type::Constructor(_, _) | Type::Synonym(_, _) => id,
         Type::Integer(_) | Type::String(_, _) => id,
         Type::Row(row_id) => {
             let original_row = context.lookup_row_type(row_id);

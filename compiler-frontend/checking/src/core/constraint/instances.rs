@@ -209,7 +209,7 @@ where
 {
     let (function, _) = toolkit::extract_type_application(state, context, id)?;
     match *context.lookup_type(function) {
-        Type::Constructor(file_id, _) => Ok(Some(file_id)),
+        Type::Constructor(file_id, _) | Type::Synonym(file_id, _) => Ok(Some(file_id)),
         Type::Kinded(inner, _) => head_constructor_file(state, context, inner),
         _ => Ok(None),
     }
@@ -574,7 +574,7 @@ impl TypeWalker for CollectFileReferences<'_> {
         Q: ExternalQueries,
     {
         match t {
-            Type::Constructor(file_id, _) => {
+            Type::Constructor(file_id, _) | Type::Synonym(file_id, _) => {
                 self.files.insert(*file_id);
             }
             Type::Unification(id) => {

@@ -259,6 +259,7 @@ pub enum Type {
 
     /// A resolved type constructor reference.
     Constructor(FileId, TypeItemId),
+    Synonym(FileId, TypeItemId),
 
     /// A type-level integer literal, `42`.
     Integer(i32),
@@ -291,6 +292,7 @@ impl TypeFlags {
     pub(crate) const HAS_UNIFICATION: u8 = 1 << 1;
     pub(crate) const HAS_RIGID: u8 = 1 << 2;
     pub(crate) const HAS_NESTED_ROW: u8 = 1 << 3;
+    pub(crate) const MAY_EXPAND: u8 = 1 << 4;
 
     const TRANSITIVE: u8 =
         TypeFlags::HAS_UNIFICATION | TypeFlags::HAS_RIGID | TypeFlags::HAS_NESTED_ROW;
@@ -307,6 +309,10 @@ impl TypeFlags {
     /// Whether head normalisation may change this type.
     pub fn may_normalise(self) -> bool {
         self.0 & TypeFlags::MAY_NORMALISE != 0
+    }
+
+    pub fn may_expand(self) -> bool {
+        self.0 & (TypeFlags::MAY_NORMALISE | TypeFlags::MAY_EXPAND) != 0
     }
 
     /// Whether zonking may change this type.

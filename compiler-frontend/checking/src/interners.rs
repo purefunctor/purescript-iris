@@ -32,15 +32,20 @@ impl CoreInterners {
 
     fn type_flags(&self, t: &Type) -> TypeFlags {
         let transitive = |id: TypeId| self.types.metadata(id).transitive();
+        let expandable = |id: TypeId| {
+            if self.types.metadata(id).may_expand() { TypeFlags::MAY_EXPAND } else { 0 }
+        };
         let bits = match *t {
-            Type::Application(left, right)
-            | Type::KindApplication(left, right)
-            | Type::Constrained(left, right)
+            Type::Application(left, right) | Type::KindApplication(left, right) => {
+                expandable(left) | transitive(left) | transitive(right)
+            }
+            Type::Constrained(left, right)
             | Type::Function(left, right)
             | Type::Kinded(left, right) => transitive(left) | transitive(right),
             Type::Forall(binder_id, inner) => {
                 transitive(self.forall_binders[binder_id].kind) | transitive(inner)
             }
+            Type::Synonym(..) => TypeFlags::MAY_EXPAND,
             Type::Constructor(..)
             | Type::Integer(_)
             | Type::String(..)
@@ -53,7 +58,7 @@ impl CoreInterners {
                     if matches!(self.types[tail], Type::Row(_)) {
                         TypeFlags::MAY_NORMALISE | TypeFlags::HAS_NESTED_ROW | transitive(tail)
                     } else {
-                        transitive(tail)
+                        expandable(tail) | transitive(tail)
                     }
                 });
                 fields | tail

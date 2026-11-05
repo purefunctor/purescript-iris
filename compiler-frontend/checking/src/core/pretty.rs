@@ -494,7 +494,7 @@ where
                 self.parens_if(precedence > Precedence::Atom, kinded)
             }
 
-            &Type::Constructor(file_id, type_id) => {
+            &Type::Constructor(file_id, type_id) | &Type::Synonym(file_id, type_id) => {
                 let name = self
                     .display_type_name(file_id, type_id)?
                     .unwrap_or_else(|| "<InvalidName>".to_string());

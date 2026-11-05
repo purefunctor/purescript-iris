@@ -565,11 +565,10 @@ where
                 .and_then(|| unify_core(state, context, *t1_kind, *t2_kind))?
         }
 
-        (Type::Constructor(t1_file, t1_item), Type::Constructor(t2_file, t2_item))
-            if t1_file == t2_file && t1_item == t2_item =>
-        {
-            Unified::Success
-        }
+        (
+            Type::Constructor(t1_file, t1_item) | Type::Synonym(t1_file, t1_item),
+            Type::Constructor(t2_file, t2_item) | Type::Synonym(t2_file, t2_item),
+        ) if t1_file == t2_file && t1_item == t2_item => Unified::Success,
 
         (Type::Integer(t1_value), Type::Integer(t2_value)) if t1_value == t2_value => {
             Unified::Success
@@ -835,7 +834,7 @@ where
             Type::Kinded(inner, kind) => check(promote, state, context, *inner)?
                 .and_then(|| check(promote, state, context, *kind)),
 
-            Type::Constructor(_, _) => Ok(PromoteResult::Ok),
+            Type::Constructor(_, _) | Type::Synonym(_, _) => Ok(PromoteResult::Ok),
             Type::Integer(_) | Type::String(_, _) => Ok(PromoteResult::Ok),
 
             Type::Row(row_id) => {

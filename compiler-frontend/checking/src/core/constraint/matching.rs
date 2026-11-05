@@ -119,9 +119,10 @@ where
             Ok(MatchType::Stuck { stuck: Vec::new(), skolem: true })
         }
 
-        (Type::Constructor(left_file, left_item), Type::Constructor(right_file, right_item))
-            if (left_file, left_item) == (right_file, right_item) =>
-        {
+        (
+            Type::Constructor(left_file, left_item) | Type::Synonym(left_file, left_item),
+            Type::Constructor(right_file, right_item) | Type::Synonym(right_file, right_item),
+        ) if (left_file, left_item) == (right_file, right_item) => {
             Ok(MatchType::Match { bindings: Vec::new() })
         }
 
@@ -335,9 +336,10 @@ where
             }
         }
 
-        (Type::Constructor(left_file, left_item), Type::Constructor(right_file, right_item))
-            if (left_file, left_item) == (right_file, right_item) =>
-        {
+        (
+            Type::Constructor(left_file, left_item) | Type::Synonym(left_file, left_item),
+            Type::Constructor(right_file, right_item) | Type::Synonym(right_file, right_item),
+        ) if (left_file, left_item) == (right_file, right_item) => {
             Ok(MatchType::Match { bindings: Vec::new() })
         }
 
@@ -871,13 +873,14 @@ where
             MatchType::Match { bindings: Vec::new() }
         }),
 
-        (Type::Constructor(left_file, left_item), Type::Constructor(right_file, right_item)) => {
-            Ok(if (left_file, left_item) != (right_file, right_item) {
-                MatchType::Apart
-            } else {
-                MatchType::Match { bindings: Vec::new() }
-            })
-        }
+        (
+            Type::Constructor(left_file, left_item) | Type::Synonym(left_file, left_item),
+            Type::Constructor(right_file, right_item) | Type::Synonym(right_file, right_item),
+        ) => Ok(if (left_file, left_item) != (right_file, right_item) {
+            MatchType::Apart
+        } else {
+            MatchType::Match { bindings: Vec::new() }
+        }),
 
         (Type::String(_, left), Type::String(_, right)) => Ok(if left != right {
             MatchType::Apart

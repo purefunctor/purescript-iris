@@ -134,7 +134,23 @@ where
 /// This function also applies normalisation using [`normalise`],
 /// and should be used in checking rules where synonyms must be
 /// transparent and inspected.
+#[inline]
 pub fn expand<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+{
+    if !context.lookup_type_flags(id).may_expand() {
+        return Ok(id);
+    }
+    expand_core(state, context, id)
+}
+
+#[inline(never)]
+fn expand_core<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     mut id: TypeId,
@@ -147,6 +163,10 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
+        if !context.lookup_type_flags(id).may_expand() {
+            return Ok(id);
+        }
+
         let expanded = expand_synonym(state, context, id)?;
         if expanded != id {
             id = normalise(state, context, expanded);
@@ -256,22 +276,19 @@ where
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
     let mut current = id;
     safe_loop! {
-        match *context.lookup_type(current) {
-            Type::Application(function, argument) => {
-                arguments.push(ApplicationArgument::Type(argument));
-                current = normalise(state, context, function);
-            }
+        let (function, argument) = match *context.lookup_type(current) {
+            Type::Application(function, argument) => (function, ApplicationArgument::Type(argument)),
             Type::KindApplication(function, argument) => {
-                arguments.push(ApplicationArgument::Kind(argument));
-                current = normalise(state, context, function);
+                (function, ApplicationArgument::Kind(argument))
             }
             _ => break,
-        }
+        };
+        arguments.push(argument);
+        current = normalise(state, context, function);
     }
 
-    let (file_id, type_id) = match *context.lookup_type(current) {
-        Type::Constructor(file_id, type_id) => (file_id, type_id),
-        _ => return Ok(id),
+    let Type::Synonym(file_id, type_id) = *context.lookup_type(current) else {
+        return Ok(id);
     };
 
     let checked_synonym = toolkit::lookup_file_synonym(state, context, file_id, type_id)?;

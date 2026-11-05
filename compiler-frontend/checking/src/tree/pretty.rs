@@ -912,7 +912,7 @@ where
                 self.append_type_constructor_names(name, parameter)?;
                 self.append_type_constructor_names(name, result)?;
             }
-            Type::Constructor(file_id, item_id) => {
+            Type::Constructor(file_id, item_id) | Type::Synonym(file_id, item_id) => {
                 if let Some(constructor_name) = self.type_name(file_id, item_id)? {
                     name.push_str(&constructor_name);
                 }
@@ -2055,7 +2055,7 @@ where
                 Type::Application(function, _)
                 | Type::KindApplication(function, _)
                 | Type::Kinded(function, _) => constraint = function,
-                Type::Constructor(file_id, type_id) => {
+                Type::Constructor(file_id, type_id) | Type::Synonym(file_id, type_id) => {
                     break self.type_name(file_id, type_id)?;
                 }
                 _ => break None,

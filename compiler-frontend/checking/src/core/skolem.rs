@@ -651,6 +651,7 @@ fn inspect_type<Q>(
                 pending.push(kind);
             }
             Type::Constructor(_, _)
+            | Type::Synonym(_, _)
             | Type::Integer(_)
             | Type::String(_, _)
             | Type::Unification(_)

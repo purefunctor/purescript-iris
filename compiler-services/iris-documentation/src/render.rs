@@ -106,7 +106,8 @@ impl<'a> TypeEncoder<'a> {
                 expression: self.encode_boxed_type(expression)?,
                 kind: self.encode_boxed_type(kind)?,
             },
-            checking::Type::Constructor(file_id, type_id) => schema::Type::Constructor {
+            checking::Type::Constructor(file_id, type_id)
+            | checking::Type::Synonym(file_id, type_id) => schema::Type::Constructor {
                 reference: self.resolve_type_reference(file_id, type_id)?,
             },
             checking::Type::Integer(value) => schema::Type::Integer { value },
