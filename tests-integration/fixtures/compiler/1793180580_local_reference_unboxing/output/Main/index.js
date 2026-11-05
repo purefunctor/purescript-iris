@@ -1,4 +1,3 @@
-import * as Effect_Ref from "../Effect.Ref/index.js";
 export function readBeforeWrite(value) {
   return () => {
     let reference = value;
@@ -34,9 +33,12 @@ export function escapes(value) {
 }
 export function passedToFunction(value) {
   return () => {
-    const reference = { value };
-    const $action = Effect_Ref.modify_((section218) => section218 + (1 | 0) | 0)(reference);
-    const $unit = $action();
-    return reference.value;
+    let reference = value;
+    let $unit;
+    const section218 = reference;
+    const $value = section218 + (1 | 0) | 0;
+    reference = $value;
+    $unit = undefined;
+    return reference;
   };
 }

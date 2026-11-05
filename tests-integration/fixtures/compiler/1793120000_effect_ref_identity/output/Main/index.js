@@ -1,20 +1,23 @@
 import * as Data_Array from "../Data.Array/index.js";
 import * as Data_Function from "../Data.Function/index.js";
 import * as Effect from "../Effect/index.js";
-import * as Effect_Ref from "../Effect.Ref/index.js";
 import * as $foreign from "./foreign.js";
 export function allocated(count) {
   const $value = [];
   return () => {
-    const references = { value: $value };
+    let references = $value;
     const $action = Effect.forE(0 | 0)(count)((index) => {
       return () => {
         const reference = { value: index };
-        return Effect_Ref.modify_(Data_Function.flip(Data_Array.snoc)(reference))(references)();
+        const modifyFunction = Data_Function.flip(Data_Array.snoc)(reference);
+        const value = references;
+        const $value$1 = modifyFunction(value);
+        references = $value$1;
+        return undefined;
       };
     });
     const $unit = $action();
-    return references.value;
+    return references;
   };
 }
 export function throughCallback(reference) {
@@ -27,10 +30,16 @@ export function throughCallback(reference) {
   };
 }
 export function incrementTwice(reference) {
-  const $action = Effect_Ref.modify_((section253) => section253 + (1 | 0) | 0)(reference);
   return () => {
-    const $unit = $action();
-    return Effect_Ref.modify_((section266) => section266 + (1 | 0) | 0)(reference)();
+    let $unit;
+    const section253 = reference.value;
+    const $value = section253 + (1 | 0) | 0;
+    reference.value = $value;
+    $unit = undefined;
+    const section266 = reference.value;
+    const $value$1 = section266 + (1 | 0) | 0;
+    reference.value = $value$1;
+    return undefined;
   };
 }
 export const sameReference = $foreign["sameReference"];

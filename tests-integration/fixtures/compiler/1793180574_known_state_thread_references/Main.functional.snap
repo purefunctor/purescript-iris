@@ -25,8 +25,10 @@ source: tests-integration/src/fixtures.rs
 @export swapCounter = \value%13 ->
   run
     (effect.bind (reference.new value%13)
-      \counter%14 -> effect.bind (modify'
-        (\old%15 -> { state: integer.add old%15 1, value: old%15 })
-        counter%14)
-        \previous%16 -> effect.bind (reference.read counter%14)
-          \current%17 -> effect.pure { previous: previous%16, current: current%17 })
+      \counter%14 -> effect.bind (effect.bind (reference.read counter%14)
+        \old%15 -> let
+          modified%16 = { state: integer.add old%15 1, value: old%15 }
+        in effect.bind (reference.write.unit counter%14 modified%16.state)
+          \unit%17 -> effect.pure modified%16.value)
+        \previous%18 -> effect.bind (reference.read counter%14)
+          \current%19 -> effect.pure { previous: previous%18, current: current%19 })

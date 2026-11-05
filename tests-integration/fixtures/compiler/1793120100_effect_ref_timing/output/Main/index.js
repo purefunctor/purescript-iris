@@ -1,4 +1,3 @@
-import * as Effect_Ref from "../Effect.Ref/index.js";
 import * as $foreign from "./foreign.js";
 export function writeArgument(reference) {
   const $value = mark("write argument")(5 | 0);
@@ -36,15 +35,19 @@ export function reusedRead(reference) {
   };
 }
 export function modifyOrder(reference) {
-  const $action = Effect_Ref["modify'"]((old) => ({
-    state: old * (10 | 0) | 0,
-    value: {
-      returned: old + (1 | 0) | 0,
-      seen: peek(reference)
-    }
-  }))(reference);
   return () => {
-    const returned = $action();
+    let returned;
+    const old = reference.value;
+    const modified = {
+      state: old * (10 | 0) | 0,
+      value: {
+        returned: old + (1 | 0) | 0,
+        seen: peek(reference)
+      }
+    };
+    const $value = modified.state;
+    reference.value = $value;
+    returned = modified.value;
     const state = reference.value;
     return {
       returned: returned.returned,
@@ -59,8 +62,11 @@ export function modifyResults(reference) {
     const section277 = reference.value;
     const $value = section277 + (1 | 0) | 0;
     modified = reference.value = $value;
-    const $action = Effect_Ref.modify_((section291) => section291 * (2 | 0) | 0)(reference);
-    const discarded = $action();
+    let discarded;
+    const section291 = reference.value;
+    const $value$1 = section291 * (2 | 0) | 0;
+    reference.value = $value$1;
+    discarded = undefined;
     const final = reference.value;
     return {
       modified,

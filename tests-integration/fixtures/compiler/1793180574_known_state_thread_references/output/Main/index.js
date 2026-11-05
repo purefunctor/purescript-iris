@@ -43,13 +43,17 @@ export function countTwice(value) {
 export function swapCounter(value) {
   const $function = Control_Monad_ST_Internal.run;
   const $effect = () => {
-    const counter = { value };
-    const $action = Control_Monad_ST_Internal["modify'"]((old) => ({
+    let counter = value;
+    let previous;
+    const old = counter;
+    const modified = {
       state: old + (1 | 0) | 0,
       value: old
-    }))(counter);
-    const previous = $action();
-    const current = counter.value;
+    };
+    const $value = modified.state;
+    counter = $value;
+    previous = modified.value;
+    const current = counter;
     return {
       previous,
       current

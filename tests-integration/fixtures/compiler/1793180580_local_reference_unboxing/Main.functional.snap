@@ -24,6 +24,6 @@ source: tests-integration/src/fixtures.rs
 
 @export passedToFunction = \value%16 ->
   effect.bind (reference.new value%16)
-    \reference%17 -> effect.bind (modify_ (\section218%18 -> integer.add section218%18 1)
-      reference%17)
+    \reference%17 -> effect.bind (effect.bind (reference.read reference%17)
+      \section218%18 -> reference.write.unit reference%17 (integer.add section218%18 1))
       \$unit%19 -> reference.read reference%17
