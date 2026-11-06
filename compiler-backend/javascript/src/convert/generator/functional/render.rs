@@ -4204,7 +4204,7 @@ fn collect_expression_references(
                 collect_expression_references(module, *argument, seen, globals);
             }
         }
-        kind @ ExpressionKind::StyleX(_) => {
+        kind @ (ExpressionKind::StyleX(_) | ExpressionKind::Effect { .. }) => {
             for_each_expression_child(kind, |child| {
                 collect_expression_references(module, child, seen, globals);
             });
@@ -4239,45 +4239,6 @@ fn collect_expression_references(
             collect_expression_references(module, *value, seen, globals);
             collect_expression_references(module, *body, seen, globals);
         }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Pure(value) => {
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::Bind { action, body, .. } => {
-                collect_expression_references(module, *action, seen, globals);
-                collect_expression_references(module, *body, seen, globals);
-            }
-            EffectExpression::Map { function, action } => {
-                collect_expression_references(module, *function, seen, globals);
-                collect_expression_references(module, *action, seen, globals);
-            }
-            EffectExpression::Apply { function_action, argument_action } => {
-                collect_expression_references(module, *function_action, seen, globals);
-                collect_expression_references(module, *argument_action, seen, globals);
-            }
-            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::ReferenceWrite { reference, value, .. } => {
-                collect_expression_references(module, *reference, seen, globals);
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::UncurriedApplication { function, arguments } => {
-                collect_expression_references(module, *function, seen, globals);
-                for argument in arguments.iter() {
-                    collect_expression_references(module, *argument, seen, globals);
-                }
-            }
-            EffectExpression::Loop(effect_loop) => {
-                for operand in effect_loop.operands() {
-                    collect_expression_references(module, operand, seen, globals);
-                }
-            }
-            EffectExpression::When { condition, action } => {
-                collect_expression_references(module, *condition, seen, globals);
-                collect_expression_references(module, *action, seen, globals);
-            }
-        },
     }
 }
 
@@ -4488,43 +4449,13 @@ fn collect_expression_children(
             collect_expression_globals(module, *value, false, globals);
             collect_expression_globals(module, *body, false, globals);
         }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Pure(value) => {
-                collect_expression_globals(module, *value, false, globals);
-            }
+        kind @ ExpressionKind::Effect { effect } => match effect {
             EffectExpression::Bind { action, .. } => {
                 collect_expression_globals(module, *action, false, globals);
             }
-            EffectExpression::Map { function, action } => {
-                collect_expression_globals(module, *function, false, globals);
-                collect_expression_globals(module, *action, false, globals);
-            }
-            EffectExpression::Apply { function_action, argument_action } => {
-                collect_expression_globals(module, *function_action, false, globals);
-                collect_expression_globals(module, *argument_action, false, globals);
-            }
-            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
-                collect_expression_globals(module, *value, false, globals);
-            }
-            EffectExpression::ReferenceWrite { reference, value, .. } => {
-                collect_expression_globals(module, *reference, false, globals);
-                collect_expression_globals(module, *value, false, globals);
-            }
-            EffectExpression::UncurriedApplication { function, arguments } => {
-                collect_expression_globals(module, *function, false, globals);
-                for argument in arguments.iter() {
-                    collect_expression_globals(module, *argument, false, globals);
-                }
-            }
-            EffectExpression::Loop(effect_loop) => {
-                for operand in effect_loop.operands() {
-                    collect_expression_globals(module, operand, false, globals);
-                }
-            }
-            EffectExpression::When { condition, action } => {
-                collect_expression_globals(module, *condition, false, globals);
-                collect_expression_globals(module, *action, false, globals);
-            }
+            _ => for_each_expression_child(kind, |child| {
+                collect_expression_globals(module, child, false, globals);
+            }),
         },
     }
 }
