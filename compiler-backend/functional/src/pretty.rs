@@ -640,7 +640,6 @@ impl<'a> Printer<'a, '_> {
     fn synthesized_evidence(&self, evidence: &SynthesizedEvidence) -> Doc<'a> {
         let rendered = match evidence {
             SynthesizedEvidence::IsSymbol(symbol) => format!("symbol {symbol:?}"),
-            SynthesizedEvidence::Service(role) => format!("service {role:?}"),
             SynthesizedEvidence::Reflectable(ReflectableEvidence::Integer(value)) => {
                 format!("reflectable {value}")
             }

@@ -11,4 +11,8 @@ source: tests-integration/src/fixtures.rs
       first%4, second%5 ->
         integer.add (integer.multiply first%4 100) second%5
 
-@export readingValue = reading (both (service "first") (service "second")) { first: 3, second: 7 }
+@export readingValue = reading
+  (both
+    { getService: \environment%6 -> environment%6.first }
+    { getService: \environment%7 -> environment%7.second })
+  { first: 3, second: 7 }

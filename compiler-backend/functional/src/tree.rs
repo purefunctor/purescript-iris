@@ -459,7 +459,6 @@ pub struct RecordPatternField {
 pub enum SynthesizedEvidence {
     IsSymbol(lowering::StringLiteral),
     Reflectable(ReflectableEvidence),
-    Service(SmolStr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

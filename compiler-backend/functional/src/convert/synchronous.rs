@@ -1,7 +1,5 @@
 use crate::optimize::local_uses;
-use crate::tree::{
-    Binding, EffectExpression, ExpressionId, ExpressionKind, Parameter, SynthesizedEvidence,
-};
+use crate::tree::{Binding, EffectExpression, ExpressionId, ExpressionKind, Parameter};
 
 use super::{Context, ConversionResult};
 
@@ -44,17 +42,6 @@ where
             && field.field.name == "getService"
         {
             return Ok(field.expression);
-        }
-        if let ExpressionKind::SynthesizedEvidence {
-            evidence: SynthesizedEvidence::Service(label),
-        } = &self.storage[dictionary].kind
-        {
-            let label = label.clone();
-            let parameter = self.fresh_parameter("environment".into())?;
-            let record = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
-            let field = self.label_field(label);
-            let body = self.expression(ExpressionKind::Project { record, field });
-            return Ok(self.parameter_abstraction([parameter], body));
         }
         let field = self.label_field("getService".into());
         Ok(self.expression(ExpressionKind::Project { record: dictionary, field }))

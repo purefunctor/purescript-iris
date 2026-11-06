@@ -132,6 +132,15 @@ where
         self.service_binders.get(&binder)
     }
 
+    pub(super) fn service_evidence(&mut self, label: SmolStr) -> ConversionResult<ExpressionId> {
+        let parameter = self.fresh_parameter("environment".into())?;
+        let record = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
+        let field = self.label_field(label);
+        let getter = self.expression(ExpressionKind::Project { record, field });
+        let getter = self.parameter_abstraction([parameter], getter);
+        Ok(self.service_getter_record(getter))
+    }
+
     pub(super) fn merged_service_evidence(
         &mut self,
         parameter: Parameter,
@@ -140,6 +149,10 @@ where
         let record = self.expression(ExpressionKind::Local { parameter });
         let field = self.label_field(key);
         let getter = self.expression(ExpressionKind::Project { record, field });
+        self.service_getter_record(getter)
+    }
+
+    fn service_getter_record(&mut self, getter: ExpressionId) -> ExpressionId {
         let field = self.label_field("getService".into());
         let fields = Arc::from([RecordField { field, expression: getter }]);
         self.expression(ExpressionKind::Record { fields })

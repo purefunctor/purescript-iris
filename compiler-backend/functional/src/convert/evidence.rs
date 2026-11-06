@@ -450,10 +450,7 @@ pub(super) fn evidence_variable(
                         expressions.push(context.expression(ExpressionKind::TrivialEvidence));
                     }
                     Evidence::Synthesized(evidence) => {
-                        let evidence = synthesized_evidence(context, evidence);
-                        expressions.push(
-                            context.expression(ExpressionKind::SynthesizedEvidence { evidence }),
-                        );
+                        expressions.push(synthesized_evidence(context, evidence)?);
                     }
                 }
             }
@@ -528,15 +525,15 @@ fn bind_evidence_occurrence(
 }
 
 fn synthesized_evidence(
-    _context: &Context<'_, impl checking::ExternalQueries>,
+    context: &mut Context<'_, impl checking::ExternalQueries>,
     evidence: &checking::evidence::SynthesizedEvidence,
-) -> SynthesizedEvidence {
-    match evidence {
+) -> ConversionResult<ExpressionId> {
+    let evidence = match evidence {
         checking::evidence::SynthesizedEvidence::IsSymbol(symbol) => {
             SynthesizedEvidence::IsSymbol(symbol.clone())
         }
         checking::evidence::SynthesizedEvidence::Service(role) => {
-            SynthesizedEvidence::Service(role.clone())
+            return context.service_evidence(role.clone());
         }
         checking::evidence::SynthesizedEvidence::Reflectable(reflectable) => {
             let reflectable = match reflectable {
@@ -564,7 +561,8 @@ fn synthesized_evidence(
             };
             SynthesizedEvidence::Reflectable(reflectable)
         }
-    }
+    };
+    Ok(context.expression(ExpressionKind::SynthesizedEvidence { evidence }))
 }
 
 fn order_evidence_bindings(

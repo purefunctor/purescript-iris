@@ -35,6 +35,6 @@ export function run(write) {
   const $action = syncArgument(environment$2);
   return () => {
     const $unit = $action();
-    return (/* @__PURE__ */ labelled(Data_Show.showBoolean)({ getService: ($services) => $services.label })({ "Logging.Logger": (environment$3) => environment$3.log })(environment$2))();
+    return (/* @__PURE__ */ labelled(Data_Show.showBoolean)({ getService: (environment$3) => environment$3.label })({ "Logging.Logger": (environment$4) => environment$4.log })(environment$2))();
   };
 }
