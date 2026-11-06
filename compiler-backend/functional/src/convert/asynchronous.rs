@@ -149,16 +149,6 @@ where
         Ok(available)
     }
 
-    fn unit_value(&mut self) -> ConversionResult<Option<ExpressionId>> {
-        let Some(file_id) = self.queries.module_file("Data.Unit") else { return Ok(None) };
-        let indexed = self.indexed_module(file_id)?;
-        let mut terms = indexed.items.iter_terms();
-        let unit = terms.find(|(_, item)| item.name.as_deref() == Some("unit"));
-        let Some((term_id, _)) = unit else { return Ok(None) };
-        let global = self.term_global(file_id, term_id)?;
-        Ok(Some(self.expression(ExpressionKind::Global { global })))
-    }
-
     fn constructor_exists(
         &self,
         module_name: &str,

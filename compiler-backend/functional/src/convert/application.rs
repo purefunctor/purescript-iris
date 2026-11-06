@@ -9,9 +9,9 @@ use smol_str::{SmolStr, format_smolstr};
 use crate::optimize::local_uses;
 use crate::tree::{
     ArrayElement, BinaryOperator, Binding, CaseAlternative, Comparison, EffectExpression,
-    EffectLoop, ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal,
-    Parameter, PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
-    WriteResult,
+    EffectLoop, ExpressionId, ExpressionKind, FieldIdentity, Global, GlobalId, InstanceIdentity,
+    Literal, Parameter, PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate,
+    UnaryOperator, WriteResult,
 };
 
 use super::{Context, ConversionResult};
@@ -1187,6 +1187,25 @@ where
                 | ExpressionKind::Global { .. }
                 | ExpressionKind::Local { .. }
         )
+    }
+
+    pub(super) fn unit_value(&mut self) -> ConversionResult<Option<ExpressionId>> {
+        if self.unit_global.is_none() {
+            let mut unit = None;
+            if let Some(file_id) = self.queries.module_file("Data.Unit") {
+                let indexed = self.indexed_module(file_id)?;
+                let mut terms = indexed.items.iter_terms();
+                if let Some((term_id, _)) =
+                    terms.find(|(_, item)| item.name.as_deref() == Some("unit"))
+                {
+                    unit = Some(self.term_global(file_id, term_id)?);
+                }
+            }
+            self.unit_global = Some(unit);
+        }
+        let Some(Some(global)) = &self.unit_global else { return Ok(None) };
+        let global = Global::clone(global);
+        Ok(Some(self.expression(ExpressionKind::Global { global })))
     }
 
     pub(super) fn known_term(
