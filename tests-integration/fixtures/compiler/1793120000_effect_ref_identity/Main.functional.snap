@@ -1,0 +1,54 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign sameReference
+
+@export foreign incrementForeign
+
+@export fresh = reference.new 0
+
+@export pair = effect.bind (reference.new 0)
+  \left%0 -> effect.bind (reference.new 0)
+    \right%1 -> effect.bind (reference.write.unit left%0 1)
+      \$unit%2 -> effect.bind (reference.read left%0)
+        \leftValue%3 -> effect.bind (reference.read right%1)
+          \rightValue%4 -> effect.pure {
+            same: sameReference left%0 right%1,
+            left: leftValue%3,
+            right: rightValue%4
+          }
+
+@export allocated = \count%6 ->
+  effect.bind (reference.new [])
+    \references%5 -> effect.bind (forE 0 count%6
+      (\index%7 ->
+        effect.bind (reference.new index%7)
+          \reference%8 -> let
+            modifyFunction%9 = flip snoc reference%8
+          in effect.bind (reference.read references%5)
+            \value%10 -> reference.write.unit references%5 (modifyFunction%9 value%10)))
+      \$unit%11 -> reference.read references%5
+
+@export throughCallback = \reference%13 callback%12 ->
+  effect.bind (callback%12 reference%13) \$unit%14 -> reference.read reference%13
+
+@export incrementTwice = \reference%16 ->
+  effect.bind (effect.bind (reference.read reference%16)
+    \section253%15 -> reference.write.unit reference%16 (integer.add section253%15 1))
+    \$unit%17 -> effect.bind (reference.read reference%16)
+      \section266%18 -> reference.write.unit reference%16 (integer.add section266%18 1)
+
+@export throughForeign = effect.bind (reference.new 1)
+  \reference%19 -> effect.bind (incrementForeign reference%19)
+    \$unit%20 -> effect.bind (reference.read reference%19)
+      \section300%21 -> reference.write reference%19 (integer.multiply section300%21 10)
+
+@export shared = effect.bind (reference.new 0)
+  \reference%22 -> let
+    holder%23 = { counter: reference%22 }
+  in effect.bind (reference.write.unit holder%23.counter 5)
+    \$unit%24 -> effect.bind (reference.read reference%22)
+      \first%25 -> effect.bind (effect.bind (reference.read reference%22)
+        \section359%26 -> reference.write reference%22 (integer.add section359%26 1))
+        \$int%27 -> effect.bind (reference.read holder%23.counter)
+          \second%28 -> effect.pure { first: first%25, second: second%28 }

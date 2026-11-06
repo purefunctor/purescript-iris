@@ -27,3 +27,10 @@ countTwice value = ST.run do
   next <- STRef.modify (_ * 10) counter
   current <- STRef.read counter
   pure (written + next + current)
+
+swapCounter :: Int -> { previous :: Int, current :: Int }
+swapCounter value = ST.run do
+  counter <- STRef.new value
+  previous <- STRef.modify' (\old -> { state: old + 1, value: old }) counter
+  current <- STRef.read counter
+  pure { previous, current }

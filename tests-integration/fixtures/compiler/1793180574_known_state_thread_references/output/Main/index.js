@@ -40,3 +40,24 @@ export function countTwice(value) {
   };
   return $function($effect);
 }
+export function swapCounter(value) {
+  const $function = Control_Monad_ST_Internal.run;
+  const $effect = () => {
+    let counter = value;
+    let previous;
+    const old = counter;
+    const modified = {
+      state: old + (1 | 0) | 0,
+      value: old
+    };
+    const $value = modified.state;
+    counter = $value;
+    previous = modified.value;
+    const current = counter;
+    return {
+      previous,
+      current
+    };
+  };
+  return $function($effect);
+}

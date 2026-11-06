@@ -1,0 +1,53 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import mark :: forall value. Prim.String -> value -> value
+
+foreign import peek :: Effect.Ref.Ref Prim.Int -> Prim.Int
+
+fresh :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+fresh = new 0
+
+writeArgument :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+writeArgument = \reference ->
+  discard {discardUnit} {bindEffect} (write (mark "write argument" 5) reference) \_ ->
+    bind {bindEffect}
+      (modify (mark "modify function" \v94 -> add {semiringInt} v94 1) reference) \_ ->
+      read reference
+
+readLater :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+readLater = \reference -> read reference
+
+reusedRead :: Effect.Ref.Ref Prim.Int -> Effect.Effect { after :: Prim.Int, before :: Prim.Int }
+reusedRead = \reference ->
+  let
+    read :: Effect.Effect Prim.Int
+    read = read reference
+  in
+    bind {bindEffect} read \before ->
+      discard {discardUnit} {bindEffect} (write 7 reference) \_ ->
+        bind {bindEffect} read \after -> pure {applicativeEffect} { before, after }
+
+modifyOrder :: Effect.Ref.Ref Prim.Int ->
+Effect.Effect { returned :: Prim.Int, seen :: Prim.Int, state :: Prim.Int }
+modifyOrder = \reference ->
+  bind {bindEffect}
+    (modify'
+      (\old ->
+        { state: mul {semiringInt} old 10, value: { returned: add {semiringInt} old 1, seen: peek
+          reference } })
+      reference) \returned ->
+    bind {bindEffect} (read reference) \state ->
+      pure {applicativeEffect} { returned: returned.returned, seen: returned.seen, state }
+
+modifyResults :: Effect.Ref.Ref Prim.Int ->
+Effect.Effect { discarded :: Data.Unit.Unit, final :: Prim.Int, modified :: Prim.Int }
+modifyResults = \reference ->
+  bind {bindEffect} (modify (\v277 -> add {semiringInt} v277 1) reference) \modified ->
+    bind {bindEffect} (modify_ (\v291 -> mul {semiringInt} v291 2) reference) \discarded ->
+      bind {bindEffect} (read reference) \final ->
+        pure {applicativeEffect} { modified, discarded, final }
+
+newPerExecution :: Effect.Effect Prim.Int
+newPerExecution =
+  bind {bindEffect} (new 0) \reference -> modify (\v335 -> add {semiringInt} v335 1) reference

@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+sameReference :: Effect.Ref.Ref Prim.Int -> Effect.Ref.Ref Prim.Int -> Prim.Boolean
+incrementForeign :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+fresh :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+pair :: Effect.Effect { left :: Prim.Int, right :: Prim.Int, same :: Prim.Boolean }
+allocated :: Prim.Int -> Effect.Effect (Prim.Array (Effect.Ref.Ref Prim.Int))
+throughCallback ::
+  Effect.Ref.Ref Prim.Int ->
+  (Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit) ->
+  Effect.Effect Prim.Int
+incrementTwice :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+throughForeign :: Effect.Effect Prim.Int
+shared :: Effect.Effect { first :: Prim.Int, second :: Prim.Int }
+
+Types

@@ -1,0 +1,57 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import sameReference :: Effect.Ref.Ref Prim.Int -> Effect.Ref.Ref Prim.Int -> Prim.Boolean
+
+foreign import incrementForeign :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+
+fresh :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+fresh = new 0
+
+pair :: Effect.Effect { left :: Prim.Int, right :: Prim.Int, same :: Prim.Boolean }
+pair =
+  bind {bindEffect} (new 0) \left ->
+    bind {bindEffect} (new 0) \right ->
+      discard {discardUnit} {bindEffect} (write 1 left) \_ ->
+        bind {bindEffect} (read left) \leftValue ->
+          bind {bindEffect} (read right) \rightValue ->
+            pure {applicativeEffect}
+              { same: sameReference left right, left: leftValue, right: rightValue }
+
+allocated :: Prim.Int -> Effect.Effect (Prim.Array (Effect.Ref.Ref Prim.Int))
+allocated = \count ->
+  bind {bindEffect} (new []) \references ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 count \index ->
+        bind {bindEffect} (new index) \reference -> modify_ (flip snoc reference) references) \_ ->
+      read references
+
+throughCallback :: Effect.Ref.Ref Prim.Int ->
+(Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit) ->
+Effect.Effect Prim.Int
+throughCallback = \reference -> \callback ->
+  discard {discardUnit} {bindEffect} (callback reference) \_ -> read reference
+
+incrementTwice :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+incrementTwice = \reference ->
+  discard {discardUnit} {bindEffect} (modify_ (\v253 -> add {semiringInt} v253 1) reference) \_ ->
+    modify_ (\v266 -> add {semiringInt} v266 1) reference
+
+throughForeign :: Effect.Effect Prim.Int
+throughForeign =
+  bind {bindEffect} (new 1) \reference ->
+    discard {discardUnit} {bindEffect} (incrementForeign reference) \_ ->
+      modify (\v300 -> mul {semiringInt} v300 10) reference
+
+shared :: Effect.Effect { first :: Prim.Int, second :: Prim.Int }
+shared =
+  bind {bindEffect} (new 0) \reference ->
+    let
+      holder :: { counter :: Effect.Ref.Ref Prim.Int }
+      holder = { counter: reference }
+    in
+      discard {discardUnit} {bindEffect} (write 5 holder.counter) \_ ->
+        bind {bindEffect} (read reference) \first ->
+          bind {bindEffect} (modify (\v359 -> add {semiringInt} v359 1) reference) \_ ->
+            bind {bindEffect} (read holder.counter) \second ->
+              pure {applicativeEffect} { first, second }

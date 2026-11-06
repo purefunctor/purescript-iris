@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+mark :: forall value. Prim.String -> value -> value
+peek :: Effect.Ref.Ref Prim.Int -> Prim.Int
+fresh :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+writeArgument :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+readLater :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+reusedRead :: Effect.Ref.Ref Prim.Int -> Effect.Effect { after :: Prim.Int, before :: Prim.Int }
+modifyOrder ::
+  Effect.Ref.Ref Prim.Int ->
+  Effect.Effect { returned :: Prim.Int, seen :: Prim.Int, state :: Prim.Int }
+modifyResults ::
+  Effect.Ref.Ref Prim.Int ->
+  Effect.Effect { discarded :: Data.Unit.Unit, final :: Prim.Int, modified :: Prim.Int }
+newPerExecution :: Effect.Effect Prim.Int
+
+Types

@@ -21,3 +21,14 @@ source: tests-integration/src/fixtures.rs
             \section184%10 -> reference.write counter%6 (integer.multiply section184%10 10))
             \next%11 -> effect.bind (reference.read counter%6)
               \current%12 -> effect.pure (integer.add (integer.add written%9 next%11) current%12))
+
+@export swapCounter = \value%13 ->
+  run
+    (effect.bind (reference.new value%13)
+      \counter%14 -> effect.bind (effect.bind (reference.read counter%14)
+        \old%15 -> let
+          modified%16 = { state: integer.add old%15 1, value: old%15 }
+        in effect.bind (reference.write.unit counter%14 modified%16.state)
+          \unit%17 -> effect.pure modified%16.value)
+        \previous%18 -> effect.bind (reference.read counter%14)
+          \current%19 -> effect.pure { previous: previous%18, current: current%19 })

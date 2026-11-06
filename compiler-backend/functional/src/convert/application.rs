@@ -77,6 +77,13 @@ const UNCURRIED_EFFECT_FUNCTIONS: &[(&str, &str, &str)] = &[
 const REFERENCE_MODULES: &[(&str, WriteResult)] =
     &[("Effect.Ref", WriteResult::Unit), ("Control.Monad.ST.Internal", WriteResult::Value)];
 
+#[derive(Clone, Copy)]
+enum ModifyResult {
+    State,
+    Record,
+    Unit,
+}
+
 struct ClassMemberApplication<'a> {
     class: (FileId, TypeItemId),
     record: ExpressionId,
@@ -746,11 +753,20 @@ where
                     value: *value,
                     result: *write_result,
                 }
-            } else if self.known_term(function, module_name, "modify")?
-                && let [function, reference] = arguments
-            {
-                return self.reference_modification(*function, *reference).map(Some);
             } else {
+                for (item_name, result) in [
+                    ("modify", ModifyResult::State),
+                    ("modify'", ModifyResult::Record),
+                    ("modify_", ModifyResult::Unit),
+                ] {
+                    if self.known_term(function, module_name, item_name)?
+                        && let [function, reference] = arguments
+                    {
+                        return self
+                            .reference_modification(*function, *reference, result)
+                            .map(Some);
+                    }
+                }
                 continue;
             };
             return Ok(Some(self.expression(ExpressionKind::Effect { effect })));
@@ -762,6 +778,7 @@ where
         &mut self,
         function: ExpressionId,
         reference: ExpressionId,
+        result: ModifyResult,
     ) -> ConversionResult<ExpressionId> {
         let mut bindings = Vec::new();
         let (parameter, value) = match self.effect_continuation(function)? {
@@ -781,12 +798,21 @@ where
 
         let written_reference =
             self.expression(ExpressionKind::clone(&self.storage[reference].kind));
-        let effect = EffectExpression::ReferenceWrite {
-            reference: written_reference,
-            value,
-            result: WriteResult::Value,
+        let body = match result {
+            ModifyResult::State | ModifyResult::Unit => {
+                let result = match result {
+                    ModifyResult::State => WriteResult::Value,
+                    _ => WriteResult::Unit,
+                };
+                let effect = EffectExpression::ReferenceWrite {
+                    reference: written_reference,
+                    value,
+                    result,
+                };
+                self.expression(ExpressionKind::Effect { effect })
+            }
+            ModifyResult::Record => self.record_modification(written_reference, value)?,
         };
-        let body = self.expression(ExpressionKind::Effect { effect });
         let effect = EffectExpression::ReferenceRead(reference);
         let action = self.expression(ExpressionKind::Effect { effect });
         let effect = EffectExpression::Bind { action, parameter, body };
@@ -799,6 +825,33 @@ where
             recursive: false,
             bindings: bindings.into(),
             body: modification,
+        }))
+    }
+
+    fn record_modification(
+        &mut self,
+        reference: ExpressionId,
+        modified: ExpressionId,
+    ) -> ConversionResult<ExpressionId> {
+        let mut bindings = Vec::new();
+        let modified = self.let_bound_local(modified, "modified", &mut bindings)?;
+        let field = self.label_field("state".into());
+        let state = self.expression(ExpressionKind::Project { record: modified, field });
+        let effect =
+            EffectExpression::ReferenceWrite { reference, value: state, result: WriteResult::Unit };
+        let action = self.expression(ExpressionKind::Effect { effect });
+        let modified = self.expression(ExpressionKind::clone(&self.storage[modified].kind));
+        let field = self.label_field("value".into());
+        let value = self.expression(ExpressionKind::Project { record: modified, field });
+        let effect = EffectExpression::Pure(value);
+        let body = self.expression(ExpressionKind::Effect { effect });
+        let parameter = self.fresh_parameter("unit".into())?;
+        let effect = EffectExpression::Bind { action, parameter, body };
+        let body = self.expression(ExpressionKind::Effect { effect });
+        Ok(self.expression(ExpressionKind::Let {
+            recursive: false,
+            bindings: bindings.into(),
+            body,
         }))
     }
 
