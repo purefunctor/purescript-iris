@@ -76,15 +76,13 @@ where
             return self.sync_application(*program, *environment).map(Some);
         }
 
-        let mut selected = None;
         for (name, arity, operation) in [
             ("liftEffect", 1, SyncOperation::LiftEffect),
             ("service", 1, SyncOperation::Service),
             ("provide", 2, SyncOperation::Provide),
         ] {
             if arguments.len() == arity && self.known_term(function, "Iris.Effect.Sync", name)? {
-                selected = Some((operation, arguments));
-                break;
+                return self.lower_sync(operation, arguments).map(Some);
             }
         }
         for (module, member, instance, arity, operation) in [
@@ -93,43 +91,33 @@ where
             ("Control.Apply", "apply", "applySync", 2, SyncOperation::Apply),
             ("Control.Bind", "bind", "bindSync", 2, SyncOperation::Bind),
         ] {
-            if selected.is_none()
-                && let Some(operands) = self.known_instance_member_arguments(
-                    function,
-                    arguments,
-                    module,
-                    member,
-                    "Iris.Effect.Sync",
-                    instance,
-                )?
-                && operands.len() == arity
-            {
-                selected = Some((operation, operands));
-            }
-        }
-        if selected.is_none()
-            && let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
+            if let Some(operands) = self.known_instance_member_arguments(
                 function,
                 arguments,
-                "Control.Bind",
-                "discard",
-                "Control.Bind",
-                "discardUnit",
-            )?
-            && self.known_named_instance(*dictionary, "Iris.Effect.Sync", "bindSync")?
-        {
-            return self.lower_sync(SyncOperation::Bind, &[*action, *continuation]).map(Some);
+                module,
+                member,
+                "Iris.Effect.Sync",
+                instance,
+            )? && operands.len() == arity
+            {
+                return self.lower_sync(operation, operands).map(Some);
+            }
         }
-        if selected.is_none()
-            && let Some((condition, action)) =
-                self.known_conditional_arguments(function, arguments, |context, dictionary| {
-                    context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
-                })?
+        if let Some((action, continuation)) =
+            self.known_discard_arguments(function, arguments, |context, dictionary| {
+                context.known_named_instance(dictionary, "Iris.Effect.Sync", "bindSync")
+            })?
+        {
+            return self.lower_sync(SyncOperation::Bind, &[action, continuation]).map(Some);
+        }
+        if let Some((condition, action)) =
+            self.known_conditional_arguments(function, arguments, |context, dictionary| {
+                context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
+            })?
         {
             return self.lower_sync(SyncOperation::When, &[condition, action]).map(Some);
         }
-        let Some((operation, operands)) = selected else { return Ok(None) };
-        self.lower_sync(operation, operands).map(Some)
+        Ok(None)
     }
 
     fn lower_sync(

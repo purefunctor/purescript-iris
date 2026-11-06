@@ -110,17 +110,12 @@ where
             }
         }
         if selected.is_none()
-            && let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
-                function,
-                arguments,
-                "Control.Bind",
-                "discard",
-                "Control.Bind",
-                "discardUnit",
-            )?
-            && self.known_named_instance(*dictionary, "Iris.Effect.Async", "bindAsync")?
+            && let Some((action, continuation)) =
+                self.known_discard_arguments(function, arguments, |context, dictionary| {
+                    context.known_named_instance(dictionary, "Iris.Effect.Async", "bindAsync")
+                })?
         {
-            selected = Some((AsyncOperation::Bind, vec![*action, *continuation]));
+            selected = Some((AsyncOperation::Bind, vec![action, continuation]));
         }
         if selected.is_none()
             && let Some((condition, action)) =

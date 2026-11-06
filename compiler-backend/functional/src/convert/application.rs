@@ -707,19 +707,13 @@ where
         {
             return Ok(Some(EffectExpression::Bind { action: *action, parameter, body }));
         }
-        if let Some([bind_dictionary, action, continuation]) = self
-            .known_instance_member_arguments(
-                function,
-                arguments,
-                "Control.Bind",
-                "discard",
-                "Control.Bind",
-                "discardUnit",
-            )?
-            && self.known_thunk_instance(*bind_dictionary, None)?
-            && let Some((parameter, body)) = self.effect_continuation(*continuation)?
+        if let Some((action, continuation)) =
+            self.known_discard_arguments(function, arguments, |context, dictionary| {
+                context.known_thunk_instance(dictionary, None)
+            })?
+            && let Some((parameter, body)) = self.effect_continuation(continuation)?
         {
-            return Ok(Some(EffectExpression::Bind { action: *action, parameter, body }));
+            return Ok(Some(EffectExpression::Bind { action, parameter, body }));
         }
         if let Some([function, action]) =
             self.known_thunk_instance_member_arguments(function, arguments, "Data.Functor", "map")?
@@ -742,6 +736,26 @@ where
             return Ok(Some(EffectExpression::When { condition, action }));
         }
         Ok(self.known_effect_loop(function, arguments)?.map(EffectExpression::Loop))
+    }
+
+    pub(super) fn known_discard_arguments(
+        &self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+        known_bind: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
+    ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
+        if let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
+            function,
+            arguments,
+            "Control.Bind",
+            "discard",
+            "Control.Bind",
+            "discardUnit",
+        )? && known_bind(self, *dictionary)?
+        {
+            return Ok(Some((*action, *continuation)));
+        }
+        Ok(None)
     }
 
     pub(super) fn known_conditional_arguments(
