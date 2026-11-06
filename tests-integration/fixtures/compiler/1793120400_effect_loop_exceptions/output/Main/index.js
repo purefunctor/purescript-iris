@@ -1,5 +1,4 @@
 import * as Data_Array from "../Data.Array/index.js";
-import * as Data_Either from "../Data.Either/index.js";
 import * as Data_Function from "../Data.Function/index.js";
 import * as Data_Show from "../Data.Show/index.js";
 import * as Effect_Exception from "../Effect.Exception/index.js";

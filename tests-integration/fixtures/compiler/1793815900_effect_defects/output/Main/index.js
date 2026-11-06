@@ -3,7 +3,6 @@ import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
 import * as Effect_Exception from "../Effect.Exception/index.js";
 import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
-import * as Iris_Effect_Fiber from "../Iris.Effect.Fiber/index.js";
 import * as $foreign from "./foreign.js";
 function delay(milliseconds) {
   return Iris_Effect_Async.async((callback) => {

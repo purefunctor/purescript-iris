@@ -7,6 +7,7 @@ mod stylex;
 mod syntax;
 mod tail_call;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use files::{FileId, ForeignSourceKind};
@@ -63,6 +64,7 @@ pub(crate) struct Generator<'m> {
     module_dependencies: FxHashMap<FileId, &'m ModuleDependency>,
     global_names: FxHashMap<GlobalId, SmolStr>,
     external_module_namespaces: FxHashMap<FileId, SmolStr>,
+    rendered_module_namespaces: RefCell<FxHashSet<FileId>>,
     external_named_imports: FxHashMap<GlobalId, NamedImport>,
     stylex_namespace: Option<SmolStr>,
     stylex_theme: Option<StyleXTheme>,
@@ -493,6 +495,7 @@ impl<'m> Generator<'m> {
             module_dependencies,
             global_names,
             external_module_namespaces,
+            rendered_module_namespaces: RefCell::default(),
             external_named_imports,
             stylex_namespace,
             stylex_theme,
@@ -518,7 +521,6 @@ impl<'m> Generator<'m> {
                 writer: &mut writer,
                 file: OutputFile::Index,
             };
-            render_imports(&mut renderer);
             render_constructors(&mut renderer);
             render_source_functions(&mut renderer)?;
             render_foreign_declarations(&mut renderer);
@@ -527,6 +529,15 @@ impl<'m> Generator<'m> {
             render_exports(&mut renderer);
             initializer_cycle
         };
+        writer.prepend(|writer| {
+            let mut renderer = ModuleRenderer {
+                generator: &self,
+                tree: &mut tree,
+                writer,
+                file: OutputFile::Index,
+            };
+            render_imports(&mut renderer);
+        });
         let stylex_theme_source = if let Some(theme) = &self.stylex_theme {
             let program_text = ProgramText::new();
             let mut tree = Tree::new(&allocator, ProgramText::clone(&program_text));
@@ -589,9 +600,9 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         writer.blank();
         return;
     }
-    let mut dependencies = generator
-        .external_module_namespaces
-        .keys()
+    let rendered_module_namespaces = generator.rendered_module_namespaces.borrow();
+    let mut dependencies = rendered_module_namespaces
+        .iter()
         .map(|&file_id| (file_id, generator.module_dependency(file_id)))
         .collect_vec();
     dependencies.sort_by_key(|(_, dependency)| dependency.module_name.as_str());
@@ -634,7 +645,7 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let path = format!("../{}", runtime_filename());
         writer.import_namespace(namespace, &path);
     }
-    if !generator.external_module_namespaces.is_empty()
+    if !rendered_module_namespaces.is_empty()
         || generator.stylex_namespace.is_some()
         || !generator.external_named_imports.is_empty()
         || generator.foreign_import.is_some()
@@ -3927,6 +3938,7 @@ impl Generator<'_> {
                 .external_module_namespaces
                 .get(&file_id)
                 .expect("invariant violated: external JavaScript global has no module namespace");
+            self.rendered_module_namespaces.borrow_mut().insert(file_id);
             let namespace = tree.identifier(namespace);
             Ok(tree.member(namespace, global.item_name.as_str()))
         }

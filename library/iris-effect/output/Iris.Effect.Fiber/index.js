@@ -1,6 +1,4 @@
-import * as Data_Either from "../Data.Either/index.js";
 import * as Data_List from "../Data.List/index.js";
-import * as Data_List_Types from "../Data.List.Types/index.js";
 import * as Data_Maybe from "../Data.Maybe/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect_Exception from "../Effect.Exception/index.js";
