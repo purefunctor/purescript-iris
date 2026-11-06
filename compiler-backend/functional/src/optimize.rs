@@ -346,6 +346,10 @@ pub fn for_each_evaluated_child(
                         EffectLoop::Until { condition } => visit(*condition, repeated),
                     }
                 }
+                EffectExpression::When { condition, action: conditional } => {
+                    visit(*condition, value);
+                    visit(*conditional, action);
+                }
             }
         }
         ExpressionKind::Let { bindings, body, .. } => {
@@ -611,6 +615,10 @@ pub fn try_for_each_expression_child<Error>(
                 for operand in effect_loop.operands() {
                     visit(operand)?;
                 }
+            }
+            EffectExpression::When { condition, action } => {
+                visit(*condition)?;
+                visit(*action)?;
             }
         },
         ExpressionKind::Async(asynchronous) => match asynchronous {

@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+whenConfigured ::
+  { enabled :: Prim.Boolean, value :: Prim.Int } ->
+  Effect.Ref.Ref Prim.Int ->
+  Iris.Effect.Sync.Sync () Data.Unit.Unit
+unlessConfigured ::
+  { enabled :: Prim.Boolean, value :: Prim.Int } ->
+  Effect.Ref.Ref Prim.Int ->
+  Iris.Effect.Sync.Sync () Data.Unit.Unit
+step :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Iris.Effect.Sync.Sync () Prim.Int
+run :: forall value. Iris.Effect.Sync.Sync () value -> Effect.Effect value
+
+Types

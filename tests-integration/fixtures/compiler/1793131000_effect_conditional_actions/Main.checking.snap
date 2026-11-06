@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+whenConfigured ::
+  { enabled :: Prim.Boolean, value :: Prim.Int } ->
+  Effect.Ref.Ref Prim.Int ->
+  Effect.Effect Data.Unit.Unit
+unlessConfigured ::
+  { enabled :: Prim.Boolean, value :: Prim.Int } ->
+  Effect.Ref.Ref Prim.Int ->
+  Effect.Effect Data.Unit.Unit
+diagonal :: Prim.Int -> Effect.Effect Prim.Int
+genericWhen ::
+  forall (effect :: Prim.Type -> Prim.Type).
+    Control.Applicative.Applicative (effect :: Prim.Type -> Prim.Type) =>
+    Prim.Boolean ->
+    (effect :: Prim.Type -> Prim.Type) Data.Unit.Unit ->
+    (effect :: Prim.Type -> Prim.Type) Data.Unit.Unit
+
+Types

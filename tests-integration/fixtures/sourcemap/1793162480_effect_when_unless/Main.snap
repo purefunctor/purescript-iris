@@ -1,0 +1,46 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export function counter(flag) {
+   | ^ 9:1 counter flag = do
+   |        ^ (counter) 9:1 counter flag = do
+   |                               ^ 9:1 counter flag = do
+ 2 |   return () => {
+   |   ^ (counter) 9:16 do
+   |                ^ 9:16 do
+ 3 |     let count = 0 | 0;
+   |     ^ 9:16 do
+   |                 ^ 10:20 0
+ 4 |     if (flag) {
+   |     ^ 11:3 when flag do
+   |         ^ 11:8 flag do
+   |               ^ 11:3 when flag do
+ 5 |       const section52 = count;
+   |       ^ 12:5 Ref.modify_ (_ + 1) count
+   |                         ^ 12:25 count
+ 6 |       const $value = section52 + (1 | 0) | 0;
+   |       ^ 12:18 _ + 1) count
+   |                                   ^ 12:22 1) count
+   |                                            ^ 12:18 _ + 1) count
+ 7 |       count = $value;
+   |       ^ 12:5 Ref.modify_ (_ + 1) count
+   |               ^ 12:18 _ + 1) count
+ 8 |     }
+   |     ^ 11:3 when flag do
+ 9 |     const $condition = !flag;
+   |     ^ 13:3 unless flag (Ref.write 10 count)
+   |                         ^ 13:10 flag (Ref.write 10 count)
+10 |     if ($condition) {
+   |     ^ 13:3 unless flag (Ref.write 10 count)
+11 |       count = 10 | 0;
+   |       ^ 13:29 count)
+   |               ^ 13:26 10 count)
+12 |     }
+   |     ^ 13:3 unless flag (Ref.write 10 count)
+13 |     return count;
+   |     ^ 14:3 Ref.read count
+   |            ^ 14:12 count
+14 |   };
+   |   ^ 9:16 do
+15 | }
+   | ^ 9:1 counter flag = do

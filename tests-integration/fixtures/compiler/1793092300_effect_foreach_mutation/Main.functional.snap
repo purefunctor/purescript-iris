@@ -10,7 +10,7 @@ source: tests-integration/src/fixtures.rs
     \seen%0 -> effect.bind (effect.forEach
       values%1
       (\value%2 ->
-        effect.bind (when applicativeEffect (integer.equal value%2 1) (poke values%1 2 99))
+        effect.bind (effect.when (integer.equal value%2 1) (poke values%1 2 99))
           \$unit%3 -> effect.bind (push values%1 value%2)
             \$unit%4 -> effect.bind (reference.read seen%0)
               \section125%5 -> reference.write.unit seen%0 [...section125%5, value%2]))

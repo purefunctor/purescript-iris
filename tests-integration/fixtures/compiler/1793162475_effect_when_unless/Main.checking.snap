@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+record :: Prim.String -> Effect.Effect Data.Unit.Unit
+takeLog :: Effect.Effect (Prim.Array Prim.String)
+statementWhen :: Prim.Boolean -> Effect.Effect Prim.Int
+finalWhen :: Prim.Boolean -> Effect.Effect Data.Unit.Unit
+stateUnless :: Prim.Int -> Prim.Int
+
+Types

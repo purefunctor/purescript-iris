@@ -14,6 +14,7 @@ enum SyncOperation {
     Map,
     Apply,
     Bind,
+    When,
 }
 
 impl<'c, Q> Context<'c, Q>
@@ -119,6 +120,14 @@ where
         {
             return self.lower_sync(SyncOperation::Bind, &[*action, *continuation]).map(Some);
         }
+        if selected.is_none()
+            && let Some((condition, action)) =
+                self.known_conditional_arguments(function, arguments, |context, dictionary| {
+                    context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
+                })?
+        {
+            return self.lower_sync(SyncOperation::When, &[condition, action]).map(Some);
+        }
         let Some((operation, operands)) = selected else { return Ok(None) };
         self.lower_sync(operation, operands).map(Some)
     }
@@ -162,6 +171,10 @@ where
                 let (parameter, continuation) = self.bound_continuation(*continuation)?;
                 let body = self.sync_application(continuation, environment)?;
                 EffectExpression::Bind { action, parameter, body }
+            }
+            (SyncOperation::When, [condition, action]) => {
+                let action = self.sync_application(*action, environment)?;
+                EffectExpression::When { condition: *condition, action }
             }
             (SyncOperation::LiftEffect, [action]) => {
                 let body = self.parameter_abstraction([parameter], *action);

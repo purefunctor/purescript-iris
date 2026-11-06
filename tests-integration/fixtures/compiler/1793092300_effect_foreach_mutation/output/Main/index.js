@@ -1,7 +1,5 @@
-import * as Control_Applicative from "../Control.Applicative/index.js";
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
-import * as Effect from "../Effect/index.js";
 import * as $foreign from "./foreign.js";
 export function visit(values) {
   const $value = [];
@@ -10,10 +8,13 @@ export function visit(values) {
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
-      const $action = /* @__PURE__ */ Control_Applicative.when(Effect.applicativeEffect)(value === (1 | 0))(poke(values)(2 | 0)(99 | 0));
-      const $unit = $action();
+      const $condition = value === (1 | 0);
+      const $action = poke(values)(2 | 0)(99 | 0);
+      if ($condition) {
+        $action();
+      }
       const $action$1 = push(values)(value);
-      const $unit$1 = $action$1();
+      const $unit = $action$1();
       const section125 = seen;
       const $value$1 = [...section125, value];
       seen = $value$1;

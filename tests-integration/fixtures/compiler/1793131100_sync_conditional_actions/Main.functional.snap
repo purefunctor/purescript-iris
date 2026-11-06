@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export whenConfigured = \configuration%0 reference%1 ->
+  let
+    syncArgument%4 = configuration%0.enabled
+    syncArgument%2 = reference.write.unit reference%1 configuration%0.value
+  in \environment%5 -> effect.when syncArgument%4 syncArgument%2
+
+@export unlessConfigured = \configuration%6 reference%7 ->
+  let
+    syncArgument%10 = boolean.not configuration%6.enabled
+    syncArgument%8 = reference.write.unit reference%7 configuration%6.value
+  in \environment%11 -> effect.when syncArgument%10 syncArgument%8
+
+@export step = \reference%12 limit%16 ->
+  let
+    syncArgument%13 = reference.read reference%12
+  in \environment%31 ->
+    effect.bind syncArgument%13
+      \current%15 -> let
+        syncArgument%17 = reference.write.unit reference%12 (integer.add current%15 1)
+      in effect.bind (effect.when (integer.less_than current%15 limit%16) syncArgument%17)
+        \$unit%21 -> let
+          syncArgument%22 = reference.write.unit reference%12 0
+        in effect.bind (effect.when
+          (boolean.not (integer.less_than current%15 limit%16))
+          syncArgument%22)
+          \$unit%26 -> let
+            syncArgument%27 = reference.read reference%12
+          in syncArgument%27
+
+@export run = run {  }

@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign record
+
+@export foreign takeLog
+
+@export statementWhen = \flag%1 ->
+  effect.bind (reference.new 0)
+    \ref%0 -> effect.bind (effect.when flag%1 (reference.write.unit ref%0 5))
+      \$unit%2 -> effect.bind (effect.when
+        (boolean.not flag%1)
+        (effect.bind (reference.read ref%0)
+          \section87%3 -> reference.write.unit ref%0 (integer.add section87%3 1)))
+        \$unit%4 -> reference.read ref%0
+
+@export finalWhen = \flag%6 ->
+  effect.bind (record "before") \$unit%5 -> effect.when flag%6 (record "inside")
+
+@export stateUnless = \count%7 ->
+  run
+    (effect.bind (reference.new count%7)
+      \ref%8 -> effect.bind (effect.when
+        (boolean.not (integer.greater_than count%7 0))
+        (void functorST (reference.write ref%8 0)))
+        \$unit%9 -> reference.read ref%8)

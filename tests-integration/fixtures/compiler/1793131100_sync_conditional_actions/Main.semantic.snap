@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+whenConfigured :: { enabled :: Prim.Boolean, value :: Prim.Int } ->
+Effect.Ref.Ref Prim.Int ->
+Iris.Effect.Sync.Sync () Data.Unit.Unit
+whenConfigured = \configuration -> \reference ->
+  when {applicativeSync} configuration.enabled (liftEffect (write configuration.value reference))
+
+unlessConfigured :: { enabled :: Prim.Boolean, value :: Prim.Int } ->
+Effect.Ref.Ref Prim.Int ->
+Iris.Effect.Sync.Sync () Data.Unit.Unit
+unlessConfigured = \configuration -> \reference ->
+  unless {applicativeSync} configuration.enabled (liftEffect (write configuration.value reference))
+
+step :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Iris.Effect.Sync.Sync () Prim.Int
+step = \reference -> \limit ->
+  bind {bindSync} (liftEffect (read reference)) \current ->
+    discard {discardUnit} {bindSync}
+      (when {applicativeSync} (lessThan {ordInt} current limit)
+        (liftEffect (write (add {semiringInt} current 1) reference))) \_ ->
+      discard {discardUnit} {bindSync}
+        (unless {applicativeSync} (lessThan {ordInt} current limit)
+          (liftEffect (write 0 reference))) \_ -> liftEffect (read reference)
+
+run :: forall value. Iris.Effect.Sync.Sync () value -> Effect.Effect value
+run = run { }

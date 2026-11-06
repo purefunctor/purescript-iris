@@ -37,6 +37,7 @@ enum AsyncOperation {
     Catch,
     MapError,
     Attempt,
+    When,
 }
 
 #[derive(Clone)]
@@ -121,6 +122,19 @@ where
         {
             selected = Some((AsyncOperation::Bind, vec![*action, *continuation]));
         }
+        if selected.is_none()
+            && let Some((condition, action)) =
+                self.known_conditional_arguments(function, arguments, |context, dictionary| {
+                    context.known_named_instance(
+                        dictionary,
+                        "Iris.Effect.Async",
+                        "applicativeAsync",
+                    )
+                })?
+            && let Some(unit) = self.unit_value()?
+        {
+            selected = Some((AsyncOperation::When, vec![condition, action, unit]));
+        }
         let Some((operation, operands)) = selected else { return Ok(None) };
         if !self.lowering_constructors_available()? {
             return Ok(None);
@@ -138,6 +152,16 @@ where
         }
         self.lowering_constructors_available = Some(available);
         Ok(available)
+    }
+
+    fn unit_value(&mut self) -> ConversionResult<Option<ExpressionId>> {
+        let Some(file_id) = self.queries.module_file("Data.Unit") else { return Ok(None) };
+        let indexed = self.indexed_module(file_id)?;
+        let mut terms = indexed.items.iter_terms();
+        let unit = terms.find(|(_, item)| item.name.as_deref() == Some("unit"));
+        let Some((term_id, _)) = unit else { return Ok(None) };
+        let global = self.term_global(file_id, term_id)?;
+        Ok(Some(self.expression(ExpressionKind::Global { global })))
     }
 
     fn constructor_exists(
@@ -223,6 +247,12 @@ where
                     _ => second_local,
                 };
                 self.sync_bindings(vec![first, second], body)
+            }
+            (AsyncOperation::When, [condition, action, unit]) => {
+                let then = self.execute_async(*action, environment)?;
+                let conditional =
+                    ExpressionKind::IfThenElse { condition: *condition, then, else_: *unit };
+                self.expression(conditional)
             }
             (AsyncOperation::Fail, [error]) => {
                 self.expression(ExpressionKind::Async(AsyncExpression::Fail(*error)))
