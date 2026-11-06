@@ -3838,24 +3838,24 @@ fn execute_when(
     writer.if_block(tree, condition, |tree, writer| {
         let _origin = tree.enter_origin(origin);
         let mut renderer = generator.renderer(tree, writer, context);
-        execute_discarded_action(&mut renderer, action)
+        execute_effect_action_destination(&mut renderer, action, Destination::Discard)
     })
 }
 
-fn execute_discarded_action(
+fn execute_effect_action_destination(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     action: CapturedEffectAction,
+    destination: Destination<'_>,
 ) -> ModuleResult<()> {
     match action {
         CapturedEffectAction::Expression { value, origin } => {
-            let _origin = renderer.tree.enter_origin(origin);
-            let value = renderer.tree.call(value, Vec::new());
-            renderer.writer.expression_statement(renderer.tree, value);
+            let FunctionRenderer { generator, tree, writer, .. } = renderer;
+            let _origin = tree.enter_origin(origin);
+            let value = tree.call(value, Vec::new());
+            generator.render_destination(tree, writer, value, destination);
             Ok(())
         }
-        CapturedEffectAction::Effect(effect) => {
-            execute_effect(renderer, *effect, Destination::Discard)
-        }
+        CapturedEffectAction::Effect(effect) => execute_effect(renderer, *effect, destination),
     }
 }
 
