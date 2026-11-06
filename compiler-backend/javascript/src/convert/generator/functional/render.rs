@@ -123,34 +123,13 @@ enum CapturedEffectAction {
 }
 
 enum CapturedEffect {
-    Pure {
-        value: ExpressionId,
-    },
-    Bind {
-        action: CapturedEffectAction,
-        parameter: Parameter,
-        body: FunctionalExpressionId,
-    },
-    Map {
-        function: ExpressionId,
-        action: CapturedEffectAction,
-    },
-    Apply {
-        function_action: CapturedEffectAction,
-        argument_action: CapturedEffectAction,
-    },
+    Pure { value: ExpressionId },
+    Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
+    Map { function: ExpressionId, action: CapturedEffectAction },
+    Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
     Operation(CapturedOperation),
     Loop(CapturedLoop),
-    When {
-        condition: ExpressionId,
-        action: CapturedEffectAction,
-        origin: Option<Origin>,
-    },
-    ConditionalBind {
-        conditional: FunctionalExpressionId,
-        parameter: Parameter,
-        body: FunctionalExpressionId,
-    },
+    When { condition: ExpressionId, action: CapturedEffectAction, origin: Option<Origin> },
 }
 
 enum CapturedOperation {
@@ -1542,8 +1521,38 @@ impl Generator<'_> {
             return self.render_expression(tree, writer, *value, destination, context);
         }
         if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
+            if let EffectExpression::Bind { action, parameter, body } = effect
+                && matches!(
+                    self.module.storage[*action].kind,
+                    ExpressionKind::IfThenElse { .. }
+                        | ExpressionKind::Case { .. }
+                        | ExpressionKind::Guarded { .. }
+                )
+            {
+                if local_uses(&self.module.storage, *body, parameter.id) == 0 {
+                    self.render_expression(
+                        tree,
+                        writer,
+                        *action,
+                        Destination::EffectDiscard,
+                        context,
+                    )?;
+                } else {
+                    let name = context.allocate(&parameter.name);
+                    writer.mutable(&name);
+                    self.render_expression(
+                        tree,
+                        writer,
+                        *action,
+                        Destination::EffectAssign(&name),
+                        context,
+                    )?;
+                    context.bind_direct(parameter, name);
+                }
+                return self.render_expression(tree, writer, *body, destination.effect(), context);
+            }
             let mut renderer = self.renderer(tree, writer, context);
-            let effect = capture_executed_effect(&mut renderer, effect)?;
+            let effect = capture_effect(&mut renderer, effect)?;
             return execute_effect(&mut renderer, effect, destination);
         }
 
@@ -3605,28 +3614,6 @@ fn capture_effect(
     }
 }
 
-fn capture_executed_effect(
-    renderer: &mut FunctionRenderer<'_, '_, '_>,
-    effect: &EffectExpression,
-) -> ModuleResult<CapturedEffect> {
-    if let EffectExpression::Bind { action, parameter, body } = effect
-        && matches!(
-            renderer.generator.module.storage[*action].kind,
-            ExpressionKind::IfThenElse { .. }
-                | ExpressionKind::Case { .. }
-                | ExpressionKind::Guarded { .. }
-        )
-    {
-        let parameter = parameter.clone();
-        return Ok(CapturedEffect::ConditionalBind {
-            conditional: *action,
-            parameter,
-            body: *body,
-        });
-    }
-    capture_effect(renderer, effect)
-}
-
 fn capture_reference_target(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     reference: FunctionalExpressionId,
@@ -3801,30 +3788,6 @@ fn execute_effect(
             execute_when(renderer, condition, action, origin)?;
             render_unit_destination(renderer, destination);
             Ok(())
-        }
-        CapturedEffect::ConditionalBind { conditional, parameter, body } => {
-            let FunctionRenderer { generator, tree, writer, context } = renderer;
-            if local_uses(&generator.module.storage, body, parameter.id) == 0 {
-                generator.render_expression(
-                    tree,
-                    writer,
-                    conditional,
-                    Destination::EffectDiscard,
-                    context,
-                )?;
-            } else {
-                let name = context.allocate(&parameter.name);
-                writer.mutable(&name);
-                generator.render_expression(
-                    tree,
-                    writer,
-                    conditional,
-                    Destination::EffectAssign(&name),
-                    context,
-                )?;
-                context.bind_direct(&parameter, name);
-            }
-            generator.render_expression(tree, writer, body, destination.effect(), context)
         }
         CapturedEffect::Apply { function_action, argument_action } => {
             let function = if matches!(&argument_action, CapturedEffectAction::Effect(_)) {
