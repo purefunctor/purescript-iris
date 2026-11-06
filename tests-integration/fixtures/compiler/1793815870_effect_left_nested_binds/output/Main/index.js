@@ -7,12 +7,11 @@ import * as Iris_Effect_Async from "../Iris.Effect.Async/index.js";
 function sequenced(effects) {
   return Data_Array.foldl((action) => {
     return ($int) => {
-      const $effect = () => {
+      const asyncArgument = () => {
         const section123 = effects.value;
         const $value = section123 + (1 | 0) | 0;
         return effects.value = $value;
       };
-      const asyncArgument = $effect;
       return (environment) => {
         return {
           tag: "Run",
@@ -56,10 +55,9 @@ export function run(report) {
               _1: () => {
                 const asyncArgument = report("total " + /* @__PURE__ */ showIntDictShow(total));
                 const $unit = asyncArgument();
-                const $effect = () => {
+                const asyncArgument$1 = () => {
                   return { value: 0 | 0 };
                 };
-                const asyncArgument$1 = $effect;
                 const effects = asyncArgument$1();
                 const asyncArgument$2 = sequenced(effects);
                 return {
@@ -69,10 +67,9 @@ export function run(report) {
                     return {
                       tag: "Run",
                       _1: () => {
-                        const $effect$1 = () => {
+                        const asyncArgument$3 = () => {
                           return effects.value;
                         };
-                        const asyncArgument$3 = $effect$1;
                         const performed = asyncArgument$3();
                         const asyncArgument$4 = report("effects " + (/* @__PURE__ */ showIntDictShow(last) + (" " + /* @__PURE__ */ showIntDictShow(performed))));
                         const $unit$1 = asyncArgument$4();

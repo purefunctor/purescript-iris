@@ -29,20 +29,18 @@ export function finalWhen(flag) {
 }
 export function stateUnless(count) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let ref = count;
     const $condition = !(count > (0 | 0));
     const $function$1 = Data_Functor.void(Control_Monad_ST_Internal.functorST);
-    const $effect$1 = () => {
+    const $action = /* @__PURE__ */ $function$1(() => {
       return ref = 0 | 0;
-    };
-    const $action = /* @__PURE__ */ $function$1($effect$1);
+    });
     if ($condition) {
       $action();
     }
     return ref;
-  };
-  return $function($effect);
+  });
 }
 export const record = $foreign["record"];
 export const takeLog = $foreign["takeLog"];

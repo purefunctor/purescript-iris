@@ -3,11 +3,10 @@ export function whenConfigured(configuration) {
   return (reference) => {
     const syncArgument = configuration.enabled;
     const $value = configuration.value;
-    const $effect = () => {
+    const syncArgument$1 = () => {
       reference.value = $value;
       return undefined;
     };
-    const syncArgument$1 = $effect;
     return (environment) => {
       return () => {
         if (syncArgument) {
@@ -22,11 +21,10 @@ export function unlessConfigured(configuration) {
   return (reference) => {
     const syncArgument = !configuration.enabled;
     const $value = configuration.value;
-    const $effect = () => {
+    const syncArgument$1 = () => {
       reference.value = $value;
       return undefined;
     };
-    const syncArgument$1 = $effect;
     return (environment) => {
       return () => {
         if (syncArgument) {
@@ -39,36 +37,32 @@ export function unlessConfigured(configuration) {
 }
 export function step(reference) {
   return (limit) => {
-    const $effect = () => {
+    const syncArgument = () => {
       return reference.value;
     };
-    const syncArgument = $effect;
     return (environment) => {
       return () => {
         const current = syncArgument();
         const $value = current + (1 | 0) | 0;
-        const $effect$1 = () => {
+        const syncArgument$1 = () => {
           reference.value = $value;
           return undefined;
         };
-        const syncArgument$1 = $effect$1;
         const $condition = current < limit;
         if ($condition) {
           syncArgument$1();
         }
-        const $effect$2 = () => {
+        const syncArgument$2 = () => {
           reference.value = 0 | 0;
           return undefined;
         };
-        const syncArgument$2 = $effect$2;
         const $condition$1 = !(current < limit);
         if ($condition$1) {
           syncArgument$2();
         }
-        const $effect$3 = () => {
+        const syncArgument$3 = () => {
           return reference.value;
         };
-        const syncArgument$3 = $effect$3;
         return syncArgument$3();
       };
     };

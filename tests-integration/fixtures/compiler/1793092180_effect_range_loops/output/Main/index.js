@@ -39,7 +39,7 @@ export function sumWithFunction(end) {
 }
 export function productRange(end) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let total = 1 | 0;
     for (let index = 1 | 0; index < end; index++) {
       const section210 = total;
@@ -47,8 +47,7 @@ export function productRange(end) {
       total = $value;
     }
     return total;
-  };
-  return $function($effect);
+  });
 }
 export function sumOdd(end) {
   return () => {

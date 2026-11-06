@@ -23,7 +23,7 @@ export function incrementCounter(counter) {
 }
 export function countTwice(value) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let counter = value;
     let $int;
     const section156 = counter;
@@ -37,12 +37,11 @@ export function countTwice(value) {
     next = counter = $value$2;
     const current = counter;
     return (written + next | 0) + current | 0;
-  };
-  return $function($effect);
+  });
 }
 export function swapCounter(value) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let counter = value;
     let previous;
     const old = counter;
@@ -58,6 +57,5 @@ export function swapCounter(value) {
       previous,
       current
     };
-  };
-  return $function($effect);
+  });
 }

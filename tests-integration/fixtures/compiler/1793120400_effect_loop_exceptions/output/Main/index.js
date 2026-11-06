@@ -161,13 +161,12 @@ export const recovers = /* @__PURE__ */ (() => {
         const $function = Effect_Exception.catchException((error) => record(visited)("caught " + Effect_Exception.message(error)));
         const $condition = index === (1 | 0);
         const $action = Effect_Exception.throw("one");
-        const $effect = () => {
+        $function(() => {
           if ($condition) {
             $action();
           }
           return record(visited)(/* @__PURE__ */ showIntDictShow(index))();
-        };
-        $function($effect)();
+        })();
       }
       return;
     };

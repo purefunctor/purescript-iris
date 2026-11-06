@@ -157,14 +157,13 @@ export function forkStep(child) {
 }
 export function deferStep(thunk) {
   const $value = Data_Unit.unit;
-  const $effect = () => {
-    let $value$1;
-    $value$1 = $value;
-    return thunk($value$1);
-  };
   return {
     tag: "Run",
-    _1: $effect
+    _1: () => {
+      let $value$1;
+      $value$1 = $value;
+      return thunk($value$1);
+    }
   };
 }
 function tryEffect(effect) {
@@ -371,7 +370,7 @@ export function killFiber(error) {
         const $action = onComplete(fiber)(($exit) => callback);
         const canceler = $action();
         const $reference$1 = fiber.interrupt;
-        const $effect = () => {
+        const markInterrupted = () => {
           const interrupt = $reference$1.value;
           const $condition = Data_Maybe.isNothing(interrupt);
           const $reference$2 = fiber.interrupt;
@@ -384,9 +383,8 @@ export function killFiber(error) {
           }
           return;
         };
-        const markInterrupted = $effect;
         const $reference$3 = fiber.status;
-        const $effect$1 = () => {
+        const abandon = () => {
           $reference$3.value = "Return";
           const $reference$4 = fiber.returnValue;
           $reference$4.value = "Nothing";
@@ -394,7 +392,6 @@ export function killFiber(error) {
           $reference$5.value = "Nothing";
           return undefined;
         };
-        const abandon = $effect$1;
         $case: {
           if (status === "Suspended") {
             const $reference$6 = fiber.interrupt;
@@ -838,7 +835,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                       $reference$15.value = $value$1;
                       const $function = enqueue(runtime.scheduler);
                       const $reference$16 = $currentArgument0$2.runTick;
-                      const $effect = () => {
+                      $function(() => {
                         const resumeTick = $reference$16.value;
                         const $condition$5 = resumeTick === (localRunTick + (1 | 0) | 0);
                         const $reference$17 = $currentArgument0$2.pendingCanceler;
@@ -851,8 +848,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                           run($currentArgument0$2)();
                         }
                         return;
-                      };
-                      $function($effect)();
+                      })();
                     }
                     return;
                   };

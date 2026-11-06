@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+freshEffect :: Effect.Effect (Effect.Ref.Ref (Effect.Effect Prim.Int))
+freshEffect = new (pure {applicativeEffect} 1)
+
+freshFunction :: Effect.Effect (Effect.Ref.Ref (Prim.Int -> Prim.Int))
+freshFunction = new \x -> add {semiringInt} x 1

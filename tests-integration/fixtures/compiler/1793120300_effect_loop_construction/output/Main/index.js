@@ -29,14 +29,13 @@ export function forInlineBody(counter) {
 export function untilCaptured(counter) {
   const $function = mark("action");
   const $function$1 = (section160) => section160 >= (2 | 0);
-  const $effect = () => {
+  const $condition = $function(() => {
     let $value;
     const section172 = counter.value;
     const $value$1 = section172 + (1 | 0) | 0;
     $value = counter.value = $value$1;
     return $function$1($value);
-  };
-  const $condition = $function($effect);
+  });
   return () => {
     while (!$condition()) {}
     return;
@@ -45,18 +44,16 @@ export function untilCaptured(counter) {
 export function whileCaptured(counter) {
   const $function = mark("condition");
   const $function$1 = (section206) => section206 < (3 | 0);
-  const $effect = () => {
+  const $condition = $function(() => {
     return $function$1(counter.value);
-  };
-  const $condition = $function($effect);
+  });
   const $function$2 = mark("action");
-  const $effect$1 = () => {
+  const $body = $function$2(() => {
     const section231 = counter.value;
     const $value = section231 + (1 | 0) | 0;
     counter.value = $value;
     return undefined;
-  };
-  const $body = $function$2($effect$1);
+  });
   return () => {
     while ($condition()) {
       $body();

@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export freshEffect = reference.new (effect.pure 1)
+
+@export freshFunction = reference.new (\x%0 -> integer.add x%0 1)

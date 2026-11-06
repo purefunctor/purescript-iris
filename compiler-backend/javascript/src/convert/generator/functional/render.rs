@@ -2010,7 +2010,7 @@ impl Generator<'_> {
             ExpressionKind::Effect { effect } => {
                 let mut renderer = self.renderer(tree, writer, context);
                 let value = effect_expression(&mut renderer, effect)?;
-                Ok(RenderedExpression { value, pending_evaluation: false })
+                Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Let { recursive: false, bindings, body } => {
                 let name = context.allocate("$result");
@@ -3504,12 +3504,12 @@ fn effect_expression(
 ) -> ModuleResult<ExpressionId> {
     let effect = capture_effect(renderer, effect)?;
     let FunctionRenderer { generator, tree, writer, context } = renderer;
-    let effect_name = context.allocate("$effect");
-    writer.constant_arrow(&effect_name, None, Vec::new(), |writer| {
+    let (closure, result) = writer.arrow(tree, None, Vec::new(), |tree, writer| {
         let mut renderer = generator.renderer(tree, writer, context);
         execute_effect(&mut renderer, effect, Destination::Return)
-    })?;
-    Ok(tree.identifier(effect_name))
+    });
+    result?;
+    Ok(closure)
 }
 
 fn capture_effect(

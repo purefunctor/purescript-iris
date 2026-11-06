@@ -43,7 +43,7 @@ export function countUntil(limit) {
 }
 export function doubleUntil(limit) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let value = 1 | 0;
     const $function$1 = (section233) => section233 < limit;
     while (true) {
@@ -57,8 +57,7 @@ export function doubleUntil(limit) {
       value = $value;
     }
     return value;
-  };
-  return $function($effect);
+  });
 }
 export const hasNext = $foreign["hasNext"];
 export const next = $foreign["next"];

@@ -7,11 +7,10 @@ export function whenConfigured(configuration) {
   return (reference) => {
     const asyncArgument = configuration.enabled;
     const $value = configuration.value;
-    const $effect = () => {
+    const asyncArgument$1 = () => {
       reference.value = $value;
       return undefined;
     };
-    const asyncArgument$1 = $effect;
     return (environment) => {
       return {
         tag: "Run",
@@ -35,11 +34,10 @@ export function unlessConfigured(configuration) {
   return (reference) => {
     const asyncArgument = !configuration.enabled;
     const $value = configuration.value;
-    const $effect = () => {
+    const asyncArgument$1 = () => {
       reference.value = $value;
       return undefined;
     };
-    const asyncArgument$1 = $effect;
     return (environment) => {
       return {
         tag: "Run",

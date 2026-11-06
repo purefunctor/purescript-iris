@@ -5,9 +5,8 @@ import * as $foreign from "./foreign.js";
 export function computedBind($unit) {
   const $function = Control_Bind.bind(Effect.bindEffect);
   const $value = Data_Unit.unit;
-  const $effect = () => {
+  return /* @__PURE__ */ $function(() => {
     return $value;
-  };
-  return /* @__PURE__ */ $function($effect)(makeContinuation(Data_Unit.unit));
+  })(makeContinuation(Data_Unit.unit));
 }
 export const makeContinuation = $foreign["makeContinuation"];

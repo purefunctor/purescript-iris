@@ -27,10 +27,9 @@ function killSelf(fiber) {
   const $function = Data_Functor.void(Effect.functorEffect);
   const $function$1 = Iris_Effect_Fiber.killFiber("self")(fiber);
   const $value = Data_Unit.unit;
-  const $effect = () => {
+  const asyncArgument = /* @__PURE__ */ $function($function$1(() => {
     return $value;
-  };
-  const asyncArgument = /* @__PURE__ */ $function($function$1($effect));
+  }));
   return (environment) => {
     return {
       tag: "Run",
@@ -48,10 +47,9 @@ function withSelf(report) {
   return (body) => {
     const $function = Data_Functor.void(Effect.functorEffect);
     const $function$1 = Iris_Effect_Async.launch({ onUncaught: (failure) => report("uncaught " + failure) })({});
-    const $effect = () => {
+    const asyncArgument = () => {
       return { value: "Nothing" };
     };
-    const asyncArgument = $effect;
     const $result = (environment) => {
       return {
         tag: "Run",
@@ -82,10 +80,9 @@ function withSelf(report) {
                     return {
                       tag: "Run",
                       _1: () => {
-                        const $effect$1 = () => {
+                        const asyncArgument$3 = () => {
                           return self.value;
                         };
-                        const asyncArgument$3 = $effect$1;
                         const found = asyncArgument$3();
                         if (found.tag === "Just") {
                           const { _1: me } = found;
@@ -114,11 +111,10 @@ function withSelf(report) {
                     tag: "Just",
                     _1: fiber
                   };
-                  const $effect$2 = () => {
+                  const asyncArgument$4 = () => {
                     self.value = $value;
                     return undefined;
                   };
-                  const asyncArgument$4 = $effect$2;
                   const $unit$2 = asyncArgument$4();
                   const asyncArgument$5 = Iris_Effect_Async.await(fiber);
                   return {
