@@ -1,3 +1,4 @@
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as Iris_Effect_Sync from "../Iris.Effect.Sync/index.js";
 export function whenConfigured(configuration) {
   return (reference) => {
@@ -5,14 +6,14 @@ export function whenConfigured(configuration) {
     const $value = configuration.value;
     const syncArgument$1 = () => {
       reference.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
     return (environment) => {
       return () => {
         if (syncArgument) {
           syncArgument$1();
         }
-        return;
+        return Data_Unit.unit;
       };
     };
   };
@@ -23,14 +24,14 @@ export function unlessConfigured(configuration) {
     const $value = configuration.value;
     const syncArgument$1 = () => {
       reference.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
     return (environment) => {
       return () => {
         if (syncArgument) {
           syncArgument$1();
         }
-        return;
+        return Data_Unit.unit;
       };
     };
   };
@@ -46,7 +47,7 @@ export function step(reference) {
         const $value = current + (1 | 0) | 0;
         const syncArgument$1 = () => {
           reference.value = $value;
-          return undefined;
+          return Data_Unit.unit;
         };
         const $condition = current < limit;
         if ($condition) {
@@ -54,7 +55,7 @@ export function step(reference) {
         }
         const syncArgument$2 = () => {
           reference.value = 0 | 0;
-          return undefined;
+          return Data_Unit.unit;
         };
         const $condition$1 = !(current < limit);
         if ($condition$1) {

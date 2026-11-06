@@ -1,4 +1,5 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
 export function countdown(start) {
   return () => {
@@ -17,7 +18,7 @@ export function countdown(start) {
       const section105 = seen;
       const $value$1 = [...section105, current];
       seen = $value$1;
-      $unit = undefined;
+      $unit = Data_Unit.unit;
       const $value$2 = current - (1 | 0) | 0;
       counter = $value$2;
     }
@@ -66,6 +67,6 @@ export const drain = /* @__PURE__ */ (() => {
     while (hasNext()) {
       next();
     }
-    return;
+    return Data_Unit.unit;
   };
 })();

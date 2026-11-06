@@ -112,7 +112,7 @@ function withSelf(report) {
                   };
                   const asyncArgument$4 = () => {
                     self.value = $value;
-                    return undefined;
+                    return Data_Unit.unit;
                   };
                   const $unit$2 = asyncArgument$4();
                   const asyncArgument$5 = Iris_Effect_Async.await(fiber);

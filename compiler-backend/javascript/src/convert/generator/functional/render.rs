@@ -19,10 +19,10 @@ use functional::optimize::{
 };
 use functional::tree::{
     ArrayElement as FunctionalArrayElement, BinaryOperator as FunctionalBinaryOperator, Binding,
-    CaseAlternative, Declaration, DeclarationKind, EffectExpression,
+    CaseAlternative, Declaration, DeclarationKind, EffectExpression, EffectStatement,
     ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
     GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
-    PatternId, PatternKind, RecordField, RecordUpdate, Storage, WriteResult,
+    PatternId, PatternKind, RecordField, RecordUpdate, Storage,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -130,6 +130,11 @@ enum CapturedEffect {
     Map { function: ExpressionId, action: CapturedEffectAction },
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
     Operation(CapturedOperation),
+    Statement { statement: CapturedStatement, unit: FunctionalExpressionId },
+}
+
+enum CapturedStatement {
+    ReferenceWrite { target: ExpressionId, value: ExpressionId },
     Loop(CapturedLoop),
     When { condition: ExpressionId, action: CapturedEffectAction, origin: Option<Origin> },
 }
@@ -137,25 +142,18 @@ enum CapturedEffect {
 enum CapturedOperation {
     ReferenceNew { value: ExpressionId },
     ReferenceRead { target: ExpressionId },
-    ReferenceWrite { target: ExpressionId, value: ExpressionId, result: WriteResult },
+    ReferenceWrite { target: ExpressionId, value: ExpressionId },
     UncurriedApplication { function: ExpressionId, arguments: Vec<ExpressionId> },
 }
 
 impl CapturedOperation {
-    fn execute<'t>(self, tree: &mut Tree<'t>, writer: &mut Writer<'t>) -> ExpressionId {
+    fn execute(self, tree: &mut Tree) -> ExpressionId {
         match self {
             CapturedOperation::ReferenceNew { value } => {
                 tree.object(vec![ObjectProperty::Field { name: "value".into(), value }])
             }
             CapturedOperation::ReferenceRead { target } => target,
-            CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Value } => {
-                tree.assignment(target, value)
-            }
-            CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit } => {
-                let assignment = tree.assignment(target, value);
-                writer.expression_statement(tree, assignment);
-                tree.undefined()
-            }
+            CapturedOperation::ReferenceWrite { target, value } => tree.assignment(target, value),
             CapturedOperation::UncurriedApplication { function, arguments } => {
                 tree.call(function, arguments)
             }
@@ -3556,15 +3554,10 @@ fn capture_effect(
             let target = capture_reference_target(renderer, *reference)?;
             Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { target }))
         }
-        EffectExpression::ReferenceWrite { reference, value, result } => {
+        EffectExpression::ReferenceWrite { reference, value } => {
             let target = capture_reference_target(renderer, *reference)?;
             let value = capture_effect_value(renderer, *value, "$value")?;
-            let result = *result;
-            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite {
-                target,
-                value,
-                result,
-            }))
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { target, value }))
         }
         EffectExpression::UncurriedApplication { function, arguments } => {
             let function = capture_effect_value(renderer, *function, "$function")?;
@@ -3577,14 +3570,31 @@ fn capture_effect(
                 arguments,
             }))
         }
-        EffectExpression::Loop(effect_loop) => {
-            Ok(CapturedEffect::Loop(capture_loop(renderer, effect_loop)?))
+        EffectExpression::Statement { statement, unit } => {
+            let statement = capture_statement(renderer, statement)?;
+            Ok(CapturedEffect::Statement { statement, unit: *unit })
         }
-        EffectExpression::When { condition, action } => {
+    }
+}
+
+fn capture_statement(
+    renderer: &mut FunctionRenderer<'_, '_, '_>,
+    statement: &EffectStatement,
+) -> ModuleResult<CapturedStatement> {
+    match statement {
+        EffectStatement::ReferenceWrite { reference, value } => {
+            let target = capture_reference_target(renderer, *reference)?;
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            Ok(CapturedStatement::ReferenceWrite { target, value })
+        }
+        EffectStatement::Loop(effect_loop) => {
+            Ok(CapturedStatement::Loop(capture_loop(renderer, effect_loop)?))
+        }
+        EffectStatement::When { condition, action } => {
             let condition = capture_effect_value(renderer, *condition, "$condition")?;
             let origin = renderer.generator.module.storage[*action].origin;
             let action = capture_effect_action(renderer, *action, "$action")?;
-            Ok(CapturedEffect::When { condition, action, origin })
+            Ok(CapturedStatement::When { condition, action, origin })
         }
     }
 }
@@ -3624,7 +3634,14 @@ fn reference_stays_local(
             ExpressionKind::Effect { effect: EffectExpression::ReferenceRead(operand) }
                 if is_reference(*operand) => {}
             ExpressionKind::Effect {
-                effect: EffectExpression::ReferenceWrite { reference: operand, value, .. },
+                effect: EffectExpression::ReferenceWrite { reference: operand, value },
+            } if is_reference(*operand) => pending.push(*value),
+            ExpressionKind::Effect {
+                effect:
+                    EffectExpression::Statement {
+                        statement: EffectStatement::ReferenceWrite { reference: operand, value },
+                        ..
+                    },
             } if is_reference(*operand) => pending.push(*value),
             kind => for_each_expression_child(kind, |child| pending.push(child)),
         }
@@ -3704,23 +3721,14 @@ fn execute_effect(
                 renderer.writer.mutable_value(renderer.tree, &name, value);
                 renderer.context.bind_reference(&parameter, name);
             } else if let CapturedEffectAction::Effect(effect) = &action
-                && let CapturedEffect::Operation(CapturedOperation::ReferenceWrite {
-                    target,
-                    value,
-                    result: WriteResult::Unit,
-                }) = effect.as_ref()
+                && let CapturedEffect::Statement { .. } = effect.as_ref()
             {
-                let target = renderer.tree.duplicate(target);
-                let value = renderer.tree.duplicate(value);
-                let operation =
-                    CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit };
-                let result = operation.execute(renderer.tree, renderer.writer);
-                renderer.context.bind_inline(&parameter, result);
-            } else if let CapturedEffectAction::Effect(effect) = &action
-                && let CapturedEffect::Loop(_) | CapturedEffect::When { .. } = effect.as_ref()
-            {
-                let result = execute_effect_action_value(renderer, action, &parameter.name)?;
-                renderer.context.bind_inline(&parameter, result);
+                if local_uses(&renderer.generator.module.storage, body, parameter.id) == 0 {
+                    execute_effect_action_destination(renderer, action, Destination::Discard)?;
+                } else {
+                    let result = execute_effect_action_value(renderer, action, &parameter.name)?;
+                    renderer.context.bind_inline(&parameter, result);
+                }
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3745,7 +3753,7 @@ fn execute_effect(
             Ok(())
         }
         CapturedEffect::Operation(operation) => {
-            let result = operation.execute(renderer.tree, renderer.writer);
+            let result = operation.execute(renderer.tree);
             renderer.generator.render_destination(
                 renderer.tree,
                 renderer.writer,
@@ -3754,15 +3762,9 @@ fn execute_effect(
             );
             Ok(())
         }
-        CapturedEffect::Loop(effect_loop) => {
-            execute_loop(renderer, effect_loop)?;
-            render_unit_destination(renderer, destination);
-            Ok(())
-        }
-        CapturedEffect::When { condition, action, origin } => {
-            execute_when(renderer, condition, action, origin)?;
-            render_unit_destination(renderer, destination);
-            Ok(())
+        CapturedEffect::Statement { statement, unit } => {
+            execute_statement(renderer, statement)?;
+            render_unit_destination(renderer, unit, destination)
         }
         CapturedEffect::Apply { function_action, argument_action } => {
             let function = if matches!(&argument_action, CapturedEffectAction::Effect(_)) {
@@ -3785,29 +3787,35 @@ fn execute_effect(
 
 fn render_unit_destination(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
+    unit: FunctionalExpressionId,
     destination: Destination<'_>,
-) {
+) -> ModuleResult<()> {
+    let FunctionRenderer { generator, tree, writer, context } = renderer;
     match destination {
-        Destination::Return => renderer.writer.return_undefined(),
-        Destination::Continue => renderer.writer.continue_loop(),
+        Destination::Discard => {}
+        Destination::DiscardAndBreak { label } => writer.break_label(label),
+        Destination::Continue => writer.continue_loop(),
         destination => {
-            let result = renderer.tree.undefined();
-            renderer.generator.render_destination(
-                renderer.tree,
-                renderer.writer,
-                result,
-                destination,
-            );
+            let unit = generator.expression_value(tree, writer, unit, context)?;
+            generator.render_destination(tree, writer, unit, destination);
         }
     }
+    Ok(())
 }
 
-fn execute_when(
+fn execute_statement(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
-    condition: ExpressionId,
-    action: CapturedEffectAction,
-    origin: Option<Origin>,
+    statement: CapturedStatement,
 ) -> ModuleResult<()> {
+    let (condition, action, origin) = match statement {
+        CapturedStatement::ReferenceWrite { target, value } => {
+            let assignment = renderer.tree.assignment(target, value);
+            renderer.writer.expression_statement(renderer.tree, assignment);
+            return Ok(());
+        }
+        CapturedStatement::Loop(effect_loop) => return execute_loop(renderer, effect_loop),
+        CapturedStatement::When { condition, action, origin } => (condition, action, origin),
+    };
     let FunctionRenderer { generator, tree, writer, context } = renderer;
     let condition = tree.duplicate(&condition);
     writer.if_block(tree, condition, |tree, writer| {
@@ -3845,16 +3853,11 @@ fn execute_effect_action_value(
             Ok(renderer.tree.call(value, Vec::new()))
         }
         CapturedEffectAction::Effect(effect) => match *effect {
-            CapturedEffect::Operation(operation) => {
-                Ok(operation.execute(renderer.tree, renderer.writer))
-            }
-            CapturedEffect::Loop(effect_loop) => {
-                execute_loop(renderer, effect_loop)?;
-                Ok(renderer.tree.undefined())
-            }
-            CapturedEffect::When { condition, action, origin } => {
-                execute_when(renderer, condition, action, origin)?;
-                Ok(renderer.tree.undefined())
+            CapturedEffect::Operation(operation) => Ok(operation.execute(renderer.tree)),
+            CapturedEffect::Statement { statement, unit } => {
+                execute_statement(renderer, statement)?;
+                let FunctionRenderer { generator, tree, writer, context } = renderer;
+                generator.expression_value(tree, writer, unit, context)
             }
             effect => {
                 let name = renderer.context.allocate(preferred_name);
@@ -3883,7 +3886,7 @@ fn execute_effect_action(
                 renderer.writer.constant(renderer.tree, &name, value, false);
             }
             CapturedEffect::Operation(operation) => {
-                let value = operation.execute(renderer.tree, renderer.writer);
+                let value = operation.execute(renderer.tree);
                 renderer.writer.constant(renderer.tree, &name, value, false);
             }
             effect => {

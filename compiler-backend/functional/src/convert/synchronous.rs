@@ -1,5 +1,7 @@
 use crate::optimize::local_uses;
-use crate::tree::{Binding, EffectExpression, ExpressionId, ExpressionKind, Parameter};
+use crate::tree::{
+    Binding, EffectExpression, EffectStatement, ExpressionId, ExpressionKind, Parameter,
+};
 
 use super::{Context, ConversionResult};
 
@@ -101,8 +103,9 @@ where
             self.known_conditional_arguments(function, arguments, |context, dictionary| {
                 context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
             })?
+            && let Some(unit) = self.unit_value()?
         {
-            return self.lower_sync(SyncOperation::When, &[condition, action]).map(Some);
+            return self.lower_sync(SyncOperation::When, &[condition, action, unit]).map(Some);
         }
         Ok(None)
     }
@@ -147,9 +150,10 @@ where
                 let body = self.sync_application(continuation, environment)?;
                 EffectExpression::Bind { action, parameter, body }
             }
-            (SyncOperation::When, [condition, action]) => {
+            (SyncOperation::When, [condition, action, unit]) => {
                 let action = self.sync_application(*action, environment)?;
-                EffectExpression::When { condition: *condition, action }
+                let statement = EffectStatement::When { condition: *condition, action };
+                EffectExpression::Statement { statement, unit: *unit }
             }
             (SyncOperation::LiftEffect, [action]) => {
                 let body = self.parameter_abstraction([parameter], *action);

@@ -198,7 +198,7 @@ function prioritize(scheduler) {
         _2: front
       };
       $reference$1.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -211,7 +211,7 @@ function drainUnlessDraining(scheduler) {
     if ($condition) {
       $action();
     }
-    return;
+    return Data_Unit.unit;
   };
 }
 function drain(scheduler) {
@@ -273,7 +273,7 @@ function recordFirstEscape(recorded) {
           recorded.value = escaped;
         }
       }
-      return;
+      return Data_Unit.unit;
     };
   };
 }
@@ -379,7 +379,7 @@ export function killFiber(error) {
           if ($condition) {
             $reference$2.value = $value$1;
           }
-          return;
+          return Data_Unit.unit;
         };
         const $reference$3 = fiber.status;
         const abandon = () => {
@@ -388,7 +388,7 @@ export function killFiber(error) {
           $reference$4.value = "Nothing";
           const $reference$5 = fiber.failure;
           $reference$5.value = "Nothing";
-          return undefined;
+          return Data_Unit.unit;
         };
         $case: {
           if (status === "Suspended") {
@@ -501,7 +501,7 @@ function onComplete(fiber) {
         const $reference$7 = fiber.joins;
         const $value$3 = Data_List.filter((entry) => entry.identifier !== identifier)(remaining);
         $reference$7.value = $value$3;
-        return undefined;
+        return Data_Unit.unit;
       };
     };
   };
@@ -518,7 +518,7 @@ function pushAttempt(fiber) {
         _2: attempts
       };
       $reference$1.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -546,7 +546,7 @@ function enterFinalizer(fiber) {
     const $reference$6 = fiber.bracketCount;
     const $value = bracketCount + (1 | 0) | 0;
     $reference$6.value = $value;
-    return undefined;
+    return Data_Unit.unit;
   };
 }
 function die(fiber) {
@@ -564,7 +564,7 @@ function die(fiber) {
       $reference$2.value = "Nothing";
       const $reference$3 = fiber.returnValue;
       $reference$3.value = "Nothing";
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -587,7 +587,7 @@ function suspendContinuations(fiber) {
     }
     const $reference$2 = fiber.continuations;
     $reference$2.value = "Nil";
-    return undefined;
+    return Data_Unit.unit;
   };
 }
 function $tail_run_runFromStatus_runSteps($state, $argument0) {
@@ -663,7 +663,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             if ($condition$1) {
               $action$3();
             }
-            return [false, undefined];
+            return [false, Data_Unit.unit];
           }
           if (status$1 === "Return") {
             const $reference$9 = $currentArgument0$1.status;
@@ -675,7 +675,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             if ($condition$2) {
               $action$5();
             }
-            return [false, undefined];
+            return [false, Data_Unit.unit];
           }
           if (status$1 === "Running") {
             return [false, Data_Unit.unit];
@@ -845,10 +845,10 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                           $reference$19.value = "Runnable";
                           run($currentArgument0$2)();
                         }
-                        return;
+                        return Data_Unit.unit;
                       })();
                     }
-                    return;
+                    return Data_Unit.unit;
                   };
                 });
                 const canceler = $action$8();
@@ -939,7 +939,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
               break;
             }
           }
-          return [false, undefined];
+          return [false, Data_Unit.unit];
         };
       }
     }
@@ -1052,7 +1052,7 @@ function pushContinuation(fiber) {
         _2: continuations
       };
       $reference$1.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }

@@ -9,7 +9,7 @@ export function whenConfigured(configuration) {
     const $value = configuration.value;
     const asyncArgument$1 = () => {
       reference.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
     return (environment) => {
       return {
@@ -36,7 +36,7 @@ export function unlessConfigured(configuration) {
     const $value = configuration.value;
     const asyncArgument$1 = () => {
       reference.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
     return (environment) => {
       return {

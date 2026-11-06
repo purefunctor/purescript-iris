@@ -348,10 +348,6 @@ impl<'a> Writer<'a> {
         self.statements.push(Statement::new_break_statement(self.span(), None, &self.builder));
     }
 
-    pub(crate) fn return_undefined(&mut self) {
-        self.statements.push(Statement::new_return_statement(self.span(), None, &self.builder));
-    }
-
     pub(crate) fn function<R>(
         &mut self,
         name: &str,

@@ -1,5 +1,6 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
 export function visit(values) {
   const $value = [];
@@ -28,7 +29,7 @@ export function record(seen) {
       const section163 = seen.value;
       const $value = [...section163, value];
       seen.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }

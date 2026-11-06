@@ -1,3 +1,4 @@
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
 export function writeArgument(reference) {
   const $value = mark("write argument")(5 | 0);
@@ -64,7 +65,7 @@ export function modifyResults(reference) {
     const section291 = reference.value;
     const $value$1 = section291 * (2 | 0) | 0;
     reference.value = $value$1;
-    discarded = undefined;
+    discarded = Data_Unit.unit;
     const final = reference.value;
     return {
       modified,

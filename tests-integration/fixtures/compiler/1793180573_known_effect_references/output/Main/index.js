@@ -1,4 +1,5 @@
 import * as Data_Semiring from "../Data.Semiring/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 export function newCounter(value) {
   return () => {
     return { value };
@@ -12,7 +13,7 @@ export function readCounter(counter) {
 export function resetCounter(counter) {
   return () => {
     counter.value = 0 | 0;
-    return undefined;
+    return Data_Unit.unit;
   };
 }
 export function incrementCounter(counter) {

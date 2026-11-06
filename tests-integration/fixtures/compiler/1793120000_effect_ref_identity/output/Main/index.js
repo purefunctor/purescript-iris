@@ -1,5 +1,6 @@
 import * as Data_Array from "../Data.Array/index.js";
 import * as Data_Function from "../Data.Function/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
 export function allocated(count) {
   const $value = [];
@@ -30,11 +31,11 @@ export function incrementTwice(reference) {
     const section253 = reference.value;
     const $value = section253 + (1 | 0) | 0;
     reference.value = $value;
-    $unit = undefined;
+    $unit = Data_Unit.unit;
     const section266 = reference.value;
     const $value$1 = section266 + (1 | 0) | 0;
     reference.value = $value$1;
-    return undefined;
+    return Data_Unit.unit;
   };
 }
 export const sameReference = $foreign["sameReference"];
