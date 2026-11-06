@@ -30,3 +30,9 @@ productRange end = ST.run do
   total <- STRef.new 1
   ST.for 1 end \index -> STRef.modify (_ * index) total
   STRef.read total
+
+sumOdd :: Int -> Effect Int
+sumOdd end = do
+  total <- Ref.new 0
+  forE 0 end \index -> if index `mod` 2 == 1 then Ref.modify_ (_ + index) total else pure unit
+  Ref.read total

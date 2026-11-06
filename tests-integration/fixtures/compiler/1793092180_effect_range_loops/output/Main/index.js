@@ -1,5 +1,7 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
+import * as $runtime from "../runtime.js";
 export function sumRange(start) {
   return (end) => {
     return () => {
@@ -47,5 +49,21 @@ export function productRange(end) {
     return total;
   };
   return $function($effect);
+}
+export function sumOdd(end) {
+  return () => {
+    let total = 0 | 0;
+    for (let index = 0 | 0; index < end; index++) {
+      if (/* @__PURE__ */ $runtime.intMod(index, 2 | 0) === (1 | 0)) {
+        const section272 = total;
+        const $value = section272 + index | 0;
+        total = $value;
+        continue;
+      } else {
+        continue;
+      }
+    }
+    return total;
+  };
 }
 export const traced = $foreign["traced"];

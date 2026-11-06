@@ -377,7 +377,10 @@ impl<'a> Destination<'a> {
     }
 
     fn is_discard(self) -> bool {
-        matches!(self, Destination::Discard | Destination::DiscardAndBreak { .. })
+        matches!(
+            self,
+            Destination::Discard | Destination::DiscardAndBreak { .. } | Destination::Continue
+        )
     }
 }
 
@@ -1528,18 +1531,17 @@ impl Generator<'_> {
         if let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
             &self.module.storage[expression].kind
         {
-            return self.render_expression(tree, writer, *value, destination, context);
-        }
-        if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
-            if destination.is_discard()
-                && let EffectExpression::Pure(value) = effect
-                && self.discarded_value_is_stable(*value, context)
-            {
-                if let Destination::DiscardAndBreak { label } = destination {
-                    writer.break_label(label);
+            if destination.is_discard() && self.discarded_value_is_stable(*value, context) {
+                match destination {
+                    Destination::DiscardAndBreak { label } => writer.break_label(label),
+                    Destination::Continue => writer.continue_loop(),
+                    _ => {}
                 }
                 return Ok(());
             }
+            return self.render_expression(tree, writer, *value, destination, context);
+        }
+        if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
             let mut renderer = self.renderer(tree, writer, context);
             let effect = capture_executed_effect(&mut renderer, effect)?;
             return execute_effect(&mut renderer, effect, destination);

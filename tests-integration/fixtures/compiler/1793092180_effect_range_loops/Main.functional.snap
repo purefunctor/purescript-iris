@@ -32,3 +32,15 @@ source: tests-integration/src/fixtures.rs
           effect.bind (reference.read total%12)
             \section210%15 -> reference.write total%12 (integer.multiply section210%15 index%14)))
         \$unit%16 -> reference.read total%12)
+
+@export sumOdd = \end%18 ->
+  effect.bind (reference.new 0)
+    \total%17 -> effect.bind (effect.forRange
+      0
+      end%18
+      (\index%19 ->
+        if integer.equal (integer.modulo index%19 2) 1
+          then effect.bind (reference.read total%17)
+            \section272%20 -> reference.write.unit total%17 (integer.add section272%20 index%19)
+          else effect.pure unit))
+      \$unit%21 -> reference.read total%17

@@ -349,7 +349,6 @@ export function joinFiber(fiber) {
           drainUnlessDraining(runtime.scheduler)();
           break $case;
         }
-        Data_Unit.unit;
         break $case;
       }
       return canceler;
@@ -437,7 +436,6 @@ export function killFiber(error) {
                   break $case$1;
                 }
                 if (pendingCanceler === "Nothing") {
-                  Data_Unit.unit;
                   break $case$1;
                 }
                 throw new Error("Pattern match failure");
@@ -583,7 +581,6 @@ function suspendContinuations(fiber) {
     const continuations = $reference$1.value;
     $case: {
       if (continuations === "Nil") {
-        Data_Unit.unit;
         break $case;
       }
       pushAttempt(fiber)({
@@ -878,7 +875,6 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                     }
                     break $case$2;
                   }
-                  Data_Unit.unit;
                   break $case$2;
                 }
                 $condition$3 = true;

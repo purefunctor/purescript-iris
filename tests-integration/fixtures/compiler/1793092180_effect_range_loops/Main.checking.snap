@@ -7,5 +7,6 @@ sumRange :: Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
 addTo :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Effect.Effect Data.Unit.Unit
 sumWithFunction :: Prim.Int -> Effect.Effect Prim.Int
 productRange :: Prim.Int -> Prim.Int
+sumOdd :: Prim.Int -> Effect.Effect Prim.Int
 
 Types
