@@ -355,6 +355,28 @@ impl<'a> Destination<'a> {
         )
     }
 
+    fn and_break(self, label: &'a str) -> Destination<'a> {
+        match self {
+            Destination::Assign(name) => Destination::AssignAndBreak { name, label },
+            Destination::EffectAssign(name) => Destination::EffectAssignAndBreak { name, label },
+            Destination::Discard => Destination::DiscardAndBreak { label },
+            Destination::EffectDiscard => Destination::EffectDiscardAndBreak { label },
+            Destination::Return
+            | Destination::TailEffectThunkReturn
+            | Destination::TailEffectReturn
+            | Destination::EffectReturn
+            | Destination::EffectTailEffectReturn
+            | Destination::AssignAndBreak { .. }
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::DiscardAndBreak { .. }
+            | Destination::EffectDiscardAndBreak { .. }
+            | Destination::Continue
+            | Destination::EffectContinue => {
+                unreachable!("invariant violated: destination already ends its block")
+            }
+        }
+    }
+
     fn is_discard(self) -> bool {
         matches!(
             self,
@@ -2914,7 +2936,10 @@ fn render_case(
             destination,
             context,
         ),
-        Destination::Assign(name) => {
+        Destination::Assign(_)
+        | Destination::EffectAssign(_)
+        | Destination::Discard
+        | Destination::EffectDiscard => {
             let label = context.allocate("$case");
             writer.labeled_block(&label, |writer| {
                 generator.render_case_alternatives(
@@ -2922,38 +2947,7 @@ fn render_case(
                     writer,
                     &scrutinees,
                     alternatives,
-                    Destination::AssignAndBreak { name, label: &label },
-                    context,
-                )
-            })
-        }
-        Destination::EffectAssign(name) => {
-            let label = context.allocate("$case");
-            writer.labeled_block(&label, |writer| {
-                generator.render_case_alternatives(
-                    tree,
-                    writer,
-                    &scrutinees,
-                    alternatives,
-                    Destination::EffectAssignAndBreak { name, label: &label },
-                    context,
-                )
-            })
-        }
-        Destination::Discard | Destination::EffectDiscard => {
-            let label = context.allocate("$case");
-            let destination = if destination.is_effect() {
-                Destination::EffectDiscardAndBreak { label: &label }
-            } else {
-                Destination::DiscardAndBreak { label: &label }
-            };
-            writer.labeled_block(&label, |writer| {
-                generator.render_case_alternatives(
-                    tree,
-                    writer,
-                    &scrutinees,
-                    alternatives,
-                    destination,
+                    destination.and_break(&label),
                     context,
                 )
             })
@@ -3063,47 +3057,17 @@ fn render_guarded(
             generator.render_pattern_failure(writer);
             Ok(())
         }
-        Destination::Assign(name) => {
+        Destination::Assign(_)
+        | Destination::EffectAssign(_)
+        | Destination::Discard
+        | Destination::EffectDiscard => {
             let label = context.allocate("$guard");
             writer.labeled_block(&label, |writer| {
                 generator.render_guard_alternatives(
                     tree,
                     writer,
                     alternatives,
-                    Destination::AssignAndBreak { name, label: &label },
-                    context,
-                )?;
-                generator.render_pattern_failure(writer);
-                Ok(())
-            })
-        }
-        Destination::EffectAssign(name) => {
-            let label = context.allocate("$guard");
-            writer.labeled_block(&label, |writer| {
-                generator.render_guard_alternatives(
-                    tree,
-                    writer,
-                    alternatives,
-                    Destination::EffectAssignAndBreak { name, label: &label },
-                    context,
-                )?;
-                generator.render_pattern_failure(writer);
-                Ok(())
-            })
-        }
-        Destination::Discard | Destination::EffectDiscard => {
-            let label = context.allocate("$guard");
-            let destination = if destination.is_effect() {
-                Destination::EffectDiscardAndBreak { label: &label }
-            } else {
-                Destination::DiscardAndBreak { label: &label }
-            };
-            writer.labeled_block(&label, |writer| {
-                generator.render_guard_alternatives(
-                    tree,
-                    writer,
-                    alternatives,
-                    destination,
+                    destination.and_break(&label),
                     context,
                 )?;
                 generator.render_pattern_failure(writer);
