@@ -49,7 +49,7 @@ export const rankedValue = /* @__PURE__ */ ranked({
 export const taggedValue = /* @__PURE__ */ tagged({
   "Capabilities.First": (environment) => environment.first,
   "Capabilities.Second": (environment$1) => environment$1.second
-})({ getService: ($services) => $services.tagged })({
+})({ getService: (environment$2) => environment$2.tagged })({
   first: 0 | 0,
   second: 0 | 0,
   tagged: "tagged"

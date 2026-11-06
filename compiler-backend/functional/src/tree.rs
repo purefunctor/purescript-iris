@@ -352,10 +352,29 @@ pub enum EffectExpression {
     Apply { function_action: ExpressionId, argument_action: ExpressionId },
     ReferenceNew(ExpressionId),
     ReferenceRead(ExpressionId),
-    ReferenceWrite { reference: ExpressionId, value: ExpressionId, result: WriteResult },
+    ReferenceWrite { reference: ExpressionId, value: ExpressionId },
     UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]> },
+    Statement { statement: EffectStatement, unit: ExpressionId },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EffectStatement {
+    ReferenceWrite { reference: ExpressionId, value: ExpressionId },
     Loop(EffectLoop),
     When { condition: ExpressionId, action: ExpressionId },
+}
+
+impl EffectStatement {
+    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
+        let operands = match self {
+            EffectStatement::ReferenceWrite { reference, value } => {
+                [Some(*reference), Some(*value), None]
+            }
+            EffectStatement::Loop(effect_loop) => effect_loop.operands(),
+            EffectStatement::When { condition, action } => [Some(*condition), Some(*action), None],
+        };
+        operands.into_iter().flatten()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -367,14 +386,13 @@ pub enum EffectLoop {
 }
 
 impl EffectLoop {
-    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
-        let (first, second, third) = match self {
-            EffectLoop::Range { start, end, body } => (*start, Some(*end), Some(*body)),
-            EffectLoop::Each { array, body } => (*array, Some(*body), None),
-            EffectLoop::While { condition, body } => (*condition, Some(*body), None),
-            EffectLoop::Until { condition } => (*condition, None, None),
-        };
-        std::iter::once(first).chain(second).chain(third)
+    fn operands(&self) -> [Option<ExpressionId>; 3] {
+        match self {
+            EffectLoop::Range { start, end, body } => [Some(*start), Some(*end), Some(*body)],
+            EffectLoop::Each { array, body } => [Some(*array), Some(*body), None],
+            EffectLoop::While { condition, body } => [Some(*condition), Some(*body), None],
+            EffectLoop::Until { condition } => [Some(*condition), None, None],
+        }
     }
 }
 
@@ -385,12 +403,6 @@ pub enum AsyncExpression {
     Effect(ExpressionId),
     Fail(ExpressionId),
     Catch { body: ExpressionId, parameter: Parameter, handler: ExpressionId },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WriteResult {
-    Value,
-    Unit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -459,7 +471,6 @@ pub struct RecordPatternField {
 pub enum SynthesizedEvidence {
     IsSymbol(lowering::StringLiteral),
     Reflectable(ReflectableEvidence),
-    Service(SmolStr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

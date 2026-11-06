@@ -1,5 +1,7 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
+import * as $runtime from "../runtime.js";
 export function sumRange(start) {
   return (end) => {
     return () => {
@@ -21,7 +23,7 @@ export function addTo(total) {
       const section125 = total.value;
       const $value = section125 + index | 0;
       total.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -37,7 +39,7 @@ export function sumWithFunction(end) {
 }
 export function productRange(end) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let total = 1 | 0;
     for (let index = 1 | 0; index < end; index++) {
       const section210 = total;
@@ -45,7 +47,22 @@ export function productRange(end) {
       total = $value;
     }
     return total;
+  });
+}
+export function sumOdd(end) {
+  return () => {
+    let total = 0 | 0;
+    for (let index = 0 | 0; index < end; index++) {
+      if (/* @__PURE__ */ $runtime.intMod(index, 2 | 0) === (1 | 0)) {
+        const section272 = total;
+        const $value = section272 + index | 0;
+        total = $value;
+        continue;
+      } else {
+        continue;
+      }
+    }
+    return total;
   };
-  return $function($effect);
 }
 export const traced = $foreign["traced"];

@@ -110,17 +110,12 @@ where
             }
         }
         if selected.is_none()
-            && let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
-                function,
-                arguments,
-                "Control.Bind",
-                "discard",
-                "Control.Bind",
-                "discardUnit",
-            )?
-            && self.known_named_instance(*dictionary, "Iris.Effect.Async", "bindAsync")?
+            && let Some((action, continuation)) =
+                self.known_discard_arguments(function, arguments, |context, dictionary| {
+                    context.known_named_instance(dictionary, "Iris.Effect.Async", "bindAsync")
+                })?
         {
-            selected = Some((AsyncOperation::Bind, vec![*action, *continuation]));
+            selected = Some((AsyncOperation::Bind, vec![action, continuation]));
         }
         if selected.is_none()
             && let Some((condition, action)) =
@@ -152,16 +147,6 @@ where
         }
         self.lowering_constructors_available = Some(available);
         Ok(available)
-    }
-
-    fn unit_value(&mut self) -> ConversionResult<Option<ExpressionId>> {
-        let Some(file_id) = self.queries.module_file("Data.Unit") else { return Ok(None) };
-        let indexed = self.indexed_module(file_id)?;
-        let mut terms = indexed.items.iter_terms();
-        let unit = terms.find(|(_, item)| item.name.as_deref() == Some("unit"));
-        let Some((term_id, _)) = unit else { return Ok(None) };
-        let global = self.term_global(file_id, term_id)?;
-        Ok(Some(self.expression(ExpressionKind::Global { global })))
     }
 
     fn constructor_exists(

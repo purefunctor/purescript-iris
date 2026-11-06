@@ -16,15 +16,15 @@ labelled = \showValueDict%9 hasLabelValueServicesDict%6 services%5 ->
 
 @export run = \write%11 ->
   let
-    syncArgument%16 = handle
+    syncArgument%17 = handle
       {
         "Logging.Logger": \environment%12 -> environment%12.log,
         "Main.Clock": \environment%13 -> environment%13.clock
       }
       "first"
   in let
-    environment%17 = { clock: 12, log: write%11, label: true }
-  in effect.bind (syncArgument%16 environment%17)
-    \$unit%14 -> labelled showBoolean (service "label")
-      { "Logging.Logger": \environment%15 -> environment%15.log }
-      environment%17
+    environment%18 = { clock: 12, log: write%11, label: true }
+  in effect.bind (syncArgument%17 environment%18)
+    \$unit%14 -> labelled showBoolean { getService: \environment%15 -> environment%15.label }
+      { "Logging.Logger": \environment%16 -> environment%16.log }
+      environment%18

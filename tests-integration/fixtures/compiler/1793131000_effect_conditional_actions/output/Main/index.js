@@ -1,4 +1,5 @@
 import * as Control_Applicative from "../Control.Applicative/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 export function whenConfigured(configuration) {
   return (reference) => {
     const $condition = configuration.enabled;
@@ -7,7 +8,7 @@ export function whenConfigured(configuration) {
       if ($condition) {
         reference.value = $value;
       }
-      return;
+      return Data_Unit.unit;
     };
   };
 }
@@ -19,7 +20,7 @@ export function unlessConfigured(configuration) {
       if ($condition) {
         reference.value = $value;
       }
-      return;
+      return Data_Unit.unit;
     };
   };
 }

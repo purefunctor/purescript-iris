@@ -7,8 +7,8 @@ use rustc_hash::FxHashSet;
 use smol_str::{SmolStr, format_smolstr};
 
 use crate::tree::{
-    AsyncExpression, Binding, EffectExpression, EffectLoop, ExpressionId, ExpressionKind, GlobalId,
-    Guard, Literal, LocalId, RecordUpdate, Storage, UnaryOperator,
+    AsyncExpression, Binding, EffectExpression, EffectLoop, EffectStatement, ExpressionId,
+    ExpressionKind, GlobalId, Guard, Literal, LocalId, RecordUpdate, Storage, UnaryOperator,
 };
 
 pub fn inline_simple_bindings(
@@ -317,7 +317,7 @@ pub fn for_each_evaluated_child(
                 }
                 EffectExpression::ReferenceNew(expression)
                 | EffectExpression::ReferenceRead(expression) => visit(*expression, value),
-                EffectExpression::ReferenceWrite { reference, value: written, .. } => {
+                EffectExpression::ReferenceWrite { reference, value: written } => {
                     visit(*reference, value);
                     visit(*written, value);
                 }
@@ -327,28 +327,35 @@ pub fn for_each_evaluated_child(
                         visit(*argument, value);
                     }
                 }
-                EffectExpression::Loop(effect_loop) => {
+                EffectExpression::Statement { statement, unit } => {
                     let repeated = ChildEvaluation { captured: true, effect_position };
-                    match effect_loop {
-                        EffectLoop::Range { start, end, body } => {
+                    match statement {
+                        EffectStatement::ReferenceWrite { reference, value: written } => {
+                            visit(*reference, value);
+                            visit(*written, value);
+                        }
+                        EffectStatement::Loop(EffectLoop::Range { start, end, body }) => {
                             visit(*start, value);
                             visit(*end, value);
                             visit(*body, repeated);
                         }
-                        EffectLoop::Each { array, body } => {
+                        EffectStatement::Loop(EffectLoop::Each { array, body }) => {
                             visit(*array, value);
                             visit(*body, repeated);
                         }
-                        EffectLoop::While { condition, body } => {
+                        EffectStatement::Loop(EffectLoop::While { condition, body }) => {
                             visit(*condition, repeated);
                             visit(*body, repeated);
                         }
-                        EffectLoop::Until { condition } => visit(*condition, repeated),
+                        EffectStatement::Loop(EffectLoop::Until { condition }) => {
+                            visit(*condition, repeated)
+                        }
+                        EffectStatement::When { condition, action: conditional } => {
+                            visit(*condition, value);
+                            visit(*conditional, action);
+                        }
                     }
-                }
-                EffectExpression::When { condition, action: conditional } => {
-                    visit(*condition, value);
-                    visit(*conditional, action);
+                    visit(*unit, value);
                 }
             }
         }
@@ -601,7 +608,7 @@ pub fn try_for_each_expression_child<Error>(
             EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
                 visit(*value)?
             }
-            EffectExpression::ReferenceWrite { reference, value, .. } => {
+            EffectExpression::ReferenceWrite { reference, value } => {
                 visit(*reference)?;
                 visit(*value)?;
             }
@@ -611,14 +618,11 @@ pub fn try_for_each_expression_child<Error>(
                     visit(*argument)?;
                 }
             }
-            EffectExpression::Loop(effect_loop) => {
-                for operand in effect_loop.operands() {
+            EffectExpression::Statement { statement, unit } => {
+                for operand in statement.operands() {
                     visit(operand)?;
                 }
-            }
-            EffectExpression::When { condition, action } => {
-                visit(*condition)?;
-                visit(*action)?;
+                visit(*unit)?;
             }
         },
         ExpressionKind::Async(asynchronous) => match asynchronous {

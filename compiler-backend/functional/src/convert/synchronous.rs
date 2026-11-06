@@ -1,6 +1,6 @@
 use crate::optimize::local_uses;
 use crate::tree::{
-    Binding, EffectExpression, ExpressionId, ExpressionKind, Parameter, SynthesizedEvidence,
+    Binding, EffectExpression, EffectStatement, ExpressionId, ExpressionKind, Parameter,
 };
 
 use super::{Context, ConversionResult};
@@ -45,17 +45,6 @@ where
         {
             return Ok(field.expression);
         }
-        if let ExpressionKind::SynthesizedEvidence {
-            evidence: SynthesizedEvidence::Service(label),
-        } = &self.storage[dictionary].kind
-        {
-            let label = label.clone();
-            let parameter = self.fresh_parameter("environment".into())?;
-            let record = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
-            let field = self.label_field(label);
-            let body = self.expression(ExpressionKind::Project { record, field });
-            return Ok(self.parameter_abstraction([parameter], body));
-        }
         let field = self.label_field("getService".into());
         Ok(self.expression(ExpressionKind::Project { record: dictionary, field }))
     }
@@ -76,15 +65,13 @@ where
             return self.sync_application(*program, *environment).map(Some);
         }
 
-        let mut selected = None;
         for (name, arity, operation) in [
             ("liftEffect", 1, SyncOperation::LiftEffect),
             ("service", 1, SyncOperation::Service),
             ("provide", 2, SyncOperation::Provide),
         ] {
             if arguments.len() == arity && self.known_term(function, "Iris.Effect.Sync", name)? {
-                selected = Some((operation, arguments));
-                break;
+                return self.lower_sync(operation, arguments).map(Some);
             }
         }
         for (module, member, instance, arity, operation) in [
@@ -93,43 +80,34 @@ where
             ("Control.Apply", "apply", "applySync", 2, SyncOperation::Apply),
             ("Control.Bind", "bind", "bindSync", 2, SyncOperation::Bind),
         ] {
-            if selected.is_none()
-                && let Some(operands) = self.known_instance_member_arguments(
-                    function,
-                    arguments,
-                    module,
-                    member,
-                    "Iris.Effect.Sync",
-                    instance,
-                )?
-                && operands.len() == arity
-            {
-                selected = Some((operation, operands));
-            }
-        }
-        if selected.is_none()
-            && let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
+            if let Some(operands) = self.known_instance_member_arguments(
                 function,
                 arguments,
-                "Control.Bind",
-                "discard",
-                "Control.Bind",
-                "discardUnit",
-            )?
-            && self.known_named_instance(*dictionary, "Iris.Effect.Sync", "bindSync")?
-        {
-            return self.lower_sync(SyncOperation::Bind, &[*action, *continuation]).map(Some);
+                module,
+                member,
+                "Iris.Effect.Sync",
+                instance,
+            )? && operands.len() == arity
+            {
+                return self.lower_sync(operation, operands).map(Some);
+            }
         }
-        if selected.is_none()
-            && let Some((condition, action)) =
-                self.known_conditional_arguments(function, arguments, |context, dictionary| {
-                    context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
-                })?
+        if let Some((action, continuation)) =
+            self.known_discard_arguments(function, arguments, |context, dictionary| {
+                context.known_named_instance(dictionary, "Iris.Effect.Sync", "bindSync")
+            })?
         {
-            return self.lower_sync(SyncOperation::When, &[condition, action]).map(Some);
+            return self.lower_sync(SyncOperation::Bind, &[action, continuation]).map(Some);
         }
-        let Some((operation, operands)) = selected else { return Ok(None) };
-        self.lower_sync(operation, operands).map(Some)
+        if let Some((condition, action)) =
+            self.known_conditional_arguments(function, arguments, |context, dictionary| {
+                context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
+            })?
+            && let Some(unit) = self.unit_value()?
+        {
+            return self.lower_sync(SyncOperation::When, &[condition, action, unit]).map(Some);
+        }
+        Ok(None)
     }
 
     fn lower_sync(
@@ -172,9 +150,10 @@ where
                 let body = self.sync_application(continuation, environment)?;
                 EffectExpression::Bind { action, parameter, body }
             }
-            (SyncOperation::When, [condition, action]) => {
+            (SyncOperation::When, [condition, action, unit]) => {
                 let action = self.sync_application(*action, environment)?;
-                EffectExpression::When { condition: *condition, action }
+                let statement = EffectStatement::When { condition: *condition, action };
+                EffectExpression::Statement { statement, unit: *unit }
             }
             (SyncOperation::LiftEffect, [action]) => {
                 let body = self.parameter_abstraction([parameter], *action);

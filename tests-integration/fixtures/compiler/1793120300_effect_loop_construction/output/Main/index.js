@@ -1,3 +1,4 @@
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect from "../Effect/index.js";
 import * as $foreign from "./foreign.js";
 export function forCaptured(counter) {
@@ -7,14 +8,14 @@ export function forCaptured(counter) {
       const section90 = counter.value;
       const $value = section90 + index | 0;
       counter.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   });
   return () => {
     for (let $index = 0 | 0; $index < $end; $index++) {
       $body($index)();
     }
-    return;
+    return Data_Unit.unit;
   };
 }
 export function forInlineBody(counter) {
@@ -23,45 +24,42 @@ export function forInlineBody(counter) {
       const $value = mark("body")(index);
       counter.value = $value;
     }
-    return;
+    return Data_Unit.unit;
   };
 }
 export function untilCaptured(counter) {
   const $function = mark("action");
   const $function$1 = (section160) => section160 >= (2 | 0);
-  const $effect = () => {
+  const $condition = $function(() => {
     let $value;
     const section172 = counter.value;
     const $value$1 = section172 + (1 | 0) | 0;
     $value = counter.value = $value$1;
     return $function$1($value);
-  };
-  const $condition = $function($effect);
+  });
   return () => {
     while (!$condition()) {}
-    return;
+    return Data_Unit.unit;
   };
 }
 export function whileCaptured(counter) {
   const $function = mark("condition");
   const $function$1 = (section206) => section206 < (3 | 0);
-  const $effect = () => {
+  const $condition = $function(() => {
     return $function$1(counter.value);
-  };
-  const $condition = $function($effect);
+  });
   const $function$2 = mark("action");
-  const $effect$1 = () => {
+  const $body = $function$2(() => {
     const section231 = counter.value;
     const $value = section231 + (1 | 0) | 0;
     counter.value = $value;
-    return undefined;
-  };
-  const $body = $function$2($effect$1);
+    return Data_Unit.unit;
+  });
   return () => {
     while ($condition()) {
       $body();
     }
-    return;
+    return Data_Unit.unit;
   };
 }
 export function foreachCaptured(counter) {
@@ -72,7 +70,7 @@ export function foreachCaptured(counter) {
         const section281 = counter.value;
         const $value = section281 + element | 0;
         counter.value = $value;
-        return undefined;
+        return Data_Unit.unit;
       };
     });
     return () => {
@@ -80,7 +78,7 @@ export function foreachCaptured(counter) {
       for (let $index = 0; $index < $length; $index++) {
         $body($array[$index])();
       }
-      return;
+      return Data_Unit.unit;
     };
   };
 }

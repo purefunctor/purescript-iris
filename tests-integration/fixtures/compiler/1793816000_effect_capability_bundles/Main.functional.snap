@@ -53,5 +53,5 @@ source: tests-integration/src/fixtures.rs
     "Capabilities.First": \environment%20 -> environment%20.first,
     "Capabilities.Second": \environment%21 -> environment%21.second
   }
-  (service "tagged")
+  { getService: \environment%22 -> environment%22.tagged }
   { first: 0, second: 0, tagged: "tagged" }

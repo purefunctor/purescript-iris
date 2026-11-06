@@ -1,4 +1,3 @@
-import * as Data_Either from "../Data.Either/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
 import * as Data_Show from "../Data.Show/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";

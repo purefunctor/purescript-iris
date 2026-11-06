@@ -1,5 +1,6 @@
 import * as Control_Monad_ST_Internal from "../Control.Monad.ST.Internal/index.js";
 import * as Data_Functor from "../Data.Functor/index.js";
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
 export function visit(values) {
   const $value = [];
@@ -28,7 +29,7 @@ export function record(seen) {
       const section163 = seen.value;
       const $value = [...section163, value];
       seen.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -46,22 +47,20 @@ export function visitWithFunction(values) {
 }
 export function sumState(values) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     let total = 0 | 0;
     const $length = values.length;
     for (let $index = 0; $index < $length; $index++) {
       const value = values[$index];
       const $function$1 = Data_Functor.void(Control_Monad_ST_Internal.functorST);
-      const $effect$1 = () => {
+      (/* @__PURE__ */ $function$1(() => {
         const section256 = total;
         const $value = section256 + value | 0;
         return total = $value;
-      };
-      (/* @__PURE__ */ $function$1($effect$1))();
+      }))();
     }
     return total;
-  };
-  return $function($effect);
+  });
 }
 export const push = $foreign["push"];
 export const poke = $foreign["poke"];

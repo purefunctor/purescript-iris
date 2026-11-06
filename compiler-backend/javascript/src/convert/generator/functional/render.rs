@@ -7,6 +7,7 @@ mod stylex;
 mod syntax;
 mod tail_call;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use files::{FileId, ForeignSourceKind};
@@ -18,10 +19,10 @@ use functional::optimize::{
 };
 use functional::tree::{
     ArrayElement as FunctionalArrayElement, BinaryOperator as FunctionalBinaryOperator, Binding,
-    CaseAlternative, Declaration, DeclarationKind, EffectExpression,
+    CaseAlternative, Declaration, DeclarationKind, EffectExpression, EffectStatement,
     ExpressionId as FunctionalExpressionId, ExpressionKind, Global, GlobalId, Guard,
     GuardedAlternative, LocalId, Module as FunctionalModule, ModuleDependency, Origin, Parameter,
-    PatternId, PatternKind, RecordField, RecordUpdate, Storage, WriteResult,
+    PatternId, PatternKind, RecordField, RecordUpdate, Storage,
 };
 use itertools::Itertools;
 use oxc_allocator::Allocator;
@@ -63,6 +64,7 @@ pub(crate) struct Generator<'m> {
     module_dependencies: FxHashMap<FileId, &'m ModuleDependency>,
     global_names: FxHashMap<GlobalId, SmolStr>,
     external_module_namespaces: FxHashMap<FileId, SmolStr>,
+    rendered_module_namespaces: RefCell<FxHashSet<FileId>>,
     external_named_imports: FxHashMap<GlobalId, NamedImport>,
     stylex_namespace: Option<SmolStr>,
     stylex_theme: Option<StyleXTheme>,
@@ -123,58 +125,35 @@ enum CapturedEffectAction {
 }
 
 enum CapturedEffect {
-    Pure {
-        value: ExpressionId,
-    },
-    Bind {
-        action: CapturedEffectAction,
-        parameter: Parameter,
-        body: FunctionalExpressionId,
-    },
-    Map {
-        function: ExpressionId,
-        action: CapturedEffectAction,
-    },
-    Apply {
-        function_action: CapturedEffectAction,
-        argument_action: CapturedEffectAction,
-    },
+    Pure { value: ExpressionId },
+    Bind { action: CapturedEffectAction, parameter: Parameter, body: FunctionalExpressionId },
+    Map { function: ExpressionId, action: CapturedEffectAction },
+    Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
     Operation(CapturedOperation),
+    Statement { statement: CapturedStatement, unit: FunctionalExpressionId },
+}
+
+enum CapturedStatement {
+    ReferenceWrite { target: ExpressionId, value: ExpressionId },
     Loop(CapturedLoop),
-    When {
-        condition: ExpressionId,
-        action: CapturedEffectAction,
-        origin: Option<Origin>,
-    },
-    ConditionalBind {
-        conditional: FunctionalExpressionId,
-        parameter: Parameter,
-        body: FunctionalExpressionId,
-    },
+    When { condition: ExpressionId, action: CapturedEffectAction, origin: Option<Origin> },
 }
 
 enum CapturedOperation {
     ReferenceNew { value: ExpressionId },
     ReferenceRead { target: ExpressionId },
-    ReferenceWrite { target: ExpressionId, value: ExpressionId, result: WriteResult },
+    ReferenceWrite { target: ExpressionId, value: ExpressionId },
     UncurriedApplication { function: ExpressionId, arguments: Vec<ExpressionId> },
 }
 
 impl CapturedOperation {
-    fn execute<'t>(self, tree: &mut Tree<'t>, writer: &mut Writer<'t>) -> ExpressionId {
+    fn execute(self, tree: &mut Tree) -> ExpressionId {
         match self {
             CapturedOperation::ReferenceNew { value } => {
                 tree.object(vec![ObjectProperty::Field { name: "value".into(), value }])
             }
             CapturedOperation::ReferenceRead { target } => target,
-            CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Value } => {
-                tree.assignment(target, value)
-            }
-            CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit } => {
-                let assignment = tree.assignment(target, value);
-                writer.expression_statement(tree, assignment);
-                tree.undefined()
-            }
+            CapturedOperation::ReferenceWrite { target, value } => tree.assignment(target, value),
             CapturedOperation::UncurriedApplication { function, arguments } => {
                 tree.call(function, arguments)
             }
@@ -376,8 +355,33 @@ impl<'a> Destination<'a> {
         )
     }
 
+    fn and_break(self, label: &'a str) -> Destination<'a> {
+        match self {
+            Destination::Assign(name) => Destination::AssignAndBreak { name, label },
+            Destination::EffectAssign(name) => Destination::EffectAssignAndBreak { name, label },
+            Destination::Discard => Destination::DiscardAndBreak { label },
+            Destination::EffectDiscard => Destination::EffectDiscardAndBreak { label },
+            Destination::Return
+            | Destination::TailEffectThunkReturn
+            | Destination::TailEffectReturn
+            | Destination::EffectReturn
+            | Destination::EffectTailEffectReturn
+            | Destination::AssignAndBreak { .. }
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::DiscardAndBreak { .. }
+            | Destination::EffectDiscardAndBreak { .. }
+            | Destination::Continue
+            | Destination::EffectContinue => {
+                unreachable!("invariant violated: destination already ends its block")
+            }
+        }
+    }
+
     fn is_discard(self) -> bool {
-        matches!(self, Destination::Discard | Destination::DiscardAndBreak { .. })
+        matches!(
+            self,
+            Destination::Discard | Destination::DiscardAndBreak { .. } | Destination::Continue
+        )
     }
 }
 
@@ -489,6 +493,7 @@ impl<'m> Generator<'m> {
             module_dependencies,
             global_names,
             external_module_namespaces,
+            rendered_module_namespaces: RefCell::default(),
             external_named_imports,
             stylex_namespace,
             stylex_theme,
@@ -514,7 +519,6 @@ impl<'m> Generator<'m> {
                 writer: &mut writer,
                 file: OutputFile::Index,
             };
-            render_imports(&mut renderer);
             render_constructors(&mut renderer);
             render_source_functions(&mut renderer)?;
             render_foreign_declarations(&mut renderer);
@@ -523,6 +527,15 @@ impl<'m> Generator<'m> {
             render_exports(&mut renderer);
             initializer_cycle
         };
+        writer.prepend(|writer| {
+            let mut renderer = ModuleRenderer {
+                generator: &self,
+                tree: &mut tree,
+                writer,
+                file: OutputFile::Index,
+            };
+            render_imports(&mut renderer);
+        });
         let stylex_theme_source = if let Some(theme) = &self.stylex_theme {
             let program_text = ProgramText::new();
             let mut tree = Tree::new(&allocator, ProgramText::clone(&program_text));
@@ -585,9 +598,9 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         writer.blank();
         return;
     }
-    let mut dependencies = generator
-        .external_module_namespaces
-        .keys()
+    let rendered_module_namespaces = generator.rendered_module_namespaces.borrow();
+    let mut dependencies = rendered_module_namespaces
+        .iter()
         .map(|&file_id| (file_id, generator.module_dependency(file_id)))
         .collect_vec();
     dependencies.sort_by_key(|(_, dependency)| dependency.module_name.as_str());
@@ -630,7 +643,7 @@ fn render_imports(renderer: &mut ModuleRenderer<'_, '_, '_>) {
         let path = format!("../{}", runtime_filename());
         writer.import_namespace(namespace, &path);
     }
-    if !generator.external_module_namespaces.is_empty()
+    if !rendered_module_namespaces.is_empty()
         || generator.stylex_namespace.is_some()
         || !generator.external_named_imports.is_empty()
         || generator.foreign_import.is_some()
@@ -1528,20 +1541,49 @@ impl Generator<'_> {
         if let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
             &self.module.storage[expression].kind
         {
-            return self.render_expression(tree, writer, *value, destination, context);
-        }
-        if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
-            if destination.is_discard()
-                && let EffectExpression::Pure(value) = effect
-                && self.discarded_value_is_stable(*value, context)
-            {
-                if let Destination::DiscardAndBreak { label } = destination {
-                    writer.break_label(label);
+            if destination.is_discard() && self.discarded_value_is_stable(*value, context) {
+                match destination {
+                    Destination::DiscardAndBreak { label } => writer.break_label(label),
+                    Destination::Continue => writer.continue_loop(),
+                    _ => {}
                 }
                 return Ok(());
             }
+            return self.render_expression(tree, writer, *value, destination, context);
+        }
+        if let ExpressionKind::Effect { effect } = &self.module.storage[expression].kind {
+            if let EffectExpression::Bind { action, parameter, body } = effect
+                && matches!(
+                    self.module.storage[*action].kind,
+                    ExpressionKind::IfThenElse { .. }
+                        | ExpressionKind::Case { .. }
+                        | ExpressionKind::Guarded { .. }
+                )
+            {
+                if local_uses(&self.module.storage, *body, parameter.id) == 0 {
+                    self.render_expression(
+                        tree,
+                        writer,
+                        *action,
+                        Destination::EffectDiscard,
+                        context,
+                    )?;
+                } else {
+                    let name = context.allocate(&parameter.name);
+                    writer.mutable(&name);
+                    self.render_expression(
+                        tree,
+                        writer,
+                        *action,
+                        Destination::EffectAssign(&name),
+                        context,
+                    )?;
+                    context.bind_direct(parameter, name);
+                }
+                return self.render_expression(tree, writer, *body, destination.effect(), context);
+            }
             let mut renderer = self.renderer(tree, writer, context);
-            let effect = capture_executed_effect(&mut renderer, effect)?;
+            let effect = capture_effect(&mut renderer, effect)?;
             return execute_effect(&mut renderer, effect, destination);
         }
 
@@ -1977,7 +2019,7 @@ impl Generator<'_> {
             ExpressionKind::Effect { effect } => {
                 let mut renderer = self.renderer(tree, writer, context);
                 let value = effect_expression(&mut renderer, effect)?;
-                Ok(RenderedExpression { value, pending_evaluation: false })
+                Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Let { recursive: false, bindings, body } => {
                 let name = context.allocate("$result");
@@ -2903,7 +2945,10 @@ fn render_case(
             destination,
             context,
         ),
-        Destination::Assign(name) => {
+        Destination::Assign(_)
+        | Destination::EffectAssign(_)
+        | Destination::Discard
+        | Destination::EffectDiscard => {
             let label = context.allocate("$case");
             writer.labeled_block(&label, |writer| {
                 generator.render_case_alternatives(
@@ -2911,38 +2956,7 @@ fn render_case(
                     writer,
                     &scrutinees,
                     alternatives,
-                    Destination::AssignAndBreak { name, label: &label },
-                    context,
-                )
-            })
-        }
-        Destination::EffectAssign(name) => {
-            let label = context.allocate("$case");
-            writer.labeled_block(&label, |writer| {
-                generator.render_case_alternatives(
-                    tree,
-                    writer,
-                    &scrutinees,
-                    alternatives,
-                    Destination::EffectAssignAndBreak { name, label: &label },
-                    context,
-                )
-            })
-        }
-        Destination::Discard | Destination::EffectDiscard => {
-            let label = context.allocate("$case");
-            let destination = if destination.is_effect() {
-                Destination::EffectDiscardAndBreak { label: &label }
-            } else {
-                Destination::DiscardAndBreak { label: &label }
-            };
-            writer.labeled_block(&label, |writer| {
-                generator.render_case_alternatives(
-                    tree,
-                    writer,
-                    &scrutinees,
-                    alternatives,
-                    destination,
+                    destination.and_break(&label),
                     context,
                 )
             })
@@ -3052,47 +3066,17 @@ fn render_guarded(
             generator.render_pattern_failure(writer);
             Ok(())
         }
-        Destination::Assign(name) => {
+        Destination::Assign(_)
+        | Destination::EffectAssign(_)
+        | Destination::Discard
+        | Destination::EffectDiscard => {
             let label = context.allocate("$guard");
             writer.labeled_block(&label, |writer| {
                 generator.render_guard_alternatives(
                     tree,
                     writer,
                     alternatives,
-                    Destination::AssignAndBreak { name, label: &label },
-                    context,
-                )?;
-                generator.render_pattern_failure(writer);
-                Ok(())
-            })
-        }
-        Destination::EffectAssign(name) => {
-            let label = context.allocate("$guard");
-            writer.labeled_block(&label, |writer| {
-                generator.render_guard_alternatives(
-                    tree,
-                    writer,
-                    alternatives,
-                    Destination::EffectAssignAndBreak { name, label: &label },
-                    context,
-                )?;
-                generator.render_pattern_failure(writer);
-                Ok(())
-            })
-        }
-        Destination::Discard | Destination::EffectDiscard => {
-            let label = context.allocate("$guard");
-            let destination = if destination.is_effect() {
-                Destination::EffectDiscardAndBreak { label: &label }
-            } else {
-                Destination::DiscardAndBreak { label: &label }
-            };
-            writer.labeled_block(&label, |writer| {
-                generator.render_guard_alternatives(
-                    tree,
-                    writer,
-                    alternatives,
-                    destination,
+                    destination.and_break(&label),
                     context,
                 )?;
                 generator.render_pattern_failure(writer);
@@ -3529,12 +3513,12 @@ fn effect_expression(
 ) -> ModuleResult<ExpressionId> {
     let effect = capture_effect(renderer, effect)?;
     let FunctionRenderer { generator, tree, writer, context } = renderer;
-    let effect_name = context.allocate("$effect");
-    writer.constant_arrow(&effect_name, None, Vec::new(), |writer| {
+    let (closure, result) = writer.arrow(tree, None, Vec::new(), |tree, writer| {
         let mut renderer = generator.renderer(tree, writer, context);
         execute_effect(&mut renderer, effect, Destination::Return)
-    })?;
-    Ok(tree.identifier(effect_name))
+    });
+    result?;
+    Ok(closure)
 }
 
 fn capture_effect(
@@ -3570,15 +3554,10 @@ fn capture_effect(
             let target = capture_reference_target(renderer, *reference)?;
             Ok(CapturedEffect::Operation(CapturedOperation::ReferenceRead { target }))
         }
-        EffectExpression::ReferenceWrite { reference, value, result } => {
+        EffectExpression::ReferenceWrite { reference, value } => {
             let target = capture_reference_target(renderer, *reference)?;
             let value = capture_effect_value(renderer, *value, "$value")?;
-            let result = *result;
-            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite {
-                target,
-                value,
-                result,
-            }))
+            Ok(CapturedEffect::Operation(CapturedOperation::ReferenceWrite { target, value }))
         }
         EffectExpression::UncurriedApplication { function, arguments } => {
             let function = capture_effect_value(renderer, *function, "$function")?;
@@ -3591,38 +3570,33 @@ fn capture_effect(
                 arguments,
             }))
         }
-        EffectExpression::Loop(effect_loop) => {
-            Ok(CapturedEffect::Loop(capture_loop(renderer, effect_loop)?))
-        }
-        EffectExpression::When { condition, action } => {
-            let condition = capture_effect_value(renderer, *condition, "$condition")?;
-            let origin = renderer.generator.module.storage[*action].origin;
-            let action = capture_effect_action(renderer, *action, "$action")?;
-            Ok(CapturedEffect::When { condition, action, origin })
+        EffectExpression::Statement { statement, unit } => {
+            let statement = capture_statement(renderer, statement)?;
+            Ok(CapturedEffect::Statement { statement, unit: *unit })
         }
     }
 }
 
-fn capture_executed_effect(
+fn capture_statement(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
-    effect: &EffectExpression,
-) -> ModuleResult<CapturedEffect> {
-    if let EffectExpression::Bind { action, parameter, body } = effect
-        && matches!(
-            renderer.generator.module.storage[*action].kind,
-            ExpressionKind::IfThenElse { .. }
-                | ExpressionKind::Case { .. }
-                | ExpressionKind::Guarded { .. }
-        )
-    {
-        let parameter = parameter.clone();
-        return Ok(CapturedEffect::ConditionalBind {
-            conditional: *action,
-            parameter,
-            body: *body,
-        });
+    statement: &EffectStatement,
+) -> ModuleResult<CapturedStatement> {
+    match statement {
+        EffectStatement::ReferenceWrite { reference, value } => {
+            let target = capture_reference_target(renderer, *reference)?;
+            let value = capture_effect_value(renderer, *value, "$value")?;
+            Ok(CapturedStatement::ReferenceWrite { target, value })
+        }
+        EffectStatement::Loop(effect_loop) => {
+            Ok(CapturedStatement::Loop(capture_loop(renderer, effect_loop)?))
+        }
+        EffectStatement::When { condition, action } => {
+            let condition = capture_effect_value(renderer, *condition, "$condition")?;
+            let origin = renderer.generator.module.storage[*action].origin;
+            let action = capture_effect_action(renderer, *action, "$action")?;
+            Ok(CapturedStatement::When { condition, action, origin })
+        }
     }
-    capture_effect(renderer, effect)
 }
 
 fn capture_reference_target(
@@ -3660,7 +3634,14 @@ fn reference_stays_local(
             ExpressionKind::Effect { effect: EffectExpression::ReferenceRead(operand) }
                 if is_reference(*operand) => {}
             ExpressionKind::Effect {
-                effect: EffectExpression::ReferenceWrite { reference: operand, value, .. },
+                effect: EffectExpression::ReferenceWrite { reference: operand, value },
+            } if is_reference(*operand) => pending.push(*value),
+            ExpressionKind::Effect {
+                effect:
+                    EffectExpression::Statement {
+                        statement: EffectStatement::ReferenceWrite { reference: operand, value },
+                        ..
+                    },
             } if is_reference(*operand) => pending.push(*value),
             kind => for_each_expression_child(kind, |child| pending.push(child)),
         }
@@ -3740,23 +3721,14 @@ fn execute_effect(
                 renderer.writer.mutable_value(renderer.tree, &name, value);
                 renderer.context.bind_reference(&parameter, name);
             } else if let CapturedEffectAction::Effect(effect) = &action
-                && let CapturedEffect::Operation(CapturedOperation::ReferenceWrite {
-                    target,
-                    value,
-                    result: WriteResult::Unit,
-                }) = effect.as_ref()
+                && let CapturedEffect::Statement { .. } = effect.as_ref()
             {
-                let target = renderer.tree.duplicate(target);
-                let value = renderer.tree.duplicate(value);
-                let operation =
-                    CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit };
-                let result = operation.execute(renderer.tree, renderer.writer);
-                renderer.context.bind_inline(&parameter, result);
-            } else if let CapturedEffectAction::Effect(effect) = &action
-                && let CapturedEffect::Loop(_) | CapturedEffect::When { .. } = effect.as_ref()
-            {
-                let result = execute_effect_action_value(renderer, action, &parameter.name)?;
-                renderer.context.bind_inline(&parameter, result);
+                if local_uses(&renderer.generator.module.storage, body, parameter.id) == 0 {
+                    execute_effect_action_destination(renderer, action, Destination::Discard)?;
+                } else {
+                    let result = execute_effect_action_value(renderer, action, &parameter.name)?;
+                    renderer.context.bind_inline(&parameter, result);
+                }
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3781,7 +3753,7 @@ fn execute_effect(
             Ok(())
         }
         CapturedEffect::Operation(operation) => {
-            let result = operation.execute(renderer.tree, renderer.writer);
+            let result = operation.execute(renderer.tree);
             renderer.generator.render_destination(
                 renderer.tree,
                 renderer.writer,
@@ -3790,39 +3762,9 @@ fn execute_effect(
             );
             Ok(())
         }
-        CapturedEffect::Loop(effect_loop) => {
-            execute_loop(renderer, effect_loop)?;
-            render_unit_destination(renderer, destination);
-            Ok(())
-        }
-        CapturedEffect::When { condition, action, origin } => {
-            execute_when(renderer, condition, action, origin)?;
-            render_unit_destination(renderer, destination);
-            Ok(())
-        }
-        CapturedEffect::ConditionalBind { conditional, parameter, body } => {
-            let FunctionRenderer { generator, tree, writer, context } = renderer;
-            if local_uses(&generator.module.storage, body, parameter.id) == 0 {
-                generator.render_expression(
-                    tree,
-                    writer,
-                    conditional,
-                    Destination::EffectDiscard,
-                    context,
-                )?;
-            } else {
-                let name = context.allocate(&parameter.name);
-                writer.mutable(&name);
-                generator.render_expression(
-                    tree,
-                    writer,
-                    conditional,
-                    Destination::EffectAssign(&name),
-                    context,
-                )?;
-                context.bind_direct(&parameter, name);
-            }
-            generator.render_expression(tree, writer, body, destination.effect(), context)
+        CapturedEffect::Statement { statement, unit } => {
+            execute_statement(renderer, statement)?;
+            render_unit_destination(renderer, unit, destination)
         }
         CapturedEffect::Apply { function_action, argument_action } => {
             let function = if matches!(&argument_action, CapturedEffectAction::Effect(_)) {
@@ -3845,52 +3787,58 @@ fn execute_effect(
 
 fn render_unit_destination(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
+    unit: FunctionalExpressionId,
     destination: Destination<'_>,
-) {
+) -> ModuleResult<()> {
+    let FunctionRenderer { generator, tree, writer, context } = renderer;
     match destination {
-        Destination::Return => renderer.writer.return_undefined(),
-        Destination::Continue => renderer.writer.continue_loop(),
+        Destination::Discard => {}
+        Destination::DiscardAndBreak { label } => writer.break_label(label),
+        Destination::Continue => writer.continue_loop(),
         destination => {
-            let result = renderer.tree.undefined();
-            renderer.generator.render_destination(
-                renderer.tree,
-                renderer.writer,
-                result,
-                destination,
-            );
+            let unit = generator.expression_value(tree, writer, unit, context)?;
+            generator.render_destination(tree, writer, unit, destination);
         }
     }
+    Ok(())
 }
 
-fn execute_when(
+fn execute_statement(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
-    condition: ExpressionId,
-    action: CapturedEffectAction,
-    origin: Option<Origin>,
+    statement: CapturedStatement,
 ) -> ModuleResult<()> {
+    let (condition, action, origin) = match statement {
+        CapturedStatement::ReferenceWrite { target, value } => {
+            let assignment = renderer.tree.assignment(target, value);
+            renderer.writer.expression_statement(renderer.tree, assignment);
+            return Ok(());
+        }
+        CapturedStatement::Loop(effect_loop) => return execute_loop(renderer, effect_loop),
+        CapturedStatement::When { condition, action, origin } => (condition, action, origin),
+    };
     let FunctionRenderer { generator, tree, writer, context } = renderer;
     let condition = tree.duplicate(&condition);
     writer.if_block(tree, condition, |tree, writer| {
         let _origin = tree.enter_origin(origin);
         let mut renderer = generator.renderer(tree, writer, context);
-        execute_discarded_action(&mut renderer, action)
+        execute_effect_action_destination(&mut renderer, action, Destination::Discard)
     })
 }
 
-fn execute_discarded_action(
+fn execute_effect_action_destination(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     action: CapturedEffectAction,
+    destination: Destination<'_>,
 ) -> ModuleResult<()> {
     match action {
         CapturedEffectAction::Expression { value, origin } => {
-            let _origin = renderer.tree.enter_origin(origin);
-            let value = renderer.tree.call(value, Vec::new());
-            renderer.writer.expression_statement(renderer.tree, value);
+            let FunctionRenderer { generator, tree, writer, .. } = renderer;
+            let _origin = tree.enter_origin(origin);
+            let value = tree.call(value, Vec::new());
+            generator.render_destination(tree, writer, value, destination);
             Ok(())
         }
-        CapturedEffectAction::Effect(effect) => {
-            execute_effect(renderer, *effect, Destination::Discard)
-        }
+        CapturedEffectAction::Effect(effect) => execute_effect(renderer, *effect, destination),
     }
 }
 
@@ -3905,16 +3853,11 @@ fn execute_effect_action_value(
             Ok(renderer.tree.call(value, Vec::new()))
         }
         CapturedEffectAction::Effect(effect) => match *effect {
-            CapturedEffect::Operation(operation) => {
-                Ok(operation.execute(renderer.tree, renderer.writer))
-            }
-            CapturedEffect::Loop(effect_loop) => {
-                execute_loop(renderer, effect_loop)?;
-                Ok(renderer.tree.undefined())
-            }
-            CapturedEffect::When { condition, action, origin } => {
-                execute_when(renderer, condition, action, origin)?;
-                Ok(renderer.tree.undefined())
+            CapturedEffect::Operation(operation) => Ok(operation.execute(renderer.tree)),
+            CapturedEffect::Statement { statement, unit } => {
+                execute_statement(renderer, statement)?;
+                let FunctionRenderer { generator, tree, writer, context } = renderer;
+                generator.expression_value(tree, writer, unit, context)
             }
             effect => {
                 let name = renderer.context.allocate(preferred_name);
@@ -3943,7 +3886,7 @@ fn execute_effect_action(
                 renderer.writer.constant(renderer.tree, &name, value, false);
             }
             CapturedEffect::Operation(operation) => {
-                let value = operation.execute(renderer.tree, renderer.writer);
+                let value = operation.execute(renderer.tree);
                 renderer.writer.constant(renderer.tree, &name, value, false);
             }
             effect => {
@@ -3998,6 +3941,7 @@ impl Generator<'_> {
                 .external_module_namespaces
                 .get(&file_id)
                 .expect("invariant violated: external JavaScript global has no module namespace");
+            self.rendered_module_namespaces.borrow_mut().insert(file_id);
             let namespace = tree.identifier(namespace);
             Ok(tree.member(namespace, global.item_name.as_str()))
         }
@@ -4239,7 +4183,7 @@ fn collect_expression_references(
                 collect_expression_references(module, *argument, seen, globals);
             }
         }
-        kind @ ExpressionKind::StyleX(_) => {
+        kind @ (ExpressionKind::StyleX(_) | ExpressionKind::Effect { .. }) => {
             for_each_expression_child(kind, |child| {
                 collect_expression_references(module, child, seen, globals);
             });
@@ -4274,45 +4218,6 @@ fn collect_expression_references(
             collect_expression_references(module, *value, seen, globals);
             collect_expression_references(module, *body, seen, globals);
         }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Pure(value) => {
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::Bind { action, body, .. } => {
-                collect_expression_references(module, *action, seen, globals);
-                collect_expression_references(module, *body, seen, globals);
-            }
-            EffectExpression::Map { function, action } => {
-                collect_expression_references(module, *function, seen, globals);
-                collect_expression_references(module, *action, seen, globals);
-            }
-            EffectExpression::Apply { function_action, argument_action } => {
-                collect_expression_references(module, *function_action, seen, globals);
-                collect_expression_references(module, *argument_action, seen, globals);
-            }
-            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::ReferenceWrite { reference, value, .. } => {
-                collect_expression_references(module, *reference, seen, globals);
-                collect_expression_references(module, *value, seen, globals);
-            }
-            EffectExpression::UncurriedApplication { function, arguments } => {
-                collect_expression_references(module, *function, seen, globals);
-                for argument in arguments.iter() {
-                    collect_expression_references(module, *argument, seen, globals);
-                }
-            }
-            EffectExpression::Loop(effect_loop) => {
-                for operand in effect_loop.operands() {
-                    collect_expression_references(module, operand, seen, globals);
-                }
-            }
-            EffectExpression::When { condition, action } => {
-                collect_expression_references(module, *condition, seen, globals);
-                collect_expression_references(module, *action, seen, globals);
-            }
-        },
     }
 }
 
@@ -4523,43 +4428,13 @@ fn collect_expression_children(
             collect_expression_globals(module, *value, false, globals);
             collect_expression_globals(module, *body, false, globals);
         }
-        ExpressionKind::Effect { effect } => match effect {
-            EffectExpression::Pure(value) => {
-                collect_expression_globals(module, *value, false, globals);
-            }
+        kind @ ExpressionKind::Effect { effect } => match effect {
             EffectExpression::Bind { action, .. } => {
                 collect_expression_globals(module, *action, false, globals);
             }
-            EffectExpression::Map { function, action } => {
-                collect_expression_globals(module, *function, false, globals);
-                collect_expression_globals(module, *action, false, globals);
-            }
-            EffectExpression::Apply { function_action, argument_action } => {
-                collect_expression_globals(module, *function_action, false, globals);
-                collect_expression_globals(module, *argument_action, false, globals);
-            }
-            EffectExpression::ReferenceNew(value) | EffectExpression::ReferenceRead(value) => {
-                collect_expression_globals(module, *value, false, globals);
-            }
-            EffectExpression::ReferenceWrite { reference, value, .. } => {
-                collect_expression_globals(module, *reference, false, globals);
-                collect_expression_globals(module, *value, false, globals);
-            }
-            EffectExpression::UncurriedApplication { function, arguments } => {
-                collect_expression_globals(module, *function, false, globals);
-                for argument in arguments.iter() {
-                    collect_expression_globals(module, *argument, false, globals);
-                }
-            }
-            EffectExpression::Loop(effect_loop) => {
-                for operand in effect_loop.operands() {
-                    collect_expression_globals(module, operand, false, globals);
-                }
-            }
-            EffectExpression::When { condition, action } => {
-                collect_expression_globals(module, *condition, false, globals);
-                collect_expression_globals(module, *action, false, globals);
-            }
+            _ => for_each_expression_child(kind, |child| {
+                collect_expression_globals(module, child, false, globals);
+            }),
         },
     }
 }

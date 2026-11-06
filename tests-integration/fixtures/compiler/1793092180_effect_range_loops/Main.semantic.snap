@@ -24,3 +24,13 @@ productRange = \end ->
     (bind {bindST} (new 1) \total ->
       discard {discardUnit} {bindST}
         (for 1 end \index -> modify (\v210 -> mul {semiringInt} v210 index) total) \_ -> read total)
+
+sumOdd :: Prim.Int -> Effect.Effect Prim.Int
+sumOdd = \end ->
+  bind {bindEffect} (new 0) \total ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 end \index ->
+        if eq {eqInt} (mod {euclideanRingInt} index 2) 1 then
+          modify_ (\v272 -> add {semiringInt} v272 index) total
+        else
+          pure {applicativeEffect} unit) \_ -> read total

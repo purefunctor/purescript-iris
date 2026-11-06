@@ -1,3 +1,4 @@
+import * as Data_Unit from "../Data.Unit/index.js";
 export function readBeforeWrite(value) {
   return () => {
     let reference = value;
@@ -38,7 +39,7 @@ export function passedToFunction(value) {
     const section218 = reference;
     const $value = section218 + (1 | 0) | 0;
     reference = $value;
-    $unit = undefined;
+    $unit = Data_Unit.unit;
     return reference;
   };
 }

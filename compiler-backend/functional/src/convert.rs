@@ -103,6 +103,7 @@ struct Context<'c, Q> {
     thunk_modules: OnceCell<[Option<FileId>; 2]>,
     canonical_thunk_instances: RefCell<FxHashMap<(FileId, indexing::InstanceId), bool>>,
     lowering_constructors_available: Option<bool>,
+    unit_global: Option<Option<Global>>,
     service_binders: FxHashMap<EvidenceBinderId, (Parameter, SmolStr)>,
     service_plans: FxHashMap<(FileId, TermItemId), Option<services::ServicePlan>>,
 
@@ -171,6 +172,7 @@ where
             thunk_modules: OnceCell::new(),
             canonical_thunk_instances: RefCell::default(),
             lowering_constructors_available: None,
+            unit_global: None,
             service_binders: FxHashMap::default(),
             service_plans: FxHashMap::default(),
 

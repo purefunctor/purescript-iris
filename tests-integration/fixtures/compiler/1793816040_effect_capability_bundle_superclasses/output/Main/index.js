@@ -15,7 +15,7 @@ export function reading(bothServicesDict) {
     return (first * (100 | 0) | 0) + second | 0;
   };
 }
-export const readingValue = /* @__PURE__ */ reading(/* @__PURE__ */ both({ getService: ($services) => $services.first })({ getService: ($services) => $services.second }))({
+export const readingValue = /* @__PURE__ */ reading(/* @__PURE__ */ both({ getService: (environment) => environment.first })({ getService: (environment$1) => environment$1.second }))({
   first: 3 | 0,
   second: 7 | 0
 });

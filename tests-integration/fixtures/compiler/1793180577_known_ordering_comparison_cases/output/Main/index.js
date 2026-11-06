@@ -1,5 +1,4 @@
 import * as Data_Ord from "../Data.Ord/index.js";
-import * as Data_Ordering from "../Data.Ordering/index.js";
 export function compareIntegers(left) {
   return (right) => {
     if (left < right) {

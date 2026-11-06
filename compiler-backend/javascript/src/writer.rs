@@ -348,10 +348,6 @@ impl<'a> Writer<'a> {
         self.statements.push(Statement::new_break_statement(self.span(), None, &self.builder));
     }
 
-    pub(crate) fn return_undefined(&mut self) {
-        self.statements.push(Statement::new_return_statement(self.span(), None, &self.builder));
-    }
-
     pub(crate) fn function<R>(
         &mut self,
         name: &str,
@@ -823,6 +819,13 @@ impl<'a> Writer<'a> {
     }
 
     pub(crate) fn blank(&mut self) {}
+
+    pub(crate) fn prepend(&mut self, render: impl FnOnce(&mut Writer<'a>)) {
+        let mut prefix = self.child();
+        render(&mut prefix);
+        prefix.statements.append(&mut self.statements);
+        self.statements = prefix.statements;
+    }
 
     pub(crate) fn finish(self) -> String {
         self.generate(None).code

@@ -5,10 +5,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
     ArrayElement, AsyncExpression, BinaryOperator, Comparison, Declaration, DeclarationKind,
-    EffectExpression, EffectLoop, ExpressionId, ExpressionKind, Field, GlobalId, Guard,
-    IndirectModuleExports, Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType,
-    RecordUpdate, ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
-    WriteResult,
+    EffectExpression, EffectLoop, EffectStatement, ExpressionId, ExpressionKind, Field, GlobalId,
+    Guard, IndirectModuleExports, Literal, Module, Parameter, PatternId, PatternKind,
+    PrimitiveType, RecordUpdate, ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence,
+    UnaryOperator,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -547,11 +547,7 @@ impl<'a> Printer<'a, '_> {
                 let reference = self.expression_at(*reference, ExpressionPrecedence::Atom);
                 self.arena.text("reference.read ").append(reference)
             }
-            EffectExpression::ReferenceWrite { reference, value, result } => {
-                let operation = match result {
-                    WriteResult::Value => "reference.write",
-                    WriteResult::Unit => "reference.write.unit",
-                };
+            EffectExpression::ReferenceWrite { reference, value } => {
                 let reference = self.expression_at(*reference, ExpressionPrecedence::Atom);
                 let value = self.expression_at(*value, ExpressionPrecedence::Atom);
                 let arguments = self
@@ -561,7 +557,7 @@ impl<'a> Printer<'a, '_> {
                     .append(self.arena.line())
                     .append(value)
                     .nest(2);
-                self.arena.text(operation).append(arguments).group()
+                self.arena.text("reference.write").append(arguments).group()
             }
             EffectExpression::UncurriedApplication { function, arguments } => {
                 let function = self.expression_at(*function, ExpressionPrecedence::Application);
@@ -571,32 +567,22 @@ impl<'a> Printer<'a, '_> {
                 let arguments = self.delimited("(", arguments, ")");
                 self.arena.text("effect.uncurried.call ").append(function).append(arguments)
             }
-            EffectExpression::Loop(effect_loop) => {
-                let name = match effect_loop {
-                    EffectLoop::Range { .. } => "effect.forRange",
-                    EffectLoop::Each { .. } => "effect.forEach",
-                    EffectLoop::While { .. } => "effect.while",
-                    EffectLoop::Until { .. } => "effect.until",
+            EffectExpression::Statement { statement, .. } => {
+                let name = match statement {
+                    EffectStatement::ReferenceWrite { .. } => "reference.write.unit",
+                    EffectStatement::Loop(EffectLoop::Range { .. }) => "effect.forRange",
+                    EffectStatement::Loop(EffectLoop::Each { .. }) => "effect.forEach",
+                    EffectStatement::Loop(EffectLoop::While { .. }) => "effect.while",
+                    EffectStatement::Loop(EffectLoop::Until { .. }) => "effect.until",
+                    EffectStatement::When { .. } => "effect.when",
                 };
-                let operands = effect_loop.operands().map(|operand| {
+                let operands = statement.operands().map(|operand| {
                     self.arena
                         .line()
                         .append(self.expression_at(operand, ExpressionPrecedence::Atom))
                 });
                 let operands = self.arena.concat(operands).nest(2);
                 self.arena.text(name).append(operands).group()
-            }
-            EffectExpression::When { condition, action } => {
-                let condition = self.expression_at(*condition, ExpressionPrecedence::Atom);
-                let action = self.expression_at(*action, ExpressionPrecedence::Atom);
-                let arguments = self
-                    .arena
-                    .line()
-                    .append(condition)
-                    .append(self.arena.line())
-                    .append(action)
-                    .nest(2);
-                self.arena.text("effect.when").append(arguments).group()
             }
         }
     }
@@ -640,7 +626,6 @@ impl<'a> Printer<'a, '_> {
     fn synthesized_evidence(&self, evidence: &SynthesizedEvidence) -> Doc<'a> {
         let rendered = match evidence {
             SynthesizedEvidence::IsSymbol(symbol) => format!("symbol {symbol:?}"),
-            SynthesizedEvidence::Service(role) => format!("service {role:?}"),
             SynthesizedEvidence::Reflectable(ReflectableEvidence::Integer(value)) => {
                 format!("reflectable {value}")
             }

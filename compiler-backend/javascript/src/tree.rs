@@ -186,10 +186,6 @@ impl<'a> Tree<'a> {
         self.allocate(expression)
     }
 
-    pub(crate) fn undefined(&mut self) -> ExpressionId {
-        self.identifier("undefined")
-    }
-
     pub(crate) fn array(&mut self, elements: Vec<ExpressionId>) -> ExpressionId {
         let allocator = self.allocator;
         let elements = elements.into_iter().map(|element| {

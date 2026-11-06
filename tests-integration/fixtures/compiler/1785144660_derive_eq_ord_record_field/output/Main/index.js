@@ -1,6 +1,5 @@
 import * as Data_Eq from "../Data.Eq/index.js";
 import * as Data_Ord from "../Data.Ord/index.js";
-import * as Data_Ordering from "../Data.Ordering/index.js";
 export const Box = ($value0) => ({
   tag: "Box",
   _1: $value0

@@ -1,15 +1,15 @@
+import * as Data_Unit from "../Data.Unit/index.js";
 import * as $foreign from "./foreign.js";
 export function writeArgument(reference) {
   const $value = mark("write argument")(5 | 0);
   return () => {
     reference.value = $value;
     const modifyFunction = mark("modify function")((section94) => section94 + (1 | 0) | 0);
-    const $effect = () => {
+    const $result = () => {
       const value = reference.value;
       const $value$1 = modifyFunction(value);
       return reference.value = $value$1;
     };
-    const $result = $effect;
     const $int = $result();
     return reference.value;
   };
@@ -20,10 +20,9 @@ export function readLater(reference) {
   };
 }
 export function reusedRead(reference) {
-  const $effect = () => {
+  const read = () => {
     return reference.value;
   };
-  const read = $effect;
   return () => {
     const before = read();
     reference.value = 7 | 0;
@@ -66,7 +65,7 @@ export function modifyResults(reference) {
     const section291 = reference.value;
     const $value$1 = section291 * (2 | 0) | 0;
     reference.value = $value$1;
-    discarded = undefined;
+    discarded = Data_Unit.unit;
     const final = reference.value;
     return {
       modified,

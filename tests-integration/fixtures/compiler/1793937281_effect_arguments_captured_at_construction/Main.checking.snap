@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+freshEffect :: Effect.Effect (Effect.Ref.Ref (Effect.Effect Prim.Int))
+freshFunction :: Effect.Effect (Effect.Ref.Ref (Prim.Int -> Prim.Int))
+
+Types

@@ -9,9 +9,9 @@ use smol_str::{SmolStr, format_smolstr};
 use crate::optimize::local_uses;
 use crate::tree::{
     ArrayElement, BinaryOperator, Binding, CaseAlternative, Comparison, EffectExpression,
-    EffectLoop, ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal,
-    Parameter, PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
-    WriteResult,
+    EffectLoop, EffectStatement, ExpressionId, ExpressionKind, FieldIdentity, Global, GlobalId,
+    InstanceIdentity, Literal, Parameter, PatternId, PatternKind, PrimitiveType, RecordField,
+    RecordUpdate, UnaryOperator,
 };
 
 use super::{Context, ConversionResult};
@@ -82,6 +82,12 @@ const LOOP_MODULES: &[(&str, &str, &str, &str)] = &[
 
 const REFERENCE_MODULES: &[(&str, WriteResult)] =
     &[("Effect.Ref", WriteResult::Unit), ("Control.Monad.ST.Internal", WriteResult::Value)];
+
+#[derive(Clone, Copy)]
+enum WriteResult {
+    Value,
+    Unit,
+}
 
 #[derive(Clone, Copy)]
 enum ModifyResult {
@@ -707,19 +713,13 @@ where
         {
             return Ok(Some(EffectExpression::Bind { action: *action, parameter, body }));
         }
-        if let Some([bind_dictionary, action, continuation]) = self
-            .known_instance_member_arguments(
-                function,
-                arguments,
-                "Control.Bind",
-                "discard",
-                "Control.Bind",
-                "discardUnit",
-            )?
-            && self.known_thunk_instance(*bind_dictionary, None)?
-            && let Some((parameter, body)) = self.effect_continuation(*continuation)?
+        if let Some((action, continuation)) =
+            self.known_discard_arguments(function, arguments, |context, dictionary| {
+                context.known_thunk_instance(dictionary, None)
+            })?
+            && let Some((parameter, body)) = self.effect_continuation(continuation)?
         {
-            return Ok(Some(EffectExpression::Bind { action: *action, parameter, body }));
+            return Ok(Some(EffectExpression::Bind { action, parameter, body }));
         }
         if let Some([function, action]) =
             self.known_thunk_instance_member_arguments(function, arguments, "Data.Functor", "map")?
@@ -739,9 +739,40 @@ where
                 context.known_thunk_instance(dictionary, None)
             })?
         {
-            return Ok(Some(EffectExpression::When { condition, action }));
+            return self.unit_statement(EffectStatement::When { condition, action });
         }
-        Ok(self.known_effect_loop(function, arguments)?.map(EffectExpression::Loop))
+        let Some(effect_loop) = self.known_effect_loop(function, arguments)? else {
+            return Ok(None);
+        };
+        self.unit_statement(EffectStatement::Loop(effect_loop))
+    }
+
+    pub(super) fn unit_statement(
+        &mut self,
+        statement: EffectStatement,
+    ) -> ConversionResult<Option<EffectExpression>> {
+        let Some(unit) = self.unit_value()? else { return Ok(None) };
+        Ok(Some(EffectExpression::Statement { statement, unit }))
+    }
+
+    pub(super) fn known_discard_arguments(
+        &self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+        known_bind: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
+    ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
+        if let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
+            function,
+            arguments,
+            "Control.Bind",
+            "discard",
+            "Control.Bind",
+            "discardUnit",
+        )? && known_bind(self, *dictionary)?
+        {
+            return Ok(Some((*action, *continuation)));
+        }
+        Ok(None)
     }
 
     pub(super) fn known_conditional_arguments(
@@ -814,11 +845,16 @@ where
             } else if self.known_term(function, module_name, "write")?
                 && let [value, reference] = arguments
             {
-                EffectExpression::ReferenceWrite {
-                    reference: *reference,
-                    value: *value,
-                    result: *write_result,
-                }
+                let (reference, value) = (*reference, *value);
+                let effect = match write_result {
+                    WriteResult::Value => {
+                        Some(EffectExpression::ReferenceWrite { reference, value })
+                    }
+                    WriteResult::Unit => {
+                        self.unit_statement(EffectStatement::ReferenceWrite { reference, value })?
+                    }
+                };
+                return Ok(effect.map(|effect| self.expression(ExpressionKind::Effect { effect })));
             } else {
                 for (item_name, result) in [
                     ("modify", ModifyResult::State),
@@ -828,9 +864,7 @@ where
                     if self.known_term(function, module_name, item_name)?
                         && let [function, reference] = arguments
                     {
-                        return self
-                            .reference_modification(*function, *reference, result)
-                            .map(Some);
+                        return self.reference_modification(*function, *reference, result);
                     }
                 }
                 continue;
@@ -845,7 +879,7 @@ where
         function: ExpressionId,
         reference: ExpressionId,
         result: ModifyResult,
-    ) -> ConversionResult<ExpressionId> {
+    ) -> ConversionResult<Option<ExpressionId>> {
         let mut bindings = Vec::new();
         let (parameter, value) = match self.effect_continuation(function)? {
             Some(continuation) => continuation,
@@ -865,19 +899,22 @@ where
         let written_reference =
             self.expression(ExpressionKind::clone(&self.storage[reference].kind));
         let body = match result {
-            ModifyResult::State | ModifyResult::Unit => {
-                let result = match result {
-                    ModifyResult::State => WriteResult::Value,
-                    _ => WriteResult::Unit,
-                };
-                let effect = EffectExpression::ReferenceWrite {
-                    reference: written_reference,
-                    value,
-                    result,
-                };
+            ModifyResult::State => {
+                let effect =
+                    EffectExpression::ReferenceWrite { reference: written_reference, value };
                 self.expression(ExpressionKind::Effect { effect })
             }
-            ModifyResult::Record => self.record_modification(written_reference, value)?,
+            ModifyResult::Unit => {
+                let Some(unit) = self.unit_value()? else { return Ok(None) };
+                let statement =
+                    EffectStatement::ReferenceWrite { reference: written_reference, value };
+                let effect = EffectExpression::Statement { statement, unit };
+                self.expression(ExpressionKind::Effect { effect })
+            }
+            ModifyResult::Record => {
+                let Some(unit) = self.unit_value()? else { return Ok(None) };
+                self.record_modification(written_reference, value, unit)?
+            }
         };
         let effect = EffectExpression::ReferenceRead(reference);
         let action = self.expression(ExpressionKind::Effect { effect });
@@ -885,26 +922,27 @@ where
         let modification = self.expression(ExpressionKind::Effect { effect });
 
         if bindings.is_empty() {
-            return Ok(modification);
+            return Ok(Some(modification));
         }
-        Ok(self.expression(ExpressionKind::Let {
+        Ok(Some(self.expression(ExpressionKind::Let {
             recursive: false,
             bindings: bindings.into(),
             body: modification,
-        }))
+        })))
     }
 
     fn record_modification(
         &mut self,
         reference: ExpressionId,
         modified: ExpressionId,
+        unit: ExpressionId,
     ) -> ConversionResult<ExpressionId> {
         let mut bindings = Vec::new();
         let modified = self.let_bound_local(modified, "modified", &mut bindings)?;
         let field = self.label_field("state".into());
         let state = self.expression(ExpressionKind::Project { record: modified, field });
-        let effect =
-            EffectExpression::ReferenceWrite { reference, value: state, result: WriteResult::Unit };
+        let statement = EffectStatement::ReferenceWrite { reference, value: state };
+        let effect = EffectExpression::Statement { statement, unit };
         let action = self.expression(ExpressionKind::Effect { effect });
         let modified = self.expression(ExpressionKind::clone(&self.storage[modified].kind));
         let field = self.label_field("value".into());
@@ -1173,6 +1211,25 @@ where
                 | ExpressionKind::Global { .. }
                 | ExpressionKind::Local { .. }
         )
+    }
+
+    pub(super) fn unit_value(&mut self) -> ConversionResult<Option<ExpressionId>> {
+        if self.unit_global.is_none() {
+            let mut unit = None;
+            if let Some(file_id) = self.queries.module_file("Data.Unit") {
+                let indexed = self.indexed_module(file_id)?;
+                let mut terms = indexed.items.iter_terms();
+                if let Some((term_id, _)) =
+                    terms.find(|(_, item)| item.name.as_deref() == Some("unit"))
+                {
+                    unit = Some(self.term_global(file_id, term_id)?);
+                }
+            }
+            self.unit_global = Some(unit);
+        }
+        let Some(Some(global)) = &self.unit_global else { return Ok(None) };
+        let global = Global::clone(global);
+        Ok(Some(self.expression(ExpressionKind::Global { global })))
     }
 
     pub(super) fn known_term(

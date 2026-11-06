@@ -211,15 +211,6 @@ pub(super) fn synthesized_evidence_expression(
     evidence: &SynthesizedEvidence,
 ) -> ExpressionId {
     match evidence {
-        SynthesizedEvidence::Service(role) => {
-            let services = tree.identifier("$services");
-            let service = tree.member(services, role);
-            let getter = tree.arrow(None, vec![SmolStr::new_static("$services")], service);
-            tree.object(vec![ObjectProperty::Field {
-                name: SmolStr::new_static("getService"),
-                value: getter,
-            }])
-        }
         SynthesizedEvidence::IsSymbol(symbol) => {
             let symbol = tree.string_utf16(symbol.as_utf16());
             let reflect = tree.arrow(None, vec![SmolStr::new_static("$proxy")], symbol);

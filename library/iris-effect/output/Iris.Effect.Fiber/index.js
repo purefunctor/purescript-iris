@@ -1,6 +1,4 @@
-import * as Data_Either from "../Data.Either/index.js";
 import * as Data_List from "../Data.List/index.js";
-import * as Data_List_Types from "../Data.List.Types/index.js";
 import * as Data_Maybe from "../Data.Maybe/index.js";
 import * as Data_Unit from "../Data.Unit/index.js";
 import * as Effect_Exception from "../Effect.Exception/index.js";
@@ -157,14 +155,13 @@ export function forkStep(child) {
 }
 export function deferStep(thunk) {
   const $value = Data_Unit.unit;
-  const $effect = () => {
-    let $value$1;
-    $value$1 = $value;
-    return thunk($value$1);
-  };
   return {
     tag: "Run",
-    _1: $effect
+    _1: () => {
+      let $value$1;
+      $value$1 = $value;
+      return thunk($value$1);
+    }
   };
 }
 function tryEffect(effect) {
@@ -201,7 +198,7 @@ function prioritize(scheduler) {
         _2: front
       };
       $reference$1.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -214,7 +211,7 @@ function drainUnlessDraining(scheduler) {
     if ($condition) {
       $action();
     }
-    return;
+    return Data_Unit.unit;
   };
 }
 function drain(scheduler) {
@@ -276,7 +273,7 @@ function recordFirstEscape(recorded) {
           recorded.value = escaped;
         }
       }
-      return;
+      return Data_Unit.unit;
     };
   };
 }
@@ -349,7 +346,6 @@ export function joinFiber(fiber) {
           drainUnlessDraining(runtime.scheduler)();
           break $case;
         }
-        Data_Unit.unit;
         break $case;
       }
       return canceler;
@@ -372,7 +368,7 @@ export function killFiber(error) {
         const $action = onComplete(fiber)(($exit) => callback);
         const canceler = $action();
         const $reference$1 = fiber.interrupt;
-        const $effect = () => {
+        const markInterrupted = () => {
           const interrupt = $reference$1.value;
           const $condition = Data_Maybe.isNothing(interrupt);
           const $reference$2 = fiber.interrupt;
@@ -383,19 +379,17 @@ export function killFiber(error) {
           if ($condition) {
             $reference$2.value = $value$1;
           }
-          return;
+          return Data_Unit.unit;
         };
-        const markInterrupted = $effect;
         const $reference$3 = fiber.status;
-        const $effect$1 = () => {
+        const abandon = () => {
           $reference$3.value = "Return";
           const $reference$4 = fiber.returnValue;
           $reference$4.value = "Nothing";
           const $reference$5 = fiber.failure;
           $reference$5.value = "Nothing";
-          return undefined;
+          return Data_Unit.unit;
         };
-        const abandon = $effect$1;
         $case: {
           if (status === "Suspended") {
             const $reference$6 = fiber.interrupt;
@@ -437,7 +431,6 @@ export function killFiber(error) {
                   break $case$1;
                 }
                 if (pendingCanceler === "Nothing") {
-                  Data_Unit.unit;
                   break $case$1;
                 }
                 throw new Error("Pattern match failure");
@@ -508,7 +501,7 @@ function onComplete(fiber) {
         const $reference$7 = fiber.joins;
         const $value$3 = Data_List.filter((entry) => entry.identifier !== identifier)(remaining);
         $reference$7.value = $value$3;
-        return undefined;
+        return Data_Unit.unit;
       };
     };
   };
@@ -525,7 +518,7 @@ function pushAttempt(fiber) {
         _2: attempts
       };
       $reference$1.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -553,7 +546,7 @@ function enterFinalizer(fiber) {
     const $reference$6 = fiber.bracketCount;
     const $value = bracketCount + (1 | 0) | 0;
     $reference$6.value = $value;
-    return undefined;
+    return Data_Unit.unit;
   };
 }
 function die(fiber) {
@@ -571,7 +564,7 @@ function die(fiber) {
       $reference$2.value = "Nothing";
       const $reference$3 = fiber.returnValue;
       $reference$3.value = "Nothing";
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }
@@ -583,7 +576,6 @@ function suspendContinuations(fiber) {
     const continuations = $reference$1.value;
     $case: {
       if (continuations === "Nil") {
-        Data_Unit.unit;
         break $case;
       }
       pushAttempt(fiber)({
@@ -595,7 +587,7 @@ function suspendContinuations(fiber) {
     }
     const $reference$2 = fiber.continuations;
     $reference$2.value = "Nil";
-    return undefined;
+    return Data_Unit.unit;
   };
 }
 function $tail_run_runFromStatus_runSteps($state, $argument0) {
@@ -671,7 +663,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             if ($condition$1) {
               $action$3();
             }
-            return [false, undefined];
+            return [false, Data_Unit.unit];
           }
           if (status$1 === "Return") {
             const $reference$9 = $currentArgument0$1.status;
@@ -683,7 +675,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
             if ($condition$2) {
               $action$5();
             }
-            return [false, undefined];
+            return [false, Data_Unit.unit];
           }
           if (status$1 === "Running") {
             return [false, Data_Unit.unit];
@@ -841,7 +833,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                       $reference$15.value = $value$1;
                       const $function = enqueue(runtime.scheduler);
                       const $reference$16 = $currentArgument0$2.runTick;
-                      const $effect = () => {
+                      $function(() => {
                         const resumeTick = $reference$16.value;
                         const $condition$5 = resumeTick === (localRunTick + (1 | 0) | 0);
                         const $reference$17 = $currentArgument0$2.pendingCanceler;
@@ -853,11 +845,10 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                           $reference$19.value = "Runnable";
                           run($currentArgument0$2)();
                         }
-                        return;
-                      };
-                      $function($effect)();
+                        return Data_Unit.unit;
+                      })();
                     }
-                    return;
+                    return Data_Unit.unit;
                   };
                 });
                 const canceler = $action$8();
@@ -878,7 +869,6 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
                     }
                     break $case$2;
                   }
-                  Data_Unit.unit;
                   break $case$2;
                 }
                 $condition$3 = true;
@@ -949,7 +939,7 @@ function $tail_run_runFromStatus_runSteps($state, $argument0) {
               break;
             }
           }
-          return [false, undefined];
+          return [false, Data_Unit.unit];
         };
       }
     }
@@ -1062,7 +1052,7 @@ function pushContinuation(fiber) {
         _2: continuations
       };
       $reference$1.value = $value;
-      return undefined;
+      return Data_Unit.unit;
     };
   };
 }

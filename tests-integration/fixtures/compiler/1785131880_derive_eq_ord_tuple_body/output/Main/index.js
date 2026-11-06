@@ -1,6 +1,5 @@
 import * as Data_Eq from "../Data.Eq/index.js";
 import * as Data_Ord from "../Data.Ord/index.js";
-import * as Data_Ordering from "../Data.Ordering/index.js";
 export const Tuple = ($value0) => ($value1) => ({
   tag: "Tuple",
   _1: $value0,

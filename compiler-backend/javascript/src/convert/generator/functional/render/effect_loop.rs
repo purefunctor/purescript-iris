@@ -4,7 +4,7 @@ use functional::tree::{
 
 use super::{
     CapturedEffectAction, Destination, FunctionRenderer, capture_effect_action,
-    capture_effect_value, execute_effect, execute_effect_action_value,
+    capture_effect_value, execute_effect_action_destination, execute_effect_action_value,
 };
 use crate::error::ModuleResult;
 use crate::tree::{ExpressionId, UnaryOperator};
@@ -95,14 +95,7 @@ fn capture_function(
             return Ok(CapturedFunction::Abstraction { parameter, body: *body });
         }
     }
-    let value = capture_effect_value(renderer, expression, preferred_name)?;
-    let value = if renderer.tree.expression_is_atomic(&value) {
-        value
-    } else {
-        let name = renderer.context.allocate(preferred_name);
-        renderer.writer.constant(renderer.tree, &name, value, false);
-        renderer.tree.identifier(name)
-    };
+    let value = capture_stable_value(renderer, expression, preferred_name)?;
     Ok(CapturedFunction::Value(value))
 }
 
@@ -229,17 +222,8 @@ fn execute_loop_action(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     action: Option<CapturedEffectAction>,
 ) -> ModuleResult<()> {
-    match action {
-        None => {}
-        Some(CapturedEffectAction::Expression { value, origin }) => {
-            let FunctionRenderer { generator, tree, writer, .. } = renderer;
-            let _origin = tree.enter_origin(origin);
-            let value = tree.call(value, Vec::new());
-            generator.render_destination(tree, writer, value, Destination::Continue);
-        }
-        Some(CapturedEffectAction::Effect(effect)) => {
-            execute_effect(renderer, *effect, Destination::Continue)?;
-        }
+    if let Some(action) = action {
+        execute_effect_action_destination(renderer, action, Destination::Continue)?;
     }
     renderer.writer.remove_trailing_continue();
     Ok(())

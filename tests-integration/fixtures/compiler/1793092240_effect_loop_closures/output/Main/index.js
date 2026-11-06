@@ -28,7 +28,7 @@ export const rangeClosures = /* @__PURE__ */ (() => {
 export const stateClosures = /* @__PURE__ */ (() => {
   const $function = Control_Monad_ST_Internal.run;
   const $value = [];
-  const $effect = () => {
+  return $function(() => {
     let closures = $value;
     for (let index = 5 | 0; index < (8 | 0); index++) {
       const section184 = closures;
@@ -36,6 +36,5 @@ export const stateClosures = /* @__PURE__ */ (() => {
       closures = $value$1;
     }
     return closures;
-  };
-  return $function($effect);
+  });
 })();

@@ -6,10 +6,9 @@ export function addToReference(reference, amount) {
 }
 export function addTwice(value) {
   const $function = Control_Monad_ST_Internal.run;
-  const $effect = () => {
+  return $function(() => {
     const reference = { value };
     const $int = addToReference(reference, 2 | 0);
     return addToReference(reference, 3 | 0);
-  };
-  return $function($effect);
+  });
 }
