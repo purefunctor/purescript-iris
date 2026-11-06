@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+foreign import hasNext :: Effect.Effect Prim.Boolean
+
+foreign import next :: Effect.Effect Data.Unit.Unit
+
+countdown :: Prim.Int -> Effect.Effect (Prim.Array Prim.Int)
+countdown = \start ->
+  bind {bindEffect} (new start) \counter ->
+    bind {bindEffect} (new []) \seen ->
+      discard {discardUnit} {bindEffect}
+        (whileE (map {functorEffect} (\v77 -> greaterThan {ordInt} v77 0) (read counter))
+          (bind {bindEffect} (read counter) \current ->
+            discard {discardUnit} {bindEffect}
+              (modify_ (\v105 -> append {semigroupArray} v105 [current]) seen) \_ ->
+              write (sub {ringInt} current 1) counter)) \_ -> read seen
+
+countUntil :: Prim.Int -> Effect.Effect Prim.Int
+countUntil = \limit ->
+  bind {bindEffect} (new 0) \counter ->
+    discard {discardUnit} {bindEffect}
+      (untilE
+        (bind {bindEffect} (modify (\v165 -> add {semiringInt} v165 1) counter) \count ->
+          pure {applicativeEffect} (greaterThanOrEq {ordInt} count limit))) \_ -> read counter
+
+drain :: Effect.Effect Data.Unit.Unit
+drain = whileE hasNext next
+
+doubleUntil :: Prim.Int -> Prim.Int
+doubleUntil = \limit ->
+  run
+    (bind {bindST} (new 1) \value ->
+      discard {discardUnit} {bindST}
+        (while (map {functorST} (\v233 -> lessThan {ordInt} v233 limit) (read value))
+          (modify (\v252 -> mul {semiringInt} v252 2) value)) \_ -> read value)

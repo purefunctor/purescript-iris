@@ -18,7 +18,7 @@ source: tests-integration/src/fixtures.rs
 @export countDown = \start%9 ->
   effect.bind (reference.new start%9)
     \remaining%10 -> effect.bind (reference.new 0)
-      \steps%11 -> effect.bind (while
+      \steps%11 -> effect.bind (effect.while
         (effect.map
           (\section161%12 -> integer.greater_than section161%12 0)
           (reference.read remaining%10))

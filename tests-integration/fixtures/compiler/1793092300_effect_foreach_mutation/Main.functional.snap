@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign push
+
+@export foreign poke
+
+@export visit = \values%1 ->
+  effect.bind (reference.new [])
+    \seen%0 -> effect.bind (effect.forEach
+      values%1
+      (\value%2 ->
+        effect.bind (when applicativeEffect (integer.equal value%2 1) (poke values%1 2 99))
+          \$unit%3 -> effect.bind (push values%1 value%2)
+            \$unit%4 -> effect.bind (reference.read seen%0)
+              \section125%5 -> reference.write.unit seen%0 [...section125%5, value%2]))
+      \$unit%6 -> reference.read seen%0
+
+@export record = \seen%9 value%8 ->
+  effect.bind (reference.read seen%9)
+    \section163%7 -> reference.write.unit seen%9 [...section163%7, value%8]
+
+@export visitWithFunction = \values%11 ->
+  effect.bind (reference.new [])
+    \seen%10 -> effect.bind (effect.forEach values%11 (record seen%10))
+      \$unit%12 -> reference.read seen%10
+
+@export sumState = \values%14 ->
+  run
+    (effect.bind (reference.new 0)
+      \total%13 -> effect.bind (effect.forEach
+        values%14
+        (\value%15 ->
+          void functorST
+            (effect.bind (reference.read total%13)
+              \section256%16 -> reference.write total%13 (integer.add section256%16 value%15))))
+        \$unit%17 -> reference.read total%13)

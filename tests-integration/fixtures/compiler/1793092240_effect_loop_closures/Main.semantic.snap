@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+rangeClosures :: Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.Int))
+rangeClosures =
+  bind {bindEffect} (new []) \closures ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 3 \index ->
+        modify_ (\v68 -> append {semigroupArray} v68 [\_ -> index]) closures) \_ -> read closures
+
+elementClosures :: Prim.Array Prim.String -> Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.String))
+elementClosures = \values ->
+  bind {bindEffect} (new []) \closures ->
+    discard {discardUnit} {bindEffect}
+      (foreachE values \value ->
+        modify_ (\v127 -> append {semigroupArray} v127 [\_ -> value]) closures) \_ -> read closures
+
+stateClosures :: Prim.Array (Data.Unit.Unit -> Prim.Int)
+stateClosures =
+  run
+    (bind {bindST} (new []) \closures ->
+      discard {discardUnit} {bindST}
+        (for 5 8 \index ->
+          modify (\v184 -> append {semigroupArray} v184 [\_ -> index]) closures) \_ ->
+        read closures)

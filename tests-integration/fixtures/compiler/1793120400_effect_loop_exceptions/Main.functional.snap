@@ -1,0 +1,94 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export describe = \section75%0 ->
+  case section75%0 of
+    Left error%1 ->
+      { tag: "Left", _1: message error%1 }
+    Right value%2 ->
+      { tag: "Right", _1: value%2 }
+
+@export observe = \body%4 ->
+  effect.bind (reference.new [])
+    \visited%3 -> effect.bind (try (body%4 visited%3))
+      \outcome%5 -> effect.bind (reference.read visited%3)
+        \seen%6 -> effect.pure { outcome: describe outcome%5, visited: seen%6 }
+
+@export record = \visited%8 label%7 ->
+  let
+    modifyFunction%9 = flip snoc label%7
+  in effect.bind (reference.read visited%8)
+    \value%10 -> reference.write.unit visited%8 (modifyFunction%9 value%10)
+
+@export forAborts = observe
+  (\visited%11 ->
+    effect.bind (effect.forRange
+      0
+      5
+      (\index%12 ->
+        effect.bind (when applicativeEffect (integer.equal index%12 3) (throw "stop at 3"))
+          \$unit%13 -> record visited%11 (showIntDictShow index%12)))
+      \$unit%14 -> effect.pure 99)
+
+@export untilAborts = observe
+  (\visited%15 ->
+    effect.bind (reference.new 0)
+      \counter%16 -> effect.bind (effect.until
+        (effect.bind (effect.bind (reference.read counter%16)
+          \section300%17 -> reference.write counter%16 (integer.add section300%17 1))
+          \count%18 -> effect.bind (record visited%15 (showIntDictShow count%18))
+            \$unit%19 -> effect.bind (when applicativeEffect (integer.equal count%18 2)
+              (throw "stop at 2"))
+              \$unit%20 -> effect.pure (integer.greater_than_or_equal count%18 5)))
+        \$unit%21 -> reference.read counter%16)
+
+@export whileAborts = observe
+  (\visited%22 ->
+    effect.bind (reference.new 0)
+      \counter%23 -> effect.while
+        (effect.map
+          (\section384%24 -> integer.less_than section384%24 5)
+          (reference.read counter%23))
+        (effect.bind (effect.bind (reference.read counter%23)
+          \section406%25 -> reference.write counter%23 (integer.add section406%25 1))
+          \count%26 -> effect.bind (when applicativeEffect (integer.equal count%26 3)
+            (throw "stop at 3"))
+            \$unit%27 -> record visited%22 (showIntDictShow count%26)))
+
+@export foreachAborts = observe
+  (\visited%28 ->
+    effect.forEach
+      ["a", "b", "c", "d"]
+      (\element%29 ->
+        effect.bind (when applicativeEffect (string.equal element%29 "c") (throw "stop at c"))
+          \$unit%30 -> record visited%28 element%29))
+
+@export nestedAborts = observe
+  (\visited%31 ->
+    effect.forRange
+      0
+      3
+      (\row%32 ->
+        effect.bind (record visited%31 (string.append "row " (showIntDictShow row%32)))
+          \$unit%33 -> effect.forRange
+            0
+            3
+            (\column%34 ->
+              effect.bind (when applicativeEffect
+                (boolean.and (integer.equal row%32 1) (integer.equal column%34 1))
+                (throw "stop at 1:1"))
+                \$unit%35 -> record visited%31
+                  (string.append (showIntDictShow row%32) (string.append ":" (showIntDictShow
+                    column%34))))))
+
+@export recovers = observe
+  (\visited%36 ->
+    effect.forRange
+      0
+      4
+      (\index%37 ->
+        catchException (\error%38 -> record visited%36 (string.append "caught " (message error%38)))
+          (effect.bind (when applicativeEffect (integer.equal index%37 1) (throw "one"))
+            \$unit%39 -> record visited%36 (showIntDictShow index%37))))
+
+showIntDictShow = show showInt

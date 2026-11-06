@@ -9,8 +9,9 @@ use smol_str::{SmolStr, format_smolstr};
 use crate::optimize::local_uses;
 use crate::tree::{
     ArrayElement, BinaryOperator, Binding, CaseAlternative, Comparison, EffectExpression,
-    ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal, Parameter,
-    PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator, WriteResult,
+    EffectLoop, ExpressionId, ExpressionKind, FieldIdentity, GlobalId, InstanceIdentity, Literal,
+    Parameter, PatternId, PatternKind, PrimitiveType, RecordField, RecordUpdate, UnaryOperator,
+    WriteResult,
 };
 
 use super::{Context, ConversionResult};
@@ -72,6 +73,11 @@ const ORD_FUNCTIONS: &[(&str, Comparison)] = &[
 const UNCURRIED_EFFECT_FUNCTIONS: &[(&str, &str, &str)] = &[
     ("Effect.Uncurried", "mkEffectFn", "runEffectFn"),
     ("Control.Monad.ST.Uncurried", "mkSTFn", "runSTFn"),
+];
+
+const LOOP_MODULES: &[(&str, &str, &str, &str)] = &[
+    ("Effect", "forE", "foreachE", "whileE"),
+    ("Control.Monad.ST.Internal", "for", "foreach", "while"),
 ];
 
 const REFERENCE_MODULES: &[(&str, WriteResult)] =
@@ -727,6 +733,36 @@ where
                 function_action: *function_action,
                 argument_action: *argument_action,
             }));
+        }
+        Ok(self.known_effect_loop(function, arguments)?.map(EffectExpression::Loop))
+    }
+
+    fn known_effect_loop(
+        &self,
+        function: ExpressionId,
+        arguments: &[ExpressionId],
+    ) -> QueryResult<Option<EffectLoop>> {
+        for &(module_name, range, each, while_) in LOOP_MODULES {
+            if self.known_term(function, module_name, range)?
+                && let [start, end, body] = *arguments
+            {
+                return Ok(Some(EffectLoop::Range { start, end, body }));
+            }
+            if self.known_term(function, module_name, each)?
+                && let [array, body] = *arguments
+            {
+                return Ok(Some(EffectLoop::Each { array, body }));
+            }
+            if self.known_term(function, module_name, while_)?
+                && let [condition, body] = *arguments
+            {
+                return Ok(Some(EffectLoop::While { condition, body }));
+            }
+        }
+        if self.known_term(function, "Effect", "untilE")?
+            && let [condition] = *arguments
+        {
+            return Ok(Some(EffectLoop::Until { condition }));
         }
         Ok(None)
     }

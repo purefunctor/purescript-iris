@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+mark :: forall value. Prim.String -> value -> value
+fresh :: Effect.Effect (Effect.Ref.Ref Prim.Int)
+forCaptured :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+forInlineBody :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+untilCaptured :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+whileCaptured :: Effect.Ref.Ref Prim.Int -> Effect.Effect Data.Unit.Unit
+foreachCaptured :: Effect.Ref.Ref Prim.Int -> Prim.Array Prim.Int -> Effect.Effect Data.Unit.Unit
+forPartial :: Prim.Int -> (Prim.Int -> Effect.Effect Data.Unit.Unit) -> Effect.Effect Data.Unit.Unit
+
+Types

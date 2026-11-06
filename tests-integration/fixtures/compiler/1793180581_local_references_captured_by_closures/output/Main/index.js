@@ -16,27 +16,25 @@ export function countDown(start) {
   return () => {
     let remaining = start;
     let steps = 0 | 0;
-    const $function = Control_Monad_ST_Internal.while;
-    const $function$1 = (section161) => section161 > (0 | 0);
-    const $effect = () => {
-      return $function$1(remaining);
-    };
-    const $function$2 = $function($effect);
-    const $effect$1 = () => {
+    const $function = (section161) => section161 > (0 | 0);
+    while (true) {
+      let $condition;
+      $condition = $function(remaining);
+      if (!$condition) {
+        break;
+      }
       let $int;
       const section183 = remaining;
       const $value = section183 - (1 | 0) | 0;
       $int = remaining = $value;
-      const $function$3 = Data_Functor.void(Control_Monad_ST_Internal.functorST);
-      const $effect$2 = () => {
+      const $function$1 = Data_Functor.void(Control_Monad_ST_Internal.functorST);
+      const $effect = () => {
         const section200 = steps;
         const $value$1 = section200 + (1 | 0) | 0;
         return steps = $value$1;
       };
-      return (/* @__PURE__ */ $function$3($effect$2))();
-    };
-    const $action = $function$2($effect$1);
-    const $unit = $action();
+      (/* @__PURE__ */ $function$1($effect))();
+    }
     return steps;
   };
 }

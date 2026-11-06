@@ -1,5 +1,6 @@
 //! Rendering functional trees as JavaScript modules.
 
+mod effect_loop;
 mod inline;
 mod structure;
 mod stylex;
@@ -39,6 +40,7 @@ use crate::tree::{
 };
 use crate::writer::{BindingCallTarget, Writer};
 
+use self::effect_loop::{CapturedLoop, capture_loop, execute_loop};
 use self::inline::{is_abstraction, pattern_parameter};
 use self::structure::{
     collect_module_references, cyclic_instance_initializers, has_local_lazy_initializers,
@@ -107,6 +109,8 @@ enum Destination<'a> {
     EffectAssign(&'a str),
     AssignAndBreak { name: &'a str, label: &'a str },
     EffectAssignAndBreak { name: &'a str, label: &'a str },
+    Continue,
+    EffectContinue,
 }
 
 enum CapturedEffectAction {
@@ -120,6 +124,7 @@ enum CapturedEffect {
     Map { function: ExpressionId, action: CapturedEffectAction },
     Apply { function_action: CapturedEffectAction, argument_action: CapturedEffectAction },
     Operation(CapturedOperation),
+    Loop(CapturedLoop),
 }
 
 enum CapturedOperation {
@@ -292,11 +297,13 @@ impl<'a> Destination<'a> {
             Destination::AssignAndBreak { name, label } => {
                 Destination::EffectAssignAndBreak { name, label }
             }
+            Destination::Continue => Destination::EffectContinue,
             Destination::TailEffectThunkReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
-            | Destination::EffectAssignAndBreak { .. } => {
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination is already indirect")
             }
         }
@@ -310,11 +317,13 @@ impl<'a> Destination<'a> {
             Destination::EffectAssignAndBreak { name, label } => {
                 Destination::AssignAndBreak { name, label }
             }
+            Destination::EffectContinue => Destination::Continue,
             Destination::Return
             | Destination::TailEffectThunkReturn
             | Destination::TailEffectReturn
             | Destination::Assign(_)
-            | Destination::AssignAndBreak { .. } => {
+            | Destination::AssignAndBreak { .. }
+            | Destination::Continue => {
                 unreachable!("invariant violated: value destination is already direct")
             }
         }
@@ -327,6 +336,7 @@ impl<'a> Destination<'a> {
                 | Destination::EffectTailEffectReturn
                 | Destination::EffectAssign(_)
                 | Destination::EffectAssignAndBreak { .. }
+                | Destination::EffectContinue
         )
     }
 }
@@ -1383,6 +1393,7 @@ impl Generator<'_> {
                         Destination::Return
                             | Destination::Assign(_)
                             | Destination::AssignAndBreak { .. }
+                            | Destination::Continue
                     ) =>
             {
                 self.render_expression(tree, writer, *function, destination.effect(), context)
@@ -1434,11 +1445,18 @@ impl Generator<'_> {
                 writer.assign(tree, name, value);
                 writer.break_label(label);
             }
+            Destination::Continue => {
+                if !tree.expression_is_atomic(&value) {
+                    writer.expression_statement(tree, value);
+                }
+                writer.continue_loop();
+            }
             Destination::TailEffectThunkReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
-            | Destination::EffectAssignAndBreak { .. } => {
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination was not rendered directly")
             }
         }
@@ -1508,11 +1526,16 @@ impl Generator<'_> {
                 })?;
                 Some(label)
             }
+            Destination::Continue => {
+                writer.continue_loop();
+                None
+            }
             Destination::TailEffectReturn
             | Destination::EffectReturn
             | Destination::EffectTailEffectReturn
             | Destination::EffectAssign(_)
-            | Destination::EffectAssignAndBreak { .. } => {
+            | Destination::EffectAssignAndBreak { .. }
+            | Destination::EffectContinue => {
                 unreachable!("invariant violated: effect destination returned an effect thunk")
             }
         };
@@ -2785,7 +2808,9 @@ fn render_case(
         | Destination::EffectReturn
         | Destination::EffectTailEffectReturn
         | Destination::AssignAndBreak { .. }
-        | Destination::EffectAssignAndBreak { .. } => generator.render_case_alternatives(
+        | Destination::EffectAssignAndBreak { .. }
+        | Destination::Continue
+        | Destination::EffectContinue => generator.render_case_alternatives(
             tree,
             writer,
             &scrutinees,
@@ -2909,7 +2934,9 @@ fn render_guarded(
         | Destination::EffectReturn
         | Destination::EffectTailEffectReturn
         | Destination::AssignAndBreak { .. }
-        | Destination::EffectAssignAndBreak { .. } => {
+        | Destination::EffectAssignAndBreak { .. }
+        | Destination::Continue
+        | Destination::EffectContinue => {
             generator.render_guard_alternatives(
                 tree,
                 writer,
@@ -3440,6 +3467,9 @@ fn capture_effect(
                 arguments,
             }))
         }
+        EffectExpression::Loop(effect_loop) => {
+            Ok(CapturedEffect::Loop(capture_loop(renderer, effect_loop)?))
+        }
     }
 }
 
@@ -3570,6 +3600,11 @@ fn execute_effect(
                     CapturedOperation::ReferenceWrite { target, value, result: WriteResult::Unit };
                 let result = operation.execute(renderer.tree, renderer.writer);
                 renderer.context.bind_inline(&parameter, result);
+            } else if let CapturedEffectAction::Effect(effect) = &action
+                && let CapturedEffect::Loop(_) = effect.as_ref()
+            {
+                let result = execute_effect_action_value(renderer, action, &parameter.name)?;
+                renderer.context.bind_inline(&parameter, result);
             } else {
                 let (_, parameter_name) = execute_effect_action(renderer, action, &parameter.name)?;
                 renderer.context.bind_direct(&parameter, parameter_name);
@@ -3601,6 +3636,23 @@ fn execute_effect(
                 result,
                 destination,
             );
+            Ok(())
+        }
+        CapturedEffect::Loop(effect_loop) => {
+            execute_loop(renderer, effect_loop)?;
+            match destination {
+                Destination::Return => renderer.writer.return_undefined(),
+                Destination::Continue => renderer.writer.continue_loop(),
+                destination => {
+                    let result = renderer.tree.undefined();
+                    renderer.generator.render_destination(
+                        renderer.tree,
+                        renderer.writer,
+                        result,
+                        destination,
+                    );
+                }
+            }
             Ok(())
         }
         CapturedEffect::Apply { function_action, argument_action } => {
@@ -3635,6 +3687,10 @@ fn execute_effect_action_value(
         CapturedEffectAction::Effect(effect) => match *effect {
             CapturedEffect::Operation(operation) => {
                 Ok(operation.execute(renderer.tree, renderer.writer))
+            }
+            CapturedEffect::Loop(effect_loop) => {
+                execute_loop(renderer, effect_loop)?;
+                Ok(renderer.tree.undefined())
             }
             effect => {
                 let name = renderer.context.allocate(preferred_name);
@@ -4023,6 +4079,11 @@ fn collect_expression_references(
                     collect_expression_references(module, *argument, seen, globals);
                 }
             }
+            EffectExpression::Loop(effect_loop) => {
+                for operand in effect_loop.operands() {
+                    collect_expression_references(module, operand, seen, globals);
+                }
+            }
         },
     }
 }
@@ -4260,6 +4321,11 @@ fn collect_expression_children(
                 collect_expression_globals(module, *function, false, globals);
                 for argument in arguments.iter() {
                     collect_expression_globals(module, *argument, false, globals);
+                }
+            }
+            EffectExpression::Loop(effect_loop) => {
+                for operand in effect_loop.operands() {
+                    collect_expression_globals(module, operand, false, globals);
                 }
             }
         },

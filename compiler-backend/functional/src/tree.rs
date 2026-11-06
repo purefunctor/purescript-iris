@@ -354,6 +354,27 @@ pub enum EffectExpression {
     ReferenceRead(ExpressionId),
     ReferenceWrite { reference: ExpressionId, value: ExpressionId, result: WriteResult },
     UncurriedApplication { function: ExpressionId, arguments: Arc<[ExpressionId]> },
+    Loop(EffectLoop),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EffectLoop {
+    Range { start: ExpressionId, end: ExpressionId, body: ExpressionId },
+    Each { array: ExpressionId, body: ExpressionId },
+    While { condition: ExpressionId, body: ExpressionId },
+    Until { condition: ExpressionId },
+}
+
+impl EffectLoop {
+    pub fn operands(&self) -> impl Iterator<Item = ExpressionId> {
+        let (first, second, third) = match self {
+            EffectLoop::Range { start, end, body } => (*start, Some(*end), Some(*body)),
+            EffectLoop::Each { array, body } => (*array, Some(*body), None),
+            EffectLoop::While { condition, body } => (*condition, Some(*body), None),
+            EffectLoop::Until { condition } => (*condition, None, None),
+        };
+        std::iter::once(first).chain(second).chain(third)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

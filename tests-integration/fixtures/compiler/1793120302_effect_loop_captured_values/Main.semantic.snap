@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+untilLimit :: { limit :: Prim.Int } -> Effect.Effect Prim.Int
+untilLimit = \configuration ->
+  bind {bindEffect} (new 0) \counter ->
+    let
+      limit :: Prim.Int
+      limit = configuration.limit
+    in
+      discard {discardUnit} {bindEffect}
+        (untilE
+          (bind {bindEffect} (modify (\v63 -> add {semiringInt} v63 1) counter) \current ->
+            pure {applicativeEffect} (greaterThanOrEq {ordInt} current limit))) \_ -> read counter
+
+whileLimit :: { limit :: Prim.Int } -> Effect.Effect Prim.Int
+whileLimit = \configuration ->
+  bind {bindEffect} (new 0) \counter ->
+    let
+      limit :: Prim.Int
+      limit = configuration.limit
+    in
+      discard {discardUnit} {bindEffect}
+        (whileE
+          (bind {bindEffect} (read counter) \current ->
+            pure {applicativeEffect} (lessThan {ordInt} current limit))
+          (modify_ (\v147 -> add {semiringInt} v147 1) counter)) \_ -> read counter

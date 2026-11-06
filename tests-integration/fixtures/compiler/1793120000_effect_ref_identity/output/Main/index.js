@@ -1,22 +1,17 @@
 import * as Data_Array from "../Data.Array/index.js";
 import * as Data_Function from "../Data.Function/index.js";
-import * as Effect from "../Effect/index.js";
 import * as $foreign from "./foreign.js";
 export function allocated(count) {
   const $value = [];
   return () => {
     let references = $value;
-    const $action = Effect.forE(0 | 0)(count)((index) => {
-      return () => {
-        const reference = { value: index };
-        const modifyFunction = Data_Function.flip(Data_Array.snoc)(reference);
-        const value = references;
-        const $value$1 = modifyFunction(value);
-        references = $value$1;
-        return undefined;
-      };
-    });
-    const $unit = $action();
+    for (let index = 0 | 0; index < count; index++) {
+      const reference = { value: index };
+      const modifyFunction = Data_Function.flip(Data_Array.snoc)(reference);
+      const value = references;
+      const $value$1 = modifyFunction(value);
+      references = $value$1;
+    }
     return references;
   };
 }

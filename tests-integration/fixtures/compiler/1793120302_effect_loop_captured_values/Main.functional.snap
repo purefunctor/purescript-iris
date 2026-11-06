@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export untilLimit = \configuration%5 ->
+  effect.bind (reference.new 0)
+    \counter%0 -> let
+      limit%3 = configuration%5.limit
+    in effect.bind (effect.until
+      (effect.bind (effect.bind (reference.read counter%0)
+        \section63%1 -> reference.write counter%0 (integer.add section63%1 1))
+        \current%2 -> effect.pure (integer.greater_than_or_equal current%2 limit%3)))
+      \$unit%4 -> reference.read counter%0
+
+@export whileLimit = \configuration%11 ->
+  effect.bind (reference.new 0)
+    \counter%6 -> let
+      limit%8 = configuration%11.limit
+    in effect.bind (effect.while
+      (effect.bind (reference.read counter%6)
+        \current%7 -> effect.pure (integer.less_than current%7 limit%8))
+      (effect.bind (reference.read counter%6)
+        \section147%9 -> reference.write.unit counter%6 (integer.add section147%9 1)))
+      \$unit%10 -> reference.read counter%6

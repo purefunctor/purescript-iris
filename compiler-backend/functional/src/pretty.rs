@@ -5,9 +5,10 @@ use pretty::{Arena, DocAllocator, DocBuilder};
 use crate::stylex::{StyleXCallTarget, StyleXCondition, StyleXConditionalCase, StyleXExpression};
 use crate::tree::{
     ArrayElement, AsyncExpression, BinaryOperator, Comparison, Declaration, DeclarationKind,
-    EffectExpression, ExpressionId, ExpressionKind, Field, GlobalId, Guard, IndirectModuleExports,
-    Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType, RecordUpdate,
-    ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence, UnaryOperator, WriteResult,
+    EffectExpression, EffectLoop, ExpressionId, ExpressionKind, Field, GlobalId, Guard,
+    IndirectModuleExports, Literal, Module, Parameter, PatternId, PatternKind, PrimitiveType,
+    RecordUpdate, ReflectableEvidence, ReflectableOrdering, SynthesizedEvidence, UnaryOperator,
+    WriteResult,
 };
 
 type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
@@ -569,6 +570,21 @@ impl<'a> Printer<'a, '_> {
                     .map(|argument| self.expression_at(*argument, ExpressionPrecedence::Atom));
                 let arguments = self.delimited("(", arguments, ")");
                 self.arena.text("effect.uncurried.call ").append(function).append(arguments)
+            }
+            EffectExpression::Loop(effect_loop) => {
+                let name = match effect_loop {
+                    EffectLoop::Range { .. } => "effect.forRange",
+                    EffectLoop::Each { .. } => "effect.forEach",
+                    EffectLoop::While { .. } => "effect.while",
+                    EffectLoop::Until { .. } => "effect.until",
+                };
+                let operands = effect_loop.operands().map(|operand| {
+                    self.arena
+                        .line()
+                        .append(self.expression_at(operand, ExpressionPrecedence::Atom))
+                });
+                let operands = self.arena.concat(operands).nest(2);
+                self.arena.text(name).append(operands).group()
             }
         }
     }

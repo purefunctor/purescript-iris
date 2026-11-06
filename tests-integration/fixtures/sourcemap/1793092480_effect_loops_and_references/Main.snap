@@ -1,0 +1,83 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export function total(values) {
+   | ^ 9:1 total values = do
+   |        ^ (total) 9:1 total values = do
+   |                               ^ 9:1 total values = do
+ 2 |   return () => {
+   |   ^ (total) 9:16 do
+   |                ^ 9:16 do
+ 3 |     let sum = 0 | 0;
+   |     ^ 9:16 do
+   |               ^ 10:18 0
+ 4 |     for (let index = 0 | 0; index < (3 | 0); index++) {
+   |     ^ 11:3 forE 0 3 \index ->
+   |                      ^ 11:8 0 3 \index ->
+   |                             ^ 11:3 forE 0 3 \index ->
+   |                                      ^ 11:10 3 \index ->
+   |                                              ^ 11:3 forE 0 3 \index ->
+ 5 |       const section59 = sum;
+   |       ^ 12:5 Ref.modify_ (_ + index) sum
+   |                         ^ 12:29 sum
+ 6 |       const $value = section59 + index | 0;
+   |       ^ 12:18 _ + index) sum
+   |                                  ^ 12:22 index) sum
+   |                                          ^ 12:18 _ + index) sum
+ 7 |       sum = $value;
+   |       ^ 12:5 Ref.modify_ (_ + index) sum
+   |             ^ 12:18 _ + index) sum
+ 8 |     }
+   |     ^ 11:3 forE 0 3 \index ->
+ 9 |     const $length = values.length;
+   |     ^ 13:3 foreachE values \value ->
+   |                     ^ 13:12 values \value ->
+   |                            ^ 13:3 foreachE values \value ->
+10 |     for (let $index = 0; $index < $length; $index++) {
+   |     ^ 13:3 foreachE values \value ->
+11 |       const value = values[$index];
+   |       ^ 13:3 foreachE values \value ->
+   |                     ^ 13:12 values \value ->
+   |                            ^ 13:3 foreachE values \value ->
+12 |       sum = value;
+   |       ^ 14:21 sum
+   |             ^ 14:15 value sum
+13 |     }
+   |     ^ 13:3 foreachE values \value ->
+14 |     const $function = (section91) => section91 < (10 | 0);
+   |     ^ 15:16 _ < 10) (Ref.read sum)) do
+   |                                                   ^ 15:20 10) (Ref.read sum)) do
+15 |     while (true) {
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+16 |       let $condition;
+   |       ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+17 |       $condition = $function(sum);
+   |       ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+   |                    ^ 15:16 _ < 10) (Ref.read sum)) do
+   |                              ^ 15:34 sum)) do
+   |                                 ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+18 |       if (!$condition) {
+   |       ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+19 |         break;
+   |         ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+20 |       }
+   |       ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+21 |       const section112 = sum;
+   |       ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+   |                          ^ 16:25 sum
+22 |       const $value$1 = section112 + (1 | 0) | 0;
+   |       ^ 16:18 _ + 1) sum
+   |                                      ^ 16:22 1) sum
+   |                                               ^ 16:18 _ + 1) sum
+23 |       sum = $value$1;
+   |       ^ 16:5 Ref.modify_ (_ + 1) sum
+   |             ^ 16:18 _ + 1) sum
+24 |     }
+   |     ^ 15:3 whileE (map (_ < 10) (Ref.read sum)) do
+25 |     return sum;
+   |     ^ 17:3 Ref.read sum
+   |            ^ 17:12 sum
+26 |   };
+   |   ^ 9:16 do
+27 | }
+   | ^ 9:1 total values = do

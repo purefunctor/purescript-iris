@@ -1,0 +1,38 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export foreign hasNext
+
+@export foreign next
+
+@export countdown = \start%0 ->
+  effect.bind (reference.new start%0)
+    \counter%1 -> effect.bind (reference.new [])
+      \seen%2 -> effect.bind (effect.while
+        (effect.map (\section77%3 -> integer.greater_than section77%3 0) (reference.read counter%1))
+        (effect.bind (reference.read counter%1)
+          \current%4 -> effect.bind (effect.bind (reference.read seen%2)
+            \section105%5 -> reference.write.unit seen%2 [...section105%5, current%4])
+            \$unit%6 -> reference.write.unit counter%1 (integer.subtract current%4 1)))
+        \$unit%7 -> reference.read seen%2
+
+@export countUntil = \limit%11 ->
+  effect.bind (reference.new 0)
+    \counter%8 -> effect.bind (effect.until
+      (effect.bind (effect.bind (reference.read counter%8)
+        \section165%9 -> reference.write counter%8 (integer.add section165%9 1))
+        \count%10 -> effect.pure (integer.greater_than_or_equal count%10 limit%11)))
+      \$unit%12 -> reference.read counter%8
+
+@export drain = effect.while hasNext next
+
+@export doubleUntil = \limit%15 ->
+  run
+    (effect.bind (reference.new 1)
+      \value%13 -> effect.bind (effect.while
+        (effect.map
+          (\section233%14 -> integer.less_than section233%14 limit%15)
+          (reference.read value%13))
+        (effect.bind (reference.read value%13)
+          \section252%16 -> reference.write value%13 (integer.multiply section252%16 2)))
+        \$unit%17 -> reference.read value%13)

@@ -1,0 +1,84 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+describe :: forall value.
+  Data.Either.Either Effect.Exception.Error value -> Data.Either.Either Prim.String value
+describe = \v75 ->
+  case v75 of
+    (Left error) -> Left (message error)
+    (Right value) -> Right value
+
+observe :: forall value.
+  (Effect.Ref.Ref (Prim.Array Prim.String) -> Effect.Effect value) ->
+  Effect.Effect (Main.Observed value)
+observe = \body ->
+  bind {bindEffect} (new []) \visited ->
+    bind {bindEffect} (try (body visited)) \outcome ->
+      bind {bindEffect} (read visited) \seen ->
+        pure {applicativeEffect} { outcome: describe outcome, visited: seen }
+
+record :: Effect.Ref.Ref (Prim.Array Prim.String) -> Prim.String -> Effect.Effect Data.Unit.Unit
+record = \visited -> \label -> modify_ (flip snoc label) visited
+
+forAborts :: Effect.Effect (Main.Observed Prim.Int)
+forAborts =
+  observe \visited ->
+    discard {discardUnit} {bindEffect}
+      (forE 0 5 \index ->
+        discard {discardUnit} {bindEffect}
+          (when {applicativeEffect} (eq {eqInt} index 3) (throw "stop at 3")) \_ ->
+          record visited (show {showInt} index)) \_ -> pure {applicativeEffect} 99
+
+untilAborts :: Effect.Effect (Main.Observed Prim.Int)
+untilAborts =
+  observe \visited ->
+    bind {bindEffect} (new 0) \counter ->
+      discard {discardUnit} {bindEffect}
+        (untilE
+          (bind {bindEffect} (modify (\v300 -> add {semiringInt} v300 1) counter) \count ->
+            discard {discardUnit} {bindEffect} (record visited (show {showInt} count)) \_ ->
+              discard {discardUnit} {bindEffect}
+                (when {applicativeEffect} (eq {eqInt} count 2) (throw "stop at 2")) \_ ->
+                pure {applicativeEffect} (greaterThanOrEq {ordInt} count 5))) \_ -> read counter
+
+whileAborts :: Effect.Effect (Main.Observed Data.Unit.Unit)
+whileAborts =
+  observe \visited ->
+    bind {bindEffect} (new 0) \counter ->
+      whileE (map {functorEffect} (\v384 -> lessThan {ordInt} v384 5) (read counter))
+        (bind {bindEffect} (modify (\v406 -> add {semiringInt} v406 1) counter) \count ->
+          discard {discardUnit} {bindEffect}
+            (when {applicativeEffect} (eq {eqInt} count 3) (throw "stop at 3")) \_ ->
+            record visited (show {showInt} count))
+
+foreachAborts :: Effect.Effect (Main.Observed Data.Unit.Unit)
+foreachAborts =
+  observe \visited ->
+    foreachE ["a", "b", "c", "d"] \element ->
+      discard {discardUnit} {bindEffect}
+        (when {applicativeEffect} (eq {eqString} element "c") (throw "stop at c")) \_ ->
+        record visited element
+
+nestedAborts :: Effect.Effect (Main.Observed Data.Unit.Unit)
+nestedAborts =
+  observe \visited ->
+    forE 0 3 \row ->
+      discard {discardUnit} {bindEffect}
+        (record visited (append {semigroupString} "row " (show {showInt} row))) \_ ->
+        forE 0 3 \column ->
+          discard {discardUnit} {bindEffect}
+            (when {applicativeEffect}
+              (conj {heytingAlgebraBoolean} (eq {eqInt} row 1) (eq {eqInt} column 1))
+              (throw "stop at 1:1")) \_ ->
+            record visited
+              (append {semigroupString} (show {showInt} row)
+                (append {semigroupString} ":" (show {showInt} column)))
+
+recovers :: Effect.Effect (Main.Observed Data.Unit.Unit)
+recovers =
+  observe \visited ->
+    forE 0 4 \index ->
+      catchException (\error -> record visited (append {semigroupString} "caught " (message error)))
+        (discard {discardUnit} {bindEffect}
+          (when {applicativeEffect} (eq {eqInt} index 1) (throw "one")) \_ ->
+          record visited (show {showInt} index))

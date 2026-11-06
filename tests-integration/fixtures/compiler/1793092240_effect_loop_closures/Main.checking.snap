@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+rangeClosures :: Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.Int))
+elementClosures ::
+  Prim.Array Prim.String -> Effect.Effect (Prim.Array (Data.Unit.Unit -> Prim.String))
+stateClosures :: Prim.Array (Data.Unit.Unit -> Prim.Int)
+
+Types
