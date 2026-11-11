@@ -2,11 +2,13 @@
 
 use std::rc::Rc;
 
+use functional::initializers::initializer_components;
 use functional::tree::{
     EffectExpression, ExpressionId, ExpressionKind, GlobalId, LocalId, Module, Origin, PatternId,
     PatternKind, RecursiveGroupId,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use itertools::Itertools;
+use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,7 +23,6 @@ pub(super) struct TailCallProfile {
     pub(super) parameters: Vec<PatternId>,
     pub(super) body: ExpressionId,
     pub(super) uncurried: bool,
-    pub(super) effect_step: bool,
     pub(super) origin: Option<Origin>,
 }
 
@@ -29,6 +30,7 @@ pub(super) struct TailCallGroup {
     pub(super) dispatcher_name: SmolStr,
     pub(super) profiles: Vec<TailCallProfile>,
     pub(super) maximum_arity: usize,
+    pub(super) effect_step: bool,
 }
 
 #[derive(Clone)]
@@ -144,15 +146,11 @@ pub(super) fn local_profiles(
     profiles.collect()
 }
 
-pub(super) fn tail_call_group(
+pub(super) fn tail_call_groups(
     module: &Module,
-    mut profiles: Vec<TailCallProfile>,
-    dispatcher_name: SmolStr,
-) -> Option<TailCallGroup> {
-    if profiles.is_empty() {
-        return None;
-    }
-
+    profiles: &[TailCallProfile],
+    mut dispatcher_name: impl FnMut(&[TailCallProfile]) -> SmolStr,
+) -> Vec<TailCallGroup> {
     let targets = profiles.iter().enumerate().map(|(position, profile)| {
         (profile.identity, (position, profile.parameters.len(), profile.uncurried))
     });
@@ -161,38 +159,36 @@ pub(super) fn tail_call_group(
     for (source, profile) in profiles.iter().enumerate() {
         collect_tail_edges(module, profile.body, TailPosition::Value, source, &targets, &mut edges);
     }
-    if edges.is_empty() {
-        return None;
-    }
 
-    // Effect-tail calls execute beneath the returned thunk, so their connected tail-call
-    // component uses the boxed step protocol. Value-tail edges preserve the return type and
-    // therefore propagate that requirement to both endpoints.
-    let mut effect_steps = FxHashSet::default();
+    let mut successors = vec![Vec::new(); profiles.len()];
     for edge in &edges {
-        if edge.position == TailPosition::Effect {
-            effect_steps.insert(edge.source);
-            effect_steps.insert(edge.target);
-        }
+        successors[edge.source].push(edge.target);
     }
-    loop {
-        let previous_length = effect_steps.len();
-        for edge in &edges {
-            if effect_steps.contains(&edge.source) || effect_steps.contains(&edge.target) {
-                effect_steps.insert(edge.source);
-                effect_steps.insert(edge.target);
-            }
-        }
-        if effect_steps.len() == previous_length {
-            break;
-        }
+    let mut components = initializer_components(&successors);
+    components.retain(|component| {
+        let [position] = component[..] else { return true };
+        successors[position].contains(&position)
+    });
+    for component in &mut components {
+        component.sort_unstable();
     }
-    for (position, profile) in profiles.iter_mut().enumerate() {
-        profile.effect_step = effect_steps.contains(&position);
-    }
+    components.sort_unstable();
 
-    let maximum_arity = profiles.iter().map(|profile| profile.parameters.len()).max().unwrap_or(0);
-    Some(TailCallGroup { dispatcher_name, profiles, maximum_arity })
+    let groups = components.into_iter().map(|component| {
+        // Effect-tail calls execute beneath the returned thunk, so their connected tail-call
+        // component uses the boxed step protocol.
+        let effect_step = edges.iter().any(|edge| {
+            edge.position == TailPosition::Effect
+                && component.contains(&edge.source)
+                && component.contains(&edge.target)
+        });
+        let profiles = component.iter().map(|&position| profiles[position].clone()).collect_vec();
+        let maximum_arity =
+            profiles.iter().map(|profile| profile.parameters.len()).max().unwrap_or(0);
+        let dispatcher_name = dispatcher_name(&profiles);
+        TailCallGroup { dispatcher_name, profiles, maximum_arity, effect_step }
+    });
+    groups.collect()
 }
 
 fn function_profile(
@@ -227,7 +223,6 @@ fn function_profile(
                 parameters,
                 body,
                 uncurried: false,
-                effect_step: false,
                 origin: module.storage[expression].origin,
             })
         }
@@ -236,7 +231,6 @@ fn function_profile(
             parameters: parameters.to_vec(),
             body: *body,
             uncurried: true,
-            effect_step: false,
             origin: module.storage[expression].origin,
         }),
         ExpressionKind::Literal { .. }
