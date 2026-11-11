@@ -1,0 +1,60 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Literal/1
+
+@export constructor Add/2
+
+@export constructor Parenthesised/1
+
+@export constructor Sum/1
+
+@export constructor Nil/0
+
+@export constructor Cons/2
+
+@export recursive[6] evaluate = \$expression%0 ->
+  case $expression%0 of
+    Literal value%1 ->
+      value%1
+    Add left%2 right%3 ->
+      integer.add (evaluate left%2) (evaluate right%3)
+    Parenthesised expression%4 ->
+      evaluate expression%4
+    Sum terms%5 ->
+      sumTerms 0 terms%5
+
+@export recursive[6] sumTerms = \$int%6 $terms%7 ->
+  case $int%6, $terms%7 of
+    total%8, Nil ->
+      total%8
+    total%9, Cons expression%10 rest%11 ->
+      sumTerms (integer.add total%9 (evaluate expression%10)) rest%11
+
+@export countToZero = \counter%14 ->
+  let
+    rec settle%13 = \step%16 ->
+      effect.bind (reference.read counter%14)
+        \count%15 -> if integer.less_than count%15 0
+          then effect.bind (advance%12 step%16) \$int%17 -> effect.pure count%15
+          else effect.pure count%15
+    rec advance%12 = \step%19 ->
+      effect.bind (effect.bind (reference.read counter%14)
+        \section160%18 -> reference.write.unit counter%14 (integer.add section160%18 step%19))
+        \$unit%20 -> settle%13 step%19
+  in advance%12 1
+
+@export skipToZero = \counter%23 ->
+  let
+    rec settle%22 = \depth%25 ->
+      effect.bind (reference.read counter%23)
+        \count%24 -> if integer.less_than count%24 0
+          then effect.bind (skip%21 depth%25) \$int%26 -> effect.pure count%24
+          else effect.pure count%24
+    rec skip%21 = \depth%27 ->
+      | integer.greater_than depth%27 0 -> skip%21 (integer.subtract depth%27 1)
+      | otherwise ->
+        effect.bind (effect.bind (reference.read counter%23)
+          \section263%28 -> reference.write.unit counter%23 (integer.add section263%28 1))
+          \$unit%29 -> settle%22 depth%27
+  in skip%21
