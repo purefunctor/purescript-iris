@@ -54,7 +54,7 @@ use self::syntax::{
 };
 use self::tail_call::{
     TailCallContext, TailCallGroup, TailCallIdentity, TailCallProfile, global_profiles,
-    local_profiles, tail_call_group,
+    local_profiles, tail_call_groups,
 };
 
 const INITIALIZER_CYCLE_MESSAGE: &str = "Top-level value initializer cycle";
@@ -193,7 +193,6 @@ struct TailCallWrapper<'a> {
 
 struct CurriedTailCallWrapper<'a> {
     group: &'a TailCallGroup,
-    profile: &'a TailCallProfile,
     state: usize,
     arguments: &'a [SmolStr],
     remaining: &'a [SmolStr],
@@ -201,7 +200,6 @@ struct CurriedTailCallWrapper<'a> {
 
 struct TailCallWrapperResult<'a> {
     group: &'a TailCallGroup,
-    profile: &'a TailCallProfile,
     state: usize,
     arguments: &'a [SmolStr],
 }
@@ -459,31 +457,26 @@ impl<'m> Generator<'m> {
         let mut global_tail_call_groups = Vec::new();
         let mut global_tail_call_group_positions = FxHashMap::default();
         for profiles in global_profiles(module) {
-            let Some(TailCallIdentity::Global(_)) =
-                profiles.first().map(|profile| profile.identity)
-            else {
-                continue;
+            let dispatcher_name = |profiles: &[TailCallProfile]| {
+                let mut dispatcher_names = profiles.iter().map(|profile| {
+                    let TailCallIdentity::Global(global) = profile.identity else {
+                        unreachable!("invariant violated: global tail-call group contains a local")
+                    };
+                    global_names[&global].as_str()
+                });
+                let dispatcher_suffix = dispatcher_names.join("_");
+                allocator.allocate(format_smolstr!("$tail_{dispatcher_suffix}"))
             };
-            let mut dispatcher_names = profiles.iter().map(|profile| {
-                let TailCallIdentity::Global(global) = profile.identity else {
-                    unreachable!("invariant violated: global tail-call group contains a local")
-                };
-                global_names[&global].as_str()
-            });
-            let dispatcher_suffix = dispatcher_names.join("_");
-            let preferred = format_smolstr!("$tail_{dispatcher_suffix}");
-            let dispatcher_name = allocator.allocate(&preferred);
-            let Some(group) = tail_call_group(module, profiles, dispatcher_name) else {
-                continue;
-            };
-            let position = global_tail_call_groups.len();
-            for profile in &group.profiles {
-                let TailCallIdentity::Global(global) = profile.identity else {
-                    unreachable!("invariant violated: global tail-call group contains a local")
-                };
-                global_tail_call_group_positions.insert(global, position);
+            for group in tail_call_groups(module, &profiles, dispatcher_name) {
+                let position = global_tail_call_groups.len();
+                for profile in &group.profiles {
+                    let TailCallIdentity::Global(global) = profile.identity else {
+                        unreachable!("invariant violated: global tail-call group contains a local")
+                    };
+                    global_tail_call_group_positions.insert(global, position);
+                }
+                global_tail_call_groups.push(group);
             }
-            global_tail_call_groups.push(group);
         }
         let reserved_module_names = allocator.allocated_names().cloned().collect();
         let reserved_module_names = Rc::new(reserved_module_names);
@@ -816,7 +809,7 @@ impl Generator<'_> {
         let condition = tree.boolean(true);
         writer.while_loop(tree, condition, |tree, writer| {
             if group.is_singleton() {
-                return self.render_tail_call_profile(tree, writer, &group.profiles[0], context);
+                return self.render_tail_call_profile(tree, writer, group, 0, context);
             }
             let tail_calls = context
                 .tail_calls
@@ -834,7 +827,7 @@ impl Generator<'_> {
             });
             let cases = cases.collect_vec();
             writer.switch(tree, current_state, cases, |position, tree, writer| {
-                self.render_tail_call_profile(tree, writer, &group.profiles[position], context)
+                self.render_tail_call_profile(tree, writer, group, position, context)
             })
         })
     }
@@ -862,11 +855,18 @@ impl Generator<'_> {
         &self,
         tree: &mut Tree<'t>,
         writer: &mut Writer<'t>,
-        profile: &TailCallProfile,
+        group: &TailCallGroup,
+        state: usize,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
+        let profile = &group.profiles[state];
         let _origin = tree.enter_origin(profile.origin);
-        self.render_tail_call_parameters(tree, writer, profile, 0, context)
+        let destination = if group.effect_step {
+            Destination::TailEffectThunkReturn
+        } else {
+            Destination::Return
+        };
+        self.render_tail_call_parameters(tree, writer, profile, 0, destination, context)
     }
 
     fn render_tail_call_parameters<'t>(
@@ -875,14 +875,10 @@ impl Generator<'_> {
         writer: &mut Writer<'t>,
         profile: &TailCallProfile,
         position: usize,
+        destination: Destination<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
         let Some(pattern) = profile.parameters.get(position).copied() else {
-            let destination = if profile.effect_step {
-                Destination::TailEffectThunkReturn
-            } else {
-                Destination::Return
-            };
             return self.render_expression(tree, writer, profile.body, destination, context);
         };
         let argument = context
@@ -901,7 +897,14 @@ impl Generator<'_> {
         let value = tree.identifier(&current_argument);
         let plan = self.pattern_plan(tree, pattern, value, Some(&current_argument), context)?;
         self.render_pattern_scope(tree, writer, plan, context, |tree, writer, context| {
-            self.render_tail_call_parameters(tree, writer, profile, position + 1, context)
+            self.render_tail_call_parameters(
+                tree,
+                writer,
+                profile,
+                position + 1,
+                destination,
+                context,
+            )
         })
     }
 
@@ -924,7 +927,7 @@ impl Generator<'_> {
                 self.render_tail_call_wrapper_result(
                     tree,
                     writer,
-                    TailCallWrapperResult { group, profile, state, arguments: &arguments },
+                    TailCallWrapperResult { group, state, arguments: &arguments },
                     context,
                 )
             });
@@ -936,7 +939,7 @@ impl Generator<'_> {
             self.render_curried_tail_call_wrapper(
                 tree,
                 writer,
-                CurriedTailCallWrapper { group, profile, state, arguments: &arguments, remaining },
+                CurriedTailCallWrapper { group, state, arguments: &arguments, remaining },
                 context,
             )
         })
@@ -961,7 +964,7 @@ impl Generator<'_> {
                 self.render_tail_call_wrapper_result(
                     tree,
                     writer,
-                    TailCallWrapperResult { group, profile, state, arguments: &arguments },
+                    TailCallWrapperResult { group, state, arguments: &arguments },
                     context,
                 )
             });
@@ -973,7 +976,7 @@ impl Generator<'_> {
             self.render_curried_tail_call_wrapper(
                 tree,
                 writer,
-                CurriedTailCallWrapper { group, profile, state, arguments: &arguments, remaining },
+                CurriedTailCallWrapper { group, state, arguments: &arguments, remaining },
                 context,
             )
         })
@@ -986,12 +989,12 @@ impl Generator<'_> {
         wrapper: CurriedTailCallWrapper<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        let CurriedTailCallWrapper { group, profile, state, arguments, remaining } = wrapper;
+        let CurriedTailCallWrapper { group, state, arguments, remaining } = wrapper;
         let Some((argument, remaining)) = remaining.split_first() else {
             return self.render_tail_call_wrapper_result(
                 tree,
                 writer,
-                TailCallWrapperResult { group, profile, state, arguments },
+                TailCallWrapperResult { group, state, arguments },
                 context,
             );
         };
@@ -999,7 +1002,7 @@ impl Generator<'_> {
             self.render_curried_tail_call_wrapper(
                 tree,
                 writer,
-                CurriedTailCallWrapper { group, profile, state, arguments, remaining },
+                CurriedTailCallWrapper { group, state, arguments, remaining },
                 context,
             )
         })
@@ -1012,8 +1015,8 @@ impl Generator<'_> {
         wrapper: TailCallWrapperResult<'_>,
         context: &mut FunctionContext,
     ) -> ModuleResult<()> {
-        let TailCallWrapperResult { group, profile, state, arguments } = wrapper;
-        if group.is_singleton() && !profile.effect_step {
+        let TailCallWrapperResult { group, state, arguments } = wrapper;
+        if group.is_singleton() && !group.effect_step {
             return self.render_singleton_tail_call_loop(tree, writer, group, arguments, context);
         }
         if group.is_singleton() {
@@ -1028,7 +1031,7 @@ impl Generator<'_> {
             values.push(tree.null());
         }
         let initial = tree.call(dispatcher, values);
-        if !profile.effect_step {
+        if !group.effect_step {
             writer.return_expression(tree, initial);
             return Ok(());
         }
@@ -2695,28 +2698,30 @@ fn render_let(
         }
 
         let profiles = local_profiles(generator.module, bindings);
-        let mut dispatcher_names = profiles.iter().map(|profile| {
-            let TailCallIdentity::Local(local) = profile.identity else {
-                unreachable!("invariant violated: local tail-call group contains a global")
-            };
-            let position = bindings
-                .iter()
-                .position(|binding| binding.parameter.id == local)
-                .expect("invariant violated: local tail-call profile has no binding");
-            names[position].as_str()
-        });
-        let dispatcher_suffix = dispatcher_names.join("_");
-        let dispatcher_name = context.allocate(format_smolstr!("$tail_{dispatcher_suffix}"));
-        let optimized = if let Some(group) =
-            tail_call_group(generator.module, profiles, dispatcher_name)
-        {
+        let dispatcher_name = |profiles: &[TailCallProfile]| {
+            let mut dispatcher_names = profiles.iter().map(|profile| {
+                let TailCallIdentity::Local(local) = profile.identity else {
+                    unreachable!("invariant violated: local tail-call group contains a global")
+                };
+                let position = bindings
+                    .iter()
+                    .position(|binding| binding.parameter.id == local)
+                    .expect("invariant violated: local tail-call profile has no binding");
+                names[position].as_str()
+            });
+            let dispatcher_suffix = dispatcher_names.join("_");
+            context.allocate(format_smolstr!("$tail_{dispatcher_suffix}"))
+        };
+        let groups = tail_call_groups(generator.module, &profiles, dispatcher_name);
+        let mut optimized = FxHashSet::default();
+        for group in &groups {
             if !group.is_singleton() {
                 let state_name = context.allocate("$state");
                 let argument_names = (0..group.maximum_arity)
                     .map(|position| context.allocate(format_smolstr!("$argument{position}")))
                     .collect::<Rc<[_]>>();
                 let tail_calls =
-                    TailCallContext::new(&group, state_name.clone(), Rc::clone(&argument_names));
+                    TailCallContext::new(group, state_name.clone(), Rc::clone(&argument_names));
                 let mut dispatcher_parameters = vec![state_name];
                 dispatcher_parameters.extend(argument_names.iter().cloned());
                 let outer_tail_calls = context.tail_calls.replace(tail_calls);
@@ -2724,7 +2729,7 @@ fn render_let(
                     &group.dispatcher_name,
                     None,
                     dispatcher_parameters,
-                    |writer| generator.render_tail_call_dispatcher(tree, writer, &group, context),
+                    |writer| generator.render_tail_call_dispatcher(tree, writer, group, context),
                 )?;
                 context.tail_calls = outer_tail_calls;
             }
@@ -2743,19 +2748,15 @@ fn render_let(
                     TailCallWrapper {
                         name: &names[position],
                         source_name: binding_source_name(&bindings[position]),
-                        group: &group,
+                        group,
                         profile,
                         state,
                     },
                     context,
                 )?;
+                optimized.insert(profile.identity);
             }
-
-            let optimized = group.profiles.iter().map(|profile| profile.identity);
-            optimized.collect::<FxHashSet<_>>()
-        } else {
-            FxHashSet::default()
-        };
+        }
 
         for (binding, name) in bindings.iter().zip(&names) {
             let identity = TailCallIdentity::Local(binding.parameter.id);

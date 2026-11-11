@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Literal :: Prim.Int -> Main.Expression
+Add :: Main.Expression -> Main.Expression -> Main.Expression
+Parenthesised :: Main.Expression -> Main.Expression
+Sum :: Main.Terms -> Main.Expression
+Nil :: Main.Terms
+Cons :: Main.Expression -> Main.Terms -> Main.Terms
+evaluate :: Main.Expression -> Prim.Int
+sumTerms :: Prim.Int -> Main.Terms -> Prim.Int
+countToZero :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+skipToZero :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+
+Types
+Expression :: Prim.Type
+Terms :: Prim.Type
+
+Roles
+Expression = []
+Terms = []

@@ -1,0 +1,56 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Expression :: Prim.Type
+data Expression
+  | Literal :: Prim.Int -> Main.Expression
+  | Add :: Main.Expression -> Main.Expression -> Main.Expression
+  | Parenthesised :: Main.Expression -> Main.Expression
+  | Sum :: Main.Terms -> Main.Expression
+
+data Terms :: Prim.Type
+data Terms
+  | Nil :: Main.Terms
+  | Cons :: Main.Expression -> Main.Terms -> Main.Terms
+
+evaluate :: Main.Expression -> Prim.Int
+evaluate = \(Literal value) -> value
+evaluate = \(Add left right) -> add {semiringInt} (evaluate left) (evaluate right)
+evaluate = \(Parenthesised expression) -> evaluate expression
+evaluate = \(Sum terms) -> sumTerms 0 terms
+
+sumTerms :: Prim.Int -> Main.Terms -> Prim.Int
+sumTerms = \total -> \Nil -> total
+sumTerms = \total -> \(Cons expression rest) ->
+  sumTerms (add {semiringInt} total (evaluate expression)) rest
+
+countToZero :: Effect.Ref.Ref Prim.Int -> Effect.Effect Prim.Int
+countToZero = \counter -> advance 1
+  where
+  advance :: Prim.Int -> Effect.Effect Prim.Int
+  advance = \step ->
+    discard {discardUnit} {bindEffect}
+      (modify_ (\v160 -> add {semiringInt} v160 step) counter) \_ -> settle step
+  settle :: Prim.Int -> Effect.Effect Prim.Int
+  settle = \step ->
+    bind {bindEffect} (read counter) \count ->
+      if lessThan {ordInt} count 0 then
+        bind {bindEffect} (advance step) \_ -> pure {applicativeEffect} count
+      else
+        pure {applicativeEffect} count
+
+skipToZero :: Effect.Ref.Ref Prim.Int -> Prim.Int -> Effect.Effect Prim.Int
+skipToZero = \counter -> skip
+  where
+  skip :: Prim.Int -> Effect.Effect Prim.Int
+  skip = \depth ->
+    | greaterThan {ordInt} depth 0 -> skip (sub {ringInt} depth 1)
+    | otherwise -> discard {discardUnit} {bindEffect}
+      (modify_ (\v263 -> add {semiringInt} v263 1) counter) \_ -> settle depth
+  settle :: Prim.Int -> Effect.Effect Prim.Int
+  settle = \depth ->
+    bind {bindEffect} (read counter) \count ->
+      if lessThan {ordInt} count 0 then
+        bind {bindEffect} (skip depth) \_ -> pure {applicativeEffect} count
+      else
+        pure {applicativeEffect} count
