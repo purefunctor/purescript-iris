@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotUnify] · Main.purs:11:3
+  •
+  │
+  • Cannot unify 'Int -> Int' with 'Int -> Int'
+  │
+  │     go = call \_ -> go
+  │     ╰─────────────────
+  •
