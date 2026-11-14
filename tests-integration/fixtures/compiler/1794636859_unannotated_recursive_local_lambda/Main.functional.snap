@@ -1,4 +1,8 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Module Main rejected; see Main.diagnostics.snap
+@export call = \k%0 -> k%0 unit
+
+@export f = let
+  rec go%1 = call (\$unit%2@(_) -> go%1)
+in go%1
