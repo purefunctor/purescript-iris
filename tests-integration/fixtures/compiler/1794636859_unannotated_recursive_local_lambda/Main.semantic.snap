@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+call :: forall f. (Data.Unit.Unit -> f) -> f
+call = \k -> k unit
+
+f :: Prim.Int -> Prim.Int
+f = go
+  where
+  go :: Prim.Int -> Prim.Int
+  go = call \_ -> go

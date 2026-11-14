@@ -719,11 +719,10 @@ where
 {
     let solution = normalise::expand(state, context, solution)?;
 
-    match promote_type(state, context, id, solution)? {
-        PromoteResult::Ok => {}
-        PromoteResult::OccursCheck | PromoteResult::SkolemEscape => {
-            return Ok(Unified::Mismatch { t1: unification, t2: solution });
-        }
+    if let PromoteResult::OccursCheck | PromoteResult::SkolemEscape =
+        promote_type(state, context, id, solution)?
+    {
+        return Ok(Unified::Mismatch { t1: unification, t2: solution });
     }
 
     // The kinds are reported on their own, since the solution is kept.

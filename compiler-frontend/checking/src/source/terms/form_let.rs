@@ -250,14 +250,8 @@ where
             let inferred_type = inferred.type_id;
             // Keep simple let bindings e.g. `appendLocal = append` polymorphic.
             let expanded_name_type = normalise::expand(state, context, name_type)?;
-            if let Type::Unification(unification_id) = *context.lookup_type(expanded_name_type) {
-                unification::solve(
-                    state,
-                    context,
-                    expanded_name_type,
-                    unification_id,
-                    inferred_type,
-                )?;
+            if matches!(context.lookup_type(expanded_name_type), Type::Unification(_)) {
+                unification::unify(state, context, expanded_name_type, inferred_type)?;
             } else {
                 unification::subtype(state, context, inferred_type, expanded_name_type)?;
             }
