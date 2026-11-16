@@ -73,6 +73,7 @@ impl<'a> Printer<'a> {
                 format!("IncorrectConstructorArity: expected {expected}, actual {actual}")
             }
             ErrorKind::OverlappingArgNames { name } => format!("OverlappingArgNames: {name}"),
+            ErrorKind::DuplicateTypeArgument { name } => format!("DuplicateTypeArgument: {name}"),
             ErrorKind::ArgListLengthsDiffer { expected, actual } => {
                 format!("ArgListLengthsDiffer: expected {expected}, actual {actual}")
             }

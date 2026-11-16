@@ -213,8 +213,16 @@ where
         signature_kind = Some(current);
     }
 
+    let mut seen = FxHashSet::default();
     let mut parameters = Vec::with_capacity(variables.len());
     for variable in variables {
+        if let Some(name) = &variable.name
+            && !seen.insert(SmolStr::clone(name))
+        {
+            let name = SmolStr::clone(name);
+            state.insert_error(ErrorKind::DuplicateTypeArgument { name });
+        }
+
         let annotation = match variable.kind {
             Some(kind) => Some(types::check_type(state, context, kind, context.types.type_)?),
             None => None,

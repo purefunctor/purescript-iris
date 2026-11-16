@@ -31,6 +31,7 @@ pub enum ErrorKind {
     ExpectedFunction { function_type: TypeId },
     IncorrectConstructorArity { expected: usize, actual: usize },
     OverlappingArgNames { name: SmolStr },
+    DuplicateTypeArgument { name: SmolStr },
     ArgListLengthsDiffer { expected: usize, actual: usize },
     NoInstanceFound { constraint: TypeId },
     OverlappingInstances { constraint: TypeId, instances: usize },

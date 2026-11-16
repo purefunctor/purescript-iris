@@ -16,5 +16,6 @@ Terms
   U :: forall (k :: Type) (@a :: k). T @k a a -> U @k a
 
 Errors
+  [T] DuplicateTypeArgument: a
 
 Tree
