@@ -396,8 +396,9 @@ where
 {
     let (class_file, _) = head.class;
     let mut files = vec![context.id, class_file];
+    let mut visited = FxHashSet::default();
     for &argument in head.arguments.iter().chain(&head.kind_arguments) {
-        collect_files(state, context, argument, &mut files);
+        collect_files(state, context, argument, &mut visited, &mut files);
     }
     files.into_iter().unique().collect_vec()
 }
@@ -406,22 +407,21 @@ fn collect_files<Q>(
     state: &CheckState,
     context: &CheckContext<Q>,
     id: TypeId,
+    visited: &mut FxHashSet<TypeId>,
     files: &mut Vec<FileId>,
 ) where
     Q: ExternalQueries,
 {
-    let id = fold::zonk(state, context, id);
+    let id = normalise::normalise(state, context, id);
+    if !visited.insert(id) {
+        return;
+    }
     if let Type::Constructor(file_id, _) = context.lookup_type(id) {
         files.push(file_id);
         return;
     }
-    if let Type::Synonym(application_id) = context.lookup_type(id) {
-        let application = context.lookup_synonym_application(application_id);
-        collect_files(state, context, application.expansion, files);
-        return;
-    }
     fold::map_children(context, id, |child| {
-        collect_files(state, context, child, files);
+        collect_files(state, context, child, visited, files);
         child
     });
 }
