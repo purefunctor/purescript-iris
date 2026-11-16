@@ -16,6 +16,7 @@ use crate::types::{Name, Type, TypeId};
 use crate::{CheckedClass, CheckedInstance, ExternalQueries, FunctionalDependency};
 
 pub const WORK_LIMIT: u32 = 1000;
+pub const COERCIBLE_STEP_LIMIT: u32 = 100_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Match {
@@ -156,8 +157,14 @@ where
         return Ok(Outcome::Failed(ErrorKind::NoInstanceFound { constraint }));
     };
 
-    if wanted.work > WORK_LIMIT {
-        let kind = if context.known.coercible == Some(head.class) {
+    let coercible = context.known.coercible == Some(head.class);
+    if coercible {
+        *state.coercible_steps.entry(wanted.root).or_default() += 1;
+    }
+    let coercible_steps = state.coercible_steps.get(&wanted.root).copied().unwrap_or(0);
+
+    if wanted.work > WORK_LIMIT || coercible_steps > COERCIBLE_STEP_LIMIT {
+        let kind = if coercible {
             ErrorKind::PossiblyInfiniteCoercibleInstance { constraint }
         } else {
             ErrorKind::PossiblyInfiniteInstance { constraint }

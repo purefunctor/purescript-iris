@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module InfiniteBranching
+
+Types
+  L :: Type -> Type
+  R :: Type -> Type
+  T :: Type -> Type -> Type
+  N :: Type -> Type
+
+Roles
+  L representational
+  R representational
+  T representational representational
+  N phantom
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  L :: forall (@a :: Type). a -> L a
+  R :: forall (@a :: Type). a -> R a
+  T :: forall (@a :: Type) (@b :: Type). a -> b -> T a b
+  N :: forall (@a :: Type). T (N (L a)) (N (R a)) -> N a
+  test :: forall (a :: Type) (b :: Type). N a -> N b
+
+Errors
+  [test] 19:7 `coerce` PossiblyInfiniteCoercibleInstance: Coercible @Type (N (R (R (L (L (L (R (L (R (L (R (R (L (L (L (L a#13)))))))))))))))) (N (R (R (L (L (L (R (L (R (L (R (R (L (L (L (L b#14))))))))))))))))
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#9, b#10] [d0 : Coercible @Type a#9 b#10]
+    coerce  = (unsafeCoerce @[a#9, b#10] {})
+  test :: forall (a :: Type) (b :: Type). N a -> N b
+    abstract [a#13, b#14] []
+    test  = (coerce @[N a#13, N b#14] {builtin Coercible Empty})
