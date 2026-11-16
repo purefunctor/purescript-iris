@@ -336,7 +336,8 @@ where
         return Ok(step);
     }
 
-    Ok(Step::Failed)
+    let irreducible = matches!(left_head, Type::Rigid(_)) || matches!(right_head, Type::Rigid(_));
+    Ok(if irreducible { Step::Stuck } else { Step::Failed })
 }
 
 fn decompose<Q>(

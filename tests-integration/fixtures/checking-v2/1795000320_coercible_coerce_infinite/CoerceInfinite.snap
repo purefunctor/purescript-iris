@@ -16,7 +16,7 @@ Terms
   test :: forall (a :: Type) (b :: Type). N a -> N b
 
 Errors
-  [test] 13:7 `coerce` NoInstanceFound: Coercible @Type a#9 b#10
+  [test] 13:7 `coerce` PossiblyInfiniteCoercibleInstance: Coercible @Type a#9 b#10
 
 Tree
   coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
