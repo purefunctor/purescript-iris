@@ -22,7 +22,7 @@ Terms
   test :: P L -> P M
 
 Errors
-  [test] 19:7 `coerce` NoInstanceFound: Coercible @(Type -> Type) L M
+  [test] 19:7 `coerce` NoInstanceFound: Coercible @Type (L t#10) (M t#10)
 
 Tree
   coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b

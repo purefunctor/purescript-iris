@@ -2,18 +2,19 @@ use std::sync::Arc;
 
 use building_types::QueryResult;
 use itertools::{EitherOrBoth, Itertools};
+use smol_str::SmolStr;
 
 use crate::ExternalQueries;
 use crate::context::{CheckContext, Item};
 use crate::core::builtin::push_subgoal;
 use crate::core::data::{self, NewtypeField};
 use crate::core::entail::{self, ConstraintHead, Outcome};
-use crate::core::{fold, kind, normalise, unify};
+use crate::core::{fold, kind, normalise, skolem, unify};
 use crate::error::ErrorKind;
 use crate::source::roles;
 use crate::state::{CheckState, Wanted};
 use crate::tree::{BuiltinEvidence, Evidence};
-use crate::types::{Role, RowField, Type, TypeId};
+use crate::types::{ForallBinder, Role, RowField, Type, TypeId};
 
 const REWRITE_LIMIT: u32 = 64;
 
@@ -291,6 +292,20 @@ where
     let right_head = context.lookup_type(right_spine.head);
     if matches!(left_head, Type::Unification(_)) || matches!(right_head, Type::Unification(_)) {
         return Ok(Step::Stuck);
+    }
+
+    if let Type::Constructor(..) = left_head {
+        let kind = kind::kind_of(state, context, left)?;
+        let kind = normalise::normalise(state, context, kind);
+        if let Type::Function(argument_kind, _) = context.lookup_type(kind) {
+            let text = context.intern_text(SmolStr::new_static("t"));
+            let name = state.fresh_name();
+            let binder = ForallBinder { visible: false, name, text, kind: argument_kind };
+            let saturating = skolem::fresh_rigid(state, context, binder);
+            let left = context.intern_application(left, saturating);
+            let right = context.intern_application(right, saturating);
+            return Ok(Step::Subgoals(vec![(left, right)]));
+        }
     }
 
     if let Some(unwrapped) = unwrap_newtype(state, context, left)? {

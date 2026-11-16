@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module NominalUnify
+
+Types
+  D :: Type -> Type
+
+Roles
+  D nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  D :: forall (@a :: Type). Int -> D a
+  mk :: forall (b :: Type). D b
+  test :: D Int
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#5, b#6] [d0 : Coercible @Type a#5 b#6]
+    coerce  = (unsafeCoerce @[a#5, b#6] {})
+  mk :: forall (b :: Type). D b
+    abstract [b#8] []
+    mk  = ((D @[b#8] {}) 1)
+  test :: D Int
+    abstract [] []
+    test  = ((coerce @[D Int, D Int] {builtin Coercible Empty}) (mk @[Int] {}))

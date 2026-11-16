@@ -1,0 +1,40 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SaturateRigid
+
+Types
+  D :: Type -> Type
+  K :: Type -> Type
+  P :: (Type -> Type) -> Type
+  K2 :: Type -> Type
+
+Roles
+  D nominal
+  K phantom
+  P representational
+  K2 nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  D :: forall (@a :: Type). a -> D a
+  K :: forall (@a :: Type). D Int -> K a
+  P :: forall (@f :: Type -> Type). P f
+  test :: P K -> P D
+  K2 :: forall (@a :: Type). D a -> K2 a
+  accepted :: P K2 -> P D
+
+Errors
+  [test] 26:7 `coerce` NoInstanceFound: Coercible @Type (D Int) (D t#11)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#8, b#9] [d0 : Coercible @Type a#8 b#9]
+    coerce  = (unsafeCoerce @[a#8, b#9] {})
+  test :: P K -> P D
+    abstract [] []
+    test  = (coerce @[P K, P D] {builtin Coercible Empty})
+  accepted :: P K2 -> P D
+    abstract [] []
+    accepted  = (coerce @[P K2, P D] {builtin Coercible Empty})
