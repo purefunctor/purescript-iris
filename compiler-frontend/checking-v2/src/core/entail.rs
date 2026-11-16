@@ -95,12 +95,16 @@ pub fn solve_wanteds<Q>(state: &mut CheckState, context: &CheckContext<Q>) -> Qu
 where
     Q: ExternalQueries,
 {
+    let mut failed = FxHashSet::default();
     loop {
         let wanted = mem::take(&mut state.wanted);
         let mut remaining = Vec::with_capacity(wanted.len());
         let mut progress = false;
 
         for wanted in wanted {
+            if failed.contains(&wanted.root) {
+                continue;
+            }
             let solutions = state.solutions;
             match solve_wanted(state, context, &wanted)? {
                 Outcome::Solved => progress = true,
@@ -111,6 +115,7 @@ where
                 Outcome::Stuck => remaining.push(wanted),
                 Outcome::Failed(kind) => {
                     progress = true;
+                    failed.insert(wanted.root);
                     state.insert_error_at(kind, wanted.crumbs);
                 }
             }
@@ -118,6 +123,7 @@ where
 
         let subgoals = mem::take(&mut state.wanted);
         remaining.extend(subgoals);
+        remaining.retain(|wanted| !failed.contains(&wanted.root));
         state.wanted = remaining;
 
         if !progress {
@@ -602,7 +608,8 @@ where
         let slot = state.checked.tree.allocate_evidence_slot();
         let work = wanted.work + 1;
         let crumbs = crumbs.clone();
-        state.wanted.push(Wanted { constraint, slot, scope, crumbs, work });
+        let root = wanted.root;
+        state.wanted.push(Wanted { constraint, slot, scope, crumbs, work, root });
         slot
     });
     let arguments = subgoals.collect::<Arc<[_]>>();

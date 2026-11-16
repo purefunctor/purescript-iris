@@ -22,7 +22,6 @@ Instances
 
 Errors
   [f] 17:4 `g (Box 1)` PossiblyInfiniteInstance: C @?2020 ?2021
-  [f] 17:4 `g (Box 1)` PossiblyInfiniteInstance: D @Type @?2020 Int ?2021
 
 Tree
   g :: forall (x :: Type). C @Type x => x -> Int

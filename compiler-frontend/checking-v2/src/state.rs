@@ -77,6 +77,7 @@ pub struct Wanted {
     pub scope: Option<GivenScopeId>,
     pub crumbs: Vec<ErrorCrumb>,
     pub work: u32,
+    pub root: EvidenceSlotId,
 }
 
 pub struct CheckState {
@@ -169,7 +170,7 @@ impl CheckState {
     pub fn emit_wanted_into(&mut self, constraint: TypeId, slot: EvidenceSlotId, work: u32) {
         let scope = self.given_scope;
         let crumbs = self.crumbs.clone();
-        self.wanted.push(Wanted { constraint, slot, scope, crumbs, work });
+        self.wanted.push(Wanted { constraint, slot, scope, crumbs, work, root: slot });
     }
 
     pub fn insert_error(&mut self, kind: ErrorKind) {
