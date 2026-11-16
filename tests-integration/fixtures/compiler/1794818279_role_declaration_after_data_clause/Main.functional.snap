@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Box/1
+
+@export instance functorBox = {
+  map:
+    \function%0 value%1 ->
+      case value%1 of
+        Box field0%2 ->
+          { tag: "Box", _1: function%0 field0%2 }
+}

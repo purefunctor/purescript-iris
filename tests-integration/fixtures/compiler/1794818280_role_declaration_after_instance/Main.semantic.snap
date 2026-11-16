@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Marker :: forall k0. k0 -> Prim.Constraint
+interface Marker a where
+
+data Box :: Prim.Type -> Prim.Type
+data Box @a
+  | Box :: a -> Main.Box a
+
+dictionary markerTypeBoxInt :: Main.Marker @Prim.Type (Main.Box Prim.Int)

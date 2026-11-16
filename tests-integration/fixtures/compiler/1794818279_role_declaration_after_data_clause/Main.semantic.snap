@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Box :: Prim.Type -> Prim.Type
+data Box @a
+  | Box :: a -> Main.Box a
+
+dictionary functorBox :: Data.Functor.Functor Main.Box where
+  map :: forall a b. (a -> b) -> Main.Box a -> Main.Box b
+  map = \function value ->
+    case value of
+      (Box field0) -> Box (function field0)

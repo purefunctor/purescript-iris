@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [DuplicateRoleDeclaration] · Main.purs:5:1
+  •
+  │
+  • Duplicate role declaration for 'Foreign'
+  │
+  │   type role Foreign nominal
+  │   ╰────────────────────────
+  │
+  • Previous role declaration
+  │
+  │   type role Foreign representational
+  │   ╰─────────────────────────────────
+  •
