@@ -197,7 +197,7 @@ where
     solve_with_instances(state, context, wanted, constraint, &head, &functional_dependencies)
 }
 
-fn given_closure<Q>(
+pub fn given_closure<Q>(
     state: &CheckState,
     context: &CheckContext<Q>,
     wanted: &Wanted,

@@ -47,7 +47,7 @@ where
         return Ok(Outcome::Failed(ErrorKind::NoInstanceFound { constraint }));
     };
 
-    let givens = coercible_givens(state, context, wanted);
+    let givens = coercible_givens(state, context, wanted)?;
     let mut budget = REWRITE_LIMIT;
     let left = rewrite(state, context, &givens, *left, &mut budget)?;
     let right = rewrite(state, context, &givens, *right, &mut budget)?;
@@ -92,12 +92,16 @@ where
     Ok(context.intern_application_list(constructor, &[left, right]))
 }
 
-fn coercible_givens<Q>(state: &CheckState, context: &CheckContext<Q>, wanted: &Wanted) -> Givens
+fn coercible_givens<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    wanted: &Wanted,
+) -> QueryResult<Givens>
 where
     Q: ExternalQueries,
 {
     let mut givens = Givens { rewrites: Vec::new(), pairs: Vec::new() };
-    for given in state.givens_in_scope(wanted.scope) {
+    for given in entail::given_closure(state, context, wanted)? {
         let Some(head) = entail::constraint_head(state, context, given.constraint) else {
             continue;
         };
@@ -117,7 +121,7 @@ where
             givens.pairs.push((left, right));
         }
     }
-    givens
+    Ok(givens)
 }
 
 fn is_rigid<Q>(context: &CheckContext<Q>, id: TypeId) -> bool

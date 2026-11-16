@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Newtype :: Type -> Type -> Constraint
+  Unrelated :: Type -> Type -> Constraint
+
+Roles
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  wrap :: forall (t :: Type) (a :: Type). Newtype t a => a -> t
+  unwrap :: forall (t :: Type) (a :: Type). Newtype t a => t -> a
+  unrelated :: forall (t :: Type) (a :: Type). Unrelated t a => a -> t
+
+Errors
+  [unrelated] 23:12 `coerce` NoInstanceFound: Coercible @Type a#21 t#20
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#8, b#9] [d0 : Coercible @Type a#8 b#9]
+    coerce  = (unsafeCoerce @[a#8, b#9] {})
+  wrap :: forall (t :: Type) (a :: Type). Newtype t a => a -> t
+    abstract [t#12, a#13] [d1 : Newtype t#12 a#13]
+    wrap  = (coerce @[a#13, t#12] {builtin Coercible Empty})
+  unwrap :: forall (t :: Type) (a :: Type). Newtype t a => t -> a
+    abstract [t#16, a#17] [d2 : Newtype t#16 a#17]
+    unwrap  = (coerce @[t#16, a#17] {d2.Newtype#0})
+  unrelated :: forall (t :: Type) (a :: Type). Unrelated t a => a -> t
+    abstract [t#20, a#21] [d3 : Unrelated t#20 a#21]
+    unrelated  = (coerce @[a#21, t#20] {<unsolved>})
