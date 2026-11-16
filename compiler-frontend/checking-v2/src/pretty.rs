@@ -111,7 +111,9 @@ impl<'a> Printer<'a> {
             ErrorKind::RoleDeclarationArityMismatch { expected, actual } => {
                 format!("RoleDeclarationArityMismatch: expected {expected}, actual {actual}")
             }
-            ErrorKind::OrphanInstance => "OrphanInstance".to_string(),
+            ErrorKind::OrphanInstance { constraint } => {
+                format!("OrphanInstance: {}", render(*constraint))
+            }
             ErrorKind::InvalidInstanceHead { argument } => {
                 format!("InvalidInstanceHead: {}", render(*argument))
             }

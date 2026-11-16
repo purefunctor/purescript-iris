@@ -1,7 +1,8 @@
-use std::mem;
 use std::sync::Arc;
+use std::{iter, mem};
 
 use building_types::QueryResult;
+use files::FileId;
 use indexing::{InstanceChainId, InstanceItemId};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -10,14 +11,14 @@ use smol_str::SmolStr;
 use crate::context::{CheckContext, Item};
 use crate::core::data::{self, NewtypeField};
 use crate::core::entail::{self, ConstraintHead};
-use crate::core::{fold, kind, skolem, subsume, unify};
+use crate::core::{fold, kind, normalise, skolem, subsume, unify};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::term_items::{generalisable_unknowns, quantify_unknowns};
 use crate::source::types::{self, TypeArgument};
 use crate::source::{derive, equations, escape};
 use crate::state::CheckState;
 use crate::tree::{InstanceDeclaration, InstanceMember};
-use crate::types::{ForallBinder, Name, TypeId};
+use crate::types::{ForallBinder, Name, Type, TypeId};
 use crate::{CheckedClass, CheckedInstance, ExternalQueries, InstanceOrigin};
 
 struct InstanceHead<'a> {
@@ -128,7 +129,7 @@ where
         return Ok(());
     };
 
-    state.checked.instances.push(CheckedInstance {
+    let instance = CheckedInstance {
         origin: head.origin,
         class: constraint_head.class,
         binders,
@@ -136,9 +137,152 @@ where
         kind_arguments: Arc::from(constraint_head.kind_arguments),
         arguments: Arc::from(constraint_head.arguments),
         chain: head.chain,
-    });
+    };
+    check_instance_placement(state, context, constraint, &instance)?;
+    state.checked.instances.push(instance);
 
     Ok(())
+}
+
+fn check_instance_placement<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    constraint: TypeId,
+    instance: &CheckedInstance,
+) -> QueryResult<()>
+where
+    Q: ExternalQueries,
+{
+    let Some(class) = entail::lookup_class(state, context, instance.class)? else {
+        return Ok(());
+    };
+    let covering_sets =
+        entail::covering_sets(instance.arguments.len(), &class.functional_dependencies);
+
+    let non_orphan_files = non_orphan_files(state, context, instance, &covering_sets);
+    if !non_orphan_files.contains(&context.id) {
+        state.insert_error(ErrorKind::OrphanInstance { constraint });
+        return Ok(());
+    }
+
+    let chain_id = |instance: &CheckedInstance| instance.chain.map(|(chain_id, _)| chain_id);
+    let mut overlapping = 0;
+    for file_id in non_orphan_files {
+        let existing_instances = entail::class_instances(state, context, file_id, instance.class)?;
+        for existing in existing_instances {
+            let same_chain = file_id == context.id
+                && chain_id(instance).is_some_and(|chain| chain_id(&existing) == Some(chain));
+            if same_chain || instances_apart(state, context, &covering_sets, instance, &existing) {
+                continue;
+            }
+            overlapping += 1;
+        }
+    }
+
+    if overlapping > 0 {
+        let instances = overlapping + 1;
+        state.insert_error(ErrorKind::OverlappingInstances { constraint, instances });
+    }
+
+    Ok(())
+}
+
+fn non_orphan_files<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    instance: &CheckedInstance,
+    covering_sets: &[Vec<usize>],
+) -> Vec<FileId>
+where
+    Q: ExternalQueries,
+{
+    let head_files = instance.arguments.iter().map(|&argument| head_file(state, context, argument));
+    let head_files = head_files.collect_vec();
+
+    let covering_files = covering_sets.iter().map(|covering_set| {
+        let files =
+            covering_set.iter().filter_map(|&index| head_files.get(index).copied().flatten());
+        files.collect::<FxHashSet<_>>()
+    });
+    let shared_files = covering_files.reduce(|shared, files| &shared & &files);
+
+    let (class_file, _) = instance.class;
+    let files = iter::once(class_file).chain(shared_files.into_iter().flatten());
+    files.unique().collect_vec()
+}
+
+fn head_file<Q>(state: &CheckState, context: &CheckContext<Q>, id: TypeId) -> Option<FileId>
+where
+    Q: ExternalQueries,
+{
+    let id = normalise::normalise(state, context, id);
+    match entail::as_application(context, id) {
+        Type::Constructor(file_id, _) => Some(file_id),
+        Type::Application(function, _) => head_file(state, context, function),
+        Type::KindApplication(function, _) => head_file(state, context, function),
+        Type::Kinded(inner, _) => head_file(state, context, inner),
+        _ => None,
+    }
+}
+
+fn instances_apart<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    covering_sets: &[Vec<usize>],
+    instance: &CheckedInstance,
+    existing: &CheckedInstance,
+) -> bool
+where
+    Q: ExternalQueries,
+{
+    covering_sets.iter().all(|covering_set| {
+        covering_set.iter().any(|&index| {
+            let current_argument = instance.arguments.get(index);
+            let existing_argument = existing.arguments.get(index);
+            let (Some(&current_argument), Some(&existing_argument)) =
+                (current_argument, existing_argument)
+            else {
+                return true;
+            };
+            heads_apart(state, context, current_argument, existing_argument)
+        })
+    })
+}
+
+fn heads_apart<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    current: TypeId,
+    existing: TypeId,
+) -> bool
+where
+    Q: ExternalQueries,
+{
+    let current = normalise::normalise(state, context, current);
+    let existing = normalise::normalise(state, context, existing);
+    if current == existing {
+        return false;
+    }
+
+    let current_type = entail::as_application(context, current);
+    let existing_type = entail::as_application(context, existing);
+    match (current_type, existing_type) {
+        (Type::Variable(_), _) | (_, Type::Variable(_)) => false,
+        (Type::Kinded(inner, _), _) => heads_apart(state, context, inner, existing),
+        (_, Type::Kinded(inner, _)) => heads_apart(state, context, current, inner),
+        (
+            Type::Application(current_function, current_argument),
+            Type::Application(existing_function, existing_argument),
+        )
+        | (
+            Type::KindApplication(current_function, current_argument),
+            Type::KindApplication(existing_function, existing_argument),
+        ) => {
+            heads_apart(state, context, current_function, existing_function)
+                || heads_apart(state, context, current_argument, existing_argument)
+        }
+        _ => true,
+    }
 }
 
 fn improve_derived_newtype<Q>(

@@ -45,7 +45,7 @@ pub enum ErrorKind {
     CycleInDeclaration { name: SmolStr },
     RoleMismatch { declared: crate::types::Role, inferred: crate::types::Role },
     RoleDeclarationArityMismatch { expected: usize, actual: usize },
-    OrphanInstance,
+    OrphanInstance { constraint: TypeId },
     InvalidInstanceHead { argument: TypeId },
     CannotDerive { class: SmolStr },
     MissingClassMember { name: SmolStr },
@@ -115,6 +115,9 @@ impl ErrorKind {
             }
             ErrorKind::WildcardInferredType { inferred } => {
                 ErrorKind::WildcardInferredType { inferred: transform(inferred) }
+            }
+            ErrorKind::OrphanInstance { constraint } => {
+                ErrorKind::OrphanInstance { constraint: transform(constraint) }
             }
             ErrorKind::InvalidInstanceHead { argument } => {
                 ErrorKind::InvalidInstanceHead { argument: transform(argument) }

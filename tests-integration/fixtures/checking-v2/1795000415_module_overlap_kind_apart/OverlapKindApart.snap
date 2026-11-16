@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module OverlapKindApart
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+  C :: Type -> Constraint
+
+Roles
+  Proxy phantom
+
+Terms
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  c :: forall (@a :: Type). C a => a -> Int
+
+Instances
+  cSymbol :: C (Proxy @(Row Type) ( a :: Symbol ))
+  cInt :: C (Proxy @Type Int)
+
+Errors
+
+Tree
+  instance cSymbol []
+    c :: Proxy @(Row Type) ( a :: Symbol ) -> Int
+      abstract [] []
+      c (_ :: Proxy @(Row Type) ( a :: Symbol )) = 1
+  instance cInt []
+    c :: Proxy @Type Int -> Int
+      abstract [] []
+      c (_ :: Proxy @Type Int) = 2

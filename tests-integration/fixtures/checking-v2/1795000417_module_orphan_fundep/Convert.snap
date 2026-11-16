@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Convert
+
+Types
+  Convert :: Type -> Type -> Constraint
+  Pair :: Type -> Type -> Constraint
+
+Roles
+
+Terms
+
+Errors
+
+Tree

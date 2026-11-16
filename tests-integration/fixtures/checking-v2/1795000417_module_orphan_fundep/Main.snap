@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Local :: Type
+
+Roles
+
+Terms
+  Local :: Local
+
+Instances
+  convertIntLocal :: Convert Int Local
+  convertLocalInt :: Convert Local Int
+  pairIntLocal :: Pair Int Local
+
+Errors
+  [convertIntLocal] OrphanInstance: Convert Int Local
+
+Tree
+  instance convertIntLocal []
+  instance convertLocalInt []
+  instance pairIntLocal []

@@ -13,6 +13,7 @@ Instances
   eqBoolean :: Eq Boolean
 
 Errors
+  [eqBoolean] OrphanInstance: Eq Boolean
 
 Tree
   instance eqBoolean []

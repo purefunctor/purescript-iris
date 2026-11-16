@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module OverlapFundep
+
+Types
+  F :: Type -> Type -> Constraint
+  G :: Type -> Type -> Constraint
+  H :: Type -> Constraint
+
+Roles
+
+Terms
+
+Instances
+  fIntString :: F Int String
+  fIntBoolean :: F Int Boolean
+  gIntString :: G Int String
+  gIntBoolean :: G Int Boolean
+  hInt :: H Int
+  hString :: H String
+
+Errors
+  [fIntBoolean] OverlappingInstances: F Int Boolean (2 instances)
+
+Tree
+  instance fIntString []
+  instance fIntBoolean []
+  instance gIntString []
+  instance gIntBoolean []
+  instance hInt []
+  instance hString []

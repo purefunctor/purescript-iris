@@ -20,6 +20,7 @@ Instances
   cInt :: C (Proxy @Type Int)
 
 Errors
+  [cInt] OverlappingInstances: C (Proxy @Type Int) (2 instances)
   [x] 16:4 `c (Proxy :: Proxy Int)` OverlappingInstances: C (Proxy @Type Int) (2 instances)
 
 Tree

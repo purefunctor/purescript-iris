@@ -19,6 +19,7 @@ Instances
   cInt :: C (P Int)
 
 Errors
+  [cInt] OverlappingInstances: C (P Int) (2 instances)
 
 Tree
   instance cAny []

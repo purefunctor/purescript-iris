@@ -258,7 +258,40 @@ pub fn improvable_positions(
     }
 
     let mut known = positions.iter().map(|&position| position == Match::Match).collect_vec();
-    let mut improved = Vec::new();
+    let improved = determine_positions(&mut known, functional_dependencies);
+
+    let complete = known.iter().all(|&known| known);
+    (complete && !improved.is_empty()).then_some(improved)
+}
+
+pub fn covering_sets(
+    arity: usize,
+    functional_dependencies: &[FunctionalDependency],
+) -> Vec<Vec<usize>> {
+    let mut covering_sets: Vec<Vec<usize>> = Vec::new();
+    for candidate in (0..arity).powerset() {
+        let contains_covering_set = covering_sets
+            .iter()
+            .any(|covering_set| covering_set.iter().all(|index| candidate.contains(index)));
+        if contains_covering_set {
+            continue;
+        }
+
+        let mut known = (0..arity).map(|index| candidate.contains(&index)).collect_vec();
+        determine_positions(&mut known, functional_dependencies);
+
+        if known.iter().all(|&known| known) {
+            covering_sets.push(candidate);
+        }
+    }
+    covering_sets
+}
+
+fn determine_positions(
+    known: &mut [bool],
+    functional_dependencies: &[FunctionalDependency],
+) -> Vec<usize> {
+    let mut determined = Vec::new();
     loop {
         let mut progress = false;
         for dependency in functional_dependencies {
@@ -274,18 +307,15 @@ pub fn improvable_positions(
                     && !*slot
                 {
                     *slot = true;
-                    improved.push(index);
+                    determined.push(index);
                     progress = true;
                 }
             }
         }
         if !progress {
-            break;
+            return determined;
         }
     }
-
-    let complete = known.iter().all(|&known| known);
-    (complete && !improved.is_empty()).then_some(improved)
 }
 
 pub fn improve<Q>(
@@ -383,7 +413,7 @@ fn collect_files<Q>(
     });
 }
 
-fn class_instances<Q>(
+pub fn class_instances<Q>(
     state: &CheckState,
     context: &CheckContext<Q>,
     file_id: FileId,
@@ -707,7 +737,7 @@ where
     }
 }
 
-fn as_application<Q>(context: &CheckContext<Q>, id: TypeId) -> Type
+pub fn as_application<Q>(context: &CheckContext<Q>, id: TypeId) -> Type
 where
     Q: ExternalQueries,
 {
