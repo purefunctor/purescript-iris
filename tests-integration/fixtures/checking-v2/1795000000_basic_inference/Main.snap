@@ -1,0 +1,64 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Maybe :: Type -> Type
+  Box :: Type -> Type
+  Show :: Type -> Constraint
+
+Roles
+  Maybe representational
+  Box representational
+
+Terms
+  Nothing :: forall (@a :: Type). Maybe a
+  Just :: forall (@a :: Type). a -> Maybe a
+  Box :: forall (@a :: Type). a -> Box a
+  show :: forall (@a :: Type). Show a => a -> String
+  identity :: forall (a :: Type). a -> a
+  constant :: forall (t6 :: Type) (t7 :: Type). t6 -> t7 -> t6
+  fromMaybe :: forall (t8 :: Type). t8 -> Maybe t8 -> t8
+  showTwice :: forall (t9 :: Type). Show t9 => t9 -> String
+  describe :: String
+  record :: { a :: Int, b :: String }
+  access :: forall (t10 :: Type) (t11 :: Row Type). { a :: t10 | t11 } -> t10
+
+Instances
+  <instance 0> :: Show Int
+  <instance 1> :: Show a => Show (Maybe a)
+
+Errors
+
+Tree
+  identity :: forall (a :: Type). a -> a
+    abstract [a#5] []
+    identity (x :: a#5) = x
+  constant :: forall (t6 :: Type) (t7 :: Type). t6 -> t7 -> t6
+    abstract [t6, t7] []
+    constant (x :: t6) (_ :: t7) = x
+  fromMaybe :: forall (t8 :: Type). t8 -> Maybe t8 -> t8
+    abstract [t8] []
+    fromMaybe (default :: t8) (m :: Maybe t8) = (case m of { (Nothing :: Maybe t8) -> default; (Just (a :: t8) :: Maybe t8) -> a })
+  showTwice :: forall (t9 :: Type). Show t9 => t9 -> String
+    abstract [t9] [d0 : Show t9]
+    showTwice (x :: t9) = (let { append :: String -> String -> String [] [] (a :: String) (_ :: String) = a } in ((append ((show @[t9] {d0}) x)) ((show @[t9] {d0}) x)))
+  describe :: String
+    abstract [] []
+    describe  = ((show @[Maybe Int] {<instance 1>@[Int](<instance 0>@[]())}) ((Just @[Int] {}) 1))
+  record :: { a :: Int, b :: String }
+    abstract [] []
+    record  = { a: 1, b: "s" }
+  access :: forall (t10 :: Type) (t11 :: Row Type). { a :: t10 | t11 } -> t10
+    abstract [t10, t11] []
+    access (r :: { a :: t10 | t11 }) = r.a
+  instance <instance 0> []
+    show :: Int -> String
+      abstract [] []
+      show (_ :: Int) = "int"
+  instance <instance 1> [d1 : Show a#12]
+    show :: Maybe a#12 -> String
+      abstract [] []
+      show (Nothing :: Maybe a#12) = "nothing"
+      show (Just (a :: a#12) :: Maybe a#12) = ((show @[a#12] {d1}) a)

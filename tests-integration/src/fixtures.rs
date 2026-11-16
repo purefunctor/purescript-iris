@@ -479,6 +479,24 @@ pub fn resolving(path: &Path) -> FixtureResult {
     Ok(())
 }
 
+pub fn checking_v2(path: &Path) -> FixtureResult {
+    let folder = fixture_folder(path)?;
+    let file = module_name(path)?;
+    let loaded = crate::load_fixture(folder)?;
+    let Some(id) = loaded.engine.module_file(&file) else {
+        return Err(missing_module(path, &file).into());
+    };
+
+    let report = crate::generated::checking_v2::report(&loaded.engine, id, &file);
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(snapshot_path(folder));
+    settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
+    settings.bind(|| insta::assert_snapshot!(file, report));
+
+    Ok(())
+}
+
 pub fn docs(path: &Path) -> FixtureResult {
     let folder = fixture_folder(path)?;
     let file = module_name(path)?;

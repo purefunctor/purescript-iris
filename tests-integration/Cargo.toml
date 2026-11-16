@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 building = { version = "0.1.0", path = "../compiler-core/building" }
 checking = { version = "0.1.0", path = "../compiler-frontend/checking" }
+checking-v2 = { version = "0.1.0", path = "../compiler-frontend/checking-v2" }
 files = { version = "0.1.0", path = "../compiler-core/files" }
 formatting = { version = "0.1.0", path = "../compiler-frontend/formatting" }
 functional = { version = "0.1.0", path = "../compiler-backend/functional" }
@@ -46,6 +47,10 @@ datatest-stable = "0.3"
 
 [[test]]
 name = "compiler"
+harness = false
+
+[[test]]
+name = "checking_v2"
 harness = false
 
 [[test]]

@@ -45,6 +45,7 @@ t category *filters: integration-prepare
   shift
   case "{{category}}" in
     c|compiler) targets=(--test compiler) ;;
+    checking-v2) targets=(--test checking_v2) ;;
     l|lowering) targets=(--test lowering --test lowering_unit) ;;
     r|resolving) targets=(--test resolving) ;;
     lsp|docs|formatting|sourcemap|library) targets=(--test "{{category}}") ;;

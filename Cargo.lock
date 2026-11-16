@@ -4144,6 +4144,7 @@ version = "0.1.0"
 dependencies = [
  "building",
  "checking",
+ "checking-v2",
  "datatest-stable",
  "files",
  "formatting",
