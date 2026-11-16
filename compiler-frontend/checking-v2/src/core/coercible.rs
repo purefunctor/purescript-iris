@@ -5,6 +5,7 @@ use itertools::{EitherOrBoth, Itertools};
 
 use crate::ExternalQueries;
 use crate::context::{CheckContext, Item};
+use crate::core::builtin::push_subgoal;
 use crate::core::data::{self, NewtypeField};
 use crate::core::entail::{self, ConstraintHead, Outcome};
 use crate::core::{fold, kind, normalise, unify};
@@ -67,13 +68,6 @@ where
             Ok(Outcome::Solved)
         }
     }
-}
-
-fn push_subgoal(state: &mut CheckState, wanted: &Wanted, constraint: TypeId) {
-    let slot = state.checked.tree.allocate_evidence_slot();
-    let crumbs = Vec::clone(&wanted.crumbs);
-    let work = wanted.work + 1;
-    state.wanted.push(Wanted { constraint, slot, scope: wanted.scope, crumbs, work });
 }
 
 fn coercible_constraint<Q>(

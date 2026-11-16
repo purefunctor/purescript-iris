@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+
+Roles
+
+Terms
+  symbolName :: String
+  reflectedSymbol :: String
+  reflectedInt :: Int
+  reflectedBoolean :: Boolean
+  reflectedOrdering :: Ordering
+  notReflectable :: forall (t0 :: Type). t0
+
+Errors
+  [notReflectable] 18:17 `reflectType (Proxy :: Proxy Int)` NoInstanceFound: Reflectable @Type Int t0
+
+Tree
+  symbolName :: String
+    abstract [] []
+    symbolName  = ((reflectSymbol @["hello"] {builtin IsSymbol Symbol("hello")}) (Proxy @[Symbol, "hello"] {}))
+  reflectedSymbol :: String
+    abstract [] []
+    reflectedSymbol  = ((reflectType @[Symbol, "world", String] {builtin Reflectable Symbol("world")}) (Proxy @[Symbol, "world"] {}))
+  reflectedInt :: Int
+    abstract [] []
+    reflectedInt  = ((reflectType @[Int, 42, Int] {builtin Reflectable Integer(42)}) (Proxy @[Int, 42] {}))
+  reflectedBoolean :: Boolean
+    abstract [] []
+    reflectedBoolean  = ((reflectType @[Boolean, True, Boolean] {builtin Reflectable Boolean(true)}) (Proxy @[Boolean, True] {}))
+  reflectedOrdering :: Ordering
+    abstract [] []
+    reflectedOrdering  = ((reflectType @[Ordering, GT, Ordering] {builtin Reflectable Ordering("GT")}) (Proxy @[Ordering, GT] {}))
+  notReflectable :: forall (t0 :: Type). t0
+    abstract [t0] []
+    notReflectable  = ((reflectType @[Type, Int, t0] {<unsolved>}) (Proxy @[Type, Int] {}))

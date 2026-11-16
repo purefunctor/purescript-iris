@@ -91,8 +91,12 @@ impl<'a> Printer<'a> {
             ErrorKind::PossiblyInfiniteCoercibleInstance { constraint } => {
                 format!("PossiblyInfiniteCoercibleInstance: {}", render(*constraint))
             }
-            ErrorKind::UserDefinedError { message } => format!("UserDefinedError: {message}"),
-            ErrorKind::UserDefinedWarning { message } => format!("UserDefinedWarning: {message}"),
+            ErrorKind::UserDefinedError { message } => {
+                format!("UserDefinedError: {}", render(*message))
+            }
+            ErrorKind::UserDefinedWarning { message } => {
+                format!("UserDefinedWarning: {}", render(*message))
+            }
             ErrorKind::HoleInferredType { name, inferred } => {
                 format!("HoleInferredType: ?{name} :: {}", render(*inferred))
             }

@@ -37,8 +37,8 @@ pub enum ErrorKind {
     AmbiguousTypeVariables { constraint: TypeId },
     PossiblyInfiniteInstance { constraint: TypeId },
     PossiblyInfiniteCoercibleInstance { constraint: TypeId },
-    UserDefinedError { message: SmolStr },
-    UserDefinedWarning { message: SmolStr },
+    UserDefinedError { message: TypeId },
+    UserDefinedWarning { message: TypeId },
     HoleInferredType { name: SmolStr, inferred: TypeId },
     WildcardInferredType { inferred: TypeId },
     CycleInDeclaration { name: SmolStr },
@@ -76,6 +76,12 @@ impl ErrorKind {
             },
             ErrorKind::EscapedSkolem { rigid, solution } => {
                 ErrorKind::EscapedSkolem { rigid: transform(rigid), solution: transform(solution) }
+            }
+            ErrorKind::UserDefinedError { message } => {
+                ErrorKind::UserDefinedError { message: transform(message) }
+            }
+            ErrorKind::UserDefinedWarning { message } => {
+                ErrorKind::UserDefinedWarning { message: transform(message) }
             }
             ErrorKind::CannotApplyType { function_kind } => {
                 ErrorKind::CannotApplyType { function_kind: transform(function_kind) }

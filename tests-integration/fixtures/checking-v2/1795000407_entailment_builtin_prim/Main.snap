@@ -1,0 +1,155 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+
+Roles
+  Proxy phantom
+
+Terms
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  append :: forall (left :: Symbol) (right :: Symbol) (appended :: Symbol). Append left right appended => Proxy @Symbol left -> Proxy @Symbol right -> Proxy @Symbol appended
+  appended :: Proxy @Symbol "abcd"
+  suffix :: Proxy @Symbol "cd" -> Proxy @Symbol "abcd"
+  prefixMismatch :: Proxy @Symbol "xycd"
+  compareSymbols :: forall (left :: Symbol) (right :: Symbol) (ordering :: Ordering). Compare left right ordering => Proxy @Symbol left -> Proxy @Symbol right -> Proxy @Ordering ordering
+  compared :: Proxy @Ordering LT
+  uncons :: forall (first :: Symbol) (rest :: Symbol) (whole :: Symbol). Cons first rest whole => Proxy @Symbol whole -> Proxy @Symbol first
+  unconsed :: Proxy @Symbol "a"
+  unconsEmpty :: forall (t22 :: Symbol). Proxy @Symbol t22
+  add :: forall (left :: Int) (right :: Int) (sum :: Int). Add left right sum => Proxy @Int left -> Proxy @Int right -> Proxy @Int sum
+  added :: Proxy @Int 5
+  subtracted :: Proxy @Int 5
+  wrongSum :: Proxy @Int 6
+  multiply :: forall (left :: Int) (right :: Int) (product :: Int). Mul left right product => Proxy @Int left -> Proxy @Int right -> Proxy @Int product
+  multiplied :: Proxy @Int 20
+  render :: forall (value :: Int) (rendered :: Symbol). ToString value rendered => Proxy @Int value -> Proxy @Symbol rendered
+  rendered :: Proxy @Symbol "42"
+  field :: forall (t43 :: Type) (label :: Symbol) (value :: t43) (tail :: Row t43) (row :: Row t43). Cons @t43 label value tail row => Proxy @Symbol label -> Proxy @(Row t43) row -> Proxy @(Row t43) tail
+  rest :: Proxy @(Row Type) ( y :: String )
+  lacks :: forall (t51 :: Type) (label :: Symbol) (row :: Row t51). Lacks @t51 label row => Proxy @Symbol label -> Proxy @(Row t51) row -> Int
+  absent :: Int
+  present :: Int
+  lacksTail :: forall (row :: Row Type). Lacks @Type "z" row => Proxy @(Row Type) row -> Int
+  union :: forall (t60 :: Type) (left :: Row t60) (right :: Row t60) (union :: Row t60). Union @t60 left right union => Proxy @(Row t60) left -> Proxy @(Row t60) right -> Proxy @(Row t60) union
+  unioned :: Proxy @(Row Type) ( a :: Int, b :: Int, b :: String, c :: Char )
+  nub :: forall (t67 :: Type) (input :: Row t67) (output :: Row t67). Nub @t67 input output => Proxy @(Row t67) input -> Proxy @(Row t67) output
+  nubbed :: Proxy @(Row Type) ( a :: Int, b :: Char )
+  toList :: forall (t73 :: Type) (row :: Row t73) (list :: RowList t73). RowToList @t73 row list => Proxy @(Row t73) row -> Proxy @(RowList t73) list
+  listed :: Proxy @(RowList Type) (Cons @Type "a" Int (Cons @Type "b" String (Nil @Type)))
+  failing :: Fail (Text "no instance for you") => Int
+  usesFailing :: Int
+  warning :: Warn (Text "deprecated") => Int
+  usesWarning :: Int
+
+Errors
+  [prefixMismatch] 20:17 `append (Proxy :: Proxy "ab") (Proxy :: P…` NoInstanceFound: Append "ab" "cd" "xycd"
+  [unconsEmpty] 32:14 `uncons (Proxy :: Proxy "")` NoInstanceFound: Cons t22 ?75 ""
+  [wrongSum] 43:11 `add (Proxy :: Proxy 2) (Proxy :: Proxy 3…` NoInstanceFound: Add 2 3 6
+  [present] 65:10 `lacks (Proxy :: Proxy "x") (Proxy :: Pro…` NoInstanceFound: Lacks @Type "x" ( x :: Int )
+  [usesFailing] 89:14 `failing` UserDefinedError: Text "no instance for you"
+  [usesWarning] 95:14 `warning` UserDefinedWarning: Text "deprecated"
+
+Tree
+  append :: forall (left :: Symbol) (right :: Symbol) (appended :: Symbol). Append left right appended => Proxy @Symbol left -> Proxy @Symbol right -> Proxy @Symbol appended
+    abstract [left#5, right#6, appended#7] [d0 : Append left#5 right#6 appended#7]
+    append (_ :: Proxy @Symbol left#5) (_ :: Proxy @Symbol right#6) = (Proxy @[Symbol, appended#7] {})
+  appended :: Proxy @Symbol "abcd"
+    abstract [] []
+    appended  = (((append @["ab", "cd", "abcd"] {builtin Append Empty}) (Proxy @[Symbol, "ab"] {})) (Proxy @[Symbol, "cd"] {}))
+  suffix :: Proxy @Symbol "cd" -> Proxy @Symbol "abcd"
+    abstract [] []
+    suffix  = ((Λ[right#9] [d1 : Append "ab" right#9 "abcd"]. (\(right :: Proxy @Symbol right#9) -> (((append @["ab", right#9, "abcd"] {d1}) (Proxy @[Symbol, "ab"] {})) right))) @["cd"] {builtin Append Empty})
+  prefixMismatch :: Proxy @Symbol "xycd"
+    abstract [] []
+    prefixMismatch  = (((append @["ab", "cd", "xycd"] {<unsolved>}) (Proxy @[Symbol, "ab"] {})) (Proxy @[Symbol, "cd"] {}))
+  compareSymbols :: forall (left :: Symbol) (right :: Symbol) (ordering :: Ordering). Compare left right ordering => Proxy @Symbol left -> Proxy @Symbol right -> Proxy @Ordering ordering
+    abstract [left#13, right#14, ordering#15] [d2 : Compare left#13 right#14 ordering#15]
+    compareSymbols (_ :: Proxy @Symbol left#13) (_ :: Proxy @Symbol right#14) = (Proxy @[Ordering, ordering#15] {})
+  compared :: Proxy @Ordering LT
+    abstract [] []
+    compared  = (((compareSymbols @["a", "b", LT] {builtin Compare Empty}) (Proxy @[Symbol, "a"] {})) (Proxy @[Symbol, "b"] {}))
+  uncons :: forall (first :: Symbol) (rest :: Symbol) (whole :: Symbol). Cons first rest whole => Proxy @Symbol whole -> Proxy @Symbol first
+    abstract [first#19, rest#20, whole#21] [d3 : Cons first#19 rest#20 whole#21]
+    uncons (_ :: Proxy @Symbol whole#21) = (Proxy @[Symbol, first#19] {})
+  unconsed :: Proxy @Symbol "a"
+    abstract [] []
+    unconsed  = ((uncons @["a", "bc", "abc"] {builtin Cons Empty}) (Proxy @[Symbol, "abc"] {}))
+  unconsEmpty :: forall (t22 :: Symbol). Proxy @Symbol t22
+    abstract [t22] []
+    unconsEmpty  = ((uncons @[t22, ?75, ""] {<unsolved>}) (Proxy @[Symbol, ""] {}))
+  add :: forall (left :: Int) (right :: Int) (sum :: Int). Add left right sum => Proxy @Int left -> Proxy @Int right -> Proxy @Int sum
+    abstract [left#26, right#27, sum#28] [d4 : Add left#26 right#27 sum#28]
+    add (_ :: Proxy @Int left#26) (_ :: Proxy @Int right#27) = (Proxy @[Int, sum#28] {})
+  added :: Proxy @Int 5
+    abstract [] []
+    added  = (((add @[2, 3, 5] {builtin Add Empty}) (Proxy @[Int, 2] {})) (Proxy @[Int, 3] {}))
+  subtracted :: Proxy @Int 5
+    abstract [] []
+    subtracted  = (((add @[2, 3, 5] {builtin Add Empty}) (Proxy @[Int, 2] {})) (Proxy @[Int, 3] {}))
+  wrongSum :: Proxy @Int 6
+    abstract [] []
+    wrongSum  = (((add @[2, 3, 6] {<unsolved>}) (Proxy @[Int, 2] {})) (Proxy @[Int, 3] {}))
+  multiply :: forall (left :: Int) (right :: Int) (product :: Int). Mul left right product => Proxy @Int left -> Proxy @Int right -> Proxy @Int product
+    abstract [left#32, right#33, product#34] [d5 : Mul left#32 right#33 product#34]
+    multiply (_ :: Proxy @Int left#32) (_ :: Proxy @Int right#33) = (Proxy @[Int, product#34] {})
+  multiplied :: Proxy @Int 20
+    abstract [] []
+    multiplied  = (((multiply @[4, 5, 20] {builtin Mul Empty}) (Proxy @[Int, 4] {})) (Proxy @[Int, 5] {}))
+  render :: forall (value :: Int) (rendered :: Symbol). ToString value rendered => Proxy @Int value -> Proxy @Symbol rendered
+    abstract [value#37, rendered#38] [d6 : ToString value#37 rendered#38]
+    render (_ :: Proxy @Int value#37) = (Proxy @[Symbol, rendered#38] {})
+  rendered :: Proxy @Symbol "42"
+    abstract [] []
+    rendered  = ((render @[42, "42"] {builtin ToString Empty}) (Proxy @[Int, 42] {}))
+  field :: forall (t43 :: Type) (label :: Symbol) (value :: t43) (tail :: Row t43) (row :: Row t43). Cons @t43 label value tail row => Proxy @Symbol label -> Proxy @(Row t43) row -> Proxy @(Row t43) tail
+    abstract [t43#44, label#45, value#46, tail#47, row#48] [d7 : Cons @t43#44 label#45 value#46 tail#47 row#48]
+    field (_ :: Proxy @Symbol label#45) (_ :: Proxy @(Row t43#44) row#48) = (Proxy @[Row t43#44, tail#47] {})
+  rest :: Proxy @(Row Type) ( y :: String )
+    abstract [] []
+    rest  = (((field @[Type, "x", Int, ( y :: String ), ( x :: Int, y :: String )] {builtin Cons Empty}) (Proxy @[Symbol, "x"] {})) (Proxy @[Row Type, ( x :: Int, y :: String )] {}))
+  lacks :: forall (t51 :: Type) (label :: Symbol) (row :: Row t51). Lacks @t51 label row => Proxy @Symbol label -> Proxy @(Row t51) row -> Int
+    abstract [t51#52, label#53, row#54] [d8 : Lacks @t51#52 label#53 row#54]
+    lacks (_ :: Proxy @Symbol label#53) (_ :: Proxy @(Row t51#52) row#54) = 0
+  absent :: Int
+    abstract [] []
+    absent  = (((lacks @[Type, "z", ( x :: Int )] {builtin Lacks Empty}) (Proxy @[Symbol, "z"] {})) (Proxy @[Row Type, ( x :: Int )] {}))
+  present :: Int
+    abstract [] []
+    present  = (((lacks @[Type, "x", ( x :: Int )] {<unsolved>}) (Proxy @[Symbol, "x"] {})) (Proxy @[Row Type, ( x :: Int )] {}))
+  lacksTail :: forall (row :: Row Type). Lacks @Type "z" row => Proxy @(Row Type) row -> Int
+    abstract [row#56] [d9 : Lacks @Type "z" row#56]
+    lacksTail (row :: Proxy @(Row Type) row#56) = (((lacks @[Type, "z", ( x :: Int | row#56 )] {builtin Lacks Empty}) (Proxy @[Symbol, "z"] {})) (Proxy @[Row Type, ( x :: Int | row#56 )] {}))
+  union :: forall (t60 :: Type) (left :: Row t60) (right :: Row t60) (union :: Row t60). Union @t60 left right union => Proxy @(Row t60) left -> Proxy @(Row t60) right -> Proxy @(Row t60) union
+    abstract [t60#61, left#62, right#63, union#64] [d10 : Union @t60#61 left#62 right#63 union#64]
+    union (_ :: Proxy @(Row t60#61) left#62) (_ :: Proxy @(Row t60#61) right#63) = (Proxy @[Row t60#61, union#64] {})
+  unioned :: Proxy @(Row Type) ( a :: Int, b :: Int, b :: String, c :: Char )
+    abstract [] []
+    unioned  = (((union @[Type, ( a :: Int, b :: Int ), ( b :: String, c :: Char ), ( a :: Int, b :: Int, b :: String, c :: Char )] {builtin Union Empty}) (Proxy @[Row Type, ( a :: Int, b :: Int )] {})) (Proxy @[Row Type, ( b :: String, c :: Char )] {}))
+  nub :: forall (t67 :: Type) (input :: Row t67) (output :: Row t67). Nub @t67 input output => Proxy @(Row t67) input -> Proxy @(Row t67) output
+    abstract [t67#68, input#69, output#70] [d11 : Nub @t67#68 input#69 output#70]
+    nub (_ :: Proxy @(Row t67#68) input#69) = (Proxy @[Row t67#68, output#70] {})
+  nubbed :: Proxy @(Row Type) ( a :: Int, b :: Char )
+    abstract [] []
+    nubbed  = ((nub @[Type, ( a :: Int, a :: String, b :: Char ), ( a :: Int, b :: Char )] {builtin Nub Empty}) (Proxy @[Row Type, ( a :: Int, a :: String, b :: Char )] {}))
+  toList :: forall (t73 :: Type) (row :: Row t73) (list :: RowList t73). RowToList @t73 row list => Proxy @(Row t73) row -> Proxy @(RowList t73) list
+    abstract [t73#74, row#75, list#76] [d12 : RowToList @t73#74 row#75 list#76]
+    toList (_ :: Proxy @(Row t73#74) row#75) = (Proxy @[RowList t73#74, list#76] {})
+  listed :: Proxy @(RowList Type) (Cons @Type "a" Int (Cons @Type "b" String (Nil @Type)))
+    abstract [] []
+    listed  = ((toList @[Type, ( a :: Int, b :: String ), Cons @Type "a" Int (Cons @Type "b" String (Nil @Type))] {builtin RowToList Empty}) (Proxy @[Row Type, ( a :: Int, b :: String )] {}))
+  failing :: Fail (Text "no instance for you") => Int
+    abstract [] [d13 : Fail (Text "no instance for you")]
+    failing  = 0
+  usesFailing :: Int
+    abstract [] []
+    usesFailing  = (failing @[] {<unsolved>})
+  warning :: Warn (Text "deprecated") => Int
+    abstract [] [d14 : Warn (Text "deprecated")]
+    warning  = 0
+  usesWarning :: Int
+    abstract [] []
+    usesWarning  = (warning @[] {builtin Warn Empty})

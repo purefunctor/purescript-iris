@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Data.Reflectable
+
+Types
+  Reflectable :: forall (k :: Type). k -> Type -> Constraint
+
+Roles
+
+Terms
+  reflectType :: forall (k :: Type) (@v :: k) (@t :: Type). Reflectable @k v t => Proxy @k v -> t
+
+Errors
+
+Tree
