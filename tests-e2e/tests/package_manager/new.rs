@@ -12,7 +12,7 @@ fn creates_a_spago_project_with_the_latest_supported_package_set() {
     insta::assert_snapshot!(workspace.report(&output), @"
     status: 0
     --- stdout
-    Created package `example` with package set 81.1.0.
+    Created package `example` with package set 82.1.1.
     Run `iris build` to get started.
     --- stderr
     ");
@@ -36,7 +36,7 @@ fn creates_a_spago_project_with_the_latest_supported_package_set() {
           - assert
     workspace:
       packageSet:
-        registry: 81.1.0
+        registry: 82.1.1
     --- src/Main.purs
     module Main where
 
@@ -202,7 +202,7 @@ fn discovers_windows_spago_launchers_and_preserves_explicit_overrides() {
             case.name,
             String::from_utf8_lossy(&output.stderr),
         );
-        assert!(workspace.read("spago.yaml").contains("registry: 81.1.0"), "{}", case.name);
+        assert!(workspace.read("spago.yaml").contains("registry: 82.1.1"), "{}", case.name);
         insta::with_settings!({description => case.name}, {
             insta::allow_duplicates! {
                 insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "registry" "package-sets" "--latest" "--json" "--quiet""#);
