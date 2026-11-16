@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Attached :: Prim.Type -> Prim.Type
+newtype Attached @a
+  | Attached :: a -> Main.Attached a
+
+newtype Between :: Prim.Type -> Prim.Type
+newtype Between @a
+  | Between :: a -> Main.Between a
+
+newtype Standalone :: Prim.Type -> Prim.Type
+newtype Standalone @a
+  | Standalone :: a -> Main.Standalone a
+
+dictionary newtypeAttached :: forall a. Data.Newtype.Newtype (Main.Attached a) a where
+  superclass coercibleDict = trivial
+
+dictionary newtypeBetween :: forall a. Data.Newtype.Newtype (Main.Between a) a where
+  superclass coercibleDict = trivial
+
+dictionary newtypeStandalone :: forall a. Data.Newtype.Newtype (Main.Standalone a) a where
+  superclass coercibleDict = trivial

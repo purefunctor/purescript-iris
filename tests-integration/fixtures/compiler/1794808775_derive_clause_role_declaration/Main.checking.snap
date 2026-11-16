@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Attached :: forall @a. a -> Main.Attached a
+Between :: forall @a. a -> Main.Between a
+Standalone :: forall @a. a -> Main.Standalone a
+
+Types
+Attached :: Prim.Type -> Prim.Type
+Between :: Prim.Type -> Prim.Type
+Standalone :: Prim.Type -> Prim.Type
+
+Derived
+derive forall a. Data.Newtype.Newtype (Main.Attached a) a
+derive forall a. Data.Newtype.Newtype (Main.Between a) a
+derive forall a. Data.Newtype.Newtype (Main.Standalone a) a
+
+Roles
+Attached = [Representational]
+Between = [Representational]
+Standalone = [Representational]

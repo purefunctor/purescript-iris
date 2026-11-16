@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+Synonym :: Prim.Type -> Prim.Type
+Container :: forall t0. t0 -> Prim.Constraint
+
+Synonyms
+type Synonym a = Prim.Array a
+
+Classes
+class forall (t0 :: Prim.Type) (f :: t0). Main.Container @t0 (f :: t0)
