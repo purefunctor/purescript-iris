@@ -24,8 +24,7 @@ Instances
   <instance 0> :: Get s (State s)
 
 Errors
-  [improved] 17:11 `first` NoInstanceFound: Get @Type (Tuple Int ?18) (State (Tuple Int s#13))
-  [mismatched] 20:13 `first` NoInstanceFound: Get @Type (Tuple Int ?20) (State Int)
+  [mismatched] 20:13 `first` TypesDoNotUnify: Tuple Int ?20 ~ Int
 
 Tree
   first :: forall (m :: Type -> Type) (a :: Type). Get @Type (Tuple Int a) m => m Int -> Int
@@ -33,7 +32,7 @@ Tree
     first (_ :: m#10 Int) = 0
   improved :: forall (s :: Type). State (Tuple Int s) Int -> Int
     abstract [s#13] []
-    improved  = (first @[State (Tuple Int s#13), ?18] {<unsolved>})
+    improved  = (first @[State (Tuple Int s#13), s#13] {<instance 0>@[Tuple Int s#13]()})
   mismatched :: State Int Int -> Int
     abstract [] []
     mismatched  = (first @[State Int, ?20] {<unsolved>})

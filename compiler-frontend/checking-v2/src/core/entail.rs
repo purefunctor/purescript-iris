@@ -363,16 +363,16 @@ fn unify_arguments<Q>(
     context: &CheckContext<Q>,
     source: &[TypeId],
     target: &[TypeId],
-) -> QueryResult<bool>
+) -> unify::Unified
 where
     Q: ExternalQueries,
 {
     for (&source, &target) in source.iter().zip(target) {
-        if !unify::unify(state, context, target, source)? {
-            return Ok(false);
+        if let Err(mismatch) = unify::unify_core(state, context, target, source)? {
+            return Ok(Err(mismatch));
         }
     }
-    Ok(true)
+    Ok(Ok(()))
 }
 
 fn compare_arguments<Q>(
@@ -490,9 +490,12 @@ where
         }
     }
 
+    let determined =
+        functional_dependencies.iter().flat_map(|dependency| dependency.determined.iter());
+    let determined = determined.copied().collect::<FxHashSet<_>>();
+
     let total = chains.len();
     let mut matches = Vec::new();
-    let mut improvements = Vec::new();
     let mut stuck = false;
 
     for (ChainKey { file_id, .. }, mut chain) in chains {
@@ -503,44 +506,34 @@ where
                 .iter()
                 .map(|&binder_id| context.lookup_forall_binder(binder_id).name);
             let variables = variables.collect::<FxHashSet<_>>();
-            let mut bindings = FxHashMap::default();
             let positions =
                 instance.arguments.iter().zip(&head.arguments).map(|(&pattern, &target)| {
+                    let mut bindings = FxHashMap::default();
                     match_type(state, context, &variables, &mut bindings, pattern, target)
                 });
             let positions = positions.collect_vec();
-            let result = positions.iter().copied().fold(Match::Match, Match::and);
 
-            if result != Match::Match {
-                let independent =
-                    instance.arguments.iter().zip(&head.arguments).map(|(&pattern, &target)| {
-                        let mut bindings = FxHashMap::default();
-                        match_type(state, context, &variables, &mut bindings, pattern, target)
-                    });
-                let independent = independent.collect_vec();
-                if independent.contains(&Match::Apart) {
+            if !covers(&positions, functional_dependencies) {
+                if positions.contains(&Match::Apart) {
                     continue;
                 }
-                if !covers(&independent, functional_dependencies) {
-                    stuck = true;
-                    break;
-                }
+                stuck = true;
+                break;
             }
+
+            let mut bindings = FxHashMap::default();
+            let undetermined = instance.arguments.iter().zip(&head.arguments).enumerate();
+            let undetermined = undetermined.filter(|(index, _)| !determined.contains(index));
+            let result = undetermined.fold(Match::Match, |result, (_, (&pattern, &target))| {
+                let position =
+                    match_type(state, context, &variables, &mut bindings, pattern, target);
+                result.and(position)
+            });
 
             match result {
                 Match::Apart => continue,
-                Match::Match => {
-                    matches.push(Candidate { file_id, instance, bindings });
-                }
-                Match::Unknown => {
-                    if let Some(improved) =
-                        improvable_positions(&positions, functional_dependencies)
-                    {
-                        improvements.push((Candidate { file_id, instance, bindings }, improved));
-                    } else {
-                        stuck = true;
-                    }
-                }
+                Match::Match => matches.push(Candidate { file_id, instance, bindings }),
+                Match::Unknown => stuck = true,
             }
             break;
         }
@@ -551,25 +544,11 @@ where
         return Ok(Outcome::Failed(ErrorKind::OverlappingInstances { constraint, instances }));
     }
 
-    if !stuck
-        && improvements.is_empty()
-        && let Some(candidate) = matches.pop()
-    {
+    if !stuck && let Some(candidate) = matches.pop() {
         return apply_instance(state, context, wanted, head, candidate);
     }
 
-    if matches.is_empty()
-        && !stuck
-        && improvements.len() == 1
-        && let Some((candidate, improved)) = improvements.pop()
-    {
-        let instantiated = instantiate_instance(state, context, &candidate)?;
-        let improved =
-            improve(state, context, &instantiated.arguments, &head.arguments, &improved)?;
-        return Ok(if improved { Outcome::Improved } else { Outcome::Stuck });
-    }
-
-    if total > 0 && matches.is_empty() && improvements.is_empty() && !stuck {
+    if total > 0 && matches.is_empty() && !stuck {
         return Ok(Outcome::Failed(ErrorKind::NoInstanceFound { constraint }));
     }
 
@@ -628,8 +607,9 @@ where
     Q: ExternalQueries,
 {
     let instantiated = instantiate_instance(state, context, &candidate)?;
-    if !unify_arguments(state, context, &instantiated.arguments, &head.arguments)? {
-        return Ok(Outcome::Stuck);
+    let unified = unify_arguments(state, context, &instantiated.arguments, &head.arguments)?;
+    if let Err(mismatch) = unified {
+        return Ok(Outcome::Failed(mismatch.into_error()));
     }
 
     let scope = wanted.scope;

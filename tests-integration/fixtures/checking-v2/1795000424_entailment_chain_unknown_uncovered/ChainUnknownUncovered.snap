@@ -25,7 +25,7 @@ Instances
   <instance 1> :: Unpad n (Box (Box a)) b, Add n 1 n1 => Unpad n1 (Box a) b (chain position 1)
 
 Errors
-  [undetermined] 29:17 `unpad Proxy x` NoInstanceFound: Unpad ?25 (Box Int) Int
+  [undetermined] 29:17 `unpad Proxy x` NoInstanceFound: Unpad ?27 (Box Int) Int
 
 Tree
   test :: Box (Box (Box Int)) -> Box Int
@@ -33,7 +33,7 @@ Tree
     test (x :: Box (Box (Box Int))) = (((unpad @[1, Box Int, Box (Box (Box Int))] {<instance 1>@[1, Int, Box (Box (Box Int)), 0](<instance 1>@[0, Box Int, Box (Box (Box Int)), -1](<instance 0>@[Box (Box (Box Int))](), builtin Add Empty), builtin Add Empty)}) (Proxy @[Int, 1] {})) x)
   undetermined :: Int -> Box Int
     abstract [] []
-    undetermined (x :: Int) = (((unpad @[?25, Box Int, Int] {<unsolved>}) (Proxy @[Int, ?25] {})) x)
+    undetermined (x :: Int) = (((unpad @[?27, Box Int, Int] {<unsolved>}) (Proxy @[Int, ?27] {})) x)
   instance <instance 0> []
     unpad :: Proxy @Int -1 -> a#13 -> a#13
       abstract [] []
