@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Box :: Type -> Type
+  Proxy :: forall (k :: Type). k -> Type
+  Q :: forall (k :: Type). k
+  Foo :: Type -> Constraint
+  Bar :: Type -> Type -> Constraint
+  Pk :: forall (k :: Type). k -> Constraint
+
+Roles
+  Box representational
+  Proxy phantom
+
+Terms
+  Box :: forall (@a :: Type). a -> Box a
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  foo :: forall (@a :: Type). Foo a => a -> Int
+  bar :: forall (@a :: Type) (@b :: Type). Bar a b => a -> b -> Int
+  pk :: forall (k :: Type) (@a :: k). Pk @k a => Proxy @k a -> Int
+  wrap :: forall (k :: Type) (a :: k). Proxy @k a -> Proxy @k (Q @k :: k)
+  nested :: forall (t13 :: Type). t13 -> Int
+  bare :: forall (t14 :: Type). Foo t14 => t14 -> Int
+  mixed :: forall (t15 :: Type) (t16 :: Type). Bar (Box t15) t16 => t15 -> t16 -> Int
+  kinded :: forall (t17 :: Type) (t18 :: t17). Pk @t17 (Q @t17) => Proxy @t17 t18 -> Int
+
+Errors
+  [nested] 23:11 `foo (Box x)` NoInstanceFound: Foo (Box t13)
+
+Tree
+  wrap :: forall (k :: Type) (a :: k). Proxy @k a -> Proxy @k (Q @k :: k)
+    abstract [k#11, a#12] []
+    wrap (_ :: Proxy @k#11 a#12) = (Proxy @[k#11, Q @k#11] {})
+  nested :: forall (t13 :: Type). t13 -> Int
+    abstract [t13] []
+    nested (x :: t13) = ((foo @[Box t13] {<unsolved>}) ((Box @[t13] {}) x))
+  bare :: forall (t14 :: Type). Foo t14 => t14 -> Int
+    abstract [t14] [d0 : Foo t14]
+    bare (x :: t14) = ((foo @[t14] {d0}) x)
+  mixed :: forall (t15 :: Type) (t16 :: Type). Bar (Box t15) t16 => t15 -> t16 -> Int
+    abstract [t15, t16] [d1 : Bar (Box t15) t16]
+    mixed (x :: t15) (y :: t16) = (((bar @[Box t15, t16] {d1}) ((Box @[t15] {}) x)) y)
+  kinded :: forall (t17 :: Type) (t18 :: t17). Pk @t17 (Q @t17) => Proxy @t17 t18 -> Int
+    abstract [t17, t18] [d2 : Pk @t17 (Q @t17)]
+    kinded (proxy :: Proxy @t17 t18) = ((pk @[t17, Q @t17] {d2}) ((wrap @[t17, t18] {}) proxy))

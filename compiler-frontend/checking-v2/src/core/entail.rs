@@ -760,9 +760,21 @@ where
     if context.known.coercible == Some(head.class) {
         return false;
     }
-    head.arguments.is_empty()
-        || head.arguments.iter().any(|&argument| {
-            let argument = normalise::normalise(state, context, argument);
-            matches!(context.lookup_type(argument), Type::Unification(_))
-        })
+    if head.kind_arguments.is_empty() && head.arguments.is_empty() {
+        return true;
+    }
+    let mut arguments = head.kind_arguments.iter().chain(&head.arguments);
+    arguments.any(|&argument| is_bare_unknown(state, context, argument))
+}
+
+fn is_bare_unknown<Q>(state: &CheckState, context: &CheckContext<Q>, id: TypeId) -> bool
+where
+    Q: ExternalQueries,
+{
+    let id = normalise::normalise(state, context, id);
+    match context.lookup_type(id) {
+        Type::Unification(_) => true,
+        Type::Kinded(inner, _) => is_bare_unknown(state, context, inner),
+        _ => false,
+    }
 }
