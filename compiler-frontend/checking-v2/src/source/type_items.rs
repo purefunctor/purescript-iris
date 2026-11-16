@@ -403,7 +403,10 @@ where
         constructors.push((constructor, fields));
     }
 
-    unify_declared_kind(state, context, item, &parameters, context.types.type_)?;
+    let declared_only = constructors.is_empty() && signature.is_some();
+    if !declared_only {
+        unify_declared_kind(state, context, item, &parameters, context.types.type_)?;
+    }
 
     Ok(Declaration::Data {
         newtype,

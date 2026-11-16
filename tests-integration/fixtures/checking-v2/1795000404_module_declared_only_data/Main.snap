@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Doc :: Type
+  Text :: Symbol -> Doc
+  Message :: Doc
+
+Roles
+
+Terms
+
+Errors
+
+Tree
