@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Phantom :: forall k. k -> Prim.Type
+data Phantom @a
+  | Phantom :: Prim.Int -> Main.Phantom a
+
+newtype Tagged :: forall k. k -> Prim.Type -> Prim.Type
+newtype Tagged @tag @a
+  | Tagged :: a -> Main.Tagged tag a
+
+dictionary genericPhantomConstructorArgumentInt ::
+  forall t0 a.
+  Data.Generic.Rep.Generic
+  (Main.Phantom @t0 a)
+  (Data.Generic.Rep.Constructor "Phantom" (Data.Generic.Rep.Argument Prim.Int))
+  where
+  to :: Data.Generic.Rep.Constructor "Phantom" (Data.Generic.Rep.Argument Prim.Int) -> Main.Phantom @t0 a
+  to = \representation ->
+    case representation of
+      (Constructor (Argument field0)) -> Phantom field0
+  from :: Main.Phantom @t0 a -> Data.Generic.Rep.Constructor "Phantom" (Data.Generic.Rep.Argument Prim.Int)
+  from = \value ->
+    case value of
+      (Phantom field0) -> Constructor (Argument field0)
+
+dictionary newtypeTagged :: forall t0 tag a. Data.Newtype.Newtype (Main.Tagged @t0 tag a) a where
+  superclass coercibleDict = trivial
+
+dictionary genericTaggedConstructorArgument ::
+  forall t0 tag a.
+  Data.Generic.Rep.Generic
+  (Main.Tagged @t0 tag a)
+  (Data.Generic.Rep.Constructor "Tagged" (Data.Generic.Rep.Argument a))
+  where
+  to :: Data.Generic.Rep.Constructor "Tagged" (Data.Generic.Rep.Argument a) -> Main.Tagged @t0 tag a
+  to = \representation ->
+    case representation of
+      (Constructor (Argument field0)) -> Tagged field0
+  from :: Main.Tagged @t0 tag a -> Data.Generic.Rep.Constructor "Tagged" (Data.Generic.Rep.Argument a)
+  from = \value ->
+    case value of
+      (Tagged field0) -> Constructor (Argument field0)
+
+roundtrip :: Main.Phantom @Prim.Symbol "tag" -> Main.Phantom @Prim.Symbol "tag"
+roundtrip = \value ->
+  to {genericPhantomConstructorArgumentInt} (from {genericPhantomConstructorArgumentInt} value)
+
+result :: Prim.Int
+result = unwrap {newtypeTagged} (wrap {newtypeTagged} 42)
+
+observed :: Prim.Int
+observed =
+  case roundtrip (Phantom 37) of
+    (Phantom value) -> value

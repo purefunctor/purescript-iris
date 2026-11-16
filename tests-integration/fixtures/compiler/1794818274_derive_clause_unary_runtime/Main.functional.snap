@@ -1,0 +1,156 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Nil/0
+
+@export constructor Cons/2
+
+@export instance functorList = {
+  map:
+    \function%0 value%1 ->
+      case value%1 of
+        Nil ->
+          "Nil"
+        Cons field0%2 field1%3 ->
+          {
+            tag: "Cons",
+            _1: function%0 field0%2,
+            _2: map functorList (\element%4 -> function%0 element%4) field1%3
+          }
+}
+
+@export instance foldableList = {
+  foldr:
+    \function%5 accumulator%6 value%7 ->
+      case value%7 of
+        Nil ->
+          accumulator%6
+        Cons field0%8 field1%9 ->
+          function%5 field0%8
+            (foldr foldableList (\element%10 accumulator%11 -> function%5 element%10 accumulator%11)
+              accumulator%6
+              field1%9),
+  foldl:
+    \function%12 accumulator%13 value%14 ->
+      case value%14 of
+        Nil ->
+          accumulator%13
+        Cons field0%15 field1%16 ->
+          foldl foldableList (\accumulator%17 element%18 -> function%12 accumulator%17 element%18)
+            (function%12 accumulator%13 field0%15)
+            field1%16,
+  foldMap:
+    \monoidMDict%21 ->
+      \function%19 value%20 ->
+        case value%20 of
+          Nil ->
+            mempty monoidMDict%21
+          Cons field0%22 field1%23 ->
+            append (monoidMDict%21."Semigroup0"()) (function%19 field0%22)
+              (foldMap foldableList monoidMDict%21 (\element%24 -> function%19 element%24)
+                field1%23)
+}
+
+@export instance traversableList = {
+  "Functor0": \() -> functorList,
+  "Foldable1": \() -> foldableList,
+  traverse:
+    \applicativeMDict%27 ->
+      \function%25 value%26 ->
+        let
+          Apply0Dict%30 = applicativeMDict%27."Apply0"()
+        in case value%26 of
+          Nil ->
+            pure applicativeMDict%27 "Nil"
+          Cons field0%28 field1%29 ->
+            apply Apply0Dict%30
+              (map (Apply0Dict%30."Functor0"())
+                (\field0Result%31 field1Result%32 ->
+                  { tag: "Cons", _1: field0Result%31, _2: field1Result%32 })
+                (function%25 field0%28))
+              (traverse traversableList applicativeMDict%27 (\element%33 -> function%25 element%33)
+                field1%29),
+  sequence:
+    \applicativeMDict%35 ->
+      \value%34 -> traverse traversableList applicativeMDict%35 (\effect0%36 -> effect0%36) value%34
+}
+
+@export instance eq1List = { eq1: \eqADict%37 -> eq (eqList eqADict%37) }
+
+@export instance ord1List = {
+  "Eq10": \() -> eq1List,
+  compare1: \ordADict%38 -> compare (ordList ordADict%38)
+}
+
+@export instance eqList = \eqADict%39 ->
+  {
+    eq:
+      \left%40 right%41 ->
+        case left%40, right%41 of
+          Nil, Nil ->
+            true
+          Cons left0%42 left1%43, Cons right0%44 right1%45 ->
+            if eq eqADict%39 left0%42 right0%44
+              then if eq (eqList eqADict%39) left1%43 right1%45 then true else false
+              else false
+          _, _ ->
+            false
+  }
+
+@export instance ordList = \ordADict%46 ->
+  {
+    "Eq0": \() -> eqList (ordADict%46."Eq0"()),
+    compare:
+      \left%47 right%48 ->
+        case left%47, right%48 of
+          Nil, Nil ->
+            "EQ"
+          Nil, _ ->
+            "LT"
+          _, Nil ->
+            "GT"
+          Cons left0%49 left1%50, Cons right0%51 right1%52 ->
+            case compare ordADict%46 left0%49 right0%51 of
+              EQ ->
+                case compare (ordList ordADict%46) left1%50 right1%52 of
+                  EQ ->
+                    "EQ"
+                  ordering%53 ->
+                    ordering%53
+              ordering%54 ->
+                ordering%54
+  }
+
+@export mapped = eq (eqList eqInt)
+  (map functorList (\section82%55 -> integer.add section82%55 4)
+    { tag: "Cons", _1: 3, _2: { tag: "Cons", _1: 8, _2: "Nil" } })
+  { tag: "Cons", _1: 7, _2: { tag: "Cons", _1: 12, _2: "Nil" } }
+
+@export folded = foldMap foldableList monoidString (show showInt)
+  { tag: "Cons", _1: 3, _2: { tag: "Cons", _1: 8, _2: "Nil" } }
+
+@export traversed = eq (eqMaybe (eqList eqInt))
+  (traverse traversableList applicativeMaybe
+    (\value%56 ->
+      if integer.less_than value%56 5
+        then { tag: "Just", _1: integer.add value%56 1 }
+        else "Nothing")
+    { tag: "Cons", _1: 1, _2: { tag: "Cons", _1: 3, _2: "Nil" } })
+  { tag: "Just", _1: { tag: "Cons", _1: 2, _2: { tag: "Cons", _1: 4, _2: "Nil" } } }
+
+@export rejected = eq (eqMaybe (eqList eqInt))
+  (traverse traversableList applicativeMaybe
+    (\value%57 ->
+      if integer.less_than value%57 5 then { tag: "Just", _1: value%57 } else "Nothing")
+    { tag: "Cons", _1: 1, _2: { tag: "Cons", _1: 8, _2: "Nil" } })
+  "Nothing"
+
+@export equal = eq1 eq1List eqInt { tag: "Cons", _1: 1, _2: "Nil" }
+  { tag: "Cons", _1: 1, _2: "Nil" }
+
+@export unequal = eq1 eq1List eqInt { tag: "Cons", _1: 1, _2: "Nil" }
+  { tag: "Cons", _1: 2, _2: "Nil" }
+
+@export ordered = eq eqOrdering
+  (compare1 ord1List ordInt { tag: "Cons", _1: 1, _2: "Nil" } { tag: "Cons", _1: 2, _2: "Nil" })
+  "LT"

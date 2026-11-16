@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Predicate :: forall @a. (a -> Prim.Boolean) -> Main.Predicate a
+Transform :: forall @a @b. (a -> b) -> Main.Transform a b
+predicate :: Prim.Boolean
+transformed :: Prim.String
+
+Types
+Predicate :: Prim.Type -> Prim.Type
+Transform :: Prim.Type -> Prim.Type -> Prim.Type
+
+Derived
+derive Data.Functor.Contravariant.Contravariant Main.Predicate
+derive Data.Profunctor.Profunctor Main.Transform
+
+Roles
+Predicate = [Representational]
+Transform = [Representational, Representational]

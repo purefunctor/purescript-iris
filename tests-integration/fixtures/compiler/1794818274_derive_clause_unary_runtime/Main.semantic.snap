@@ -1,0 +1,130 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data List :: Prim.Type -> Prim.Type
+data List @a
+  | Nil :: Main.List a
+  | Cons :: a -> Main.List a -> Main.List a
+
+dictionary functorList :: Data.Functor.Functor Main.List where
+  map :: forall a b. (a -> b) -> Main.List a -> Main.List b
+  map = \function value ->
+    case value of
+      Nil -> Nil
+      (Cons field0 field1) -> Cons (function field0)
+        (map {functorList} (\element -> function element) field1)
+
+dictionary foldableList :: Data.Foldable.Foldable Main.List where
+  foldr :: forall a b. (a -> b -> b) -> b -> Main.List a -> b
+  foldr = \function accumulator value ->
+    case value of
+      Nil -> accumulator
+      (Cons field0 field1) -> function field0
+        (foldr {foldableList} (\element accumulator -> function element accumulator) accumulator
+          field1)
+  foldl :: forall a b. (b -> a -> b) -> b -> Main.List a -> b
+  foldl = \function accumulator value ->
+    case value of
+      Nil -> accumulator
+      (Cons field0 field1) -> foldl {foldableList}
+        (\accumulator element -> function accumulator element)
+        (function accumulator field0)
+        field1
+  foldMap :: forall a m. Data.Monoid.Monoid m => (a -> m) -> Main.List a -> m
+  foldMap = \{monoidDict} ->
+    \function value ->
+      case value of
+        Nil -> mempty {monoidDict}
+        (Cons field0 field1) -> append {monoidDict.semigroupDict} (function field0)
+          (foldMap {foldableList} {monoidDict} (\element -> function element) field1)
+
+dictionary traversableList :: Data.Traversable.Traversable Main.List where
+  superclass functorDict = functorList
+  superclass foldableDict = foldableList
+  traverse :: forall a b (m :: Prim.Type -> Prim.Type).
+  Control.Applicative.Applicative m => (a -> m b) -> Main.List a -> m (Main.List b)
+  traverse = \{applicativeDict} ->
+    \function value ->
+      case value of
+        Nil -> pure {applicativeDict} Nil
+        (Cons field0 field1) -> apply {applicativeDict.applyDict}
+          (map {applicativeDict.applyDict.functorDict}
+            (\field0Result field1Result -> Cons field0Result field1Result)
+            (function field0))
+          (traverse {traversableList} {applicativeDict} (\element -> function element) field1)
+  sequence :: forall a (m :: Prim.Type -> Prim.Type).
+  Control.Applicative.Applicative m => Main.List (m a) -> m (Main.List a)
+  sequence = \{applicativeDict} ->
+    \value -> traverse {traversableList} {applicativeDict} (\effect0 -> effect0) value
+
+dictionary eq1List :: Data.Eq.Eq1 Main.List where
+  eq1 :: forall a. Data.Eq.Eq a => Main.List a -> Main.List a -> Prim.Boolean
+  eq1 = \{eqDict} -> eq {eqList {eqDict}}
+
+dictionary ord1List :: Data.Ord.Ord1 Main.List where
+  superclass eq1Dict = eq1List
+  compare1 :: forall a. Data.Ord.Ord a => Main.List a -> Main.List a -> Data.Ordering.Ordering
+  compare1 = \{ordDict} -> compare {ordList {ordDict}}
+
+dictionary eqList :: forall a. { eqDict :: Data.Eq.Eq a } => Data.Eq.Eq (Main.List a) where
+  eq :: Main.List a -> Main.List a -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      Nil, Nil -> true
+      (Cons left0 left1), (Cons right0 right1) ->
+        if eq {eqDict} left0 right0 then
+          if eq {eqList {eqDict}} left1 right1 then true else false
+        else
+          false
+      _, _ -> false
+
+dictionary ordList :: forall a. { ordDict :: Data.Ord.Ord a } => Data.Ord.Ord (Main.List a) where
+  superclass eqDict = eqList {ordDict.eqDict}
+  compare :: Main.List a -> Main.List a -> Data.Ordering.Ordering
+  compare = \left right ->
+    case left, right of
+      Nil, Nil -> EQ
+      Nil, _ -> LT
+      _, Nil -> GT
+      (Cons left0 left1), (Cons right0 right1) ->
+        case compare {ordDict} left0 right0 of
+          EQ ->
+            case compare {ordList {ordDict}} left1 right1 of
+              EQ -> EQ
+              ordering -> ordering
+          ordering -> ordering
+
+mapped :: Prim.Boolean
+mapped =
+  eq {eqList {eqInt}} (map {functorList} (\v82 -> add {semiringInt} v82 4) (Cons 3 (Cons 8 Nil)))
+    (Cons 7 (Cons 12 Nil))
+
+folded :: Prim.String
+folded = foldMap {foldableList} {monoidString} (show {showInt}) (Cons 3 (Cons 8 Nil))
+
+traversed :: Prim.Boolean
+traversed =
+  eq {eqMaybe {eqList {eqInt}}}
+    (traverse {traversableList} {applicativeMaybe}
+      (\value ->
+        if lessThan {ordInt} value 5 then Just (add {semiringInt} value 1) else Nothing)
+      (Cons 1 (Cons 3 Nil)))
+    (Just (Cons 2 (Cons 4 Nil)))
+
+rejected :: Prim.Boolean
+rejected =
+  eq {eqMaybe {eqList {eqInt}}}
+    (traverse {traversableList} {applicativeMaybe}
+      (\value ->
+        if lessThan {ordInt} value 5 then Just value else Nothing)
+      (Cons 1 (Cons 8 Nil)))
+    Nothing
+
+equal :: Prim.Boolean
+equal = eq1 {eq1List} {eqInt} (Cons 1 Nil) (Cons 1 Nil)
+
+unequal :: Prim.Boolean
+unequal = eq1 {eq1List} {eqInt} (Cons 1 Nil) (Cons 2 Nil)
+
+ordered :: Prim.Boolean
+ordered = eq {eqOrdering} (compare1 {ord1List} {ordInt} (Cons 1 Nil) (Cons 2 Nil)) LT

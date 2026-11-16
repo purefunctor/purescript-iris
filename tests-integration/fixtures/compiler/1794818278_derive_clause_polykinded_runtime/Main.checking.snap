@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Phantom :: forall t0 (@a :: t0). Prim.Int -> Main.Phantom @t0 (a :: t0)
+mapped :: Prim.Int
+folded :: Prim.Int
+traversed :: Prim.Int
+contramapped :: Prim.Int
+equal :: Prim.Boolean
+ordered :: Prim.Boolean
+
+Types
+Phantom :: forall t0. t0 -> Prim.Type
+
+Derived
+derive Data.Eq.Eq1 (Main.Phantom @Prim.Type)
+derive Data.Ord.Ord1 (Main.Phantom @Prim.Type)
+derive Data.Functor.Functor (Main.Phantom @Prim.Type)
+derive Data.Foldable.Foldable (Main.Phantom @Prim.Type)
+derive Data.Traversable.Traversable (Main.Phantom @Prim.Type)
+derive Data.Functor.Contravariant.Contravariant (Main.Phantom @Prim.Type)
+derive forall t0 (a :: t0). Data.Eq.Eq (Main.Phantom @t0 (a :: t0))
+derive forall t0 (a :: t0). Data.Ord.Ord (Main.Phantom @t0 (a :: t0))
+
+Roles
+Phantom = [Phantom]

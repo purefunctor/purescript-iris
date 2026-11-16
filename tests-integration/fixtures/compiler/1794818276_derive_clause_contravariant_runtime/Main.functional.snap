@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance contravariantPredicate = {
+  cmap:
+    \function%0 value%1 ->
+      case value%1 of
+        field0%2 ->
+          \argument%3 -> field0%2 (function%0 argument%3)
+}
+
+@export instance profunctorTransform = {
+  dimap:
+    \firstFunction%4 secondFunction%5 value%6 ->
+      case value%6 of
+        field0%7 ->
+          \argument%8 -> secondFunction%5 (field0%7 (firstFunction%4 argument%8))
+}
+
+@export predicate = case cmap contravariantPredicate (\section49%9 -> integer.add section49%9 4)
+  (\section60%10 -> integer.greater_than section60%10 7) of
+  run%11 ->
+    boolean.and (run%11 5) (boolean.not (run%11 2))
+
+@export transformed = case dimap profunctorTransform (\section96%12 -> integer.add section96%12 3)
+  (\section103%13 -> string.append section103%13 "!")
+  (show showInt) of
+  run%14 ->
+    run%14 8
