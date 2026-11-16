@@ -33,7 +33,9 @@ pub enum ExistingKind {
 pub enum IndexingError {
     DuplicateItem { kind: ItemKind, existing: ExistingKind },
     MismatchedItem { kind: ItemKind, existing: ExistingKind },
-    InvalidRole { id: TypeRoleId, existing: Option<TypeItemId> },
+    OrphanRole { id: TypeRoleId },
+    DuplicateRole { id: TypeRoleId, existing: TypeRoleId },
+    UnsupportedRole { id: TypeRoleId },
     InvalidExport { id: ExportItemId },
     DuplicateExport { id: ExportItemId, existing: ExportItemId },
     DuplicateImport { duplicate: ImportItemId, existing: ImportItemId },

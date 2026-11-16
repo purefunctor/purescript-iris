@@ -1,4 +1,29 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [OrphanRoleDeclaration] · Main.purs:3:1
+  •
+  │
+  • The role declaration for 'BeforeType' should follow its definition
+  │
+  │   type role BeforeType representational
+  │   ╰────────────────────────────────────
+  •
 
+Error! · [OrphanRoleDeclaration] · Main.purs:11:1
+  •
+  │
+  • The role declaration for 'AfterValue' should follow its definition
+  │
+  │   type role AfterValue representational
+  │   ╰────────────────────────────────────
+  •
+
+Error! · [OrphanRoleDeclaration] · Main.purs:14:1
+  •
+  │
+  • The role declaration for 'KindOnly' should follow its definition
+  │
+  │   type role KindOnly representational
+  │   ╰──────────────────────────────────
+  •

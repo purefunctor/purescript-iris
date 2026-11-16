@@ -1,4 +1,20 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [UnsupportedRoleDeclaration] · Main.purs:4:1
+  •
+  │
+  • Role declarations are only supported for data types, not for type synonyms nor type classes
+  │
+  │   type role Synonym representational
+  │   ╰─────────────────────────────────
+  •
 
+Error! · [UnsupportedRoleDeclaration] · Main.purs:7:1
+  •
+  │
+  • Role declarations are only supported for data types, not for type synonyms nor type classes
+  │
+  │   type role Container representational
+  │   ╰───────────────────────────────────
+  •
