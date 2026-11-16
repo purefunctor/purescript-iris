@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Predicate :: Prim.Type -> Prim.Type
+newtype Predicate @a
+  | Predicate :: (a -> Prim.Boolean) -> Main.Predicate a
+
+newtype Transform :: Prim.Type -> Prim.Type -> Prim.Type
+newtype Transform @a @b
+  | Transform :: (a -> b) -> Main.Transform a b
+
+dictionary contravariantPredicate :: Data.Functor.Contravariant.Contravariant Main.Predicate where
+  cmap :: forall a b. (b -> a) -> Main.Predicate a -> Main.Predicate b
+  cmap = \function value ->
+    case value of
+      (Predicate field0) -> Predicate \argument -> field0 (function argument)
+
+dictionary profunctorTransform :: Data.Profunctor.Profunctor Main.Transform where
+  dimap :: forall a b c d. (a -> b) -> (c -> d) -> Main.Transform b c -> Main.Transform a d
+  dimap = \firstFunction secondFunction value ->
+    case value of
+      (Transform field0) -> Transform \argument -> secondFunction (field0 (firstFunction argument))
+
+predicate :: Prim.Boolean
+predicate =
+  case cmap {contravariantPredicate} (\v49 -> add {semiringInt} v49 4)
+    (Predicate \v60 -> greaterThan {ordInt} v60 7) of
+    (Predicate run) -> conj {heytingAlgebraBoolean} (run 5) (not {heytingAlgebraBoolean} (run 2))
+
+transformed :: Prim.String
+transformed =
+  case dimap {profunctorTransform} (\v96 -> add {semiringInt} v96 3)
+    (\v103 -> append {semigroupString} v103 "!")
+    (Transform (show {showInt})) of
+    (Transform run) -> run 8

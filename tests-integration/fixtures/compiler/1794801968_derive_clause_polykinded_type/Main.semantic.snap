@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Proxy :: forall k0. k0 -> Prim.Type
+data Proxy @a
+
+dictionary functorProxyType :: Data.Functor.Functor (Main.Proxy @Prim.Type) where
+  map :: forall a b. (a -> b) -> Main.Proxy @Prim.Type a -> Main.Proxy @Prim.Type b
+  map = \function value ->
+    case value of
+      <error>
+
+dictionary foldableProxyType :: Data.Foldable.Foldable (Main.Proxy @Prim.Type) where
+  foldr :: forall a b. (a -> b -> b) -> b -> Main.Proxy @Prim.Type a -> b
+  foldr = \function accumulator value ->
+    case value of
+      <error>
+  foldl :: forall a b. (b -> a -> b) -> b -> Main.Proxy @Prim.Type a -> b
+  foldl = \function accumulator value ->
+    case value of
+      <error>
+  foldMap :: forall a m. Data.Monoid.Monoid m => (a -> m) -> Main.Proxy @Prim.Type a -> m
+  foldMap = \{monoidDict} ->
+    \function value ->
+      case value of
+        <error>
+
+dictionary traversableProxyType :: Data.Traversable.Traversable (Main.Proxy @Prim.Type) where
+  superclass functorDict = functorProxyType
+  superclass foldableDict = foldableProxyType
+  traverse :: forall a b (m :: Prim.Type -> Prim.Type).
+  Control.Applicative.Applicative m =>
+  (a -> m b) -> Main.Proxy @Prim.Type a -> m (Main.Proxy @Prim.Type b)
+  traverse = \{applicativeDict} ->
+    \function value ->
+      case value of
+        <error>
+  sequence :: forall a (m :: Prim.Type -> Prim.Type).
+  Control.Applicative.Applicative m => Main.Proxy @Prim.Type (m a) -> m (Main.Proxy @Prim.Type a)
+  sequence = \{applicativeDict} ->
+    \value -> traverse {traversableProxyType} {applicativeDict} (\effect0 -> effect0) value

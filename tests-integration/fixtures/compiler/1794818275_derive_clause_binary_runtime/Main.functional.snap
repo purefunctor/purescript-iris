@@ -1,0 +1,84 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Pair/2
+
+@export instance bifunctorPair = {
+  bimap:
+    \firstFunction%0 secondFunction%1 value%2 ->
+      case value%2 of
+        Pair field0%3 field1%4 ->
+          { tag: "Pair", _1: firstFunction%0 field0%3, _2: secondFunction%1 field1%4 }
+}
+
+@export instance bifoldablePair = {
+  bifoldr:
+    \firstFunction%5 secondFunction%6 accumulator%7 value%8 ->
+      case value%8 of
+        Pair field0%9 field1%10 ->
+          firstFunction%5 field0%9 (secondFunction%6 field1%10 accumulator%7),
+  bifoldl:
+    \firstFunction%11 secondFunction%12 accumulator%13 value%14 ->
+      case value%14 of
+        Pair field0%15 field1%16 ->
+          secondFunction%12 (firstFunction%11 accumulator%13 field0%15) field1%16,
+  bifoldMap:
+    \monoidMDict%22 ->
+      \firstFunction%17 secondFunction%18 value%19 ->
+        case value%19 of
+          Pair field0%20 field1%21 ->
+            append (monoidMDict%22."Semigroup0"()) (firstFunction%17 field0%20)
+              (secondFunction%18 field1%21)
+}
+
+@export instance bitraversablePair = {
+  "Bifunctor0": \() -> bifunctorPair,
+  "Bifoldable1": \() -> bifoldablePair,
+  bitraverse:
+    \applicativeFDict%28 ->
+      \firstFunction%23 secondFunction%24 value%25 ->
+        let
+          Apply0Dict%29 = applicativeFDict%28."Apply0"()
+        in case value%25 of
+          Pair field0%26 field1%27 ->
+            apply Apply0Dict%29
+              (map (Apply0Dict%29."Functor0"())
+                (\field0Result%30 field1Result%31 ->
+                  { tag: "Pair", _1: field0Result%30, _2: field1Result%31 })
+                (firstFunction%23 field0%26))
+              (secondFunction%24 field1%27),
+  bisequence:
+    \applicativeFDict%33 ->
+      \value%32 ->
+        bitraverse bitraversablePair applicativeFDict%33 (\effect0%34 -> effect0%34)
+          (\effect1%35 -> effect1%35)
+          value%32
+}
+
+@export instance eqPair = \eqADict%36 eqBDict%37 ->
+  {
+    eq:
+      \left%38 right%39 ->
+        case left%38, right%39 of
+          Pair left0%40 left1%41, Pair right0%42 right1%43 ->
+            if eq eqADict%36 left0%40 right0%42
+              then if eq eqBDict%37 left1%41 right1%43 then true else false
+              else false
+  }
+
+@export mapped = eq eqPairIntStringDict
+  (bimap bifunctorPair (\section65%44 -> integer.add section65%44 7)
+    (\section72%45 -> string.append section72%45 "!")
+    { tag: "Pair", _1: 3, _2: "right" })
+  { tag: "Pair", _1: 10, _2: "right!" }
+
+@export folded = bifoldMap bifoldablePair monoidString (show showInt) (identity categoryFn)
+  { tag: "Pair", _1: 3, _2: "right" }
+
+@export traversed = eq (eqMaybe eqPairIntStringDict)
+  (bitraverse bitraversablePair applicativeMaybe (\a%46 -> { tag: "Just", _1: integer.add a%46 7 })
+    (\b%47 -> { tag: "Just", _1: string.append b%47 "!" })
+    { tag: "Pair", _1: 3, _2: "right" })
+  { tag: "Just", _1: { tag: "Pair", _1: 10, _2: "right!" } }
+
+eqPairIntStringDict = eqPair eqInt eqString

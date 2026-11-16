@@ -91,7 +91,9 @@ where
     let derives_from_data = match item_id {
         InstanceSourceItemId::Instance(_) => false,
         InstanceSourceItemId::Derive(item_id) => {
-            context.lowered.tree.get_derive_item(item_id).is_some_and(|item| !item.newtype)
+            context.lowered.tree.get_derive_item(item_id).is_some_and(|item| {
+                !matches!(item.kind, lowering::DeriveItemKind::Declaration { newtype: true, .. })
+            })
         }
     };
 

@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data BeforeType :: Prim.Type -> Prim.Type
+data BeforeType @a
+  | BeforeType :: a -> Main.BeforeType a
+
+data AfterValue :: Prim.Type -> Prim.Type
+data AfterValue @a
+  | AfterValue :: a -> Main.AfterValue a
+
+data KindOnly :: Prim.Type -> Prim.Type
+data KindOnly @a
+  | KindOnly :: a -> Main.KindOnly a
+
+data Adjacent :: Prim.Type -> Prim.Type
+data Adjacent @a
+  | Adjacent :: a -> Main.Adjacent a
+
+value :: Prim.Int
+value = 0

@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Attached :: Prim.Type -> Prim.Type
+newtype Attached @a
+  | Attached :: a -> Main.Attached a
+
+data Plain :: Prim.Type -> Prim.Type
+data Plain @a
+  | Plain :: a -> Main.Plain a
+
+newtype Standalone :: Prim.Type -> Prim.Type
+newtype Standalone @a
+  | Standalone :: a -> Main.Standalone a
+
+dictionary newtypeAttached :: forall a. Data.Newtype.Newtype (Main.Attached a) a where
+  superclass coercibleDict = trivial
+
+dictionary newtypeStandalone :: forall a. Data.Newtype.Newtype (Main.Standalone a) a where
+  superclass coercibleDict = trivial
+
+result :: Prim.Int
+result =
+  add {semiringInt} (unwrap {newtypeAttached} (Attached 41))
+    (unwrap {newtypeStandalone} (Standalone 1))

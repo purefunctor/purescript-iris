@@ -1,0 +1,76 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Red/0
+
+@export constructor Green/0
+
+@export constructor Blue/0
+
+@export instance eqColour = {
+  eq:
+    \left%0 right%1 ->
+      case left%0, right%1 of
+        Red, Red ->
+          true
+        Green, Green ->
+          true
+        Blue, Blue ->
+          true
+        _, _ ->
+          false
+}
+
+@export instance ordColour = {
+  "Eq0": \() -> eqColour,
+  compare:
+    \left%2 right%3 ->
+      case left%2, right%3 of
+        Red, Red ->
+          "EQ"
+        Red, _ ->
+          "LT"
+        _, Red ->
+          "GT"
+        Green, Green ->
+          "EQ"
+        Green, _ ->
+          "LT"
+        _, Green ->
+          "GT"
+        Blue, Blue ->
+          "EQ"
+}
+
+@export instance eqName = {
+  eq:
+    \left%4 right%5 ->
+      case left%4, right%5 of
+        left0%6, right0%7 ->
+          if string.equal left0%6 right0%7 then true else false
+}
+
+@export instance ordName = {
+  "Eq0": \() -> eqName,
+  compare:
+    \left%8 right%9 ->
+      case left%8, right%9 of
+        left0%10, right0%11 ->
+          case compare ordString left0%10 right0%11 of
+            EQ ->
+              "EQ"
+            ordering%12 ->
+              ordering%12
+}
+
+@export instance eqVoid = {
+  eq:
+    \left%13 right%14 ->
+      case left%13, right%14 of
+        _, _ ->
+          false
+}
+
+@export sameColour = boolean.and (eq eqColour "Red" "Red") (lessThan ordColour "Red" "Green")
+
+@export sameName = boolean.and (eq eqName "Alice" "Alice") (lessThan ordName "Alice" "Bob")

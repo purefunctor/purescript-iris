@@ -23,7 +23,7 @@ pub use sources::{
 };
 
 /// PureScript release whose package ecosystem Iris supports.
-pub const COMPILER_VERSION: &str = "0.15.15";
+pub const COMPILER_VERSION: &str = "0.15.17";
 
 /// Name of the Spago manifest file discovered in workspace directories.
 pub const MANIFEST_FILE: &str = "spago.yaml";

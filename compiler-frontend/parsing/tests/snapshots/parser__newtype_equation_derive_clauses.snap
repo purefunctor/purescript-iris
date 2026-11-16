@@ -1,0 +1,70 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..108
+      ModuleHeader@0..41
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..35
+          UPPER@7..35 "NewtypeEquationDerive ..."
+        Annotation@35..36
+          TEXT@35..36 " "
+        WHERE@36..41 "where"
+      LAYOUT_START@41..41 ""
+      ModuleStatements@41..107
+        NewtypeEquation@41..107
+          Annotation@41..43
+            TEXT@41..43 "\n\n"
+          NEWTYPE@43..50 "newtype"
+          Annotation@50..51
+            TEXT@50..51 " "
+          UPPER@51..55 "Name"
+          Annotation@55..56
+            TEXT@55..56 " "
+          EQUAL@56..57 "="
+          DataConstructor@57..69
+            Annotation@57..58
+              TEXT@57..58 " "
+            UPPER@58..62 "Name"
+            TypeConstructor@62..69
+              Annotation@62..63
+                TEXT@62..63 " "
+              QualifiedName@63..69
+                UPPER@63..69 "String"
+          DeriveClause@69..88
+            Annotation@69..72
+              TEXT@69..72 "\n  "
+            DERIVE@72..78 "derive"
+            Annotation@78..79
+              TEXT@78..79 " "
+            LEFT_PARENTHESIS@79..80 "("
+            DeriveClass@80..82
+              QualifiedName@80..82
+                UPPER@80..82 "Eq"
+            COMMA@82..83 ","
+            DeriveClass@83..87
+              Annotation@83..84
+                TEXT@83..84 " "
+              QualifiedName@84..87
+                UPPER@84..87 "Ord"
+            RIGHT_PARENTHESIS@87..88 ")"
+          DeriveClause@88..107
+            Annotation@88..91
+              TEXT@88..91 "\n  "
+            DERIVE@91..97 "derive"
+            Annotation@97..98
+              TEXT@97..98 " "
+            LEFT_PARENTHESIS@98..99 "("
+            DeriveClass@99..106
+              QualifiedName@99..106
+                UPPER@99..106 "Newtype"
+            RIGHT_PARENTHESIS@106..107 ")"
+      LAYOUT_END@107..107 ""
+      Annotation@107..108
+        TEXT@107..108 "\n"
+      END_OF_FILE@108..108 ""
+    ,
+    [],
+)

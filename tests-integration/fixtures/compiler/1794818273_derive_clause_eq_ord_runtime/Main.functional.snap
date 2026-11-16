@@ -1,0 +1,87 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Red/0
+
+@export constructor Green/0
+
+@export constructor Blue/0
+
+@export instance ordColour = {
+  "Eq0": \() -> eqColour,
+  compare:
+    \left%0 right%1 ->
+      case left%0, right%1 of
+        Red, Red ->
+          "EQ"
+        Red, _ ->
+          "LT"
+        _, Red ->
+          "GT"
+        Green, Green ->
+          "EQ"
+        Green, _ ->
+          "LT"
+        _, Green ->
+          "GT"
+        Blue, Blue ->
+          "EQ"
+}
+
+@export instance eqColour = {
+  eq:
+    \left%2 right%3 ->
+      case left%2, right%3 of
+        Red, Red ->
+          true
+        Green, Green ->
+          true
+        Blue, Blue ->
+          true
+        _, _ ->
+          false
+}
+
+@export constructor First/0
+
+@export constructor Second/0
+
+@export instance eqControl = {
+  eq:
+    \left%4 right%5 ->
+      case left%4, right%5 of
+        First, First ->
+          true
+        Second, Second ->
+          true
+        _, _ ->
+          false
+}
+
+@export instance ordControl = {
+  "Eq0": \() -> eqControl,
+  compare:
+    \left%6 right%7 ->
+      case left%6, right%7 of
+        First, First ->
+          "EQ"
+        First, _ ->
+          "LT"
+        _, First ->
+          "GT"
+        Second, Second ->
+          "EQ"
+}
+
+@export equal = eqColourDictEq "Red" "Red"
+
+@export unequal = eqColourDictEq "Red" "Blue"
+
+@export ordered = boolean.and (lessThan ordColour "Red" "Green") (boolean.and (lessThan ordColour
+  "Green"
+  "Blue") (boolean.not (lessThan ordColour "Blue" "Red")))
+
+@export control = boolean.and (notEq eqControl "First" "Second") (lessThan ordControl "First"
+  "Second")
+
+eqColourDictEq = eq eqColour

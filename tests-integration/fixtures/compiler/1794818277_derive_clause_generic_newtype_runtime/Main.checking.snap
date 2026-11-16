@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Phantom :: forall k (@a :: k). Prim.Int -> Main.Phantom @k (a :: k)
+Tagged :: forall k (@tag :: k) @a. a -> Main.Tagged @k (tag :: k) a
+roundtrip :: Main.Phantom @Prim.Symbol "tag" -> Main.Phantom @Prim.Symbol "tag"
+result :: Prim.Int
+observed :: Prim.Int
+
+Types
+Phantom :: forall k. k -> Prim.Type
+Tagged :: forall k. k -> Prim.Type -> Prim.Type
+
+Derived
+derive forall t0 (a :: t0).
+  Data.Generic.Rep.Generic
+    (Main.Phantom @t0 (a :: t0))
+    (Data.Generic.Rep.Constructor "Phantom" (Data.Generic.Rep.Argument Prim.Int))
+derive forall t0 (tag :: t0) a. Data.Newtype.Newtype (Main.Tagged @t0 (tag :: t0) a) a
+derive forall t0 (tag :: t0) a.
+  Data.Generic.Rep.Generic
+    (Main.Tagged @t0 (tag :: t0) a)
+    (Data.Generic.Rep.Constructor "Tagged" (Data.Generic.Rep.Argument a))
+
+Roles
+Phantom = [Phantom]
+Tagged = [Phantom, Representational]

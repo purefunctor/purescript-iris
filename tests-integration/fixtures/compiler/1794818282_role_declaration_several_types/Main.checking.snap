@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Attached :: forall @a. a -> Main.Attached a
+Plain :: forall @a. a -> Main.Plain a
+Standalone :: forall @a. a -> Main.Standalone a
+result :: Prim.Int
+
+Types
+Attached :: Prim.Type -> Prim.Type
+Plain :: Prim.Type -> Prim.Type
+Standalone :: Prim.Type -> Prim.Type
+Foreign :: Prim.Type -> Prim.Type
+
+Derived
+derive forall a. Data.Newtype.Newtype (Main.Attached a) a
+derive forall a. Data.Newtype.Newtype (Main.Standalone a) a
+
+Roles
+Attached = [Representational]
+Plain = [Nominal]
+Standalone = [Representational]
+Foreign = [Representational]

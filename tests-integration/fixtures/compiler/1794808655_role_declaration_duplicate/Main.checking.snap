@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Duplicate :: forall @a. a -> Main.Duplicate a
+
+Types
+Duplicate :: Prim.Type -> Prim.Type
+
+Roles
+Duplicate = [Representational]

@@ -29,7 +29,7 @@ pub type InstanceChainId = AstId<cst::InstanceChain>;
 pub type InstanceId = AstId<cst::InstanceDeclaration>;
 pub type InstanceMemberId = AstId<cst::InstanceMemberStatement>;
 pub type InstanceEquationId = AstId<cst::InstanceEquationStatement>;
-pub type DeriveId = AstId<cst::DeriveDeclaration>;
+pub type DeriveId = AstId<cst::Derive>;
 
 pub type InfixId = AstId<cst::InfixDeclaration>;
 pub type ForeignDataId = AstId<cst::ForeignImportDataDeclaration>;

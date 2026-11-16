@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance functorProxyType = {
+  map:
+    \function%0 value%1 ->
+      case value%1 of
+
+}
+
+@export instance foldableProxyType = {
+  foldr:
+    \function%2 accumulator%3 value%4 ->
+      case value%4 of
+  ,
+  foldl:
+    \function%5 accumulator%6 value%7 ->
+      case value%7 of
+  ,
+  foldMap:
+    \monoidMDict%10 ->
+      \function%8 value%9 ->
+        case value%9 of
+
+}
+
+@export instance traversableProxyType = {
+  "Functor0": \() -> functorProxyType,
+  "Foldable1": \() -> foldableProxyType,
+  traverse:
+    \applicativeMDict%13 ->
+      \function%11 value%12 ->
+        case value%12 of
+  ,
+  sequence:
+    \applicativeMDict%15 ->
+      \value%14 ->
+        traverse traversableProxyType applicativeMDict%15 (\effect0%16 -> effect0%16) value%14
+}

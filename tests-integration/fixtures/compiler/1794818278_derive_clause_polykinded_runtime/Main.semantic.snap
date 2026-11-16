@@ -1,0 +1,104 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Phantom :: forall k0. k0 -> Prim.Type
+data Phantom @a
+  | Phantom :: Prim.Int -> Main.Phantom a
+
+dictionary eq1PhantomType :: Data.Eq.Eq1 (Main.Phantom @Prim.Type) where
+  eq1 :: forall a. Data.Eq.Eq a => Main.Phantom @Prim.Type a -> Main.Phantom @Prim.Type a -> Prim.Boolean
+  eq1 = \{eqDict} -> eq {eqPhantom}
+
+dictionary ord1PhantomType :: Data.Ord.Ord1 (Main.Phantom @Prim.Type) where
+  superclass eq1Dict = eq1PhantomType
+  compare1 :: forall a.
+  Data.Ord.Ord a => Main.Phantom @Prim.Type a -> Main.Phantom @Prim.Type a -> Data.Ordering.Ordering
+  compare1 = \{ordDict} -> compare {ordPhantom}
+
+dictionary functorPhantomType :: Data.Functor.Functor (Main.Phantom @Prim.Type) where
+  map :: forall a b. (a -> b) -> Main.Phantom @Prim.Type a -> Main.Phantom @Prim.Type b
+  map = \function value ->
+    case value of
+      (Phantom field0) -> Phantom field0
+
+dictionary foldablePhantomType :: Data.Foldable.Foldable (Main.Phantom @Prim.Type) where
+  foldr :: forall a b. (a -> b -> b) -> b -> Main.Phantom @Prim.Type a -> b
+  foldr = \function accumulator value ->
+    case value of
+      (Phantom field0) -> accumulator
+  foldl :: forall a b. (b -> a -> b) -> b -> Main.Phantom @Prim.Type a -> b
+  foldl = \function accumulator value ->
+    case value of
+      (Phantom field0) -> accumulator
+  foldMap :: forall a m. Data.Monoid.Monoid m => (a -> m) -> Main.Phantom @Prim.Type a -> m
+  foldMap = \{monoidDict} ->
+    \function value ->
+      case value of
+        (Phantom field0) -> mempty {monoidDict}
+
+dictionary traversablePhantomType :: Data.Traversable.Traversable (Main.Phantom @Prim.Type) where
+  superclass functorDict = functorPhantomType
+  superclass foldableDict = foldablePhantomType
+  traverse :: forall a b (m :: Prim.Type -> Prim.Type).
+  Control.Applicative.Applicative m =>
+  (a -> m b) -> Main.Phantom @Prim.Type a -> m (Main.Phantom @Prim.Type b)
+  traverse = \{applicativeDict} ->
+    \function value ->
+      case value of
+        (Phantom field0) -> pure {applicativeDict} (Phantom field0)
+  sequence :: forall a (m :: Prim.Type -> Prim.Type).
+  Control.Applicative.Applicative m =>
+  Main.Phantom @Prim.Type (m a) -> m (Main.Phantom @Prim.Type a)
+  sequence = \{applicativeDict} ->
+    \value -> traverse {traversablePhantomType} {applicativeDict} (\effect0 -> effect0) value
+
+dictionary contravariantPhantomType ::
+  Data.Functor.Contravariant.Contravariant (Main.Phantom @Prim.Type)
+  where
+  cmap :: forall a b. (b -> a) -> Main.Phantom @Prim.Type a -> Main.Phantom @Prim.Type b
+  cmap = \function value ->
+    case value of
+      (Phantom field0) -> Phantom field0
+
+dictionary eqPhantom :: forall t0 a. Data.Eq.Eq (Main.Phantom @t0 a) where
+  eq :: Main.Phantom @t0 a -> Main.Phantom @t0 a -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      (Phantom left0), (Phantom right0) ->
+        if eq {eqInt} left0 right0 then true else false
+
+dictionary ordPhantom :: forall t0 a. Data.Ord.Ord (Main.Phantom @t0 a) where
+  superclass eqDict = eqPhantom
+  compare :: Main.Phantom @t0 a -> Main.Phantom @t0 a -> Data.Ordering.Ordering
+  compare = \left right ->
+    case left, right of
+      (Phantom left0), (Phantom right0) ->
+        case compare {ordInt} left0 right0 of
+          EQ -> EQ
+          ordering -> ordering
+
+mapped :: Prim.Int
+mapped =
+  case map {functorPhantomType} (\v79 -> add {semiringInt} v79 2) (Phantom 13) of
+    (Phantom n) -> n
+
+folded :: Prim.Int
+folded = foldl {foldablePhantomType} (sub {ringInt}) 17 (Phantom 13)
+
+traversed :: Prim.Int
+traversed =
+  case traverse {traversablePhantomType} {applicativeMaybe} (\n -> Just (add {semiringInt} n 1))
+    (Phantom 13) of
+    (Just (Phantom n)) -> n
+    Nothing -> 0
+
+contramapped :: Prim.Int
+contramapped =
+  case cmap {contravariantPhantomType} (\v183 -> add {semiringInt} v183 2) (Phantom 13) of
+    (Phantom n) -> n
+
+equal :: Prim.Boolean
+equal = eq1 {eq1PhantomType} {eqInt} (Phantom 13) (Phantom 14)
+
+ordered :: Prim.Boolean
+ordered = eq {eqOrdering} (compare1 {ord1PhantomType} {ordInt} (Phantom 13) (Phantom 14)) LT

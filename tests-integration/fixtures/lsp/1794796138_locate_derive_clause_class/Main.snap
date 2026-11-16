@@ -1,0 +1,168 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Hover at Position { line: 4, character: 6 }
+
+```
+class Equal a
+--    $@%&
+```
+
+Range: "Equal"
+
+```purescript
+Equal :: forall t0. t0 -> Constraint
+```
+
+
+GotoDefinition at Position { line: 4, character: 7 }
+
+```
+class Equal a
+--    $@%&
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 4:0..4:13
+
+
+References at Position { line: 4, character: 8 }
+
+```
+class Equal a
+--    $@%&
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 8:10..8:15
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 10:10..10:15
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 13:16..13:21
+
+
+DocumentHighlight at Position { line: 4, character: 9 }
+
+```
+class Equal a
+--    $@%&
+```
+
+4:6..4:11
+8:10..8:15
+10:10..10:15
+13:16..13:21
+
+
+Hover at Position { line: 8, character: 10 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+Range: "Equal"
+
+```purescript
+Equal :: forall t0. t0 -> Constraint
+```
+
+
+GotoDefinition at Position { line: 8, character: 11 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 4:0..4:13
+
+
+References at Position { line: 8, character: 12 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 8:10..8:15
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 10:10..10:15
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 13:16..13:21
+
+
+DocumentHighlight at Position { line: 8, character: 13 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+4:6..4:11
+8:10..8:15
+10:10..10:15
+13:16..13:21
+
+
+Hover at Position { line: 8, character: 17 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+Range: "Lib.Show"
+
+```purescript
+Show :: forall t0. t0 -> Constraint
+```
+
+
+GotoDefinition at Position { line: 8, character: 18 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Lib.purs @ 2:0..2:12
+
+
+References at Position { line: 8, character: 19 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 8:21..8:25
+
+
+DocumentHighlight at Position { line: 8, character: 20 }
+
+```
+  derive (Equal, Lib.Show)
+--        $@%&   $@%&
+```
+
+8:21..8:25
+
+
+References at Position { line: 10, character: 12 }
+
+```
+  derive (Equal)
+--          %
+```
+
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 8:10..8:15
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 10:10..10:15
+file:///tests-integration/fixtures/lsp/1794796138_locate_derive_clause_class/Main.purs @ 13:16..13:21
+
+
+DocumentHighlight at Position { line: 13, character: 17 }
+
+```
+derive instance Equal Colour
+--               &
+```
+
+4:6..4:11
+8:10..8:15
+10:10..10:15
+13:16..13:21

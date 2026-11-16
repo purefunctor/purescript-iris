@@ -271,6 +271,8 @@ pub enum SyntaxKind {
     DataSignature,
     DataEquation,
     DataConstructor,
+    DeriveClause,
+    DeriveClass,
 
     DeriveDeclaration,
 

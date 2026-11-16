@@ -1,0 +1,172 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+{
+  "manifest": {
+    "dependencies": {},
+    "description": null,
+    "license": null,
+    "location": null,
+    "modules": [
+      "Main",
+      "Wrapping"
+    ],
+    "name": "docs-fixture",
+    "version": "0.0.0"
+  },
+  "modules": [
+    {
+      "documentation": null,
+      "name": "Main",
+      "terms": [],
+      "types": [
+        {
+          "documentation": "A local type with an attached derive clause.",
+          "form": {
+            "constructors": [
+              {
+                "documentation": null,
+                "kind": "Constructor",
+                "name": "Box",
+                "signature": {
+                  "reference": {
+                    "module": "Main",
+                    "name": "Box",
+                    "package": "docs-fixture"
+                  },
+                  "tag": "constructor"
+                }
+              }
+            ],
+            "declaration": {
+              "binders": []
+            },
+            "instances": [
+              {
+                "documentation": null,
+                "kind": "Derive",
+                "name": null,
+                "signature": {
+                  "argument": {
+                    "reference": {
+                      "module": "Main",
+                      "name": "Box",
+                      "package": "docs-fixture"
+                    },
+                    "tag": "constructor"
+                  },
+                  "function": {
+                    "argument": {
+                      "reference": {
+                        "module": "Prim",
+                        "name": "Type",
+                        "package": null
+                      },
+                      "tag": "constructor"
+                    },
+                    "function": {
+                      "reference": {
+                        "module": "Wrapping",
+                        "name": "Wrap",
+                        "package": "docs-fixture"
+                      },
+                      "tag": "constructor"
+                    },
+                    "tag": "kindApplication"
+                  },
+                  "tag": "application"
+                }
+              }
+            ],
+            "signature": {
+              "reference": {
+                "module": "Prim",
+                "name": "Type",
+                "package": null
+              },
+              "tag": "constructor"
+            },
+            "tag": "data"
+          },
+          "name": "Box"
+        }
+      ]
+    },
+    {
+      "documentation": null,
+      "name": "Wrapping",
+      "terms": [],
+      "types": [
+        {
+          "documentation": null,
+          "form": {
+            "declaration": {
+              "binders": [
+                {
+                  "kind": {
+                    "kind": {
+                      "reference": {
+                        "module": "Prim",
+                        "name": "Type",
+                        "package": null
+                      },
+                      "tag": "constructor"
+                    },
+                    "name": "t0",
+                    "tag": "rigid"
+                  },
+                  "name": "a",
+                  "visible": true
+                }
+              ]
+            },
+            "functionalDependencies": [],
+            "instances": [],
+            "members": [],
+            "signature": {
+              "binder": {
+                "kind": {
+                  "reference": {
+                    "module": "Prim",
+                    "name": "Type",
+                    "package": null
+                  },
+                  "tag": "constructor"
+                },
+                "name": "t0",
+                "visible": false
+              },
+              "body": {
+                "argument": {
+                  "kind": {
+                    "reference": {
+                      "module": "Prim",
+                      "name": "Type",
+                      "package": null
+                    },
+                    "tag": "constructor"
+                  },
+                  "name": "t0",
+                  "tag": "rigid"
+                },
+                "result": {
+                  "reference": {
+                    "module": "Prim",
+                    "name": "Constraint",
+                    "package": null
+                  },
+                  "tag": "constructor"
+                },
+                "tag": "function"
+              },
+              "tag": "forall"
+            },
+            "superclasses": [],
+            "tag": "class"
+          },
+          "name": "Wrap"
+        }
+      ]
+    }
+  ]
+}

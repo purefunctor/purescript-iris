@@ -1,0 +1,253 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..234
+      ModuleHeader@0..33
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..27
+          UPPER@7..27 "DeriveClauseRecovery"
+        Annotation@27..28
+          TEXT@27..28 " "
+        WHERE@28..33 "where"
+      LAYOUT_START@33..33 ""
+      ModuleStatements@33..233
+        DataEquation@33..65
+          Annotation@33..35
+            TEXT@33..35 "\n\n"
+          DATA@35..39 "data"
+          Annotation@39..40
+            TEXT@39..40 " "
+          UPPER@40..45 "Empty"
+          Annotation@45..46
+            TEXT@45..46 " "
+          EQUAL@46..47 "="
+          DataConstructor@47..53
+            Annotation@47..48
+              TEXT@47..48 " "
+            UPPER@48..53 "Empty"
+          DeriveClause@53..65
+            Annotation@53..56
+              TEXT@53..56 "\n  "
+            DERIVE@56..62 "derive"
+            Annotation@62..63
+              TEXT@62..63 " "
+            LEFT_PARENTHESIS@63..64 "("
+            ERROR@64..64 ""
+            RIGHT_PARENTHESIS@64..65 ")"
+        LAYOUT_SEPARATOR@65..65 ""
+        DataEquation@65..106
+          Annotation@65..67
+            TEXT@65..67 "\n\n"
+          DATA@67..71 "data"
+          Annotation@71..72
+            TEXT@71..72 " "
+          UPPER@72..80 "Trailing"
+          Annotation@80..81
+            TEXT@80..81 " "
+          EQUAL@81..82 "="
+          DataConstructor@82..91
+            Annotation@82..83
+              TEXT@82..83 " "
+            UPPER@83..91 "Trailing"
+          DeriveClause@91..106
+            Annotation@91..94
+              TEXT@91..94 "\n  "
+            DERIVE@94..100 "derive"
+            Annotation@100..101
+              TEXT@100..101 " "
+            LEFT_PARENTHESIS@101..102 "("
+            DeriveClass@102..104
+              QualifiedName@102..104
+                UPPER@102..104 "Eq"
+            ERROR@104..105
+              ERROR@104..104 ""
+              COMMA@104..105 ","
+            RIGHT_PARENTHESIS@105..106 ")"
+        LAYOUT_SEPARATOR@106..106 ""
+        DataEquation@106..148
+          Annotation@106..108
+            TEXT@106..108 "\n\n"
+          DATA@108..112 "data"
+          Annotation@112..113
+            TEXT@112..113 " "
+          UPPER@113..120 "Missing"
+          Annotation@120..121
+            TEXT@120..121 " "
+          EQUAL@121..122 "="
+          DataConstructor@122..130
+            Annotation@122..123
+              TEXT@122..123 " "
+            UPPER@123..130 "Missing"
+          DeriveClause@130..148
+            Annotation@130..133
+              TEXT@130..133 "\n  "
+            DERIVE@133..139 "derive"
+            Annotation@139..140
+              TEXT@139..140 " "
+            LEFT_PARENTHESIS@140..141 "("
+            DeriveClass@141..143
+              QualifiedName@141..143
+                UPPER@141..143 "Eq"
+            ERROR@143..143 ""
+            DeriveClass@143..147
+              Annotation@143..144
+                TEXT@143..144 " "
+              QualifiedName@144..147
+                UPPER@144..147 "Ord"
+            RIGHT_PARENTHESIS@147..148 ")"
+        LAYOUT_SEPARATOR@148..148 ""
+        DataEquation@148..192
+          Annotation@148..150
+            TEXT@148..150 "\n\n"
+          DATA@150..154 "data"
+          Annotation@154..155
+            TEXT@154..155 " "
+          UPPER@155..162 "Applied"
+          TypeVariableBinding@162..164
+            Annotation@162..163
+              TEXT@162..163 " "
+            LOWER@163..164 "a"
+          Annotation@164..165
+            TEXT@164..165 " "
+          EQUAL@165..166 "="
+          DataConstructor@166..176
+            Annotation@166..167
+              TEXT@166..167 " "
+            UPPER@167..174 "Applied"
+            TypeVariable@174..176
+              Annotation@174..175
+                TEXT@174..175 " "
+              LOWER@175..176 "a"
+          DeriveClause@176..192
+            Annotation@176..179
+              TEXT@176..179 "\n  "
+            DERIVE@179..185 "derive"
+            Annotation@185..186
+              TEXT@185..186 " "
+            LEFT_PARENTHESIS@186..187 "("
+            DeriveClass@187..189
+              QualifiedName@187..189
+                UPPER@187..189 "Eq"
+            ERROR@189..189 ""
+            ERROR@189..191
+              ERROR@189..189 ""
+              Annotation@189..190
+                TEXT@189..190 " "
+              LOWER@190..191 "a"
+            RIGHT_PARENTHESIS@191..192 ")"
+        LAYOUT_SEPARATOR@192..192 ""
+        DataEquation@192..222
+          Annotation@192..194
+            TEXT@192..194 "\n\n"
+          DATA@194..198 "data"
+          Annotation@198..199
+            TEXT@198..199 " "
+          UPPER@199..203 "Bare"
+          Annotation@203..204
+            TEXT@203..204 " "
+          EQUAL@204..205 "="
+          DataConstructor@205..210
+            Annotation@205..206
+              TEXT@205..206 " "
+            UPPER@206..210 "Bare"
+          DeriveClause@210..222
+            Annotation@210..213
+              TEXT@210..213 "\n  "
+            DERIVE@213..219 "derive"
+            ERROR@219..219 ""
+            DeriveClass@219..222
+              Annotation@219..220
+                TEXT@219..220 " "
+              QualifiedName@220..222
+                UPPER@220..222 "Eq"
+            ERROR@222..222 ""
+            ERROR@222..222 ""
+        LAYOUT_SEPARATOR@222..222 ""
+        ValueEquation@222..233
+          Annotation@222..224
+            TEXT@222..224 "\n\n"
+          LOWER@224..229 "value"
+          Unconditional@229..233
+            Annotation@229..230
+              TEXT@229..230 " "
+            EQUAL@230..231 "="
+            WhereExpression@231..233
+              ExpressionInteger@231..233
+                Annotation@231..232
+                  TEXT@231..232 " "
+                INTEGER@232..233 "0"
+      LAYOUT_END@233..233 ""
+      Annotation@233..234
+        TEXT@233..234 "\n"
+      END_OF_FILE@234..234 ""
+    ,
+    [
+        ParseError {
+            offset: 64,
+            position: Position {
+                line: 4,
+                column: 11,
+            },
+            message: "Expected UPPER",
+        },
+        ParseError {
+            offset: 104,
+            position: Position {
+                line: 7,
+                column: 13,
+            },
+            message: "Trailing comma",
+        },
+        ParseError {
+            offset: 144,
+            position: Position {
+                line: 10,
+                column: 14,
+            },
+            message: "Expected COMMA",
+        },
+        ParseError {
+            offset: 190,
+            position: Position {
+                line: 13,
+                column: 14,
+            },
+            message: "Expected COMMA",
+        },
+        ParseError {
+            offset: 190,
+            position: Position {
+                line: 13,
+                column: 14,
+            },
+            message: "Unexpected token in derive clause",
+        },
+        ParseError {
+            offset: 220,
+            position: Position {
+                line: 16,
+                column: 10,
+            },
+            message: "Expected LEFT_PARENTHESIS",
+        },
+        ParseError {
+            offset: 224,
+            position: Position {
+                line: 18,
+                column: 1,
+            },
+            message: "Expected COMMA",
+        },
+        ParseError {
+            offset: 224,
+            position: Position {
+                line: 18,
+                column: 1,
+            },
+            message: "Expected RIGHT_PARENTHESIS",
+        },
+    ],
+)

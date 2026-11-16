@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Box :: Prim.Type -> Prim.Type
+data Box @a
+  | Box :: a -> Main.Box a

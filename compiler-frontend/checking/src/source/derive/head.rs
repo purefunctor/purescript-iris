@@ -2,6 +2,7 @@ use building_types::QueryResult;
 use files::FileId;
 use indexing::{DeriveItemId, TypeItemId};
 use itertools::Itertools;
+use smol_str::SmolStr;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
@@ -10,6 +11,7 @@ use crate::core::{
 };
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::types;
+use crate::source::types::application;
 use crate::state::CheckState;
 
 use super::{
@@ -28,14 +30,18 @@ where
 
     for &item_id in &context.grouped.derive_items {
         let Some(item) = context.lowered.tree.get_derive_item(item_id) else { continue };
+        let Some((class_file, class_id)) = item.resolution else { continue };
         let item = CheckDeriveDeclaration {
+            derive_id: context.indexed.items[item_id].id,
             item_id,
-            newtype: item.newtype,
-            constraints: &item.constraints,
-            resolution: item.resolution,
-            arguments: &item.arguments,
+            class_file,
+            class_id,
+            kind: &item.kind,
         };
-        if let Some(result) = check_derive_declaration(state, context, item)? {
+        let result = state.with_error_crumb(ErrorCrumb::DeriveDeclaration(item_id), |state| {
+            check_derive_declaration(state, context, item)
+        })?;
+        if let Some(result) = result {
             results.push(result);
         }
     }
@@ -44,54 +50,11 @@ where
 }
 
 struct CheckDeriveDeclaration<'a> {
-    item_id: DeriveItemId,
-    newtype: bool,
-    constraints: &'a [lowering::TypeId],
-    resolution: Option<(FileId, TypeItemId)>,
-    arguments: &'a [lowering::TypeId],
-}
-
-struct CheckDeriveDeclarationCore<'a> {
     derive_id: indexing::DeriveId,
     item_id: DeriveItemId,
-    newtype: bool,
     class_file: FileId,
     class_id: TypeItemId,
-    constraints: &'a [lowering::TypeId],
-    arguments: &'a [lowering::TypeId],
-}
-
-fn check_derive_declaration<Q>(
-    state: &mut CheckState,
-    context: &CheckContext<Q>,
-    item: CheckDeriveDeclaration,
-) -> QueryResult<Option<DeriveHeadResult>>
-where
-    Q: ExternalQueries,
-{
-    let CheckDeriveDeclaration { item_id, newtype, constraints, resolution, arguments } = item;
-
-    let Some((class_file, class_id)) = resolution else {
-        return Ok(None);
-    };
-
-    let derive_id = context.indexed.items[item_id].id;
-
-    state.with_error_crumb(ErrorCrumb::DeriveDeclaration(item_id), |state| {
-        check_derive_declaration_core(
-            state,
-            context,
-            CheckDeriveDeclarationCore {
-                derive_id,
-                item_id,
-                newtype,
-                class_file,
-                class_id,
-                constraints,
-                arguments,
-            },
-        )
-    })
+    kind: &'a lowering::DeriveItemKind,
 }
 
 struct CheckKnownClassDerive<'a> {
@@ -196,23 +159,27 @@ where
     Ok(strategy)
 }
 
-fn check_derive_declaration_core<Q>(
+fn check_derive_declaration<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    item: CheckDeriveDeclarationCore,
+    item: CheckDeriveDeclaration,
 ) -> QueryResult<Option<DeriveHeadResult>>
 where
     Q: ExternalQueries,
 {
-    let CheckDeriveDeclarationCore {
-        derive_id,
-        item_id,
-        newtype,
-        class_file,
-        class_id,
-        constraints,
-        arguments,
-    } = item;
+    let CheckDeriveDeclaration { derive_id, item_id, class_file, class_id, kind } = item;
+
+    let (newtype, constraints, arguments) = match kind {
+        lowering::DeriveItemKind::Declaration { newtype, constraints, arguments } => {
+            let arguments = arguments.iter().copied().map(application::Argument::Syntax);
+            (*newtype, &constraints[..], arguments.collect_vec())
+        }
+        lowering::DeriveItemKind::Clause { type_id } => {
+            let arguments =
+                derive_clause_arguments(state, context, class_file, class_id, *type_id)?;
+            (false, &[][..], arguments)
+        }
+    };
 
     let class_kind = toolkit::lookup_file_type(state, context, class_file, class_id)?;
 
@@ -240,9 +207,14 @@ where
     let mut class_kind = class_kind;
     let mut checked_arguments = Vec::with_capacity(arguments.len());
 
-    for &argument in arguments {
-        (class_type, class_kind) =
-            types::infer_application_kind(state, context, (class_type, class_kind), argument)?;
+    for argument in arguments {
+        (class_type, class_kind) = application::infer_application_kind(
+            state,
+            context,
+            (class_type, class_kind),
+            argument,
+            application::Options::TYPES,
+        )?;
         let (_, extracted_arguments) =
             toolkit::extract_type_application(state, context, class_type)?;
         if let Some(&checked_argument) = extracted_arguments.last() {
@@ -296,4 +268,60 @@ where
         arguments: checked_arguments,
         strategy,
     }))
+}
+
+fn derive_clause_arguments<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    class_file: FileId,
+    class_id: TypeItemId,
+    type_id: TypeItemId,
+) -> QueryResult<Vec<application::Argument>>
+where
+    Q: ExternalQueries,
+{
+    let derived_type = context.queries.intern_type(Type::Constructor(context.id, type_id));
+    let derived_kind = toolkit::lookup_file_type(state, context, context.id, type_id)?;
+
+    let dispatch = derive_dispatch(context, class_file, class_id);
+    if !matches!(dispatch, DeriveDispatch::Generic | DeriveDispatch::Newtype) {
+        return Ok(vec![application::Argument::Core(derived_type, derived_kind)]);
+    }
+
+    let variables = match context.lowered.tree.get_type_item_kind(type_id) {
+        Some(lowering::TypeItemKind::Data { declaration: Some(declaration), .. }) => {
+            &declaration.variables[..]
+        }
+        Some(lowering::TypeItemKind::Newtype { declaration: Some(declaration), .. }) => {
+            &declaration.variables[..]
+        }
+        _ => &[],
+    };
+
+    let mut derived = (derived_type, derived_kind);
+    for variable in variables {
+        let name = state.names.fresh();
+        if let Some(text) = &variable.name {
+            let text = context.queries.intern_smol_str(SmolStr::clone(text));
+            state.checked.names.insert(name, text);
+        }
+        let kind = state.fresh_unification(context.queries, context.prim.t);
+        let variable = context.intern_rigid(name, state.depth, kind);
+        derived = application::infer_application_kind(
+            state,
+            context,
+            derived,
+            application::Argument::Core(variable, kind),
+            application::Options::TYPES,
+        )?;
+    }
+
+    let wildcard_kind = state.fresh_unification(context.queries, context.prim.t);
+    let wildcard_type = state.fresh_unification(context.queries, wildcard_kind);
+
+    let (derived_type, derived_kind) = derived;
+    Ok(vec![
+        application::Argument::Core(derived_type, derived_kind),
+        application::Argument::Core(wildcard_type, wildcard_kind),
+    ])
 }

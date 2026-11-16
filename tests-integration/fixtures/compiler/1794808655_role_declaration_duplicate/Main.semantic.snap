@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Duplicate :: Prim.Type -> Prim.Type
+data Duplicate @a
+  | Duplicate :: a -> Main.Duplicate a

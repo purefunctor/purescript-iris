@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Nil :: forall @a. Main.List a
+Cons :: forall @a. a -> Main.List a -> Main.List a
+Left2 :: forall @a @b. a -> Main.Either2 a b
+Right2 :: forall @a @b. b -> Main.Either2 a b
+
+Types
+List :: Prim.Type -> Prim.Type
+Either2 :: Prim.Type -> Prim.Type -> Prim.Type
+
+Derived
+derive Data.Functor.Functor Main.List
+derive Data.Foldable.Foldable Main.List
+derive Data.Traversable.Traversable Main.List
+derive forall a. Data.Eq.Eq a => Data.Eq.Eq (Main.List a)
+derive Data.Bifunctor.Bifunctor Main.Either2
+
+Roles
+List = [Representational]
+Either2 = [Representational, Representational]

@@ -7,7 +7,7 @@ use crate::error::ErrorKind;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
-use super::{check_kind, infer_kind};
+use super::{check_kind, infer_kind, instantiate_kind_applications};
 
 pub type FnTypeKind = (TypeId, TypeId);
 
@@ -158,6 +158,13 @@ where
             Ok(argument_type)
         }
         Argument::Core(argument_type, argument_kind) => {
+            let (argument_type, argument_kind) = instantiate_kind_applications(
+                state,
+                context,
+                argument_type,
+                argument_kind,
+                expected_kind,
+            )?;
             unification::subtype(state, context, argument_kind, expected_kind)?;
             Ok(argument_type)
         }

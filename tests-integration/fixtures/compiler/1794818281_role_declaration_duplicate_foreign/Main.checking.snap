@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+Foreign :: Prim.Type -> Prim.Type
+
+Roles
+Foreign = [Representational]

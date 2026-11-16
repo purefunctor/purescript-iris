@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface MyClass :: forall k0. k0 -> Prim.Constraint
+interface MyClass a where
+
+data Foo :: Prim.Type
+data Foo
+  | Foo :: Main.Foo

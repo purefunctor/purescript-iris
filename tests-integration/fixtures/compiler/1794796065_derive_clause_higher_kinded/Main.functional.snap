@@ -1,0 +1,105 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Nil/0
+
+@export constructor Cons/2
+
+@export instance functorList = {
+  map:
+    \function%0 value%1 ->
+      case value%1 of
+        Nil ->
+          "Nil"
+        Cons field0%2 field1%3 ->
+          {
+            tag: "Cons",
+            _1: function%0 field0%2,
+            _2: map functorList (\element%4 -> function%0 element%4) field1%3
+          }
+}
+
+@export instance foldableList = {
+  foldr:
+    \function%5 accumulator%6 value%7 ->
+      case value%7 of
+        Nil ->
+          accumulator%6
+        Cons field0%8 field1%9 ->
+          function%5 field0%8
+            (foldr foldableList (\element%10 accumulator%11 -> function%5 element%10 accumulator%11)
+              accumulator%6
+              field1%9),
+  foldl:
+    \function%12 accumulator%13 value%14 ->
+      case value%14 of
+        Nil ->
+          accumulator%13
+        Cons field0%15 field1%16 ->
+          foldl foldableList (\accumulator%17 element%18 -> function%12 accumulator%17 element%18)
+            (function%12 accumulator%13 field0%15)
+            field1%16,
+  foldMap:
+    \monoidMDict%21 ->
+      \function%19 value%20 ->
+        case value%20 of
+          Nil ->
+            mempty monoidMDict%21
+          Cons field0%22 field1%23 ->
+            append (monoidMDict%21."Semigroup0"()) (function%19 field0%22)
+              (foldMap foldableList monoidMDict%21 (\element%24 -> function%19 element%24)
+                field1%23)
+}
+
+@export instance traversableList = {
+  "Functor0": \() -> functorList,
+  "Foldable1": \() -> foldableList,
+  traverse:
+    \applicativeMDict%27 ->
+      \function%25 value%26 ->
+        let
+          Apply0Dict%30 = applicativeMDict%27."Apply0"()
+        in case value%26 of
+          Nil ->
+            pure applicativeMDict%27 "Nil"
+          Cons field0%28 field1%29 ->
+            apply Apply0Dict%30
+              (map (Apply0Dict%30."Functor0"())
+                (\field0Result%31 field1Result%32 ->
+                  { tag: "Cons", _1: field0Result%31, _2: field1Result%32 })
+                (function%25 field0%28))
+              (traverse traversableList applicativeMDict%27 (\element%33 -> function%25 element%33)
+                field1%29),
+  sequence:
+    \applicativeMDict%35 ->
+      \value%34 -> traverse traversableList applicativeMDict%35 (\effect0%36 -> effect0%36) value%34
+}
+
+@export instance eqList = \eqADict%37 ->
+  {
+    eq:
+      \left%38 right%39 ->
+        case left%38, right%39 of
+          Nil, Nil ->
+            true
+          Cons left0%40 left1%41, Cons right0%42 right1%43 ->
+            if eq eqADict%37 left0%40 right0%42
+              then if eq (eqList eqADict%37) left1%41 right1%43 then true else false
+              else false
+          _, _ ->
+            false
+  }
+
+@export constructor Left2/1
+
+@export constructor Right2/1
+
+@export instance bifunctorEither2 = {
+  bimap:
+    \firstFunction%44 secondFunction%45 value%46 ->
+      case value%46 of
+        Left2 field0%47 ->
+          { tag: "Left2", _1: firstFunction%44 field0%47 }
+        Right2 field0%48 ->
+          { tag: "Right2", _1: secondFunction%45 field0%48 }
+}

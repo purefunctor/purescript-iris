@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+
+Types
+Proxy :: forall t0. t0 -> Prim.Type
+
+Derived
+derive Data.Functor.Functor (Main.Proxy @Prim.Type)
+derive Data.Foldable.Foldable (Main.Proxy @Prim.Type)
+derive Data.Traversable.Traversable (Main.Proxy @Prim.Type)
+
+Roles
+Proxy = [Phantom]

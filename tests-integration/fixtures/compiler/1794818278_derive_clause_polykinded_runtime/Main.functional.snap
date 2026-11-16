@@ -1,0 +1,109 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Phantom/1
+
+@export instance eq1PhantomType = { eq1: \eqADict%0 -> eq eqPhantom }
+
+@export instance ord1PhantomType = {
+  "Eq10": \() -> eq1PhantomType,
+  compare1: \ordADict%1 -> compare ordPhantom
+}
+
+@export instance functorPhantomType = {
+  map:
+    \function%2 value%3 ->
+      case value%3 of
+        Phantom field0%4 ->
+          { tag: "Phantom", _1: field0%4 }
+}
+
+@export instance foldablePhantomType = {
+  foldr:
+    \function%5 accumulator%6 value%7 ->
+      case value%7 of
+        Phantom field0%8 ->
+          accumulator%6,
+  foldl:
+    \function%9 accumulator%10 value%11 ->
+      case value%11 of
+        Phantom field0%12 ->
+          accumulator%10,
+  foldMap:
+    \monoidMDict%16 ->
+      \function%13 value%14 ->
+        case value%14 of
+          Phantom field0%15 ->
+            mempty monoidMDict%16
+}
+
+@export instance traversablePhantomType = {
+  "Functor0": \() -> functorPhantomType,
+  "Foldable1": \() -> foldablePhantomType,
+  traverse:
+    \applicativeMDict%20 ->
+      \function%17 value%18 ->
+        case value%18 of
+          Phantom field0%19 ->
+            pure applicativeMDict%20 { tag: "Phantom", _1: field0%19 },
+  sequence:
+    \applicativeMDict%22 ->
+      \value%21 ->
+        traverse traversablePhantomType applicativeMDict%22 (\effect0%23 -> effect0%23) value%21
+}
+
+@export instance contravariantPhantomType = {
+  cmap:
+    \function%24 value%25 ->
+      case value%25 of
+        Phantom field0%26 ->
+          { tag: "Phantom", _1: field0%26 }
+}
+
+@export instance eqPhantom = {
+  eq:
+    \left%27 right%28 ->
+      case left%27, right%28 of
+        Phantom left0%29, Phantom right0%30 ->
+          if integer.equal left0%29 right0%30 then true else false
+}
+
+@export instance ordPhantom = {
+  "Eq0": \() -> eqPhantom,
+  compare:
+    \left%31 right%32 ->
+      case left%31, right%32 of
+        Phantom left0%33, Phantom right0%34 ->
+          case compare ordInt left0%33 right0%34 of
+            EQ ->
+              "EQ"
+            ordering%35 ->
+              ordering%35
+}
+
+@export mapped = case map functorPhantomType (\section79%36 -> integer.add section79%36 2)
+  { tag: "Phantom", _1: 13 } of
+  Phantom n%37 ->
+    n%37
+
+@export folded = foldl foldablePhantomType (sub ringInt) 17 { tag: "Phantom", _1: 13 }
+
+@export traversed = case traverse traversablePhantomType applicativeMaybe
+  (\n%38 -> { tag: "Just", _1: integer.add n%38 1 })
+  { tag: "Phantom", _1: 13 } of
+  Just (Phantom n%39) ->
+    n%39
+  Nothing ->
+    0
+
+@export contramapped = case cmap contravariantPhantomType
+  (\section183%40 -> integer.add section183%40 2)
+  { tag: "Phantom", _1: 13 } of
+  Phantom n%41 ->
+    n%41
+
+@export equal = eq1 eq1PhantomType eqInt { tag: "Phantom", _1: 13 } { tag: "Phantom", _1: 14 }
+
+@export ordered = eq eqOrdering
+  (compare1 ord1PhantomType ordInt { tag: "Phantom", _1: 13 } { tag: "Phantom", _1: 14 })
+  "LT"

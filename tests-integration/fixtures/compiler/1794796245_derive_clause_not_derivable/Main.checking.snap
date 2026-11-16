@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Foo :: Main.Foo
+
+Types
+MyClass :: forall t0. t0 -> Prim.Constraint
+Foo :: Prim.Type
+
+Classes
+class forall (t0 :: Prim.Type) (a :: t0). Main.MyClass @t0 (a :: t0)
+
+Derived
+derive Main.MyClass @Prim.Type Main.Foo
+
+Roles
+Foo = []

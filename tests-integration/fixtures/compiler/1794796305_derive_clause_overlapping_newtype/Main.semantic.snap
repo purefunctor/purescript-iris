@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+newtype Wrapper :: Prim.Type
+newtype Wrapper
+  | Wrapper :: Prim.String -> Main.Wrapper
+
+dictionary newtypeWrapperString :: Data.Newtype.Newtype Main.Wrapper Prim.String where
+  superclass coercibleDict = trivial
+
+dictionary newtypeWrapperString1 :: Data.Newtype.Newtype Main.Wrapper Prim.String where
+  superclass coercibleDict = trivial

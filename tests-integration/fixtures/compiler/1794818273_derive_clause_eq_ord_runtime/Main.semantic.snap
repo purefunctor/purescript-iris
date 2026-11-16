@@ -1,0 +1,69 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Colour :: Prim.Type
+data Colour
+  | Red :: Main.Colour
+  | Green :: Main.Colour
+  | Blue :: Main.Colour
+
+data Control :: Prim.Type
+data Control
+  | First :: Main.Control
+  | Second :: Main.Control
+
+dictionary ordColour :: Data.Ord.Ord Main.Colour where
+  superclass eqDict = eqColour
+  compare :: Main.Colour -> Main.Colour -> Data.Ordering.Ordering
+  compare = \left right ->
+    case left, right of
+      Red, Red -> EQ
+      Red, _ -> LT
+      _, Red -> GT
+      Green, Green -> EQ
+      Green, _ -> LT
+      _, Green -> GT
+      Blue, Blue -> EQ
+
+dictionary eqColour :: Data.Eq.Eq Main.Colour where
+  eq :: Main.Colour -> Main.Colour -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      Red, Red -> true
+      Green, Green -> true
+      Blue, Blue -> true
+      _, _ -> false
+
+dictionary eqControl :: Data.Eq.Eq Main.Control where
+  eq :: Main.Control -> Main.Control -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      First, First -> true
+      Second, Second -> true
+      _, _ -> false
+
+dictionary ordControl :: Data.Ord.Ord Main.Control where
+  superclass eqDict = eqControl
+  compare :: Main.Control -> Main.Control -> Data.Ordering.Ordering
+  compare = \left right ->
+    case left, right of
+      First, First -> EQ
+      First, _ -> LT
+      _, First -> GT
+      Second, Second -> EQ
+
+equal :: Prim.Boolean
+equal = eq {eqColour} Red Red
+
+unequal :: Prim.Boolean
+unequal = eq {eqColour} Red Blue
+
+ordered :: Prim.Boolean
+ordered =
+  conj {heytingAlgebraBoolean} (lessThan {ordColour} Red Green)
+    (conj {heytingAlgebraBoolean} (lessThan {ordColour} Green Blue)
+      (not {heytingAlgebraBoolean} (lessThan {ordColour} Blue Red)))
+
+control :: Prim.Boolean
+control =
+  conj {heytingAlgebraBoolean} (notEq {eqControl} First Second) (lessThan {ordControl} First Second)

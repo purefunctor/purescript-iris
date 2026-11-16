@@ -1,0 +1,85 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+dictionary bifunctorPair :: Data.Bifunctor.Bifunctor Main.Pair where
+  bimap :: forall a b c d. (a -> b) -> (c -> d) -> Main.Pair a c -> Main.Pair b d
+  bimap = \firstFunction secondFunction value ->
+    case value of
+      (Pair field0 field1) -> Pair (firstFunction field0) (secondFunction field1)
+
+dictionary bifoldablePair :: Data.Bifoldable.Bifoldable Main.Pair where
+  bifoldr :: forall a b c. (a -> c -> c) -> (b -> c -> c) -> c -> Main.Pair a b -> c
+  bifoldr = \firstFunction secondFunction accumulator value ->
+    case value of
+      (Pair field0 field1) -> firstFunction field0 (secondFunction field1 accumulator)
+  bifoldl :: forall a b c. (c -> a -> c) -> (c -> b -> c) -> c -> Main.Pair a b -> c
+  bifoldl = \firstFunction secondFunction accumulator value ->
+    case value of
+      (Pair field0 field1) -> secondFunction (firstFunction accumulator field0) field1
+  bifoldMap :: forall m a b. Data.Monoid.Monoid m => (a -> m) -> (b -> m) -> Main.Pair a b -> m
+  bifoldMap = \{monoidDict} ->
+    \firstFunction secondFunction value ->
+      case value of
+        (Pair field0 field1) -> append {monoidDict.semigroupDict} (firstFunction field0)
+          (secondFunction field1)
+
+dictionary bitraversablePair :: Data.Bitraversable.Bitraversable Main.Pair where
+  superclass bifunctorDict = bifunctorPair
+  superclass bifoldableDict = bifoldablePair
+  bitraverse :: forall (f :: Prim.Type -> Prim.Type) a b c d.
+  Control.Applicative.Applicative f =>
+  (a -> f c) -> (b -> f d) -> Main.Pair a b -> f (Main.Pair c d)
+  bitraverse = \{applicativeDict} ->
+    \firstFunction secondFunction value ->
+      case value of
+        (Pair field0 field1) -> apply {applicativeDict.applyDict}
+          (map {applicativeDict.applyDict.functorDict}
+            (\field0Result field1Result -> Pair field0Result field1Result)
+            (firstFunction field0))
+          (secondFunction field1)
+  bisequence :: forall (f :: Prim.Type -> Prim.Type) a b.
+  Control.Applicative.Applicative f => Main.Pair (f a) (f b) -> f (Main.Pair a b)
+  bisequence = \{applicativeDict} ->
+    \value ->
+      bitraverse {bitraversablePair} {applicativeDict} (\effect0 -> effect0) (\effect1 -> effect1)
+        value
+
+dictionary eqPair ::
+  forall a b.
+  { eqDict :: Data.Eq.Eq a } =>
+  { eqDict1 :: Data.Eq.Eq b } =>
+  Data.Eq.Eq (Main.Pair a b)
+  where
+  eq :: Main.Pair a b -> Main.Pair a b -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      (Pair left0 left1), (Pair right0 right1) ->
+        if eq {eqDict} left0 right0 then
+          if eq {eqDict1} left1 right1 then true else false
+        else
+          false
+
+mapped :: Prim.Boolean
+mapped =
+  eq {eqPair {eqInt} {eqString}}
+    (bimap {bifunctorPair} (\v65 -> add {semiringInt} v65 7)
+      (\v72 -> append {semigroupString} v72 "!")
+      (Pair 3 "right"))
+    (Pair 10 "right!")
+
+folded :: Prim.String
+folded =
+  bifoldMap {bifoldablePair} {monoidString} (show {showInt}) (identity {categoryFn})
+    (Pair 3 "right")
+
+traversed :: Prim.Boolean
+traversed =
+  eq {eqMaybe {eqPair {eqInt} {eqString}}}
+    (bitraverse {bitraversablePair} {applicativeMaybe} (\a -> Just (add {semiringInt} a 7))
+      (\b -> Just (append {semigroupString} b "!"))
+      (Pair 3 "right"))
+    (Just (Pair 10 "right!"))

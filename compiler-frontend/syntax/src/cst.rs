@@ -106,7 +106,9 @@ create_cst_enum!(
 
 create_cst_struct!(InstanceName, InstanceConstraints, InstanceHead, InstanceStatements);
 
-create_cst_struct!(DataConstructor);
+create_cst_struct!(DataConstructor, DeriveClause, DeriveClass);
+
+create_cst_union!(Derive | DeriveDeclaration | DeriveClass);
 
 create_cst_enum!(
     Type // Comment to fix formatting :P
@@ -599,6 +601,7 @@ has_children!(
     NewtypeEquation
     | type_variables() -> TypeVariableBinding
     | data_constructors() -> DataConstructor
+    | derive_clauses() -> DeriveClause
 );
 
 has_token!(
@@ -620,11 +623,22 @@ has_children!(
     DataEquation
     | type_variables() -> TypeVariableBinding
     | data_constructors() -> DataConstructor
+    | derive_clauses() -> DeriveClause
 );
 
 has_token!(
     DataConstructor
     | name_token() -> UPPER
+);
+
+has_children!(
+    DeriveClause
+    | classes() -> DeriveClass
+);
+
+has_child!(
+    DeriveClass
+    | qualified() -> QualifiedName
 );
 
 has_children!(

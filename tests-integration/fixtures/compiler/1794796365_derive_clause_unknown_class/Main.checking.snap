@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Foo :: Main.Foo
+
+Types
+Foo :: Prim.Type
+
+Derived
+derive Data.Eq.Eq Main.Foo
+
+Roles
+Foo = []

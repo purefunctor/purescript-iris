@@ -160,10 +160,15 @@ where
 {
     let ptr = stabilized.syntax_ptr(id)?;
     let node = ptr.try_to_node(root)?;
-    let head = cst::InstanceDeclaration::cast(node.clone())
-        .and_then(|instance| instance.instance_head())
-        .or_else(|| cst::DeriveDeclaration::cast(node)?.instance_head())?;
-    let token = head.qualified()?.upper()?;
+    let qualified = if let Some(class) = cst::DeriveClass::cast(node.clone()) {
+        class.qualified()?
+    } else {
+        let head = cst::InstanceDeclaration::cast(node.clone())
+            .and_then(|instance| instance.instance_head())
+            .or_else(|| cst::DeriveDeclaration::cast(node)?.instance_head())?;
+        head.qualified()?
+    };
+    let token = qualified.upper()?;
     Some(token.text_range())
 }
 
@@ -375,12 +380,18 @@ fn locate_node(
                 lowered.tree.get_instance_item(item_id)?.resolution
             } else {
                 let derive = node.ancestors().find_map(cst::DeriveDeclaration::cast)?;
-                let ptr = AstPtr::new(&derive);
+                let ptr = AstPtr::new(&cst::Derive::DeriveDeclaration(derive));
                 let derive_id = stabilized.lookup_ptr(&ptr)?;
                 let item_id = indexed.pairs.derive_to_item(derive_id)?;
                 lowered.tree.get_derive_item(item_id)?.resolution
             };
         let (file_id, type_id) = resolution?;
+        Some(Located::InstanceHead(file_id, type_id))
+    } else if cst::DeriveClass::can_cast(kind) {
+        let ptr = ptr.cast()?;
+        let derive_id = stabilized.lookup_ptr(&ptr)?;
+        let item_id = indexed.pairs.derive_to_item(derive_id)?;
+        let (file_id, type_id) = lowered.tree.get_derive_item(item_id)?.resolution?;
         Some(Located::InstanceHead(file_id, type_id))
     } else if cst::InstanceDeclaration::can_cast(kind) {
         let ptr = ptr.cast()?;

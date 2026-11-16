@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Wrapper :: Prim.String -> Main.Wrapper
+
+Types
+Wrapper :: Prim.Type
+
+Derived
+derive Data.Newtype.Newtype Main.Wrapper Prim.String
+derive Data.Newtype.Newtype Main.Wrapper Prim.String
+
+Roles
+Wrapper = []

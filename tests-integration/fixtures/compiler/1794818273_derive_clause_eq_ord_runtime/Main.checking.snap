@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Red :: Main.Colour
+Green :: Main.Colour
+Blue :: Main.Colour
+First :: Main.Control
+Second :: Main.Control
+equal :: Prim.Boolean
+unequal :: Prim.Boolean
+ordered :: Prim.Boolean
+control :: Prim.Boolean
+
+Types
+Colour :: Prim.Type
+Control :: Prim.Type
+
+Derived
+derive Data.Ord.Ord Main.Colour
+derive Data.Eq.Eq Main.Colour
+derive Data.Eq.Eq Main.Control
+derive Data.Ord.Ord Main.Control
+
+Roles
+Colour = []
+Control = []

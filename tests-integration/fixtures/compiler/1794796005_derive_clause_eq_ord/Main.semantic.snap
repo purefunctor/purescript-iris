@@ -1,0 +1,68 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Colour :: Prim.Type
+data Colour
+  | Red :: Main.Colour
+  | Green :: Main.Colour
+  | Blue :: Main.Colour
+
+newtype Name :: Prim.Type
+newtype Name
+  | Name :: Prim.String -> Main.Name
+
+data Void :: Prim.Type
+data Void
+
+dictionary eqColour :: Data.Eq.Eq Main.Colour where
+  eq :: Main.Colour -> Main.Colour -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      Red, Red -> true
+      Green, Green -> true
+      Blue, Blue -> true
+      _, _ -> false
+
+dictionary ordColour :: Data.Ord.Ord Main.Colour where
+  superclass eqDict = eqColour
+  compare :: Main.Colour -> Main.Colour -> Data.Ordering.Ordering
+  compare = \left right ->
+    case left, right of
+      Red, Red -> EQ
+      Red, _ -> LT
+      _, Red -> GT
+      Green, Green -> EQ
+      Green, _ -> LT
+      _, Green -> GT
+      Blue, Blue -> EQ
+
+dictionary eqName :: Data.Eq.Eq Main.Name where
+  eq :: Main.Name -> Main.Name -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      (Name left0), (Name right0) ->
+        if eq {eqString} left0 right0 then true else false
+
+dictionary ordName :: Data.Ord.Ord Main.Name where
+  superclass eqDict = eqName
+  compare :: Main.Name -> Main.Name -> Data.Ordering.Ordering
+  compare = \left right ->
+    case left, right of
+      (Name left0), (Name right0) ->
+        case compare {ordString} left0 right0 of
+          EQ -> EQ
+          ordering -> ordering
+
+dictionary eqVoid :: Data.Eq.Eq Main.Void where
+  eq :: Main.Void -> Main.Void -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      _, _ -> false
+
+sameColour :: Prim.Boolean
+sameColour = conj {heytingAlgebraBoolean} (eq {eqColour} Red Red) (lessThan {ordColour} Red Green)
+
+sameName :: Prim.Boolean
+sameName =
+  conj {heytingAlgebraBoolean} (eq {eqName} (Name "Alice") (Name "Alice"))
+    (lessThan {ordName} (Name "Alice") (Name "Bob"))

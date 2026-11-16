@@ -1,0 +1,5 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface Container :: forall k0. k0 -> Prim.Constraint
+interface Container f where

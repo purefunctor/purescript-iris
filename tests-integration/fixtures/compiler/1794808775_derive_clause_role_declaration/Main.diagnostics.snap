@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [OrphanRoleDeclaration] · Main.purs:7:1
+  •
+  │
+  • The role declaration for 'Attached' should follow its definition
+  │
+  │   type role Attached representational
+  │   ╰──────────────────────────────────
+  •
+
+Error! · [OrphanRoleDeclaration] · Main.purs:11:1
+  •
+  │
+  • The role declaration for 'Between' should follow its definition
+  │
+  │   type role Between representational
+  │   ╰─────────────────────────────────
+  •

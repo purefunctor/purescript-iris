@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export instance newtypeAttached = { "Coercible0": \() -> <trivial evidence> }
+
+@export constructor Plain/1
+
+@export instance newtypeStandalone = { "Coercible0": \() -> <trivial evidence> }
+
+@export result = integer.add (unwrap newtypeAttached 41) (unwrap newtypeStandalone 1)

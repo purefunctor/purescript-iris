@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Box :: forall @a. a -> Main.Box a
+
+Types
+Marker :: forall t0. t0 -> Prim.Constraint
+Box :: Prim.Type -> Prim.Type
+
+Classes
+class forall (t0 :: Prim.Type) (a :: t0). Main.Marker @t0 (a :: t0)
+
+Instances
+instance Main.Marker @Prim.Type (Main.Box Prim.Int)
+
+Roles
+Box = [Representational]

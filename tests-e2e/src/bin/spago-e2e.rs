@@ -57,7 +57,7 @@ fn main() {
     }
     if is_package_set_query(&arguments) {
         println!(
-            r#"[{{"date":"2026-09-20","version":"99.0.0","compiler":"0.15.16"}},{{"date":"2026-09-12","version":"81.1.0","compiler":"0.15.15"}}]"#
+            r#"[{{"date":"2026-11-20","version":"99.0.0","compiler":"0.15.18"}},{{"date":"2026-11-14","version":"82.1.1","compiler":"0.15.17"}}]"#
         );
         return;
     }

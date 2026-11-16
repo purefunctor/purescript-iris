@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Nil :: forall @a. Main.List a
+Cons :: forall @a. a -> Main.List a -> Main.List a
+mapped :: Prim.Boolean
+folded :: Prim.String
+traversed :: Prim.Boolean
+rejected :: Prim.Boolean
+equal :: Prim.Boolean
+unequal :: Prim.Boolean
+ordered :: Prim.Boolean
+
+Types
+List :: Prim.Type -> Prim.Type
+
+Derived
+derive Data.Functor.Functor Main.List
+derive Data.Foldable.Foldable Main.List
+derive Data.Traversable.Traversable Main.List
+derive Data.Eq.Eq1 Main.List
+derive Data.Ord.Ord1 Main.List
+derive forall a. Data.Eq.Eq a => Data.Eq.Eq (Main.List a)
+derive forall a. Data.Ord.Ord a => Data.Ord.Ord (Main.List a)
+
+Roles
+List = [Representational]

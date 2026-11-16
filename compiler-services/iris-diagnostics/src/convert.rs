@@ -6,7 +6,9 @@ use functional::tree::{GlobalId, InstanceIdentity};
 use functional::{
     ModuleError as FunctionalModuleError, UnsupportedState as FunctionalUnsupportedState,
 };
-use indexing::{IndexedTypeItemKind, IndexingError, InstanceSourceItemId, OrderedTermItemId};
+use indexing::{
+    IndexedTypeItemKind, IndexingError, InstanceSourceItemId, OrderedTermItemId, TypeRoleId,
+};
 use itertools::Itertools;
 use javascript::{
     ModuleDiagnostic as JavaScriptModuleDiagnostic, ModuleError as JavaScriptModuleError,
@@ -343,6 +345,9 @@ impl ToDiagnostics for LoweringError {
                     lowering::NotInScope::TypeClass { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
+                    lowering::NotInScope::DeriveClass { id } => {
+                        (context.stabilized.syntax_ptr(*id), None)
+                    }
                     lowering::NotInScope::TypeConstructor { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
@@ -671,6 +676,19 @@ where
     vec![diagnostic]
 }
 
+fn role_declaration<'a, Q>(
+    context: &DiagnosticsContext<'a, Q>,
+    id: TypeRoleId,
+) -> Option<(Span, &'a str)>
+where
+    Q: ExternalQueries,
+{
+    let ptr = context.stabilized.ast_ptr(id)?;
+    let span = context.span_from_ast_ptr(&ptr)?;
+    let name = ptr.to_node(context.root).name_token()?.text(context.content);
+    Some((span, name))
+}
+
 impl ToDiagnostics for IndexingError {
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
@@ -697,9 +715,36 @@ impl ToDiagnostics for IndexingError {
 
                 Ok(vec![diagnostic])
             }
+            IndexingError::OrphanRole { id } => {
+                let Some((span, name)) = role_declaration(context, *id) else {
+                    return Ok(Vec::new());
+                };
+                let message =
+                    format!("The role declaration for '{name}' should follow its definition");
+                Ok(vec![Diagnostic::error("OrphanRoleDeclaration", message, span, "indexing")])
+            }
+            IndexingError::DuplicateRole { id, existing } => {
+                let Some((span, name)) = role_declaration(context, *id) else {
+                    return Ok(Vec::new());
+                };
+                let message = format!("Duplicate role declaration for '{name}'");
+                let mut diagnostic =
+                    Diagnostic::error("DuplicateRoleDeclaration", message, span, "indexing");
+                if let Some((existing_span, _)) = role_declaration(context, *existing) {
+                    diagnostic =
+                        diagnostic.with_related(existing_span, "Previous role declaration");
+                }
+                Ok(vec![diagnostic])
+            }
+            IndexingError::UnsupportedRole { id } => {
+                let Some((span, _)) = role_declaration(context, *id) else {
+                    return Ok(Vec::new());
+                };
+                let message = "Role declarations are only supported for data types, not for type synonyms nor type classes".to_string();
+                Ok(vec![Diagnostic::error("UnsupportedRoleDeclaration", message, span, "indexing")])
+            }
             IndexingError::DuplicateItem { .. }
             | IndexingError::MismatchedItem { .. }
-            | IndexingError::InvalidRole { .. }
             | IndexingError::InvalidExport { .. }
             | IndexingError::DuplicateExport { .. } => Ok(Vec::new()),
         }

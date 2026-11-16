@@ -1,0 +1,16 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+status: 1
+--- stdout
+--- stderr
+Error! · [OrphanRoleDeclaration] · src/Main.purs:3:1
+  •
+  │
+  • The role declaration for 'Box' should follow its definition
+  │
+  │   type role Box representational
+  │   ╰─────────────────────────────
+  •
+
+compilation failed

@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+BeforeType :: forall @a. a -> Main.BeforeType a
+AfterValue :: forall @a. a -> Main.AfterValue a
+value :: Prim.Int
+KindOnly :: forall @a. a -> Main.KindOnly a
+Adjacent :: forall @a. a -> Main.Adjacent a
+
+Types
+BeforeType :: Prim.Type -> Prim.Type
+AfterValue :: Prim.Type -> Prim.Type
+KindOnly :: Prim.Type -> Prim.Type
+Adjacent :: Prim.Type -> Prim.Type
+Opaque :: Prim.Type -> Prim.Type
+
+Roles
+BeforeType = [Representational]
+AfterValue = [Representational]
+KindOnly = [Representational]
+Adjacent = [Representational]
+Opaque = [Representational]

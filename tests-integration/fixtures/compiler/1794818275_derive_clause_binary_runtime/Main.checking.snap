@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Pair :: forall @a @b. a -> b -> Main.Pair a b
+mapped :: Prim.Boolean
+folded :: Prim.String
+traversed :: Prim.Boolean
+
+Types
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+
+Derived
+derive Data.Bifunctor.Bifunctor Main.Pair
+derive Data.Bifoldable.Bifoldable Main.Pair
+derive Data.Bitraversable.Bitraversable Main.Pair
+derive forall a b. Data.Eq.Eq a => Data.Eq.Eq b => Data.Eq.Eq (Main.Pair a b)
+
+Roles
+Pair = [Representational, Representational]

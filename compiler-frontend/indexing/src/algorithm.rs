@@ -90,9 +90,11 @@ impl<'a> State<'a> {
     }
 
     fn alloc_derive(&mut self, item: IndexedDeriveItem) -> DeriveItemId {
+        let derive_id = item.id;
         let id = self.items.derives.alloc(item);
         self.items.instance_sources.push(InstanceSourceItemId::Derive(id));
         self.items.ordered_terms.push(OrderedTermItemId::Derive(id));
+        self.pairs.derive_to_item.push((derive_id, id));
         self.open = None;
         id
     }
@@ -372,6 +374,7 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                 }
                 state.pairs.constructor_to_term.push((constructor_id, term_id));
             }
+            index_derive_clauses(state, stabilized, cst.derive_clauses());
             state.pairs.declaration_to_type.push((declaration_id, type_id));
         }
         cst::Declaration::DataSignature(cst) => {
@@ -441,12 +444,13 @@ fn index_declaration(state: &mut State, stabilized: &StabilizedModule, cst: &cst
                 }
                 state.pairs.constructor_to_term.push((constructor_id, term_id));
             }
+            index_derive_clauses(state, stabilized, cst.derive_clauses());
             state.pairs.declaration_to_type.push((declaration_id, type_id));
         }
         cst::Declaration::DeriveDeclaration(cst) => {
-            let id = stabilized.lookup_cst(cst).expect_id();
+            let id =
+                stabilized.lookup_cst(&cst::Derive::DeriveDeclaration(cst.clone())).expect_id();
             let item_id = index_derive(state, id, cst);
-            state.pairs.derive_to_item.push((id, item_id));
             state.pairs.declaration_to_derive.push((declaration_id, item_id));
         }
     }
@@ -533,22 +537,29 @@ fn index_infix(
 fn index_type_role(state: &mut State, id: TypeRoleId, cst: &cst::TypeRoleDeclaration) {
     let name = name_from_token(state.source, cst.name_token());
 
-    let Some((active_id, active)) = state.open_type_group(&name) else {
-        return state.errors.push(IndexingError::InvalidRole { id, existing: None });
+    let Some((_, active)) = state.open_type_group(&name) else {
+        return state.errors.push(IndexingError::OrphanRole { id });
     };
 
-    if let IndexedTypeItemKind::Data { role, .. }
-    | IndexedTypeItemKind::Newtype { role, .. }
-    | IndexedTypeItemKind::Foreign { role, .. } = &mut active.kind
-    {
-        if role.is_some() {
-            state.errors.push(IndexingError::InvalidRole { id, existing: Some(active_id) });
-        } else {
-            *role = Some(id)
+    let error = match &mut active.kind {
+        IndexedTypeItemKind::Data { equation: Some(_), role, .. }
+        | IndexedTypeItemKind::Newtype { equation: Some(_), role, .. }
+        | IndexedTypeItemKind::Foreign { role, .. } => {
+            if let Some(existing) = role {
+                IndexingError::DuplicateRole { id, existing: *existing }
+            } else {
+                *role = Some(id);
+                return;
+            }
         }
-    } else {
-        state.errors.push(IndexingError::InvalidRole { id, existing: None });
-    }
+        IndexedTypeItemKind::Synonym { equation: Some(_), .. }
+        | IndexedTypeItemKind::Class { declaration: Some(_), .. } => {
+            IndexingError::UnsupportedRole { id }
+        }
+        _ => IndexingError::OrphanRole { id },
+    };
+
+    state.errors.push(error);
 }
 
 type Item<T> = fn(Option<SmolStr>, AstId<T>) -> IndexedTypeItem;
@@ -688,6 +699,17 @@ fn index_derive(state: &mut State, id: DeriveId, cst: &cst::DeriveDeclaration) -
         Some(SmolStr::from(text))
     });
     state.alloc_derive(IndexedDeriveItem { name, id })
+}
+
+fn index_derive_clauses(
+    state: &mut State,
+    stabilized: &StabilizedModule,
+    clauses: impl Iterator<Item = cst::DeriveClause>,
+) {
+    for class in clauses.flat_map(|clause| clause.classes()) {
+        let id = stabilized.lookup_cst(&cst::Derive::DeriveClass(class)).expect_id();
+        state.alloc_derive(IndexedDeriveItem { name: None, id });
+    }
 }
 
 fn validate_items(state: &mut State) {

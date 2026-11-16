@@ -1,0 +1,53 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor North/0
+
+@export constructor South/0
+
+@export instance genericDirectionSumConstructorNoArgumentsConstructorNoArguments = {
+  to:
+    \representation%0 ->
+      case representation%0 of
+        Inl NoArguments ->
+          "North"
+        Inr NoArguments ->
+          "South",
+  from:
+    \value%1 ->
+      case value%1 of
+        North ->
+          { tag: "Inl", _1: "NoArguments" }
+        South ->
+          { tag: "Inr", _1: "NoArguments" }
+}
+
+@export constructor Pair/2
+
+@export instance genericPairConstructorProductArgumentArgument = {
+  to:
+    \representation%2 ->
+      case representation%2 of
+        Product field0%3 field1%4 ->
+          { tag: "Pair", _1: field0%3, _2: field1%4 },
+  from:
+    \value%5 ->
+      case value%5 of
+        Pair field0%6 field1%7 ->
+          { tag: "Product", _1: field0%6, _2: field1%7 }
+}
+
+@export instance genericWrapperConstructorArgument = {
+  to:
+    \representation%8 ->
+      case representation%8 of
+        field0%9 ->
+          field0%9,
+  from:
+    \value%10 ->
+      case value%10 of
+        field0%11 ->
+          field0%11
+}
+
+@export instance newtypeWrapper = { "Coercible0": \() -> <trivial evidence> }
