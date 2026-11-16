@@ -334,7 +334,7 @@ where
         }
 
         ExpressionKind::Hole => {
-            let name = hole_name(context, id);
+            let name = SmolStr::new_static("?hole");
             let crumbs = state.crumbs.clone();
             state.holes.push(Hole { name: SmolStr::clone(&name), type_id: expected, crumbs });
             Ok(allocate(state, Some(id), expected, tree::ExpressionKind::Hole(name)).expression)
@@ -465,14 +465,6 @@ where
 enum RecordValue {
     Expression(Option<lowering::ExpressionId>),
     Pun(Option<TermVariableResolution>),
-}
-
-fn hole_name<Q>(context: &CheckContext<Q>, id: lowering::ExpressionId) -> SmolStr
-where
-    Q: ExternalQueries,
-{
-    let _ = (context, id);
-    SmolStr::new_static("?hole")
 }
 
 fn record_row<Q>(state: &CheckState, context: &CheckContext<Q>, id: TypeId) -> Option<TypeId>
@@ -746,7 +738,7 @@ where
 
         ExpressionKind::Hole => {
             let type_id = kind::fresh_type(state, context);
-            let name = hole_name(context, id);
+            let name = SmolStr::new_static("?hole");
             let crumbs = state.crumbs.clone();
             state.holes.push(Hole { name: SmolStr::clone(&name), type_id, crumbs });
             Ok(allocate(state, Some(id), type_id, tree::ExpressionKind::Hole(name)))
