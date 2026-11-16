@@ -10,14 +10,13 @@ pub struct DiagnosticCollection {
     pub file_id: FileId,
     pub content: Arc<str>,
     diagnostics: Vec<Diagnostic>,
-    source_start: usize,
     foreign_start: usize,
     backend_start: usize,
 }
 
 impl DiagnosticCollection {
     pub fn diagnostics(&self) -> &[Diagnostic] {
-        &self.diagnostics[self.source_start..]
+        &self.diagnostics
     }
 
     pub fn checking_diagnostics(&self) -> &[Diagnostic] {
@@ -80,8 +79,6 @@ where
     for error in &indexed.errors {
         diagnostics.extend(error.to_diagnostics(&context)?);
     }
-
-    let source_start = diagnostics.len();
     for error in parse_errors.iter() {
         diagnostics.extend(error.to_diagnostics(&context)?);
     }
@@ -113,12 +110,5 @@ where
         Err(error) => diagnostics.extend(error.to_diagnostics(&context)?),
     }
 
-    Ok(DiagnosticCollection {
-        file_id,
-        content,
-        diagnostics,
-        source_start,
-        foreign_start,
-        backend_start,
-    })
+    Ok(DiagnosticCollection { file_id, content, diagnostics, foreign_start, backend_start })
 }
