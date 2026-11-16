@@ -905,13 +905,22 @@ where
             check_expression(state, context, *id, expected)
         }
         Argument::Tree(tree) => {
+            let expected_head = normalise::normalise(state, context, expected);
+            if let Type::Forall(..) | Type::Constrained(..) = context.lookup_type(expected_head) {
+                return subsume::abstract_expression(
+                    state,
+                    context,
+                    expected_head,
+                    |state, inner| check_argument(state, context, argument, inner),
+                );
+            }
             let inferred = infer_operator_tree(state, context, tree)?;
             subsume::subsume_expression(
                 state,
                 context,
                 inferred.expression,
                 inferred.type_id,
-                expected,
+                expected_head,
             )
         }
         Argument::Missing => Ok(error_expression(state, context).expression),

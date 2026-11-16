@@ -1,0 +1,45 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Maybe :: Type -> Type
+
+Roles
+  Maybe representational
+
+Terms
+  Just :: forall (@a :: Type). a -> Maybe a
+  Nothing :: forall (@a :: Type). Maybe a
+  unsafePartial :: forall (a :: Type). (Partial => a) -> a
+  fromJust :: forall (a :: Type). Partial => Maybe a -> a
+  apply :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
+  direct :: forall (a :: Type). Maybe a -> a
+  operator :: forall (a :: Type). Maybe a -> a
+  compose :: forall (a :: Type) (b :: Type) (c :: Type). (b -> c) -> (a -> b) -> a -> c
+  composed :: forall (a :: Type) (b :: Type). (Array a -> Maybe b) -> Array a -> b
+  uncovered :: forall (a :: Type) (b :: Type). (Array a -> Maybe b) -> Array a -> b
+
+Errors
+  [uncovered] 28:14 `fromJust` NoInstanceFound: Partial
+
+Tree
+  apply :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
+    abstract [a#5, b#6] []
+    apply (f :: a#5 -> b#6) (x :: a#5) = (f x)
+  direct :: forall (a :: Type). Maybe a -> a
+    abstract [a#8] []
+    direct (m :: Maybe a#8) = ((unsafePartial @[a#8] {}) (Λ[] [d0 : Partial]. ((fromJust @[a#8] {d0}) m)))
+  operator :: forall (a :: Type). Maybe a -> a
+    abstract [a#10] []
+    operator (m :: Maybe a#10) = (((apply @[Partial => a#10, a#10] {}) (unsafePartial @[a#10] {})) (Λ[] [d1 : Partial]. ((fromJust @[a#10] {d1}) m)))
+  compose :: forall (a :: Type) (b :: Type) (c :: Type). (b -> c) -> (a -> b) -> a -> c
+    abstract [a#14, b#15, c#16] []
+    compose (f :: b#15 -> c#16) (g :: a#14 -> b#15) (x :: a#14) = (f (g x))
+  composed :: forall (a :: Type) (b :: Type). (Array a -> Maybe b) -> Array a -> b
+    abstract [a#19, b#20] []
+    composed (f :: Array a#19 -> Maybe b#20) = (((apply @[Partial => Array a#19 -> b#20, Array a#19 -> b#20] {}) (unsafePartial @[Array a#19 -> b#20] {})) (Λ[] [d2 : Partial]. (((compose @[Array a#19, Maybe b#20, b#20] {}) (fromJust @[b#20] {d2})) f)))
+  uncovered :: forall (a :: Type) (b :: Type). (Array a -> Maybe b) -> Array a -> b
+    abstract [a#23, b#24] []
+    uncovered (f :: Array a#23 -> Maybe b#24) = (((compose @[Array a#23, Maybe b#24, b#24] {}) (fromJust @[b#24] {<unsolved>})) f)
