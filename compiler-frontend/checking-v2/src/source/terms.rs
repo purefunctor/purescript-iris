@@ -13,7 +13,7 @@ use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::{binders, equations, types};
 use crate::state::{CheckState, GroupMember, Hole, LocalVariable, TermVariableKey};
 use crate::tree::{self, Literal, TermReference};
-use crate::types::{RowField, Type, TypeId};
+use crate::types::{RowField, RowType, Type, TypeId};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Elaborated {
@@ -315,6 +315,24 @@ where
             check_record(state, context, id, record, &row.fields, expected)
         }
 
+        ExpressionKind::RecordUpdate { record, updates } => {
+            let Some(row) = record_row(state, context, expected) else {
+                return check_by_inference(state, context, id, expected);
+            };
+            let row = normalise::row_parts(state, context, row);
+            let leaves = updates.iter().map(|update| match update {
+                lowering::RecordUpdate::Leaf { name: Some(name), expression, .. } => {
+                    let field = row.fields.iter().find(|field| field.label == *name)?;
+                    Some((field, *expression))
+                }
+                _ => None,
+            });
+            let Some(leaves) = leaves.collect::<Option<Vec<_>>>() else {
+                return check_by_inference(state, context, id, expected);
+            };
+            check_record_update(state, context, id, *record, &leaves, &row, expected)
+        }
+
         ExpressionKind::Hole => {
             let name = hole_name(context, id);
             let crumbs = state.crumbs.clone();
@@ -397,6 +415,50 @@ where
     }
 
     let kind = tree::ExpressionKind::Record(Arc::from(checked));
+    Ok(allocate(state, Some(id), expected, kind).expression)
+}
+
+fn check_record_update<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: lowering::ExpressionId,
+    record: Option<lowering::ExpressionId>,
+    leaves: &[(&RowField, Option<lowering::ExpressionId>)],
+    row: &RowType,
+    expected: TypeId,
+) -> QueryResult<tree::ExpressionId>
+where
+    Q: ExternalQueries,
+{
+    let mut seen = FxHashSet::default();
+    let mut checked_leaves = Vec::with_capacity(leaves.len());
+    for &(field, expression) in leaves {
+        let label = SmolStr::clone(&field.label);
+        if !seen.insert(SmolStr::clone(&label)) {
+            state.insert_error(ErrorKind::DuplicateLabel { label });
+            continue;
+        }
+        checked_leaves.push((field, expression));
+    }
+
+    let updated = checked_leaves.iter().map(|&(field, _)| {
+        let input = kind::fresh_type(state, context);
+        RowField { label: SmolStr::clone(&field.label), id: input }
+    });
+    let mut input_fields = updated.collect::<Vec<_>>();
+    let remaining = row.fields.iter().filter(|field| !seen.contains(&field.label));
+    input_fields.extend(remaining.map(RowField::clone));
+    let input = context.intern_row(input_fields, row.tail);
+    let record = check_optional(state, context, record, context.intern_record(input))?;
+
+    let mut updates = Vec::with_capacity(checked_leaves.len());
+    for (field, expression) in checked_leaves {
+        let expression = check_optional(state, context, expression, field.id)?;
+        let label = SmolStr::clone(&field.label);
+        updates.push(tree::RecordUpdate::Leaf { label, expression });
+    }
+
+    let kind = tree::ExpressionKind::RecordUpdate { record, updates: Arc::from(updates) };
     Ok(allocate(state, Some(id), expected, kind).expression)
 }
 

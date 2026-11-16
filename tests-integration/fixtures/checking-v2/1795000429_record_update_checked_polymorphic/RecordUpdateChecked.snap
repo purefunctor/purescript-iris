@@ -23,8 +23,6 @@ Terms
   annotated :: { handle :: forall (a :: Type). Query a -> Maybe a, name :: String }
 
 Errors
-  [checked] 19:16 `defaultSpec { handle = handle }` EscapedSkolem: a#11 in { handle :: Query a#11 -> Maybe a#11, name :: String }
-  [annotated] 22:12 `defaultSpec { handle = handle, name = "a…` EscapedSkolem: a#12 in { handle :: Query a#12 -> Maybe a#12, name :: String }
 
 Tree
   defaultSpec :: forall (q :: Type -> Type). { handle :: forall (a :: Type). q a -> Maybe a, name :: String }
@@ -38,7 +36,7 @@ Tree
     handle (Query (a :: a#10) :: Query a#10) = ((Just @[a#10] {}) a)
   checked :: String
     abstract [] []
-    checked  = ((run @[Query] {}) ((defaultSpec @[?18] {}) { handle = (handle @[a#11] {}) }))
+    checked  = ((run @[Query] {}) ((defaultSpec @[?19] {}) { handle = (Λ[a#11] []. (handle @[a#11] {})) }))
   annotated :: { handle :: forall (a :: Type). Query a -> Maybe a, name :: String }
     abstract [] []
-    annotated  = ((defaultSpec @[?22] {}) { handle = (handle @[a#12] {}), name = "annotated" })
+    annotated  = ((defaultSpec @[?24] {}) { handle = (Λ[a#12] []. (handle @[a#12] {})), name = "annotated" })
