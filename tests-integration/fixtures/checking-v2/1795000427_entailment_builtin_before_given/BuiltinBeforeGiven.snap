@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module BuiltinBeforeGiven
+
+Types
+
+Roles
+
+Terms
+  merge :: forall (left :: Row Type) (right :: Row Type) (union :: Row Type) (result :: Row Type). Union @Type left right union => Nub @Type union result => Record left -> Record right -> Record result
+  withName :: forall (rest :: Row Type) (duplicated :: Row Type) (result :: Row Type). Union @Type ( name :: String ) rest duplicated => Nub @Type ( name :: String | rest ) result => Record rest -> Record result
+
+Errors
+  [withName] 19:16 `merge { name: "" } rest` NoInstanceFound: Nub @Type duplicated#8 result#9
+
+Tree
+  withName :: forall (rest :: Row Type) (duplicated :: Row Type) (result :: Row Type). Union @Type ( name :: String ) rest duplicated => Nub @Type ( name :: String | rest ) result => Record rest -> Record result
+    abstract [rest#7, duplicated#8, result#9] [d0 : Union @Type ( name :: String ) rest#7 duplicated#8, d1 : Nub @Type ( name :: String | rest#7 ) result#9]
+    withName (rest :: Record rest#7) = (((merge @[( name :: String ), rest#7, duplicated#8, result#9] {d0, <unsolved>}) { name: "" }) rest)
