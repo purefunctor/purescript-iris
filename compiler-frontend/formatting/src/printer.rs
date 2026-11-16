@@ -457,6 +457,37 @@ impl Printer<'_> {
         Ok(Document::select(Choice::Fullest, vec![attached, wrapped]))
     }
 
+    fn data_equation(&self, elements: &[&Tree]) -> Result<Document, FormatError> {
+        let Some(separator) = elements.iter().position(|tree| tree.kind == EQUAL) else {
+            return self.spaced(elements);
+        };
+        let (head, tail) = elements.split_at(separator);
+        let mut documents = Vec::new();
+        for element in tail {
+            let gap = if matches!(element.kind, EQUAL | PIPE) {
+                Gap::Soft
+            } else {
+                self.fixed_gap(element.start)
+            };
+            documents.push(self.boundary(element.start, gap)?);
+            let document = self.tree(element)?;
+            documents.push(if element.kind == DataConstructor {
+                document.align()
+            } else {
+                document
+            });
+        }
+        let tail = Document::concat(documents).nest(self.indent());
+        Ok(self.spaced(head)?.append(tail).group())
+    }
+
+    fn newtype_equation(&self, elements: &[&Tree]) -> Result<Document, FormatError> {
+        match elements.iter().position(|tree| tree.kind == EQUAL) {
+            Some(separator) => self.equation(&elements[..=separator], &elements[separator + 1..]),
+            None => self.spaced(elements),
+        }
+    }
+
     fn equation(&self, head: &[&Tree], tail: &[&Tree]) -> Result<Document, FormatError> {
         if let [expression] = tail
             && expression.kind == WhereExpression
@@ -739,29 +770,21 @@ impl Printer<'_> {
                 }
                 Ok(Document::concat(documents).group())
             }
-            DataEquation => match elements.iter().position(|tree| tree.kind == EQUAL) {
-                Some(separator) => {
-                    let (head, tail) = elements.split_at(separator);
-                    let mut documents = Vec::new();
-                    for element in tail {
-                        let gap = if matches!(element.kind, EQUAL | PIPE) {
-                            Gap::Soft
-                        } else {
-                            self.fixed_gap(element.start)
-                        };
-                        documents.push(self.boundary(element.start, gap)?);
-                        let document = self.tree(element)?;
-                        documents.push(if element.kind == DataConstructor {
-                            document.align()
-                        } else {
-                            document
-                        });
-                    }
-                    let tail = Document::concat(documents).nest(self.indent());
-                    Ok(self.spaced(head)?.append(tail).group())
+            DataEquation | NewtypeEquation => {
+                let clauses = elements.iter().position(|tree| tree.kind == DeriveClause);
+                let (equation, clauses) = elements.split_at(clauses.unwrap_or(elements.len()));
+                let mut documents = vec![if tree.kind == DataEquation {
+                    self.data_equation(equation)?
+                } else {
+                    self.newtype_equation(equation)?
+                }];
+                for clause in clauses {
+                    let boundary = self.boundary(clause.start, Gap::Hard(1))?;
+                    documents.push(boundary.append(self.tree(clause)?).nest(self.indent()));
                 }
-                None => self.spaced(&elements),
-            },
+                Ok(Document::concat(documents))
+            }
+            DeriveClause => self.delimited(tree, true),
             TypeForall => {
                 let [head @ .., body] = elements.as_slice() else {
                     unreachable!("invariant violated: validated forall has a body");
@@ -822,8 +845,7 @@ impl Printer<'_> {
             | DoStatementBind
             | PatternGuardBinder
             | PatternGuarded
-            | TypeSynonymEquation
-            | NewtypeEquation => {
+            | TypeSynonymEquation => {
                 if elements.first().is_some_and(|tree| tree.kind == LEFT_PARENTHESIS) {
                     return self.delimited(tree, true);
                 }
