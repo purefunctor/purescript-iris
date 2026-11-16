@@ -1,0 +1,20 @@
+[package]
+name = "checking-v2"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[dependencies]
+building-types = { version = "0.1.0", path = "../../compiler-core/building-types" }
+files = { version = "0.1.0", path = "../../compiler-core/files" }
+indexing = { version = "0.1.0", path = "../indexing" }
+interner = { version = "0.1.0", path = "../../compiler-core/interner" }
+itertools = "0.15.0"
+la-arena = "0.3.1"
+lowering = { version = "0.1.0", path = "../lowering" }
+parsing = { version = "0.1.0", path = "../parsing" }
+resolving = { version = "0.1.0", path = "../resolving" }
+rustc-hash = "2.1.3"
+smol_str = "0.3.6"
+stabilizing = { version = "0.1.0", path = "../stabilizing" }
+sugar = { version = "0.1.0", path = "../sugar" }

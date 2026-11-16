@@ -354,6 +354,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "checking-v2"
+version = "0.1.0"
+dependencies = [
+ "building-types",
+ "files",
+ "indexing",
+ "interner",
+ "itertools 0.15.0",
+ "la-arena",
+ "lowering",
+ "parsing",
+ "resolving",
+ "rustc-hash",
+ "smol_str",
+ "stabilizing",
+ "sugar",
+]
+
+[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
