@@ -1,0 +1,55 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DoFinalPolymorphic
+
+Types
+  Unit :: Type
+  Box :: Type -> Type
+  Monoid :: Type -> Constraint
+
+Roles
+  Box representational
+
+Terms
+  Unit :: Unit
+  Box :: forall (@a :: Type). a -> Box a
+  mempty :: forall (@m :: Type). Monoid m => m
+  bind :: forall (a :: Type) (b :: Type). Box a -> (a -> Box b) -> Box b
+  discard :: forall (a :: Type) (b :: Type). Box a -> (a -> Box b) -> Box b
+  map :: forall (a :: Type) (b :: Type). (a -> b) -> Box a -> Box b
+  final :: Box Unit
+  branch :: Boolean -> Box Unit
+  applicative :: Box (Box Unit)
+
+Instances
+  <instance 0> :: Monoid (Box Unit)
+
+Errors
+  [final] 23:11 `Box Unit` TypesDoNotUnify: Box Unit ~ Monoid m#14 => m#14
+  [branch] 30:14 `Box Unit` TypesDoNotUnify: Box Unit ~ Monoid m#15 => m#15
+  [applicative] 35:14 `ado` TypesDoNotUnify: Box Unit ~ Monoid m#16 => m#16
+
+Tree
+  bind :: forall (a :: Type) (b :: Type). Box a -> (a -> Box b) -> Box b
+    abstract [a#4, b#5] []
+    bind (Box (a :: a#4) :: Box a#4) (f :: a#4 -> Box b#5) = (f a)
+  discard :: forall (a :: Type) (b :: Type). Box a -> (a -> Box b) -> Box b
+    abstract [a#8, b#9] []
+    discard  = (bind @[a#8, b#9] {})
+  map :: forall (a :: Type) (b :: Type). (a -> b) -> Box a -> Box b
+    abstract [a#12, b#13] []
+    map (f :: a#12 -> b#13) (Box (a :: a#12) :: Box a#12) = ((Box @[b#13] {}) (f a))
+  final :: Box Unit
+    abstract [] []
+    final  = (((discard @[Unit, Unit] {}) ((Box @[Unit] {}) Unit)) (\(_ :: Unit) -> mempty))
+  branch :: Boolean -> Box Unit
+    abstract [] []
+    branch (condition :: Boolean) = (case condition of { (true :: Boolean) -> ((Box @[Unit] {}) Unit); (false :: Boolean) -> (((discard @[Unit, Unit] {}) ((Box @[Unit] {}) Unit)) (\(_ :: Unit) -> mempty)) })
+  applicative :: Box (Box Unit)
+    abstract [] []
+    applicative  = (((map @[Unit, forall (@m :: Type). Monoid m => m] {}) (\(_ :: Unit) -> mempty)) ((Box @[Unit] {}) Unit))
+  instance <instance 0> []
+    mempty :: Box Unit
+      abstract [] []
+      mempty  = ((Box @[Unit] {}) Unit)
