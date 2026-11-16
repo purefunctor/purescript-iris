@@ -1,0 +1,19 @@
+---
+source: tests-e2e/tests/package_manager/build.rs
+---
+status: 0
+--- stdout
+--- stderr
+Warning! · [DuplicateImport] · src/Main.purs:3:24
+  •
+  │
+  • Import list contains multiple references to 'value'
+  │
+  │   import Library (value, value)
+  │                          ╰────
+  │
+  • First imported here
+  │
+  │   import Library (value, value)
+  │                   ╰────
+  •

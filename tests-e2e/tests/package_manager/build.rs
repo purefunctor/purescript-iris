@@ -306,6 +306,44 @@ data Box a = Box a
 }
 
 #[test]
+fn reports_indexing_warnings_without_failing_builds() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Library.purs",
+        r#"module Library where
+
+value :: Int
+value = 0
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Library (value, value)
+
+answer :: Int
+answer = value
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("indexing_warning_diagnostics", workspace.report(&output));
+    });
+    assert!(workspace.path().join("output/Main/index.js").exists());
+}
+
+#[test]
 fn maps_node_stack_traces_to_purescript_sources() {
     let workspace = TestWorkspace::empty();
     workspace.write(
