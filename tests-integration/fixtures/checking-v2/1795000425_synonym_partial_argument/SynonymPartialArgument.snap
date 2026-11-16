@@ -14,23 +14,20 @@ Roles
 
 Terms
   Box :: forall (@t :: (Type -> Type) -> Type). Box t
-  saturated :: forall (e :: Type) (f :: Type -> Type). { onArray :: ??? Array } -> Array e -> f (Array e)
+  saturated :: forall (e :: Type) (f :: Type -> Type). { onArray :: Array e -> f (Array e) } -> Array e -> f (Array e)
   discarded :: Int
   unsaturated :: Box ???
 
 Errors
-  [saturated] 11:39 `Rewrite` PartiallyAppliedSynonym
-  [saturated] 12:19 `record.onArray` TypesDoNotUnify: f#10 (Array e#9) ~ Array
-  [discarded] 14:23 `Rewrite` PartiallyAppliedSynonym
   [unsaturated] 17:21 `Rewrite` PartiallyAppliedSynonym
 
 Tree
-  saturated :: forall (e :: Type) (f :: Type -> Type). { onArray :: ??? Array } -> Array e -> f (Array e)
+  saturated :: forall (e :: Type) (f :: Type -> Type). { onArray :: Array e -> f (Array e) } -> Array e -> f (Array e)
     abstract [e#9, f#10] []
-    saturated (record :: { onArray :: ??? Array }) = record.onArray
+    saturated (record :: { onArray :: Array e#9 -> f#10 (Array e#9) }) = record.onArray
   discarded :: Int
     abstract [] []
     discarded  = 0
   unsaturated :: Box ???
     abstract [] []
-    unsaturated  = (Box @[?18] {})
+    unsaturated  = (Box @[?16] {})

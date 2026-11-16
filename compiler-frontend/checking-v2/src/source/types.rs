@@ -1,3 +1,4 @@
+use std::mem;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -553,6 +554,16 @@ where
     Q: ExternalQueries,
 {
     let Some(applied) = arguments.get(..synonym.parameters.len()) else {
+        if let Some(deferred) = &mut state.deferred_synonyms {
+            deferred.insert((file_id, type_id), synonym);
+            let constructor = context.intern_constructor((file_id, type_id));
+            let kind = kind::lookup_type_item_kind(state, context, (file_id, type_id))?;
+            let mut function = (constructor, kind);
+            for &argument in arguments {
+                function = infer_application(state, context, function, argument)?;
+            }
+            return Ok(function);
+        }
         state.insert_error(ErrorKind::PartiallyAppliedSynonym);
         for &argument in arguments {
             infer_argument(state, context, argument)?;
@@ -560,6 +571,8 @@ where
         return Ok(unknown(context));
     };
     let remaining = arguments.get(synonym.parameters.len()..).unwrap_or_default();
+
+    let outer_deferred = state.deferred_synonyms.replace(FxHashMap::default());
 
     let mut substitution = FxHashMap::default();
     for &binder_id in synonym.kind_binders.iter() {
@@ -578,7 +591,20 @@ where
         checked_arguments.push(argument);
     }
 
+    let deferred = mem::replace(&mut state.deferred_synonyms, outer_deferred);
+    let deferred = deferred.unwrap_or_default();
+
     let expansion = fold::substitute_variables(context, &substitution, synonym.body);
+    let expansion = if deferred.is_empty() {
+        expansion
+    } else {
+        expand_deferred_synonyms(state, context, &deferred, expansion)
+    };
+
+    if let Some(outer_deferred) = &mut state.deferred_synonyms {
+        outer_deferred.extend(deferred);
+    }
+
     let arguments = Arc::from(checked_arguments);
     let application = SynonymApplication { file_id, type_id, arguments, expansion };
     let application = context.intern_synonym_application(application);
@@ -590,4 +616,94 @@ where
         function = infer_application(state, context, function, argument)?;
     }
     Ok(function)
+}
+
+fn expand_deferred_synonyms<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    deferred: &FxHashMap<Item, CheckedSynonym>,
+    id: TypeId,
+) -> TypeId
+where
+    Q: ExternalQueries,
+{
+    if let Some(expanded) = expand_deferred_synonym(state, context, deferred, id) {
+        return expanded;
+    }
+
+    if let Type::Synonym(application_id) = context.lookup_type(id) {
+        let application = context.lookup_synonym_application(application_id);
+        let expansion = expand_deferred_synonyms(state, context, deferred, application.expansion);
+        let application = SynonymApplication { expansion, ..application };
+        let application = context.intern_synonym_application(application);
+        return context.intern_type(Type::Synonym(application));
+    }
+
+    fold::map_children(context, id, |child| {
+        expand_deferred_synonyms(state, context, deferred, child)
+    })
+}
+
+fn expand_deferred_synonym<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    deferred: &FxHashMap<Item, CheckedSynonym>,
+    id: TypeId,
+) -> Option<TypeId>
+where
+    Q: ExternalQueries,
+{
+    let mut kind_arguments = Vec::new();
+    let mut arguments = Vec::new();
+    let mut head = id;
+    loop {
+        match context.lookup_type(head) {
+            Type::Application(function, argument) => {
+                arguments.push(argument);
+                head = function;
+            }
+            Type::KindApplication(function, argument) => {
+                kind_arguments.push(argument);
+                head = function;
+            }
+            _ => break,
+        }
+    }
+
+    let Type::Constructor(file_id, type_id) = context.lookup_type(head) else {
+        return None;
+    };
+    let synonym = deferred.get(&(file_id, type_id))?;
+    kind_arguments.reverse();
+    arguments.reverse();
+
+    let Some(applied) = arguments.get(..synonym.parameters.len()) else {
+        if state.deferred_synonyms.is_none() {
+            state.insert_error(ErrorKind::PartiallyAppliedSynonym);
+        }
+        return Some(id);
+    };
+    let remaining = arguments.get(synonym.parameters.len()..).unwrap_or_default();
+
+    let kind_substitution = synonym.kind_binders.iter().zip(&kind_arguments);
+    let parameter_substitution = synonym.parameters.iter().zip(applied);
+    let substitution =
+        kind_substitution.chain(parameter_substitution).map(|(&binder_id, &argument)| {
+            let binder = context.lookup_forall_binder(binder_id);
+            (binder.name, argument)
+        });
+    let substitution = substitution.collect::<FxHashMap<_, _>>();
+
+    let expansion = fold::substitute_variables(context, &substitution, synonym.body);
+    let expansion = expand_deferred_synonyms(state, context, deferred, expansion);
+    let arguments = Arc::from(applied);
+    let application = SynonymApplication { file_id, type_id, arguments, expansion };
+    let application = context.intern_synonym_application(application);
+    let synonym_type = context.intern_type(Type::Synonym(application));
+
+    let expanded = remaining.iter().fold(synonym_type, |function, &argument| {
+        let argument = expand_deferred_synonyms(state, context, deferred, argument);
+        context.intern_application(function, argument)
+    });
+    Some(expanded)
 }
