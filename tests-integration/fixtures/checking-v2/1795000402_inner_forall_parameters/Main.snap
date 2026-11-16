@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  List :: Type -> Type
+  NaturalTransformation :: forall (k :: Type). (k -> Type) -> (k -> Type) -> Type
+
+Roles
+  List representational
+
+Terms
+  Nil :: forall (@a :: Type). List a
+  Cons :: forall (@a :: Type). a -> List a -> List a
+  drop :: forall (a :: Type). Int -> List a -> List a
+  slice :: Int -> Int -> forall (a :: Type). List a -> List a
+  lambda :: Int -> forall (a :: Type). List a -> List a
+  bound :: Int -> forall (a :: Type). List a -> List a
+  leak :: Int -> forall (a :: Type). List a -> List a
+
+Errors
+  [leak] 24:11 `Cons 1 Nil` TypesDoNotUnify: a#10 ~ Int
+
+Tree
+  drop :: forall (a :: Type). Int -> List a -> List a
+    abstract [a#6] []
+    drop (_ :: Int) (xs :: List a#6) = xs
+  slice :: Int -> Int -> forall (a :: Type). List a -> List a
+    abstract [] []
+    parameters [Int, Int, Λ[a#7] [], List a#7]
+    slice (start :: Int) (_ :: Int) (xs :: List a#7) = (((drop @[a#7] {}) start) xs)
+  lambda :: Int -> forall (a :: Type). List a -> List a
+    abstract [] []
+    lambda  = (\(start :: Int) -> (Λ[a#8] []. (\(xs :: List a#8) -> (((drop @[a#8] {}) start) xs))))
+  bound :: Int -> forall (a :: Type). List a -> List a
+    abstract [] []
+    bound (_ :: Int) = (Λ[a#9] []. (let { go :: List a#9 -> List a#9 [] [] (xs :: List a#9) = xs } in go))
+  leak :: Int -> forall (a :: Type). List a -> List a
+    abstract [] []
+    parameters [Int, Λ[a#10] [], List a#10]
+    leak (_ :: Int) (_ :: List a#10) = (((Cons @[Int] {}) 1) (Nil @[Int] {}))

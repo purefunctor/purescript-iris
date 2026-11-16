@@ -4,9 +4,9 @@ use building::QueryEngine;
 use checking_v2::error::ErrorCrumb;
 use checking_v2::pretty::{self, Printer};
 use checking_v2::tree::{
-    BinderId, BinderKind, CaseBranch, CheckedTree, Evidence, EvidenceBinderId, ExpressionId,
-    ExpressionKind, Guard, Guarded, Literal, LocalBinding, RecordUpdate, TermReference,
-    ValueDeclaration,
+    Abstraction, BinderId, BinderKind, CaseBranch, CheckedTree, Evidence, EvidenceBinderId,
+    ExpressionId, ExpressionKind, Guard, Guarded, Literal, LocalBinding, Parameter, RecordUpdate,
+    TermReference, ValueDeclaration,
 };
 use checking_v2::{CheckedModule, InstanceOrigin};
 use files::FileId;
@@ -221,10 +221,31 @@ impl Report<'_> {
             evidence.format(", ")
         )
         .unwrap();
+        let abstracts = value.parameters.iter().any(|parameter| match parameter {
+            Parameter::Abstract(_) => true,
+            Parameter::Argument(_) => false,
+        });
+        if abstracts {
+            let parameters = value.parameters.iter().map(|parameter| self.parameter(parameter));
+            writeln!(out, "{indent}  parameters [{}]", parameters.format(", ")).unwrap();
+        }
         for equation in value.equations.iter() {
             let binders = equation.binders.iter().map(|&binder| self.binder(binder)).join(" ");
             let guarded = self.guarded(&equation.guarded);
             writeln!(out, "{indent}  {name} {binders} {guarded}").unwrap();
+        }
+    }
+
+    fn parameter(&self, parameter: &Parameter) -> String {
+        match parameter {
+            Parameter::Argument(type_id) => self.printer.render(*type_id),
+            Parameter::Abstract(Abstraction { type_binders, evidence }) => {
+                let type_binders = type_binders.iter().map(|&binder| self.printer.render(binder));
+                let evidence = evidence.iter().map(|&(constraint, binder)| {
+                    format!("{} : {}", evidence_binder(binder), self.printer.render(constraint))
+                });
+                format!("Λ[{}] [{}]", type_binders.format(", "), evidence.format(", "))
+            }
         }
     }
 

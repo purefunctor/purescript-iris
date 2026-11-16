@@ -29,20 +29,8 @@ where
 {
     let expected_head = normalise::normalise(state, context, expected);
     if let Type::Forall(..) | Type::Constrained(..) = context.lookup_type(expected_head) {
-        return state.with_level(|state| {
-            let skolemised = skolem::skolemise(state, context, expected_head);
-            let type_binders = skolemised.rigids.iter().map(|&(_, rigid)| rigid).collect_vec();
-            let evidence = bind_givens(state, &skolemised.constraints);
-            let givens = given_list(&evidence);
-            let inner = state.with_givens(givens, |state| {
-                subsume_expression(state, context, expression, inferred, skolemised.inner)
-            })?;
-            let kind = ExpressionKind::Abstract {
-                type_binders: Arc::from(type_binders),
-                evidence: Arc::from(evidence),
-                expression: inner,
-            };
-            Ok(state.checked.tree.allocate_expression(None, expected, kind))
+        return abstract_expression(state, context, expected_head, |state, inner| {
+            subsume_expression(state, context, expression, inferred, inner)
         });
     }
 
@@ -64,6 +52,42 @@ where
 
     subsume(state, context, Mode::NoElaborate, inferred_head, expected_head)?;
     Ok(expression)
+}
+
+pub fn abstract_over<Q, T>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    expected: TypeId,
+    action: impl FnOnce(&mut CheckState, TypeId) -> QueryResult<T>,
+) -> QueryResult<(tree::Abstraction, T)>
+where
+    Q: ExternalQueries,
+{
+    state.with_level(|state| {
+        let skolemised = skolem::skolemise(state, context, expected);
+        let type_binders = skolemised.rigids.iter().map(|&(_, rigid)| rigid);
+        let type_binders = type_binders.collect::<Arc<[_]>>();
+        let evidence = bind_givens(state, &skolemised.constraints);
+        let givens = given_list(&evidence);
+        let value = state.with_givens(givens, |state| action(state, skolemised.inner))?;
+        let abstraction = tree::Abstraction { type_binders, evidence: Arc::from(evidence) };
+        Ok((abstraction, value))
+    })
+}
+
+pub fn abstract_expression<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    expected: TypeId,
+    action: impl FnOnce(&mut CheckState, TypeId) -> QueryResult<tree::ExpressionId>,
+) -> QueryResult<tree::ExpressionId>
+where
+    Q: ExternalQueries,
+{
+    let (abstraction, expression) = abstract_over(state, context, expected, action)?;
+    let tree::Abstraction { type_binders, evidence } = abstraction;
+    let kind = ExpressionKind::Abstract { type_binders, evidence, expression };
+    Ok(state.checked.tree.allocate_expression(None, expected, kind))
 }
 
 pub fn bind_givens(

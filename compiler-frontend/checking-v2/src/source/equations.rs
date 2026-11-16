@@ -10,13 +10,13 @@ use smol_str::SmolStr;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::{kind, skolem, subsume, unify};
+use crate::core::{kind, normalise, skolem, subsume, unify};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::terms::{self, Argument, Elaborated};
 use crate::source::{binders, types};
 use crate::state::{CheckState, LocalVariable, TermVariableKey};
 use crate::tree::{self, TermReference};
-use crate::types::TypeId;
+use crate::types::{Type, TypeId};
 
 pub fn check_value<Q>(
     state: &mut CheckState,
@@ -29,11 +29,12 @@ where
     Q: ExternalQueries,
 {
     let Some(signature) = signature else {
-        let equations = check_equations(state, context, equations, pending)?;
+        let (parameters, equations) = check_equations(state, context, equations, pending)?;
         return Ok(tree::ValueDeclaration {
             type_id: pending,
             type_binders: Arc::from([]),
             evidence: Arc::from([]),
+            parameters: Arc::from(parameters),
             equations: Arc::from(equations),
         });
     };
@@ -46,15 +47,16 @@ where
         skolem::scope_rigids(state, context, &scoped);
         let evidence = subsume::bind_givens(state, &skolemised.constraints);
         let givens = subsume::given_list(&evidence);
-        let equations = state.with_givens(givens, |state| {
-            let equations = check_equations(state, context, equations, skolemised.inner)?;
+        let (parameters, equations) = state.with_givens(givens, |state| {
+            let checked = check_equations(state, context, equations, skolemised.inner)?;
             crate::core::entail::solve_wanteds(state, context)?;
-            QueryResult::Ok(equations)
+            QueryResult::Ok(checked)
         })?;
         Ok(tree::ValueDeclaration {
             type_id: signature,
             type_binders: Arc::from(type_binders),
             evidence: Arc::from(evidence),
+            parameters: Arc::from(parameters),
             equations: Arc::from(equations),
         })
     })
@@ -65,20 +67,60 @@ pub fn check_equations<Q>(
     context: &CheckContext<Q>,
     equations: &[Equation],
     expected: TypeId,
-) -> QueryResult<Vec<tree::Equation>>
+) -> QueryResult<(Vec<tree::Parameter>, Vec<tree::Equation>)>
 where
     Q: ExternalQueries,
 {
     let arity = equations.first().map_or(0, |equation| equation.binders.len());
-
     let mut arguments = Vec::with_capacity(arity);
-    let mut result = expected;
-    for _ in 0..arity {
-        let (argument, next) = terms::expect_function(state, context, result)?;
-        arguments.push(argument);
-        result = next;
+    check_parameters(state, context, equations, arity, &mut arguments, expected)
+}
+
+fn check_parameters<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    equations: &[Equation],
+    arity: usize,
+    arguments: &mut Vec<TypeId>,
+    expected: TypeId,
+) -> QueryResult<(Vec<tree::Parameter>, Vec<tree::Equation>)>
+where
+    Q: ExternalQueries,
+{
+    if arguments.len() == arity {
+        let equations = check_bodies(state, context, equations, arguments, expected)?;
+        return Ok((Vec::new(), equations));
     }
 
+    let expected_head = normalise::normalise(state, context, expected);
+    if let Type::Forall(..) | Type::Constrained(..) = context.lookup_type(expected_head) {
+        let (abstraction, (mut parameters, equations)) =
+            subsume::abstract_over(state, context, expected_head, |state, inner| {
+                check_parameters(state, context, equations, arity, arguments, inner)
+            })?;
+        parameters.insert(0, tree::Parameter::Abstract(abstraction));
+        return Ok((parameters, equations));
+    }
+
+    let (argument, result) = terms::expect_function(state, context, expected_head)?;
+    arguments.push(argument);
+    let (mut parameters, equations) =
+        check_parameters(state, context, equations, arity, arguments, result)?;
+    parameters.insert(0, tree::Parameter::Argument(argument));
+    Ok((parameters, equations))
+}
+
+fn check_bodies<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    equations: &[Equation],
+    arguments: &[TypeId],
+    result: TypeId,
+) -> QueryResult<Vec<tree::Equation>>
+where
+    Q: ExternalQueries,
+{
+    let arity = arguments.len();
     let mut checked = Vec::with_capacity(equations.len());
     for equation in equations {
         if equation.binders.len() != arity {
@@ -91,7 +133,7 @@ where
         binders::check_overlapping_names(state, context, &equation.binders);
 
         let binders =
-            equation.binders.iter().zip(&arguments).map(|(&binder, &argument)| {
+            equation.binders.iter().zip(arguments).map(|(&binder, &argument)| {
                 binders::check_binder(state, context, binder, argument)
             });
         let binders = binders.collect::<QueryResult<Vec<_>>>()?;
@@ -195,6 +237,13 @@ where
     let Some(where_expression) = where_expression else {
         return Ok(terms::error_expression(state, context).expression);
     };
+
+    let expected_head = normalise::normalise(state, context, expected);
+    if let Type::Forall(..) | Type::Constrained(..) = context.lookup_type(expected_head) {
+        return subsume::abstract_expression(state, context, expected_head, |state, inner| {
+            check_where(state, context, Some(where_expression), inner)
+        });
+    }
 
     let bindings = check_let_chunks(state, context, &where_expression.bindings)?;
     let body = match where_expression.expression {

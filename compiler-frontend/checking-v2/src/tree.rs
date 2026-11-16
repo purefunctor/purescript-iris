@@ -185,10 +185,23 @@ pub enum BinderKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Abstraction {
+    pub type_binders: Arc<[TypeId]>,
+    pub evidence: Arc<[(TypeId, EvidenceBinderId)]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Parameter {
+    Argument(TypeId),
+    Abstract(Abstraction),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValueDeclaration {
     pub type_id: TypeId,
     pub type_binders: Arc<[TypeId]>,
     pub evidence: Arc<[(TypeId, EvidenceBinderId)]>,
+    pub parameters: Arc<[Parameter]>,
     pub equations: Arc<[Equation]>,
 }
 

@@ -6,8 +6,8 @@ use crate::context::CheckContext;
 use crate::core::fold;
 use crate::state::CheckState;
 use crate::tree::{
-    CaseBranch, CheckedTree, Equation, Evidence, EvidenceBinderId, ExpressionKind, Guard, Guarded,
-    GuardedExpression, LocalBinding, LocalValue, ValueDeclaration,
+    Abstraction, CaseBranch, CheckedTree, Equation, Evidence, EvidenceBinderId, ExpressionKind,
+    Guard, Guarded, GuardedExpression, LocalBinding, LocalValue, Parameter, ValueDeclaration,
 };
 use crate::types::{ForallBinderId, TypeId};
 use crate::{CheckedConstructor, CheckedModule, ExternalQueries};
@@ -177,10 +177,21 @@ where
         guarded: zonk_guarded(state, context, &equation.guarded),
     });
 
+    let parameters = value.parameters.iter().map(|parameter| match parameter {
+        Parameter::Argument(type_id) => Parameter::Argument(fold::zonk(state, context, *type_id)),
+        Parameter::Abstract(Abstraction { type_binders, evidence }) => {
+            Parameter::Abstract(Abstraction {
+                type_binders: zonk_types(state, context, type_binders),
+                evidence: zonk_evidence_binders(state, context, evidence),
+            })
+        }
+    });
+
     ValueDeclaration {
         type_id: fold::zonk(state, context, value.type_id),
         type_binders: zonk_types(state, context, &value.type_binders),
         evidence: zonk_evidence_binders(state, context, &value.evidence),
+        parameters: parameters.collect(),
         equations: equations.collect(),
     }
 }

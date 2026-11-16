@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
-use itertools::Itertools;
 use lowering::{ExpressionArgument, ExpressionKind, ExpressionRecordItem, TermVariableResolution};
 use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
@@ -197,20 +196,8 @@ where
 {
     let expected_head = normalise::normalise(state, context, expected);
     if let Type::Forall(..) | Type::Constrained(..) = context.lookup_type(expected_head) {
-        return state.with_level(|state| {
-            let skolemised = skolem::skolemise(state, context, expected_head);
-            let type_binders = skolemised.rigids.iter().map(|&(_, rigid)| rigid).collect_vec();
-            let evidence = subsume::bind_givens(state, &skolemised.constraints);
-            let givens = subsume::given_list(&evidence);
-            let inner = state.with_givens(givens, |state| {
-                check_expression(state, context, id, skolemised.inner)
-            })?;
-            let kind = tree::ExpressionKind::Abstract {
-                type_binders: Arc::from(type_binders),
-                evidence: Arc::from(evidence),
-                expression: inner,
-            };
-            Ok(state.checked.tree.allocate_expression(None, expected, kind))
+        return subsume::abstract_expression(state, context, expected_head, |state, inner| {
+            check_expression(state, context, id, inner)
         });
     }
 
@@ -251,22 +238,7 @@ where
 
     match kind {
         ExpressionKind::Lambda { binders, expression } => {
-            let mut parameters = Vec::with_capacity(binders.len());
-            let mut result = expected;
-            for &binder in binders.iter() {
-                let (argument, next) = expect_function(state, context, result)?;
-                let binder = binders::check_binder(state, context, binder, argument)?;
-                parameters.push((binder, argument, result));
-                result = next;
-            }
-            let body = match expression {
-                Some(expression) => check_expression(state, context, *expression, result)?,
-                None => error_expression(state, context).expression,
-            };
-            let lambda = parameters.into_iter().rev().fold(body, |body, (binder, _, type_id)| {
-                let kind = tree::ExpressionKind::Lambda { binder, body };
-                state.checked.tree.allocate_expression(None, type_id, kind)
-            });
+            let lambda = check_lambda(state, context, binders, *expression, expected)?;
             state.checked.tree.expressions[lambda].source = Some(id);
             Ok(lambda)
         }
@@ -438,6 +410,34 @@ where
     };
     let function = normalise::normalise(state, context, function);
     (function == context.types.array).then_some(element)
+}
+
+fn check_lambda<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    binders: &[lowering::BinderId],
+    body: Option<lowering::ExpressionId>,
+    expected: TypeId,
+) -> QueryResult<tree::ExpressionId>
+where
+    Q: ExternalQueries,
+{
+    let Some((&binder, rest)) = binders.split_first() else {
+        return check_optional(state, context, body, expected);
+    };
+
+    let expected_head = normalise::normalise(state, context, expected);
+    if let Type::Forall(..) | Type::Constrained(..) = context.lookup_type(expected_head) {
+        return subsume::abstract_expression(state, context, expected_head, |state, inner| {
+            check_lambda(state, context, binders, body, inner)
+        });
+    }
+
+    let (argument, result) = expect_function(state, context, expected_head)?;
+    let binder = binders::check_binder(state, context, binder, argument)?;
+    let body = check_lambda(state, context, rest, body, result)?;
+    let kind = tree::ExpressionKind::Lambda { binder, body };
+    Ok(state.checked.tree.allocate_expression(None, expected_head, kind))
 }
 
 pub fn expect_function<Q>(

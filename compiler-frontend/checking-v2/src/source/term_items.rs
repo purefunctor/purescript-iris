@@ -288,6 +288,7 @@ where
                     type_id,
                     type_binders: type_binders.collect::<Arc<[_]>>(),
                     evidence: evidence.collect::<Arc<[_]>>(),
+                    parameters: declaration.parameters,
                     equations: declaration.equations,
                 }
             }
