@@ -277,6 +277,12 @@ pub fn improvable_positions(
     (complete && !improved.is_empty()).then_some(improved)
 }
 
+fn covers(positions: &[Match], functional_dependencies: &[FunctionalDependency]) -> bool {
+    let mut known = positions.iter().map(|&position| position == Match::Match).collect_vec();
+    determine_positions(&mut known, functional_dependencies);
+    known.iter().all(|&known| known)
+}
+
 pub fn covering_sets(
     arity: usize,
     functional_dependencies: &[FunctionalDependency],
@@ -504,6 +510,23 @@ where
                 });
             let positions = positions.collect_vec();
             let result = positions.iter().copied().fold(Match::Match, Match::and);
+
+            if result != Match::Match {
+                let independent =
+                    instance.arguments.iter().zip(&head.arguments).map(|(&pattern, &target)| {
+                        let mut bindings = FxHashMap::default();
+                        match_type(state, context, &variables, &mut bindings, pattern, target)
+                    });
+                let independent = independent.collect_vec();
+                if independent.contains(&Match::Apart) {
+                    continue;
+                }
+                if !covers(&independent, functional_dependencies) {
+                    stuck = true;
+                    break;
+                }
+            }
+
             match result {
                 Match::Apart => continue,
                 Match::Match => {

@@ -1,0 +1,44 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ChainUnknownUncovered
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+  Box :: Type -> Type
+  Unpad :: Int -> Type -> Type -> Constraint
+
+Roles
+  Proxy phantom
+  Box representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  Box :: forall (@a :: Type). a -> Box a
+  unpad :: forall (@n :: Int) (@a :: Type) (@b :: Type). Unpad n a b => Proxy @Int n -> b -> a
+  test :: Box (Box (Box Int)) -> Box Int
+  undetermined :: Int -> Box Int
+
+Instances
+  <instance 0> :: Unpad -1 a a
+  <instance 1> :: Unpad n (Box (Box a)) b, Add n 1 n1 => Unpad n1 (Box a) b (chain position 1)
+
+Errors
+  [undetermined] 29:17 `unpad Proxy x` NoInstanceFound: Unpad ?25 (Box Int) Int
+
+Tree
+  test :: Box (Box (Box Int)) -> Box Int
+    abstract [] []
+    test (x :: Box (Box (Box Int))) = (((unpad @[1, Box Int, Box (Box (Box Int))] {<instance 1>@[1, Int, Box (Box (Box Int)), 0](<instance 1>@[0, Box Int, Box (Box (Box Int)), -1](<instance 0>@[Box (Box (Box Int))](), builtin Add Empty), builtin Add Empty)}) (Proxy @[Int, 1] {})) x)
+  undetermined :: Int -> Box Int
+    abstract [] []
+    undetermined (x :: Int) = (((unpad @[?25, Box Int, Int] {<unsolved>}) (Proxy @[Int, ?25] {})) x)
+  instance <instance 0> []
+    unpad :: Proxy @Int -1 -> a#13 -> a#13
+      abstract [] []
+      unpad (_ :: Proxy @Int -1) (x :: a#13) = x
+  instance <instance 1> [d0 : Unpad n#17 (Box (Box a#15)) b#16, d1 : Add n#17 1 n1#14]
+    unpad :: Proxy @Int n1#14 -> b#16 -> Box a#15
+      abstract [] []
+      unpad (_ :: Proxy @Int n1#14) = (unsafeCoerce @[b#16, Box a#15] {})
