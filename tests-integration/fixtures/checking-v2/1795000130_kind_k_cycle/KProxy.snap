@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KProxy
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+
+Roles
+  Proxy phantom
+
+Terms
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+
+Errors
+
+Tree

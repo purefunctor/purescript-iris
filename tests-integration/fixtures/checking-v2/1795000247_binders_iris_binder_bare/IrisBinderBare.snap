@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisBinderBare
+
+Types
+
+Roles
+
+Terms
+  len :: String -> Int
+  neg :: Int -> Int
+  h :: (Int -> Int) -> Int
+  result :: Int
+
+Errors
+  [h] 6:7 `f :: forall a. a -> a` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  h :: (Int -> Int) -> Int
+    abstract [] []
+    h  = (\(f :: forall (a :: Type). a -> a) -> (len ((f @[String] {}) "a")))
+  result :: Int
+    abstract [] []
+    result  = (h neg)

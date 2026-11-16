@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KindedNotTypeControl
+
+Types
+  Maybe :: Type -> Type
+
+Roles
+  Maybe representational
+
+Terms
+  Nothing :: forall (@a :: Type). Maybe a
+  Just :: forall (@a :: Type). a -> Maybe a
+  f :: forall (a :: Maybe). Proxy @Maybe a -> Int
+
+Errors
+  [f] 8:33 `Maybe` KindsDoNotUnify: Type ~ Type -> Type
+  [f] 8:47 `a` KindsDoNotUnify: Type ~ Type -> Type
+
+Tree

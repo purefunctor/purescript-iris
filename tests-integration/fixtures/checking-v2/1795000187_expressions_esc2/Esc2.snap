@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Esc2
+
+Types
+  ST :: Type -> Type -> Type
+  Ref :: Type -> Type -> Type
+
+Roles
+  ST nominal nominal
+  Ref nominal nominal
+
+Terms
+  newRef :: forall (r :: Type) (a :: Type). a -> ST r (Ref r a)
+  run :: forall (a :: Type). (forall (r :: Type). ST r a) -> a
+  leak :: forall (t5 :: Type). t5
+
+Errors
+  [leak] 7:28 `run` EscapedSkolem: r#4 in r#4
+
+Tree
+  leak :: forall (t5 :: Type). t5
+    abstract [t5] []
+    leak  = ((\(f :: ST ?10 (Ref ?10 Int) -> t5) -> (f ((newRef @[?10, Int] {}) 1))) (run @[?12] {}))

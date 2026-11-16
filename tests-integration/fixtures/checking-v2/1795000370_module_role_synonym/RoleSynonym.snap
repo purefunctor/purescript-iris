@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleSynonym
+
+Types
+  S :: Type -> Type
+
+Roles
+
+Terms
+
+Errors
+
+Tree

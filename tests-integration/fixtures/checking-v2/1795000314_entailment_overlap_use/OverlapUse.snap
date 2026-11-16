@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module OverlapUse
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+  C :: Type -> Constraint
+
+Roles
+  Proxy phantom
+
+Terms
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  c :: forall (@a :: Type). C a => a -> String
+  x :: String
+
+Instances
+  cAny :: C (Proxy @t4 a)
+  cInt :: C (Proxy @Type Int)
+
+Errors
+  [x] 17:4 `c (Proxy :: Proxy Int)` OverlappingInstances: C (Proxy @Type Int) (2 instances)
+
+Tree
+  x :: String
+    abstract [] []
+    x  = ((c @[Proxy @Type Int] {<unsolved>}) (Proxy @[Type, Int] {}))
+  instance cAny []
+    c :: Proxy @t4#5 a#6 -> String
+      abstract [] []
+      c (_ :: Proxy @t4#5 a#6) = "cAny"
+  instance cInt []
+    c :: Proxy @Type Int -> String
+      abstract [] []
+      c (_ :: Proxy @Type Int) = "cInt"

@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubOverwrite
+
+Types
+
+Roles
+
+Terms
+  x :: forall (r :: Row Type). { a :: Record r | r }
+  z :: { a :: { b :: Int }, b :: String }
+
+Errors
+  [z] 5:4 `x` TypesDoNotUnify: String ~ Int
+
+Tree
+  z :: { a :: { b :: Int }, b :: String }
+    abstract [] []
+    z  = (x @[( b :: Int )] {})

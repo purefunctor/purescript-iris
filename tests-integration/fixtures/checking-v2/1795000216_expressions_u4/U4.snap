@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U4
+
+Types
+
+Roles
+
+Terms
+  t :: ({ x :: Int } -> { x :: Int }) -> { x :: Int }
+
+Errors
+
+Tree
+  t :: ({ x :: Int } -> { x :: Int }) -> { x :: Int }
+    abstract [] []
+    t  = (\(f :: { x :: Int } -> { x :: Int }) -> (f (f { x: 1 })))

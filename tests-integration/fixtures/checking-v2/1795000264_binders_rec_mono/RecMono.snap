@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecMono
+
+Types
+
+Roles
+
+Terms
+  h :: { x :: forall (a :: Type). a -> a } -> Int
+
+Errors
+  [h] 4:9 `g :: Int -> Int` TypesDoNotUnify: a#1 ~ Int
+
+Tree
+  h :: { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    h ({ x: (g :: Int -> Int) } :: { x :: forall (a :: Type). a -> a }) = (g 1)

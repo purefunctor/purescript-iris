@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GenOrder
+
+Types
+  Eq1 :: Type -> Constraint
+  Ord1 :: Type -> Constraint
+
+Roles
+
+Terms
+  eq1 :: forall (@a :: Type). Eq1 a => a -> a -> Boolean
+  lt1 :: forall (@a :: Type). Ord1 a => a -> a -> Boolean
+  eqThenOrd :: forall (t2 :: Type). Eq1 t2 => Ord1 t2 => t2 -> t2 -> Boolean
+  ordThenEq :: forall (t3 :: Type). Ord1 t3 => Eq1 t3 => t3 -> t3 -> Boolean
+
+Errors
+
+Tree
+  eqThenOrd :: forall (t2 :: Type). Eq1 t2 => Ord1 t2 => t2 -> t2 -> Boolean
+    abstract [t2] [d0 : Eq1 t2, d1 : Ord1 t2]
+    eqThenOrd (x :: t2) (y :: t2) = (if (((eq1 @[t2] {d0}) x) y) then (((lt1 @[t2] {d1}) x) y) else false)
+  ordThenEq :: forall (t3 :: Type). Ord1 t3 => Eq1 t3 => t3 -> t3 -> Boolean
+    abstract [t3] [d2 : Ord1 t3, d3 : Eq1 t3]
+    ordThenEq (x :: t3) (y :: t3) = (if (((lt1 @[t3] {d2}) x) y) then (((eq1 @[t3] {d3}) x) y) else false)

@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module R7
+
+Types
+
+Roles
+
+Terms
+  t :: { a :: Int } -> { a :: String }
+
+Errors
+
+Tree
+  t :: { a :: Int } -> { a :: String }
+    abstract [] []
+    t  = (\(r :: { a :: Int }) -> (r { a = "x" }))

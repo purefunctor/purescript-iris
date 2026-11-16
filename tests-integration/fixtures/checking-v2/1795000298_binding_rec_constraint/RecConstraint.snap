@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecConstraint
+
+Types
+  Shw :: Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (t5 :: Type). t5 -> String
+
+Errors
+  [f] CannotGeneralizeRecursiveFunction: Shw t5
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#3, b#4] []
+    k (x :: a#3) (_ :: b#4) = x
+  f :: forall (t5 :: Type). t5 -> String
+    abstract [t5] []
+    f (x :: t5) = (((k @[String, String] {}) ((shw @[t5] {<unsolved>}) x)) (f x))

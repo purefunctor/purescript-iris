@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AmbigFundep
+
+Types
+  Shw :: Type -> Constraint
+  F :: Type -> Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  test :: forall (t7 :: Type) (t8 :: Type). Shw t8 => F t7 t8 => t7 -> t7
+
+Errors
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#5, b#6] []
+    k (x :: a#5) (_ :: b#6) = x
+  test :: forall (t7 :: Type) (t8 :: Type). Shw t8 => F t7 t8 => t7 -> t7
+    abstract [t7, t8] [d0 : Shw t8, d1 : F t7 t8]
+    test (x :: t7) = (((k @[t7, String] {}) x) ((shw @[t8] {d0}) ((fget @[t7, t8] {d1}) x)))

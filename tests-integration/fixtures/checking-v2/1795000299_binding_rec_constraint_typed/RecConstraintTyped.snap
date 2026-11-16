@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecConstraintTyped
+
+Types
+  Shw :: Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (a :: Type). Shw a => a -> String
+
+Errors
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#3, b#4] []
+    k (x :: a#3) (_ :: b#4) = x
+  f :: forall (a :: Type). Shw a => a -> String
+    abstract [a#6] [d0 : Shw a#6]
+    f (x :: a#6) = (((k @[String, String] {}) ((shw @[a#6] {d0}) x)) ((f @[a#6] {d0}) x))

@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GuardDup
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  P :: Int -> Int -> P
+  mk :: P
+  t :: Int -> Int
+
+Errors
+  [t] OverlappingArgNames: x
+
+Tree
+  t :: Int -> Int
+    abstract [] []
+    t (n :: Int) | (P (x :: Int) (x :: Int) :: P) <- mk = x
+    t (n :: Int) = n

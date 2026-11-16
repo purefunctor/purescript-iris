@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Nullary
+
+Types
+  Nul :: Constraint
+
+Roles
+
+Terms
+  nul :: Nul => Int
+  test :: forall (t0 :: Type). Nul => t0 -> Int
+
+Errors
+
+Tree
+  test :: forall (t0 :: Type). Nul => t0 -> Int
+    abstract [t0] [d0 : Nul]
+    test (x :: t0) = (nul @[] {d0})

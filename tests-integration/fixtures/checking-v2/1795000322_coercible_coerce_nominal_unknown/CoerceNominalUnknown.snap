@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CoerceNominalUnknown
+
+Types
+  D :: Type -> Type
+  F :: Type -> Type -> Constraint
+
+Roles
+  D nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  D :: forall (@a :: Type). a -> D a
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> D b
+  test :: D Int
+
+Instances
+  <instance 0> :: F Int Int
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#7, b#8] [d0 : Coercible @Type a#7 b#8]
+    coerce  = (unsafeCoerce @[a#7, b#8] {})
+  test :: D Int
+    abstract [] []
+    test  = ((coerce @[D Int, D Int] {builtin Coercible Empty}) ((fget @[Int, Int] {<instance 0>@[]()}) 1))
+  instance <instance 0> []
+    fget :: Int -> D Int
+      abstract [] []
+      fget (_ :: Int) = ((D @[Int] {}) 1)

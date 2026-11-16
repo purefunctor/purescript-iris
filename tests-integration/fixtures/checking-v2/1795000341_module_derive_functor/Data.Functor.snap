@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Data.Functor
+
+Types
+  Functor :: (Type -> Type) -> Constraint
+
+Roles
+
+Terms
+  map :: forall (@f :: Type -> Type). Functor f => forall (a :: Type) (b :: Type). (a -> b) -> f a -> f b
+  arrayMap :: forall (a :: Type) (b :: Type). (a -> b) -> Array a -> Array b
+
+Instances
+  functorArray :: Functor Array
+
+Errors
+
+Tree
+  instance functorArray []
+    map :: forall (a :: Type) (b :: Type). (a -> b) -> Array a -> Array b
+      abstract [a#5, b#6] []
+      map  = (arrayMap @[a#5, b#6] {})

@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module R9Var
+
+Types
+  Tuple :: Type -> Type -> Type
+
+Roles
+  Tuple representational representational
+
+Terms
+  Tuple :: forall (@a :: Type) (@b :: Type). a -> b -> Tuple a b
+  identity :: forall (a :: Type). a -> a
+  t :: Tuple Int Int
+
+Errors
+  [t] 7:26 `"a"` TypesDoNotUnify: Int ~ String
+
+Tree
+  identity :: forall (a :: Type). a -> a
+    abstract [a#3] []
+    identity (x :: a#3) = x
+  t :: Tuple Int Int
+    abstract [] []
+    t  = (case { f: (identity @[Int] {}) } of { (r :: { f :: Int -> Int }) -> (((Tuple @[Int, Int] {}) (r.f 1)) (r.f "a")) })

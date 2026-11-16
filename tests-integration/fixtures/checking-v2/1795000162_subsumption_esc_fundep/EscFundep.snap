@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module EscFundep
+
+Types
+  ST :: Type -> Type -> Type
+  Ref :: Type -> Type -> Type
+  Same :: Type -> Type -> Constraint
+
+Roles
+  ST nominal nominal
+  Ref nominal nominal
+
+Terms
+  newRef :: forall (r :: Type) (a :: Type). a -> ST r (Ref r a)
+  run :: forall (a :: Type). (forall (r :: Type). ST r a) -> a
+  coerce :: forall (a :: Type) (b :: Type). a -> b
+  conv :: forall (r :: Type) (x :: Type) (y :: Type). Same x y => ST r x -> ST r y
+  leak :: forall (t16 :: Type). Same (Ref r#15 Int) t16 => t16
+
+Instances
+  <instance 0> :: Same a a
+
+Errors
+  EscapedSkolem: r#15 in Ref r#15 Int
+  [leak] EscapedSkolem: r#15 in forall (t16 :: Type). Same (Ref r#15 Int) t16 => t16
+
+Tree
+  conv :: forall (r :: Type) (x :: Type) (y :: Type). Same x y => ST r x -> ST r y
+    abstract [r#12, x#13, y#14] [d0 : Same x#13 y#14]
+    conv  = (coerce @[ST r#12 x#13, ST r#12 y#14] {})
+  leak :: forall (t16 :: Type). Same (Ref r#15 Int) t16 => t16
+    abstract [t16] [d1 : Same (Ref r#15 Int) t16]
+    leak  = ((run @[t16] {}) (Λ[r#15] []. ((conv @[r#15, Ref r#15 Int, t16] {d1}) ((newRef @[r#15, Int] {}) 1))))
+  instance <instance 0> []

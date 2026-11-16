@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AmbiguousSynonym
+
+Types
+  P :: forall (k :: Type) (a :: k). (k -> Type) -> Type
+  Q :: forall (j :: Type). j -> Type
+  R :: forall (k :: Type) (k1 :: k). Proxy @Type (P @k @k1 (Q @k))
+  Y :: Type
+
+Roles
+  P nominal
+  Q nominal
+
+Terms
+
+Errors
+
+Tree

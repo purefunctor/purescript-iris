@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module S1Swap
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  t :: forall (t2 :: Row Type). B -> { x :: Int -> Int | t2 } -> Int
+
+Errors
+  [t] 6:10 `r :: { x :: forall a. a -> a }` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  t :: forall (t2 :: Row Type). B -> { x :: Int -> Int | t2 } -> Int
+    abstract [t2] []
+    t (b :: B) = (case b of { (F :: B) -> (\(r :: { x :: Int -> Int | t2 }) -> (r.x 2)); (T :: B) -> (\(r :: { x :: forall (a :: Type). a -> a }) -> ((r.x @[Int] {}) 1)) })

@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Overwrite
+
+Types
+
+Roles
+
+Terms
+  x :: forall (r :: Row Type). { a :: Record r | r }
+  y :: { a :: { b :: Int }, b :: String }
+  arr :: Array { a :: { b :: Int }, b :: Int }
+  claim :: Array { a :: { b :: String }, b :: String }
+
+Errors
+  [arr] 9:6 `[x, y]` TypesDoNotUnify: Int ~ String
+  [claim] 13:8 `arr` TypesDoNotUnify: String ~ Int
+
+Tree
+  y :: { a :: { b :: Int }, b :: String }
+    abstract [] []
+    y  = { a: { b: 1 }, b: "s" }
+  arr :: Array { a :: { b :: Int }, b :: Int }
+    abstract [] []
+    arr  = [(x @[( b :: Int )] {}), y]
+  claim :: Array { a :: { b :: String }, b :: String }
+    abstract [] []
+    claim  = arr

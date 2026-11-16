@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KRestKind
+
+Types
+  T :: forall (r :: Row Type) (s :: Row Type). Proxy @(Row Type) ( a :: Type | r ) -> Proxy @(Row Type) ( b :: Type | s ) -> Proxy @(Row Type) r -> Type
+  R :: Proxy @(Row Type) ( b :: Type )
+  X :: Proxy @(Row Type) ( a :: Type, b :: Type ) -> Type
+
+Roles
+  T nominal nominal nominal
+
+Terms
+
+Errors
+
+Tree

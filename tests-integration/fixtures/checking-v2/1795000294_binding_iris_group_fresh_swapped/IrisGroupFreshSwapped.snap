@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisGroupFreshSwapped
+
+Types
+
+Roles
+
+Terms
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  useInt :: Int -> Int
+  a :: forall (t4 :: Type). t4 -> Int
+  z :: forall (t4 :: Type). t4 -> Int
+  claim :: Int
+
+Errors
+  [a] 10:6 `k "str" z` TypesDoNotUnify: Int ~ String
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#2, b#3] []
+    k (x :: a#2) (_ :: b#3) = x
+  useInt :: Int -> Int
+    abstract [] []
+    useInt (x :: Int) = x
+  a :: forall (t4 :: Type). t4 -> Int
+    abstract [t4] []
+    a (x :: t4) = (((k @[String, t4 -> Int] {}) "str") z)
+  z :: forall (t4 :: Type). t4 -> Int
+    abstract [t4] []
+    z (x :: t4) = (useInt (a x))
+  claim :: Int
+    abstract [] []
+    claim  = ((z @[Int] {}) 1)

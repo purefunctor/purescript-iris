@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KPromoteData
+
+Types
+  P :: forall (k :: Type) (a :: k). (k -> Type) -> Type
+  Q :: forall (j :: Type). j -> Type
+  D :: forall (k :: Type) (k1 :: k). Proxy @Type (P @k @k1 (Q @k)) -> Type
+  Y :: forall (k :: Type) (k1 :: k). Proxy @Type (P @k @k1 (Q @k)) -> Type
+
+Roles
+  P nominal
+  Q nominal
+  D phantom
+
+Terms
+  D :: forall (k :: Type) (k1 :: k) (@p :: Proxy @Type (P @k @k1 (Q @k))). D @k @k1 p
+
+Errors
+
+Tree

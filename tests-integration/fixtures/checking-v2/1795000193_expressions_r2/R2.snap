@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module R2
+
+Types
+
+Roles
+
+Terms
+  upd :: { a :: Int, b :: Int } -> { a :: String, b :: Int }
+
+Errors
+
+Tree
+  upd :: { a :: Int, b :: Int } -> { a :: String, b :: Int }
+    abstract [] []
+    upd (r :: { a :: Int, b :: Int }) = (r { a = "x" })

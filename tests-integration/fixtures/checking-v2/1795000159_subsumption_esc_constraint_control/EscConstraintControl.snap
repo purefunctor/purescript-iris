@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module EscConstraintControl
+
+Types
+  ST :: Type -> Type -> Type
+  Shw :: Type -> Type -> Constraint
+
+Roles
+  ST nominal nominal
+
+Terms
+  mkST :: forall (r :: Type) (a :: Type). a -> ST r a
+  run :: forall (a :: Type). (forall (r :: Type). ST r a) -> a
+  coerce :: forall (a :: Type) (b :: Type). a -> b
+  sh :: forall (r :: Type) (a :: Type) (b :: Type). Shw a b => ST r a -> ST r b
+  ok :: forall (t15 :: Type). Shw Int t15 => t15
+
+Errors
+
+Tree
+  sh :: forall (r :: Type) (a :: Type) (b :: Type). Shw a b => ST r a -> ST r b
+    abstract [r#11, a#12, b#13] [d0 : Shw a#12 b#13]
+    sh  = (coerce @[ST r#11 a#12, ST r#11 b#13] {})
+  ok :: forall (t15 :: Type). Shw Int t15 => t15
+    abstract [t15] [d1 : Shw Int t15]
+    ok  = ((run @[t15] {}) (Λ[r#14] []. ((sh @[r#14, Int, t15] {d1}) ((mkST @[r#14, Int] {}) 1))))

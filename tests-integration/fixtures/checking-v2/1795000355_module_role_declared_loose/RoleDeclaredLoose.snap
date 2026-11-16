@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleDeclaredLoose
+
+Types
+  T :: Type -> Type
+  U :: Type -> Type
+
+Roles
+  T representational
+  U representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  T :: forall (@a :: Type). U a -> T a
+  U :: forall (@a :: Type). T a -> U a
+  U2 :: forall (@a :: Type). a -> U a
+
+Errors
+  [T] RoleMismatch: declared phantom, inferred representational
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})

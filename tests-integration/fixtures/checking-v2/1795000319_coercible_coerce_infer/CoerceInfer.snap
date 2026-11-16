@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CoerceInfer
+
+Types
+  N :: Type
+
+Roles
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  N :: Int -> N
+  test :: forall (t6 :: Type) (t7 :: Type). t6 -> t7
+  use :: N
+
+Errors
+  [test] 13:9 `coerce x` NoInstanceFound: Coercible @Type t6 t7
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#4, b#5] [d0 : Coercible @Type a#4 b#5]
+    coerce  = (unsafeCoerce @[a#4, b#5] {})
+  test :: forall (t6 :: Type) (t7 :: Type). t6 -> t7
+    abstract [t6, t7] []
+    test (x :: t6) = ((coerce @[t6, t7] {<unsolved>}) x)
+  use :: N
+    abstract [] []
+    use  = ((test @[Int, N] {}) 1)

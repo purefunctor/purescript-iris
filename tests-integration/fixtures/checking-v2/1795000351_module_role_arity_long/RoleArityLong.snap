@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleArityLong
+
+Types
+  T :: Type -> Type
+
+Roles
+  T representational
+
+Terms
+  T :: forall (@a :: Type). a -> T a
+
+Errors
+  [T] RoleDeclarationArityMismatch: expected 1, actual 2
+
+Tree

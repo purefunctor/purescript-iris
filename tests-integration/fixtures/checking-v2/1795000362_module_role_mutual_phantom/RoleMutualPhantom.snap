@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleMutualPhantom
+
+Types
+  P :: forall (k :: Type). k -> Type
+  Q :: forall (k :: Type). k -> Type
+
+Roles
+  P phantom
+  Q phantom
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  P :: forall (k :: Type) (@a :: k). Q @k a -> P @k a
+  Q :: forall (k :: Type) (@a :: k). P @k a -> Q @k a
+  Q0 :: forall (k :: Type) (@a :: k). Q @k a
+  p2 :: P @Type Int -> P @Type String
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#8, b#9] [d0 : Coercible @Type a#8 b#9]
+    coerce  = (unsafeCoerce @[a#8, b#9] {})
+  p2 :: P @Type Int -> P @Type String
+    abstract [] []
+    p2  = (coerce @[P @Type Int, P @Type String] {builtin Coercible Empty})

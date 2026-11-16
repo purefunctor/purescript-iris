@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GuardVarPoly
+
+Types
+
+Roles
+
+Terms
+  idp :: forall (a :: Type). a -> a
+  both :: Int -> String -> Int
+  t :: Int -> Int
+
+Errors
+
+Tree
+  t :: Int -> Int
+    abstract [] []
+    t (n :: Int) | (f :: forall (a :: Type). a -> a) <- idp = ((both ((f @[Int] {}) n)) ((f @[String] {}) "a"))

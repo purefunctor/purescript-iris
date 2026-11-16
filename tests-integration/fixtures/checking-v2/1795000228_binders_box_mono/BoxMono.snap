@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module BoxMono
+
+Types
+  Box :: Type
+
+Roles
+
+Terms
+  Box :: (forall (a :: Type). a -> a) -> Box
+  f :: Box -> Int
+
+Errors
+  [f] 6:9 `g :: Int -> Int` TypesDoNotUnify: a#1 ~ Int
+
+Tree
+  f :: Box -> Int
+    abstract [] []
+    f (Box (g :: Int -> Int) :: Box) = (g 1)

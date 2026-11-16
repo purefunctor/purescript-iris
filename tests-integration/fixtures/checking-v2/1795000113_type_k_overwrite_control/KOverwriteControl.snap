@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KOverwriteControl
+
+Types
+  T :: Proxy @(Row Type) ( a :: { b :: Int }, b :: Int ) -> Type
+  P :: Proxy @(Row Type) ( a :: { b :: Int }, b :: String )
+  X :: Type
+
+Roles
+  T nominal
+
+Terms
+
+Errors
+  [X] 9:11 `P` KindsDoNotUnify: Int ~ String
+
+Tree

@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GivenKickOut
+
+Types
+  Proxy :: (Type -> Type) -> Type
+
+Roles
+  Proxy phantom
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Proxy :: forall (@f :: Type -> Type). Proxy f
+  test :: forall (f :: Type -> Type) (g :: Type -> Type) (a :: Type) (b :: Type). Coercible @Type a (f b) => Coercible @(Type -> Type) f g => Proxy f -> a -> g b
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#5, b#6] [d0 : Coercible @Type a#5 b#6]
+    coerce  = (unsafeCoerce @[a#5, b#6] {})
+  test :: forall (f :: Type -> Type) (g :: Type -> Type) (a :: Type) (b :: Type). Coercible @Type a (f b) => Coercible @(Type -> Type) f g => Proxy f -> a -> g b
+    abstract [f#11, g#12, a#13, b#14] [d1 : Coercible @Type a#13 (f#11 b#14), d2 : Coercible @(Type -> Type) f#11 g#12]
+    test (_ :: Proxy f#11) = (coerce @[a#13, g#12 b#14] {builtin Coercible Empty})

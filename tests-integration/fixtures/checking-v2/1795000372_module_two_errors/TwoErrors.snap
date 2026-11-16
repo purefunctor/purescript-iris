@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module TwoErrors
+
+Types
+
+Roles
+
+Terms
+  x :: Int
+  y :: String
+
+Errors
+  [x] 4:4 `"one"` TypesDoNotUnify: Int ~ String
+  [y] 7:4 `2` TypesDoNotUnify: String ~ Int
+
+Tree
+  x :: Int
+    abstract [] []
+    x  = "one"
+  y :: String
+    abstract [] []
+    y  = 2

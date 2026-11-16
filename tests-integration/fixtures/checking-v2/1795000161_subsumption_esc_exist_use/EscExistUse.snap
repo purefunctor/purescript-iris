@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module EscExistUse
+
+Types
+
+Roles
+
+Terms
+  unpack :: forall (z :: Type). (forall (a :: Type). a -> (a -> String) -> z) -> z
+  len :: String -> Int
+  leak :: forall (t3 :: Type). t3
+  claim :: Int
+
+Errors
+  [leak] 5:29 `unpack` EscapedSkolem: a#2 in a#2
+
+Tree
+  leak :: forall (t3 :: Type). t3
+    abstract [t3] []
+    leak  = ((\(f :: (?6 -> ?7 -> ?6) -> t3) -> (f (\(x :: ?6) -> (\(_ :: ?7) -> x)))) (unpack @[?8] {}))
+  claim :: Int
+    abstract [] []
+    claim  = (len (leak @[String] {}))

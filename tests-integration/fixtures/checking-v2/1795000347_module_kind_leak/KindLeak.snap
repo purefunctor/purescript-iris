@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KindLeak
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+  D :: Type
+  E :: forall (k :: Type) (k1 :: Type). k -> k1 -> Type
+
+Roles
+  Proxy phantom
+  E phantom phantom
+
+Terms
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  D :: Proxy @(??? -> ??? -> Type) (E @??? @???) -> D
+  E :: forall (k :: Type) (k1 :: Type) (@a :: k) (@b :: k1). D -> E @k @k1 a b
+
+Errors
+
+Tree

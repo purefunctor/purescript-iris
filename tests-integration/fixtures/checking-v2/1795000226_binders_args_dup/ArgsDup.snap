@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ArgsDup
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  f :: B -> B -> B
+
+Errors
+  [f] OverlappingArgNames: x
+
+Tree
+  f :: B -> B -> B
+    abstract [] []
+    f (x :: B) (x :: B) = x

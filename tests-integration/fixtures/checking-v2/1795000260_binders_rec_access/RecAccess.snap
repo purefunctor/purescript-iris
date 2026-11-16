@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecAccess
+
+Types
+
+Roles
+
+Terms
+  r :: { a :: Int, a :: String }
+  neg :: Int -> Int
+  result :: Int
+
+Errors
+
+Tree
+  result :: Int
+    abstract [] []
+    result  = (neg r.a)

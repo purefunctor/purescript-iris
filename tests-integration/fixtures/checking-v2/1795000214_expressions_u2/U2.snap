@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U2
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  t :: forall (t3 :: Type). ({ x :: forall (a :: Type). a -> a } -> t3) -> B -> t3
+
+Errors
+
+Tree
+  t :: forall (t3 :: Type). ({ x :: forall (a :: Type). a -> a } -> t3) -> B -> t3
+    abstract [t3] []
+    t  = (\(f :: { x :: forall (a :: Type). a -> a } -> t3) -> (\(b :: B) -> (f (case b of { (T :: B) -> { x: (Λ[a#1] []. (\(y :: a#1) -> y)) }; (F :: B) -> { x: (Λ[a#2] []. (\(y :: a#2) -> y)) } }))))

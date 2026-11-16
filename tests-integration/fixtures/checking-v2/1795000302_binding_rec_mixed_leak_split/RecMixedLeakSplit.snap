@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecMixedLeakSplit
+
+Types
+
+Roles
+
+Terms
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (a :: Type). a -> a
+  g :: forall (t4 :: Type). t4 -> t4
+  useG :: Int
+
+Errors
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#2, b#3] []
+    k (x :: a#2) (_ :: b#3) = x
+  f :: forall (a :: Type). a -> a
+    abstract [a#6] []
+    f (x :: a#6) = ((g @[a#6] {}) x)
+  g :: forall (t4 :: Type). t4 -> t4
+    abstract [t4] []
+    g (x :: t4) = (((k @[t4, Int] {}) x) 0)
+  useG :: Int
+    abstract [] []
+    useG  = ((g @[Int] {}) 1)

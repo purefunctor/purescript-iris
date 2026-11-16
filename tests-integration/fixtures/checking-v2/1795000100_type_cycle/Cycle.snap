@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Cycle
+
+Types
+
+Roles
+
+Terms
+  pair :: forall (r1 :: Row Type) (r2 :: Row Type). { x :: { a :: Record r1 | r2 }, y :: { a :: { c :: Int | r2 }, b :: Int | r1 } }
+  same :: forall (a :: Type). { x :: a, y :: a } -> Int
+  test :: Int
+
+Errors
+  [test] 9:12 `pair` InfiniteType: ?7 ~ ( b :: Int, c :: Int | ?7 )
+
+Tree
+  same :: forall (a :: Type). { x :: a, y :: a } -> Int
+    abstract [a#3] []
+    same (_ :: { x :: a#3, y :: a#3 }) = 0
+  test :: Int
+    abstract [] []
+    test  = ((same @[{ a :: { c :: Int | ?7 } | ?7 }] {}) (pair @[( c :: Int | ?7 ), ?7] {}))

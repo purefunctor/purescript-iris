@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleArityShortExtern
+
+Types
+  F :: Type -> Type -> Type
+
+Roles
+  F nominal nominal
+
+Terms
+
+Errors
+  [F] RoleDeclarationArityMismatch: expected 2, actual 1
+
+Tree

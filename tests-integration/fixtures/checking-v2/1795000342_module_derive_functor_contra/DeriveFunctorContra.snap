@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DeriveFunctorContra
+
+Types
+  F :: Type -> Type
+
+Roles
+  F representational
+
+Terms
+  F :: forall (@a :: Type). (a -> Int) -> F a
+
+Instances
+  functorF :: Functor F
+
+Errors
+  [functorF] UnsupportedFeature: deriving this class
+
+Tree
+  instance functorF []

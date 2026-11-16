@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DeriveEqNoContext
+
+Types
+  T :: Type -> Type
+
+Roles
+  T representational
+
+Terms
+  A :: forall (@a :: Type). a -> T a
+
+Instances
+  eqT :: Eq (T a)
+
+Errors
+  [eqT] NoInstanceFound: Eq a#2
+
+Tree
+  instance eqT []

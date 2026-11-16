@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LetAlias
+
+Types
+
+Roles
+
+Terms
+  idp :: forall (a :: Type). a -> a
+  both :: Int -> String -> Int
+  t :: Int
+
+Errors
+  [t] 6:33 `"a"` TypesDoNotUnify: Int ~ String
+  [t] 6:32 `f "a"` TypesDoNotUnify: String ~ Int
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (let { f :: Int -> Int [] []  = (idp @[Int] {}) } in ((both (f 1)) (f "a")))

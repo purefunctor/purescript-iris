@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Data.HeytingAlgebra
+
+Types
+
+Roles
+
+Terms
+  conj :: Boolean -> Boolean -> Boolean
+
+Errors
+
+Tree

@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SynCase
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  idp :: forall (a :: Type). a -> a
+  both :: Int -> String -> Int
+  t :: Int
+
+Errors
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (case idp of { (f :: forall (a :: Type). a -> a) -> ((both ((f @[Int] {}) 1)) ((f @[String] {}) "a")) })

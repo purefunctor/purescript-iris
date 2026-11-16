@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisArrayBinder
+
+Types
+
+Roles
+
+Terms
+  neg :: Int -> Int
+  len :: String -> Int
+  arr :: Array (Int -> Int)
+  result :: Int
+
+Errors
+  [result] 9:5 `f :: forall a. a -> a` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  result :: Int
+    abstract [] []
+    result  = (case arr of { ([(f :: forall (a :: Type). a -> a)] :: Array (Int -> Int)) -> (len ((f @[String] {}) "a")); (_ :: Array (Int -> Int)) -> 0 })

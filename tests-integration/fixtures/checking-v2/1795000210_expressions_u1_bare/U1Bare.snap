@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U1Bare
+
+Types
+
+Roles
+
+Terms
+  t :: { x :: forall (a :: Type). a -> a }
+
+Errors
+  [t] 3:4 `if true then { x: ((\y -> y) :: forall a…` EscapedSkolem: a#2 in a#2
+
+Tree
+  t :: { x :: forall (a :: Type). a -> a }
+    abstract [] []
+    t  = (if true then { x: (Λ[a#1] []. (\(y :: a#1) -> y)) } else { x: (\(y :: ?2) -> y) })

@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LetForward
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  P :: Int -> Int -> P
+  mk :: P
+  t :: Int
+
+Errors
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (let { g :: Int [] []  = <error>; (P (x :: Int) (_ :: Int) :: P) = mk } in g)

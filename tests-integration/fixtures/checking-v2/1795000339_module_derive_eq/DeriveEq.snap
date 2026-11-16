@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DeriveEq
+
+Types
+  T :: Type -> Type
+
+Roles
+  T representational
+
+Terms
+  A :: forall (@a :: Type). a -> T a
+  B :: forall (@a :: Type). Int -> { x :: a, y :: Int } -> T a
+  same :: Boolean
+  differ :: Boolean
+
+Instances
+  eqT :: Eq a => Eq (T a)
+
+Errors
+
+Tree
+  same :: Boolean
+    abstract [] []
+    same  = (((eq @[T Int] {eqT@[Int](eqInt@[]())}) (((B @[Int] {}) 1) { x: 1, y: 2 })) (((B @[Int] {}) 1) { x: 1, y: 2 }))
+  differ :: Boolean
+    abstract [] []
+    differ  = (((eq @[T Int] {eqT@[Int](eqInt@[]())}) (((B @[Int] {}) 1) { x: 1, y: 2 })) (((B @[Int] {}) 1) { x: 1, y: 3 }))
+  instance eqT [d0 : Eq a#2]

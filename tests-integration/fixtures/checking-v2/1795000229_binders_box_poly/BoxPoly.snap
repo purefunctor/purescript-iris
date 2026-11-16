@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module BoxPoly
+
+Types
+  Box :: Type
+
+Roles
+
+Terms
+  Box :: (forall (a :: Type). a -> a) -> Box
+  f :: Box -> Int
+
+Errors
+
+Tree
+  f :: Box -> Int
+    abstract [] []
+    f (Box (g :: forall (a :: Type). a -> a) :: Box) = ((g @[Int] {}) 1)

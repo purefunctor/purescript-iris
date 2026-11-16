@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubForallKindsUnused
+
+Types
+
+Roles
+
+Terms
+  y :: { f :: forall (a :: Symbol). Int }
+  useX :: { f :: forall (a :: Type). Int } -> Int
+  t :: Int
+
+Errors
+
+Tree
+  y :: { f :: forall (a :: Symbol). Int }
+    abstract [] []
+    y  = { f: (Λ[a#1] []. 1) }
+  useX :: { f :: forall (a :: Type). Int } -> Int
+    abstract [] []
+    useX (_ :: { f :: forall (a :: Type). Int }) = 0
+  t :: Int
+    abstract [] []
+    t  = (useX y)

@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LetGen
+
+Types
+
+Roles
+
+Terms
+  both :: Int -> String -> Int
+  t :: Int
+
+Errors
+  [t] 5:33 `"a"` TypesDoNotUnify: Int ~ String
+  [t] 5:32 `f "a"` TypesDoNotUnify: String ~ Int
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (let { f :: Int -> Int [] [] (x :: Int) = x } in ((both (f 1)) (f "a")))

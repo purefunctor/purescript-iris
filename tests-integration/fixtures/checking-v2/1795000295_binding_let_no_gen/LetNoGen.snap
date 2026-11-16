@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LetNoGen
+
+Types
+
+Roles
+
+Terms
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  test :: Int
+
+Errors
+  [test] 8:45 `"s"` TypesDoNotUnify: Int ~ String
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#2, b#3] []
+    k (x :: a#2) (_ :: b#3) = x
+  test :: Int
+    abstract [] []
+    test  = (let { ident :: Int -> Int [] [] (x :: Int) = x } in (((k @[Int, Int] {}) (ident 1)) (ident "s")))

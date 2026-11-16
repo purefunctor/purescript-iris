@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module TypedMonoOk
+
+Types
+
+Roles
+
+Terms
+  h :: { x :: Int -> Int } -> Int
+
+Errors
+
+Tree
+  h :: { x :: Int -> Int } -> Int
+    abstract [] []
+    h  = (\(r :: { x :: Int -> Int }) -> (r.x 1))

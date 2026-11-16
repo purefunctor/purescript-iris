@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecMixedCtl
+
+Types
+
+Roles
+
+Terms
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (a :: Type). a -> a
+  g :: forall (a :: Type). a -> a
+
+Errors
+
+Tree
+  f :: forall (a :: Type). a -> a
+    abstract [a#5] []
+    f (x :: a#5) = ((g @[a#5] {}) x)
+  g :: forall (a :: Type). a -> a
+    abstract [a#4] []
+    g (x :: a#4) = (((k @[a#4, ?6 -> ?6] {}) x) (f @[?6] {}))

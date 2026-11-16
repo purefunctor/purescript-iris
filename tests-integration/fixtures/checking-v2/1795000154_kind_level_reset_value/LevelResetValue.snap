@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LevelResetValue
+
+Types
+  P :: forall (k :: Type) (a :: k). (k -> Type) -> Type
+  Q :: forall (j :: Type). j -> Type
+
+Roles
+  P nominal
+  Q nominal
+
+Terms
+  f :: forall (t4 :: Type) (t5 :: Type) (t6 :: t5) (x :: t4). Proxy @Type (P @t5 @t6 (Q @t5)) -> Proxy @t4 x -> Int
+  r :: forall (t7 :: Type) (t8 :: t7). Proxy @Type (P @t7 @t8 (Q @t7))
+  s :: Proxy @Type Int
+  use :: Int
+
+Errors
+
+Tree
+  use :: Int
+    abstract [] []
+    use  = (((f @[Type, ?19, ?20, Int] {}) (r @[?19, ?20] {})) s)

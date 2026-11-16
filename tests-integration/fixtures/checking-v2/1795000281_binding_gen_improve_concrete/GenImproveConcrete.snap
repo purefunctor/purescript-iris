@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GenImproveConcrete
+
+Types
+  Tuple :: Type -> Type -> Type
+  Shw :: Type -> Constraint
+  F :: Type -> Type -> Constraint
+
+Roles
+  Tuple representational representational
+
+Terms
+  Tuple :: forall (@a :: Type) (@b :: Type). a -> b -> Tuple a b
+  shw :: forall (@a :: Type). Shw a => a -> String
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  fgetInt :: forall (a :: Type). F a Int => a -> Int
+  test :: forall (t7 :: Type). F t7 Int => t7 -> Tuple Int String
+
+Instances
+  <instance 0> :: Shw Int
+
+Errors
+
+Tree
+  fgetInt :: forall (a :: Type). F a Int => a -> Int
+    abstract [a#6] [d0 : F a#6 Int]
+    fgetInt  = (fget @[a#6, Int] {d0})
+  test :: forall (t7 :: Type). F t7 Int => t7 -> Tuple Int String
+    abstract [t7] [d1 : F t7 Int]
+    test (x :: t7) = (((Tuple @[Int, String] {}) ((fgetInt @[t7] {d1}) x)) ((shw @[Int] {<instance 0>@[]()}) ((fget @[t7, Int] {d1}) x)))
+  instance <instance 0> []
+    shw :: Int -> String
+      abstract [] []
+      shw (_ :: Int) = "shw at Int"

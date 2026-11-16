@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U1Mono
+
+Types
+
+Roles
+
+Terms
+  t :: forall (b :: Type) (r :: Type). ({ x :: b -> b } -> r) -> r
+
+Errors
+
+Tree
+  t :: forall (b :: Type) (r :: Type). ({ x :: b -> b } -> r) -> r
+    abstract [b#2, r#3] []
+    t  = (\(f :: { x :: b#2 -> b#2 } -> r#3) -> (f (if true then { x: (\(y :: b#2) -> y) } else { x: ((Λ[a#5] []. (\(y :: a#5) -> y)) @[b#2] {}) })))

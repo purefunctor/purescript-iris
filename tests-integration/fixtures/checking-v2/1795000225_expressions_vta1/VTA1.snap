@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module VTA1
+
+Types
+  C :: Type -> Constraint
+
+Roles
+
+Terms
+  c :: forall (@a :: Type). C a => a -> Int
+  f :: forall (a :: Type). C a => forall (@b :: Type). a -> b -> Int
+  t :: Int
+
+Instances
+  <instance 0> :: C Int
+
+Errors
+  [t] 11:4 `f @String 1 "s"` CannotApplyExpressionOfTypeOnType: C a => forall (@b :: Type). a -> b -> Int
+
+Tree
+  f :: forall (a :: Type). C a => forall (@b :: Type). a -> b -> Int
+    abstract [a#3, b#4] [d0 : C a#3]
+    f (x :: a#3) (_ :: b#4) = ((c @[a#3] {d0}) x)
+  t :: Int
+    abstract [] []
+    t  = <error>
+  instance <instance 0> []
+    c :: Int -> Int
+      abstract [] []
+      c (_ :: Int) = 1

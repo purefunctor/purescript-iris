@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module WellTyped
+
+Types
+
+Roles
+
+Terms
+  x :: forall (r1 :: Row Type) (r2 :: Row Type). { a :: Record r1 | r2 }
+  y :: { a :: { b :: Int }, b :: Int }
+  arr :: Array { a :: { b :: Int }, b :: Int }
+
+Errors
+
+Tree
+  y :: { a :: { b :: Int }, b :: Int }
+    abstract [] []
+    y  = { a: { b: 1 }, b: 2 }
+  arr :: Array { a :: { b :: Int }, b :: Int }
+    abstract [] []
+    arr  = [(x @[( b :: Int ), ( b :: Int )] {}), y]

@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleConstrained
+
+Types
+  N :: Type
+  Show :: Type -> Constraint
+  D :: Type -> Type
+
+Roles
+  D nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  N :: Int -> N
+  show :: forall (@a :: Type). Show a => a -> String
+  D :: forall (@a :: Type). (Show a => a) -> D a
+  d2 :: D Int -> D N
+
+Errors
+  [d2] 19:5 `coerce` NoInstanceFound: Coercible @Type (D Int) (D N)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  d2 :: D Int -> D N
+    abstract [] []
+    d2  = (coerce @[D Int, D N] {<unsolved>})

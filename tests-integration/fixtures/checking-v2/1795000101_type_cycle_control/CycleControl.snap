@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CycleControl
+
+Types
+
+Roles
+
+Terms
+  pair :: forall (r :: Row Type). { x :: Record r, y :: { b :: Int | r } }
+  same :: forall (a :: Type). { x :: a, y :: a } -> Int
+  test :: Int
+
+Errors
+  [test] 8:12 `pair` InfiniteType: ?4 ~ ( b :: Int | ?4 )
+
+Tree
+  same :: forall (a :: Type). { x :: a, y :: a } -> Int
+    abstract [a#2] []
+    same (_ :: { x :: a#2, y :: a#2 }) = 0
+  test :: Int
+    abstract [] []
+    test  = ((same @[Record ?4] {}) (pair @[?4] {}))

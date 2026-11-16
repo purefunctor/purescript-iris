@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubStaleRecControl
+
+Types
+
+Roles
+
+Terms
+  usePoly :: { c :: forall (a :: Type). a -> a } -> Int
+  useMono :: { c :: Int -> Int } -> Int
+  add :: Int -> Int -> Int
+  t :: { c :: forall (a :: Type). a -> a } -> Int
+
+Errors
+
+Tree
+  t :: { c :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    t  = (\(r :: { c :: forall (a :: Type). a -> a }) -> ((add (usePoly r)) (useMono r)))

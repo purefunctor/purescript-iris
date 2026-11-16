@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KErase
+
+Types
+  T :: forall (r :: Row Type). Proxy @(Row Type) ( a :: Record r | r ) -> Proxy @(Row Type) ( a :: { b :: Int } | r ) -> Type
+  X :: Proxy @(Row Type) ( a :: { b :: Int }, b :: Int ) -> Type
+
+Roles
+  T nominal nominal
+
+Terms
+
+Errors
+
+Tree

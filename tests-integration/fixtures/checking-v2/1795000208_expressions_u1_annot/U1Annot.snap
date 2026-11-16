@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U1Annot
+
+Types
+
+Roles
+
+Terms
+  t :: ({ x :: forall (a :: Type). a -> a } -> Int) -> Int
+
+Errors
+
+Tree
+  t :: ({ x :: forall (a :: Type). a -> a } -> Int) -> Int
+    abstract [] []
+    t  = (\(f :: { x :: forall (a :: Type). a -> a } -> Int) -> (f (if true then { x: (Λ[a#1] []. ((Λ[a#3] []. (\(y :: a#3) -> y)) @[a#1] {})) } else { x: (Λ[a#4] []. (\(y :: a#4) -> y)) })))

@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Erase
+
+Types
+
+Roles
+
+Terms
+  pair :: forall (r :: Row Type). { x :: { a :: Record r | r }, y :: { a :: { b :: Int } | r } }
+  pick :: forall (a :: Type). { x :: a, y :: a } -> a
+  test :: { a :: { b :: Int }, b :: Int }
+  claim :: { a :: { c :: String }, c :: String }
+
+Errors
+  [claim] 13:8 `test` PropertyIsMissing: c
+
+Tree
+  pick :: forall (a :: Type). { x :: a, y :: a } -> a
+    abstract [a#2] []
+    pick (p :: { x :: a#2, y :: a#2 }) = p.y
+  test :: { a :: { b :: Int }, b :: Int }
+    abstract [] []
+    test  = ((pick @[{ a :: { b :: Int }, b :: Int }] {}) (pair @[( b :: Int )] {}))
+  claim :: { a :: { c :: String }, c :: String }
+    abstract [] []
+    claim  = test

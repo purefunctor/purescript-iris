@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LabelOrder
+
+Types
+
+Roles
+
+Terms
+  u :: forall (t :: Type). { a :: Int, b :: t }
+  useInt :: Int -> Int
+  pick :: forall (r :: Type). Array { a :: Int, b :: r } -> r
+  same :: forall (z :: Type). z -> z
+  test :: Int
+
+Errors
+  [test] 15:26 `[u, { a: "s", b: "str" }]` TypesDoNotUnify: Int ~ String
+
+Tree
+  pick :: forall (r :: Type). Array { a :: Int, b :: r } -> r
+    abstract [r#2] []
+    pick (_ :: Array { a :: Int, b :: r#2 }) = ((pick @[r#2] {}) [])
+  same :: forall (z :: Type). z -> z
+    abstract [z#4] []
+    same (z :: z#4) = z
+  test :: Int
+    abstract [] []
+    test  = (useInt ((pick @[Int] {}) ((same @[Array { a :: Int, b :: Int }] {}) [(u @[Int] {}), { a: "s", b: "str" }])))

@@ -1,0 +1,46 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GroupDeferRecSwapped
+
+Types
+  F :: Type -> Type -> Constraint
+  Shw :: Type -> Constraint
+
+Roles
+
+Terms
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  asInt :: Int -> Int
+  shw :: forall (@a :: Type). Shw a => a -> String
+  a :: Int -> String
+  z :: Int -> String
+
+Instances
+  <instance 0> :: F Int String
+  <instance 1> :: Shw String
+
+Errors
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#5, b#6] []
+    k (a :: a#5) (_ :: b#6) = a
+  asInt :: Int -> Int
+    abstract [] []
+    asInt (x :: Int) = x
+  a :: Int -> String
+    abstract [] []
+    a (x :: Int) = (((k @[String, Int -> String] {}) ((fget @[Int, String] {<instance 0>@[]()}) (asInt x))) z)
+  z :: Int -> String
+    abstract [] []
+    z (x :: Int) = ((shw @[String] {<instance 1>@[]()}) (a x))
+  instance <instance 0> []
+    fget :: Int -> String
+      abstract [] []
+      fget (_ :: Int) = "not an int"
+  instance <instance 1> []
+    shw :: String -> String
+      abstract [] []
+      shw (_ :: String) = "shw at String"

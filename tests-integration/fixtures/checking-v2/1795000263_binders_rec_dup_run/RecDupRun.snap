@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecDupRun
+
+Types
+
+Roles
+
+Terms
+  r :: { a :: Int, a :: String }
+  len :: String -> Int
+  result :: Int
+
+Errors
+  [result] 7:19 `{ a: _, a: s }` DuplicateLabel: a
+
+Tree
+  result :: Int
+    abstract [] []
+    result  = (case r of { ({ a: (_ :: Int) } :: { a :: Int, a :: String }) -> (len <error>) })

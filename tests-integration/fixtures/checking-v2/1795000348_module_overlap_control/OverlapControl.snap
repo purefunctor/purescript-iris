@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module OverlapControl
+
+Types
+  P :: Type -> Type
+  C :: Type -> Constraint
+
+Roles
+  P phantom
+
+Terms
+  P :: forall (@a :: Type). P a
+  c :: forall (@a :: Type). C a => a -> Int
+
+Instances
+  cAny :: C (P a)
+  cInt :: C (P Int)
+
+Errors
+
+Tree
+  instance cAny []
+    c :: P a#3 -> Int
+      abstract [] []
+      c (_ :: P a#3) = 1
+  instance cInt []
+    c :: P Int -> Int
+      abstract [] []
+      c (_ :: P Int) = 2

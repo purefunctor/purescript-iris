@@ -1,0 +1,38 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CoerceAfterFundep
+
+Types
+  F :: Type -> Type -> Constraint
+  N :: Type
+
+Roles
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  N :: String -> N
+  applyFlipped :: forall (a :: Type) (b :: Type). a -> (a -> b) -> b
+  test :: N
+
+Instances
+  <instance 0> :: F Int String
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  applyFlipped :: forall (a :: Type) (b :: Type). a -> (a -> b) -> b
+    abstract [a#10, b#11] []
+    applyFlipped (x :: a#10) (f :: a#10 -> b#11) = (f x)
+  test :: N
+    abstract [] []
+    test  = (((applyFlipped @[String, N] {}) ((fget @[Int, String] {<instance 0>@[]()}) 1)) (coerce @[String, N] {builtin Coercible Empty}))
+  instance <instance 0> []
+    fget :: Int -> String
+      abstract [] []
+      fget (_ :: Int) = "s"

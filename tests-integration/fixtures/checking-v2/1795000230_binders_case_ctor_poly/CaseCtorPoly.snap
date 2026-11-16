@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CaseCtorPoly
+
+Types
+  Maybe :: Type -> Type
+
+Roles
+  Maybe representational
+
+Terms
+  Just :: forall (@a :: Type). a -> Maybe a
+  Nothing :: forall (@a :: Type). Maybe a
+  poly :: forall (a :: Type). Maybe a
+  add :: Int -> Int -> Int
+  t :: Int -> Int
+
+Errors
+
+Tree
+  t :: Int -> Int
+    abstract [] []
+    t (n :: Int) = (case (poly @[Int] {}) of { (Just (x :: Int) :: Maybe Int) -> ((add n) x); (_ :: Maybe Int) -> n })

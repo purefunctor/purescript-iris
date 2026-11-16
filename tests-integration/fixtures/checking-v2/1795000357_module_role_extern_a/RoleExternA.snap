@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleExternA
+
+Types
+  N :: Type
+  A :: Type -> Type
+  U :: Type -> Type
+
+Roles
+  A representational
+  U representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  N :: Int -> N
+  U :: forall (@a :: Type). A a -> U a
+  direct :: A Int -> A N
+  viaU :: U Int -> U N
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#5, b#6] [d0 : Coercible @Type a#5 b#6]
+    coerce  = (unsafeCoerce @[a#5, b#6] {})
+  direct :: A Int -> A N
+    abstract [] []
+    direct  = (coerce @[A Int, A N] {builtin Coercible Empty})
+  viaU :: U Int -> U N
+    abstract [] []
+    viaU  = (coerce @[U Int, U N] {builtin Coercible Empty})

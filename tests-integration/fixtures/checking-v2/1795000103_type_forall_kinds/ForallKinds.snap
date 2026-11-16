@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ForallKinds
+
+Types
+  C :: forall (k :: Type). k -> Constraint
+
+Roles
+
+Terms
+  x :: { f :: forall (a :: Type). C @Type a => Int }
+  y :: { f :: forall (a :: Symbol). C @Symbol a => Int }
+  arr :: Array { f :: forall (a :: Type). C @Type a => Int }
+  claim :: Array { f :: forall (a :: Type). C @Type a => Int }
+
+Errors
+  [arr] 14:6 `[x, y]` KindsDoNotUnify: Type ~ Symbol
+
+Tree
+  x :: { f :: forall (a :: Type). C @Type a => Int }
+    abstract [] []
+    x  = { f: (Λ[a#3] [d0 : C @Type a#3]. 0) }
+  y :: { f :: forall (a :: Symbol). C @Symbol a => Int }
+    abstract [] []
+    y  = { f: (Λ[a#5] [d1 : C @Symbol a#5]. 1) }
+  arr :: Array { f :: forall (a :: Type). C @Type a => Int }
+    abstract [] []
+    arr  = [x, y]
+  claim :: Array { f :: forall (a :: Type). C @Type a => Int }
+    abstract [] []
+    claim  = arr

@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecAmbig
+
+Types
+  Shw :: Type -> Constraint
+  Def :: Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  def :: forall (@a :: Type). Def a => a
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (t6 :: Type). t6 -> t6
+
+Errors
+  [f] CannotGeneralizeRecursiveFunction: Shw ?14
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#4, b#5] []
+    k (x :: a#4) (_ :: b#5) = x
+  f :: forall (t6 :: Type). t6 -> t6
+    abstract [t6] []
+    f (x :: t6) = (((k @[t6, String] {}) x) (((k @[String, t6] {}) ((shw @[?14] {<unsolved>}) (def @[?14] {<unsolved>}))) (f x)))

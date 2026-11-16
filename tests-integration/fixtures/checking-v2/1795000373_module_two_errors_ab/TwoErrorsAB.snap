@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module TwoErrorsAB
+
+Types
+
+Roles
+
+Terms
+  b :: Int
+  a :: String
+  c :: Int
+
+Errors
+  [b] 4:4 `"first in source"` TypesDoNotUnify: Int ~ String
+  [a] 7:4 `2` TypesDoNotUnify: String ~ Int
+  [c] 10:4 `"third"` TypesDoNotUnify: Int ~ String
+
+Tree
+  b :: Int
+    abstract [] []
+    b  = "first in source"
+  a :: String
+    abstract [] []
+    a  = 2
+  c :: Int
+    abstract [] []
+    c  = "third"

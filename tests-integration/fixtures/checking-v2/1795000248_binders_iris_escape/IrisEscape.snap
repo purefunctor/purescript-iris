@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisEscape
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  neg :: Int -> Int
+  len :: String -> Int
+  k :: forall (t2 :: Row Type). { x :: Int -> Int | t2 } -> Int
+  pick :: B
+  k2 :: forall (t5 :: Row Type). { x :: Int -> Int | t5 } -> Int
+  result :: Int
+
+Errors
+  [k] 9:10 `r :: { x :: forall a. a -> a }` TypesDoNotUnify: Int ~ a#1
+  [k2] 14:10 `r :: { x :: forall a. a -> a }` TypesDoNotUnify: Int ~ a#4
+
+Tree
+  k :: forall (t2 :: Row Type). { x :: Int -> Int | t2 } -> Int
+    abstract [t2] []
+    k  = (case F of { (F :: B) -> (\(r :: { x :: Int -> Int | t2 }) -> (r.x 2)); (T :: B) -> (\(r :: { x :: forall (a :: Type). a -> a }) -> (len ((r.x @[String] {}) "a"))) })
+  pick :: B
+    abstract [] []
+    pick  = T
+  k2 :: forall (t5 :: Row Type). { x :: Int -> Int | t5 } -> Int
+    abstract [t5] []
+    k2  = (case pick of { (F :: B) -> (\(r :: { x :: Int -> Int | t5 }) -> (r.x 2)); (T :: B) -> (\(r :: { x :: forall (a :: Type). a -> a }) -> (len ((r.x @[String] {}) "a"))) })
+  result :: Int
+    abstract [] []
+    result  = ((k2 @[()] {}) { x: neg })

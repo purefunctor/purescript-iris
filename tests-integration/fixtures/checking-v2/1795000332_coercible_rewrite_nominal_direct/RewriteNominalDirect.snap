@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RewriteNominalDirect
+
+Types
+  Unit :: Type
+  Age :: Type
+  D :: Type -> Type -> Type
+
+Roles
+  D nominal representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Unit :: Unit
+  Age :: Int -> Age
+  D :: forall (@a :: Type) (@b :: Type). b -> D a b
+  direct :: D Int Unit -> D Age Unit
+
+Errors
+  [direct] 20:9 `coerce` NoInstanceFound: Coercible @Type (D Int Unit) (D Age Unit)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  direct :: D Int Unit -> D Age Unit
+    abstract [] []
+    direct  = (coerce @[D Int Unit, D Age Unit] {<unsolved>})

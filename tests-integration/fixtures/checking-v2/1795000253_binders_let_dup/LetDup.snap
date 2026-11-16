@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LetDup
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  P :: Int -> String -> P
+  mk :: P
+  result :: Int
+
+Errors
+  [result] 7:27 `x` TypesDoNotUnify: Int ~ String
+
+Tree
+  mk :: P
+    abstract [] []
+    mk  = ((P 1) "s")
+  result :: Int
+    abstract [] []
+    result  = (let { (P (x :: Int) (x :: String) :: P) = mk } in x)

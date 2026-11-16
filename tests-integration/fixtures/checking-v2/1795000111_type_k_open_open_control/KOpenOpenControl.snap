@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KOpenOpenControl
+
+Types
+  T :: forall (r :: Row Type). Proxy @(Row Type) ( a :: Type | r ) -> Proxy @(Row Type) r -> Type
+  P :: Proxy @(Row Type) ( a :: Type, b :: Type )
+  X :: Proxy @(Row Type) ( b :: Type ) -> Type
+
+Roles
+  T nominal nominal
+
+Terms
+
+Errors
+
+Tree

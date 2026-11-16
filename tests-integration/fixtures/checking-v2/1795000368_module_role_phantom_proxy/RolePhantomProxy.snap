@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RolePhantomProxy
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+  D :: forall (k :: Type). k -> Type
+
+Roles
+  Proxy phantom
+  D phantom
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  D :: forall (k :: Type) (@a :: k). Proxy @k a -> D @k a
+  d2 :: D @Type Int -> D @Type String
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#8, b#9] [d0 : Coercible @Type a#8 b#9]
+    coerce  = (unsafeCoerce @[a#8, b#9] {})
+  d2 :: D @Type Int -> D @Type String
+    abstract [] []
+    d2  = (coerce @[D @Type Int, D @Type String] {builtin Coercible Empty})

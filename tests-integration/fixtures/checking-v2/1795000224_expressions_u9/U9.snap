@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U9
+
+Types
+
+Roles
+
+Terms
+  g :: (forall (a :: Type). a -> a) -> Int
+  t :: forall (t2 :: Type). t2
+
+Errors
+  [t] 5:24 `g` EscapedSkolem: a#1 in a#1
+
+Tree
+  g :: (forall (a :: Type). a -> a) -> Int
+    abstract [] []
+    g (i :: forall (a :: Type). a -> a) = ((i @[Int] {}) 1)
+  t :: forall (t2 :: Type). t2
+    abstract [t2] []
+    t  = ((\(f :: (?6 -> ?6) -> t2) -> (f (\(x :: ?6) -> x))) g)

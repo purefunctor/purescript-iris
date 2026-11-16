@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CoerceRowTail
+
+Types
+  F :: Type -> Row Type -> Constraint
+
+Roles
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  fget :: forall (@a :: Type) (@r :: Row Type). F a r => a -> { x :: Int | r }
+  test :: { x :: Int }
+
+Instances
+  <instance 0> :: F Int ()
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  test :: { x :: Int }
+    abstract [] []
+    test  = ((coerce @[{ x :: Int }, { x :: Int }] {builtin Coercible Empty}) ((fget @[Int, ()] {<instance 0>@[]()}) 1))
+  instance <instance 0> []
+    fget :: Int -> { x :: Int }
+      abstract [] []
+      fget (_ :: Int) = { x: 1 }

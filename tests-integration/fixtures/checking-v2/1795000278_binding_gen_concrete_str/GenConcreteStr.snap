@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GenConcreteStr
+
+Types
+  Tuple :: Type -> Type -> Type
+  Shw :: Type -> Constraint
+  F :: Type -> Type -> Constraint
+
+Roles
+  Tuple representational representational
+
+Terms
+  Tuple :: forall (@a :: Type) (@b :: Type). a -> b -> Tuple a b
+  shw :: forall (@a :: Type). Shw a => a -> String
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  fgetStr :: forall (a :: Type). F a String => a -> String
+  test :: forall (t7 :: Type). F t7 String => t7 -> Tuple String String
+
+Errors
+  [test] 15:29 `shw (fgetStr x)` NoInstanceFound: Shw String
+
+Tree
+  fgetStr :: forall (a :: Type). F a String => a -> String
+    abstract [a#6] [d0 : F a#6 String]
+    fgetStr  = (fget @[a#6, String] {d0})
+  test :: forall (t7 :: Type). F t7 String => t7 -> Tuple String String
+    abstract [t7] [d1 : F t7 String]
+    test (x :: t7) = (((Tuple @[String, String] {}) ((fgetStr @[t7] {d1}) x)) ((shw @[String] {<unsolved>}) ((fgetStr @[t7] {d1}) x)))

@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KPromoteTwiceControl
+
+Types
+  Pair :: Type -> Type -> Type
+  T :: forall (a :: Type). Proxy @Type (Pair a a) -> Type
+  Q :: Proxy @Type (Pair Int String)
+  Y :: Type
+
+Roles
+  Pair nominal nominal
+  T nominal
+
+Terms
+
+Errors
+  [Y] 11:11 `Q` KindsDoNotUnify: Int ~ String
+
+Tree

@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LamMono
+
+Types
+
+Roles
+
+Terms
+  h :: (forall (a :: Type). a -> a) -> Int
+
+Errors
+  [h] 5:7 `g :: Int -> Int` TypesDoNotUnify: a#1 ~ Int
+
+Tree
+  h :: (forall (a :: Type). a -> a) -> Int
+    abstract [] []
+    h  = (\(g :: Int -> Int) -> (g 1))

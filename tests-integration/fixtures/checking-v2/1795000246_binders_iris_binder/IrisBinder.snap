@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisBinder
+
+Types
+
+Roles
+
+Terms
+  len :: String -> Int
+  h :: { x :: Int -> Int } -> Int
+
+Errors
+  [h] 5:7 `r :: { x :: forall a. a -> a }` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  h :: { x :: Int -> Int } -> Int
+    abstract [] []
+    h  = (\(r :: { x :: forall (a :: Type). a -> a }) -> (len ((r.x @[String] {}) "a")))

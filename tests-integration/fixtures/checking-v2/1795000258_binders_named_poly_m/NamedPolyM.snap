@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module NamedPolyM
+
+Types
+  Maybe :: Type -> Type
+
+Roles
+  Maybe representational
+
+Terms
+  Just :: forall (@a :: Type). a -> Maybe a
+  Nothing :: forall (@a :: Type). Maybe a
+  add :: Int -> Int -> Int
+  f :: (forall (a :: Type). Maybe a) -> Int
+
+Errors
+
+Tree
+  f :: (forall (a :: Type). Maybe a) -> Int
+    abstract [] []
+    f  = (\(all@(m :: forall (a :: Type). Maybe a) :: forall (a :: Type). Maybe a) -> (case (m @[Int] {}) of { (Just (x :: Int) :: Maybe Int) -> ((add x) 1); (_ :: Maybe Int) -> 0 }))

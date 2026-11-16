@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GivenTrans
+
+Types
+
+Roles
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  test :: forall (a :: Type) (b :: Type) (c :: Type). Coercible @Type a b => Coercible @Type b c => a -> c
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#4, b#5] [d0 : Coercible @Type a#4 b#5]
+    coerce  = (unsafeCoerce @[a#4, b#5] {})
+  test :: forall (a :: Type) (b :: Type) (c :: Type). Coercible @Type a b => Coercible @Type b c => a -> c
+    abstract [a#9, b#10, c#11] [d1 : Coercible @Type a#9 b#10, d2 : Coercible @Type b#10 c#11]
+    test  = (coerce @[a#9, c#11] {builtin Coercible Empty})

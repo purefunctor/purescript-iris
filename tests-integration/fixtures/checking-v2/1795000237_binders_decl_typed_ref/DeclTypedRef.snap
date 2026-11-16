@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DeclTypedRef
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  f :: String -> B -> String
+
+Errors
+  [f] 5:4 `x :: Int` TypesDoNotUnify: String ~ Int
+  [f] 5:17 `x` TypesDoNotUnify: String ~ Int
+
+Tree
+  f :: String -> B -> String
+    abstract [] []
+    f (x :: Int) (T :: B) = x
+    f (x :: String) (_ :: B) = x

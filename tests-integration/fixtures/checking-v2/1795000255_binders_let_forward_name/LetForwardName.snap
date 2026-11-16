@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module LetForwardName
+
+Types
+
+Roles
+
+Terms
+  t :: Int
+
+Errors
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (let { x :: Int [] []  = 1; g :: Int [] []  = x } in g)

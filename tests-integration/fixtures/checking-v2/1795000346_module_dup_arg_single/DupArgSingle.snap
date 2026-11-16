@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DupArgSingle
+
+Types
+  T :: forall (k :: Type). k -> Type -> Type
+
+Roles
+  T phantom representational
+
+Terms
+  T :: forall (k :: Type) (@a :: k) (@a :: Type). a -> T @k a a
+
+Errors
+
+Tree

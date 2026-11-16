@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubStaleRecSwap
+
+Types
+
+Roles
+
+Terms
+  usePoly :: { c :: forall (a :: Type). a -> a } -> Int
+  useMono :: { c :: Int -> Int } -> Int
+  add :: Int -> Int -> Int
+  t :: { c :: Int -> Int } -> Int
+
+Errors
+  [t] 6:35 `r` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  t :: { c :: Int -> Int } -> Int
+    abstract [] []
+    t  = (\(r :: { c :: Int -> Int }) -> ((add (useMono r)) (usePoly r)))

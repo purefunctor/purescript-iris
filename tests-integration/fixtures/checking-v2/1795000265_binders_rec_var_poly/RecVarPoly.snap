@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecVarPoly
+
+Types
+
+Roles
+
+Terms
+  both :: Int -> String -> Int
+  h :: { x :: forall (a :: Type). a -> a } -> Int
+
+Errors
+
+Tree
+  h :: { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    h ({ x: (g :: forall (a :: Type). a -> a) } :: { x :: forall (a :: Type). a -> a }) = ((both ((g @[Int] {}) 1)) ((g @[String] {}) "a"))

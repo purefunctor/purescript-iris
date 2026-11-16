@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisInferLam
+
+Types
+
+Roles
+
+Terms
+  neg :: Int -> Int
+  len :: String -> Int
+  k :: (forall (a :: Type). a -> a) -> Int
+  result :: Int
+
+Errors
+  [result] 8:11 `neg` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  k :: (forall (a :: Type). a -> a) -> Int
+    abstract [] []
+    k  = (\(f :: forall (a :: Type). a -> a) -> (len ((f @[String] {}) "a")))
+  result :: Int
+    abstract [] []
+    result  = (k (Λ[a#1] []. neg))

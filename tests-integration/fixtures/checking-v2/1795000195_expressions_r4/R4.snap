@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module R4
+
+Types
+
+Roles
+
+Terms
+  t :: { a :: Int }
+
+Errors
+  [t] 4:4 `{ a: 1, b: 1 }` AdditionalProperty: b
+
+Tree
+  t :: { a :: Int }
+    abstract [] []
+    t  = { a: 1 }

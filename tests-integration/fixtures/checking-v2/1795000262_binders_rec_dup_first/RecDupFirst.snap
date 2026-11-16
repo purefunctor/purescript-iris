@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecDupFirst
+
+Types
+
+Roles
+
+Terms
+  r :: { a :: Int, a :: String }
+  len :: String -> Int
+  result :: Int
+
+Errors
+  [result] 7:19 `{ a: s, a: _ }` DuplicateLabel: a
+  [result] 8:24 `s` TypesDoNotUnify: String ~ Int
+
+Tree
+  result :: Int
+    abstract [] []
+    result  = (case r of { ({ a: (s :: Int) } :: { a :: Int, a :: String }) -> (len s) })

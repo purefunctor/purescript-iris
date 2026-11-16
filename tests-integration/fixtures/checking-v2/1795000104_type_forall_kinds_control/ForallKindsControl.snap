@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ForallKindsControl
+
+Types
+  Proxy :: forall (k :: Type). k -> Type
+
+Roles
+  Proxy phantom
+
+Terms
+  Proxy :: forall (k :: Type) (@a :: k). Proxy @k a
+  x :: { f :: forall (a :: Type). Proxy @Type a -> Int }
+  y :: { f :: forall (a :: Symbol). Proxy @Symbol a -> Int }
+  arr :: Array { f :: forall (a :: Type). Proxy @Type a -> Int }
+
+Errors
+  [arr] 14:6 `[x, y]` KindsDoNotUnify: Type ~ Symbol
+
+Tree
+  x :: { f :: forall (a :: Type). Proxy @Type a -> Int }
+    abstract [] []
+    x  = { f: (Λ[a#3] []. (\(_ :: Proxy @Type a#3) -> 0)) }
+  y :: { f :: forall (a :: Symbol). Proxy @Symbol a -> Int }
+    abstract [] []
+    y  = { f: (Λ[a#5] []. (\(_ :: Proxy @Symbol a#5) -> 1)) }
+  arr :: Array { f :: forall (a :: Type). Proxy @Type a -> Int }
+    abstract [] []
+    arr  = [x, y]

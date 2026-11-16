@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ImmediateCycleLazy
+
+Types
+
+Roles
+
+Terms
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  x :: Int -> Int
+  y :: Int -> Int -> Int
+
+Errors
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#2, b#3] []
+    k (a :: a#2) (_ :: b#3) = a
+  x :: Int -> Int
+    abstract [] []
+    x  = (\(n :: Int) -> ((y n) n))
+  y :: Int -> Int -> Int
+    abstract [] []
+    y  = ((k @[Int -> Int, Int] {}) x)

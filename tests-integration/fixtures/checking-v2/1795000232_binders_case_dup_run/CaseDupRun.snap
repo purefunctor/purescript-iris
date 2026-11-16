@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CaseDupRun
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  P :: Int -> String -> P
+  mk :: P
+  result :: Int
+
+Errors
+  [result] 7:9 `case mk of` OverlappingArgNames: x
+  [result] 8:11 `x` TypesDoNotUnify: Int ~ String
+
+Tree
+  mk :: P
+    abstract [] []
+    mk  = ((P 1) "s")
+  result :: Int
+    abstract [] []
+    result  = (case mk of { (P (x :: Int) (x :: String) :: P) -> x })

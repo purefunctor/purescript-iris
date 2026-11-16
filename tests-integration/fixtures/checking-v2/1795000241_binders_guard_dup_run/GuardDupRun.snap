@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GuardDupRun
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  P :: Int -> String -> P
+  mk :: P
+  t :: Int -> Int
+  result :: Int
+
+Errors
+  [t] OverlappingArgNames: x
+  [t] 8:20 `x` TypesDoNotUnify: Int ~ String
+
+Tree
+  mk :: P
+    abstract [] []
+    mk  = ((P 1) "s")
+  t :: Int -> Int
+    abstract [] []
+    t (n :: Int) | (P (x :: Int) (x :: String) :: P) <- mk = x
+    t (n :: Int) = n
+  result :: Int
+    abstract [] []
+    result  = (t 0)

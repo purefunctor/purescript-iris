@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubTailMissing
+
+Types
+
+Roles
+
+Terms
+  x :: forall (r :: Row Type). { a :: Record r | r }
+  z :: { a :: {}, b :: Int }
+
+Errors
+  [z] 5:4 `x` PropertyIsMissing: b
+
+Tree
+  z :: { a :: {}, b :: Int }
+    abstract [] []
+    z  = (x @[()] {})

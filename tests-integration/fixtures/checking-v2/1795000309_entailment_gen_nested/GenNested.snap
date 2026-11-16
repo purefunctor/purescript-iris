@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GenNested
+
+Types
+  Box :: Type -> Type
+  Foo :: Type -> Constraint
+
+Roles
+  Box representational
+
+Terms
+  Box :: forall (@a :: Type). a -> Box a
+  foo :: forall (@a :: Type). Foo a => a -> Int
+  test :: forall (t2 :: Type). t2 -> Int
+
+Errors
+  [test] 9:9 `foo (Box x)` NoInstanceFound: Foo (Box t2)
+
+Tree
+  test :: forall (t2 :: Type). t2 -> Int
+    abstract [t2] []
+    test (x :: t2) = ((foo @[Box t2] {<unsolved>}) ((Box @[t2] {}) x))

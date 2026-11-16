@@ -1,0 +1,21 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module S1Control
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  t :: B -> { x :: forall (a :: Type). a -> a } -> Int
+
+Errors
+
+Tree
+  t :: B -> { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    t (b :: B) = (case b of { (T :: B) -> (\(r :: { x :: forall (a :: Type). a -> a }) -> ((r.x @[Int] {}) 1)); (F :: B) -> (\(r :: { x :: forall (a :: Type). a -> a }) -> ((r.x @[Int] {}) 2)) })

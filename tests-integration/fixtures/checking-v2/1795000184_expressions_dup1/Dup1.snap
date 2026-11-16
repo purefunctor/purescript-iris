@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Dup1
+
+Types
+
+Roles
+
+Terms
+  t :: { a :: Int }
+
+Errors
+  [t] 3:4 `{ a: 1, a: 2 }` DuplicateLabel: a
+
+Tree
+  t :: { a :: Int }
+    abstract [] []
+    t  = { a: 1 }

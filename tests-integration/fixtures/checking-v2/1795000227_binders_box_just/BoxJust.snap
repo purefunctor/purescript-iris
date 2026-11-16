@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module BoxJust
+
+Types
+  Maybe :: Type -> Type
+  Box :: Type
+
+Roles
+  Maybe representational
+
+Terms
+  Just :: forall (@a :: Type). a -> Maybe a
+  Nothing :: forall (@a :: Type). Maybe a
+  add :: Int -> Int -> Int
+  Box :: (forall (a :: Type). Maybe a) -> Box
+  f :: Box -> Int
+
+Errors
+  [f] 7:9 `Just x` EscapedSkolem: a#2 in a#2
+
+Tree
+  f :: Box -> Int
+    abstract [] []
+    f (Box (Just (x :: Int) :: forall (a :: Type). Maybe a) :: Box) = ((add x) 1)
+    f (_ :: Box) = 0

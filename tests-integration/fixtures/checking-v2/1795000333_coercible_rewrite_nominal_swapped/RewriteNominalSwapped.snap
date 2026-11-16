@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RewriteNominalSwapped
+
+Types
+  Unit :: Type
+  Age :: Type
+  D :: Type -> Type -> Type
+
+Roles
+  D nominal representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Unit :: Unit
+  Age :: Int -> Age
+  D :: forall (@a :: Type) (@b :: Type). b -> D a b
+  test :: forall (a :: Type) (c :: Type). Coercible @Type a Int => Coercible @Type c (D Int Unit) => c -> D a Unit
+
+Errors
+  [test] 20:7 `coerce` NoInstanceFound: Coercible @Type c#11 (D a#10 Unit)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  test :: forall (a :: Type) (c :: Type). Coercible @Type a Int => Coercible @Type c (D Int Unit) => c -> D a Unit
+    abstract [a#10, c#11] [d1 : Coercible @Type a#10 Int, d2 : Coercible @Type c#11 (D Int Unit)]
+    test  = (coerce @[c#11, D a#10 Unit] {<unsolved>})

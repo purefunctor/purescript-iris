@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AmbigPlain
+
+Types
+  Shw :: Type -> Constraint
+  Def :: Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  def :: forall (@a :: Type). Def a => a
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  test :: forall (t6 :: Type) (t7 :: Type). Shw t7 => Def t7 => t6 -> t6
+
+Errors
+  [test] AmbiguousTypeVariables: Shw t7
+  [test] AmbiguousTypeVariables: Def t7
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#4, b#5] []
+    k (x :: a#4) (_ :: b#5) = x
+  test :: forall (t6 :: Type) (t7 :: Type). Shw t7 => Def t7 => t6 -> t6
+    abstract [t6, t7] [d0 : Shw t7, d1 : Def t7]
+    test (x :: t6) = (((k @[t6, String] {}) x) ((shw @[t7] {d0}) (def @[t7] {d1})))

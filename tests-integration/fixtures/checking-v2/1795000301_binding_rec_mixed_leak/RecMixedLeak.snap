@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecMixedLeak
+
+Types
+
+Roles
+
+Terms
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (a :: Type). a -> a
+  g :: forall (t6 :: Type). t6 -> t6
+
+Errors
+  [f] 8:8 `x` EscapedSkolem: a#5 in a#5
+  [f] 8:6 `g x` EscapedSkolem: a#5 in a#5
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#2, b#3] []
+    k (x :: a#2) (_ :: b#3) = x
+  f :: forall (a :: Type). a -> a
+    abstract [a#5] []
+    f (x :: a#5) = (g x)
+  g :: forall (t6 :: Type). t6 -> t6
+    abstract [t6] []
+    g (x :: t6) = (((k @[t6, ?8 -> ?8] {}) x) (f @[?8] {}))

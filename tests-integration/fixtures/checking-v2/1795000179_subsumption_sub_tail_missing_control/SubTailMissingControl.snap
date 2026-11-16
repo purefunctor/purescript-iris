@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubTailMissingControl
+
+Types
+
+Roles
+
+Terms
+  x :: { a :: {} }
+  z :: { a :: {}, b :: Int }
+
+Errors
+  [z] 5:4 `x` PropertyIsMissing: b
+
+Tree
+  z :: { a :: {}, b :: Int }
+    abstract [] []
+    z  = x

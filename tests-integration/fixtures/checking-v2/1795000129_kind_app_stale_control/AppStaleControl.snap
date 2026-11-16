@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AppStaleControl
+
+Types
+  S :: forall (k :: Type). (k -> k) -> k -> k
+  F :: Type -> Symbol -> Type
+  Bad :: Symbol -> Type
+
+Roles
+  F nominal nominal
+
+Terms
+
+Errors
+  [Bad] 9:13 `F` KindsDoNotUnify: Type ~ Symbol -> Type
+
+Tree

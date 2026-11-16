@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module HKUnknownHint
+
+Types
+  L :: Type -> Type
+  M :: Type -> Type
+  P :: (Type -> Type) -> Type
+
+Roles
+  L representational
+  M representational
+  P representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  L :: forall (@a :: Type). a -> L a
+  M :: forall (@a :: Type). a -> M a
+  P :: forall (@f :: Type -> Type). P f
+  test :: P L -> P M
+
+Errors
+  [test] 19:7 `coerce` NoInstanceFound: Coercible @(Type -> Type) L M
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#7, b#8] [d0 : Coercible @Type a#7 b#8]
+    coerce  = (unsafeCoerce @[a#7, b#8] {})
+  test :: P L -> P M
+    abstract [] []
+    test  = (coerce @[P L, P M] {builtin Coercible Empty})

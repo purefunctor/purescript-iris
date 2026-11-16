@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CoerceResidualHeadControl
+
+Types
+  Id :: Type -> Type
+  G :: Type -> (Type -> Type) -> Constraint
+
+Roles
+  Id representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Id :: forall (@a :: Type). a -> Id a
+  gget :: forall (@a :: Type) (@f :: Type -> Type). G a f => a -> f Int
+  applyFlipped :: forall (a :: Type) (b :: Type). a -> (a -> b) -> b
+  test :: Int
+
+Instances
+  <instance 0> :: G Int Id
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#7, b#8] [d0 : Coercible @Type a#7 b#8]
+    coerce  = (unsafeCoerce @[a#7, b#8] {})
+  applyFlipped :: forall (a :: Type) (b :: Type). a -> (a -> b) -> b
+    abstract [a#11, b#12] []
+    applyFlipped (x :: a#11) (f :: a#11 -> b#12) = (f x)
+  test :: Int
+    abstract [] []
+    test  = (((applyFlipped @[Id Int, Int] {}) ((gget @[Int, Id] {<instance 0>@[]()}) 1)) (coerce @[Id Int, Int] {builtin Coercible Empty}))
+  instance <instance 0> []
+    gget :: Int -> Id Int
+      abstract [] []
+      gget (_ :: Int) = ((Id @[Int] {}) 1)

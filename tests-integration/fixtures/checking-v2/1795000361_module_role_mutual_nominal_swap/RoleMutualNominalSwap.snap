@@ -1,0 +1,37 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleMutualNominalSwap
+
+Types
+  N :: Type
+  T :: Type -> Type
+  S :: Type -> Type
+  R :: Type -> Type
+
+Roles
+  T nominal
+  S nominal
+  R nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  N :: Int -> N
+  T :: forall (@a :: Type). a -> T a
+  S :: forall (@a :: Type). R a -> S a
+  S0 :: forall (@a :: Type). S a
+  R :: forall (@a :: Type). S a -> R a
+  R0 :: forall (@a :: Type). T a -> R a
+  s2 :: S Int -> S N
+
+Errors
+  [s2] 20:5 `coerce` NoInstanceFound: Coercible @Type (S Int) (S N)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#7, b#8] [d0 : Coercible @Type a#7 b#8]
+    coerce  = (unsafeCoerce @[a#7, b#8] {})
+  s2 :: S Int -> S N
+    abstract [] []
+    s2  = (coerce @[S Int, S N] {<unsolved>})

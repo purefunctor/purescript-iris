@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubOverwriteControl
+
+Types
+
+Roles
+
+Terms
+  x :: forall (r :: Row Type). { a :: Record r | r }
+  z :: { a :: { b :: Int }, b :: Int }
+
+Errors
+
+Tree
+  z :: { a :: { b :: Int }, b :: Int }
+    abstract [] []
+    z  = (x @[( b :: Int )] {})

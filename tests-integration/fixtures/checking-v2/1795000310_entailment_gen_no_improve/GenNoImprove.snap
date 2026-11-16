@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GenNoImprove
+
+Types
+  Tuple :: Type -> Type -> Type
+  Shw :: Type -> Constraint
+  F :: Type -> Type -> Constraint
+
+Roles
+  Tuple representational representational
+
+Terms
+  Tuple :: forall (@a :: Type) (@b :: Type). a -> b -> Tuple a b
+  shw :: forall (@a :: Type). Shw a => a -> String
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  test :: forall (t5 :: Type) (t6 :: Type) (t7 :: Type) (t8 :: Type). F t5 t7 => Shw t8 => F t6 t8 => t5 -> t6 -> Tuple t7 String
+
+Errors
+
+Tree
+  test :: forall (t5 :: Type) (t6 :: Type) (t7 :: Type) (t8 :: Type). F t5 t7 => Shw t8 => F t6 t8 => t5 -> t6 -> Tuple t7 String
+    abstract [t5, t6, t7, t8] [d0 : F t5 t7, d1 : Shw t8, d2 : F t6 t8]
+    test (x :: t5) (y :: t6) = (((Tuple @[t7, String] {}) ((fget @[t5, t7] {d0}) x)) ((shw @[t8] {d1}) ((fget @[t6, t8] {d2}) y)))

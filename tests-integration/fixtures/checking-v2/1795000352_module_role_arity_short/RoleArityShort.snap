@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleArityShort
+
+Types
+  T :: Type -> Type -> Type
+
+Roles
+  T representational representational
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  T :: forall (@a :: Type) (@b :: Type). a -> b -> T a b
+  t2 :: T Int Int -> T Int String
+  claim :: String
+
+Errors
+  [T] RoleDeclarationArityMismatch: expected 2, actual 1
+  [t2] 15:5 `coerce` NoInstanceFound: Coercible @Type Int String
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  t2 :: T Int Int -> T Int String
+    abstract [] []
+    t2  = (coerce @[T Int Int, T Int String] {builtin Coercible Empty})
+  claim :: String
+    abstract [] []
+    claim  = (case (t2 (((T @[Int, Int] {}) 1) 2)) of { (T (_ :: Int) (s :: String) :: T Int String) -> s })

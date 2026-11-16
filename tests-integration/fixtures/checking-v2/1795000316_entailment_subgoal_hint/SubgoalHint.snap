@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubgoalHint
+
+Types
+  Box :: Type -> Type
+  Shw :: Type -> Constraint
+
+Roles
+  Box representational
+
+Terms
+  Box :: forall (@a :: Type). a -> Box a
+  shw :: forall (@a :: Type). Shw a => a -> String
+  test :: String
+
+Instances
+  <instance 0> :: Shw a => Shw (Box a)
+
+Errors
+  [test] 13:7 `shw (Box 1)` NoInstanceFound: Shw Int
+
+Tree
+  test :: String
+    abstract [] []
+    test  = ((shw @[Box Int] {<instance 0>@[Int](<unsolved>)}) ((Box @[Int] {}) 1))
+  instance <instance 0> [d0 : Shw a#3]
+    shw :: Box a#3 -> String
+      abstract [] []
+      shw (Box (a :: a#3) :: Box a#3) = ((shw @[a#3] {d0}) a)

@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U9Control
+
+Types
+
+Roles
+
+Terms
+  identity :: forall (a :: Type). a -> a
+  g :: (forall (a :: Type). a -> a) -> Int
+  t :: Int
+
+Errors
+
+Tree
+  identity :: forall (a :: Type). a -> a
+    abstract [a#1] []
+    identity (x :: a#1) = x
+  t :: Int
+    abstract [] []
+    t  = ((\(f :: (forall (a :: Type). a -> a) -> Int) -> (f (Λ[a#4] []. (identity @[a#4] {})))) g)

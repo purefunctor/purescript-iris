@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecDup
+
+Types
+
+Roles
+
+Terms
+  f :: { a :: Int } -> Int
+
+Errors
+  [f] 4:2 `{ a: x, a: y }` DuplicateLabel: a
+
+Tree
+  f :: { a :: Int } -> Int
+    abstract [] []
+    f ({ a: (x :: Int) } :: { a :: Int }) = x

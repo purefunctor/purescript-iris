@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U1Type
+
+Types
+
+Roles
+
+Terms
+  t :: Int
+
+Errors
+  [t] 4:17 `{ x: ((\y -> y) :: forall a. a -> a) }` TypesDoNotUnify: Int ~ { x :: forall (a :: Type). a -> a }
+  [t] 4:61 `{ x: \y -> y }` TypesDoNotUnify: Int ~ { x :: ?1 -> ?1 }
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (if true then { x: (Λ[a#1] []. (\(y :: a#1) -> y)) } else { x: (\(y :: ?1) -> y) })

@@ -1,0 +1,31 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U6Arrow
+
+Types
+
+Roles
+
+Terms
+  identity :: forall (a :: Type). a -> a
+  app :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
+  g :: (forall (a :: Type). a -> a) -> Int
+  t :: forall (t8 :: Type). t8
+
+Errors
+  [t] 9:27 `g` EscapedSkolem: a#7 in a#7
+
+Tree
+  identity :: forall (a :: Type). a -> a
+    abstract [a#1] []
+    identity (x :: a#1) = x
+  app :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
+    abstract [a#4, b#5] []
+    app (h :: a#4 -> b#5) (v :: a#4) = (h v)
+  g :: (forall (a :: Type). a -> a) -> Int
+    abstract [] []
+    g (i :: forall (a :: Type). a -> a) = ((i @[Int] {}) 1)
+  t :: forall (t8 :: Type). t8
+    abstract [t8] []
+    t  = ((\(f :: (?9 -> ?9) -> t8) -> (((app @[?9 -> ?9, t8] {}) f) (identity @[?9] {}))) g)

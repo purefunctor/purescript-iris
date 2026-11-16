@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module IrisSubtype
+
+Types
+
+Roles
+
+Terms
+  len :: String -> Int
+  f :: { x :: forall (a :: Type). a -> a } -> Int
+  g :: { x :: Int -> Int } -> Int
+
+Errors
+  [g] 7:4 `f` TypesDoNotUnify: Int ~ a#1
+
+Tree
+  f :: { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    f (r :: { x :: forall (a :: Type). a -> a }) = (len ((r.x @[String] {}) "a"))
+  g :: { x :: Int -> Int } -> Int
+    abstract [] []
+    g  = f

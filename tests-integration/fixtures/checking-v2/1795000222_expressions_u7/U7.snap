@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U7
+
+Types
+
+Roles
+
+Terms
+  t :: forall (t0 :: Type) (t1 :: Type). (t0 -> t1) -> t1
+
+Errors
+  [t] 3:12 `?h` HoleInferredType: ??hole :: t0
+
+Tree
+  t :: forall (t0 :: Type) (t1 :: Type). (t0 -> t1) -> t1
+    abstract [t0, t1] []
+    t  = (\(f :: t0 -> t1) -> (f ??hole))

@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecMixed
+
+Types
+  Shw :: Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  f :: forall (a :: Type). Shw a => a -> String
+  g :: forall (t7 :: Type). t7 -> String
+
+Errors
+  [f] 11:8 `x` EscapedSkolem: a#6 in a#6
+  [g] CannotGeneralizeRecursiveFunction: Shw t7
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#3, b#4] []
+    k (x :: a#3) (_ :: b#4) = x
+  f :: forall (a :: Type). Shw a => a -> String
+    abstract [a#6] [d0 : Shw a#6]
+    f (x :: a#6) = (g x)
+  g :: forall (t7 :: Type). t7 -> String
+    abstract [t7] []
+    g (x :: t7) = (((k @[String, ?11 -> String] {}) ((shw @[t7] {<unsolved>}) x)) (f @[?11] {<unsolved>}))

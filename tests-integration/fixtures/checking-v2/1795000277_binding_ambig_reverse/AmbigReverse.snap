@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AmbigReverse
+
+Types
+  Shw :: Type -> Constraint
+  F :: Type -> Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  finv :: forall (@a :: Type) (@b :: Type). F a b => b -> a
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+  test :: forall (t7 :: Type) (t8 :: Type). Shw t8 => F t8 t7 => t7 -> t7
+
+Errors
+  [test] AmbiguousTypeVariables: Shw t8
+  [test] AmbiguousTypeVariables: F t8 t7
+
+Tree
+  k :: forall (a :: Type) (b :: Type). a -> b -> a
+    abstract [a#5, b#6] []
+    k (x :: a#5) (_ :: b#6) = x
+  test :: forall (t7 :: Type) (t8 :: Type). Shw t8 => F t8 t7 => t7 -> t7
+    abstract [t7, t8] [d0 : Shw t8, d1 : F t8 t7]
+    test (x :: t7) = (((k @[t7, String] {}) x) ((shw @[t8] {d0}) ((finv @[t8, t7] {d1}) x)))

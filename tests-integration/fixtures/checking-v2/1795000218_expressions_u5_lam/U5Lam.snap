@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U5Lam
+
+Types
+
+Roles
+
+Terms
+  g :: { x :: forall (a :: Type). a -> a } -> Int
+  t :: Int
+
+Errors
+
+Tree
+  g :: { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    g (r :: { x :: forall (a :: Type). a -> a }) = ((r.x @[Int] {}) 1)
+  t :: Int
+    abstract [] []
+    t  = ((\(f :: { x :: forall (a :: Type). a -> a } -> Int) -> (f { x: (Λ[a#2] []. (\(y :: a#2) -> y)) })) g)

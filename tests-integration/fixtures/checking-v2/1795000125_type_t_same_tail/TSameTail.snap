@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module TSameTail
+
+Types
+
+Roles
+
+Terms
+  p :: forall (r :: Row Type). { x :: { a :: Int | r }, y :: { a :: Int | r } }
+  pick :: forall (a :: Type). { x :: a, y :: a } -> a
+  test :: forall (t3 :: Row Type). { a :: Int | t3 }
+
+Errors
+
+Tree
+  pick :: forall (a :: Type). { x :: a, y :: a } -> a
+    abstract [a#2] []
+    pick (q :: { x :: a#2, y :: a#2 }) = q.y
+  test :: forall (t3 :: Row Type). { a :: Int | t3 }
+    abstract [t3] []
+    test  = ((pick @[{ a :: Int | t3 }] {}) (p @[t3] {}))

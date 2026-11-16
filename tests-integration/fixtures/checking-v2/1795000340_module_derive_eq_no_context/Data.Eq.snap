@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Data.Eq
+
+Types
+  Eq :: Type -> Constraint
+  Eq1 :: (Type -> Type) -> Constraint
+
+Roles
+
+Terms
+  eq :: forall (@a :: Type). Eq a => a -> a -> Boolean
+  eq1 :: forall (@f :: Type -> Type). Eq1 f => forall (a :: Type). Eq a => f a -> f a -> Boolean
+  eqIntImpl :: Int -> Int -> Boolean
+
+Instances
+  eqInt :: Eq Int
+
+Errors
+
+Tree
+  instance eqInt []
+    eq :: Int -> Int -> Boolean
+      abstract [] []
+      eq  = eqIntImpl

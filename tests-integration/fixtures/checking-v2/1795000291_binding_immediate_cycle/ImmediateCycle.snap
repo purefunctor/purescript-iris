@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ImmediateCycle
+
+Types
+
+Roles
+
+Terms
+  x :: Int
+  y :: Int
+
+Errors
+
+Tree
+  x :: Int
+    abstract [] []
+    x  = y
+  y :: Int
+    abstract [] []
+    y  = x

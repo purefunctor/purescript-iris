@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KSameTailControl
+
+Types
+  T :: forall (k :: Type) (r :: k). Proxy @k r -> Proxy @k r -> Type
+  X :: forall (k :: Type) (k1 :: k). Proxy @k k1 -> Type
+
+Roles
+  T nominal nominal
+
+Terms
+
+Errors
+
+Tree

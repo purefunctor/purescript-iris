@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleNominalPropControl
+
+Types
+  T :: Type -> Type
+  N :: Type
+
+Roles
+  T nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  T :: forall (@a :: Type). a -> T a
+  N :: Int -> N
+  direct :: T Int -> T N
+
+Errors
+  [direct] 16:9 `coerce` NoInstanceFound: Coercible @Type (T Int) (T N)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#5, b#6] [d0 : Coercible @Type a#5 b#6]
+    coerce  = (unsafeCoerce @[a#5, b#6] {})
+  direct :: T Int -> T N
+    abstract [] []
+    direct  = (coerce @[T Int, T N] {<unsolved>})

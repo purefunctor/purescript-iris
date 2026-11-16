@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KCycle
+
+Types
+  T :: forall (r1 :: Row Type) (r2 :: Row Type). Proxy @(Row Type) ( a :: Record r1 | r2 ) -> Proxy @(Row Type) ( a :: { c :: Int | r2 }, b :: Int | r1 ) -> Type
+  X :: forall (k :: Row Type). Proxy @(Row Type) ( a :: { c :: Int | k } | k ) -> Type
+
+Roles
+  T nominal nominal
+
+Terms
+
+Errors
+  [X] 9:15 `p` InfiniteKind: ?11 ~ ( b :: Int, c :: Int | ?11 )
+
+Tree

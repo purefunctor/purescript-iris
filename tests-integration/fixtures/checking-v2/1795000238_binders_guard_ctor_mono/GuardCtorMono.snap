@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GuardCtorMono
+
+Types
+  Maybe :: Type -> Type
+
+Roles
+  Maybe representational
+
+Terms
+  Just :: forall (@a :: Type). a -> Maybe a
+  Nothing :: forall (@a :: Type). Maybe a
+  mono :: Maybe Int
+  add :: Int -> Int -> Int
+  t :: Int -> Int
+
+Errors
+
+Tree
+  t :: Int -> Int
+    abstract [] []
+    t (n :: Int) | (Just (x :: Int) :: Maybe Int) <- mono = ((add n) x)
+    t (n :: Int) = n

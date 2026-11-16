@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module NotCallable
+
+Types
+
+Roles
+
+Terms
+  one :: Int
+  plus :: Int -> Int -> Int
+  test :: forall (t0 :: Type). t0
+
+Errors
+  [test] 5:17 `"a"` TypesDoNotUnify: Int ~ String
+  [test] 5:7 `one (plus "a" 2)` TypesDoNotUnify: Int -> t0 ~ Int
+
+Tree
+  test :: forall (t0 :: Type). t0
+    abstract [t0] []
+    test  = (one ((plus "a") 2))

@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module U8
+
+Types
+
+Roles
+
+Terms
+  t :: forall (t0 :: Type). (Int -> t0) -> t0
+
+Errors
+  [t] 3:14 `if true then 1 else "a"` TypesDoNotUnify: Int ~ String
+
+Tree
+  t :: forall (t0 :: Type). (Int -> t0) -> t0
+    abstract [t0] []
+    t  = (\(f :: Int -> t0) -> (f (if true then 1 else "a")))

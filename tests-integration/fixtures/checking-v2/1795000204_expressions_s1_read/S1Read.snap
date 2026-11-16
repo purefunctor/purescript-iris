@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module S1Read
+
+Types
+  B :: Type
+
+Roles
+
+Terms
+  T :: B
+  F :: B
+  t :: Boolean -> { x :: forall (a :: Type). a -> a } -> Int
+
+Errors
+  [t] 5:6 `if b then (\(r :: { x :: forall a. a -> …` TypesDoNotUnify: a#1 ~ Int
+
+Tree
+  t :: Boolean -> { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    t (b :: Boolean) = (if b then (\(r :: { x :: forall (a :: Type). a -> a }) -> ((r.x @[Int] {}) 1)) else (\(r :: { x :: Int -> ?14 | ?12 }) -> (r.x 2)))

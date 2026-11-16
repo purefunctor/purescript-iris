@@ -1,0 +1,27 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DeriveFunctor
+
+Types
+  T :: Type -> Type
+
+Roles
+  T representational
+
+Terms
+  T :: forall (@a :: Type). a -> Array a -> { n :: Int, r :: a } -> T a
+  plusOne :: Int -> Int
+  out :: T Int
+
+Instances
+  functorT :: Functor T
+
+Errors
+  [functorT] UnsupportedFeature: deriving this class
+
+Tree
+  out :: T Int
+    abstract [] []
+    out  = (((map @[T, Int, Int] {functorT@[]()}) plusOne) ((((T @[Int] {}) 1) [2, 3]) { r: 4, n: 10 }))
+  instance functorT []

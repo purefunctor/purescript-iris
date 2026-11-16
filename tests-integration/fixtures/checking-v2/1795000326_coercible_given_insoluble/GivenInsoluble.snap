@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GivenInsoluble
+
+Types
+  D :: Type -> Type
+
+Roles
+  D nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  D :: forall (@a :: Type). a -> D a
+  test :: forall (a :: Type) (b :: Type). Coercible @Type (D a) (D b) => D a -> D b
+  use :: D Boolean
+
+Errors
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#5, b#6] [d0 : Coercible @Type a#5 b#6]
+    coerce  = (unsafeCoerce @[a#5, b#6] {})
+  test :: forall (a :: Type) (b :: Type). Coercible @Type (D a) (D b) => D a -> D b
+    abstract [a#9, b#10] [d1 : Coercible @Type (D a#9) (D b#10)]
+    test  = (coerce @[D a#9, D b#10] {d1})
+  use :: D Boolean
+    abstract [] []
+    use  = ((test @[Boolean, Boolean] {builtin Coercible Empty}) ((D @[Boolean] {}) true))

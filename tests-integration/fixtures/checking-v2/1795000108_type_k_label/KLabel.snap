@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module KLabel
+
+Types
+  T :: forall (k :: Type) (k :: k). Proxy @(Row k) ( a :: k, b :: k ) -> Type
+  P :: Proxy @(Row Type) ( a :: Type, b :: Symbol )
+  X :: Type
+
+Roles
+  T nominal
+
+Terms
+
+Errors
+  [X] 9:11 `P` KindsDoNotUnify: Type ~ Symbol
+
+Tree

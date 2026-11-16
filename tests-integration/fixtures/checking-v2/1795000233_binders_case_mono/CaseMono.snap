@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CaseMono
+
+Types
+
+Roles
+
+Terms
+  idp :: forall (a :: Type). a -> a
+  t :: Int -> Int
+
+Errors
+  [t] 6:4 `g :: Int -> Int` TypesDoNotUnify: a#1 ~ Int
+
+Tree
+  t :: Int -> Int
+    abstract [] []
+    t (n :: Int) = (case idp of { (g :: Int -> Int) -> (g n) })

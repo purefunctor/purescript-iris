@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module GenImproveSwapped
+
+Types
+  Tuple :: Type -> Type -> Type
+  Shw :: Type -> Constraint
+  F :: Type -> Type -> Constraint
+
+Roles
+  Tuple representational representational
+
+Terms
+  Tuple :: forall (@a :: Type) (@b :: Type). a -> b -> Tuple a b
+  shw :: forall (@a :: Type). Shw a => a -> String
+  fget :: forall (@a :: Type) (@b :: Type). F a b => a -> b
+  test :: forall (t5 :: Type) (t6 :: Type). Shw t6 => F t5 t6 => t5 -> Tuple String t6
+
+Errors
+
+Tree
+  test :: forall (t5 :: Type) (t6 :: Type). Shw t6 => F t5 t6 => t5 -> Tuple String t6
+    abstract [t5, t6] [d0 : Shw t6, d1 : F t5 t6]
+    test (x :: t5) = (((Tuple @[String, t6] {}) ((shw @[t6] {d0}) ((fget @[t5, t6] {d1}) x))) ((fget @[t5, t6] {d1}) x))

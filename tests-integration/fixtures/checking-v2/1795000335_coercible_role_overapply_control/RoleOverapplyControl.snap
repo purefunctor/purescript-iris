@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RoleOverapplyControl
+
+Types
+  Maybe :: Type -> Type
+  Id :: forall (k :: Type). k -> k
+
+Roles
+  Maybe representational
+  Id nominal
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Nothing :: forall (@a :: Type). Maybe a
+  Just :: forall (@a :: Type). a -> Maybe a
+  direct :: Id @Type Int -> Id @Type String
+
+Errors
+  [direct] 16:9 `coerce` NoInstanceFound: Coercible @Type (Id @Type Int) (Id @Type String)
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#6, b#7] [d0 : Coercible @Type a#6 b#7]
+    coerce  = (unsafeCoerce @[a#6, b#7] {})
+  direct :: Id @Type Int -> Id @Type String
+    abstract [] []
+    direct  = (coerce @[Id @Type Int, Id @Type String] {<unsolved>})

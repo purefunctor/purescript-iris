@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module TypedRecDeep
+
+Types
+
+Roles
+
+Terms
+  h :: { x :: forall (a :: Type). a -> a } -> Int
+
+Errors
+  [h] 5:7 `r :: { x :: Int -> Int }` TypesDoNotUnify: a#1 ~ Int
+
+Tree
+  h :: { x :: forall (a :: Type). a -> a } -> Int
+    abstract [] []
+    h  = (\(r :: { x :: Int -> Int }) -> (r.x 1))

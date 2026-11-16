@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module SubTailPolyControl
+
+Types
+
+Roles
+
+Terms
+  x :: forall (r :: Row Type). { a :: Record r | r }
+  w :: { a :: { c :: forall (b :: Type). b -> b }, c :: forall (b :: Type). b -> b }
+  z :: { a :: { c :: forall (b :: Type). b -> b }, c :: Int -> Int }
+
+Errors
+
+Tree
+  w :: { a :: { c :: forall (b :: Type). b -> b }, c :: forall (b :: Type). b -> b }
+    abstract [] []
+    w  = (x @[( c :: forall (b :: Type). b -> b )] {})
+  z :: { a :: { c :: forall (b :: Type). b -> b }, c :: Int -> Int }
+    abstract [] []
+    z  = w

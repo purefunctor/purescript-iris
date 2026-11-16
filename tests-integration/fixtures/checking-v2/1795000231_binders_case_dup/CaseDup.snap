@@ -1,0 +1,22 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module CaseDup
+
+Types
+  P :: Type
+
+Roles
+
+Terms
+  P :: Int -> Int -> P
+  mk :: P
+  t :: Int
+
+Errors
+  [t] 6:4 `case mk of` OverlappingArgNames: x
+
+Tree
+  t :: Int
+    abstract [] []
+    t  = (case mk of { (P (x :: Int) (x :: Int) :: P) -> x })
