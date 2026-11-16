@@ -1,0 +1,44 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RecordUpdateChecked
+
+Types
+  Maybe :: Type -> Type
+  Query :: Type -> Type
+  Spec :: (Type -> Type) -> Type
+
+Roles
+  Maybe representational
+  Query representational
+
+Terms
+  Nothing :: forall (@a :: Type). Maybe a
+  Just :: forall (@a :: Type). a -> Maybe a
+  Query :: forall (@a :: Type). a -> Query a
+  defaultSpec :: forall (q :: Type -> Type). { handle :: forall (a :: Type). q a -> Maybe a, name :: String }
+  run :: forall (q :: Type -> Type). { handle :: forall (a :: Type). q a -> Maybe a, name :: String } -> String
+  handle :: forall (a :: Type). Query a -> Maybe a
+  checked :: String
+  annotated :: { handle :: forall (a :: Type). Query a -> Maybe a, name :: String }
+
+Errors
+  [checked] 19:16 `defaultSpec { handle = handle }` EscapedSkolem: a#11 in { handle :: Query a#11 -> Maybe a#11, name :: String }
+  [annotated] 22:12 `defaultSpec { handle = handle, name = "a…` EscapedSkolem: a#12 in { handle :: Query a#12 -> Maybe a#12, name :: String }
+
+Tree
+  defaultSpec :: forall (q :: Type -> Type). { handle :: forall (a :: Type). q a -> Maybe a, name :: String }
+    abstract [q#5] []
+    defaultSpec  = { handle: (Λ[a#6] []. (\(_ :: q#5 a#6) -> (Nothing @[a#6] {}))), name: "" }
+  run :: forall (q :: Type -> Type). { handle :: forall (a :: Type). q a -> Maybe a, name :: String } -> String
+    abstract [q#8] []
+    run (spec :: { handle :: forall (a :: Type). q#8 a -> Maybe a, name :: String }) = spec.name
+  handle :: forall (a :: Type). Query a -> Maybe a
+    abstract [a#10] []
+    handle (Query (a :: a#10) :: Query a#10) = ((Just @[a#10] {}) a)
+  checked :: String
+    abstract [] []
+    checked  = ((run @[Query] {}) ((defaultSpec @[?18] {}) { handle = (handle @[a#11] {}) }))
+  annotated :: { handle :: forall (a :: Type). Query a -> Maybe a, name :: String }
+    abstract [] []
+    annotated  = ((defaultSpec @[?22] {}) { handle = (handle @[a#12] {}), name = "annotated" })
