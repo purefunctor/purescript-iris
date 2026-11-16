@@ -16,5 +16,6 @@ Roles
 Terms
 
 Errors
+  [Y] QuantificationCheckFailureInType: Proxy @(Proxy @Type (P @?11 @?12 (Q @?11))) (R @?11 @?12)
 
 Tree

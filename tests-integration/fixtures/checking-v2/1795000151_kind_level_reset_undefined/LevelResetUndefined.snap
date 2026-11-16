@@ -20,5 +20,6 @@ Terms
   D :: forall (k :: Type) (k1 :: Type) (k2 :: k1) (x :: k) (@p :: Proxy @Type (P @k1 @k2 (Q @k1))) (@q :: Proxy @k x). D @k @k1 @k2 @x p q
 
 Errors
+  [Y] QuantificationCheckFailureInType: D @Type @?23 @?24 @Int (R @?23 @?24) S
 
 Tree

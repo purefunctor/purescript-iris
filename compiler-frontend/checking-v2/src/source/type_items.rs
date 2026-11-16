@@ -9,7 +9,7 @@ use smol_str::{SmolStr, format_smolstr};
 
 use crate::context::CheckContext;
 use crate::core::{fold, kind, normalise, unify};
-use crate::error::ErrorCrumb;
+use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::{roles, types};
 use crate::state::{CheckState, TypeVariableKey};
 use crate::types::{ForallBinder, ForallBinderId, Type, TypeId, UnificationId};
@@ -567,6 +567,8 @@ where
                         context.intern_forall_list(&parameters, constructor_type);
                     let constructor_type =
                         context.intern_forall_list(&kind_binders, constructor_type);
+                    let crumb = ErrorCrumb::TermDeclaration(constructor);
+                    check_type_quantification(state, context, crumb, constructor_type);
                     state.checked.term_types.insert(constructor, constructor_type);
                     checked_constructors.push(CheckedConstructor { item: constructor, fields });
                 }
@@ -589,6 +591,8 @@ where
                 let parameter_substitution = parameter_substitution(context, &parameters);
                 let body = finalise(state, body);
                 let body = fold::substitute_variables(context, &parameter_substitution, body);
+                let crumb = ErrorCrumb::TypeDeclaration(item);
+                check_type_quantification(state, context, crumb, body);
                 let synonym = CheckedSynonym {
                     kind_binders: Arc::from(kind_binders),
                     parameters: Arc::from(parameters),
@@ -664,6 +668,22 @@ where
 fn pending_kind(state: &CheckState, item: TypeItemId) -> TypeId {
     let pending = state.pending_types.get(&item).copied();
     pending.expect("invariant violated: type item without a pending kind")
+}
+
+fn check_type_quantification<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    crumb: ErrorCrumb,
+    elaborated: TypeId,
+) where
+    Q: ExternalQueries,
+{
+    if !context.lookup_type_flags(elaborated).has_unification() {
+        return;
+    }
+    state.with_crumb(crumb, |state| {
+        state.insert_error(ErrorKind::QuantificationCheckFailureInType { elaborated });
+    });
 }
 
 fn parameter_substitution<Q>(
@@ -783,9 +803,10 @@ where
         let Some(unknowns) = generalisation.unknowns.get(&type_id) else {
             return id;
         };
-        return unknowns.iter().fold(id, |function, unification_id| {
-            let argument = mapping.get(unification_id).copied();
-            let argument = argument.unwrap_or(context.types.unknown);
+        return unknowns.iter().fold(id, |function, &unification_id| {
+            let argument = mapping.get(&unification_id).copied();
+            let argument =
+                argument.unwrap_or_else(|| context.intern_type(Type::Unification(unification_id)));
             context.intern_kind_application(function, argument)
         });
     }

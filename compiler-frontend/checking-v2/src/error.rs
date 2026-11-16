@@ -50,7 +50,7 @@ pub enum ErrorKind {
     MissingClassMember { name: SmolStr },
     ExtraneousClassMember { name: SmolStr },
     CannotGeneralizeRecursiveFunction { constraint: TypeId },
-    QuantificationCheckFailure { kind: TypeId },
+    QuantificationCheckFailureInType { elaborated: TypeId },
     UnsupportedFeature { feature: &'static str },
     InvalidSyntax,
 }
@@ -121,8 +121,8 @@ impl ErrorKind {
             ErrorKind::CannotGeneralizeRecursiveFunction { constraint } => {
                 ErrorKind::CannotGeneralizeRecursiveFunction { constraint: transform(constraint) }
             }
-            ErrorKind::QuantificationCheckFailure { kind } => {
-                ErrorKind::QuantificationCheckFailure { kind: transform(kind) }
+            ErrorKind::QuantificationCheckFailureInType { elaborated } => {
+                ErrorKind::QuantificationCheckFailureInType { elaborated: transform(elaborated) }
             }
             other => other,
         }

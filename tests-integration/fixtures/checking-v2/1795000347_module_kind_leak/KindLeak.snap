@@ -18,5 +18,6 @@ Terms
   E :: forall (k :: Type) (k1 :: Type) (@a :: k) (@b :: k1). D -> E @k @k1 a b
 
 Errors
+  [D] QuantificationCheckFailureInType: Proxy @(?4 -> ?5 -> Type) (E @?4 @?5) -> D
 
 Tree

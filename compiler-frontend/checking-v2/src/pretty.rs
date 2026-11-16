@@ -120,8 +120,8 @@ impl<'a> Printer<'a> {
             ErrorKind::CannotGeneralizeRecursiveFunction { constraint } => {
                 format!("CannotGeneralizeRecursiveFunction: {}", render(*constraint))
             }
-            ErrorKind::QuantificationCheckFailure { kind } => {
-                format!("QuantificationCheckFailure: {}", render(*kind))
+            ErrorKind::QuantificationCheckFailureInType { elaborated } => {
+                format!("QuantificationCheckFailureInType: {}", render(*elaborated))
             }
             ErrorKind::UnsupportedFeature { feature } => format!("UnsupportedFeature: {feature}"),
             ErrorKind::InvalidSyntax => "InvalidSyntax".to_string(),
