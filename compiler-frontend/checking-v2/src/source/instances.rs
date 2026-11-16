@@ -357,7 +357,7 @@ where
     };
 
     let obligations = if lowered.newtype {
-        let Some(NewtypeField { field, .. }) = data::newtype_field(state, context, last)? else {
+        let Some(field) = data::derived_newtype_field(state, context, last)? else {
             state.insert_error(ErrorKind::CannotDerive { class });
             return Ok(Vec::new());
         };

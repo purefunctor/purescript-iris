@@ -1,0 +1,39 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Eq :: Type -> Constraint
+  Functor :: (Type -> Type) -> Constraint
+  IdentityT :: forall (k :: Type). (k -> Type) -> k -> Type
+  Function :: Type -> Type -> Type
+  Swapped :: Type -> Type -> Type
+
+Roles
+  IdentityT representational nominal
+  Function representational representational
+  Swapped representational representational
+
+Terms
+  eq :: forall (@a :: Type). Eq a => a -> a -> Boolean
+  map :: forall (@f :: Type -> Type). Functor f => forall (a :: Type) (b :: Type). (a -> b) -> f a -> f b
+  IdentityT :: forall (k :: Type) (@m :: k -> Type) (@a :: k). m a -> IdentityT @k m a
+  Function :: forall (@a :: Type) (@b :: Type). (a -> b) -> Function a b
+  Swapped :: forall (@a :: Type) (@b :: Type). (b -> a) -> Swapped a b
+
+Instances
+  eqIdentityT :: Eq (m a) => Eq (IdentityT @t13 m a)
+  functorIdentityT :: Functor m => Functor (IdentityT @Type m)
+  functorFunction :: Functor (Function a)
+  functorSwapped :: Functor (Swapped a)
+
+Errors
+  [functorFunction] NoInstanceFound: Functor (Function a#21)
+  [functorSwapped] CannotDerive: Functor
+
+Tree
+  instance eqIdentityT [d0 : Eq (m#18 a#19)]
+  instance functorIdentityT [d1 : Functor m#20]
+  instance functorFunction []
+  instance functorSwapped []

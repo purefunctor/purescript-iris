@@ -4,9 +4,10 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
 use crate::context::{CheckContext, Item};
-use crate::core::{entail, fold};
+use crate::core::entail::{self, ConstraintHead};
+use crate::core::{fold, normalise};
 use crate::state::CheckState;
-use crate::types::TypeId;
+use crate::types::{Name, Type, TypeId};
 use crate::{CheckedData, ExternalQueries};
 
 pub struct NewtypeField {
@@ -33,7 +34,7 @@ pub fn data_fields<Q>(
     state: &CheckState,
     context: &CheckContext<Q>,
     type_id: TypeId,
-) -> QueryResult<Option<(Item, CheckedData, Vec<TypeId>)>>
+) -> QueryResult<Option<(ConstraintHead, CheckedData, Vec<TypeId>)>>
 where
     Q: ExternalQueries,
 {
@@ -54,7 +55,7 @@ where
     let fields = data.constructors.iter().flat_map(|constructor| constructor.fields.iter());
     let fields = fields.map(|&field| fold::substitute_variables(context, &substitution, field));
     let fields = fields.collect_vec();
-    Ok(Some((head.class, data, fields)))
+    Ok(Some((head, data, fields)))
 }
 
 pub fn newtype_field<Q>(
@@ -65,7 +66,7 @@ pub fn newtype_field<Q>(
 where
     Q: ExternalQueries,
 {
-    let Some(((file_id, _), data, fields)) = data_fields(state, context, type_id)? else {
+    let Some((head, data, fields)) = data_fields(state, context, type_id)? else {
         return Ok(None);
     };
     let (true, [constructor], &[field]) =
@@ -73,5 +74,69 @@ where
     else {
         return Ok(None);
     };
+    let (file_id, _) = head.class;
     Ok(Some(NewtypeField { constructor: (file_id, constructor.item), field }))
+}
+
+pub fn derived_newtype_field<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    type_id: TypeId,
+) -> QueryResult<Option<TypeId>>
+where
+    Q: ExternalQueries,
+{
+    let Some((head, data, fields)) = data_fields(state, context, type_id)? else {
+        return Ok(None);
+    };
+    let (true, [_], &[field]) = (data.newtype, data.constructors.as_ref(), fields.as_slice())
+    else {
+        return Ok(None);
+    };
+
+    let unapplied = data.parameters.get(head.arguments.len()..).unwrap_or_default();
+    let unapplied = unapplied.iter().map(|&binder_id| context.lookup_forall_binder(binder_id).name);
+    let unapplied = unapplied.collect_vec();
+
+    let mut current = field;
+    for &name in unapplied.iter().rev() {
+        let normalised = normalise::normalise(state, context, current);
+        let (function, argument) = match context.lookup_type(normalised) {
+            Type::Application(function, argument) => (function, argument),
+            Type::Function(argument, result) => {
+                (context.intern_application(context.types.function, argument), result)
+            }
+            _ => return Ok(None),
+        };
+        let Type::Variable(binder_id) = context.lookup_type(argument) else {
+            return Ok(None);
+        };
+        if context.lookup_forall_binder(binder_id).name != name {
+            return Ok(None);
+        }
+        current = function;
+    }
+
+    if unapplied.iter().any(|&name| mentions_variable(context, current, name)) {
+        return Ok(None);
+    }
+    Ok(Some(current))
+}
+
+fn mentions_variable<Q>(context: &CheckContext<Q>, id: TypeId, name: Name) -> bool
+where
+    Q: ExternalQueries,
+{
+    if !context.lookup_type_flags(id).has_variable() {
+        return false;
+    }
+    if let Type::Variable(binder_id) = context.lookup_type(id) {
+        return context.lookup_forall_binder(binder_id).name == name;
+    }
+    let mut mentioned = false;
+    fold::map_children(context, id, |child| {
+        mentioned = mentioned || mentions_variable(context, child, name);
+        child
+    });
+    mentioned
 }
