@@ -13,7 +13,7 @@ use smol_str::SmolStr;
 use crate::ExternalQueries;
 use crate::context::{CheckContext, Item};
 use crate::core::entail::{ConstraintHead, Outcome};
-use crate::core::{coercible, fold, normalise, unify};
+use crate::core::{fold, normalise, unify};
 use crate::error::ErrorKind;
 use crate::state::{CheckState, Wanted};
 use crate::tree::{BuiltinEvidence, Evidence};
@@ -31,9 +31,7 @@ where
     let known = &context.known;
     let class = Some(head.class);
 
-    let outcome = if class == known.coercible {
-        coercible::solve(state, context, wanted, head)?
-    } else if class == known.row_cons {
+    let outcome = if class == known.row_cons {
         prim_row::solve_cons(state, context, wanted, head)?
     } else if class == known.row_lacks {
         prim_row::solve_lacks(state, context, wanted, head)?

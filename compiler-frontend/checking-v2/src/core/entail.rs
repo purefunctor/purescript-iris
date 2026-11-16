@@ -8,7 +8,7 @@ use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::{CheckContext, Item};
-use crate::core::{builtin, fold, kind, normalise, unify};
+use crate::core::{builtin, coercible, fold, kind, normalise, unify};
 use crate::error::ErrorKind;
 use crate::state::{CheckState, Given, Wanted};
 use crate::tree::Evidence;
@@ -177,6 +177,11 @@ where
         class.as_ref().map(|class| Arc::clone(&class.functional_dependencies));
     let functional_dependencies = functional_dependencies.unwrap_or_else(|| Arc::from([]));
 
+    let builtin = builtin::solve(state, context, wanted, &head)?;
+    if let Some(outcome @ (Outcome::Solved | Outcome::Improved)) = builtin {
+        return Ok(outcome);
+    }
+
     let givens = given_closure(state, context, wanted)?;
     let mut given_improvement = None;
     for given in &givens {
@@ -203,7 +208,11 @@ where
         return Ok(if improved { Outcome::Improved } else { Outcome::Stuck });
     }
 
-    if let Some(outcome) = builtin::solve(state, context, wanted, &head)? {
+    if coercible {
+        return coercible::solve(state, context, wanted, &head);
+    }
+
+    if let Some(outcome) = builtin {
         return Ok(outcome);
     }
 
