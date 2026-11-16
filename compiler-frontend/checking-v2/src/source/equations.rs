@@ -495,7 +495,8 @@ where
                 let Some(expression) = *expression else {
                     return Ok(Some(terms::error_expression(state, context)));
                 };
-                terms::infer_expression(state, context, expression).map(Some)
+                let inferred = terms::infer_expression(state, context, expression)?;
+                terms::instantiate(state, context, inferred).map(Some)
             }
 
             DoStatement::Discard { expression } => {
@@ -634,7 +635,10 @@ where
     }
 
     let infer_body = |state: &mut CheckState| match expression {
-        Some(expression) => terms::infer_expression(state, context, expression),
+        Some(expression) => {
+            let inferred = terms::infer_expression(state, context, expression)?;
+            terms::instantiate(state, context, inferred)
+        }
         None => Ok(terms::error_expression(state, context)),
     };
     let body = if actions.is_empty() {
