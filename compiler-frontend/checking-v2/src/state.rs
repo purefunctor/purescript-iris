@@ -51,6 +51,12 @@ pub struct Hole {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Wildcard {
+    pub type_id: TypeId,
+    pub crumbs: Vec<ErrorCrumb>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Given {
     pub constraint: TypeId,
     pub evidence: Evidence,
@@ -83,6 +89,7 @@ pub struct CheckState {
     pub type_variables: FxHashMap<TypeVariableKey, TypeId>,
     pub term_variables: FxHashMap<TermVariableKey, LocalVariable>,
     pub holes: Vec<Hole>,
+    pub wildcards: Vec<Wildcard>,
     pub pending_terms: FxHashMap<TermItemId, TypeId>,
     pub pending_types: FxHashMap<TypeItemId, TypeId>,
     pub pending_synonyms: FxHashMap<TypeItemId, CheckedSynonym>,
@@ -107,6 +114,7 @@ impl CheckState {
             type_variables: FxHashMap::default(),
             term_variables: FxHashMap::default(),
             holes: Vec::new(),
+            wildcards: Vec::new(),
             pending_terms: FxHashMap::default(),
             pending_types: FxHashMap::default(),
             pending_synonyms: FxHashMap::default(),

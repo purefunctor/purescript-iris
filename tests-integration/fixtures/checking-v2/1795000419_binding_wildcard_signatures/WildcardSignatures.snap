@@ -1,0 +1,45 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module WildcardSignatures
+
+Types
+  Shw :: Type -> Constraint
+
+Roles
+
+Terms
+  shw :: forall (@a :: Type). Shw a => a -> String
+  same :: forall (t1 :: Type). t1 -> t1
+  annotated :: Int
+  local :: Int
+  shown :: forall (t2 :: Type). t2 -> String
+
+Instances
+  <instance 0> :: Shw Int
+
+Errors
+  [shown] 25:10 `shw x` NoInstanceFound: Shw t2
+  [same] 11:8 `_` WildcardInferredType: t1
+  [same] 11:13 `_` WildcardInferredType: t1
+  [annotated] 16:18 `_` WildcardInferredType: Int
+  [local] 19:17 `_` WildcardInferredType: Int
+  [shown] 24:9 `_` WildcardInferredType: t2
+
+Tree
+  same :: forall (t1 :: Type). t1 -> t1
+    abstract [t1] []
+    same (x :: t1) = x
+  annotated :: Int
+    abstract [] []
+    annotated  = 1
+  local :: Int
+    abstract [] []
+    local  = (let { y :: Int [] []  = 2 } in y)
+  shown :: forall (t2 :: Type). t2 -> String
+    abstract [t2] []
+    shown (x :: t2) = ((shw @[t2] {<unsolved>}) x)
+  instance <instance 0> []
+    shw :: Int -> String
+      abstract [] []
+      shw (_ :: Int) = "Int"

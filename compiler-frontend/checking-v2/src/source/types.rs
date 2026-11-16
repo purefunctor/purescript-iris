@@ -10,7 +10,7 @@ use sugar::OperatorTree;
 use crate::context::{CheckContext, Item};
 use crate::core::{fold, kind, normalise, unify};
 use crate::error::{ErrorCrumb, ErrorKind};
-use crate::state::{CheckState, TypeVariableKey};
+use crate::state::{CheckState, TypeVariableKey, Wildcard};
 use crate::types::{ForallBinder, RowField, SynonymApplication, Type, TypeId};
 use crate::{CheckedSynonym, ExternalQueries};
 
@@ -157,9 +157,17 @@ where
             Ok((context.intern_forall_list(&binders, inner), context.types.type_))
         }
 
-        TypeKind::Hole | TypeKind::Wildcard => {
+        TypeKind::Hole => {
             let kind = kind::fresh_type(state, context);
             let t = kind::fresh_unification(state, context, kind);
+            Ok((t, kind))
+        }
+
+        TypeKind::Wildcard => {
+            let kind = kind::fresh_type(state, context);
+            let t = kind::fresh_unification(state, context, kind);
+            let crumbs = state.crumbs.clone();
+            state.wildcards.push(Wildcard { type_id: t, crumbs });
             Ok((t, kind))
         }
 

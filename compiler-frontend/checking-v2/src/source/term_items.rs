@@ -10,7 +10,7 @@ use smol_str::format_smolstr;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::{entail, fold, kind};
+use crate::core::{entail, fold, kind, normalise};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::type_items::collect_unknowns;
 use crate::source::{equations, escape, types};
@@ -169,7 +169,16 @@ where
     Q: ExternalQueries,
 {
     let type_id = match signature {
-        Some(signature) => check_signature(state, context, item, signature)?,
+        Some(signature) => {
+            let first_wildcard = state.wildcards.len();
+            let signature = check_signature(state, context, item, signature)?;
+            state.wildcards.truncate(first_wildcard);
+
+            let unknowns = generalisable_unknowns(state, context, &[signature]);
+            let binders = quantify_unknowns(state, context, &unknowns);
+            let signature = fold::zonk(state, context, signature);
+            context.intern_forall_list(&binders, signature)
+        }
         None => context.types.unknown,
     };
     state.checked.term_types.insert(item, type_id);
@@ -186,11 +195,18 @@ where
     Q: ExternalQueries,
 {
     state.with_crumb(ErrorCrumb::TermDeclaration(item), |state| {
+        let first_wildcard = state.wildcards.len();
         let signature = state.with_level(|state| {
             types::check_type(state, context, signature, context.types.type_)
         })?;
+
+        let wildcards = state.wildcards.iter().skip(first_wildcard);
+        let wildcards = wildcards.map(|wildcard| wildcard.type_id).collect_vec();
+        let wildcards = generalisable_unknowns(state, context, &wildcards);
+
         let unknowns = generalisable_unknowns(state, context, &[signature]);
-        let binders = quantify_unknowns(state, context, &unknowns);
+        let unknowns = unknowns.into_iter().filter(|unknown| !wildcards.contains(unknown));
+        let binders = quantify_unknowns(state, context, &unknowns.collect_vec());
         let signature = fold::zonk(state, context, signature);
         Ok(context.intern_forall_list(&binders, signature))
     })
@@ -255,18 +271,41 @@ where
 
     let mut types = Vec::new();
     for (member, residuals) in members.iter().zip(&generalised) {
+        types.push(member.pending);
         if member.signature.is_none() {
-            types.push(member.pending);
             types.extend(residuals.iter().map(|&(constraint, _)| constraint));
         }
     }
     let unknowns = generalisable_unknowns(state, context, &types);
     let binders = quantify_unknowns(state, context, &unknowns);
 
+    let quantified_in = |inner: TypeId| {
+        let mut variables = FxHashSet::default();
+        collect_variables(context, inner, &mut variables);
+        let quantified = binders
+            .iter()
+            .copied()
+            .filter(|&binder_id| variables.contains(&context.lookup_forall_binder(binder_id).name));
+        quantified.collect_vec()
+    };
+
     for ((member, declaration), residuals) in members.iter().zip(declarations).zip(generalised) {
         state.pending_terms.remove(&member.item);
 
         let declaration = match member.signature {
+            Some(signature) if context.lookup_type_flags(signature).has_unification() => {
+                let inner =
+                    restore_signature_binders(state, context, signature, &declaration.type_binders);
+                let quantified = quantified_in(inner);
+                let type_id = context.intern_forall_list(&quantified, inner);
+
+                let type_binders = quantified
+                    .iter()
+                    .map(|&binder_id| context.intern_type(Type::Variable(binder_id)));
+                let type_binders = type_binders.chain(declaration.type_binders.iter().copied());
+                let type_binders = type_binders.collect::<Arc<[_]>>();
+                tree::ValueDeclaration { type_id, type_binders, ..declaration }
+            }
             Some(_) => declaration,
             None => {
                 let constraints =
@@ -275,12 +314,7 @@ where
                 let inner = fold::zonk(state, context, member.pending);
                 let inner = context.intern_constrained_list(&constraints, inner);
 
-                let mut variables = FxHashSet::default();
-                collect_variables(context, inner, &mut variables);
-                let quantified = binders.iter().copied().filter(|&binder_id| {
-                    variables.contains(&context.lookup_forall_binder(binder_id).name)
-                });
-                let quantified = quantified.collect_vec();
+                let quantified = quantified_in(inner);
                 let type_id = context.intern_forall_list(&quantified, inner);
 
                 let type_binders = quantified
@@ -487,6 +521,51 @@ where
     let crumbs = vec![ErrorCrumb::TermDeclaration(item)];
     state.insert_error_at(ErrorKind::EscapedSkolem { rigid, solution: type_id }, crumbs);
     true
+}
+
+fn restore_signature_binders<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    signature: TypeId,
+    rigids: &[TypeId],
+) -> TypeId
+where
+    Q: ExternalQueries,
+{
+    let mut variables = Vec::new();
+    let mut current = signature;
+    loop {
+        let head = normalise::normalise(state, context, current);
+        match context.lookup_type(head) {
+            Type::Forall(binder_id, inner) => {
+                variables.push(context.intern_type(Type::Variable(binder_id)));
+                current = inner;
+            }
+            Type::Constrained(_, constrained) => current = constrained,
+            _ => break,
+        }
+    }
+
+    let replacements = rigids.iter().copied().zip(variables).collect::<FxHashMap<_, _>>();
+    let signature = fold::zonk(state, context, signature);
+    replace_rigids(context, &replacements, signature)
+}
+
+fn replace_rigids<Q>(
+    context: &CheckContext<Q>,
+    replacements: &FxHashMap<TypeId, TypeId>,
+    id: TypeId,
+) -> TypeId
+where
+    Q: ExternalQueries,
+{
+    if !context.lookup_type_flags(id).has_rigid() {
+        return id;
+    }
+    if let Some(&replacement) = replacements.get(&id) {
+        return replacement;
+    }
+    fold::map_children(context, id, |child| replace_rigids(context, replacements, child))
 }
 
 fn erase_rigids<Q>(context: &CheckContext<Q>, id: TypeId) -> TypeId

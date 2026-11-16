@@ -81,6 +81,7 @@ where
     };
 
     let outer_implicit = mem::take(&mut state.implicit_binders);
+    let first_wildcard = state.wildcards.len();
     let (constraint, constraints) = state.with_level(|state| {
         let class_kind = kind::lookup_type_item_kind(state, context, class)?;
         let mut applied = (context.intern_constructor(class), class_kind);
@@ -107,6 +108,7 @@ where
         QueryResult::Ok((constraint, constraints))
     })?;
     let implicit = mem::replace(&mut state.implicit_binders, outer_implicit);
+    state.wildcards.truncate(first_wildcard);
 
     let mut types = vec![constraint];
     types.extend(constraints.iter().copied());

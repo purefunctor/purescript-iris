@@ -33,6 +33,11 @@ where
         );
     }
 
+    for wildcard in mem::take(&mut state.wildcards) {
+        let inferred = wildcard.type_id;
+        state.insert_error_at(ErrorKind::WildcardInferredType { inferred }, wildcard.crumbs);
+    }
+
     let errors = mem::take(&mut state.checked.errors).into_iter().map(|error| {
         let kind = error.kind.map_types(|id| fold::zonk(state, context, id));
         CheckingError { kind, crumbs: error.crumbs }

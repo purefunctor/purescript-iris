@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module EscWildcard
+
+Types
+  ST :: Type -> Type -> Type
+  Ref :: Type -> Type -> Type
+  Same :: Type -> Type -> Constraint
+
+Roles
+  ST nominal nominal
+  Ref nominal nominal
+
+Terms
+  newRef :: forall (r :: Type) (a :: Type). a -> ST r (Ref r a)
+  run :: forall (a :: Type). (forall (r :: Type). ST r a) -> a
+  coerce :: forall (a :: Type) (b :: Type). a -> b
+  conv :: forall (r :: Type) (x :: Type) (y :: Type). Same x y => ST r x -> ST r y
+  leak :: Ref ??? Int
+  own :: forall (a :: Type). { x :: a } -> { x :: a, y :: a }
+
+Instances
+  <instance 0> :: Same a a
+
+Errors
+  [leak] 15:7 `run (conv (newRef 1))` EscapedSkolem: r#15 in Ref r#15 Int
+  [leak] 14:8 `_` WildcardInferredType: Ref r#15 Int
+  [own] 17:46 `_` WildcardInferredType: a#17
+
+Tree
+  conv :: forall (r :: Type) (x :: Type) (y :: Type). Same x y => ST r x -> ST r y
+    abstract [r#12, x#13, y#14] [d0 : Same x#13 y#14]
+    conv  = (coerce @[ST r#12 x#13, ST r#12 y#14] {})
+  leak :: Ref ??? Int
+    abstract [] []
+    leak  = ((run @[Ref r#15 Int] {}) (Λ[r#15] []. ((conv @[r#15, Ref r#15 Int, Ref r#15 Int] {<instance 0>@[Ref r#15 Int]()}) ((newRef @[r#15, Int] {}) 1))))
+  own :: forall (a :: Type). { x :: a } -> { x :: a, y :: a }
+    abstract [a#17] []
+    own (r :: { x :: a#17 }) = { x: r.x, y: r.x }
+  instance <instance 0> []
