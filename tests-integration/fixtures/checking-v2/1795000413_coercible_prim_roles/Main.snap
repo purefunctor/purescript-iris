@@ -1,0 +1,44 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Age :: Type
+
+Roles
+
+Terms
+  unsafeCoerce :: forall (a :: Type) (b :: Type). a -> b
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+  Age :: Int -> Age
+  functions :: (Int -> Int) -> String -> String
+  arrays :: Array Int -> Array String
+  records :: { name :: Int } -> { name :: String }
+  ages :: Array (Age -> Int) -> Array (Int -> Age)
+  agedRecords :: { age :: Age } -> { age :: Int }
+
+Errors
+  [functions] 13:12 `coerce` NoInstanceFound: Coercible @Type Int String
+  [arrays] 16:9 `coerce` NoInstanceFound: Coercible @Type Int String
+  [records] 19:10 `coerce` NoInstanceFound: Coercible @Type Int String
+
+Tree
+  coerce :: forall (a :: Type) (b :: Type). Coercible @Type a b => a -> b
+    abstract [a#4, b#5] [d0 : Coercible @Type a#4 b#5]
+    coerce  = (unsafeCoerce @[a#4, b#5] {})
+  functions :: (Int -> Int) -> String -> String
+    abstract [] []
+    functions  = (coerce @[Int -> Int, String -> String] {builtin Coercible Empty})
+  arrays :: Array Int -> Array String
+    abstract [] []
+    arrays  = (coerce @[Array Int, Array String] {builtin Coercible Empty})
+  records :: { name :: Int } -> { name :: String }
+    abstract [] []
+    records  = (coerce @[{ name :: Int }, { name :: String }] {builtin Coercible Empty})
+  ages :: Array (Age -> Int) -> Array (Int -> Age)
+    abstract [] []
+    ages  = (coerce @[Array (Age -> Int), Array (Int -> Age)] {builtin Coercible Empty})
+  agedRecords :: { age :: Age } -> { age :: Int }
+    abstract [] []
+    agedRecords  = (coerce @[{ age :: Age }, { age :: Int }] {builtin Coercible Empty})
