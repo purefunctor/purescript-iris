@@ -293,6 +293,13 @@ where
         return Ok(Step::Stuck);
     }
 
+    if let Some(unwrapped) = unwrap_newtype(state, context, left)? {
+        return Ok(Step::Subgoals(vec![(unwrapped, right)]));
+    }
+    if let Some(unwrapped) = unwrap_newtype(state, context, right)? {
+        return Ok(Step::Subgoals(vec![(left, unwrapped)]));
+    }
+
     if left_spine.head == right_spine.head
         && left_spine.arguments.len() == right_spine.arguments.len()
         && let Type::Constructor(file_id, type_id) = left_head
@@ -300,13 +307,6 @@ where
         let roles = roles::lookup_roles(state, context, (file_id, type_id))?;
         let roles = roles.unwrap_or_else(|| Arc::from([]));
         return decompose(state, context, &left_spine, &right_spine, &roles);
-    }
-
-    if let Some(unwrapped) = unwrap_newtype(state, context, left)? {
-        return Ok(Step::Subgoals(vec![(unwrapped, right)]));
-    }
-    if let Some(unwrapped) = unwrap_newtype(state, context, right)? {
-        return Ok(Step::Subgoals(vec![(left, unwrapped)]));
     }
 
     let variable_heads = !matches!(left_head, Type::Constructor(..))
