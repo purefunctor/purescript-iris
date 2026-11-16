@@ -166,11 +166,14 @@ impl CheckState {
 
     pub fn insert_error(&mut self, kind: ErrorKind) {
         let crumbs = Vec::clone(&self.crumbs);
-        self.checked.errors.push(CheckingError { kind, crumbs });
+        self.insert_error_at(kind, crumbs);
     }
 
     pub fn insert_error_at(&mut self, kind: ErrorKind, crumbs: Vec<ErrorCrumb>) {
-        self.checked.errors.push(CheckingError { kind, crumbs });
+        let error = CheckingError { kind, crumbs };
+        if !self.checked.errors.contains(&error) {
+            self.checked.errors.push(error);
+        }
     }
 
     pub fn with_crumb<T>(
