@@ -988,30 +988,19 @@ where
         return Ok(allocate(state, None, result_type, kind));
     }
 
-    if let Type::Unification(_) = context.lookup_type(function_type) {
-        let argument_type = kind::fresh_type(state, context);
-        let result_type = kind::fresh_type(state, context);
-        let expected = context.intern_function(argument_type, result_type);
-        unify::unify(state, context, function_type, expected)?;
-        let argument = check_argument(state, context, argument, argument_type)?;
-        let kind = tree::ExpressionKind::Application { function: function.expression, argument };
-        return Ok(allocate(state, None, result_type, kind));
-    }
-
     if let Type::Unknown = context.lookup_type(function_type) {
         infer_argument(state, context, argument)?;
         return Ok(error_expression(state, context));
     }
 
-    let inferred = infer_argument(state, context, argument)?;
-    let inferred = instantiate(state, context, inferred)?;
+    let argument_type = kind::fresh_type(state, context);
     let result_type = kind::fresh_type(state, context);
-    let expected = context.intern_function(inferred.type_id, result_type);
-    unify::unify(state, context, expected, function_type)?;
-    let kind = tree::ExpressionKind::Application {
-        function: function.expression,
-        argument: inferred.expression,
-    };
+    let expected = context.intern_function(argument_type, result_type);
+    if !unify::unify(state, context, function_type, expected)? {
+        return Ok(error_expression(state, context));
+    }
+    let argument = check_argument(state, context, argument, argument_type)?;
+    let kind = tree::ExpressionKind::Application { function: function.expression, argument };
     Ok(allocate(state, None, result_type, kind))
 }
 

@@ -13,10 +13,9 @@ Terms
   test :: forall (t0 :: Type). t0
 
 Errors
-  [test] 5:17 `"a"` TypesDoNotUnify: Int ~ String
-  [test] 5:7 `one (plus "a" 2)` TypesDoNotUnify: Int -> t0 ~ Int
+  [test] 5:7 `one (plus "a" 2)` TypesDoNotUnify: Int ~ ?1 -> ?2
 
 Tree
   test :: forall (t0 :: Type). t0
     abstract [t0] []
-    test  = (one ((plus "a") 2))
+    test  = <error>
