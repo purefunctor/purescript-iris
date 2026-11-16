@@ -143,7 +143,7 @@ where
                     Some(kind) => check_type(state, context, kind, context.types.type_)?,
                     None => kind::fresh_type(state, context),
                 };
-                let name = binding.name.as_ref().map(SmolStr::clone);
+                let name = binding.name.clone();
                 let text = name.unwrap_or_else(|| SmolStr::new_static("_"));
                 let text = context.intern_text(text);
                 let name = state.fresh_name();
@@ -505,10 +505,10 @@ where
         if let Some(synonym) = state.pending_synonyms.get(&type_id) {
             return Ok(Some(CheckedSynonym::clone(synonym)));
         }
-        return Ok(state.checked.synonyms.get(&type_id).map(CheckedSynonym::clone));
+        return Ok(state.checked.synonyms.get(&type_id).cloned());
     }
     let checked = context.checked_dependency(file_id)?;
-    Ok(checked.synonyms.get(&type_id).map(CheckedSynonym::clone))
+    Ok(checked.synonyms.get(&type_id).cloned())
 }
 
 fn infer_constructor<Q>(

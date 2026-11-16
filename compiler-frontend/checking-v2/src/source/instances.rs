@@ -334,7 +334,7 @@ where
             continue;
         }
         let indexed = context.queries.indexed(class_file)?;
-        let name = indexed.items[member].name.as_ref().map(SmolStr::clone);
+        let name = indexed.items[member].name.clone();
         let name = name.unwrap_or_else(|| SmolStr::new_static("<anonymous>"));
         state.insert_error(ErrorKind::MissingClassMember { name });
     }
@@ -350,6 +350,6 @@ where
     Q: ExternalQueries,
 {
     let indexed = context.queries.indexed(file_id)?;
-    let name = indexed.items[type_id].name.as_ref().map(SmolStr::clone);
+    let name = indexed.items[type_id].name.clone();
     Ok(name.unwrap_or_else(|| SmolStr::new_static("<anonymous>")))
 }

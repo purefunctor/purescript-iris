@@ -6,8 +6,9 @@ use smol_str::SmolStr;
 
 use crate::ExternalQueries;
 use crate::context::{CheckContext, Item};
+use crate::core::data::{self, ConstructorFields};
 use crate::core::entail::{self, ConstraintHead};
-use crate::core::{data, normalise, subsume, unify};
+use crate::core::{normalise, subsume, unify};
 use crate::error::ErrorKind;
 use crate::source::instances::type_item_name;
 use crate::state::CheckState;
@@ -157,7 +158,7 @@ where
     let constructor = context.intern_constructor(constructor);
     let argument = context.intern_constructor(argument);
 
-    let representations = constructors.iter().map(|(item, fields)| {
+    let representations = constructors.iter().map(|ConstructorFields { item, fields }| {
         let name = indexed.items[*item].name.as_ref().map_or("", SmolStr::as_str);
         let name = context.intern_type(Type::String(context.intern_text(SmolStr::new(name))));
 

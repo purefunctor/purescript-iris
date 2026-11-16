@@ -36,7 +36,7 @@ where
         return no_instance(state, context, wanted);
     };
     let message = fold::zonk(state, context, message);
-    let crumbs = Vec::clone(&wanted.crumbs);
+    let crumbs = wanted.crumbs.clone();
     state.insert_error_at(ErrorKind::UserDefinedWarning { message }, crumbs);
     solved(state, wanted, head.class)
 }

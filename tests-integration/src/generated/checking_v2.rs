@@ -26,16 +26,16 @@ fn type_name(engine: &QueryEngine, file_id: FileId, type_id: TypeItemId) -> Smol
     let Ok(indexed) = engine.indexed(file_id) else {
         return SmolStr::new_static("<unknown>");
     };
-    let name = indexed.items[type_id].name.as_ref();
-    name.map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("<anonymous>"))
+    let name = indexed.items[type_id].name.clone();
+    name.unwrap_or_else(|| SmolStr::new_static("<anonymous>"))
 }
 
 fn term_name(engine: &QueryEngine, file_id: FileId, term_id: TermItemId) -> SmolStr {
     let Ok(indexed) = engine.indexed(file_id) else {
         return SmolStr::new_static("<unknown>");
     };
-    let name = indexed.items[term_id].name.as_ref();
-    name.map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("<anonymous>"))
+    let name = indexed.items[term_id].name.clone();
+    name.unwrap_or_else(|| SmolStr::new_static("<anonymous>"))
 }
 
 fn origin_name(engine: &QueryEngine, file_id: FileId, origin: InstanceOrigin) -> SmolStr {
@@ -43,14 +43,14 @@ fn origin_name(engine: &QueryEngine, file_id: FileId, origin: InstanceOrigin) ->
         return SmolStr::new_static("<unknown>");
     };
     let name = match origin {
-        InstanceOrigin::Instance(id) => indexed.items[id].name.as_ref(),
-        InstanceOrigin::Derive(id) => indexed.items[id].name.as_ref(),
+        InstanceOrigin::Instance(id) => indexed.items[id].name.clone(),
+        InstanceOrigin::Derive(id) => indexed.items[id].name.clone(),
     };
     let index = match origin {
         InstanceOrigin::Instance(id) => id.into_raw().into_u32(),
         InstanceOrigin::Derive(id) => id.into_raw().into_u32(),
     };
-    name.map(SmolStr::clone).unwrap_or_else(|| format_smolstr!("<instance {index}>"))
+    name.unwrap_or_else(|| format_smolstr!("<instance {index}>"))
 }
 
 pub fn report(engine: &QueryEngine, id: FileId, name: &str) -> String {

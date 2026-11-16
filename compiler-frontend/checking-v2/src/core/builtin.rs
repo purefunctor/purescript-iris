@@ -74,7 +74,7 @@ where
 
 pub fn push_subgoal(state: &mut CheckState, wanted: &Wanted, constraint: TypeId) {
     let slot = state.checked.tree.allocate_evidence_slot();
-    let crumbs = Vec::clone(&wanted.crumbs);
+    let crumbs = wanted.crumbs.clone();
     let work = wanted.work + 1;
     state.wanted.push(Wanted { constraint, slot, scope: wanted.scope, crumbs, work });
 }

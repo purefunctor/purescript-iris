@@ -196,7 +196,7 @@ where
             let parameters = parameters.collect::<FxHashMap<_, _>>();
 
             let current = group.get(item).expect("invariant violated: data item without roles");
-            let roles = Vec::clone(current);
+            let roles = current.clone();
             let mut walker = RoleWalk { parameters: &parameters, group: &group, roles };
             for constructor in data.constructors.iter() {
                 for &field in constructor.fields.iter() {

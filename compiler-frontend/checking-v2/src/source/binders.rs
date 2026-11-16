@@ -240,8 +240,7 @@ where
         }
 
         BinderKind::Variable { variable } => {
-            let name =
-                variable.as_ref().map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("_"));
+            let name = variable.clone().unwrap_or_else(|| SmolStr::new_static("_"));
             let binder = allocate(state, Some(id), expected, tree::BinderKind::Variable(name));
             bind_variable(state, TermVariableKey::Binder(id), binder, expected);
             Ok(binder)
@@ -252,8 +251,7 @@ where
                 Some(binder) => check_binder(state, context, *binder, expected)?,
                 None => allocate(state, None, expected, tree::BinderKind::Error),
             };
-            let name =
-                named.as_ref().map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("_"));
+            let name = named.clone().unwrap_or_else(|| SmolStr::new_static("_"));
             let named = allocate(state, Some(id), expected, tree::BinderKind::Named(name, inner));
             bind_variable(state, TermVariableKey::Binder(id), named, expected);
             Ok(named)

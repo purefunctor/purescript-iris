@@ -24,10 +24,10 @@ where
     Q: ExternalQueries,
 {
     if file_id == context.id {
-        return Ok(state.checked.data.get(&type_id).map(CheckedData::clone));
+        return Ok(state.checked.data.get(&type_id).cloned());
     }
     let checked = context.checked_dependency(file_id)?;
-    Ok(checked.data.get(&type_id).map(CheckedData::clone))
+    Ok(checked.data.get(&type_id).cloned())
 }
 
 pub fn data_fields<Q>(
@@ -41,15 +41,20 @@ where
     let Some((head, data, constructors)) = constructor_fields(state, context, type_id)? else {
         return Ok(None);
     };
-    let fields = constructors.into_iter().flat_map(|(_, fields)| fields).collect_vec();
+    let fields = constructors.into_iter().flat_map(|constructor| constructor.fields).collect_vec();
     Ok(Some((head, data, fields)))
+}
+
+pub struct ConstructorFields {
+    pub item: TermItemId,
+    pub fields: Vec<TypeId>,
 }
 
 pub fn constructor_fields<Q>(
     state: &CheckState,
     context: &CheckContext<Q>,
     type_id: TypeId,
-) -> QueryResult<Option<(ConstraintHead, CheckedData, Vec<(TermItemId, Vec<TypeId>)>)>>
+) -> QueryResult<Option<(ConstraintHead, CheckedData, Vec<ConstructorFields>)>>
 where
     Q: ExternalQueries,
 {
@@ -70,7 +75,7 @@ where
     let constructors = data.constructors.iter().map(|constructor| {
         let fields = constructor.fields.iter();
         let fields = fields.map(|&field| fold::substitute_variables(context, &substitution, field));
-        (constructor.item, fields.collect_vec())
+        ConstructorFields { item: constructor.item, fields: fields.collect_vec() }
     });
     let constructors = constructors.collect_vec();
     Ok(Some((head, data, constructors)))

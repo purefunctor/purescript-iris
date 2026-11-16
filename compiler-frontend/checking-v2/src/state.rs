@@ -160,12 +160,12 @@ impl CheckState {
 
     pub fn emit_wanted_into(&mut self, constraint: TypeId, slot: EvidenceSlotId, work: u32) {
         let scope = self.given_scope;
-        let crumbs = Vec::clone(&self.crumbs);
+        let crumbs = self.crumbs.clone();
         self.wanted.push(Wanted { constraint, slot, scope, crumbs, work });
     }
 
     pub fn insert_error(&mut self, kind: ErrorKind) {
-        let crumbs = Vec::clone(&self.crumbs);
+        let crumbs = self.crumbs.clone();
         self.insert_error_at(kind, crumbs);
     }
 

@@ -351,8 +351,8 @@ where
                     check_value(state, context, signature, type_id, &binding.equations)
                 })
             })?;
-            let name = context.lowered.tree.get_let_binding_group(group).name.as_ref();
-            let name = name.map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("_"));
+            let name = context.lowered.tree.get_let_binding_group(group).name.clone();
+            let name = name.unwrap_or_else(|| SmolStr::new_static("_"));
             bindings.push(tree::LocalBinding::Value(tree::LocalValue {
                 source: group,
                 name,

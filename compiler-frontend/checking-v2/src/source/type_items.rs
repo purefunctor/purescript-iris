@@ -253,7 +253,7 @@ where
             },
         };
 
-        let text = variable.name.as_ref().map(SmolStr::clone);
+        let text = variable.name.clone();
         let text = text.unwrap_or_else(|| SmolStr::new_static("_"));
         let text = context.intern_text(text);
         let name = state.fresh_name();

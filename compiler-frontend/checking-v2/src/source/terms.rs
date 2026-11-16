@@ -140,10 +140,10 @@ where
         return;
     }
     let name = match member {
-        GroupMember::Term(item_id) => context.indexed.items[item_id].name.as_ref(),
-        GroupMember::Let(group) => context.lowered.tree.get_let_binding_group(group).name.as_ref(),
+        GroupMember::Term(item_id) => &context.indexed.items[item_id].name,
+        GroupMember::Let(group) => &context.lowered.tree.get_let_binding_group(group).name,
     };
-    let name = name.map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("_"));
+    let name = name.clone().unwrap_or_else(|| SmolStr::new_static("_"));
     state.insert_error(ErrorKind::CycleInDeclaration { name });
 }
 
@@ -317,7 +317,7 @@ where
 
         ExpressionKind::Hole => {
             let name = hole_name(context, id);
-            let crumbs = Vec::clone(&state.crumbs);
+            let crumbs = state.crumbs.clone();
             state.holes.push(Hole { name: SmolStr::clone(&name), type_id: expected, crumbs });
             Ok(allocate(state, Some(id), expected, tree::ExpressionKind::Hole(name)).expression)
         }
@@ -685,7 +685,7 @@ where
         ExpressionKind::Hole => {
             let type_id = kind::fresh_type(state, context);
             let name = hole_name(context, id);
-            let crumbs = Vec::clone(&state.crumbs);
+            let crumbs = state.crumbs.clone();
             state.holes.push(Hole { name: SmolStr::clone(&name), type_id, crumbs });
             Ok(allocate(state, Some(id), type_id, tree::ExpressionKind::Hole(name)))
         }

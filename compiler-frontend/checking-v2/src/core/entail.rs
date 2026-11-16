@@ -85,10 +85,10 @@ where
     Q: ExternalQueries,
 {
     if file_id == context.id {
-        return Ok(state.checked.classes.get(&type_id).map(CheckedClass::clone));
+        return Ok(state.checked.classes.get(&type_id).cloned());
     }
     let checked = context.checked_dependency(file_id)?;
-    Ok(checked.classes.get(&type_id).map(CheckedClass::clone))
+    Ok(checked.classes.get(&type_id).cloned())
 }
 
 pub fn solve_wanteds<Q>(state: &mut CheckState, context: &CheckContext<Q>) -> QueryResult<()>
@@ -408,6 +408,13 @@ struct Candidate {
     bindings: FxHashMap<Name, TypeId>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct ChainKey {
+    file_id: FileId,
+    chain: Option<InstanceChainId>,
+    index: usize,
+}
+
 fn solve_with_instances<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -419,14 +426,13 @@ fn solve_with_instances<Q>(
 where
     Q: ExternalQueries,
 {
-    let mut chains: Vec<((FileId, Option<InstanceChainId>, usize), Vec<CheckedInstance>)> =
-        Vec::new();
+    let mut chains: Vec<(ChainKey, Vec<CheckedInstance>)> = Vec::new();
     for file_id in instance_files(state, context, head) {
         let instances = class_instances(state, context, file_id, head.class)?;
         for (index, instance) in instances.into_iter().enumerate() {
             let key = match instance.chain {
-                Some((chain_id, _)) => (file_id, Some(chain_id), 0),
-                None => (file_id, None, index),
+                Some((chain_id, _)) => ChainKey { file_id, chain: Some(chain_id), index: 0 },
+                None => ChainKey { file_id, chain: None, index },
             };
             match chains.iter_mut().find(|(existing, _)| *existing == key) {
                 Some((_, chain)) => chain.push(instance),
@@ -440,7 +446,7 @@ where
     let mut improvements = Vec::new();
     let mut stuck = false;
 
-    for ((file_id, _, _), mut chain) in chains {
+    for (ChainKey { file_id, .. }, mut chain) in chains {
         chain.sort_by_key(|instance| instance.chain.map(|(_, position)| position));
         for instance in chain {
             let variables = instance
@@ -561,11 +567,11 @@ where
     }
 
     let scope = wanted.scope;
-    let crumbs = Vec::clone(&wanted.crumbs);
+    let crumbs = wanted.crumbs.clone();
     let subgoals = instantiated.constraints.iter().map(|&constraint| {
         let slot = state.checked.tree.allocate_evidence_slot();
         let work = wanted.work + 1;
-        let crumbs = Vec::clone(&crumbs);
+        let crumbs = crumbs.clone();
         state.wanted.push(Wanted { constraint, slot, scope, crumbs, work });
         slot
     });

@@ -255,8 +255,16 @@ where
                     }
                 }
             }
-            EitherOrBoth::Left(group) => t1_rest.extend(group.into_iter().map(RowField::clone)),
-            EitherOrBoth::Right(group) => t2_rest.extend(group.into_iter().map(RowField::clone)),
+            EitherOrBoth::Left(group) => {
+                for field in group {
+                    t1_rest.push(RowField::clone(field));
+                }
+            }
+            EitherOrBoth::Right(group) => {
+                for field in group {
+                    t2_rest.push(RowField::clone(field));
+                }
+            }
         }
     }
 
