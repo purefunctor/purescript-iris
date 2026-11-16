@@ -11,7 +11,7 @@ use crate::context::{CheckContext, TermItem};
 use crate::core::{kind, normalise, skolem, subsume, unify};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::{binders, equations, types};
-use crate::state::{CheckState, Hole, LocalVariable, TermVariableKey};
+use crate::state::{CheckState, GroupMember, Hole, LocalVariable, TermVariableKey};
 use crate::tree::{self, Literal, TermReference};
 use crate::types::{RowField, Type, TypeId};
 
@@ -95,6 +95,9 @@ where
     };
     let type_id = lookup_term_type(state, context, target)?;
     let (file_id, item_id) = target;
+    if file_id == context.id {
+        check_member_defined(state, context, GroupMember::Term(item_id));
+    }
     let reference = if is_constructor(context, target)? {
         TermReference::Constructor(file_id, item_id)
     } else {
@@ -123,7 +126,25 @@ where
     let Some(LocalVariable { type_id, reference }) = state.term_variables.get(&key).copied() else {
         return Ok(error_expression(state, context));
     };
+    if let TermVariableKey::Let(group) = key {
+        check_member_defined(state, context, GroupMember::Let(group));
+    }
     Ok(allocate(state, source, type_id, tree::ExpressionKind::Reference(reference)))
+}
+
+fn check_member_defined<Q>(state: &mut CheckState, context: &CheckContext<Q>, member: GroupMember)
+where
+    Q: ExternalQueries,
+{
+    if !state.undefined_members.contains(&member) {
+        return;
+    }
+    let name = match member {
+        GroupMember::Term(item_id) => context.indexed.items[item_id].name.as_ref(),
+        GroupMember::Let(group) => context.lowered.tree.get_let_binding_group(group).name.as_ref(),
+    };
+    let name = name.map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("_"));
+    state.insert_error(ErrorKind::CycleInDeclaration { name });
 }
 
 pub fn instantiate<Q>(
@@ -172,8 +193,10 @@ where
         });
         let (parameters, binders): (Vec<_>, Vec<_>) = parameters.unzip();
 
-        let body = infer_expression_core(state, context, id)?;
-        let body = instantiate(state, context, body)?;
+        let body = state.with_group_visible(|state| {
+            let body = infer_expression_core(state, context, id)?;
+            instantiate(state, context, body)
+        })?;
 
         let lambda =
             parameters.iter().zip(&binders).rev().fold(body, |body, (&parameter, &binder)| {
@@ -238,7 +261,9 @@ where
 
     match kind {
         ExpressionKind::Lambda { binders, expression } => {
-            let lambda = check_lambda(state, context, binders, *expression, expected)?;
+            let lambda = state.with_group_visible(|state| {
+                check_lambda(state, context, binders, *expression, expected)
+            })?;
             state.checked.tree.expressions[lambda].source = Some(id);
             Ok(lambda)
         }
@@ -607,7 +632,8 @@ where
                 let binder = binders::check_binder(state, context, binder, argument)?;
                 parameters.push((binder, argument));
             }
-            let body = infer_optional(state, context, *expression)?;
+            let body =
+                state.with_group_visible(|state| infer_optional(state, context, *expression))?;
             let lambda = parameters.into_iter().rev().fold(body, |body, (binder, argument)| {
                 let type_id = context.intern_function(argument, body.type_id);
                 let kind = tree::ExpressionKind::Lambda { binder, body: body.expression };

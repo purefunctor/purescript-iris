@@ -14,7 +14,7 @@ use crate::core::{entail, fold, kind};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::type_items::collect_unknowns;
 use crate::source::{equations, escape, types};
-use crate::state::{CheckState, Wanted};
+use crate::state::{CheckState, GroupMember, Wanted};
 use crate::tree::{self, Evidence, EvidenceBinderId};
 use crate::types::{ForallBinder, ForallBinderId, Level, Name, Type, TypeId, UnificationId};
 
@@ -93,20 +93,28 @@ where
         });
         let members = members.collect_vec();
 
-        let mut declarations = Vec::with_capacity(members.len());
-        for member in &members {
-            let declaration =
-                state.with_crumb(ErrorCrumb::TermDeclaration(member.item), |state| {
-                    equations::check_value(
-                        state,
-                        context,
-                        member.signature,
-                        member.pending,
-                        member.equations,
-                    )
-                })?;
-            declarations.push(declaration);
-        }
+        let undefined = if recursive {
+            members.iter().map(|member| GroupMember::Term(member.item)).collect_vec()
+        } else {
+            Vec::new()
+        };
+        let declarations = state.with_undefined_members(&undefined, |state| {
+            let mut declarations = Vec::with_capacity(members.len());
+            for member in &members {
+                let declaration =
+                    state.with_crumb(ErrorCrumb::TermDeclaration(member.item), |state| {
+                        equations::check_value(
+                            state,
+                            context,
+                            member.signature,
+                            member.pending,
+                            member.equations,
+                        )
+                    })?;
+                declarations.push(declaration);
+            }
+            QueryResult::Ok(declarations)
+        })?;
 
         entail::solve_wanteds(state, context)?;
         QueryResult::Ok((members, declarations))

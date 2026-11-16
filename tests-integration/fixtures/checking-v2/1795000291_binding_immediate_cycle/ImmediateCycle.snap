@@ -12,6 +12,8 @@ Terms
   y :: Int
 
 Errors
+  [y] 8:4 `x` CycleInDeclaration: x
+  [x] 5:4 `y` CycleInDeclaration: y
 
 Tree
   x :: Int

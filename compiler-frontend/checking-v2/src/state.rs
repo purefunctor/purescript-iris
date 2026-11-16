@@ -1,7 +1,9 @@
+use std::mem;
+
 use files::FileId;
 use indexing::{TermItemId, TypeItemId};
 use la_arena::{Arena, Idx};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::tree::{Evidence, EvidenceBinderId, EvidenceSlotId, TermReference};
@@ -27,6 +29,12 @@ pub enum TermVariableKey {
     Let(lowering::LetBindingNameGroupId),
     Pun(lowering::RecordPunId),
     Section(lowering::ExpressionId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GroupMember {
+    Term(TermItemId),
+    Let(lowering::LetBindingNameGroupId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,6 +86,7 @@ pub struct CheckState {
     pub pending_terms: FxHashMap<TermItemId, TypeId>,
     pub pending_types: FxHashMap<TypeItemId, TypeId>,
     pub pending_synonyms: FxHashMap<TypeItemId, CheckedSynonym>,
+    pub undefined_members: FxHashSet<GroupMember>,
     pub implicit_binders: Vec<ForallBinderId>,
     pub crumbs: Vec<ErrorCrumb>,
     pub given_scopes: Arena<GivenScope>,
@@ -101,6 +110,7 @@ impl CheckState {
             pending_terms: FxHashMap::default(),
             pending_types: FxHashMap::default(),
             pending_synonyms: FxHashMap::default(),
+            undefined_members: FxHashSet::default(),
             implicit_binders: Vec::new(),
             crumbs: Vec::new(),
             given_scopes: Arena::default(),
@@ -193,8 +203,28 @@ impl CheckState {
         let parent = self.given_scope;
         let scope = self.given_scopes.alloc(GivenScope { parent, givens });
         self.given_scope = Some(scope);
-        let result = action(self);
+        let result = self.with_group_visible(action);
         self.given_scope = parent;
+        result
+    }
+
+    pub fn with_undefined_members<T>(
+        &mut self,
+        members: &[GroupMember],
+        action: impl FnOnce(&mut CheckState) -> T,
+    ) -> T {
+        self.undefined_members.extend(members.iter().copied());
+        let result = action(self);
+        for member in members {
+            self.undefined_members.remove(member);
+        }
+        result
+    }
+
+    pub fn with_group_visible<T>(&mut self, action: impl FnOnce(&mut CheckState) -> T) -> T {
+        let undefined = mem::take(&mut self.undefined_members);
+        let result = action(self);
+        self.undefined_members = undefined;
         result
     }
 

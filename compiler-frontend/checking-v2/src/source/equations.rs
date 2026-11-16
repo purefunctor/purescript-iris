@@ -14,7 +14,7 @@ use crate::core::{kind, normalise, skolem, subsume, unify};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::terms::{self, Argument, Elaborated};
 use crate::source::{binders, types};
-use crate::state::{CheckState, LocalVariable, TermVariableKey};
+use crate::state::{CheckState, GroupMember, LocalVariable, TermVariableKey};
 use crate::tree::{self, TermReference};
 use crate::types::{Type, TypeId};
 
@@ -73,7 +73,12 @@ where
 {
     let arity = equations.first().map_or(0, |equation| equation.binders.len());
     let mut arguments = Vec::with_capacity(arity);
-    check_parameters(state, context, equations, arity, &mut arguments, expected)
+    if arity == 0 {
+        return check_parameters(state, context, equations, arity, &mut arguments, expected);
+    }
+    state.with_group_visible(|state| {
+        check_parameters(state, context, equations, arity, &mut arguments, expected)
+    })
 }
 
 fn check_parameters<Q>(
@@ -327,6 +332,12 @@ where
     }
 
     for component in scc {
+        let undefined = match component {
+            lowering::Scc::Base(_) => Vec::new(),
+            component => {
+                component.as_slice().iter().map(|&group| GroupMember::Let(group)).collect_vec()
+            }
+        };
         for &group in component.as_slice() {
             let Some(&(_, signature, type_id)) = signatures.iter().find(|(id, _, _)| *id == group)
             else {
@@ -336,7 +347,9 @@ where
                 continue;
             };
             let value = state.with_crumb(ErrorCrumb::LetBinding(group), |state| {
-                check_value(state, context, signature, type_id, &binding.equations)
+                state.with_undefined_members(&undefined, |state| {
+                    check_value(state, context, signature, type_id, &binding.equations)
+                })
             })?;
             let name = context.lowered.tree.get_let_binding_group(group).name.as_ref();
             let name = name.map(SmolStr::clone).unwrap_or_else(|| SmolStr::new_static("_"));
@@ -496,7 +509,10 @@ where
                 let (argument_type, _) = terms::expect_function(state, context, continuation)?;
                 let binder_kind = tree::BinderKind::Wildcard;
                 let binder = state.checked.tree.allocate_binder(None, argument_type, binder_kind);
-                let Some(body) = infer_do_statements(state, context, bind, discard, rest)? else {
+                let body = state.with_group_visible(|state| {
+                    infer_do_statements(state, context, bind, discard, rest)
+                })?;
+                let Some(body) = body else {
                     return Ok(None);
                 };
                 let continuation = lambda(state, context, binder, argument_type, body);
@@ -520,7 +536,10 @@ where
                         tree::BinderKind::Error,
                     ),
                 };
-                let Some(body) = infer_do_statements(state, context, bind, discard, rest)? else {
+                let body = state.with_group_visible(|state| {
+                    infer_do_statements(state, context, bind, discard, rest)
+                })?;
+                let Some(body) = body else {
                     return Ok(None);
                 };
                 let continuation = lambda(state, context, binder, argument_type, body);
@@ -604,16 +623,24 @@ where
     }
 
     let mut let_bindings = Vec::new();
-    for &(statement_id, _, statements) in &lets {
+    for &(statement_id, position, statements) in &lets {
         let bindings = state.with_crumb(ErrorCrumb::DoStatement(statement_id), |state| {
-            check_let_chunks(state, context, statements)
+            if position == 0 {
+                return check_let_chunks(state, context, statements);
+            }
+            state.with_group_visible(|state| check_let_chunks(state, context, statements))
         })?;
         let_bindings.extend(bindings);
     }
 
-    let body = match expression {
-        Some(expression) => terms::infer_expression(state, context, expression)?,
-        None => terms::error_expression(state, context),
+    let infer_body = |state: &mut CheckState| match expression {
+        Some(expression) => terms::infer_expression(state, context, expression),
+        None => Ok(terms::error_expression(state, context)),
+    };
+    let body = if actions.is_empty() {
+        infer_body(state)?
+    } else {
+        state.with_group_visible(infer_body)?
     };
     let body = if let_bindings.is_empty() {
         body

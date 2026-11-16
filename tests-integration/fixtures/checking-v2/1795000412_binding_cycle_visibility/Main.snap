@@ -1,0 +1,63 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Show :: Type -> Constraint
+  Bind :: (Type -> Type) -> Constraint
+  Box :: Type -> Type
+
+Roles
+  Box representational
+
+Terms
+  show :: forall (@a :: Type). Show a => a -> String
+  bind :: forall (@m :: Type -> Type). Bind m => forall (a :: Type) (b :: Type). m a -> (a -> m b) -> m b
+  Box :: forall (@a :: Type). a -> Box a
+  parameters :: Int -> Int
+  viaLambda :: Int -> Int
+  constrainedLeft :: forall (a :: Type). Show a => a -> String
+  constrainedRight :: forall (a :: Type). Show a => a -> String
+  boxed :: Box Int
+  boxedImmediate :: Box Int
+  localGroup :: Int
+  localLazy :: Int -> Int
+
+Instances
+  <instance 0> :: Bind Box
+
+Errors
+  [boxedImmediate] 33:22 `boxedImmediate` CycleInDeclaration: boxedImmediate
+  [localGroup] 39:13 `first` CycleInDeclaration: first
+  [localGroup] 38:12 `second` CycleInDeclaration: second
+
+Tree
+  parameters :: Int -> Int
+    abstract [] []
+    parameters (n :: Int) = (viaLambda n)
+  viaLambda :: Int -> Int
+    abstract [] []
+    viaLambda  = (\(n :: Int) -> (parameters n))
+  constrainedLeft :: forall (a :: Type). Show a => a -> String
+    abstract [a#8] [d1 : Show a#8]
+    constrainedLeft  = (constrainedRight @[a#8] {d1})
+  constrainedRight :: forall (a :: Type). Show a => a -> String
+    abstract [a#7] [d0 : Show a#7]
+    constrainedRight  = (constrainedLeft @[a#7] {d0})
+  boxed :: Box Int
+    abstract [] []
+    boxed  = (((bind @[Box, Int, Int] {<instance 0>@[]()}) ((Box @[Int] {}) 1)) (\(n :: Int) -> (((bind @[Box, Int, Int] {<instance 0>@[]()}) boxed) (\(_ :: Int) -> ((Box @[Int] {}) n)))))
+  boxedImmediate :: Box Int
+    abstract [] []
+    boxedImmediate  = (((bind @[Box, Int, Int] {<instance 0>@[]()}) boxedImmediate) (Box @[Int] {}))
+  localGroup :: Int
+    abstract [] []
+    localGroup  = (let { second :: Int [] []  = first; first :: Int [] []  = second } in first)
+  localLazy :: Int -> Int
+    abstract [] []
+    localLazy  = (let { go :: Int -> Int [] [] (n :: Int) = (go n) } in go)
+  instance <instance 0> []
+    bind :: forall (a :: Type) (b :: Type). Box a -> (a -> Box b) -> Box b
+      abstract [a#9, b#10] []
+      bind (Box (a :: a#9) :: Box a#9) (f :: a#9 -> Box b#10) = (f a)

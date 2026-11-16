@@ -13,6 +13,7 @@ Terms
   y :: Int -> Int -> Int
 
 Errors
+  [y] 12:6 `x` CycleInDeclaration: x
 
 Tree
   k :: forall (a :: Type) (b :: Type). a -> b -> a
