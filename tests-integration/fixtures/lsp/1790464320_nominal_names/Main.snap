@@ -38,7 +38,7 @@ defined at file:///tests-integration/fixtures/lsp/1790464320_nominal_names/Lib.p
 Nominal signature Prim.Int
 
 Int :: Type
-defined at file:///temporary-directory/Prim.purs @ 17:0..18:8
+defined at file:///temporary-directory/Prim.purs @ 20:0..21:8
 
 
 Nominal signature Broken.<+>
