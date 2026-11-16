@@ -22,13 +22,12 @@ Instances
   <instance 0> :: Convert (Wrap f) a a
 
 Errors
-  [deferred] 15:15 `convert f (same x)` NoInstanceFound: Convert f#12 a#14 b#15
   [rejected] 18:13 `convert f 1` NoInstanceFound: Convert f#17 Int Int
 
 Tree
   deferred :: forall (f :: Type) (x :: Type) (a :: Type) (b :: Type). Convert f a b => Same x a => f -> x -> b
     abstract [f#12, x#13, a#14, b#15] [d0 : Convert f#12 a#14 b#15, d1 : Same x#13 a#14]
-    deferred (f :: f#12) (x :: x#13) = (((convert @[f#12, a#14, b#15] {<unsolved>}) f) ((same @[x#13, a#14] {d1}) x))
+    deferred (f :: f#12) (x :: x#13) = (((convert @[f#12, a#14, b#15] {d0}) f) ((same @[x#13, a#14] {d1}) x))
   rejected :: forall (f :: Type). f -> Int
     abstract [f#17] []
     rejected (f :: f#17) = (((convert @[f#17, Int, Int] {<unsolved>}) f) 1)

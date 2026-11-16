@@ -557,7 +557,8 @@ where
         return apply_instance(state, context, wanted, head, candidate);
     }
 
-    if total > 0 && matches.is_empty() && !stuck {
+    let has_unknowns = context.lookup_type_flags(constraint).has_unification();
+    if total > 0 && matches.is_empty() && !stuck && !has_unknowns {
         return Ok(Outcome::Failed(ErrorKind::NoInstanceFound { constraint }));
     }
 
