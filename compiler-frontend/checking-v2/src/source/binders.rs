@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use building_types::QueryResult;
-use lowering::{BinderKind, BinderRecordItem};
+use lowering::{BinderKind, BinderRecordItem, TypeKind};
 use rustc_hash::FxHashSet;
 use smol_str::SmolStr;
 use sugar::OperatorTree;
@@ -46,9 +46,24 @@ where
         Some(BinderKind::Parenthesized { parenthesized: Some(inner) }) => {
             binder_requires_monotype(context, *inner)
         }
-        Some(BinderKind::Typed { binder, .. }) => {
-            binder.is_some_and(|inner| binder_requires_monotype(context, inner))
+        Some(BinderKind::Typed { binder, type_ }) => {
+            type_.is_some_and(|type_| is_monotype(context, type_))
+                || binder.is_some_and(|inner| binder_requires_monotype(context, inner))
         }
+        _ => true,
+    }
+}
+
+fn is_monotype<Q>(context: &CheckContext<Q>, id: lowering::TypeId) -> bool
+where
+    Q: ExternalQueries,
+{
+    match context.lowered.tree.get_type_kind(id) {
+        Some(TypeKind::Forall { .. }) => false,
+        Some(TypeKind::Parenthesized { parenthesized: Some(inner) }) => {
+            is_monotype(context, *inner)
+        }
+        Some(TypeKind::Kinded { type_: Some(inner), .. }) => is_monotype(context, *inner),
         _ => true,
     }
 }

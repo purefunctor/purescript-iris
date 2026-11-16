@@ -12,9 +12,8 @@ Terms
   t :: Int -> Int
 
 Errors
-  [t] 5:8 `g :: Int -> Int` TypesDoNotUnify: a#1 ~ Int
 
 Tree
   t :: Int -> Int
     abstract [] []
-    t (n :: Int) | (g :: Int -> Int) <- idp = (g n)
+    t (n :: Int) | (g :: Int -> Int) <- (idp @[Int] {}) = (g n)
