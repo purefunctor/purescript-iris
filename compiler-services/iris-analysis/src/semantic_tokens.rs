@@ -217,7 +217,7 @@ fn classify_name(token: &SyntaxToken) -> Option<TokenClassification> {
             SyntaxKind::ClassHead | SyntaxKind::ClassSignature => {
                 TokenClassification::declaration(CLASS)
             }
-            SyntaxKind::InstanceHead => TokenClassification::new(CLASS),
+            SyntaxKind::InstanceHead | SyntaxKind::DeriveClass => TokenClassification::new(CLASS),
             SyntaxKind::DataSignature
             | SyntaxKind::DataEquation
             | SyntaxKind::NewtypeSignature

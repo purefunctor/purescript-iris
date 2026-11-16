@@ -255,7 +255,7 @@ impl CursorSemantics {
                     Some(CursorSemantics::Term)
                 } else if cst::Type::can_cast(kind) || cst::ExpressionTypeArgument::can_cast(kind) {
                     Some(CursorSemantics::Type)
-                } else if cst::InstanceHead::can_cast(kind) {
+                } else if cst::InstanceHead::can_cast(kind) || cst::DeriveClass::can_cast(kind) {
                     Some(CursorSemantics::InstanceClass)
                 } else if cst::ImportClass::can_cast(kind) {
                     Some(CursorSemantics::ImportClass)
