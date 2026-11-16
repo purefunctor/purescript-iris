@@ -1,0 +1,18 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+
+Roles
+
+Terms
+  scoped :: forall (a :: Type). a -> a
+
+Errors
+
+Tree
+  scoped :: forall (a :: Type). a -> a
+    abstract [a#1] []
+    scoped (x :: a#1) = (let { go :: a#1 -> a#1 [] [] (y :: a#1) = y } in (go x))

@@ -41,6 +41,9 @@ where
     state.with_level(|state| {
         let skolemised = skolem::skolemise(state, context, signature);
         let type_binders = skolemised.rigids.iter().map(|&(_, rigid)| rigid).collect_vec();
+        let scoped =
+            skolemised.rigids.iter().map(|&(binder, rigid)| (binder.name, rigid)).collect();
+        skolem::scope_rigids(state, context, &scoped);
         let evidence = subsume::bind_givens(state, &skolemised.constraints);
         let givens = subsume::given_list(&evidence);
         let equations = state.with_givens(givens, |state| {

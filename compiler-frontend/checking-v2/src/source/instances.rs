@@ -203,15 +203,7 @@ where
         substitution.insert(binder.name, rigid);
     }
 
-    for variable in state.type_variables.values_mut() {
-        let Type::Variable(binder_id) = context.lookup_type(*variable) else {
-            continue;
-        };
-        let name = context.lookup_forall_binder(binder_id).name;
-        if let Some(&rigid) = substitution.get(&name) {
-            *variable = rigid;
-        }
-    }
+    skolem::scope_rigids(state, context, &substitution);
 
     let substitute = |types: &[TypeId]| {
         let types = types.iter().map(|&id| fold::substitute_variables(context, &substitution, id));

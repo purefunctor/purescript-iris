@@ -5,7 +5,7 @@ use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::{fold, kind, normalise};
 use crate::state::CheckState;
-use crate::types::{ForallBinder, Rigid, Type, TypeId};
+use crate::types::{ForallBinder, Name, Rigid, Type, TypeId};
 
 pub fn fresh_rigid<Q>(
     state: &mut CheckState,
@@ -31,6 +31,27 @@ where
     Q: ExternalQueries,
 {
     fold::substitute_variable(context, binder.name, replacement, inner)
+}
+
+pub fn scope_rigids<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    substitution: &FxHashMap<Name, TypeId>,
+) where
+    Q: ExternalQueries,
+{
+    if substitution.is_empty() {
+        return;
+    }
+    for variable in state.type_variables.values_mut() {
+        let Type::Variable(binder_id) = context.lookup_type(*variable) else {
+            continue;
+        };
+        let name = context.lookup_forall_binder(binder_id).name;
+        if let Some(&rigid) = substitution.get(&name) {
+            *variable = rigid;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
