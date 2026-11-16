@@ -161,6 +161,7 @@ struct DerivedStorage {
     sectioned: Shards<FileId, DerivedState<Arc<sugar::Sectioned>>>,
     checked_core: Shards<(), DerivedState<Arc<checking::context::CheckedCore>>>,
     checked: Shards<FileId, DerivedState<Arc<CheckedModule>>>,
+    checked_v2: Shards<FileId, DerivedState<Arc<checking_v2::CheckedModule>>>,
     documented: Shards<FileId, DerivedState<Arc<DocumentedModule>>>,
     functional:
         Shards<FileId, DerivedState<functional::ModuleResult<Arc<functional::tree::Module>>>>,
@@ -188,6 +189,7 @@ impl Drop for DerivedStorage {
                 sectioned,
                 checked_core,
                 checked,
+                checked_v2,
                 documented,
                 functional,
                 javascript,
@@ -207,6 +209,7 @@ impl Drop for DerivedStorage {
             sectioned.drop_in(scope);
             checked_core.drop_in(scope);
             checked.drop_in(scope);
+            checked_v2.drop_in(scope);
             documented.drop_in(scope);
             functional.drop_in(scope);
             javascript.drop_in(scope);
@@ -219,6 +222,7 @@ impl Drop for DerivedStorage {
 struct InternedStorage {
     module: ModuleNameInterner,
     checking: checking::CoreInterners,
+    checking_v2: checking_v2::Interners,
 }
 
 fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
@@ -237,6 +241,7 @@ fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
         | QueryKey::Bracketed(id)
         | QueryKey::Sectioned(id)
         | QueryKey::Checked(id)
+        | QueryKey::CheckedV2(id)
         | QueryKey::Documented(id)
         | QueryKey::Functional(id)
         | QueryKey::JavaScript(id)
@@ -734,6 +739,7 @@ impl QueryEngine {
                     derived_changed!(checked_core, &(), self.checked_core())
                 }
                 QueryKey::Checked(k) => derived_changed!(checked, k),
+                QueryKey::CheckedV2(k) => derived_changed!(checked_v2, k),
                 QueryKey::Documented(k) => derived_changed!(documented, k),
                 QueryKey::Functional(k) => derived_changed!(functional, k),
                 QueryKey::JavaScript(k) => derived_changed!(javascript, k),
@@ -1086,6 +1092,7 @@ impl QueryEngine {
             bracketed,
             sectioned,
             checked,
+            checked_v2,
             documented,
             functional,
             javascript,
@@ -1401,6 +1408,22 @@ impl QueryEngine {
         )
     }
 
+    pub fn checked_v2(&self, id: FileId) -> QueryResult<Arc<checking_v2::CheckedModule>> {
+        self.query(
+            QueryKey::CheckedV2(id),
+            id,
+            |derived| &derived.checked_v2,
+            |this| {
+                let checked = checking_v2::check_module(this, id)?;
+                Ok(Arc::new(checked))
+            },
+        )
+    }
+
+    pub fn checking_v2_interners(&self) -> &checking_v2::Interners {
+        &self.interned.checking_v2
+    }
+
     pub fn functional(
         &self,
         id: FileId,
@@ -1617,6 +1640,16 @@ impl checking::PrettyQueries for QueryEngine {
         id: checking::core::StringLiteralId,
     ) -> &lowering::StringLiteral {
         self.interned.checking.lookup_string_literal(id)
+    }
+}
+
+impl checking_v2::ExternalQueries for QueryEngine {
+    fn checked_v2(&self, id: FileId) -> QueryResult<Arc<checking_v2::CheckedModule>> {
+        QueryEngine::checked_v2(self, id)
+    }
+
+    fn interners(&self) -> &checking_v2::Interners {
+        &self.interned.checking_v2
     }
 }
 
@@ -2274,10 +2307,9 @@ mod tests {
             let DerivedState::Computed { dependencies, .. } = shard.get(&main).unwrap() else {
                 unreachable!("invariant violated: expected computed query");
             };
-            assert_eq!(
-                dependencies.as_ref(),
-                &[QueryKey::Functional(main), QueryKey::Foreign(main)]
-            );
+            let mut dependencies = dependencies.to_vec();
+            dependencies.sort();
+            assert_eq!(dependencies, [QueryKey::Foreign(main), QueryKey::Functional(main)]);
         }
 
         let unrelated = files.insert("Unrelated.purs", "module Unrelated where\n\nvalue = 1");

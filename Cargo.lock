@@ -225,6 +225,7 @@ version = "0.1.0"
 dependencies = [
  "building-types",
  "checking",
+ "checking-v2",
  "documenting",
  "files",
  "foreign-javascript",
