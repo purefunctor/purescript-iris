@@ -25,7 +25,7 @@ Instances
   <instance 1> :: Unpad n (Box (Box a)) b, Add n 1 n1 => Unpad n1 (Box a) b (chain position 1)
 
 Errors
-  [undetermined] 29:17 `unpad Proxy x` NoInstanceFound: Unpad ?27 (Box Int) Int
+  [undetermined] 27:17 `unpad Proxy x` NoInstanceFound: Unpad ?27 (Box Int) Int
 
 Tree
   test :: Box (Box (Box Int)) -> Box Int

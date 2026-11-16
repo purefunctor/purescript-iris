@@ -13,8 +13,6 @@ class Unpad :: Int -> Type -> Type -> Constraint
 class Unpad n a b | n b -> a where
   unpad :: Proxy n -> b -> a
 
--- With n unknown, the first instance is neither a match nor apart: the
--- positions that match do not determine n, so the chain waits for Add.
 instance Unpad (-1) a a where
   unpad _ x = x
 else instance (Unpad n (Box (Box a)) b, Add n 1 n1) => Unpad n1 (Box a) b where
