@@ -362,14 +362,16 @@ where
             state.insert_error(ErrorKind::CannotDerive { class });
             return Ok(Vec::new());
         };
-        let mut split = Vec::with_capacity(fields.len());
+        let lifted = if context.known.eq == Some(head.class) {
+            context.known.eq1
+        } else {
+            context.known.ord1
+        };
+        let mut obligations = Vec::with_capacity(fields.len());
         for field in fields {
-            split_record_fields(state, context, field, &mut split);
+            field_obligations(state, context, (head.class, lifted), field, &mut obligations);
         }
-        let obligations = split
-            .iter()
-            .map(|&field| constraint_type(context, head.class, &head.kind_arguments, &[field]));
-        obligations.collect_vec()
+        obligations
     } else {
         state.insert_error(ErrorKind::UnsupportedFeature { feature: "deriving this class" });
         Vec::new()
@@ -396,27 +398,64 @@ where
     context.intern_application_list(constructor, arguments)
 }
 
-fn split_record_fields<Q>(
+fn field_obligations<Q>(
     state: &CheckState,
     context: &CheckContext<Q>,
+    (class, lifted): (Item, Option<Item>),
     field: TypeId,
-    split: &mut Vec<TypeId>,
+    obligations: &mut Vec<TypeId>,
 ) where
     Q: ExternalQueries,
 {
     let normalised = normalise::normalise(state, context, field);
-    if let Type::Application(function, row) = context.lookup_type(normalised)
-        && normalise::normalise(state, context, function) == context.types.record
-    {
-        let row = normalise::row_parts(state, context, row);
+    let Type::Application(function, argument) = context.lookup_type(normalised) else {
+        obligations.push(constraint_type(context, class, &[], &[field]));
+        return;
+    };
+    let function = normalise::normalise(state, context, function);
+
+    if function == context.types.record {
+        let row = normalise::row_parts(state, context, argument);
         if row.tail.is_none() {
             for row_field in row.fields.iter() {
-                split_record_fields(state, context, row_field.id, split);
+                field_obligations(state, context, (class, lifted), row_field.id, obligations);
             }
             return;
         }
     }
-    split.push(field);
+
+    if let Some(lifted) = lifted
+        && is_type_constructor_variable(state, context, function)
+    {
+        obligations.push(constraint_type(context, lifted, &[], &[function]));
+        obligations.push(constraint_type(context, class, &[], &[argument]));
+        return;
+    }
+
+    obligations.push(constraint_type(context, class, &[], &[field]));
+}
+
+fn is_type_constructor_variable<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    function: TypeId,
+) -> bool
+where
+    Q: ExternalQueries,
+{
+    let kind = match context.lookup_type(function) {
+        Type::Rigid(rigid_id) => context.lookup_rigid(rigid_id).kind,
+        Type::Unification(unification_id) => state.unification(unification_id).kind,
+        _ => return false,
+    };
+    let parts = normalise::function_parts(state, context, kind);
+    let parts = parts.map(|(argument, result)| {
+        (
+            normalise::normalise(state, context, argument),
+            normalise::normalise(state, context, result),
+        )
+    });
+    parts == Some((context.types.type_, context.types.type_))
 }
 
 fn type_item_name<Q>(context: &CheckContext<Q>, (file_id, type_id): Item) -> QueryResult<SmolStr>

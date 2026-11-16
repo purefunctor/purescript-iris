@@ -83,7 +83,9 @@ pub struct KnownItems {
     pub is_symbol: Option<Item>,
     pub reflectable: Option<Item>,
     pub eq: Option<Item>,
+    pub eq1: Option<Item>,
     pub ord: Option<Item>,
+    pub ord1: Option<Item>,
     pub functor: Option<Item>,
     pub newtype: Option<Item>,
 }
@@ -202,7 +204,9 @@ impl KnownItems {
             is_symbol: data_symbol.class_item("IsSymbol"),
             reflectable: data_reflectable.class_item("Reflectable"),
             eq: data_eq.class_item("Eq"),
+            eq1: data_eq.class_item("Eq1"),
             ord: data_ord.class_item("Ord"),
+            ord1: data_ord.class_item("Ord1"),
             functor: data_functor.class_item("Functor"),
             newtype: data_newtype.class_item("Newtype"),
         })
