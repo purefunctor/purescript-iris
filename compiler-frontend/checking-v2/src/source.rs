@@ -1,4 +1,5 @@
 pub mod binders;
+pub mod derive;
 pub mod equations;
 pub mod escape;
 pub mod instances;
