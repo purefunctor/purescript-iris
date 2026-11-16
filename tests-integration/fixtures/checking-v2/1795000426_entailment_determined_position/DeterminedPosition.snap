@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DeterminedPosition
+
+Types
+  Tuple :: Type -> Type -> Type
+  State :: Type -> Type -> Type
+  Get :: forall (k :: Type). k -> (k -> Type) -> Constraint
+
+Roles
+  Tuple representational representational
+  State representational representational
+
+Terms
+  Tuple :: forall (@a :: Type) (@b :: Type). a -> b -> Tuple a b
+  State :: forall (@s :: Type) (@a :: Type). s -> a -> State s a
+  get :: forall (k :: Type) (@s :: k) (@m :: k -> Type). Get @k s m => m s
+  first :: forall (m :: Type -> Type) (a :: Type). Get @Type (Tuple Int a) m => m Int -> Int
+  improved :: forall (s :: Type). State (Tuple Int s) Int -> Int
+  mismatched :: State Int Int -> Int
+
+Instances
+  <instance 0> :: Get s (State s)
+
+Errors
+  [improved] 17:11 `first` NoInstanceFound: Get @Type (Tuple Int ?18) (State (Tuple Int s#13))
+  [mismatched] 20:13 `first` NoInstanceFound: Get @Type (Tuple Int ?20) (State Int)
+
+Tree
+  first :: forall (m :: Type -> Type) (a :: Type). Get @Type (Tuple Int a) m => m Int -> Int
+    abstract [m#10, a#11] [d0 : Get @Type (Tuple Int a#11) m#10]
+    first (_ :: m#10 Int) = 0
+  improved :: forall (s :: Type). State (Tuple Int s) Int -> Int
+    abstract [s#13] []
+    improved  = (first @[State (Tuple Int s#13), ?18] {<unsolved>})
+  mismatched :: State Int Int -> Int
+    abstract [] []
+    mismatched  = (first @[State Int, ?20] {<unsolved>})
+  instance <instance 0> []
+    get :: State s#14 s#14
+      abstract [] []
+      get  = (get @[Type, s#14, State s#14] {<instance 0>@[s#14]()})
