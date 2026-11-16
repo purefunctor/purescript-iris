@@ -20,3 +20,4 @@ Errors
 
 Tree
   instance eqT []
+    obligation Eq a#2 = <unsolved>

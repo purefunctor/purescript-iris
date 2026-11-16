@@ -1,0 +1,53 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Pair :: Type -> Type
+  Opaque :: Type -> Type
+  Tree :: Type -> Type
+  Reader :: Type -> Type
+
+Roles
+  Pair representational
+  Opaque representational
+  Tree representational
+  Reader representational
+
+Terms
+  Pair :: forall (@a :: Type). a -> a -> Pair a
+  Opaque :: forall (@a :: Type). (a -> Int) -> Opaque a
+  Leaf :: forall (@a :: Type). Tree a
+  Node :: forall (@a :: Type). Array (Tree a) -> a -> { label :: a } -> Tree a
+  Reader :: forall (@a :: Type). (Int -> a) -> Reader a
+
+Instances
+  eqPair :: Eq a => Eq (Pair a)
+  eq1Pair :: Eq1 Pair
+  eq1Opaque :: Eq1 Opaque
+  foldableTree :: Foldable Tree
+  traversableTree :: Traversable Tree
+  foldableReader :: Foldable Reader
+
+Errors
+  [eq1Opaque] NoInstanceFound: Eq (Opaque a#9)
+  [traversableTree] NoInstanceFound: Traversable Array
+  [foldableReader] CannotDerive: Foldable
+
+Tree
+  instance eqPair [d0 : Eq a#5]
+    obligation Eq a#5 = d0
+    obligation Eq a#5 = d0
+  instance eq1Pair []
+    obligation forall (a :: Type). Eq a => Eq (Pair a) = Λ[a#7] [d1 : Eq a#7]. eqPair@[a#7](d1)
+  instance eq1Opaque []
+    obligation forall (a :: Type). Eq a => Eq (Opaque a) = Λ[a#9] [d2 : Eq a#9]. <unsolved>
+  instance foldableTree []
+    obligation Foldable Array = foldableArray@[]()
+    obligation Foldable Tree = foldableTree@[]()
+  instance traversableTree []
+    superclass 0 = foldableTree@[]()
+    obligation Traversable Array = <unsolved>
+    obligation Traversable Tree = traversableTree@[]()
+  instance foldableReader []

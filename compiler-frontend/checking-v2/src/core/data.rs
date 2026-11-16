@@ -38,6 +38,21 @@ pub fn data_fields<Q>(
 where
     Q: ExternalQueries,
 {
+    let Some((head, data, constructors)) = constructor_fields(state, context, type_id)? else {
+        return Ok(None);
+    };
+    let fields = constructors.into_iter().flat_map(|(_, fields)| fields).collect_vec();
+    Ok(Some((head, data, fields)))
+}
+
+pub fn constructor_fields<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    type_id: TypeId,
+) -> QueryResult<Option<(ConstraintHead, CheckedData, Vec<(TermItemId, Vec<TypeId>)>)>>
+where
+    Q: ExternalQueries,
+{
     let Some(head) = entail::constraint_head(state, context, type_id) else {
         return Ok(None);
     };
@@ -52,10 +67,13 @@ where
         .map(|(&binder_id, &argument)| (context.lookup_forall_binder(binder_id).name, argument));
     let substitution = substitution.collect::<FxHashMap<_, _>>();
 
-    let fields = data.constructors.iter().flat_map(|constructor| constructor.fields.iter());
-    let fields = fields.map(|&field| fold::substitute_variables(context, &substitution, field));
-    let fields = fields.collect_vec();
-    Ok(Some((head, data, fields)))
+    let constructors = data.constructors.iter().map(|constructor| {
+        let fields = constructor.fields.iter();
+        let fields = fields.map(|&field| fold::substitute_variables(context, &substitution, field));
+        (constructor.item, fields.collect_vec())
+    });
+    let constructors = constructors.collect_vec();
+    Ok(Some((head, data, constructors)))
 }
 
 pub fn newtype_field<Q>(
@@ -123,7 +141,7 @@ where
     Ok(Some(current))
 }
 
-fn mentions_variable<Q>(context: &CheckContext<Q>, id: TypeId, name: Name) -> bool
+pub fn mentions_variable<Q>(context: &CheckContext<Q>, id: TypeId, name: Name) -> bool
 where
     Q: ExternalQueries,
 {

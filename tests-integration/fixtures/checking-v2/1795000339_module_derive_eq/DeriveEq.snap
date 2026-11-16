@@ -28,3 +28,7 @@ Tree
     abstract [] []
     differ  = (((eq @[T Int] {eqT@[Int](eqInt@[]())}) (((B @[Int] {}) 1) { x: 1, y: 2 })) (((B @[Int] {}) 1) { x: 1, y: 3 }))
   instance eqT [d0 : Eq a#2]
+    obligation Eq a#2 = d0
+    obligation Eq Int = eqInt@[]()
+    obligation Eq a#2 = d0
+    obligation Eq Int = eqInt@[]()

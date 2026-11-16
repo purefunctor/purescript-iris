@@ -7,7 +7,8 @@ use crate::core::fold;
 use crate::state::CheckState;
 use crate::tree::{
     Abstraction, CaseBranch, CheckedTree, Equation, Evidence, EvidenceBinderId, ExpressionKind,
-    Guard, Guarded, GuardedExpression, LocalBinding, LocalValue, Parameter, ValueDeclaration,
+    Guard, Guarded, GuardedExpression, LocalBinding, LocalValue, Obligation, Parameter,
+    ValueDeclaration,
 };
 use crate::types::{ForallBinderId, TypeId};
 use crate::{CheckedConstructor, CheckedModule, ExternalQueries};
@@ -59,10 +60,14 @@ where
             crate::tree::InstanceMember { item: member.item, value }
         });
         instance.members = members.collect::<Arc<[_]>>();
-        let obligations = instance
-            .obligations
-            .iter()
-            .map(|&(constraint, slot)| (fold::zonk(state, context, constraint), slot));
+        let obligations = instance.obligations.iter().map(|obligation| Obligation {
+            constraint: fold::zonk(state, context, obligation.constraint),
+            abstraction: obligation
+                .abstraction
+                .as_ref()
+                .map(|abstraction| zonk_abstraction(state, context, abstraction)),
+            evidence: obligation.evidence,
+        });
         instance.obligations = obligations.collect::<Arc<[_]>>();
     }
 }
@@ -179,11 +184,8 @@ where
 
     let parameters = value.parameters.iter().map(|parameter| match parameter {
         Parameter::Argument(type_id) => Parameter::Argument(fold::zonk(state, context, *type_id)),
-        Parameter::Abstract(Abstraction { type_binders, evidence }) => {
-            Parameter::Abstract(Abstraction {
-                type_binders: zonk_types(state, context, type_binders),
-                evidence: zonk_evidence_binders(state, context, evidence),
-            })
+        Parameter::Abstract(abstraction) => {
+            Parameter::Abstract(zonk_abstraction(state, context, abstraction))
         }
     });
 
@@ -193,6 +195,20 @@ where
         evidence: zonk_evidence_binders(state, context, &value.evidence),
         parameters: parameters.collect(),
         equations: equations.collect(),
+    }
+}
+
+fn zonk_abstraction<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    abstraction: &Abstraction,
+) -> Abstraction
+where
+    Q: ExternalQueries,
+{
+    Abstraction {
+        type_binders: zonk_types(state, context, &abstraction.type_binders),
+        evidence: zonk_evidence_binders(state, context, &abstraction.evidence),
     }
 }
 

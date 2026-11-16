@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Data.Foldable
+
+Types
+  Foldable :: (Type -> Type) -> Constraint
+
+Roles
+
+Terms
+  foldr :: forall (@f :: Type -> Type). Foldable f => forall (a :: Type) (b :: Type). (a -> b -> b) -> b -> f a -> b
+  foldrArray :: forall (a :: Type) (b :: Type). (a -> b -> b) -> b -> Array a -> b
+
+Instances
+  foldableArray :: Foldable Array
+
+Errors
+
+Tree
+  instance foldableArray []
+    foldr :: forall (a :: Type) (b :: Type). (a -> b -> b) -> b -> Array a -> b
+      abstract [a#5, b#6] []
+      foldr  = (foldrArray @[a#5, b#6] {})

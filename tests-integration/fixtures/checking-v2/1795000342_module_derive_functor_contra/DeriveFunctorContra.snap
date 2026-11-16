@@ -16,7 +16,7 @@ Instances
   functorF :: Functor F
 
 Errors
-  [functorF] UnsupportedFeature: deriving this class
+  [functorF] CannotDerive: Functor
 
 Tree
   instance functorF []

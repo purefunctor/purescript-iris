@@ -150,6 +150,20 @@ pub fn report(engine: &QueryEngine, id: FileId, name: &str) -> String {
             let evidence = report.evidence(checked.tree.evidence(slot));
             writeln!(out, "    superclass {index} = {evidence}").unwrap();
         }
+        for obligation in declaration.obligations.iter() {
+            let constraint = report.printer.render(obligation.constraint);
+            let abstraction = obligation
+                .abstraction
+                .as_ref()
+                .map(|abstraction| format!("{}. ", report.abstraction(abstraction)));
+            let evidence = report.evidence(checked.tree.evidence(obligation.evidence));
+            writeln!(
+                out,
+                "    obligation {constraint} = {}{evidence}",
+                abstraction.unwrap_or_default()
+            )
+            .unwrap();
+        }
         for member in declaration.members.iter() {
             let (file_id, item) = member.item;
             let name = term_name(engine, file_id, item);
@@ -239,14 +253,16 @@ impl Report<'_> {
     fn parameter(&self, parameter: &Parameter) -> String {
         match parameter {
             Parameter::Argument(type_id) => self.printer.render(*type_id),
-            Parameter::Abstract(Abstraction { type_binders, evidence }) => {
-                let type_binders = type_binders.iter().map(|&binder| self.printer.render(binder));
-                let evidence = evidence.iter().map(|&(constraint, binder)| {
-                    format!("{} : {}", evidence_binder(binder), self.printer.render(constraint))
-                });
-                format!("Λ[{}] [{}]", type_binders.format(", "), evidence.format(", "))
-            }
+            Parameter::Abstract(abstraction) => self.abstraction(abstraction),
         }
+    }
+
+    fn abstraction(&self, Abstraction { type_binders, evidence }: &Abstraction) -> String {
+        let type_binders = type_binders.iter().map(|&binder| self.printer.render(binder));
+        let evidence = evidence.iter().map(|&(constraint, binder)| {
+            format!("{} : {}", evidence_binder(binder), self.printer.render(constraint))
+        });
+        format!("Λ[{}] [{}]", type_binders.format(", "), evidence.format(", "))
     }
 
     fn tree(&self) -> &CheckedTree {

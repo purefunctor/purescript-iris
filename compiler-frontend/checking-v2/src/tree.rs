@@ -222,7 +222,14 @@ pub struct InstanceDeclaration {
     pub evidence: Arc<[(TypeId, EvidenceBinderId)]>,
     pub superclasses: Arc<[EvidenceSlotId]>,
     pub members: Arc<[InstanceMember]>,
-    pub obligations: Arc<[(TypeId, EvidenceSlotId)]>,
+    pub obligations: Arc<[Obligation]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Obligation {
+    pub constraint: TypeId,
+    pub abstraction: Option<Abstraction>,
+    pub evidence: EvidenceSlotId,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

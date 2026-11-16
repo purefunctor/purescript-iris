@@ -95,9 +95,12 @@ where
         });
         let constraints = constraints.collect::<QueryResult<Vec<_>>>()?;
 
-        if matches!(head.origin, InstanceOrigin::Derive(_)) && context.known.newtype == Some(class)
-        {
-            improve_derived_newtype(state, context, constraint)?;
+        if matches!(head.origin, InstanceOrigin::Derive(_)) {
+            if context.known.newtype == Some(class) {
+                improve_derived_newtype(state, context, constraint)?;
+            } else if context.known.generic == Some(class) {
+                derive::improve_derived_generic(state, context, constraint)?;
+            }
         }
 
         QueryResult::Ok((constraint, constraints))

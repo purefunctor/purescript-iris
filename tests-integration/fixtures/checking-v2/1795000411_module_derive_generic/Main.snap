@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  Shape :: Type -> Type
+  Void :: Type
+
+Roles
+  Shape representational
+
+Terms
+  Circle :: forall (@a :: Type). a -> Shape a
+  Rectangle :: forall (@a :: Type). a -> a -> Int -> Shape a
+  Empty :: forall (@a :: Type). Shape a
+  represented :: Sum (Constructor "Circle" (Argument Int)) (Sum (Constructor "Rectangle" (Product (Argument Int) (Product (Argument Int) (Argument Int)))) (Constructor "Empty" NoArguments))
+
+Instances
+  genericShape :: Generic (Shape a) (Sum (Constructor "Circle" (Argument a)) (Sum (Constructor "Rectangle" (Product (Argument a) (Product (Argument a) (Argument Int)))) (Constructor "Empty" NoArguments)))
+  genericVoid :: Generic Void NoConstructors
+
+Errors
+
+Tree
+  represented :: Sum (Constructor "Circle" (Argument Int)) (Sum (Constructor "Rectangle" (Product (Argument Int) (Product (Argument Int) (Argument Int)))) (Constructor "Empty" NoArguments))
+    abstract [] []
+    represented  = ((from @[Shape Int, Sum (Constructor "Circle" (Argument Int)) (Sum (Constructor "Rectangle" (Product (Argument Int) (Product (Argument Int) (Argument Int)))) (Constructor "Empty" NoArguments))] {genericShape@[Int]()}) ((((Rectangle @[Int] {}) 1) 2) 3))
+  instance genericShape []
+  instance genericVoid []

@@ -1,0 +1,33 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Data.Generic.Rep
+
+Types
+  NoConstructors :: Type
+  NoArguments :: Type
+  Sum :: Type -> Type -> Type
+  Product :: Type -> Type -> Type
+  Constructor :: Symbol -> Type -> Type
+  Argument :: Type -> Type
+  Generic :: Type -> Type -> Constraint
+
+Roles
+  Sum representational representational
+  Product representational representational
+  Constructor phantom representational
+  Argument representational
+
+Terms
+  NoArguments :: NoArguments
+  Inl :: forall (@a :: Type) (@b :: Type). a -> Sum a b
+  Inr :: forall (@a :: Type) (@b :: Type). b -> Sum a b
+  Product :: forall (@a :: Type) (@b :: Type). a -> b -> Product a b
+  Constructor :: forall (@name :: Symbol) (@a :: Type). a -> Constructor name a
+  Argument :: forall (@a :: Type). a -> Argument a
+  to :: forall (@a :: Type) (@rep :: Type). Generic a rep => rep -> a
+  from :: forall (@a :: Type) (@rep :: Type). Generic a rep => a -> rep
+
+Errors
+
+Tree

@@ -18,10 +18,10 @@ Instances
   functorT :: Functor T
 
 Errors
-  [functorT] UnsupportedFeature: deriving this class
 
 Tree
   out :: T Int
     abstract [] []
     out  = (((map @[T, Int, Int] {functorT@[]()}) plusOne) ((((T @[Int] {}) 1) [2, 3]) { r: 4, n: 10 }))
   instance functorT []
+    obligation Functor Array = functorArray@[]()

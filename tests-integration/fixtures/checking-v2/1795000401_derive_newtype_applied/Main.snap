@@ -34,6 +34,9 @@ Errors
 
 Tree
   instance eqIdentityT [d0 : Eq (m#18 a#19)]
+    obligation Eq (m#18 a#19) = d0
   instance functorIdentityT [d1 : Functor m#20]
+    obligation Functor m#20 = d1
   instance functorFunction []
+    obligation Functor (Function a#21) = <unsolved>
   instance functorSwapped []

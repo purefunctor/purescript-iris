@@ -22,3 +22,4 @@ Tree
     abstract [] []
     t  = (((eq @[W] {eqW@[]()}) (W 1)) (W 1))
   instance eqW []
+    obligation Eq Int = eqInt@[]()

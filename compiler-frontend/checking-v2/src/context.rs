@@ -87,7 +87,16 @@ pub struct KnownItems {
     pub ord: Option<Item>,
     pub ord1: Option<Item>,
     pub functor: Option<Item>,
+    pub foldable: Option<Item>,
+    pub traversable: Option<Item>,
     pub newtype: Option<Item>,
+    pub generic: Option<Item>,
+    pub generic_sum: Option<Item>,
+    pub generic_product: Option<Item>,
+    pub generic_constructor: Option<Item>,
+    pub generic_argument: Option<Item>,
+    pub generic_no_arguments: Option<Item>,
+    pub generic_no_constructors: Option<Item>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -149,6 +158,9 @@ impl KnownItems {
         let data_ord = ModuleLookup::new(queries, "Data.Ord")?;
         let data_functor = ModuleLookup::new(queries, "Data.Functor")?;
         let data_newtype = ModuleLookup::new(queries, "Data.Newtype")?;
+        let data_foldable = ModuleLookup::new(queries, "Data.Foldable")?;
+        let data_traversable = ModuleLookup::new(queries, "Data.Traversable")?;
+        let data_generic_rep = ModuleLookup::new(queries, "Data.Generic.Rep")?;
 
         let required = |name: &str| {
             let item = prim.type_item(name);
@@ -208,7 +220,16 @@ impl KnownItems {
             ord: data_ord.class_item("Ord"),
             ord1: data_ord.class_item("Ord1"),
             functor: data_functor.class_item("Functor"),
+            foldable: data_foldable.class_item("Foldable"),
+            traversable: data_traversable.class_item("Traversable"),
             newtype: data_newtype.class_item("Newtype"),
+            generic: data_generic_rep.class_item("Generic"),
+            generic_sum: data_generic_rep.type_item("Sum"),
+            generic_product: data_generic_rep.type_item("Product"),
+            generic_constructor: data_generic_rep.type_item("Constructor"),
+            generic_argument: data_generic_rep.type_item("Argument"),
+            generic_no_arguments: data_generic_rep.type_item("NoArguments"),
+            generic_no_constructors: data_generic_rep.type_item("NoConstructors"),
         })
     }
 }
