@@ -1,0 +1,160 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..202
+      ModuleHeader@0..38
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..32
+          UPPER@7..32 "DataEquationDeriveCla ..."
+        Annotation@32..33
+          TEXT@32..33 " "
+        WHERE@33..38 "where"
+      LAYOUT_START@38..38 ""
+      ModuleStatements@38..201
+        DataEquation@38..110
+          Annotation@38..40
+            TEXT@38..40 "\n\n"
+          DATA@40..44 "data"
+          Annotation@44..45
+            TEXT@44..45 " "
+          UPPER@45..51 "Colour"
+          Annotation@51..52
+            TEXT@51..52 " "
+          EQUAL@52..53 "="
+          DataConstructor@53..57
+            Annotation@53..54
+              TEXT@53..54 " "
+            UPPER@54..57 "Red"
+          Annotation@57..58
+            TEXT@57..58 " "
+          PIPE@58..59 "|"
+          DataConstructor@59..65
+            Annotation@59..60
+              TEXT@59..60 " "
+            UPPER@60..65 "Green"
+          Annotation@65..66
+            TEXT@65..66 " "
+          PIPE@66..67 "|"
+          DataConstructor@67..72
+            Annotation@67..68
+              TEXT@67..68 " "
+            UPPER@68..72 "Blue"
+          DeriveClause@72..91
+            Annotation@72..75
+              TEXT@72..75 "\n  "
+            DERIVE@75..81 "derive"
+            Annotation@81..82
+              TEXT@81..82 " "
+            LEFT_PARENTHESIS@82..83 "("
+            DeriveClass@83..85
+              QualifiedName@83..85
+                UPPER@83..85 "Eq"
+            COMMA@85..86 ","
+            DeriveClass@86..90
+              Annotation@86..87
+                TEXT@86..87 " "
+              QualifiedName@87..90
+                UPPER@87..90 "Ord"
+            RIGHT_PARENTHESIS@90..91 ")"
+          DeriveClause@91..110
+            Annotation@91..94
+              TEXT@91..94 "\n  "
+            DERIVE@94..100 "derive"
+            Annotation@100..101
+              TEXT@100..101 " "
+            LEFT_PARENTHESIS@101..102 "("
+            DeriveClass@102..109
+              QualifiedName@102..109
+                UPPER@102..109 "Generic"
+            RIGHT_PARENTHESIS@109..110 ")"
+        LAYOUT_SEPARATOR@110..110 ""
+        DataEquation@110..176
+          Annotation@110..112
+            TEXT@110..112 "\n\n"
+          DATA@112..116 "data"
+          Annotation@116..117
+            TEXT@116..117 " "
+          UPPER@117..121 "List"
+          TypeVariableBinding@121..123
+            Annotation@121..122
+              TEXT@121..122 " "
+            LOWER@122..123 "a"
+          Annotation@123..124
+            TEXT@123..124 " "
+          EQUAL@124..125 "="
+          DataConstructor@125..129
+            Annotation@125..126
+              TEXT@125..126 " "
+            UPPER@126..129 "Nil"
+          Annotation@129..130
+            TEXT@129..130 " "
+          PIPE@130..131 "|"
+          DataConstructor@131..147
+            Annotation@131..132
+              TEXT@131..132 " "
+            UPPER@132..136 "Cons"
+            TypeVariable@136..138
+              Annotation@136..137
+                TEXT@136..137 " "
+              LOWER@137..138 "a"
+            TypeParenthesized@138..147
+              Annotation@138..139
+                TEXT@138..139 " "
+              LEFT_PARENTHESIS@139..140 "("
+              TypeApplicationChain@140..146
+                TypeConstructor@140..144
+                  QualifiedName@140..144
+                    UPPER@140..144 "List"
+                TypeVariable@144..146
+                  Annotation@144..145
+                    TEXT@144..145 " "
+                  LOWER@145..146 "a"
+              RIGHT_PARENTHESIS@146..147 ")"
+          DeriveClause@147..176
+            Annotation@147..148
+              TEXT@147..148 " "
+            DERIVE@148..154 "derive"
+            Annotation@154..155
+              TEXT@154..155 " "
+            LEFT_PARENTHESIS@155..156 "("
+            DeriveClass@156..163
+              QualifiedName@156..163
+                UPPER@156..163 "Functor"
+            COMMA@163..164 ","
+            DeriveClass@164..175
+              Annotation@164..165
+                TEXT@164..165 " "
+              QualifiedName@165..175
+                Qualifier@165..167
+                  TEXT@165..167 "F."
+                UPPER@167..175 "Foldable"
+            RIGHT_PARENTHESIS@175..176 ")"
+        LAYOUT_SEPARATOR@176..176 ""
+        DataEquation@176..201
+          Annotation@176..178
+            TEXT@176..178 "\n\n"
+          DATA@178..182 "data"
+          Annotation@182..183
+            TEXT@182..183 " "
+          UPPER@183..187 "Void"
+          DeriveClause@187..201
+            Annotation@187..190
+              TEXT@187..190 "\n  "
+            DERIVE@190..196 "derive"
+            Annotation@196..197
+              TEXT@196..197 " "
+            LEFT_PARENTHESIS@197..198 "("
+            DeriveClass@198..200
+              QualifiedName@198..200
+                UPPER@198..200 "Eq"
+            RIGHT_PARENTHESIS@200..201 ")"
+      LAYOUT_END@201..201 ""
+      Annotation@201..202
+        TEXT@201..202 "\n"
+      END_OF_FILE@202..202 ""
+    ,
+    [],
+)
