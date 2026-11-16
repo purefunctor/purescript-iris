@@ -1,0 +1,28 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module RowRigidTail
+
+Types
+
+Roles
+
+Terms
+  extra :: forall (r :: Row Type). { a :: Int | r } -> Record r
+  closed :: forall (r :: Row Type). {} -> Record r
+  same :: forall (r :: Row Type). { a :: Int | r } -> { a :: Int | r }
+
+Errors
+  [extra] 5:10 `x` TypesDoNotUnify: r#1 ~ ( a :: Int | r#1 )
+  [closed] 9:11 `x` TypesDoNotUnify: r#3 ~ ()
+
+Tree
+  extra :: forall (r :: Row Type). { a :: Int | r } -> Record r
+    abstract [r#1] []
+    extra (x :: { a :: Int | r#1 }) = x
+  closed :: forall (r :: Row Type). {} -> Record r
+    abstract [r#3] []
+    closed (x :: {}) = x
+  same :: forall (r :: Row Type). { a :: Int | r } -> { a :: Int | r }
+    abstract [r#5] []
+    same (x :: { a :: Int | r#5 }) = x

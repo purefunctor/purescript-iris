@@ -300,22 +300,34 @@ where
     let t1_tail = t1_rest.tail.unwrap_or_else(empty);
     let t2_tail = t2_rest.tail.unwrap_or_else(empty);
 
+    let extensible = |tail: Option<TypeId>| {
+        tail.is_some_and(|tail| {
+            matches!(context.lookup_type(tail), Type::Unification(_) | Type::Unknown)
+        })
+    };
+    let t1_extensible = extensible(t1_rest.tail);
+    let t2_extensible = extensible(t2_rest.tail);
+
     match (t1_rest.fields.is_empty(), t2_rest.fields.is_empty()) {
         (true, true) => {
             if t1_rest.tail.is_none() && t2_rest.tail.is_none() {
                 return Ok(Ok(()));
             }
+            let closed = t1_rest.tail.is_none() || t2_rest.tail.is_none();
+            if closed && !t1_extensible && !t2_extensible {
+                return Ok(Err(Mismatch::Types(t1, t2)));
+            }
             unify_core(state, context, t1_tail, t2_tail)
         }
         (true, false) => {
-            if t1_rest.tail.is_none() {
+            if !t1_extensible {
                 return Ok(Err(Mismatch::Types(t1, t2)));
             }
             let t2_remaining = context.intern_type(Type::Row(context.intern_row_type(t2_rest)));
             unify_core(state, context, t1_tail, t2_remaining)
         }
         (false, true) => {
-            if t2_rest.tail.is_none() {
+            if !t2_extensible {
                 return Ok(Err(Mismatch::Types(t1, t2)));
             }
             let t1_remaining = context.intern_type(Type::Row(context.intern_row_type(t1_rest)));
