@@ -536,6 +536,8 @@ where
 
         match declaration {
             Declaration::Data { newtype, parameters, kind_binders, constructors } => {
+                let kind_binders =
+                    kind_binders.iter().map(|&binder_id| finalise_binder(state, binder_id));
                 let kind_binders = binders.iter().copied().chain(kind_binders).collect_vec();
                 let parameters =
                     parameters.iter().map(|&binder_id| finalise_binder(state, binder_id));
@@ -578,6 +580,8 @@ where
                 state.checked.data.insert(item, data);
             }
             Declaration::Synonym { parameters, kind_binders, body } => {
+                let kind_binders =
+                    kind_binders.iter().map(|&binder_id| finalise_binder(state, binder_id));
                 let kind_binders = binders.iter().copied().chain(kind_binders).collect_vec();
                 let parameters =
                     parameters.iter().map(|&binder_id| finalise_binder(state, binder_id));
@@ -600,6 +604,8 @@ where
                 functional_dependencies,
                 members,
             } => {
+                let kind_binders =
+                    kind_binders.iter().map(|&binder_id| finalise_binder(state, binder_id));
                 let kind_binders = binders.iter().copied().chain(kind_binders).collect_vec();
                 let parameters =
                     parameters.iter().map(|&binder_id| finalise_binder(state, binder_id));
