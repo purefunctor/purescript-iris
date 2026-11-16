@@ -279,6 +279,33 @@ value = if true then 1
 }
 
 #[test]
+fn reports_indexing_errors_as_build_failures() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+type role Box representational
+data Box a = Box a
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    insta::with_settings!({omit_expression => true}, {
+        insta::assert_snapshot!("indexing_error_diagnostics", workspace.report(&output));
+    });
+}
+
+#[test]
 fn maps_node_stack_traces_to_purescript_sources() {
     let workspace = TestWorkspace::empty();
     workspace.write(
