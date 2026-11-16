@@ -12,9 +12,9 @@ use crate::core::data::{self, NewtypeField};
 use crate::core::entail::{self, ConstraintHead};
 use crate::core::{fold, kind, normalise, skolem, subsume, unify};
 use crate::error::{ErrorCrumb, ErrorKind};
-use crate::source::equations;
 use crate::source::term_items::{generalisable_unknowns, quantify_unknowns};
 use crate::source::types::{self, TypeArgument};
+use crate::source::{equations, escape};
 use crate::state::CheckState;
 use crate::tree::{EvidenceSlotId, InstanceDeclaration, InstanceMember};
 use crate::types::{ForallBinder, Name, Type, TypeId};
@@ -183,6 +183,7 @@ where
 }
 
 struct SkolemisedInstance {
+    rigids: Vec<TypeId>,
     constraints: Vec<TypeId>,
     head: ConstraintHead,
 }
@@ -196,11 +197,13 @@ where
     Q: ExternalQueries,
 {
     let mut substitution = FxHashMap::<Name, TypeId>::default();
+    let mut rigids = Vec::with_capacity(instance.binders.len());
     for &binder_id in instance.binders.iter() {
         let binder = context.lookup_forall_binder(binder_id);
         let kind = fold::substitute_variables(context, &substitution, binder.kind);
         let rigid = skolem::fresh_rigid(state, context, ForallBinder { kind, ..binder });
         substitution.insert(binder.name, rigid);
+        rigids.push(rigid);
     }
 
     skolem::scope_rigids(state, context, &substitution);
@@ -211,6 +214,7 @@ where
     };
 
     SkolemisedInstance {
+        rigids,
         constraints: substitute(&instance.constraints),
         head: ConstraintHead {
             class: instance.class,
@@ -259,6 +263,10 @@ where
 
             entail::solve_wanteds(state, context)?;
             entail::report_unsolved(state, context);
+
+            for member in &members {
+                escape::check_value(state, context, &skolemised.rigids, &member.value);
+            }
 
             QueryResult::Ok(InstanceDeclaration {
                 evidence: Arc::from(evidence),

@@ -18,10 +18,11 @@ Terms
   f :: Box -> Int
 
 Errors
-  [f] 7:9 `Just x` EscapedSkolem: a#2 in a#2
+  [f] 7:23 `x` TypesDoNotUnify: Int ~ a#2
+  [f] 7:23 `x` EscapedSkolem: a#2 in a#2
 
 Tree
   f :: Box -> Int
     abstract [] []
-    f (Box (Just (x :: Int) :: forall (a :: Type). Maybe a) :: Box) = ((add x) 1)
+    f (Box (Just (x :: a#2) :: forall (a :: Type). Maybe a) :: Box) = ((add x) 1)
     f (_ :: Box) = 0

@@ -8,12 +8,12 @@ Types
 Roles
 
 Terms
-  t :: forall (t3 :: Type) (t4 :: Type). ({ x :: t3 -> t3 } -> t4) -> t4
+  t :: forall (t3 :: Type). ({ x :: ??? -> ??? } -> t3) -> t3
 
 Errors
-  [t] 3:14 `if true then { x: \y -> y } else { x: ((…` EscapedSkolem: a#2 in a#2
+  [t] 3:4 `\f -> f (if true then { x: \y -> y } els…` EscapedSkolem: a#2 in ({ x :: a#2 -> a#2 } -> t3) -> t3
 
 Tree
-  t :: forall (t3 :: Type) (t4 :: Type). ({ x :: t3 -> t3 } -> t4) -> t4
-    abstract [t3, t4] []
-    t  = (\(f :: { x :: t3 -> t3 } -> t4) -> (f (if true then { x: (\(y :: t3) -> y) } else { x: (Λ[a#1] []. (\(y :: a#1) -> y)) })))
+  t :: forall (t3 :: Type). ({ x :: ??? -> ??? } -> t3) -> t3
+    abstract [t3] []
+    t  = (\(f :: { x :: a#2 -> a#2 } -> t3) -> (f (if true then { x: (\(y :: a#2) -> y) } else { x: (Λ[a#1] []. (\(y :: a#1) -> y)) })))

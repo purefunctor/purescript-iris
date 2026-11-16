@@ -9,15 +9,15 @@ Roles
 
 Terms
   g :: (forall (a :: Type). a -> a) -> Int
-  t :: forall (t2 :: Type). t2
+  t :: Int
 
 Errors
-  [t] 5:24 `g` EscapedSkolem: a#1 in a#1
+  [t] 5:6 `\f -> f (\x -> x)` EscapedSkolem: a#1 in ((a#1 -> a#1) -> Int) -> Int
 
 Tree
   g :: (forall (a :: Type). a -> a) -> Int
     abstract [] []
     g (i :: forall (a :: Type). a -> a) = ((i @[Int] {}) 1)
-  t :: forall (t2 :: Type). t2
-    abstract [t2] []
-    t  = ((\(f :: (?6 -> ?6) -> t2) -> (f (\(x :: ?6) -> x))) g)
+  t :: Int
+    abstract [] []
+    t  = ((\(f :: (a#1 -> a#1) -> Int) -> (f (\(x :: a#1) -> x))) g)

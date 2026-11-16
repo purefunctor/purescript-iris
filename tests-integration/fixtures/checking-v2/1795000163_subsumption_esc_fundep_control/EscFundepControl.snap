@@ -17,19 +17,19 @@ Terms
   run :: forall (a :: Type). (forall (r :: Type). ST r a) -> a
   coerce :: forall (a :: Type) (b :: Type). a -> b
   conv :: forall (r :: Type) (x :: Type). Same x x => ST r x -> ST r x
-  leak :: forall (t14 :: Type). t14
+  leak :: Ref ??? Int
 
 Instances
   <instance 0> :: Same a a
 
 Errors
-  [leak] 13:13 `conv (newRef 1)` EscapedSkolem: r#13 in Ref r#13 Int
+  [leak] 13:7 `run (conv (newRef 1))` EscapedSkolem: r#13 in Ref r#13 Int
 
 Tree
   conv :: forall (r :: Type) (x :: Type). Same x x => ST r x -> ST r x
     abstract [r#11, x#12] [d0 : Same x#12 x#12]
     conv  = (coerce @[ST r#11 x#12, ST r#11 x#12] {})
-  leak :: forall (t14 :: Type). t14
-    abstract [t14] []
-    leak  = ((run @[t14] {}) (Λ[r#13] []. ((conv @[r#13, Ref r#13 Int] {<instance 0>@[Ref r#13 Int]()}) ((newRef @[r#13, Int] {}) 1))))
+  leak :: Ref ??? Int
+    abstract [] []
+    leak  = ((run @[Ref r#13 Int] {}) (Λ[r#13] []. ((conv @[r#13, Ref r#13 Int] {<instance 0>@[Ref r#13 Int]()}) ((newRef @[r#13, Int] {}) 1))))
   instance <instance 0> []

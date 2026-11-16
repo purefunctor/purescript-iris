@@ -10,16 +10,16 @@ Roles
 Terms
   unpack :: forall (z :: Type). (forall (a :: Type). a -> (a -> String) -> z) -> z
   len :: String -> Int
-  leak :: forall (t3 :: Type). t3
+  leak :: ???
   claim :: Int
 
 Errors
-  [leak] 5:29 `unpack` EscapedSkolem: a#2 in a#2
+  [leak] 5:7 `(\f -> f (\x _ -> x)) unpack` EscapedSkolem: a#2 in a#2
 
 Tree
-  leak :: forall (t3 :: Type). t3
-    abstract [t3] []
-    leak  = ((\(f :: (?6 -> ?7 -> ?6) -> t3) -> (f (\(x :: ?6) -> (\(_ :: ?7) -> x)))) (unpack @[?8] {}))
+  leak :: ???
+    abstract [] []
+    leak  = ((\(f :: (a#2 -> (a#2 -> String) -> a#2) -> a#2) -> (f (\(x :: a#2) -> (\(_ :: a#2 -> String) -> x)))) (unpack @[a#2] {}))
   claim :: Int
     abstract [] []
-    claim  = (len (leak @[String] {}))
+    claim  = (len leak)

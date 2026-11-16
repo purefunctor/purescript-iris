@@ -13,7 +13,7 @@ use crate::context::CheckContext;
 use crate::core::{entail, fold, kind};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::type_items::collect_unknowns;
-use crate::source::{equations, types};
+use crate::source::{equations, escape, types};
 use crate::state::{CheckState, Wanted};
 use crate::tree::{self, Evidence, EvidenceBinderId};
 use crate::types::{ForallBinder, ForallBinderId, Level, Name, Type, TypeId, UnificationId};
@@ -275,8 +275,6 @@ where
                 let quantified = quantified.collect_vec();
                 let type_id = context.intern_forall_list(&quantified, inner);
 
-                check_escape(state, context, outer, member.item, type_id);
-
                 let type_binders = quantified
                     .iter()
                     .map(|&binder_id| context.intern_type(Type::Variable(binder_id)));
@@ -292,6 +290,18 @@ where
                     equations: declaration.equations,
                 }
             }
+        };
+
+        let escaped = state.with_crumb(ErrorCrumb::TermDeclaration(member.item), |state| {
+            escape::check_value(state, context, &[], &declaration)
+        });
+        let escaped =
+            escaped || check_escape(state, context, outer, member.item, declaration.type_id);
+        let declaration = if escaped {
+            let type_id = erase_rigids(context, declaration.type_id);
+            tree::ValueDeclaration { type_id, ..declaration }
+        } else {
+            declaration
         };
 
         state.checked.term_types.insert(member.item, declaration.type_id);
@@ -451,7 +461,8 @@ fn check_escape<Q>(
     outer: Level,
     item: TermItemId,
     type_id: TypeId,
-) where
+) -> bool
+where
     Q: ExternalQueries,
 {
     let mut rigids = Vec::new();
@@ -462,10 +473,25 @@ fn check_escape<Q>(
         };
         context.lookup_rigid(rigid_id).level > outer
     });
-    if let Some(rigid) = escaped {
-        let crumbs = vec![ErrorCrumb::TermDeclaration(item)];
-        state.insert_error_at(ErrorKind::EscapedSkolem { rigid, solution: type_id }, crumbs);
+    let Some(rigid) = escaped else {
+        return false;
+    };
+    let crumbs = vec![ErrorCrumb::TermDeclaration(item)];
+    state.insert_error_at(ErrorKind::EscapedSkolem { rigid, solution: type_id }, crumbs);
+    true
+}
+
+fn erase_rigids<Q>(context: &CheckContext<Q>, id: TypeId) -> TypeId
+where
+    Q: ExternalQueries,
+{
+    if !context.lookup_type_flags(id).has_rigid() {
+        return id;
     }
+    if let Type::Rigid(_) = context.lookup_type(id) {
+        return context.types.unknown;
+    }
+    fold::map_children(context, id, |child| erase_rigids(context, child))
 }
 
 fn collect_rigids<Q>(context: &CheckContext<Q>, id: TypeId, rigids: &mut Vec<TypeId>)

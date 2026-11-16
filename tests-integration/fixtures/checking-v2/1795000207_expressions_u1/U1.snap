@@ -11,9 +11,9 @@ Terms
   t :: forall (t3 :: Type). ({ x :: forall (a :: Type). a -> a } -> t3) -> t3
 
 Errors
-  [t] 3:14 `if true then { x: ((\y -> y) :: forall a…` EscapedSkolem: a#2 in a#2
+  [t] 3:70 `{ x: \y -> y }` EscapedSkolem: a#2 in { x :: a#2 -> a#2 }
 
 Tree
   t :: forall (t3 :: Type). ({ x :: forall (a :: Type). a -> a } -> t3) -> t3
     abstract [t3] []
-    t  = (\(f :: { x :: forall (a :: Type). a -> a } -> t3) -> (f (if true then { x: (Λ[a#1] []. (\(y :: a#1) -> y)) } else { x: (\(y :: ?5) -> y) })))
+    t  = (\(f :: { x :: forall (a :: Type). a -> a } -> t3) -> (f (if true then { x: (Λ[a#1] []. (\(y :: a#1) -> y)) } else { x: (\(y :: a#2) -> y) })))

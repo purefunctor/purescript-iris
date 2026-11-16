@@ -12,7 +12,7 @@ Terms
   t :: forall (t7 :: Type). ({ x :: forall (a :: Type). a -> a } -> t7) -> t7
 
 Errors
-  [t] 5:18 `if true then { x: ((\y -> y) :: forall a…` EscapedSkolem: a#6 in a#6
+  [t] 5:74 `{ x: \y -> y }` EscapedSkolem: a#6 in { x :: a#6 -> a#6 }
 
 Tree
   app :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
@@ -20,4 +20,4 @@ Tree
     app (g :: a#2 -> b#3) (v :: a#2) = (g v)
   t :: forall (t7 :: Type). ({ x :: forall (a :: Type). a -> a } -> t7) -> t7
     abstract [t7] []
-    t  = (\(f :: { x :: forall (a :: Type). a -> a } -> t7) -> (((app @[{ x :: forall (a :: Type). a -> a }, t7] {}) f) (if true then { x: (Λ[a#5] []. (\(y :: a#5) -> y)) } else { x: (\(y :: ?7) -> y) })))
+    t  = (\(f :: { x :: forall (a :: Type). a -> a } -> t7) -> (((app @[{ x :: forall (a :: Type). a -> a }, t7] {}) f) (if true then { x: (Λ[a#5] []. (\(y :: a#5) -> y)) } else { x: (\(y :: a#6) -> y) })))

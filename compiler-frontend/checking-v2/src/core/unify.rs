@@ -18,7 +18,6 @@ pub enum Mismatch {
     Kinds(TypeId, TypeId),
     InfiniteType(TypeId, TypeId),
     InfiniteKind(TypeId, TypeId),
-    Escape(TypeId, TypeId),
 }
 
 impl Mismatch {
@@ -42,7 +41,6 @@ impl Mismatch {
             Mismatch::InfiniteKind(unification, solution) => {
                 ErrorKind::InfiniteKind { unification, solution }
             }
-            Mismatch::Escape(rigid, solution) => ErrorKind::EscapedSkolem { rigid, solution },
         }
     }
 }
@@ -379,7 +377,6 @@ where
     match promote(state, context, unification_id, entry.level, solution) {
         Promotion::Promoted => (),
         Promotion::Occurs => return Ok(Err(Mismatch::InfiniteType(unification, solution))),
-        Promotion::Escapes(rigid) => return Ok(Err(Mismatch::Escape(rigid, solution))),
     }
 
     state.unification_mut(unification_id).solution = Some(solution);
@@ -395,7 +392,6 @@ where
 enum Promotion {
     Promoted,
     Occurs,
-    Escapes(TypeId),
 }
 
 fn promote<Q>(
@@ -429,13 +425,7 @@ where
             }
             return Promotion::Promoted;
         }
-        Type::Rigid(rigid_id) => {
-            let rigid = context.lookup_rigid(rigid_id);
-            if rigid.level > level {
-                return Promotion::Escapes(id);
-            }
-            children.push(rigid.kind);
-        }
+        Type::Rigid(rigid_id) => children.push(context.lookup_rigid(rigid_id).kind),
         Type::Application(function, argument) | Type::KindApplication(function, argument) => {
             children.extend([function, argument]);
         }

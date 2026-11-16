@@ -573,6 +573,7 @@ where
                     }
                 };
             }
+            state.checked.tree.expressions[function.expression].source = Some(id);
             Ok(function)
         }
 

@@ -12,7 +12,7 @@ Terms
   t :: Array { f :: forall (a :: Type). a -> a }
 
 Errors
-  [t] 5:4 `[{ f: (identity :: forall a. a -> a) }, …` EscapedSkolem: a#4 in a#4
+  [t] 5:44 `{ f: \x -> x }` EscapedSkolem: a#4 in { f :: a#4 -> a#4 }
 
 Tree
   identity :: forall (a :: Type). a -> a
@@ -20,4 +20,4 @@ Tree
     identity (x :: a#1) = x
   t :: Array { f :: forall (a :: Type). a -> a }
     abstract [] []
-    t  = [{ f: (Λ[a#3] []. (identity @[a#3] {})) }, { f: (\(x :: ?5) -> x) }]
+    t  = [{ f: (Λ[a#3] []. (identity @[a#3] {})) }, { f: (\(x :: a#4) -> x) }]

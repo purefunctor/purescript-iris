@@ -15,15 +15,15 @@ Terms
   newRef :: forall (r :: Type) (a :: Type). a -> ST r (Ref r a)
   run :: forall (a :: Type). (forall (r :: Type). ST r a) -> a
   app :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
-  leak :: forall (t9 :: Type). t9
+  leak :: Ref ??? Int
 
 Errors
-  [leak] 9:11 `run` EscapedSkolem: r#8 in ST r#8 ?11
+  [leak] 9:7 `app run (newRef 1)` EscapedSkolem: r#8 in Ref r#8 Int
 
 Tree
   app :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
     abstract [a#6, b#7] []
     app (f :: a#6 -> b#7) (x :: a#6) = (f x)
-  leak :: forall (t9 :: Type). t9
-    abstract [t9] []
-    leak  = (((app @[ST ?12 (Ref ?12 Int), t9] {}) (run @[?11] {})) ((newRef @[?12, Int] {}) 1))
+  leak :: Ref ??? Int
+    abstract [] []
+    leak  = (((app @[ST r#8 (Ref r#8 Int), Ref r#8 Int] {}) (run @[Ref r#8 Int] {})) ((newRef @[r#8, Int] {}) 1))

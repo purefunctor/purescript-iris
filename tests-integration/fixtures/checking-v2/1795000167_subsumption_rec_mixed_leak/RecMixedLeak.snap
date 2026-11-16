@@ -10,16 +10,15 @@ Roles
 Terms
   k :: forall (a :: Type) (b :: Type). a -> b -> a
   f :: forall (a :: Type). a -> a
-  g :: forall (t4 :: Type). t4 -> t4
+  g :: ??? -> ???
 
 Errors
-  [f] 6:8 `x` EscapedSkolem: a#3 in a#3
-  [f] 6:6 `g x` EscapedSkolem: a#3 in a#3
+  [g] 7:6 `k x f` EscapedSkolem: a#3 in a#3
 
 Tree
   f :: forall (a :: Type). a -> a
     abstract [a#3] []
     f (x :: a#3) = (g x)
-  g :: forall (t4 :: Type). t4 -> t4
-    abstract [t4] []
-    g (x :: t4) = (((k @[t4, ?8 -> ?8] {}) x) (f @[?8] {}))
+  g :: ??? -> ???
+    abstract [] []
+    g (x :: a#3) = (((k @[a#3, ?8 -> ?8] {}) x) (f @[?8] {}))

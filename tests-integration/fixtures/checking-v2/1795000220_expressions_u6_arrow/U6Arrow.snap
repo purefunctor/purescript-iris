@@ -11,10 +11,10 @@ Terms
   identity :: forall (a :: Type). a -> a
   app :: forall (a :: Type) (b :: Type). (a -> b) -> a -> b
   g :: (forall (a :: Type). a -> a) -> Int
-  t :: forall (t8 :: Type). t8
+  t :: Int
 
 Errors
-  [t] 9:27 `g` EscapedSkolem: a#7 in a#7
+  [t] 9:6 `\f -> app f identity` EscapedSkolem: a#7 in ((a#7 -> a#7) -> Int) -> Int
 
 Tree
   identity :: forall (a :: Type). a -> a
@@ -26,6 +26,6 @@ Tree
   g :: (forall (a :: Type). a -> a) -> Int
     abstract [] []
     g (i :: forall (a :: Type). a -> a) = ((i @[Int] {}) 1)
-  t :: forall (t8 :: Type). t8
-    abstract [t8] []
-    t  = ((\(f :: (?9 -> ?9) -> t8) -> (((app @[?9 -> ?9, t8] {}) f) (identity @[?9] {}))) g)
+  t :: Int
+    abstract [] []
+    t  = ((\(f :: (a#7 -> a#7) -> Int) -> (((app @[a#7 -> a#7, Int] {}) f) (identity @[a#7] {}))) g)

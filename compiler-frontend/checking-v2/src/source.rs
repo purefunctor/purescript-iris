@@ -1,5 +1,6 @@
 pub mod binders;
 pub mod equations;
+pub mod escape;
 pub mod instances;
 pub mod roles;
 pub mod term_items;
