@@ -29,13 +29,13 @@ Tree
     coerce  = (unsafeCoerce @[a#4, b#5] {})
   functions :: (Int -> Int) -> String -> String
     abstract [] []
-    functions  = (coerce @[Int -> Int, String -> String] {builtin Coercible Empty})
+    functions  = (coerce @[Int -> Int, String -> String] {<unsolved>})
   arrays :: Array Int -> Array String
     abstract [] []
-    arrays  = (coerce @[Array Int, Array String] {builtin Coercible Empty})
+    arrays  = (coerce @[Array Int, Array String] {<unsolved>})
   records :: { name :: Int } -> { name :: String }
     abstract [] []
-    records  = (coerce @[{ name :: Int }, { name :: String }] {builtin Coercible Empty})
+    records  = (coerce @[{ name :: Int }, { name :: String }] {<unsolved>})
   ages :: Array (Age -> Int) -> Array (Int -> Age)
     abstract [] []
     ages  = (coerce @[Array (Age -> Int), Array (Int -> Age)] {builtin Coercible Empty})

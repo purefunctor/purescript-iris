@@ -24,7 +24,7 @@ Errors
 Tree
   test :: String
     abstract [] []
-    test  = ((shw @[Box Int] {<instance 0>@[Int](<unsolved>)}) ((Box @[Int] {}) 1))
+    test  = ((shw @[Box Int] {<unsolved>}) ((Box @[Int] {}) 1))
   instance <instance 0> [d0 : Shw a#3]
     shw :: Box a#3 -> String
       abstract [] []

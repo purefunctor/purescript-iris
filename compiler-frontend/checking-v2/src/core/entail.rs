@@ -117,6 +117,7 @@ where
                 Outcome::Failed(kind) => {
                     progress = true;
                     failed.insert(wanted.root);
+                    state.checked.tree.set_evidence(wanted.root, Evidence::Unsolved);
                     state.insert_error_at(kind, wanted.crumbs);
                 }
             }

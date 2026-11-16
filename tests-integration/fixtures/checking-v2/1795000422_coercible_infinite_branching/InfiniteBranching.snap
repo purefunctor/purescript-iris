@@ -33,4 +33,4 @@ Tree
     coerce  = (unsafeCoerce @[a#9, b#10] {})
   test :: forall (a :: Type) (b :: Type). N a -> N b
     abstract [a#13, b#14] []
-    test  = (coerce @[N a#13, N b#14] {builtin Coercible Empty})
+    test  = (coerce @[N a#13, N b#14] {<unsolved>})

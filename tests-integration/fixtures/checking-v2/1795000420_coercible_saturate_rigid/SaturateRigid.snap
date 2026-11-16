@@ -34,7 +34,7 @@ Tree
     coerce  = (unsafeCoerce @[a#8, b#9] {})
   test :: P K -> P D
     abstract [] []
-    test  = (coerce @[P K, P D] {builtin Coercible Empty})
+    test  = (coerce @[P K, P D] {<unsolved>})
   accepted :: P K2 -> P D
     abstract [] []
     accepted  = (coerce @[P K2, P D] {builtin Coercible Empty})

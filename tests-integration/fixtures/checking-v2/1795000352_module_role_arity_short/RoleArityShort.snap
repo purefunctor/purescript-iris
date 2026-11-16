@@ -26,7 +26,7 @@ Tree
     coerce  = (unsafeCoerce @[a#6, b#7] {})
   t2 :: T Int Int -> T Int String
     abstract [] []
-    t2  = (coerce @[T Int Int, T Int String] {builtin Coercible Empty})
+    t2  = (coerce @[T Int Int, T Int String] {<unsolved>})
   claim :: String
     abstract [] []
     claim  = (case (t2 (((T @[Int, Int] {}) 1) 2)) of { (T (_ :: Int) (s :: String) :: T Int String) -> s })
