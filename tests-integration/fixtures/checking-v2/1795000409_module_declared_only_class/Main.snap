@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Types
+  StringValue :: Type -> Constraint
+
+Roles
+
+Terms
+  color :: forall (value :: Type). StringValue value => value -> Int
+  red :: Int
+  missing :: Int
+
+Instances
+  <instance 0> :: StringValue String
+
+Errors
+  [missing] 13:10 `color 0` NoInstanceFound: StringValue Int
+
+Tree
+  red :: Int
+    abstract [] []
+    red  = ((color @[String] {<instance 0>@[]()}) "red")
+  missing :: Int
+    abstract [] []
+    missing  = ((color @[Int] {<unsolved>}) 0)
+  instance <instance 0> []

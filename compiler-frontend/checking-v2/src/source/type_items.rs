@@ -463,7 +463,9 @@ where
         dependencies.collect_vec()
     });
 
-    unify_declared_kind(state, context, item, &parameters, context.types.constraint)?;
+    if declaration.is_some() {
+        unify_declared_kind(state, context, item, &parameters, context.types.constraint)?;
+    }
 
     Ok(Declaration::Class {
         parameters: parameters.parameters,
