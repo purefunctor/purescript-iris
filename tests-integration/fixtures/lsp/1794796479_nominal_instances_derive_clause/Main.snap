@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Nominal instances type Main.Box
+
+Area @Type Box file:///tests-integration/fixtures/lsp/1794796479_nominal_instances_derive_clause/Main.purs @ 5:10..5:14
+
+
+Nominal instances class Main.Area
+
+Area @Type Box file:///tests-integration/fixtures/lsp/1794796479_nominal_instances_derive_clause/Main.purs @ 5:10..5:14

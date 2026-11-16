@@ -108,6 +108,8 @@ create_cst_struct!(InstanceName, InstanceConstraints, InstanceHead, InstanceStat
 
 create_cst_struct!(DataConstructor, DeriveClause, DeriveClass);
 
+create_cst_union!(Derive | DeriveDeclaration | DeriveClass);
+
 create_cst_enum!(
     Type // Comment to fix formatting :P
         | TypeApplicationChain

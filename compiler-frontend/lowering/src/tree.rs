@@ -372,10 +372,14 @@ pub struct InstanceItem {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DeriveItem {
-    pub newtype: bool,
-    pub constraints: Arc<[TypeId]>,
     pub resolution: Option<(FileId, TypeItemId)>,
-    pub arguments: Arc<[TypeId]>,
+    pub kind: DeriveItemKind,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DeriveItemKind {
+    Declaration { newtype: bool, constraints: Arc<[TypeId]>, arguments: Arc<[TypeId]> },
+    Clause { type_id: TypeItemId },
 }
 
 #[derive(Debug, PartialEq, Eq)]

@@ -612,6 +612,14 @@ fn lower_derive_item(
 ) {
     let cst = context.stabilized.ast_ptr(item.id).and_then(|cst| cst.try_to_node(context.root));
 
+    let cst = match cst {
+        Some(cst::Derive::DeriveClass(cst)) => {
+            return lower_derive_clause_item(state, context, item_id, &cst);
+        }
+        Some(cst::Derive::DeriveDeclaration(cst)) => Some(cst),
+        None => None,
+    };
+
     let newtype = cst.as_ref().map(|cst| cst.newtype_token().is_some()).unwrap_or(false);
     let resolution = cst.as_ref().and_then(|cst| {
         let head = cst.instance_head()?;
@@ -635,7 +643,38 @@ fn lower_derive_item(
     state.in_constraint = false;
     state.finish_implicit_scope();
 
-    let item = DeriveItem { newtype, constraints, resolution, arguments };
+    let kind = DeriveItemKind::Declaration { newtype, constraints, arguments };
+    let item = DeriveItem { resolution, kind };
+    state.tree.derive_items.insert(item_id, item);
+}
+
+fn lower_derive_clause_item(
+    state: &mut State,
+    context: &Context,
+    item_id: DeriveItemId,
+    cst: &cst::DeriveClass,
+) {
+    let Some(type_id) = cst.syntax().ancestors().find_map(|node| {
+        let declaration = cst::Declaration::cast(node)?;
+        let declaration_id = context.stabilized.lookup_cst(&declaration)?;
+        context.indexed.pairs.declaration_to_type(declaration_id)
+    }) else {
+        unreachable!("invariant violated: derive clause outside a type declaration");
+    };
+
+    let resolution = cst.qualified().and_then(|qualified| {
+        let (qualifier, name) =
+            recursive::lower_qualified_name(context.source, &qualified, cst::QualifiedName::upper)?;
+        state.resolve_class_reference(context, qualifier.as_deref(), &name)
+    });
+
+    if resolution.is_none() {
+        let id = context.stabilized.lookup_cst(cst).expect_id();
+        state.errors.push(LoweringError::NotInScope(NotInScope::DeriveClass { id }));
+    }
+
+    let kind = DeriveItemKind::Clause { type_id };
+    let item = DeriveItem { resolution, kind };
     state.tree.derive_items.insert(item_id, item);
 }
 

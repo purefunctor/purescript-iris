@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotDeriveClass] · Main.purs:6:11
+  •
+  │
+  • Cannot derive this class
+  │
+  │     derive (MyClass)
+  │             ╰──────
+  •

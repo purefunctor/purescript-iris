@@ -375,7 +375,7 @@ fn locate_node(
                 lowered.tree.get_instance_item(item_id)?.resolution
             } else {
                 let derive = node.ancestors().find_map(cst::DeriveDeclaration::cast)?;
-                let ptr = AstPtr::new(&derive);
+                let ptr = AstPtr::new(&cst::Derive::DeriveDeclaration(derive));
                 let derive_id = stabilized.lookup_ptr(&ptr)?;
                 let item_id = indexed.pairs.derive_to_item(derive_id)?;
                 lowered.tree.get_derive_item(item_id)?.resolution

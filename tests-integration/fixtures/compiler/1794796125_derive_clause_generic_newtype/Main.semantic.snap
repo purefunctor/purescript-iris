@@ -1,0 +1,80 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Direction :: Prim.Type
+data Direction
+  | North :: Main.Direction
+  | South :: Main.Direction
+
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+newtype Wrapper :: Prim.Type -> Prim.Type
+newtype Wrapper @a
+  | Wrapper :: a -> Main.Wrapper a
+
+dictionary genericDirectionSumConstructorNoArgumentsConstructorNoArguments ::
+  Data.Generic.Rep.Generic
+  Main.Direction
+  (Data.Generic.Rep.Sum
+    (Data.Generic.Rep.Constructor "North" Data.Generic.Rep.NoArguments)
+    (Data.Generic.Rep.Constructor "South" Data.Generic.Rep.NoArguments))
+  where
+  to :: Data.Generic.Rep.Sum
+  (Data.Generic.Rep.Constructor "North" Data.Generic.Rep.NoArguments)
+  (Data.Generic.Rep.Constructor "South" Data.Generic.Rep.NoArguments) ->
+Main.Direction
+  to = \representation ->
+    case representation of
+      (Inl (Constructor NoArguments)) -> North
+      (Inr (Constructor NoArguments)) -> South
+  from :: Main.Direction ->
+Data.Generic.Rep.Sum
+  (Data.Generic.Rep.Constructor "North" Data.Generic.Rep.NoArguments)
+  (Data.Generic.Rep.Constructor "South" Data.Generic.Rep.NoArguments)
+  from = \value ->
+    case value of
+      North -> Inl (Constructor NoArguments)
+      South -> Inr (Constructor NoArguments)
+
+dictionary genericPairConstructorProductArgumentArgument ::
+  forall a b.
+  Data.Generic.Rep.Generic
+  (Main.Pair a b)
+  (Data.Generic.Rep.Constructor
+    "Pair"
+    (Data.Generic.Rep.Product (Data.Generic.Rep.Argument a) (Data.Generic.Rep.Argument b)))
+  where
+  to :: Data.Generic.Rep.Constructor
+  "Pair"
+  (Data.Generic.Rep.Product (Data.Generic.Rep.Argument a) (Data.Generic.Rep.Argument b)) ->
+Main.Pair a b
+  to = \representation ->
+    case representation of
+      (Constructor (Product (Argument field0) (Argument field1))) -> Pair field0 field1
+  from :: Main.Pair a b ->
+Data.Generic.Rep.Constructor
+  "Pair"
+  (Data.Generic.Rep.Product (Data.Generic.Rep.Argument a) (Data.Generic.Rep.Argument b))
+  from = \value ->
+    case value of
+      (Pair field0 field1) -> Constructor (Product (Argument field0) (Argument field1))
+
+dictionary genericWrapperConstructorArgument ::
+  forall a.
+  Data.Generic.Rep.Generic
+  (Main.Wrapper a)
+  (Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument a))
+  where
+  to :: Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument a) -> Main.Wrapper a
+  to = \representation ->
+    case representation of
+      (Constructor (Argument field0)) -> Wrapper field0
+  from :: Main.Wrapper a -> Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument a)
+  from = \value ->
+    case value of
+      (Wrapper field0) -> Constructor (Argument field0)
+
+dictionary newtypeWrapper :: forall a. Data.Newtype.Newtype (Main.Wrapper a) a where
+  superclass coercibleDict = trivial

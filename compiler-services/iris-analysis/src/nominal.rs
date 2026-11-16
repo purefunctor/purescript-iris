@@ -6,7 +6,7 @@ use building_types::QueryProxy;
 use checking::core::pretty::{Pretty, PrettyConfig};
 use files::FileId;
 use indexing::{IndexedTypeItemKind, InstanceSourceItemId, TermItemId, TypeItemId};
-use lowering::{LoweredModule, TypeId, TypeKind};
+use lowering::{DeriveItemKind, LoweredModule, TypeId, TypeKind};
 use lsp_types::Location;
 
 use crate::extract::AnnotationSyntaxRange;
@@ -212,22 +212,30 @@ pub fn instances(
         let lowered = engine.lowered(file_id)?;
         let checked = engine.checked(file_id)?;
         for &source in indexed.items.instance_sources() {
-            let (resolution, arguments, checked_instance) = match source {
+            let (resolution, arguments, attached, checked_instance) = match source {
                 InstanceSourceItemId::Instance(id) => {
                     let Some(item) = lowered.tree.get_instance_item(id) else { continue };
                     let checked_instance = checked.lookup_instance(indexed.items[id].id);
-                    (item.resolution, &item.arguments, checked_instance)
+                    (item.resolution, &item.arguments[..], None, checked_instance)
                 }
                 InstanceSourceItemId::Derive(id) => {
                     let Some(item) = lowered.tree.get_derive_item(id) else { continue };
                     let checked_instance = checked.lookup_derived_instance(indexed.items[id].id);
-                    (item.resolution, &item.arguments, checked_instance)
+                    match &item.kind {
+                        DeriveItemKind::Declaration { arguments, .. } => {
+                            (item.resolution, &arguments[..], None, checked_instance)
+                        }
+                        DeriveItemKind::Clause { type_id } => {
+                            (item.resolution, &[][..], Some((file_id, *type_id)), checked_instance)
+                        }
+                    }
                 }
             };
             let matches = match search {
                 InstanceSearch::OfClass => resolution == Some(target),
                 InstanceSearch::MentioningType => {
-                    arguments.iter().any(|&argument| mentions(&lowered, argument, target))
+                    attached == Some(target)
+                        || arguments.iter().any(|&argument| mentions(&lowered, argument, target))
                 }
             };
             if !matches {

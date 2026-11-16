@@ -1,0 +1,36 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+North :: Main.Direction
+South :: Main.Direction
+Pair :: forall @a @b. a -> b -> Main.Pair a b
+Wrapper :: forall @a. a -> Main.Wrapper a
+
+Types
+Direction :: Prim.Type
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+Wrapper :: Prim.Type -> Prim.Type
+
+Derived
+derive Data.Generic.Rep.Generic
+  Main.Direction
+  (Data.Generic.Rep.Sum
+    (Data.Generic.Rep.Constructor "North" Data.Generic.Rep.NoArguments)
+    (Data.Generic.Rep.Constructor "South" Data.Generic.Rep.NoArguments))
+derive forall a b.
+  Data.Generic.Rep.Generic
+    (Main.Pair a b)
+    (Data.Generic.Rep.Constructor
+      "Pair"
+      (Data.Generic.Rep.Product (Data.Generic.Rep.Argument a) (Data.Generic.Rep.Argument b)))
+derive forall a.
+  Data.Generic.Rep.Generic
+    (Main.Wrapper a)
+    (Data.Generic.Rep.Constructor "Wrapper" (Data.Generic.Rep.Argument a))
+derive forall a. Data.Newtype.Newtype (Main.Wrapper a) a
+
+Roles
+Direction = []
+Pair = [Representational, Representational]
+Wrapper = [Representational]

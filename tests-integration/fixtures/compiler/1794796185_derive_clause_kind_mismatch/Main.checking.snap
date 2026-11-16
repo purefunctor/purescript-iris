@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Box :: forall @a. a -> Main.Box a
+
+Types
+Box :: Prim.Type -> Prim.Type
+
+Derived
+derive Data.Eq.Eq Main.Box
+
+Roles
+Box = [Representational]

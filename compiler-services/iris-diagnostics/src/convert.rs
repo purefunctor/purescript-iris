@@ -343,6 +343,9 @@ impl ToDiagnostics for LoweringError {
                     lowering::NotInScope::TypeClass { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }
+                    lowering::NotInScope::DeriveClass { id } => {
+                        (context.stabilized.syntax_ptr(*id), None)
+                    }
                     lowering::NotInScope::TypeConstructor { id } => {
                         (context.stabilized.syntax_ptr(*id), None)
                     }

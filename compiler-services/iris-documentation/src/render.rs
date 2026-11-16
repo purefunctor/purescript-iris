@@ -575,7 +575,16 @@ fn instance_parents(
         InstanceDocumentItemId::Derive(id) => {
             let item = &encoder.indexed.items[id];
             let checked = encoder.checked.lookup_derived_instance(item.id);
-            let arguments = encoder.lowered.tree.get_derive_item(id).map(|item| &item.arguments);
+            let arguments = match encoder.lowered.tree.get_derive_item(id).map(|item| &item.kind) {
+                Some(lowering::DeriveItemKind::Declaration { arguments, .. }) => Some(arguments),
+                Some(lowering::DeriveItemKind::Clause { type_id }) => {
+                    if instance_type_parent(encoder, *type_id) {
+                        parents.insert(*type_id);
+                    }
+                    None
+                }
+                None => None,
+            };
             (checked, arguments)
         }
     };

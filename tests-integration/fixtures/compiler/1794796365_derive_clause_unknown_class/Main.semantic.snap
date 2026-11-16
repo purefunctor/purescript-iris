@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Foo :: Prim.Type
+data Foo
+  | Foo :: Main.Foo
+
+dictionary eqFoo :: Data.Eq.Eq Main.Foo where
+  eq :: Main.Foo -> Main.Foo -> Prim.Boolean
+  eq = \left right ->
+    case left, right of
+      Foo, Foo -> true

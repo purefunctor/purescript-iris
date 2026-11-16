@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotUnify] · Main.purs:6:11
+  •
+  │
+  • Cannot unify 'Type -> Type' with 'Type'
+  │
+  │     derive (Eq)
+  │             ╰─
+  •
+
+Error! · [NoInstanceFound] · Main.purs:6:11
+  •
+  │
+  • No instance found for: Eq t0
+  │
+  │     derive (Eq)
+  │             ╰─
+  •

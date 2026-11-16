@@ -35,6 +35,17 @@ macro_rules! create_cst_struct {
 
 macro_rules! create_cst_enum {
     ($kind:ident | $key_0:ident$(|$key:ident)*) => {
+        create_cst_struct!($key_0);
+        $(
+            create_cst_struct!($key);
+        )*
+
+        create_cst_union!($kind | $key_0 $(| $key)*);
+    };
+}
+
+macro_rules! create_cst_union {
+    ($kind:ident | $key_0:ident$(|$key:ident)*) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub enum $kind {
             $key_0($key_0),
@@ -42,11 +53,6 @@ macro_rules! create_cst_enum {
                 $key($key),
             )*
         }
-
-        create_cst_struct!($key_0);
-        $(
-            create_cst_struct!($key);
-        )*
 
         impl crate::ast::AstNode for $kind {
             fn can_cast(kind: crate::SyntaxKind) -> bool
