@@ -16,7 +16,8 @@ where
 {
     state: &'a mut CheckState,
     context: &'a CheckContext<'q, Q>,
-    compression: SmallVec<[(u32, TypeId); 4]>,
+    pruned: u32,
+    last_solution: Option<TypeId>,
 }
 
 impl<'a, 'q, Q> ReductionContext<'a, 'q, Q>
@@ -24,7 +25,7 @@ where
     Q: ExternalQueries,
 {
     fn new(state: &'a mut CheckState, context: &'a CheckContext<'q, Q>) -> Self {
-        ReductionContext { state, context, compression: SmallVec::new() }
+        ReductionContext { state, context, pruned: 0, last_solution: None }
     }
 
     fn reduce_once(&mut self, id: TypeId) -> Option<TypeId> {
@@ -51,7 +52,8 @@ where
             return None;
         };
 
-        self.compression.push((unification_id, solution_id));
+        self.pruned += 1;
+        self.last_solution = Some(solution_id);
         Some(solution_id)
     }
 
@@ -116,6 +118,7 @@ pub(crate) fn normalise_head<Q>(
 where
     Q: ExternalQueries,
 {
+    let original_id = id;
     let mut reduction = ReductionContext::new(state, context);
 
     let id = safe_loop! {
@@ -126,13 +129,34 @@ where
         }
     };
 
-    for (unification_id, solution_id) in reduction.compression {
-        if solution_id != id {
-            state.unifications.solve(unification_id, id);
-        }
+    if reduction.pruned > 1 || reduction.last_solution.is_some_and(|solution| solution != id) {
+        compress_unifications(state, context, original_id, id);
     }
 
     id
+}
+
+fn compress_unifications<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut current: TypeId,
+    normalised: TypeId,
+) where
+    Q: ExternalQueries,
+{
+    safe_loop! {
+        let Type::Unification(unification_id) = *context.lookup_type(current) else {
+            break;
+        };
+        let UnificationState::Solved(solution_id) = state.unifications.get(unification_id).state
+        else {
+            break;
+        };
+        if solution_id != normalised {
+            state.unifications.solve(unification_id, normalised);
+        }
+        current = solution_id;
+    }
 }
 
 /// Expands synonym constructor applications.
