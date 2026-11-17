@@ -260,7 +260,7 @@ where
                 continue;
             };
             let mut written = None;
-            for (&source, &checked) in &self.checked.node_types.types {
+            for (source, &checked) in self.checked.node_types.types.iter() {
                 let Some(span) = self
                     .stabilized
                     .syntax_ptr(source)
