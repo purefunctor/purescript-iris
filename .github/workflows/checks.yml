@@ -282,6 +282,162 @@ jobs:
           fi
           exit "$COMPARISON_STATUS"
 
+  performance:
+    name: Performance
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    env:
+      # Recompiling a crate with several codegen units repartitions the generic code it
+      # instantiates and changes inlining in stages a change never runs.
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
+
+    steps:
+      - name: Checkout candidate revision
+        uses: actions/checkout@v7
+        with:
+          path: candidate
+
+      - name: Checkout base revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - name: Install Rust toolchain
+        id: toolchain
+        run: |
+          rustup update stable && rustup default stable
+          echo "rustc=$(rustc -V | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Valgrind
+        run: sudo apt-get update && sudo apt-get install --yes valgrind
+
+      # Instruction counts depend on the compiler that built the harness, so the cached base
+      # harness is keyed by the toolchain as well as the revision.
+      - name: Restore base measurement harness
+        id: base-harness-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: compatibility-binaries/base
+          key: v2-performance-harness-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.rustc }}-${{ github.event.pull_request.base.sha }}
+
+      - name: Restore compatibility packages
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            compatibility-cache/downloads
+            compatibility-cache/sources
+          key: >-
+            v2-compatibility-packages-pr-${{ github.event.pull_request.number }}-${{ hashFiles('base/tests-compatibility/purescript-*.txt', 'candidate/tests-compatibility/purescript-*.txt') }}
+          restore-keys: |
+            v2-compatibility-packages-pr-${{ github.event.pull_request.number }}-
+
+      - name: Build base measurement harness
+        if: steps.base-harness-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p compatibility-binaries
+          cargo build --release --manifest-path base/Cargo.toml \
+            --target-dir performance-target/base -p tests-compatibility
+          cp performance-target/base/release/tests-compatibility compatibility-binaries/base
+
+      - name: Build candidate measurement harness
+        run: |
+          mkdir -p compatibility-binaries
+          cargo build --release --manifest-path candidate/Cargo.toml \
+            --target-dir performance-target/candidate -p tests-compatibility
+          cp performance-target/candidate/release/tests-compatibility compatibility-binaries/candidate
+
+      # Callgrind counts depend on the process's starting state, including the working directory
+      # and the lengths of its arguments, so both sides run from one directory with paths of
+      # equal length.
+      - name: Measure base and candidate
+        id: measurements
+        env:
+          CORPUS_DIR: ${{ github.workspace }}/candidate/target/compatibility
+          PACKAGE_CACHE_DIR: ${{ github.workspace }}/compatibility-cache
+          REPORT_DIR: ${{ github.workspace }}/performance-artifacts
+        run: |
+          mkdir -p "$REPORT_DIR" performance-harness/base performance-harness/head
+          cp compatibility-binaries/base performance-harness/base/tests-compatibility
+          cp compatibility-binaries/candidate performance-harness/head/tests-compatibility
+          options=(
+            --preset core
+            --registry-dir "$CORPUS_DIR/registry"
+            --index-dir "$CORPUS_DIR/registry-index"
+            --cache-dir "$PACKAGE_CACHE_DIR"
+          )
+
+          performance-harness/head/tests-compatibility measure "${options[@]}" \
+            --json-output "$REPORT_DIR/core-head.json" > "$REPORT_DIR/head.log" 2>&1 || {
+            echo "::error::Candidate measurement failed; see head.log in the performance-reports artifact"
+            exit 1
+          }
+
+          if performance-harness/base/tests-compatibility measure --help > /dev/null 2>&1; then
+            performance-harness/base/tests-compatibility measure "${options[@]}" \
+              --json-output "$REPORT_DIR/core-base.json" > "$REPORT_DIR/base.log" 2>&1 || {
+              echo "::error::Base measurement failed; see base.log in the performance-reports artifact"
+              exit 1
+            }
+            echo "base_measurements=--base $REPORT_DIR/core-base.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::The base revision predates the measurement harness; reporting the candidate only"
+          fi
+
+      - name: Compare measurements
+        id: comparison
+        env:
+          BASE_MEASUREMENTS: ${{ steps.measurements.outputs.base_measurements }}
+          BASE_LABEL: ${{ github.event.pull_request.base.sha }}
+          CANDIDATE_LABEL: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPORT_DIR: ${{ github.workspace }}/performance-artifacts
+        run: |
+          set +e
+          # BASE_MEASUREMENTS is intentionally split into the option and its path.
+          # shellcheck disable=SC2086
+          compatibility-binaries/candidate compare-performance \
+            $BASE_MEASUREMENTS \
+            --candidate "$REPORT_DIR/core-head.json" \
+            --base-label "$BASE_LABEL" \
+            --candidate-label "$CANDIDATE_LABEL" \
+            --json-output "$REPORT_DIR/comparison.json" \
+            --summary-output "$REPORT_DIR/summary.md" \
+            2>&1 | tee "$REPORT_DIR/comparison.log"
+          comparison_status=${PIPESTATUS[0]}
+          set -e
+
+          if [[ -f "$REPORT_DIR/summary.md" ]]; then
+            cat "$REPORT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          printf '%s\n' "$PR_NUMBER" > "$REPORT_DIR/pull-request-number"
+
+          echo "status=$comparison_status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: performance-reports
+          path: performance-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce performance result
+        env:
+          COMPARISON_STATUS: ${{ steps.comparison.outputs.status }}
+        run: |
+          if [[ "$COMPARISON_STATUS" != "0" && "$COMPARISON_STATUS" != "1" ]]; then
+            echo "::error::Performance comparison failed with status ${COMPARISON_STATUS:-missing}"
+            exit 1
+          fi
+          if [[ "$COMPARISON_STATUS" == "1" ]]; then
+            echo "::error::A gated performance metric regressed; see the job summary"
+          fi
+          exit "$COMPARISON_STATUS"
+
   compatibility_cache:
     name: Package compatibility verifier cache
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

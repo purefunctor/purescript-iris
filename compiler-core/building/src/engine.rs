@@ -1471,6 +1471,10 @@ impl QueryEngine {
     pub fn prim_id(&self) -> FileId {
         self.module_file("Prim").expect("invariant violated: prim::configure")
     }
+
+    pub fn interner_statistics(&self) -> checking::interners::InternerStatistics {
+        self.interned.checking.statistics()
+    }
 }
 
 impl QueryProxy for QueryEngine {
