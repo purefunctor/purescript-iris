@@ -14,6 +14,7 @@ use itertools::Itertools;
 use petgraph::prelude::DiGraphMap;
 use resolving::ResolvedModule;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use smol_str::SmolStr;
 use stabilizing::{ExpectId, StabilizedModule};
 use syntax::ast::AstNode;
@@ -66,6 +67,23 @@ impl<Item> Default for NameLookups<Item> {
         NameLookups { unqualified: FxHashMap::default(), qualified: FxHashMap::default() }
     }
 }
+
+trait CollectArc: Iterator + Sized {
+    fn collect_arc(self) -> Arc<[Self::Item]> {
+        let mut items: SmallVec<[Self::Item; 8]> = self.collect();
+        if items.is_empty() {
+            return Arc::default();
+        }
+
+        let exact_length = 0..items.len();
+        let mut items = items.drain(..);
+        exact_length
+            .map(|_| items.next().expect("invariant violated: fewer items than counted"))
+            .collect()
+    }
+}
+
+impl<I: Iterator> CollectArc for I {}
 
 struct LetBindingContext {
     scope: GraphNodeId,
@@ -579,7 +597,7 @@ fn lower_term_item(
                         cst::ValueEquation::guarded_expression,
                     ))
                 })
-                .collect();
+                .collect_arc();
 
             let kind = TermItemKind::Value { signature, equations };
             state.tree.term_items.insert(item_id, kind);
@@ -603,7 +621,7 @@ fn lower_instance_item(
     state.push_implicit_scope();
     let arguments = recover! {
         let head = cst.as_ref()?.instance_head()?;
-        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect()
+        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect_arc()
     };
 
     state.in_constraint = true;
@@ -612,7 +630,7 @@ fn lower_instance_item(
             .instance_constraints()?
             .children()
             .map(|cst| recursive::lower_type(state, context, &cst))
-            .collect()
+            .collect_arc()
     };
     state.in_constraint = false;
     state.finish_implicit_scope();
@@ -651,7 +669,7 @@ fn lower_derive_item(
     state.push_implicit_scope();
     let arguments = recover! {
         let head = cst.as_ref()?.instance_head()?;
-        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect()
+        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect_arc()
     };
 
     state.in_constraint = true;
@@ -660,7 +678,7 @@ fn lower_derive_item(
             .instance_constraints()?
             .children()
             .map(|cst| recursive::lower_type(state, context, &cst))
-            .collect()
+            .collect_arc()
     };
     state.in_constraint = false;
     state.finish_implicit_scope();
@@ -727,7 +745,7 @@ fn lower_type_item(
                 let variables = cst
                     .type_variables()
                     .map(|t| recursive::lower_type_variable_binding(state, context, &t, true))
-                    .collect();
+                    .collect_arc();
 
                 Some(DataDeclaration { variables })
             });
@@ -760,7 +778,7 @@ fn lower_type_item(
                 let variables = cst
                     .type_variables()
                     .map(|t| recursive::lower_type_variable_binding(state, context, &t, true))
-                    .collect();
+                    .collect_arc();
 
                 Some(NewtypeDeclaration { variables })
             });
@@ -795,7 +813,7 @@ fn lower_type_item(
                 let variables = cst
                     .children()
                     .map(|cst| recursive::lower_type_variable_binding(state, context, &cst, false))
-                    .collect();
+                    .collect_arc();
 
                 let type_ = cst.type_().map(|cst| recursive::lower_type(state, context, &cst));
 
@@ -829,7 +847,7 @@ fn lower_type_item(
                     cst.class_head()?
                         .children()
                         .map(|cst| recursive::lower_type_variable_binding(state, context, &cst, true))
-                        .collect()
+                        .collect_arc()
                 };
 
                 state.in_constraint = true;
@@ -837,7 +855,7 @@ fn lower_type_item(
                     cst.class_constraints()?
                         .children()
                         .map(|cst| recursive::lower_type(state, context, &cst))
-                        .collect()
+                        .collect_arc()
                 };
                 state.in_constraint = false;
 
@@ -859,7 +877,7 @@ fn lower_type_item(
                                 &dependency,
                             )
                         });
-                    dependencies.collect()
+                    dependencies.collect_arc()
                 };
 
                 Some(ClassDeclaration { constraints, variables, functional_dependencies })
@@ -943,7 +961,8 @@ fn lower_constructors(state: &mut State, context: &Context, id: TypeItemId) {
             continue;
         };
 
-        let arguments = cst.children().map(|t| recursive::lower_type(state, context, &t)).collect();
+        let arguments =
+            cst.children().map(|t| recursive::lower_type(state, context, &t)).collect_arc();
 
         let kind = TermItemKind::Constructor { arguments };
         state.tree.term_items.insert(item_id, kind);
@@ -1048,11 +1067,11 @@ fn lower_instance_statements(
                         cst::InstanceEquationStatement::guarded_expression,
                     ))
                 })
-                .collect();
+                .collect_arc();
             InstanceMemberGroup { statements: statements.clone(), resolution, signature, equations }
         })
     });
-    member_groups.collect()
+    member_groups.collect_arc()
 }
 
 fn lower_roles(context: &Context, id: TypeRoleId) -> Arc<[Role]> {
@@ -1070,7 +1089,7 @@ fn lower_roles(context: &Context, id: TypeRoleId) -> Arc<[Role]> {
                     Role::Unknown
                 }
             })
-            .collect()
+            .collect_arc()
     })
     .unwrap_or_default()
 }
@@ -1086,18 +1105,18 @@ fn lower_functional_dependency(
             let determined = dependency.children().filter_map(|variable| {
                 lower_functional_dependency_variable(state, context, variable_map, variable)
             });
-            let determined = determined.collect();
+            let determined = determined.collect_arc();
             FunctionalDependency { determiners: Arc::from([]), determined }
         }
         cst::FunctionalDependency::FunctionalDependencyDetermines(dependency) => {
             let determiners = dependency.determiners().filter_map(|variable| {
                 lower_functional_dependency_variable(state, context, variable_map, variable)
             });
-            let determiners = determiners.collect();
+            let determiners = determiners.collect_arc();
             let determined = dependency.determined().filter_map(|variable| {
                 lower_functional_dependency_variable(state, context, variable_map, variable)
             });
-            let determined = determined.collect();
+            let determined = determined.collect_arc();
             FunctionalDependency { determiners, determined }
         }
     }

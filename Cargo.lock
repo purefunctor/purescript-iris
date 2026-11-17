@@ -2321,6 +2321,7 @@ dependencies = [
  "petgraph",
  "resolving",
  "rustc-hash",
+ "smallvec",
  "smol_str",
  "stabilizing",
  "syntax",
