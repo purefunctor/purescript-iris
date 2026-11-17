@@ -43,7 +43,41 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### E1: fat LTO with one codegen unit for shipped binaries
+
+2026-11-17, branch `e1-release-profile`, harness `5db492475`. The `dist` profile inherits
+`release` and sets `lto = "fat"` and `codegen-units = 1`; the release and canary workflows build
+`iris` with it. The `release` profile is unchanged, so `just perf` does not see this change: both
+sides were measured from one checkout, built with `--release` and with `--profile dist`.
+
+| Stage | `release` | `dist` | Change |
+| --- | ---: | ---: | ---: |
+| checked | 1,033,371,438 | 960,210,006 | -7.08% |
+| build | 2,200,956,841 | 2,035,143,506 | -7.53% |
+| edit_body | 687,728,679 | 644,181,260 | -6.33% |
+| edit_interface | 789,562,325 | 735,226,744 | -6.88% |
+
+Every stage improves, from -1.4% (parsed) to -29.8% (stabilized). Allocator instructions are
+unchanged, since LTO does not reach mimalloc. Generated output is identical, interned counts are
+unchanged, and LTO removes 114 of 1,893,894 allocations. Wall time for `build` on `acme` is 0.889
+of `release` on one thread and 0.945 on all threads. Peak memory is unchanged.
+
+Against `release` with one codegen unit per crate, which `just perf` builds, `dist` lowers `build`
+by 3.95% and `checked` by 3.46%, so one codegen unit and LTO each account for about half the gain.
+
+The shipped `iris` binary building `core` on one thread runs 2,391,980,640 instructions instead of
+2,574,164,577 (-7.1%). On `acme` its wall time is 0.907 of `release` on one thread and 0.931 on
+eight. The binary is 18.3 MB instead of 25.6 MB. A cold build of `iris` takes 2m47s instead of
+1m05s on 8 vCPUs.
+
+Profile-guided optimisation has been measured on Linux x64 but is not in the release workflows.
+On top of `dist`, with a profile from running `measure --timing` on `acme`, it lowers `build` on
+`core` by 16.79% (2,035,158,378 to 1,693,558,524), `checked` by 11.71%, and `edit_body` by
+18.70%, with identical output. It also removes 15,005 allocations in `javascript`. Wall time for
+`build` on `acme` is 0.874 on one thread and 0.935 on all threads. For the shipped `iris` binary on
+`core`, the instruction count drops from 2,391,980,640 to 2,015,991,661 (-15.7%) with an `acme`
+profile, and to 2,009,174,847 with a `core` profile, so training on the measured corpus does not
+inflate the result. Each release target needs its own instrumented build and training run.
 
 ## Measured and rejected
 
@@ -51,5 +85,5 @@ Nothing yet.
 
 ## Not tried
 
-The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, E1, B1, I1) start here
+The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, B1, I1) start here
 until they are measured.
