@@ -16,31 +16,23 @@ pub trait ExternalQueries:
 {
 }
 
+type ClassMembers = Arc<[(SmolStr, TermItemId)]>;
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ResolvedClassMembers {
-    members: FxHashMap<(FileId, TypeItemId, SmolStr), (FileId, TermItemId)>,
+    classes: FxHashMap<(FileId, TypeItemId), ClassMembers>,
 }
 
 impl ResolvedClassMembers {
-    pub fn insert(
-        &mut self,
-        class_file: FileId,
-        class_id: TypeItemId,
-        name: SmolStr,
-        member_file: FileId,
-        term_id: TermItemId,
-    ) {
-        self.members.insert((class_file, class_id, name), (member_file, term_id));
-    }
-
     pub fn lookup(
         &self,
         class_file: FileId,
         class_id: TypeItemId,
         name: &str,
     ) -> Option<(FileId, TermItemId)> {
-        let key = &(class_file, class_id, SmolStr::new(name));
-        self.members.get(key).copied()
+        self.class_members(class_file, class_id)
+            .find(|(member_name, _, _)| *member_name == name)
+            .map(|(_, file, id)| (file, id))
     }
 
     pub fn class_members(
@@ -48,16 +40,15 @@ impl ResolvedClassMembers {
         class_file: FileId,
         class_id: TypeItemId,
     ) -> impl Iterator<Item = (&SmolStr, FileId, TermItemId)> + '_ {
-        self.members
-            .iter()
-            .filter(move |((file_id, type_id, _), _)| {
-                *file_id == class_file && *type_id == class_id
-            })
-            .map(|((_, _, name), (file, id))| (name, *file, *id))
+        let members = self.classes.get(&(class_file, class_id));
+        let members = members.map(|members| &members[..]).unwrap_or_default();
+        members.iter().map(move |(name, id)| (name, class_file, *id))
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (TypeItemId, &SmolStr, FileId, TermItemId)> + '_ {
-        self.members.iter().map(|((_, class_id, name), (file, id))| (*class_id, name, *file, *id))
+        self.classes.iter().flat_map(|(&(file, class_id), members)| {
+            members.iter().map(move |(name, id)| (class_id, name, file, *id))
+        })
     }
 }
 
