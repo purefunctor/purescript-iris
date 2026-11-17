@@ -2,7 +2,7 @@ use std::str::Chars;
 
 use syntax::SyntaxKind;
 
-use crate::categories::LexerCategories;
+use crate::categories::{LexerCategories, is_ascii_name};
 use crate::lexed::{LexedBuilder, SyntaxKindInfo};
 use crate::{Lexed, Position};
 
@@ -169,6 +169,15 @@ impl Lexer<'_> {
         }
     }
 
+    fn take_name(&mut self) {
+        let remaining = self.chars.as_str();
+        let ascii_length = remaining.bytes().position(|byte| !is_ascii_name(byte));
+        let ascii_length = ascii_length.unwrap_or(remaining.len());
+        self.chars = remaining[ascii_length..].chars();
+        self.current_position.column += ascii_length as u32;
+        self.take_while(char::is_name);
+    }
+
     fn take_while_maximum(&mut self, predicate: impl Fn(char) -> bool, maximum: usize) {
         for _ in 0..maximum {
             if predicate(self.first()) && !self.is_eof() {
@@ -233,7 +242,7 @@ impl Lexer<'_> {
             let qualifier_position = self.qualifier_position;
             let current_position = self.current_position;
 
-            self.take_while(char::is_name);
+            self.take_name();
             if self.first() == '.' {
                 self.take();
             } else {
@@ -478,13 +487,13 @@ impl Lexer<'_> {
 
     fn take_hole(&mut self) {
         assert_eq!(self.take(), '?');
-        self.take_while(char::is_name);
+        self.take_name();
         self.push(SyntaxKind::HOLE, None);
     }
 
     fn take_lower(&mut self) {
         let start = self.consumed();
-        self.take_while(char::is_name);
+        self.take_name();
         let end = self.consumed();
         let kind = lower_kind(&self.source[start..end]);
         self.push(kind, None);
@@ -492,7 +501,7 @@ impl Lexer<'_> {
 
     fn take_upper(&mut self) {
         self.take();
-        self.take_while(char::is_name);
+        self.take_name();
         self.push(SyntaxKind::UPPER, None);
     }
 
