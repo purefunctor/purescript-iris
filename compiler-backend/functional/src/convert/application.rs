@@ -14,37 +14,68 @@ use crate::tree::{
     RecordUpdate, UnaryOperator,
 };
 
+use super::known::KnownTerm;
 use super::{Context, ConversionResult};
 
 mod builder;
 
-const BINARY_INSTANCE_MEMBERS: &[(&str, &str, &str, BinaryOperator)] = &[
-    ("Data.HeytingAlgebra", "conj", "heytingAlgebraBoolean", BinaryOperator::BooleanAnd),
-    ("Data.HeytingAlgebra", "disj", "heytingAlgebraBoolean", BinaryOperator::BooleanOr),
-    ("Data.Semiring", "add", "semiringInt", BinaryOperator::IntegerAdd),
-    ("Data.Ring", "sub", "ringInt", BinaryOperator::IntegerSubtract),
-    ("Data.Semiring", "mul", "semiringInt", BinaryOperator::IntegerMultiply),
-    ("Data.Semiring", "add", "semiringNumber", BinaryOperator::NumberAdd),
-    ("Data.Ring", "sub", "ringNumber", BinaryOperator::NumberSubtract),
-    ("Data.Semiring", "mul", "semiringNumber", BinaryOperator::NumberMultiply),
-    ("Data.EuclideanRing", "div", "euclideanRingInt", BinaryOperator::IntegerDivide),
-    ("Data.EuclideanRing", "mod", "euclideanRingInt", BinaryOperator::IntegerModulo),
-    ("Data.EuclideanRing", "div", "euclideanRingNumber", BinaryOperator::NumberDivide),
-    ("Data.Semigroup", "append", "semigroupString", BinaryOperator::StringAppend),
+const BINARY_INSTANCE_MEMBERS: &[(KnownTerm, &str, &str, BinaryOperator)] = &[
+    (
+        KnownTerm::DataHeytingAlgebraConj,
+        "Data.HeytingAlgebra",
+        "heytingAlgebraBoolean",
+        BinaryOperator::BooleanAnd,
+    ),
+    (
+        KnownTerm::DataHeytingAlgebraDisj,
+        "Data.HeytingAlgebra",
+        "heytingAlgebraBoolean",
+        BinaryOperator::BooleanOr,
+    ),
+    (KnownTerm::DataSemiringAdd, "Data.Semiring", "semiringInt", BinaryOperator::IntegerAdd),
+    (KnownTerm::DataRingSub, "Data.Ring", "ringInt", BinaryOperator::IntegerSubtract),
+    (KnownTerm::DataSemiringMul, "Data.Semiring", "semiringInt", BinaryOperator::IntegerMultiply),
+    (KnownTerm::DataSemiringAdd, "Data.Semiring", "semiringNumber", BinaryOperator::NumberAdd),
+    (KnownTerm::DataRingSub, "Data.Ring", "ringNumber", BinaryOperator::NumberSubtract),
+    (KnownTerm::DataSemiringMul, "Data.Semiring", "semiringNumber", BinaryOperator::NumberMultiply),
+    (
+        KnownTerm::DataEuclideanRingDiv,
+        "Data.EuclideanRing",
+        "euclideanRingInt",
+        BinaryOperator::IntegerDivide,
+    ),
+    (
+        KnownTerm::DataEuclideanRingMod,
+        "Data.EuclideanRing",
+        "euclideanRingInt",
+        BinaryOperator::IntegerModulo,
+    ),
+    (
+        KnownTerm::DataEuclideanRingDiv,
+        "Data.EuclideanRing",
+        "euclideanRingNumber",
+        BinaryOperator::NumberDivide,
+    ),
+    (
+        KnownTerm::DataSemigroupAppend,
+        "Data.Semigroup",
+        "semigroupString",
+        BinaryOperator::StringAppend,
+    ),
 ];
 
-const BINARY_FUNCTIONS: &[(&str, &str, BinaryOperator)] = &[
-    ("Data.Int.Bits", "and", BinaryOperator::IntegerAnd),
-    ("Data.Int.Bits", "or", BinaryOperator::IntegerOr),
-    ("Data.Int.Bits", "xor", BinaryOperator::IntegerXor),
-    ("Data.Int.Bits", "shl", BinaryOperator::IntegerShiftLeft),
-    ("Data.Int.Bits", "shr", BinaryOperator::IntegerShiftRight),
-    ("Data.Int.Bits", "zshr", BinaryOperator::IntegerZeroFillShiftRight),
+const BINARY_FUNCTIONS: &[(KnownTerm, BinaryOperator)] = &[
+    (KnownTerm::DataIntBitsAnd, BinaryOperator::IntegerAnd),
+    (KnownTerm::DataIntBitsOr, BinaryOperator::IntegerOr),
+    (KnownTerm::DataIntBitsXor, BinaryOperator::IntegerXor),
+    (KnownTerm::DataIntBitsShl, BinaryOperator::IntegerShiftLeft),
+    (KnownTerm::DataIntBitsShr, BinaryOperator::IntegerShiftRight),
+    (KnownTerm::DataIntBitsZshr, BinaryOperator::IntegerZeroFillShiftRight),
 ];
 
-const UNARY_FUNCTIONS: &[(&str, &str, UnaryOperator)] = &[
-    ("Data.Int.Bits", "complement", UnaryOperator::IntegerComplement),
-    ("Data.Array", "length", UnaryOperator::ArrayLength),
+const UNARY_FUNCTIONS: &[(KnownTerm, UnaryOperator)] = &[
+    (KnownTerm::DataIntBitsComplement, UnaryOperator::IntegerComplement),
+    (KnownTerm::DataArrayLength, UnaryOperator::ArrayLength),
 ];
 
 const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
@@ -63,43 +94,18 @@ const ORD_INSTANCES: &[(&str, PrimitiveType)] = &[
     ("ordString", PrimitiveType::String),
 ];
 
-const ORD_FUNCTIONS: &[(&str, Comparison)] = &[
-    ("lessThan", Comparison::LessThan),
-    ("lessThanOrEq", Comparison::LessThanOrEqual),
-    ("greaterThan", Comparison::GreaterThan),
-    ("greaterThanOrEq", Comparison::GreaterThanOrEqual),
+const ORD_FUNCTIONS: &[(KnownTerm, Comparison)] = &[
+    (KnownTerm::DataOrdLessThan, Comparison::LessThan),
+    (KnownTerm::DataOrdLessThanOrEq, Comparison::LessThanOrEqual),
+    (KnownTerm::DataOrdGreaterThan, Comparison::GreaterThan),
+    (KnownTerm::DataOrdGreaterThanOrEq, Comparison::GreaterThanOrEqual),
 ];
-
-const UNCURRIED_EFFECT_FUNCTIONS: &[(&str, &str, &str)] = &[
-    ("Effect.Uncurried", "mkEffectFn", "runEffectFn"),
-    ("Control.Monad.ST.Uncurried", "mkSTFn", "runSTFn"),
-];
-
-const LOOP_MODULES: &[(&str, &str, &str, &str)] = &[
-    ("Effect", "forE", "foreachE", "whileE"),
-    ("Control.Monad.ST.Internal", "for", "foreach", "while"),
-];
-
-const REFERENCE_MODULES: &[(&str, WriteResult)] =
-    &[("Effect.Ref", WriteResult::Unit), ("Control.Monad.ST.Internal", WriteResult::Value)];
-
-#[derive(Clone, Copy)]
-enum WriteResult {
-    Value,
-    Unit,
-}
 
 #[derive(Clone, Copy)]
 enum ModifyResult {
     State,
     Record,
     Unit,
-}
-
-struct ClassMemberApplication<'a> {
-    class: (FileId, TypeItemId),
-    record: ExpressionId,
-    arguments: &'a [ExpressionId],
 }
 
 impl<'c, Q> Context<'c, Q>
@@ -156,151 +162,172 @@ where
             }
             synthetic = true;
         }
-        if let Some(arity) =
-            self.known_numbered_term_arity(known_function, "Data.Function.Uncurried", "mkFn")?
-            && arity >= 1
-            && let [function] = known_arguments.as_slice()
-            && let Some((parameters, body)) = self.uncurried_parameters(*function, arity)
-        {
-            let parameters = parameters.into();
-            return Ok(self.expression(ExpressionKind::UncurriedAbstraction { parameters, body }));
-        }
-        if let Some(arity) =
-            self.known_numbered_term_arity(known_function, "Data.Function.Uncurried", "runFn")?
-            && let Some((function, arguments)) = known_arguments.split_first()
-            && arguments.len() == arity
-        {
-            if self.known_term(*function, "Record.Unsafe.Union", "unsafeUnionFn")?
-                && let [left, right] = arguments
-                && let Some(fields) = self.literal_record_union(*left, *right)
-            {
-                return Ok(self.expression(ExpressionKind::Record { fields }));
-            }
-            return Ok(self.expression(ExpressionKind::UncurriedApplication {
-                function: *function,
-                arguments: arguments.into(),
+        if let Some(known) = self.known_term(known_function)?
+            && let Some(expression) = self.known_application(
+                known_function,
+                known,
+                &known_arguments,
                 synthetic,
-            }));
-        }
-        for &(module_name, abstraction_prefix, application_prefix) in UNCURRIED_EFFECT_FUNCTIONS {
-            if let Some(arity) =
-                self.known_numbered_term_arity(known_function, module_name, abstraction_prefix)?
-                && arity >= 1
-                && let [function] = known_arguments.as_slice()
-                && let Some((parameters, action)) = self.uncurried_parameters(*function, arity)
-            {
-                let body = self.expression(ExpressionKind::UncurriedApplication {
-                    function: action,
-                    arguments: [].into(),
-                    synthetic: false,
-                });
-                let parameters = parameters.into();
-                return Ok(
-                    self.expression(ExpressionKind::UncurriedAbstraction { parameters, body })
-                );
-            }
-            if let Some(arity) =
-                self.known_numbered_term_arity(known_function, module_name, application_prefix)?
-                && arity >= 1
-                && let Some((function, arguments)) = known_arguments.split_first()
-                && arguments.len() == arity
-            {
-                let effect = EffectExpression::UncurriedApplication {
-                    function: *function,
-                    arguments: arguments.into(),
-                };
-                return Ok(self.expression(ExpressionKind::Effect { effect }));
-            }
-        }
-        if self.known_term(known_function, "Data.Function", "apply")?
-            && let [function, argument] = known_arguments.as_slice()
+                result_type,
+            )?
         {
-            return self.application_with_synthetic(*function, [*argument], synthetic, result_type);
-        }
-        if self.known_term(known_function, "Data.Function", "applyFlipped")?
-            && let [argument, function] = known_arguments.as_slice()
-        {
-            return self.flipped_application(*argument, *function, synthetic, result_type);
-        }
-        if let Some(composition) =
-            self.known_composition_application(known_function, &known_arguments, synthetic)?
-        {
-            return Ok(composition);
+            return Ok(expression);
         }
         if let Some(expression) =
             self.stylex_intrinsic(known_function, &known_arguments, result_type)?
         {
             return Ok(expression);
         }
-        if let Some(record) = self.known_record_build(known_function, &known_arguments)? {
-            return Ok(record);
-        }
-        if let Some(reference) =
-            self.known_reference_application(known_function, &known_arguments)?
-        {
-            return Ok(reference);
-        }
-        if let Some(expression) =
-            self.known_service_application(known_function, &known_arguments)?
-        {
-            return Ok(expression);
-        }
-        if let Some(expression) = self.known_sync_application(known_function, &known_arguments)? {
-            return Ok(expression);
-        }
-        if let Some(expression) = self.known_async_application(known_function, &known_arguments)? {
-            return Ok(expression);
-        }
-        if let Some(effect) = self.known_effect_application(known_function, &known_arguments)? {
-            return Ok(self.expression(ExpressionKind::Effect { effect }));
-        }
-        if let Some([argument]) = self.known_instance_member_arguments(
-            known_function,
-            &known_arguments,
-            "Control.Category",
-            "identity",
-            "Control.Category",
-            "categoryFn",
-        )? {
-            return Ok(*argument);
-        }
-        if self.known_term(known_function, "Unsafe.Coerce", "unsafeCoerce")?
-            && let [argument] = known_arguments.as_slice()
-        {
-            return Ok(*argument);
-        }
-        if (self.known_term(known_function, "Effect.Unsafe", "unsafePerformEffect")?
-            || self.known_term(known_function, "Control.Monad.ST.Internal", "run")?)
-            && let [action] = known_arguments.as_slice()
-            && let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
-                &self.storage[*action].kind
-        {
-            return Ok(*value);
-        }
-        if self.known_term(known_function, "Partial.Unsafe", "unsafePartial")?
-            && let [function, arguments @ ..] = known_arguments.as_slice()
-            && let Some(body) = self.discharged_partial_abstraction(*function)
-        {
-            return self.application_with_synthetic(
-                body,
-                arguments.iter().copied(),
-                synthetic,
-                result_type,
-            );
-        }
-        if self.known_term(known_function, "Safe.Coerce", "coerce")?
-            && let [_, argument] = known_arguments.as_slice()
-        {
-            return Ok(*argument);
-        }
-        if let Some(kind) = self.known_operator_application(known_function, &known_arguments)? {
-            return Ok(self.expression(kind));
-        }
         Ok(self.expression(ExpressionKind::Application {
             function,
             arguments: arguments.into(),
             synthetic,
         }))
+    }
+
+    fn known_application(
+        &mut self,
+        known_function: ExpressionId,
+        known: KnownTerm,
+        known_arguments: &[ExpressionId],
+        synthetic: bool,
+        result_type: Option<checking::TypeId>,
+    ) -> ConversionResult<Option<ExpressionId>> {
+        if let KnownTerm::DataFunctionUncurriedMkFn(arity) = known
+            && arity >= 1
+            && let [function] = known_arguments
+            && let Some((parameters, body)) = self.uncurried_parameters(*function, arity)
+        {
+            let parameters = parameters.into();
+            let abstraction = ExpressionKind::UncurriedAbstraction { parameters, body };
+            return Ok(Some(self.expression(abstraction)));
+        }
+        if let KnownTerm::DataFunctionUncurriedRunFn(arity) = known
+            && let Some((function, arguments)) = known_arguments.split_first()
+            && arguments.len() == arity
+        {
+            if self.known_term(*function)? == Some(KnownTerm::RecordUnsafeUnionUnsafeUnionFn)
+                && let [left, right] = arguments
+                && let Some(fields) = self.literal_record_union(*left, *right)
+            {
+                return Ok(Some(self.expression(ExpressionKind::Record { fields })));
+            }
+            return Ok(Some(self.expression(ExpressionKind::UncurriedApplication {
+                function: *function,
+                arguments: arguments.into(),
+                synthetic,
+            })));
+        }
+        if let KnownTerm::EffectUncurriedMkEffectFn(arity)
+        | KnownTerm::ControlMonadSTUncurriedMkSTFn(arity) = known
+            && arity >= 1
+            && let [function] = known_arguments
+            && let Some((parameters, action)) = self.uncurried_parameters(*function, arity)
+        {
+            let body = self.expression(ExpressionKind::UncurriedApplication {
+                function: action,
+                arguments: [].into(),
+                synthetic: false,
+            });
+            let parameters = parameters.into();
+            let abstraction = ExpressionKind::UncurriedAbstraction { parameters, body };
+            return Ok(Some(self.expression(abstraction)));
+        }
+        if let KnownTerm::EffectUncurriedRunEffectFn(arity)
+        | KnownTerm::ControlMonadSTUncurriedRunSTFn(arity) = known
+            && arity >= 1
+            && let Some((function, arguments)) = known_arguments.split_first()
+            && arguments.len() == arity
+        {
+            let effect = EffectExpression::UncurriedApplication {
+                function: *function,
+                arguments: arguments.into(),
+            };
+            return Ok(Some(self.expression(ExpressionKind::Effect { effect })));
+        }
+        if known == KnownTerm::DataFunctionApply
+            && let [function, argument] = known_arguments
+        {
+            let application =
+                self.application_with_synthetic(*function, [*argument], synthetic, result_type)?;
+            return Ok(Some(application));
+        }
+        if known == KnownTerm::DataFunctionApplyFlipped
+            && let [argument, function] = known_arguments
+        {
+            let application =
+                self.flipped_application(*argument, *function, synthetic, result_type)?;
+            return Ok(Some(application));
+        }
+        if let Some(composition) =
+            self.known_composition_application(known, known_arguments, synthetic)?
+        {
+            return Ok(Some(composition));
+        }
+        if let Some(record) = self.known_record_build(known, known_arguments)? {
+            return Ok(Some(record));
+        }
+        if let Some(reference) = self.known_reference_application(known, known_arguments)? {
+            return Ok(Some(reference));
+        }
+        if let Some(expression) = self.known_service_application(known, known_arguments)? {
+            return Ok(Some(expression));
+        }
+        if let Some(expression) = self.known_sync_application(known, known_arguments)? {
+            return Ok(Some(expression));
+        }
+        if let Some(expression) = self.known_async_application(known, known_arguments)? {
+            return Ok(Some(expression));
+        }
+        if let Some(effect) =
+            self.known_effect_application(known_function, known, known_arguments)?
+        {
+            return Ok(Some(self.expression(ExpressionKind::Effect { effect })));
+        }
+        if let Some([argument]) = self.known_instance_member_arguments(
+            known,
+            known_arguments,
+            KnownTerm::ControlCategoryIdentity,
+            "Control.Category",
+            "categoryFn",
+        )? {
+            return Ok(Some(*argument));
+        }
+        if known == KnownTerm::UnsafeCoerceUnsafeCoerce
+            && let [argument] = known_arguments
+        {
+            return Ok(Some(*argument));
+        }
+        if matches!(
+            known,
+            KnownTerm::EffectUnsafePerformEffect | KnownTerm::ControlMonadSTInternalRun
+        ) && let [action] = known_arguments
+            && let ExpressionKind::Effect { effect: EffectExpression::Pure(value) } =
+                &self.storage[*action].kind
+        {
+            return Ok(Some(*value));
+        }
+        if known == KnownTerm::PartialUnsafeUnsafePartial
+            && let [function, arguments @ ..] = known_arguments
+            && let Some(body) = self.discharged_partial_abstraction(*function)
+        {
+            let application = self.application_with_synthetic(
+                body,
+                arguments.iter().copied(),
+                synthetic,
+                result_type,
+            )?;
+            return Ok(Some(application));
+        }
+        if known == KnownTerm::SafeCoerceCoerce
+            && let [_, argument] = known_arguments
+        {
+            return Ok(Some(*argument));
+        }
+        if let Some(kind) = self.known_operator_application(known, known_arguments)? {
+            return Ok(Some(self.expression(kind)));
+        }
+        Ok(None)
     }
 
     pub(super) fn constructor_value(
@@ -321,15 +348,14 @@ where
 
     fn known_composition_application(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
         synthetic: bool,
     ) -> ConversionResult<Option<ExpressionId>> {
         if let Some(arguments) = self.known_instance_member_arguments(
-            function,
+            known,
             arguments,
-            "Control.Semigroupoid",
-            "compose",
+            KnownTerm::ControlSemigroupoidCompose,
             "Control.Semigroupoid",
             "semigroupoidFn",
         )? && let [outer, inner, remaining @ ..] = arguments
@@ -344,7 +370,7 @@ where
             )?;
             return Ok(Some(composition));
         }
-        if self.known_term(function, "Control.Semigroupoid", "composeFlipped")?
+        if known == KnownTerm::ControlSemigroupoidComposeFlipped
             && let [dictionary, inner, outer, remaining @ ..] = arguments
             && let [] | [_] = remaining
             && self.known_named_instance(*dictionary, "Control.Semigroupoid", "semigroupoidFn")?
@@ -363,14 +389,13 @@ where
 
     fn known_operator_application(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> QueryResult<Option<ExpressionKind>> {
         if let Some([value]) = self.known_instance_member_arguments(
-            function,
+            known,
             arguments,
-            "Data.HeytingAlgebra",
-            "not",
+            KnownTerm::DataHeytingAlgebraNot,
             "Data.HeytingAlgebra",
             "heytingAlgebraBoolean",
         )? {
@@ -379,7 +404,7 @@ where
                 value: *value,
             }));
         }
-        if self.known_term(function, "Data.Ring", "negate")?
+        if known == KnownTerm::DataRingNegate
             && let [dictionary, value] = arguments
         {
             if self.known_named_instance(*dictionary, "Data.Ring", "ringInt")? {
@@ -395,48 +420,46 @@ where
                 }));
             }
         }
-        for &(module_name, member_name, instance_name, operator) in BINARY_INSTANCE_MEMBERS {
+        for &(member, module_name, instance_name, operator) in BINARY_INSTANCE_MEMBERS {
             if let Some([left, right]) = self.known_instance_member_arguments(
-                function,
+                known,
                 arguments,
-                module_name,
-                member_name,
+                member,
                 module_name,
                 instance_name,
             )? {
                 return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
             }
         }
-        for &(module_name, function_name, operator) in BINARY_FUNCTIONS {
-            if self.known_term(function, module_name, function_name)?
+        for &(function, operator) in BINARY_FUNCTIONS {
+            if known == function
                 && let [left, right] = arguments
             {
                 return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
             }
         }
-        for &(module_name, function_name, operator) in UNARY_FUNCTIONS {
-            if self.known_term(function, module_name, function_name)?
+        for &(function, operator) in UNARY_FUNCTIONS {
+            if known == function
                 && let [value] = arguments
             {
                 return Ok(Some(ExpressionKind::Unary { operator, value: *value }));
             }
         }
         if let Some([left, right]) = self.known_instance_member_arguments(
-            function,
+            known,
             arguments,
-            "Data.Semigroup",
-            "append",
+            KnownTerm::DataSemigroupAppend,
             "Data.Semigroup",
             "semigroupArray",
         )? {
             return Ok(Some(self.array_concatenation(*left, *right)));
         }
-        if self.known_term(function, "Data.Semigroup", "concatArray")?
+        if known == KnownTerm::DataSemigroupConcatArray
             && let [left, right] = arguments
         {
             return Ok(Some(self.array_concatenation(*left, *right)));
         }
-        if self.known_term(function, "Data.String.CodePoints", "toCodePointArray")?
+        if known == KnownTerm::DataStringCodePointsToCodePointArray
             && let [string] = arguments
             && let ExpressionKind::Literal { literal: Literal::String(string) } =
                 &self.storage[*string].kind
@@ -453,19 +476,19 @@ where
             });
             return Ok(Some(ExpressionKind::Array { elements: elements.collect() }));
         }
-        if self.known_term(function, "Data.Array", "unsafeIndex")?
+        if known == KnownTerm::DataArrayUnsafeIndex
             && let [_, value, index] = arguments
         {
             return Ok(Some(ExpressionKind::Index { value: *value, index: *index }));
         }
-        if self.known_term(function, "Record.Unsafe", "unsafeGet")?
+        if known == KnownTerm::RecordUnsafeUnsafeGet
             && let [label, record] = arguments
             && let Some(label) = self.literal_label(*label)
         {
             let field = self.label_field(label);
             return Ok(Some(ExpressionKind::Project { record: *record, field }));
         }
-        if self.known_term(function, "Record.Unsafe", "unsafeSet")?
+        if known == KnownTerm::RecordUnsafeUnsafeSet
             && let [label, value, record] = arguments
             && let Some(label) = self.literal_label(*label)
         {
@@ -473,7 +496,7 @@ where
             let updates = [RecordUpdate::Leaf { field, expression: *value }].into();
             return Ok(Some(ExpressionKind::RecordUpdate { record: *record, updates }));
         }
-        if self.known_term(function, "Record.Unsafe", "unsafeHas")?
+        if known == KnownTerm::RecordUnsafeUnsafeHas
             && let [label, record] = arguments
             && let Some(label) = self.literal_label(*label)
             && let Some(fields) = self.literal_record_fields(*record)
@@ -481,7 +504,7 @@ where
             let has = fields.iter().any(|field| field.field.name == label);
             return Ok(Some(ExpressionKind::Literal { literal: Literal::Boolean(has) }));
         }
-        if self.known_term(function, "Record.Unsafe", "unsafeDelete")?
+        if known == KnownTerm::RecordUnsafeUnsafeDelete
             && let [label, record] = arguments
             && let Some(label) = self.literal_label(*label)
             && let Some(fields) = self.literal_record_fields(*record)
@@ -489,20 +512,21 @@ where
             let fields = fields.iter().filter(|field| field.field.name != label).cloned();
             return Ok(Some(ExpressionKind::Record { fields: fields.collect() }));
         }
-        if self.known_term(function, "Record.Unsafe.Union", "unsafeUnion")?
+        if known == KnownTerm::RecordUnsafeUnionUnsafeUnion
             && let [left, right] = arguments
             && let Some(fields) = self.literal_record_union(*left, *right)
         {
             return Ok(Some(ExpressionKind::Record { fields }));
         }
-        if let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
-            self.known_class_member_arguments(function, arguments, "Data.Eq", "eq")?
-            && let Some(operand) = self.known_primitive_instance(record, "Data.Eq", EQ_INSTANCES)?
+        if known == KnownTerm::DataEqEq
+            && let [record, left, right] = arguments
+            && let Some(operand) =
+                self.known_primitive_instance(*record, "Data.Eq", EQ_INSTANCES)?
         {
             let operator = BinaryOperator::Comparison { operand, comparison: Comparison::Equal };
             return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
         }
-        if self.known_term(function, "Data.Eq", "notEq")?
+        if known == KnownTerm::DataEqNotEq
             && let [dictionary, left, right] = arguments
             && let Some(operand) =
                 self.known_primitive_instance(*dictionary, "Data.Eq", EQ_INSTANCES)?
@@ -510,8 +534,8 @@ where
             let operator = BinaryOperator::Comparison { operand, comparison: Comparison::NotEqual };
             return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
         }
-        for &(function_name, comparison) in ORD_FUNCTIONS {
-            if self.known_term(function, "Data.Ord", function_name)?
+        for &(function, comparison) in ORD_FUNCTIONS {
+            if known == function
                 && let [dictionary, left, right] = arguments
                 && let Some(operand) =
                     self.known_primitive_instance(*dictionary, "Data.Ord", ORD_INSTANCES)?
@@ -551,12 +575,10 @@ where
     ) -> ConversionResult<Option<ExpressionId>> {
         let [scrutinee] = scrutinees else { return Ok(None) };
         let (function, arguments) = self.application_spine(*scrutinee, &[]);
-        let Some(ClassMemberApplication { record, arguments: [left, right], .. }) =
-            self.known_class_member_arguments(function, &arguments, "Data.Ord", "compare")?
-        else {
+        if self.known_term(function)? != Some(KnownTerm::DataOrdCompare) {
             return Ok(None);
-        };
-        let (left, right) = (*left, *right);
+        }
+        let [record, left, right] = *arguments.as_slice() else { return Ok(None) };
         let Some(operand) = self.known_primitive_instance(record, "Data.Ord", ORD_INSTANCES)?
         else {
             return Ok(None);
@@ -697,51 +719,64 @@ where
     fn known_effect_application(
         &mut self,
         function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<EffectExpression>> {
-        if let Some([value]) = self.known_thunk_instance_member_arguments(
-            function,
-            arguments,
-            "Control.Applicative",
-            "pure",
-        )? {
-            return Ok(Some(EffectExpression::Pure(*value)));
-        }
-        if let Some([action, continuation]) =
-            self.known_thunk_instance_member_arguments(function, arguments, "Control.Bind", "bind")?
-            && let Some((parameter, body)) = self.effect_continuation(*continuation)?
+        let thunk_member = matches!(
+            known,
+            KnownTerm::ControlApplicativePure
+                | KnownTerm::ControlBindBind
+                | KnownTerm::DataFunctorMap
+                | KnownTerm::ControlApplyApply
+        );
+        if thunk_member
+            && let Some((dictionary, operands)) = arguments.split_first()
+            && self.known_thunk_instance(*dictionary, Some(self.class_member_parent(function)?))?
         {
-            return Ok(Some(EffectExpression::Bind { action: *action, parameter, body }));
+            match (known, operands) {
+                (KnownTerm::ControlApplicativePure, [value]) => {
+                    return Ok(Some(EffectExpression::Pure(*value)));
+                }
+                (KnownTerm::ControlBindBind, [action, continuation]) => {
+                    if let Some((parameter, body)) = self.effect_continuation(*continuation)? {
+                        return Ok(Some(EffectExpression::Bind {
+                            action: *action,
+                            parameter,
+                            body,
+                        }));
+                    }
+                }
+                (KnownTerm::DataFunctorMap, [function, action]) => {
+                    return Ok(Some(EffectExpression::Map {
+                        function: *function,
+                        action: *action,
+                    }));
+                }
+                (KnownTerm::ControlApplyApply, [function_action, argument_action]) => {
+                    return Ok(Some(EffectExpression::Apply {
+                        function_action: *function_action,
+                        argument_action: *argument_action,
+                    }));
+                }
+                _ => (),
+            }
         }
         if let Some((action, continuation)) =
-            self.known_discard_arguments(function, arguments, |context, dictionary| {
+            self.known_discard_arguments(known, arguments, |context, dictionary| {
                 context.known_thunk_instance(dictionary, None)
             })?
             && let Some((parameter, body)) = self.effect_continuation(continuation)?
         {
             return Ok(Some(EffectExpression::Bind { action, parameter, body }));
         }
-        if let Some([function, action]) =
-            self.known_thunk_instance_member_arguments(function, arguments, "Data.Functor", "map")?
-        {
-            return Ok(Some(EffectExpression::Map { function: *function, action: *action }));
-        }
-        if let Some([function_action, argument_action]) = self
-            .known_thunk_instance_member_arguments(function, arguments, "Control.Apply", "apply")?
-        {
-            return Ok(Some(EffectExpression::Apply {
-                function_action: *function_action,
-                argument_action: *argument_action,
-            }));
-        }
         if let Some((condition, action)) =
-            self.known_conditional_arguments(function, arguments, |context, dictionary| {
+            self.known_conditional_arguments(known, arguments, |context, dictionary| {
                 context.known_thunk_instance(dictionary, None)
             })?
         {
             return self.unit_statement(EffectStatement::When { condition, action });
         }
-        let Some(effect_loop) = self.known_effect_loop(function, arguments)? else {
+        let Some(effect_loop) = known_effect_loop(known, arguments) else {
             return Ok(None);
         };
         self.unit_statement(EffectStatement::Loop(effect_loop))
@@ -757,15 +792,14 @@ where
 
     pub(super) fn known_discard_arguments(
         &self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
         known_bind: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
     ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
         if let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
-            function,
+            known,
             arguments,
-            "Control.Bind",
-            "discard",
+            KnownTerm::ControlBindDiscard,
             "Control.Bind",
             "discardUnit",
         )? && known_bind(self, *dictionary)?
@@ -777,12 +811,15 @@ where
 
     pub(super) fn known_conditional_arguments(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
         known_applicative: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
     ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
-        for (item_name, negated) in [("when", false), ("unless", true)] {
-            if self.known_term(function, "Control.Applicative", item_name)?
+        for (function, negated) in [
+            (KnownTerm::ControlApplicativeWhen, false),
+            (KnownTerm::ControlApplicativeUnless, true),
+        ] {
+            if known == function
                 && let [dictionary, condition, action] = *arguments
                 && known_applicative(self, dictionary)?
             {
@@ -798,80 +835,43 @@ where
         Ok(None)
     }
 
-    fn known_effect_loop(
-        &self,
-        function: ExpressionId,
-        arguments: &[ExpressionId],
-    ) -> QueryResult<Option<EffectLoop>> {
-        for &(module_name, range, each, while_) in LOOP_MODULES {
-            if self.known_term(function, module_name, range)?
-                && let [start, end, body] = *arguments
-            {
-                return Ok(Some(EffectLoop::Range { start, end, body }));
-            }
-            if self.known_term(function, module_name, each)?
-                && let [array, body] = *arguments
-            {
-                return Ok(Some(EffectLoop::Each { array, body }));
-            }
-            if self.known_term(function, module_name, while_)?
-                && let [condition, body] = *arguments
-            {
-                return Ok(Some(EffectLoop::While { condition, body }));
-            }
-        }
-        if self.known_term(function, "Effect", "untilE")?
-            && let [condition] = *arguments
-        {
-            return Ok(Some(EffectLoop::Until { condition }));
-        }
-        Ok(None)
-    }
-
     fn known_reference_application(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
-        for (module_name, write_result) in REFERENCE_MODULES {
-            let effect = if self.known_term(function, module_name, "new")?
-                && let [value] = arguments
-            {
+        let effect = match (known, arguments) {
+            (KnownTerm::EffectRefNew | KnownTerm::ControlMonadSTInternalNew, [value]) => {
                 EffectExpression::ReferenceNew(*value)
-            } else if self.known_term(function, module_name, "read")?
-                && let [reference] = arguments
-            {
+            }
+            (KnownTerm::EffectRefRead | KnownTerm::ControlMonadSTInternalRead, [reference]) => {
                 EffectExpression::ReferenceRead(*reference)
-            } else if self.known_term(function, module_name, "write")?
-                && let [value, reference] = arguments
-            {
+            }
+            (KnownTerm::EffectRefWrite, [value, reference]) => {
                 let (reference, value) = (*reference, *value);
-                let effect = match write_result {
-                    WriteResult::Value => {
-                        Some(EffectExpression::ReferenceWrite { reference, value })
-                    }
-                    WriteResult::Unit => {
-                        self.unit_statement(EffectStatement::ReferenceWrite { reference, value })?
-                    }
-                };
-                return Ok(effect.map(|effect| self.expression(ExpressionKind::Effect { effect })));
-            } else {
-                for (item_name, result) in [
-                    ("modify", ModifyResult::State),
-                    ("modify'", ModifyResult::Record),
-                    ("modify_", ModifyResult::Unit),
-                ] {
-                    if self.known_term(function, module_name, item_name)?
-                        && let [function, reference] = arguments
-                    {
-                        return self.reference_modification(*function, *reference, result);
-                    }
-                }
-                continue;
-            };
-            return Ok(Some(self.expression(ExpressionKind::Effect { effect })));
-        }
-        Ok(None)
+                let statement = EffectStatement::ReferenceWrite { reference, value };
+                let Some(effect) = self.unit_statement(statement)? else { return Ok(None) };
+                effect
+            }
+            (KnownTerm::ControlMonadSTInternalWrite, [value, reference]) => {
+                EffectExpression::ReferenceWrite { reference: *reference, value: *value }
+            }
+            (
+                KnownTerm::EffectRefModify | KnownTerm::ControlMonadSTInternalModify,
+                [function, reference],
+            ) => return self.reference_modification(*function, *reference, ModifyResult::State),
+            (
+                KnownTerm::EffectRefModifyPrime | KnownTerm::ControlMonadSTInternalModifyPrime,
+                [function, reference],
+            ) => return self.reference_modification(*function, *reference, ModifyResult::Record),
+            (
+                KnownTerm::EffectRefModifyUnderscore
+                | KnownTerm::ControlMonadSTInternalModifyUnderscore,
+                [function, reference],
+            ) => return self.reference_modification(*function, *reference, ModifyResult::Unit),
+            _ => return Ok(None),
+        };
+        Ok(Some(self.expression(ExpressionKind::Effect { effect })))
     }
 
     fn reference_modification(
@@ -1232,106 +1232,37 @@ where
         Ok(Some(self.expression(ExpressionKind::Global { global })))
     }
 
-    pub(super) fn known_term(
-        &self,
-        expression: ExpressionId,
-        module_name: &str,
-        item_name: &str,
-    ) -> QueryResult<bool> {
-        let ExpressionKind::Global { global } = &self.storage[expression].kind else {
-            return Ok(false);
-        };
-        let GlobalId::Term(file_id, _) = global.id else { return Ok(false) };
-        Ok(global.item_name == item_name && self.source_module_name(file_id)? == module_name)
-    }
-
-    fn known_numbered_term_arity(
-        &self,
-        expression: ExpressionId,
-        module_name: &str,
-        item_prefix: &str,
-    ) -> QueryResult<Option<usize>> {
-        let ExpressionKind::Global { global } = &self.storage[expression].kind else {
-            return Ok(None);
-        };
-        let GlobalId::Term(file_id, _) = global.id else { return Ok(None) };
-        if self.source_module_name(file_id)? != module_name {
-            return Ok(None);
-        }
-        let Some(arity) = global.item_name.strip_prefix(item_prefix) else {
-            return Ok(None);
-        };
-        let Ok(arity) = arity.parse::<usize>() else { return Ok(None) };
-        let canonical_name = format_smolstr!("{item_prefix}{arity}");
-        Ok((arity <= 10 && global.item_name == canonical_name).then_some(arity))
-    }
-
     pub(super) fn known_instance_member_arguments<'a>(
         &self,
-        expression: ExpressionId,
+        known: KnownTerm,
         arguments: &'a [ExpressionId],
-        member_module_name: &str,
-        member_name: &str,
+        member: KnownTerm,
         instance_module_name: &str,
         instance_name: &str,
     ) -> QueryResult<Option<&'a [ExpressionId]>> {
-        let Some(ClassMemberApplication { record, arguments, .. }) = self
-            .known_class_member_arguments(expression, arguments, member_module_name, member_name)?
-        else {
-            return Ok(None);
-        };
-        if !self.known_named_instance(record, instance_module_name, instance_name)? {
-            return Ok(None);
-        }
-        Ok(Some(arguments))
-    }
-
-    fn known_thunk_instance_member_arguments<'a>(
-        &self,
-        expression: ExpressionId,
-        arguments: &'a [ExpressionId],
-        member_module_name: &str,
-        member_name: &str,
-    ) -> QueryResult<Option<&'a [ExpressionId]>> {
-        let Some(ClassMemberApplication { class, record, arguments }) = self
-            .known_class_member_arguments(expression, arguments, member_module_name, member_name)?
-        else {
-            return Ok(None);
-        };
-        if !self.known_thunk_instance(record, Some(class))? {
-            return Ok(None);
-        }
-        Ok(Some(arguments))
-    }
-
-    fn known_class_member_arguments<'a>(
-        &self,
-        expression: ExpressionId,
-        arguments: &'a [ExpressionId],
-        module_name: &str,
-        member_name: &str,
-    ) -> QueryResult<Option<ClassMemberApplication<'a>>> {
-        let ExpressionKind::Global { global } = &self.storage[expression].kind else {
-            return Ok(None);
-        };
-        let GlobalId::Term(member_file, member_id) = global.id else {
-            return Ok(None);
-        };
-        if global.item_name != member_name {
-            return Ok(None);
-        }
-        let indexed = self.indexed_module(member_file)?;
-        let IndexedTermItemKind::ClassMember { parent, .. } = indexed.items[member_id].kind else {
-            return Ok(None);
-        };
-        if self.source_module_name(member_file)? != module_name {
+        if known != member {
             return Ok(None);
         }
         let Some((record, arguments)) = arguments.split_first() else {
             return Ok(None);
         };
-        let class = (member_file, parent);
-        Ok(Some(ClassMemberApplication { class, record: *record, arguments }))
+        if !self.known_named_instance(*record, instance_module_name, instance_name)? {
+            return Ok(None);
+        }
+        Ok(Some(arguments))
+    }
+
+    fn class_member_parent(&self, expression: ExpressionId) -> QueryResult<(FileId, TypeItemId)> {
+        let ExpressionKind::Global { global: Global { id: GlobalId::Term(file_id, term_id), .. } } =
+            self.storage[expression].kind
+        else {
+            unreachable!("invariant violated: known class member is not a term global")
+        };
+        let indexed = self.indexed_module(file_id)?;
+        let IndexedTermItemKind::ClassMember { parent, .. } = indexed.items[term_id].kind else {
+            unreachable!("invariant violated: known class member is not a class member")
+        };
+        Ok((file_id, parent))
     }
 
     pub(super) fn known_named_instance(
@@ -1417,5 +1348,21 @@ where
         };
         self.canonical_thunk_instances.borrow_mut().insert(key, canonical);
         Ok(canonical)
+    }
+}
+
+fn known_effect_loop(known: KnownTerm, arguments: &[ExpressionId]) -> Option<EffectLoop> {
+    match (known, arguments) {
+        (KnownTerm::EffectForE | KnownTerm::ControlMonadSTInternalFor, &[start, end, body]) => {
+            Some(EffectLoop::Range { start, end, body })
+        }
+        (KnownTerm::EffectForeachE | KnownTerm::ControlMonadSTInternalForeach, &[array, body]) => {
+            Some(EffectLoop::Each { array, body })
+        }
+        (KnownTerm::EffectWhileE | KnownTerm::ControlMonadSTInternalWhile, &[condition, body]) => {
+            Some(EffectLoop::While { condition, body })
+        }
+        (KnownTerm::EffectUntilE, &[condition]) => Some(EffectLoop::Until { condition }),
+        _ => None,
     }
 }
