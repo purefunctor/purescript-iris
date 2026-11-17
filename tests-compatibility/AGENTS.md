@@ -13,5 +13,6 @@ registry infrastructure contracts, with constructed data where appropriate.
 Compare the same package selection and configuration when assessing a compiler change. Distinguish
 preparation or environment failures from compiler incompatibilities; do not silently drop failing
 packages to improve the report. Use the `running-compatibility-checks` skill for release-built
-comparisons. Compatibility results and performance measurements answer different questions; neither
-test counts nor line coverage establish either result.
+comparisons and the `measuring-performance` skill for performance measurements. Compatibility
+results and performance measurements answer different questions; neither test counts nor line
+coverage establish either result.
