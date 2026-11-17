@@ -1,6 +1,7 @@
 //! Checks that each skolem introduced by an expected forall appears only in
 //! judgments structurally dominated by that forall's typed expression.
 
+use std::iter;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -820,16 +821,18 @@ where
     (checker.errors, checker.expected_skolems)
 }
 
-fn leading_scopes<Q>(context: &CheckContext<Q>, mut type_id: TypeId) -> Vec<SkolemScope>
+fn leading_scopes<Q>(
+    context: &CheckContext<Q>,
+    mut type_id: TypeId,
+) -> impl Iterator<Item = SkolemScope>
 where
     Q: ExternalQueries,
 {
-    let mut scopes = Vec::new();
-    while let Type::Forall(binder, inner) = *context.lookup_type(type_id) {
+    iter::from_fn(move || {
+        let Type::Forall(binder, inner) = *context.lookup_type(type_id) else { return None };
         let binder = context.lookup_forall_binder(binder);
-        let Some(scope) = binder.name.scope() else { break };
-        scopes.push(scope);
+        let scope = binder.name.scope()?;
         type_id = inner;
-    }
-    scopes
+        Some(scope)
+    })
 }
