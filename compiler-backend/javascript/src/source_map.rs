@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use functional::tree::Origin;
 use line_index::{LineIndex, WideEncoding};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use smol_str::SmolStr;
 use stabilizing::StabilizedModule;
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, TextSize};
@@ -76,7 +76,7 @@ pub fn source_map(
     line_index: &LineIndex,
 ) -> SourceMap {
     let index_mappings = module.files().index_mappings();
-    let mut positions = FxHashMap::default();
+    let mut positions = FxHashMap::with_capacity_and_hasher(index_mappings.len(), FxBuildHasher);
     let mut mappings = Vec::<SourceMapping>::with_capacity(index_mappings.len());
     for mapping in index_mappings {
         let source = mapping.origin.and_then(|origin| {
