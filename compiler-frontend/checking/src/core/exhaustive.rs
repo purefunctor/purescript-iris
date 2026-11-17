@@ -963,10 +963,6 @@ where
                 return Ok(false);
             };
 
-            // Get all constructors for this type
-            let all_constructors: FxHashSet<TermItemId> =
-                indexed.data_constructors(type_item_id).collect();
-
             // Check if sigma covers all constructors
             let sigma_terms: FxHashSet<TermItemId> = sigma
                 .constructors
@@ -977,7 +973,8 @@ where
                 })
                 .collect();
 
-            Ok(all_constructors.iter().all(|term_id| sigma_terms.contains(term_id)))
+            let mut all_constructors = indexed.data_constructors(type_item_id);
+            Ok(all_constructors.all(|term_id| sigma_terms.contains(&term_id)))
         }
         // Records have exactly one constructor, so sigma is always complete for records
         PatternConstructor::Record { .. } => Ok(true),
