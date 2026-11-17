@@ -1,9 +1,12 @@
 use building_types::QueryResult;
+use files::FileId;
+use indexing::TypeItemId;
 use rustc_hash::FxHashSet;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
+use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{Type, TypeId, normalise, toolkit};
 use crate::error::ErrorKind;
 use crate::source::synonym;
@@ -54,6 +57,47 @@ where
     Q: ExternalQueries,
 {
     matches!(context.lookup_type(id), Type::Rigid(..) | Type::Unification(_) | Type::Free(_))
+}
+
+fn contains_bundle<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    struct ContainsBundle {
+        contains: bool,
+        synonyms: FxHashSet<(FileId, TypeItemId)>,
+    }
+
+    impl TypeWalker for ContainsBundle {
+        fn visit<Q: ExternalQueries>(
+            &mut self,
+            state: &mut CheckState,
+            context: &CheckContext<Q>,
+            id: TypeId,
+            t: &Type,
+        ) -> QueryResult<WalkAction> {
+            match *t {
+                Type::Constructor(..) if id == context.iris_effect.bundle => self.contains = true,
+                Type::Synonym(file_id, type_id) if self.synonyms.insert((file_id, type_id)) => {
+                    let synonym = toolkit::lookup_file_synonym(state, context, file_id, type_id)?;
+                    if let Some(synonym) = synonym {
+                        walk_type(state, context, synonym.expansion, self)?;
+                    }
+                }
+                _ => (),
+            }
+
+            if self.contains { Ok(WalkAction::Break) } else { Ok(WalkAction::Continue) }
+        }
+    }
+
+    let mut walker = ContainsBundle { contains: false, synonyms: FxHashSet::default() };
+    walk_type(state, context, id, &mut walker)?;
+    Ok(walker.contains)
 }
 
 fn expand<Q>(state: &mut CheckState, context: &CheckContext<Q>, id: TypeId) -> QueryResult<TypeId>
@@ -131,6 +175,9 @@ pub fn validate<Q>(
 where
     Q: ExternalQueries,
 {
+    if !contains_bundle(state, context, id)? {
+        return Ok(id);
+    }
     let mut validation = Validation::default();
     validation.validate(state, context, id, allow_bundle)?;
     if validation.invalid.is_empty() {

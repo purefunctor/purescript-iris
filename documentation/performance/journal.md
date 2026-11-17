@@ -79,6 +79,30 @@ On top of `dist`, with a profile from running `measure --timing` on `acme`, it l
 profile, and to 2,009,174,847 with a `core` profile, so training on the measured corpus does not
 inflate the result. Each release target needs its own instrumented build and training run.
 
+### K3: capability bundle validation
+
+2026-11-17, branch `k3-bundle-validation-fast-path`, one commit on `5db492475` that changes only
+`checking/src/core/constraint/bundles.rs`. Only `checked` and the edit stages run this code; every
+other stage moved by at most 0.007%, and the output digest is unchanged. On `core`:
+
+| Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: |
+| checked | -4.181% | -5.829% | -6.551% | -3.890% |
+| build | -1.924% | -2.342% | -3.963% | -0.965% |
+| edit_body | -1.354% | -2.589% | -2.704% | -1.199% |
+| edit_interface | -1.172% | -2.633% | -2.433% | -0.947% |
+
+Interned types fell by 1.992% (types with unification variables by 3.494%), because validation no
+longer interns synonym expansions.
+
+- Skip capability bundle validation for types without bundles. `bundles::validate` expanded every
+  synonym on every node of each of the 6,743 top-level source types, although `core` uses no
+  `Iris.Effect` bundles. It now first walks the type for the `Bundle` constructor, following solved
+  unification variables and visiting each synonym's expansion once, and returns the type unchanged
+  when the constructor is absent. Its inclusive cost went from 6.8% to 2.0% of `checked`
+  (call counts and inclusive costs here measured at `fcc43af16` with a Callgrind probe before the
+  harness existed).
+
 ## Measured and rejected
 
 Nothing yet.
@@ -87,3 +111,14 @@ Nothing yet.
 
 The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, B1, I1) start here
 until they are measured.
+
+### K3: capability bundle validation
+
+From K3:
+
+- Memoising per synonym whether its expansion reaches `Bundle`. The bundle walk visits 728
+  synonym expansions on `core`, about 1% of `checked`, because each top-level type walks them
+  again. The memo needs storage in `CheckState` or `CheckedSynonym`.
+- A `TypeFlags` bit for types that may contain a bundle. The interner cannot tell which constructor
+  is `Iris.Effect.Bundle`, which each engine resolves in `IrisEffectCore`, and every synonym and
+  unification variable would have to set the bit, which leaves the walk above.
