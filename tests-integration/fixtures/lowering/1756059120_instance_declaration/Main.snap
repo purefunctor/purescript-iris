@@ -5,42 +5,42 @@ module Main
 
 Expressions:
 
-42@15:13
-  -> integer 42
 42@14:11
   -> integer 42
-eqMaybeImpl@8:6
-  -> top-level
+42@15:13
+  -> integer 42
 eqIntImpl@4:6
+  -> top-level
+eqMaybeImpl@8:6
   -> top-level
 b@12:11
   -> binder@12:7
 
 Types:
 
+a@6:26
+  introduces a constraint variable "a"
 a@6:11
   -> constraint variable "a"
     6:26
-b@10:21
-  -> constraint variable "b"
-    10:19
+a@7:13
+  -> constraint variable "a"
+    6:26
 a@7:24
   -> constraint variable "a"
     6:26
 b@10:19
   introduces a constraint variable "b"
-a@6:26
-  introduces a constraint variable "a"
-a@7:13
-  -> constraint variable "a"
-    6:26
-b@11:22
-  -> constraint variable "b"
-    10:19
-b@11:29
+b@10:21
   -> constraint variable "b"
     10:19
 p@11:20
   -> forall@11:17
+b@11:22
+  -> constraint variable "b"
+    10:19
 p@11:27
   -> forall@11:17
+b@11:29
+  -> constraint variable "b"
+    10:19

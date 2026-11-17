@@ -8,18 +8,18 @@ Expressions:
 
 Types:
 
+n@6:48
+  introduces a constraint variable "n"
+o@6:50
+  introduces a constraint variable "o"
 n@6:22
   -> constraint variable "n"
     6:48
-n@6:48
-  introduces a constraint variable "n"
-o@6:36
-  -> constraint variable "o"
-    6:50
 m@6:24
   introduces a constraint variable "m"
-o@6:50
-  introduces a constraint variable "o"
 m@6:34
   -> constraint variable "m"
     6:24
+o@6:36
+  -> constraint variable "o"
+    6:50

@@ -43,11 +43,44 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### S1: dense `AstId` maps for lowered expressions and types
+
+2026-11-17, branch `s1-dense-ast-id-tables`. `stabilizing::AstIdMap` stores each value in a vector
+and finds it through one slot per stabilized node, presized from the `StabilizedModule`, so inserts
+never rehash. `LoweredTree` expressions and types and `LoweringGraphNodes` expression and type nodes
+use it. Lowering, local references, and lowering snapshots now list entries in insertion order
+instead of hash order. Changes are against `5db492475`:
+
+| Stage | Instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: |
+| lowered | -9.447% | +0.771% | -1.063% |
+| bracketed | -25.303% | +0.000% | +0.000% |
+| sectioned | -27.631% | +0.000% | +0.000% |
+| checked | -0.232% | +0.000% | +0.000% |
+| build | -0.918% | +0.052% | -0.079% |
+| edit_comment | -0.035% | +0.002% | +0.033% |
+| edit_body | -0.190% | +0.001% | +0.013% |
+| edit_interface | -1.563% | +0.032% | -0.481% |
+
+Allocations rise by one slot vector per map per module. Allocator instructions in `lowered` rise
+from 12,308,603 to 17,377,806: the presized slot vectors are zeroed, and the value vectors grow by
+`realloc`, which copies where a hash table rehashed entry by entry outside the allocator. Interned
+counts and generated output are unchanged.
 
 ## Measured and rejected
 
-Nothing yet.
+Measured on 2026-11-17 while building `AstIdMap`, with instructions that still included the
+allocator; changes are against `fcc43af16` on `core`.
+
+- Slots without stored keys, iterated in key order by scanning every slot: `bracketed` +100.9% and
+  `sectioned` +41.3% instructions, because iteration visits every node of the module.
+- Slot vectors grown on demand instead of presized: same instructions as presized, but allocated
+  bytes +20.0% in `lowered` and +4.9% in `checked`.
+- Binder maps (`LoweredTree::binders`, `LoweringGraphNodes::binder_node`,
+  `CheckedNodeTypes::binders`): binders are 7% of node IDs, so the slot vector costs 4 bytes per
+  node for little gain. With slot vectors grown on demand, their inserts went from 2,097,671 to
+  2,076,551 instructions in lowering and from 1,806,059 to 1,665,241 in checking. They stay
+  `FxHashMap`, as do the sparser `AstId` maps.
 
 ## Not tried
 

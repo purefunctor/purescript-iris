@@ -7,31 +7,31 @@ Expressions:
 
 left@2:16
   -> binder@2:3
-right@15:50
-  -> binder@14:26
+value@6:14
+  -> binder@6:6
+value@8:42
+  -> binder@8:6
+{ value, nested: { current: value } }@8:14
+  -> binder@8:6
 input@10:14
   -> binder@10:6
+input@12:20
+  -> binder@12:6
+value@12:36
+  -> binder@12:12
+value@12:64
+  -> binder@12:12
 condition@15:4
   -> binder@14:11
 left@15:19
   -> binder@14:21
 right@15:28
   -> binder@14:26
-value@6:14
-  -> binder@6:6
-value@8:42
-  -> binder@8:6
 left@15:39
   -> binder@14:21
-value@12:64
-  -> binder@12:12
 add@15:46
   -> top-level
-{ value, nested: { current: value } }@8:14
-  -> binder@8:6
-input@12:20
-  -> binder@12:6
-value@12:36
-  -> binder@12:12
+right@15:50
+  -> binder@14:26
 
 Types:

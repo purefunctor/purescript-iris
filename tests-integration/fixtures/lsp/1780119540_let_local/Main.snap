@@ -8,8 +8,8 @@ test = let life = 42 in [life, life]
 --         %             %
 ```
 
-file:///tests-integration/fixtures/lsp/1780119540_let_local/Main.purs @ 2:31..2:35
 file:///tests-integration/fixtures/lsp/1780119540_let_local/Main.purs @ 2:25..2:29
+file:///tests-integration/fixtures/lsp/1780119540_let_local/Main.purs @ 2:31..2:35
 
 
 References at Position { line: 2, character: 25 }
@@ -19,5 +19,5 @@ test = let life = 42 in [life, life]
 --         %             %
 ```
 
-file:///tests-integration/fixtures/lsp/1780119540_let_local/Main.purs @ 2:31..2:35
 file:///tests-integration/fixtures/lsp/1780119540_let_local/Main.purs @ 2:25..2:29
+file:///tests-integration/fixtures/lsp/1780119540_let_local/Main.purs @ 2:31..2:35

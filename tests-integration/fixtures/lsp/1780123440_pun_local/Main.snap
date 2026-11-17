@@ -8,8 +8,8 @@ tuple { value } = [ value, value ]
 --      %           %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 2:27..2:32
 file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 2:20..2:25
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 2:27..2:32
 
 
 References at Position { line: 2, character: 20 }
@@ -19,8 +19,8 @@ tuple { value } = [ value, value ]
 --      %           %
 ```
 
-file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 2:27..2:32
 file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 2:20..2:25
+file:///tests-integration/fixtures/lsp/1780123440_pun_local/Main.purs @ 2:27..2:32
 
 
 References at Position { line: 5, character: 9 }

@@ -19,6 +19,7 @@ use indexmap::IndexMap;
 use la_arena::{Arena, Idx, RawIdx};
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use smol_str::SmolStr;
+use stabilizing::{AstIdMap, StabilizedModule};
 
 use crate::source::*;
 use crate::tree::LetBindingNameGroupId;
@@ -202,20 +203,26 @@ impl ops::Index<GraphNodeId> for LoweringGraph {
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct LoweringGraphNodes {
     pub(crate) binder_node: FxHashMap<BinderId, GraphNodeId>,
-    pub(crate) expression_node: FxHashMap<ExpressionId, GraphNodeId>,
+    pub(crate) expression_node: AstIdMap<ExpressionId, GraphNodeId>,
     pub(crate) record_pun_node: FxHashMap<RecordPunId, GraphNodeId>,
-    pub(crate) type_node: FxHashMap<TypeId, GraphNodeId>,
+    pub(crate) type_node: AstIdMap<TypeId, GraphNodeId>,
     pub(crate) type_variable_binding_node: FxHashMap<TypeVariableBindingId, GraphNodeId>,
     pub(crate) let_node: FxHashMap<LetBindingNameGroupId, GraphNodeId>,
 }
 
 impl LoweringGraphNodes {
+    pub(crate) fn new(stabilized: &StabilizedModule) -> LoweringGraphNodes {
+        let expression_node = AstIdMap::new(stabilized);
+        let type_node = AstIdMap::new(stabilized);
+        LoweringGraphNodes { expression_node, type_node, ..LoweringGraphNodes::default() }
+    }
+
     pub fn binder_node(&self, id: BinderId) -> Option<GraphNodeId> {
         self.binder_node.get(&id).copied()
     }
 
     pub fn expression_node(&self, id: ExpressionId) -> Option<GraphNodeId> {
-        self.expression_node.get(&id).copied()
+        self.expression_node.get(id).copied()
     }
 
     pub fn record_pun_node(&self, id: RecordPunId) -> Option<GraphNodeId> {
@@ -223,7 +230,7 @@ impl LoweringGraphNodes {
     }
 
     pub fn type_node(&self, id: TypeId) -> Option<GraphNodeId> {
-        self.type_node.get(&id).copied()
+        self.type_node.get(id).copied()
     }
 
     pub fn type_variable_binding_node(&self, id: TypeVariableBindingId) -> Option<GraphNodeId> {
