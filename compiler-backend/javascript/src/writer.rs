@@ -835,8 +835,9 @@ impl<'a> Writer<'a> {
     pub(crate) fn finish_with_mappings(self) -> (String, Vec<OriginMapping>) {
         let (output, source) = self.generate(Some(PathBuf::new()));
         let map = output.map.expect("invariant violated: generated code has no source map");
-        let mut mappings = Vec::<OriginMapping>::new();
-        for token in map.get_tokens() {
+        let tokens = map.get_tokens();
+        let mut mappings = Vec::<OriginMapping>::with_capacity(tokens.len());
+        for token in tokens {
             let generated = Position { line: token.get_dst_line(), column: token.get_dst_col() };
             let ProgramNode { origin, name } = source.node(token.get_src_col());
             let (origin, mut name) = (*origin, name.clone());
