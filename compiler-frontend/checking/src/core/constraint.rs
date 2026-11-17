@@ -27,7 +27,7 @@ use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
-use crate::core::fd::{compute_closure, get_functional_dependencies};
+use crate::core::fd::{Positions, compute_closure, get_functional_dependencies};
 use crate::core::{TypeId, generalise, toolkit, unification};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
@@ -165,7 +165,7 @@ where
 
     let arguments = matching::type_arguments(&arguments);
 
-    let mut known_positions = FxHashSet::default();
+    let mut known_positions = Positions::default();
     for (position, &argument) in arguments.iter().enumerate() {
         if !matching::is_blocked(state, context, argument)? {
             known_positions.insert(position);
@@ -180,7 +180,7 @@ where
     // improving when functional dependencies determine one of them.
     let closure = compute_closure(&functional_dependencies, &known_positions);
     let determined = arguments.into_iter().enumerate().filter_map(|(position, argument)| {
-        let is_determined = closure.contains(&position) && !known_positions.contains(&position);
+        let is_determined = closure.contains(position) && !known_positions.contains(position);
         is_determined.then_some(argument)
     });
 

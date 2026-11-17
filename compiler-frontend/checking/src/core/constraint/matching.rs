@@ -11,7 +11,8 @@ use crate::context::CheckContext;
 use crate::core::constraint::instances::InstanceCandidate;
 use crate::core::constraint::{CanonicalConstraintId, canonical};
 use crate::core::fd::{
-    Fd, compute_closure, get_all_determined, get_functional_dependencies, positions_cover_all,
+    Fd, Positions, compute_closure, get_all_determined, get_functional_dependencies,
+    positions_cover_all,
 };
 use crate::core::substitute::SubstituteName;
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
@@ -439,7 +440,7 @@ where
         let argument = types_match(state, context, patterns, wanted, given)?;
         // An apart argument that is not determined by functional dependencies
         // is combined into the outcome whether or not the matches cover it.
-        if argument.is_apart() && !determined.contains(&index) {
+        if argument.is_apart() && !determined.contains(index) {
             return Ok(MatchType::Apart);
         }
         arguments.push(argument);
@@ -450,7 +451,7 @@ where
     }
 
     let arguments = arguments.into_iter().enumerate().filter_map(|(index, argument)| {
-        let non_determined = !determined.contains(&index);
+        let non_determined = !determined.contains(index);
         non_determined.then_some(argument)
     });
 
@@ -468,14 +469,14 @@ fn combine_arguments(arguments: impl IntoIterator<Item = MatchType>) -> MatchTyp
 }
 
 fn covers(fd: &[Fd], types: &[MatchType]) -> QueryResult<bool> {
-    let match_indices: FxHashSet<_> = types
+    let match_indices: Positions = types
         .iter()
         .enumerate()
         .filter_map(|(index, argument)| argument.is_match().then_some(index))
         .collect();
 
     let determined = compute_closure(fd, &match_indices);
-    Ok(types.iter().enumerate().all(|(index, _)| determined.contains(&index)))
+    Ok(types.iter().enumerate().all(|(index, _)| determined.contains(index)))
 }
 
 pub enum MatchInstance {
@@ -799,8 +800,8 @@ fn instances_overlap<Q>(
 where
     Q: ExternalQueries,
 {
-    let all_positions = FxHashSet::from_iter(0..left_arguments.len());
-    let mut known_non_apart = FxHashSet::default();
+    let all_positions = Positions::all(left_arguments.len());
+    let mut known_non_apart = Positions::default();
     let mut possibly_non_apart = all_positions.clone();
 
     // Closure monotonicity lets these bounds decide whether the final non-apart positions contain
@@ -820,7 +821,7 @@ where
         .is_apart();
 
         if apart {
-            possibly_non_apart.remove(&position);
+            possibly_non_apart.remove(position);
             if !positions_cover_all(functional_dependencies, &possibly_non_apart, &all_positions) {
                 return Ok(false);
             }
