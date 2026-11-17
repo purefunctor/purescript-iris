@@ -6,9 +6,7 @@ use smol_str::SmolStr;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::{
-    CheckedInstance, Type, TypeId, constraint, generalise, signature, toolkit, unification, zonk,
-};
+use crate::core::{Type, TypeId, constraint, generalise, signature, toolkit, unification, zonk};
 use crate::error::{ErrorCrumb, ErrorKind};
 use crate::source::types;
 use crate::source::types::application;
@@ -255,7 +253,8 @@ where
     let signature = generalise::generalise_implicit(state, context, canonical)?;
     let matchable = toolkit::freshen_instance_signature(state, context, signature)?;
 
-    let checked = CheckedInstance { resolution, signature, matchable };
+    let checked =
+        constraint::instances::checked_instance(state, context, resolution, signature, matchable)?;
     state.checked.derived_instances.insert(derive_id, checked);
 
     Ok(strategy.map(|strategy| DeriveHeadResult {
