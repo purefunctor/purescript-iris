@@ -1,6 +1,9 @@
 //! Implements name-based type substitution for the core representation.
 
+use std::ops::Index;
+
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 use building_types::QueryResult;
 
@@ -10,7 +13,45 @@ use crate::core::fold::{FoldAction, TypeFold, fold_type};
 use crate::core::{Depth, Name, Type, TypeFlags, TypeId};
 use crate::state::CheckState;
 
-pub type NameToType = FxHashMap<Name, TypeId>;
+#[derive(Debug, Default)]
+pub struct NameToType {
+    bindings: SmallVec<[(Name, TypeId); 4]>,
+}
+
+impl NameToType {
+    pub fn get(&self, name: &Name) -> Option<&TypeId> {
+        self.bindings.iter().find(|(bound, _)| bound == name).map(|(_, type_id)| type_id)
+    }
+
+    pub fn insert(&mut self, name: Name, type_id: TypeId) {
+        if let Some((_, bound_type_id)) = self.bindings.iter_mut().find(|(bound, _)| *bound == name)
+        {
+            *bound_type_id = type_id;
+        } else {
+            self.bindings.push((name, type_id));
+        }
+    }
+
+    pub fn remove(&mut self, name: &Name) {
+        self.bindings.retain(|(bound, _)| bound != name);
+    }
+
+    pub fn contains_key(&self, name: &Name) -> bool {
+        self.get(name).is_some()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.bindings.is_empty()
+    }
+}
+
+impl Index<&Name> for NameToType {
+    type Output = TypeId;
+
+    fn index(&self, name: &Name) -> &TypeId {
+        self.get(name).expect("invariant violated: expected a bound name")
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct RigidReplacement {

@@ -16,7 +16,8 @@ where
 {
     state: &'a mut CheckState,
     context: &'a CheckContext<'q, Q>,
-    compression: SmallVec<[u32; 4]>,
+    pruned: u32,
+    last_solution: Option<TypeId>,
 }
 
 impl<'a, 'q, Q> ReductionContext<'a, 'q, Q>
@@ -24,7 +25,7 @@ where
     Q: ExternalQueries,
 {
     fn new(state: &'a mut CheckState, context: &'a CheckContext<'q, Q>) -> Self {
-        ReductionContext { state, context, compression: SmallVec::new() }
+        ReductionContext { state, context, pruned: 0, last_solution: None }
     }
 
     fn reduce_once(&mut self, id: TypeId) -> Option<TypeId> {
@@ -51,7 +52,8 @@ where
             return None;
         };
 
-        self.compression.push(unification_id);
+        self.pruned += 1;
+        self.last_solution = Some(solution_id);
         Some(solution_id)
     }
 
@@ -108,10 +110,15 @@ where
 // Most types cannot normalise, so keeping the reduction loop out of line lets
 // callers inline the flag check without carrying the loop's stack frame.
 #[inline(never)]
-fn normalise_head<Q>(state: &mut CheckState, context: &CheckContext<Q>, mut id: TypeId) -> TypeId
+pub(crate) fn normalise_head<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut id: TypeId,
+) -> TypeId
 where
     Q: ExternalQueries,
 {
+    let original_id = id;
     let mut reduction = ReductionContext::new(state, context);
 
     let id = safe_loop! {
@@ -122,11 +129,34 @@ where
         }
     };
 
-    for unification_id in reduction.compression {
-        state.unifications.solve(unification_id, id);
+    if reduction.pruned > 1 || reduction.last_solution.is_some_and(|solution| solution != id) {
+        compress_unifications(state, context, original_id, id);
     }
 
     id
+}
+
+fn compress_unifications<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut current: TypeId,
+    normalised: TypeId,
+) where
+    Q: ExternalQueries,
+{
+    safe_loop! {
+        let Type::Unification(unification_id) = *context.lookup_type(current) else {
+            break;
+        };
+        let UnificationState::Solved(solution_id) = state.unifications.get(unification_id).state
+        else {
+            break;
+        };
+        if solution_id != normalised {
+            state.unifications.solve(unification_id, normalised);
+        }
+        current = solution_id;
+    }
 }
 
 /// Expands synonym constructor applications.
@@ -163,22 +193,23 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
-        if let Type::ConstraintOrigin(constraint, _) = *context.lookup_type(id) {
-            id = normalise(state, context, constraint);
-            continue;
-        }
+        let expanded = match context.lookup_type(id) {
+            Type::ConstraintOrigin(constraint, _) => {
+                id = normalise(state, context, *constraint);
+                continue;
+            }
+            Type::Synonym(..) => expand_synonym(state, context, id)?,
+            Type::Application(..) | Type::KindApplication(..)
+                if context.lookup_type_flags(id).may_expand() =>
+            {
+                expand_synonym(state, context, id)?
+            }
+            Type::Row(_) if context.lookup_type_flags(id).may_expand() => {
+                expand_row_tail(state, context, id)?
+            }
+            _ => return Ok(id),
+        };
 
-        if !context.lookup_type_flags(id).may_expand() {
-            return Ok(id);
-        }
-
-        let expanded = expand_synonym(state, context, id)?;
-        if expanded != id {
-            id = normalise(state, context, expanded);
-            continue;
-        }
-
-        let expanded = expand_row_tail(state, context, id)?;
         if expanded == id {
             return Ok(id);
         }
@@ -280,19 +311,19 @@ where
     // the collected spine is discarded without further work.
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
     let mut current = id;
-    safe_loop! {
+    let head = safe_loop! {
         let (function, argument) = match *context.lookup_type(current) {
             Type::Application(function, argument) => (function, ApplicationArgument::Type(argument)),
             Type::KindApplication(function, argument) => {
                 (function, ApplicationArgument::Kind(argument))
             }
-            _ => break,
+            ref head => break head,
         };
         arguments.push(argument);
         current = normalise(state, context, function);
-    }
+    };
 
-    let Type::Synonym(file_id, type_id) = *context.lookup_type(current) else {
+    let Type::Synonym(file_id, type_id) = *head else {
         return Ok(id);
     };
 
