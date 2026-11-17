@@ -7,6 +7,5 @@ license.workspace = true
 [dependencies]
 boxcar = "0.2.14"
 hashbrown = "0.17.1"
-papaya = "0.2.5"
 parking_lot = "0.12.5"
 rustc-hash = "2.1.3"
