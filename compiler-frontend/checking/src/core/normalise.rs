@@ -193,22 +193,23 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
-        if let Type::ConstraintOrigin(constraint, _) = *context.lookup_type(id) {
-            id = normalise(state, context, constraint);
-            continue;
-        }
+        let expanded = match context.lookup_type(id) {
+            Type::ConstraintOrigin(constraint, _) => {
+                id = normalise(state, context, *constraint);
+                continue;
+            }
+            Type::Synonym(..) => expand_synonym(state, context, id)?,
+            Type::Application(..) | Type::KindApplication(..)
+                if context.lookup_type_flags(id).may_expand() =>
+            {
+                expand_synonym(state, context, id)?
+            }
+            Type::Row(_) if context.lookup_type_flags(id).may_expand() => {
+                expand_row_tail(state, context, id)?
+            }
+            _ => return Ok(id),
+        };
 
-        if !context.lookup_type_flags(id).may_expand() {
-            return Ok(id);
-        }
-
-        let expanded = expand_synonym(state, context, id)?;
-        if expanded != id {
-            id = normalise(state, context, expanded);
-            continue;
-        }
-
-        let expanded = expand_row_tail(state, context, id)?;
         if expanded == id {
             return Ok(id);
         }
@@ -310,19 +311,19 @@ where
     // the collected spine is discarded without further work.
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
     let mut current = id;
-    safe_loop! {
+    let head = safe_loop! {
         let (function, argument) = match *context.lookup_type(current) {
             Type::Application(function, argument) => (function, ApplicationArgument::Type(argument)),
             Type::KindApplication(function, argument) => {
                 (function, ApplicationArgument::Kind(argument))
             }
-            _ => break,
+            ref head => break head,
         };
         arguments.push(argument);
         current = normalise(state, context, function);
-    }
+    };
 
-    let Type::Synonym(file_id, type_id) = *context.lookup_type(current) else {
+    let Type::Synonym(file_id, type_id) = *head else {
         return Ok(id);
     };
 
