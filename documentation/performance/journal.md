@@ -67,6 +67,28 @@ from 12,308,603 to 17,377,806: the presized slot vectors are zeroed, and the val
 `realloc`, which copies where a hash table rehashed entry by entry outside the allocator. Interned
 counts and generated output are unchanged.
 
+### S1: dense `AstId` maps for checked expression and type nodes
+
+2026-11-17, branch `s1-dense-ast-id-tables`. `CheckedNodeTypes` types, type kinds, and expressions
+use `AstIdMap`, presized in `check_source`. Changes are against the lowering entry above:
+
+| Stage | Instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: |
+| checked | -1.515% | +0.061% | +1.010% |
+| build | -0.702% | +0.037% | +0.251% |
+| edit_comment | -0.028% | +0.001% | +0.024% |
+| edit_body | -1.381% | +0.026% | +0.789% |
+| edit_interface | -1.213% | +0.023% | +0.627% |
+
+Allocated bytes in `checked` rise by 1,114,960 bytes: three slot vectors of 4 bytes per stabilized
+node, kept with each `CheckedModule`. Interned counts and generated output are unchanged.
+
+Both S1 entries together against `5db492475`: `build` -1.614% instructions (-1.091% with the
+allocator), +0.089% allocations, +0.172% allocated bytes; `edit_interface` -2.758%, `edit_body`
+-1.568%. Wall time on `acme` is noisy across runs. Medians of three interleaved runs, one thread:
+`lowered` 0.895, `checked` 0.979, and the whole build 1.003 in this run, against 0.939 in the same
+measurement on `1d5ee22ff`. Peak resident memory went from 2,941.7 MB to 2,968.9 MB on one thread.
+
 ## Measured and rejected
 
 Measured on 2026-11-17 while building `AstIdMap`, with instructions that still included the
