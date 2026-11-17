@@ -43,13 +43,45 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### J1
+
+2026-11-17, branch `j1-javascript-rendering`, five commits against `5db492475`. Stages
+`javascript` and `source_map`; interned counts unchanged; output digest unchanged.
+
+| Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: |
+| javascript | 200,574,794 (-12.260%) | 24,710,284 (-25.952%) | 166,269 (-2.635%) | 81,540,845 (-16.667%) |
+| source_map | 42,494,939 (-7.244%) | 847,214 (-82.341%) | 5,685 (-32.313%) | 11,583,958 (-34.827%) |
+| build | 2,039,063,630 (-1.498%) | 216,520,051 (-5.505%) | 1,886,566 (-0.381%) | 422,374,151 (-5.057%) |
+
+- Program text gives every generated node a two-byte position on one line instead of its own
+  line, so Oxc's source-map builder no longer builds and searches a line table with one entry
+  per node. This is most of the `javascript` change.
+- Origin mappings and source mappings are reserved up front, program text names are stored
+  apart from positions, and the origin position table is sized by the mapping count.
+- What remains in `javascript` is mostly Oxc's code generation and its source-map builder
+  (scanning output between mappings and hashing token names); in `source_map` it is syntax tree
+  access in `first_token_start` and the origin position table.
 
 ## Measured and rejected
 
-Nothing yet.
+### J1
+
+- 2026-11-17: borrowing mapping names instead of cloning them, in `finish_with_mappings` and
+  in `source_map`. Instructions rose 0.14% in `javascript` and 1.1% in `source_map`, measured
+  with an earlier copy of the harness.
+- 2026-11-17: boxing the generated module's files instead of `Arc`. Gated `javascript`
+  instructions fell 1.9%, but the shrinking reallocation moved the copy into the allocator
+  (+11% allocator instructions); the stage total fell 0.5%. Measured with an earlier copy of the
+  harness.
+- 2026-11-17: reusing the previous origin's position in `source_map` before the hash
+  lookup. About 1% of the stage, measured with a probe before the harness existed.
 
 ## Not tried
 
 The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, E1, B1, I1) start here
 until they are measured.
+
+### J1
+
+- Fewer `format!` calls in rendering. They are about 2% of `javascript` on `core`.
