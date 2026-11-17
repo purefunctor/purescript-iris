@@ -12,7 +12,7 @@ use syntax::{SyntaxKind, SyntaxToken, cst};
 use crate::literal::{StringLiteral, decode_normal_string, decode_raw_string};
 use crate::*;
 
-use super::{Context, ItemGraph, LetBindingContext, State};
+use super::{CollectArc, Context, ItemGraph, LetBindingContext, State};
 
 fn string_text(source: &str, token: SyntaxToken) -> Option<SmolStr> {
     string_literal_text(source, token)?.to_utf8().ok().map(SmolStr::from)
@@ -126,7 +126,7 @@ fn lower_binder_kind(
                     let element = cst.binder().map(|cst| lower_binder(state, context, &cst));
                     OperatorPair { id, element }
                 })
-                .collect();
+                .collect_arc();
             BinderKind::OperatorChain { head, tail }
         }
         cst::Binder::BinderInteger(cst) => {
@@ -151,7 +151,8 @@ fn lower_binder_kind(
                 let id = context.stabilized.lookup_cst(cst).expect_id();
                 state.errors.push(LoweringError::NotInScope(NotInScope::BinderConstructor { id }));
             }
-            let arguments = cst.children().map(|cst| lower_binder(state, context, &cst)).collect();
+            let arguments =
+                cst.children().map(|cst| lower_binder(state, context, &cst)).collect_arc();
             BinderKind::Constructor { resolution, arguments }
         }
         cst::Binder::BinderVariable(cst) => {
@@ -190,7 +191,7 @@ fn lower_binder_kind(
         cst::Binder::BinderTrue(_) => BinderKind::Boolean { boolean: true },
         cst::Binder::BinderFalse(_) => BinderKind::Boolean { boolean: false },
         cst::Binder::BinderArray(cst) => {
-            let array = cst.children().map(|cst| lower_binder(state, context, &cst)).collect();
+            let array = cst.children().map(|cst| lower_binder(state, context, &cst)).collect_arc();
             BinderKind::Array { array }
         }
         cst::Binder::BinderRecord(cst) => {
@@ -219,7 +220,7 @@ fn lower_binder_kind(
                     BinderRecordItem::RecordPun { id, name }
                 }
             };
-            let record = cst.children().map(lower_item).collect();
+            let record = cst.children().map(lower_item).collect_arc();
             BinderKind::Record { record }
         }
         cst::Binder::BinderParenthesized(cst) => {
@@ -262,7 +263,7 @@ fn lower_expression_kind(
                     let element = expression.map(|cst| lower_expression(state, context, &cst));
                     OperatorPair { id, element }
                 })
-                .collect();
+                .collect_arc();
             ExpressionKind::OperatorChain { head, tail }
         }
         cst::Expression::ExpressionInfixChain(cst) => {
@@ -278,7 +279,7 @@ fn lower_expression_kind(
                         cst.expression().map(|cst| lower_expression(state, context, &cst));
                     InfixPair { tick, element }
                 })
-                .collect();
+                .collect_arc();
             ExpressionKind::InfixChain { head, tail }
         }
         cst::Expression::ExpressionNegate(cst) => {
@@ -307,7 +308,7 @@ fn lower_expression_kind(
 
             let function = cst.expression().map(|cst| lower_expression(state, context, &cst));
             let arguments =
-                cst.children().map(|cst| lower_argument(state, context, &cst)).collect();
+                cst.children().map(|cst| lower_argument(state, context, &cst)).collect_arc();
 
             ExpressionKind::Application { function, arguments }
         }
@@ -339,7 +340,7 @@ fn lower_expression_kind(
                         state.push_binder_scope();
                         lower_binder(state, context, &cst)
                     })
-                    .collect()
+                    .collect_arc()
             };
             let expression = cst.expression().map(|cst| lower_expression(state, context, &cst));
             ExpressionKind::Lambda { binders, expression }
@@ -357,7 +358,7 @@ fn lower_expression_kind(
                         cst.binders()?
                             .children()
                             .map(|cst| lower_binder(state, context, &cst))
-                            .collect()
+                            .collect_arc()
                     };
                     let guarded_expression =
                         cst.guarded_expression().map(|cst| lower_guarded(state, context, &cst));
@@ -369,13 +370,13 @@ fn lower_expression_kind(
                 cst.trunk()?
                     .children()
                     .map(|cst| lower_expression(state, context, &cst))
-                    .collect()
+                    .collect_arc()
             };
             let branches = recover! {
                 cst.branches()?
                     .children()
                     .map(|cst| lower_case_branch(state, context, &cst))
-                    .collect()
+                    .collect_arc()
             };
 
             ExpressionKind::CaseOf { trunk, branches }
@@ -429,7 +430,7 @@ fn lower_expression_kind(
                 cst.statements()?
                     .children()
                     .map(|cst| lower_do_statement(state, context, &cst))
-                    .collect()
+                    .collect_arc()
             };
 
             ExpressionKind::Do { bind, discard, statements }
@@ -489,7 +490,7 @@ fn lower_expression_kind(
                 cst.statements()?
                     .children()
                     .map(|cst| lower_ado_statement(state, context, outer_scope, &cst))
-                    .collect()
+                    .collect_arc()
             };
             let expression = cst.expression().map(|cst| lower_expression(state, context, &cst));
 
@@ -559,7 +560,8 @@ fn lower_expression_kind(
             ExpressionKind::Number { value }
         }
         cst::Expression::ExpressionArray(cst) => {
-            let array = cst.children().map(|cst| lower_expression(state, context, &cst)).collect();
+            let array =
+                cst.children().map(|cst| lower_expression(state, context, &cst)).collect_arc();
             ExpressionKind::Array { array }
         }
         cst::Expression::ExpressionRecord(cst) => {
@@ -595,7 +597,7 @@ fn lower_expression_kind(
                     ExpressionRecordItem::RecordPun { id, name, resolution }
                 }
             };
-            let record = cst.children().map(|cst| lower_item(state, cst)).collect();
+            let record = cst.children().map(|cst| lower_item(state, cst)).collect_arc();
             ExpressionKind::Record { record }
         }
         cst::Expression::ExpressionParenthesized(cst) => {
@@ -636,7 +638,7 @@ fn lower_guarded(
         }
         cst::GuardedExpression::Conditionals(cst) => {
             let pattern_guarded =
-                cst.children().map(|cst| lower_pattern_guarded(state, context, &cst)).collect();
+                cst.children().map(|cst| lower_pattern_guarded(state, context, &cst)).collect_arc();
             GuardedExpression::Conditionals { pattern_guarded }
         }
     }
@@ -666,7 +668,7 @@ fn lower_pattern_guarded(
     // ```
     state.with_scope(|s| {
         let pattern_guards =
-            cst.children().map(|cst| lower_pattern_guard(s, context, &cst)).collect();
+            cst.children().map(|cst| lower_pattern_guard(s, context, &cst)).collect_arc();
         let where_expression =
             cst.where_expression().map(|cst| lower_where_expression(s, context, &cst));
         PatternGuarded { pattern_guards, where_expression }
@@ -861,7 +863,7 @@ fn lower_equation_chunk(
                 ))
             });
 
-            let equations = equations.collect();
+            let equations = equations.collect_arc();
 
             let info = LetBindingName { signature, equations };
             state.associate_let_binding_name(id, info);
@@ -911,7 +913,7 @@ pub(crate) fn lower_equation_like<T: AstNode>(
             binders(&equation)?
                 .children()
                 .map(|cst| lower_binder(state, context, &cst))
-                .collect()
+                .collect_arc()
         };
         let guarded = guarded(&equation).map(|cst| lower_guarded(state, context, &cst));
         Equation { source, binders, guarded }
@@ -1010,7 +1012,7 @@ fn lower_record_updates(
                 }
             }
         })
-        .collect()
+        .collect_arc()
 }
 
 pub(crate) fn lower_type(state: &mut State, context: &Context, cst: &cst::Type) -> TypeId {
@@ -1031,7 +1033,7 @@ fn lower_type_kind(
             let mut children = cst.children();
             let function = children.next().map(|cst| lower_type(state, context, &cst));
             let in_constraint = mem::replace(&mut state.in_constraint, false);
-            let arguments = children.map(|cst| lower_type(state, context, &cst)).collect();
+            let arguments = children.map(|cst| lower_type(state, context, &cst)).collect_arc();
             state.in_constraint = in_constraint;
             TypeKind::ApplicationChain { function, arguments }
         }
@@ -1073,7 +1075,7 @@ fn lower_type_kind(
             let bindings = cst
                 .children()
                 .map(|cst| lower_type_variable_binding(s, context, &cst, false))
-                .collect();
+                .collect_arc();
             let inner = cst.type_().map(|cst| lower_type(s, context, &cst));
             TypeKind::Forall { bindings, inner }
         }),
@@ -1140,7 +1142,7 @@ fn lower_type_kind(
                     let element = cst.type_().as_ref().map(|cst| lower_type(state, context, cst));
                     OperatorPair { id, element }
                 })
-                .collect();
+                .collect_arc();
             TypeKind::OperatorChain { head, tail }
         }
         cst::Type::TypeString(cst) => {
@@ -1161,7 +1163,8 @@ fn lower_type_kind(
         }
         cst::Type::TypeWildcard(_) => TypeKind::Wildcard,
         cst::Type::TypeRecord(cst) => {
-            let items = cst.children().map(|cst| lower_row_item(state, context, &cst)).collect();
+            let items =
+                cst.children().map(|cst| lower_row_item(state, context, &cst)).collect_arc();
             let tail = cst.tail().and_then(|cst| {
                 let cst = cst.type_()?;
                 Some(lower_type(state, context, &cst))
@@ -1169,7 +1172,8 @@ fn lower_type_kind(
             TypeKind::Record { items, tail }
         }
         cst::Type::TypeRow(cst) => {
-            let items = cst.children().map(|cst| lower_row_item(state, context, &cst)).collect();
+            let items =
+                cst.children().map(|cst| lower_row_item(state, context, &cst)).collect_arc();
             let tail = cst.tail().and_then(|cst| {
                 let cst = cst.type_()?;
                 Some(lower_type(state, context, &cst))
@@ -1194,7 +1198,7 @@ pub(crate) fn lower_forall(state: &mut State, context: &Context, cst: &cst::Type
         let bindings = f
             .children()
             .map(|cst| lower_type_variable_binding(state, context, &cst, false))
-            .collect();
+            .collect_arc();
         let inner = f.type_().map(|cst| lower_forall(state, context, &cst));
         let kind = TypeKind::Forall { bindings, inner };
         state.associate_type_kind(id, kind);
