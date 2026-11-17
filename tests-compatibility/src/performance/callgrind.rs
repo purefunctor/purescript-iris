@@ -9,6 +9,8 @@ use anyhow::{Context, Result, bail};
 const DUMPED_FUNCTION: &str = "*measured_stage*";
 const COLLECTED_FUNCTION: &str = "*collected_stage*";
 
+const ALLOCATOR_PREFIXES: [&str; 3] = ["mi_", "_mi_", "__mi_"];
+
 const ALLOCATOR_ENTRY_POINTS: [&str; 8] = [
     "mi_malloc",
     "mi_malloc_aligned",
@@ -123,10 +125,12 @@ fn parse_dump(path: PathBuf, content: &str) -> Result<Dump> {
             && line.starts_with(|first: char| first.is_ascii_digit() || "+-*".contains(first))
         {
             call_pending = false;
-            let is_allocator = |name: &Option<String>| {
-                name.as_deref().is_some_and(|name| ALLOCATOR_ENTRY_POINTS.contains(&name))
-            };
-            if is_allocator(&callee) && !is_allocator(&caller) {
+            let is_entry_point =
+                callee.as_deref().is_some_and(|callee| ALLOCATOR_ENTRY_POINTS.contains(&callee));
+            let is_inside_allocator = caller.as_deref().is_some_and(|caller| {
+                ALLOCATOR_PREFIXES.iter().any(|prefix| caller.starts_with(prefix))
+            });
+            if is_entry_point && !is_inside_allocator {
                 let cost = line.split_whitespace().nth(1).unwrap_or("0");
                 allocator_instructions += cost.parse::<u64>()?;
             }
