@@ -1152,9 +1152,8 @@ fn lower_type_kind(
             TypeKind::String { kind, value }
         }
         cst::Type::TypeVariable(cst) => {
-            let text = cst.name_token().map(|cst| cst.text(context.source));
-            let name = text.map(SmolStr::from);
-            let resolution = text.and_then(|text| state.resolve_type_variable(id, text));
+            let name = cst.name_token().map(|cst| SmolStr::from(cst.text(context.source)));
+            let resolution = name.as_ref().and_then(|name| state.resolve_type_variable(id, name));
             if resolution.is_none() {
                 let id = context.stabilized.lookup_cst(cst).expect_id();
                 state.errors.push(LoweringError::NotInScope(NotInScope::TypeVariable { id }));

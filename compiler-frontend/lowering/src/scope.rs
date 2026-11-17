@@ -88,9 +88,8 @@ impl ImplicitBindings {
         Idx::from_raw(RawIdx::from_u32(index as u32))
     }
 
-    pub(crate) fn bind(&mut self, name: &str, id: TypeId) -> ImplicitBindingId {
-        let name = SmolStr::from(name);
-        let entry = self.inner.entry(name);
+    pub(crate) fn bind(&mut self, name: &SmolStr, id: TypeId) -> ImplicitBindingId {
+        let entry = self.inner.entry(SmolStr::clone(name));
         let index = entry.index();
         entry.or_default().push(id);
         ImplicitBindings::binding_id(index)

@@ -188,7 +188,7 @@ impl State {
         self.nodes.let_node.insert(id, node);
     }
 
-    fn insert_binder_name(&mut self, name: &str, source: BinderNameSource) {
+    fn insert_binder_name(&mut self, name: &SmolStr, source: BinderNameSource) {
         let Some(node) = self.graph_scope else { return };
         let GraphNode::Binder { binders, puns, .. } = &mut self.graph.inner[node] else { return };
 
@@ -197,29 +197,28 @@ impl State {
             .map(|&id| BinderNameSource::Binder(id))
             .or_else(|| puns.get(name).map(|&id| BinderNameSource::RecordPun(id)));
 
-        let name = SmolStr::from(name);
         match source {
             BinderNameSource::Binder(id) => {
-                binders.insert(SmolStr::clone(&name), id);
+                binders.insert(SmolStr::clone(name), id);
             }
             BinderNameSource::RecordPun(id) => {
-                puns.insert(SmolStr::clone(&name), id);
+                puns.insert(SmolStr::clone(name), id);
                 self.nodes.record_pun_node.insert(id, node);
             }
         }
 
         if let Some(existing) = existing {
+            let name = SmolStr::clone(name);
             let error = LoweringError::OverlappingBinderNames { name, duplicate: source, existing };
             self.errors.push(error);
         }
     }
 
-    fn insert_bound_variable(&mut self, name: &str, id: TypeVariableBindingId) {
+    fn insert_bound_variable(&mut self, name: &SmolStr, id: TypeVariableBindingId) {
         let Some(node) = self.graph_scope else { return };
         let GraphNode::Forall { bindings, .. } = &mut self.graph.inner[node] else { return };
 
-        let name = SmolStr::from(name);
-        bindings.insert(name, id);
+        bindings.insert(SmolStr::clone(name), id);
         self.nodes.type_variable_binding_node.insert(id, node);
     }
 
@@ -375,7 +374,11 @@ impl State {
         Some((file_id, type_id))
     }
 
-    fn resolve_type_variable(&mut self, id: TypeId, name: &str) -> Option<TypeVariableResolution> {
+    fn resolve_type_variable(
+        &mut self,
+        id: TypeId,
+        name: &SmolStr,
+    ) -> Option<TypeVariableResolution> {
         let node = self.graph_scope?;
         if let GraphNode::Implicit { collecting, bindings, .. } = &mut self.graph.inner[node] {
             if let Some(id) = bindings.get(name) {
