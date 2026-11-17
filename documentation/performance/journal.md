@@ -43,13 +43,64 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### L1: lowering allocations and lookups
+
+2026-11-17, branch `lowering-allocations`, four commits in `compiler-frontend/lowering/src`,
+measured together with `just perf 5db492475`:
+
+| Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: |
+| lowered | 149,695,312 (-6.722%) | 9,198,601 (-25.270%) | 90,625 (-29.252%) | 31,370,887 (-4.640%) |
+| build | 2,059,296,199 (-0.521%) | 226,347,343 (-0.898%) | 1,856,309 (-1.979%) | 443,346,711 (-0.343%) |
+| edit_interface | 734,435,621 (-1.035%) | 58,956,558 (-3.810%) | 650,939 (-2.959%) | 88,876,137 (-0.897%) |
+
+Stages that do not lower move by at most 0.001%; interned counts and the output digest are
+identical. Wall time on `acme` did not separate from noise (`lowered` ratios 0.952 on one thread
+and 0.987 on eight, with `build` at 1.015 and 0.982 in the same runs), and peak resident memory
+did not change.
+
+| Commit | `lowered` instructions | Allocator instructions | Allocations |
+| --- | ---: | ---: | ---: |
+| Borrow qualified names from source text | -2.341% | -0.011% | -0.013% |
+| Memoise module-level name lookups | -4.739% | +2.125% | +1.693% (temporary memo tables) |
+| Collect sequences into Arc slices with one allocation | +0.849% | -26.814% | -30.421% |
+| Reuse lowered names in scope tables | -0.580% | +0.000% | +0.000% |
+
+The Arc collection commit moves some cost from the allocator into lowering; counting the
+allocator, lowering still falls from 161.9M to 159.8M instructions. Memory retained by a lowered
+module is unchanged by all four commits (15.8 MB on `core`), so the 364 MB `lowered` adds on
+`acme` is what each lowered module keeps, not transient allocation.
 
 ## Measured and rejected
 
-Nothing yet.
+### L1
+
+- The lookup memo on `hashbrown::HashTable`, keyed by borrowed `(qualifier, name)`: `grouped`
+  moved by +0.33% without running changed code, because the new callers changed how hashbrown
+  code shared with `group_module` was inlined. The kept memo uses std's `FxHashMap` instead, and
+  also gave 0.1% fewer `lowered` instructions and 1.6% fewer allocated bytes.
+
+Measured with a lowering-only Callgrind probe that counts `lowering::lower_module` including the
+allocator, so these numbers are not comparable with `just perf` tables:
+
+- Presizing the let-binding name map and group vector in `lower_equation_chunk`: +0.38%
+  instructions for 26 fewer allocations on `core`.
+- Four inline slots instead of eight when collecting Arc slices: -0.13% instructions,
+  +0.95% allocations, +0.37% allocated bytes.
 
 ## Not tried
 
 The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, E1, B1, I1) start here
 until they are measured.
+
+### L1
+
+Remaining lowering cost on `core` after L1, from the lowering-only probe profile:
+
+- `StabilizedModule::lookup_cst`, called once per lowered node: about 7% of `lowered`. A dense
+  table from preorder index to `AstId` in the stabilized module would avoid hashing each node
+  pointer; S2's preorder storage makes it possible, and lowering needs no change if
+  `lookup_cst` keeps its signature.
+- Syntax tree accessors (`node_sibling`, `children`, `cast`, `token`): about 17%; area S2.
+- Inserts and rehashes into `LoweredTree` and `LoweringGraphNodes` maps: about 15%; area S1.
+- Sorting in `index_references`: about 2%.
