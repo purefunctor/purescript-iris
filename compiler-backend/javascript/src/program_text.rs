@@ -7,8 +7,9 @@ use oxc_ast::{Comment, CommentKind, CommentPosition};
 use oxc_span::Span;
 use smol_str::SmolStr;
 
-/// Every generated node gets its own one-character line tagged with its origin, because Oxc drops a
-/// mapping whose source position repeats the previous one and skips empty spans.
+/// Every generated node gets its own two-character position tagged with its origin, because Oxc
+/// drops a mapping whose source position repeats the previous one, skips empty spans, and maps
+/// the end of a span as well as its start.
 #[derive(Clone)]
 pub(crate) struct ProgramText(Rc<ProgramTextState>);
 
@@ -20,20 +21,27 @@ struct ProgramTextState {
 
 #[derive(Default)]
 struct ProgramTextContents {
-    text: String,
-    lines: Vec<ProgramLine>,
+    positions: Vec<ProgramPosition>,
+    comment_text: String,
     comments: Vec<Comment>,
 }
 
-enum ProgramLine {
+enum ProgramPosition {
     Node(ProgramNode),
     Comment,
 }
 
-#[derive(Clone)]
+const POSITION_WIDTH: u32 = 2;
+
 pub(crate) struct ProgramNode {
     pub(crate) origin: Option<Origin>,
     pub(crate) name: Option<SmolStr>,
+}
+
+pub(crate) struct ProgramSource {
+    pub(crate) text: String,
+    pub(crate) comments: Vec<Comment>,
+    positions: Vec<ProgramPosition>,
 }
 
 pub(crate) struct OriginScope {
@@ -62,7 +70,7 @@ impl ProgramText {
 
     pub(crate) fn named_span(&self, name: Option<SmolStr>) -> Span {
         let node = ProgramNode { origin: self.0.origin.get(), name };
-        let start = self.0.contents.borrow_mut().push_line(" ", ProgramLine::Node(node));
+        let start = self.0.contents.borrow_mut().push_position(ProgramPosition::Node(node));
         Span::new(start, start + 1)
     }
 
@@ -84,10 +92,16 @@ impl ProgramText {
     }
 
     pub(crate) fn line_comment(&self, text: &str) -> Span {
+        assert!(
+            !text.contains('\n'),
+            "invariant violated: program text comment contains a newline"
+        );
         let mut contents = self.0.contents.borrow_mut();
-        let start = contents.push_line(&format!("// {text}"), ProgramLine::Comment);
-        let end = start + 3 + text.len() as u32;
-        let attached_to = contents.push_line(" ", ProgramLine::Comment);
+        let start = contents.comment_text.len() as u32;
+        contents.comment_text.push_str("// ");
+        contents.comment_text.push_str(text);
+        let end = contents.comment_text.len() as u32;
+        let attached_to = contents.push_position(ProgramPosition::Comment);
 
         let mut comment = Comment::new(start, end, CommentKind::Line);
         comment.attached_to = attached_to;
@@ -97,32 +111,38 @@ impl ProgramText {
         Span::empty(attached_to)
     }
 
-    pub(crate) fn source_text(&self) -> String {
-        String::clone(&self.0.contents.borrow().text)
-    }
-
-    pub(crate) fn comments(&self) -> Vec<Comment> {
-        Vec::clone(&self.0.contents.borrow().comments)
-    }
-
-    pub(crate) fn line_node(&self, line: u32) -> ProgramNode {
-        match &self.0.contents.borrow().lines[line as usize] {
-            ProgramLine::Node(node) => ProgramNode::clone(node),
-            ProgramLine::Comment => {
-                unreachable!("invariant violated: generated code was mapped to a comment")
-            }
-        }
+    pub(crate) fn finish(&self) -> ProgramSource {
+        let ProgramTextContents { positions, comment_text, comments } =
+            self.0.contents.take();
+        let comment_offset = positions.len() as u32 * POSITION_WIDTH;
+        let mut text = " ".repeat(comment_offset as usize);
+        text.push_str(&comment_text);
+        let comments = comments.into_iter().map(|mut comment| {
+            comment.span =
+                Span::new(comment.span.start + comment_offset, comment.span.end + comment_offset);
+            comment
+        });
+        let comments = comments.collect();
+        ProgramSource { text, comments, positions }
     }
 }
 
 impl ProgramTextContents {
-    fn push_line(&mut self, line: &str, kind: ProgramLine) -> u32 {
-        assert!(!line.contains('\n'), "invariant violated: program text line contains a newline");
-        let start = self.text.len() as u32;
-        self.text.push_str(line);
-        self.text.push('\n');
-        self.lines.push(kind);
+    fn push_position(&mut self, position: ProgramPosition) -> u32 {
+        let start = self.positions.len() as u32 * POSITION_WIDTH;
+        self.positions.push(position);
         start
+    }
+}
+
+impl ProgramSource {
+    pub(crate) fn node(&self, column: u32) -> &ProgramNode {
+        match &self.positions[(column / POSITION_WIDTH) as usize] {
+            ProgramPosition::Node(node) => node,
+            ProgramPosition::Comment => {
+                unreachable!("invariant violated: generated code was mapped to a comment")
+            }
+        }
     }
 }
 
