@@ -1,52 +1,51 @@
 --------------------------- MODULE ParallelInterner ---------------------------
 EXTENDS Naturals, Sequences, FiniteSets
 
-CONSTANTS Threads, Values, Hash, OperationsPerThread, Mutant
+CONSTANTS Threads, Values, Location, OperationsPerThread, Mutant
 
 Mutants == {
     "none",
-    "trust_hash",
-    "skip_occupied_compare",
-    "keep_candidate",
-    "skip_publish_collision",
-    "overwrite_insert",
-    "publish_skip_scan",
-    "collision_skip_scan",
-    "collision_unlocked_scan",
-    "get_skip_overflow",
-    "get_trust_hash",
-    "scan_hash_only",
-    "relaxed_table",
+    "trust_tag",
+    "get_trust_tag",
+    "skip_locked_probe",
+    "unlocked_insert",
+    "reuse_observed_table",
+    "empty_grow",
+    "relaxed_slot",
+    "relaxed_generation",
     "publish_before_write",
     "return_before_write"
 }
 
 ASSUME Mutant \in Mutants
-ASSUME Hash \in [Values -> Nat]
+ASSUME Location \in [Values -> [shard : Nat, tag : Nat]]
 
 NoId == 0
 
-Hashes == {Hash[value] : value \in Values}
+Shards == {Location[value].shard : value \in Values}
 
 Operations == [kind : {"intern", "get"}, value : Values]
 
+Capacity(generation) == generation - 1
+
 VARIABLES
     arena,
-    table,
-    tableView,
-    overflow,
+    tables,
+    generation,
+    generationView,
     locked,
     lockView,
     view,
     pc,
     program,
     step,
+    observed,
     candidate,
     snapshot,
     results
 
-variables == <<arena, table, tableView, overflow, locked, lockView,
-               view, pc, program, step, candidate, snapshot, results>>
+variables == <<arena, tables, generation, generationView, locked, lockView,
+               view, pc, program, step, observed, candidate, snapshot, results>>
 
 Maximum(set) == CHOOSE element \in set : \A other \in set : element >= other
 
@@ -54,37 +53,33 @@ Value(thread) == program[thread][step[thread]].value
 
 Kind(thread) == program[thread][step[thread]].kind
 
-OverflowMatches(hash, value) ==
-    {index \in DOMAIN overflow :
-        /\ overflow[index][1] = hash
-        /\ \/ arena[overflow[index][2]].value = value
-           \/ Mutant = "scan_hash_only"}
+Shard(thread) == Location[Value(thread)].shard
 
-ScanOverflow(hash, value) ==
-    LET matches == OverflowMatches(hash, value)
-    IN IF matches = {} THEN NoId ELSE overflow[Maximum(matches)][2]
+Tag(thread) == Location[Value(thread)].tag
 
-ScanOverflowReads(hash, value) ==
-    LET matches == OverflowMatches(hash, value)
-        stop == IF matches = {} THEN 0 ELSE Maximum(matches)
-    IN {overflow[index][2] :
-            index \in {index \in DOMAIN overflow :
-                          overflow[index][1] = hash /\ index >= stop}}
+Table(thread) == tables[Shard(thread)][observed[thread]]
 
-AcquireSlots(slots, known) == known \cup UNION {arena[slot].view : slot \in slots}
+ProbeSlots(thread) == {slot \in Table(thread) : slot.tag = Tag(thread)}
 
-TableAcquire(thread, hash) ==
-    IF table[hash] = NoId \/ Mutant = "relaxed_table"
+ProbeMatch(thread, trustTag) ==
+    LET matches == {slot.id : slot \in {slot \in ProbeSlots(thread) :
+                       arena[slot.id].value = Value(thread) \/ trustTag}}
+    IN IF matches = {} THEN NoId ELSE Maximum(matches)
+
+AcquireSlots(slots, known) == known \cup UNION {slot.view : slot \in slots}
+
+AcquireArena(ids, known) == known \cup UNION {arena[id].view : id \in ids}
+
+GenerationAcquire(thread) ==
+    IF Mutant = "relaxed_generation"
     THEN view[thread]
-    ELSE view[thread] \cup tableView[hash]
-
-TablePublish(thread) == IF Mutant = "relaxed_table" THEN {} ELSE view[thread]
+    ELSE view[thread] \cup generationView[Shard(thread)]
 
 Unreachable(thread, known) ==
     /\ pc' = [pc EXCEPT ![thread] = "unreachable"]
     /\ view' = [view EXCEPT ![thread] = known]
-    /\ UNCHANGED <<arena, table, tableView, overflow, locked, lockView,
-                   program, step, candidate, snapshot, results>>
+    /\ UNCHANGED <<arena, tables, generation, generationView, locked, lockView,
+                   program, step, observed, candidate, snapshot, results>>
 
 Advance(thread) ==
     /\ step' = [step EXCEPT ![thread] = @ + 1]
@@ -93,245 +88,170 @@ Advance(thread) ==
     /\ candidate' = [candidate EXCEPT ![thread] = NoId]
     /\ snapshot' = [snapshot EXCEPT ![thread] = {}]
 
-ReturnIntern(thread, id, known) ==
+Return(thread, id, known) ==
     /\ results' = results \cup
-           {[kind |-> "intern", value |-> Value(thread), id |-> id,
-             before |-> {}, published |-> id \in known]}
+           {[kind |-> Kind(thread), value |-> Value(thread), id |-> id,
+             before |-> snapshot[thread], published |-> id = NoId \/ id \in known]}
     /\ view' = [view EXCEPT ![thread] = known]
     /\ Advance(thread)
 
-ReturnGet(thread, id, known, before) ==
-    /\ results' = results \cup
-           {[kind |-> "get", value |-> Value(thread), id |-> id,
-             before |-> before, published |-> id = NoId \/ id \in known]}
-    /\ view' = [view EXCEPT ![thread] = known]
-    /\ Advance(thread)
+Unlock(thread, known) ==
+    /\ locked' = [locked EXCEPT ![Shard(thread)] = FALSE]
+    /\ lockView' = [lockView EXCEPT ![Shard(thread)] = known]
 
-InternWithMetadata(thread) ==
+LoadTable(thread) ==
     /\ pc[thread] = "idle"
-    /\ Kind(thread) = "intern"
-    /\ LET value == Value(thread)
-           hash == Hash[value]
-           id == table[hash]
-           known == TableAcquire(thread, hash)
-       IN IF id = NoId
-          THEN /\ pc' = [pc EXCEPT ![thread] = "push"]
-               /\ view' = [view EXCEPT ![thread] = known]
-               /\ UNCHANGED <<arena, table, tableView, overflow, locked, lockView,
-                              program, step, candidate, snapshot, results>>
-          ELSE IF id \notin known
-          THEN Unreachable(thread, known)
-          ELSE LET seen == AcquireSlots({id}, known)
-               IN IF arena[id].value = value \/ Mutant = "trust_hash"
-                  THEN /\ ReturnIntern(thread, id, seen)
-                       /\ UNCHANGED <<arena, table, tableView, overflow, locked,
-                                      lockView, program>>
-                  ELSE /\ pc' = [pc EXCEPT ![thread] = "intern_at_collision"]
+    /\ observed' = [observed EXCEPT ![thread] = generation[Shard(thread)]]
+    /\ view' = [view EXCEPT ![thread] = GenerationAcquire(thread)]
+    /\ snapshot' = [snapshot EXCEPT ![thread] =
+                      IF Kind(thread) = "get"
+                      THEN {result.id : result \in
+                               {result \in results :
+                                   result.kind = "intern" /\ result.value = Value(thread)}}
+                      ELSE {}]
+    /\ pc' = [pc EXCEPT ![thread] = "probe"]
+    /\ UNCHANGED <<arena, tables, generation, generationView, locked, lockView,
+                   program, step, candidate, results>>
+
+Probe(thread) ==
+    /\ pc[thread] = "probe"
+    /\ LET slots == ProbeSlots(thread)
+           acquired == AcquireSlots(slots, view[thread])
+           ids == {slot.id : slot \in slots}
+           trustTag == IF Kind(thread) = "intern"
+                       THEN Mutant = "trust_tag"
+                       ELSE Mutant = "get_trust_tag"
+           found == ProbeMatch(thread, trustTag)
+       IN IF ~(ids \subseteq acquired)
+          THEN Unreachable(thread, acquired)
+          ELSE LET seen == AcquireArena(ids, acquired)
+               IN IF found # NoId
+                  THEN /\ Return(thread, found, seen)
+                       /\ UNCHANGED <<arena, tables, generation, generationView,
+                                      locked, lockView, program, observed>>
+                  ELSE /\ pc' = [pc EXCEPT ![thread] =
+                                   IF Mutant = "unlocked_insert"
+                                   THEN "locked_probe"
+                                   ELSE "lock"]
                        /\ view' = [view EXCEPT ![thread] = seen]
-                       /\ UNCHANGED <<arena, table, tableView, overflow, locked,
-                                      lockView, program, step, candidate,
+                       /\ UNCHANGED <<arena, tables, generation, generationView,
+                                      locked, lockView, program, step, observed,
+                                      candidate, snapshot, results>>
+
+Lock(thread) ==
+    /\ pc[thread] = "lock"
+    /\ ~locked[Shard(thread)]
+    /\ locked' = [locked EXCEPT ![Shard(thread)] = TRUE]
+    /\ view' = [view EXCEPT ![thread] = @ \cup lockView[Shard(thread)]]
+    /\ pc' = [pc EXCEPT ![thread] = "locked_probe"]
+    /\ UNCHANGED <<arena, tables, generation, generationView, lockView, program,
+                   step, observed, candidate, snapshot, results>>
+
+LockedProbe(thread) ==
+    /\ pc[thread] = "locked_probe"
+    /\ LET current == IF Mutant = "reuse_observed_table"
+                      THEN observed[thread]
+                      ELSE generation[Shard(thread)]
+           known == GenerationAcquire(thread)
+           slots == IF Mutant = "skip_locked_probe" THEN {}
+                    ELSE {slot \in tables[Shard(thread)][current] : slot.tag = Tag(thread)}
+           acquired == AcquireSlots(slots, known)
+           ids == {slot.id : slot \in slots}
+           matches == {slot.id : slot \in {slot \in slots :
+                          arena[slot.id].value = Value(thread)}}
+           found == IF matches = {} THEN NoId ELSE Maximum(matches)
+       IN IF ~(ids \subseteq acquired)
+          THEN Unreachable(thread, acquired)
+          ELSE LET seen == AcquireArena(ids, acquired)
+               IN IF found # NoId \/ Kind(thread) = "get"
+                  THEN /\ Unlock(thread, seen)
+                       /\ Return(thread, found, seen)
+                       /\ UNCHANGED <<arena, tables, generation, generationView,
+                                      program, observed>>
+                  ELSE /\ observed' = [observed EXCEPT ![thread] = current]
+                       /\ pc' = [pc EXCEPT ![thread] = "push"]
+                       /\ view' = [view EXCEPT ![thread] = seen]
+                       /\ UNCHANGED <<arena, tables, generation, generationView,
+                                      locked, lockView, program, step, candidate,
                                       snapshot, results>>
 
-ArenaReserve(thread) ==
+ArenaPush(thread) ==
     /\ pc[thread] = "push"
-    /\ arena' = Append(arena, [value |-> Value(thread), active |-> FALSE, view |-> {}])
-    /\ candidate' = [candidate EXCEPT ![thread] = Len(arena) + 1]
+    /\ LET slot == Len(arena) + 1
+           written == view[thread] \cup {slot}
+           late == Mutant \in {"publish_before_write", "return_before_write"}
+       IN /\ arena' = Append(arena,
+                 IF late
+                 THEN [value |-> Value(thread), active |-> FALSE, view |-> {}]
+                 ELSE [value |-> Value(thread), active |-> TRUE, view |-> written])
+          /\ candidate' = [candidate EXCEPT ![thread] = slot]
+          /\ view' = [view EXCEPT ![thread] = IF late THEN @ ELSE written]
+          /\ results' = IF Mutant = "return_before_write"
+                        THEN results \cup
+                                 {[kind |-> "intern", value |-> Value(thread), id |-> slot,
+                                   before |-> {}, published |-> FALSE]}
+                        ELSE results
+          /\ pc' = [pc EXCEPT ![thread] = "store"]
+          /\ UNCHANGED <<tables, generation, generationView, locked, lockView,
+                         program, step, observed, snapshot>>
+
+StoreSlot(thread) ==
+    /\ pc[thread] = "store"
+    /\ LET shard == Shard(thread)
+           entry == [tag |-> Tag(thread), id |-> candidate[thread],
+                     view |-> IF Mutant = "relaxed_slot" THEN {} ELSE view[thread]]
+       IN tables' = [tables EXCEPT ![shard][observed[thread]] = @ \cup {entry}]
     /\ pc' = [pc EXCEPT ![thread] =
-                IF Mutant \in {"publish_before_write", "return_before_write"}
-                THEN "try_insert"
-                ELSE "push_write"]
-    /\ UNCHANGED <<table, tableView, overflow, locked, lockView, view,
-                   program, step, snapshot, results>>
+                IF arena[candidate[thread]].active THEN "grow" ELSE "late_write"]
+    /\ UNCHANGED <<arena, generation, generationView, locked, lockView, view,
+                   program, step, observed, candidate, snapshot, results>>
 
-WriteSlot(thread) ==
-    LET slot == candidate[thread]
-        written == view[thread] \cup {slot}
-    IN /\ arena' = [arena EXCEPT ![slot] = [@ EXCEPT !.active = TRUE, !.view = written]]
-       /\ view' = [view EXCEPT ![thread] = written]
-
-ArenaWrite(thread) ==
-    /\ pc[thread] = "push_write"
-    /\ WriteSlot(thread)
-    /\ pc' = [pc EXCEPT ![thread] = "try_insert"]
-    /\ UNCHANGED <<table, tableView, overflow, locked, lockView,
-                   program, step, candidate, snapshot, results>>
-
-ArenaWriteAfterPublish(thread) ==
-    /\ pc[thread] = "push_write_late"
-    /\ WriteSlot(thread)
-    /\ results' = results \cup
-           {[kind |-> "intern", value |-> Value(thread), id |-> candidate[thread],
-             before |-> {}, published |-> TRUE]}
-    /\ Advance(thread)
-    /\ UNCHANGED <<table, tableView, overflow, locked, lockView, program>>
-
-TryInsert(thread) ==
-    /\ pc[thread] = "try_insert"
+LateWrite(thread) ==
+    /\ pc[thread] = "late_write"
     /\ LET slot == candidate[thread]
-           hash == Hash[Value(thread)]
-           current == table[hash]
-           written == arena[slot].active
-       IN IF current = NoId
-          THEN /\ table' = [table EXCEPT ![hash] = slot]
-               /\ tableView' = [tableView EXCEPT ![hash] = TablePublish(thread)]
-               /\ IF written \/ Mutant = "return_before_write"
-                  THEN /\ ReturnIntern(thread, slot, view[thread])
-                       /\ UNCHANGED <<arena, overflow, locked, lockView, program>>
-                  ELSE /\ pc' = [pc EXCEPT ![thread] = "push_write_late"]
-                       /\ UNCHANGED <<arena, overflow, locked, lockView, view,
-                                      program, step, candidate, snapshot, results>>
-          ELSE IF ~written
-          THEN /\ pc' = [pc EXCEPT ![thread] = "push_write"]
-               /\ UNCHANGED <<arena, table, tableView, overflow, locked, lockView,
-                              view, program, step, candidate, snapshot, results>>
-          ELSE LET known == TableAcquire(thread, hash)
-               IN IF current \notin known
-                  THEN Unreachable(thread, known)
-                  ELSE LET seen == AcquireSlots({current}, known)
-                           returned ==
-                               CASE Mutant = "skip_occupied_compare" -> current
-                                 [] Mutant = "keep_candidate" -> slot
-                                 [] Mutant = "skip_publish_collision" ->
-                                        IF arena[current].value = arena[slot].value
-                                        THEN current ELSE slot
-                                 [] arena[current].value = arena[slot].value -> current
-                                 [] OTHER -> NoId
-                       IN /\ IF Mutant = "overwrite_insert"
-                             THEN /\ table' = [table EXCEPT ![hash] = slot]
-                                  /\ tableView' = [tableView EXCEPT ![hash] = view[thread]]
-                             ELSE UNCHANGED <<table, tableView>>
-                          /\ IF returned # NoId
-                             THEN /\ ReturnIntern(thread, returned, seen)
-                                  /\ UNCHANGED <<arena, overflow, locked, lockView,
-                                                 program>>
-                             ELSE /\ pc' = [pc EXCEPT ![thread] = "publish_collision"]
-                                  /\ view' = [view EXCEPT ![thread] = seen]
-                                  /\ UNCHANGED <<arena, overflow, locked, lockView,
-                                                 program, step, candidate, snapshot,
-                                                 results>>
+           written == view[thread] \cup {slot}
+       IN /\ arena' = [arena EXCEPT ![slot] = [@ EXCEPT !.active = TRUE, !.view = written]]
+          /\ view' = [view EXCEPT ![thread] = written]
+    /\ pc' = [pc EXCEPT ![thread] = "grow"]
+    /\ UNCHANGED <<tables, generation, generationView, locked, lockView,
+                   program, step, observed, candidate, snapshot, results>>
 
-InternAtCollision(thread) ==
-    /\ pc[thread] = "intern_at_collision"
-    /\ ~locked
-    /\ LET value == Value(thread)
-           hash == Hash[value]
-           known == view[thread] \cup lockView
-           reads == IF Mutant = "collision_skip_scan" THEN {}
-                    ELSE ScanOverflowReads(hash, value)
-           found == IF Mutant = "collision_skip_scan" THEN NoId
-                    ELSE ScanOverflow(hash, value)
-       IN IF ~(reads \subseteq known)
-          THEN Unreachable(thread, known)
-          ELSE LET seen == AcquireSlots(reads, known)
-               IN IF found # NoId
-                  THEN /\ lockView' = seen
-                       /\ ReturnIntern(thread, found, seen)
-                       /\ UNCHANGED <<arena, table, tableView, overflow, locked, program>>
-                  ELSE /\ IF Mutant = "collision_unlocked_scan"
-                          THEN /\ lockView' = seen
-                               /\ UNCHANGED locked
-                          ELSE /\ locked' = TRUE
-                               /\ UNCHANGED lockView
-                       /\ pc' = [pc EXCEPT ![thread] = "collision_push"]
-                       /\ view' = [view EXCEPT ![thread] = seen]
-                       /\ UNCHANGED <<arena, table, tableView, overflow, program,
-                                      step, candidate, snapshot, results>>
+Grow(thread) ==
+    /\ pc[thread] = "grow"
+    /\ LET shard == Shard(thread)
+           current == observed[thread]
+           table == tables[shard][current]
+           copied == IF Mutant = "empty_grow" THEN {}
+                     ELSE {[tag |-> slot.tag, id |-> slot.id, view |-> {}] : slot \in table}
+       IN IF Cardinality(table) > Capacity(current)
+          THEN /\ tables' = [tables EXCEPT ![shard] = Append(@, copied)]
+               /\ generation' = [generation EXCEPT ![shard] = current + 1]
+               /\ generationView' = [generationView EXCEPT ![shard] =
+                                       IF Mutant = "relaxed_generation" THEN {}
+                                       ELSE view[thread]]
+          ELSE UNCHANGED <<tables, generation, generationView>>
+    /\ pc' = [pc EXCEPT ![thread] = "unlock"]
+    /\ UNCHANGED <<arena, locked, lockView, view, program, step, observed,
+                   candidate, snapshot, results>>
 
-CollisionPush(thread) ==
-    /\ pc[thread] = "collision_push"
-    /\ Mutant = "collision_unlocked_scan" => ~locked
-    /\ LET value == Value(thread)
-           hash == Hash[value]
-           known == IF Mutant = "collision_unlocked_scan"
-                    THEN view[thread] \cup lockView
-                    ELSE view[thread]
-           slot == Len(arena) + 1
-           written == known \cup {slot}
-       IN /\ arena' = Append(arena, [value |-> value, active |-> TRUE, view |-> written])
-          /\ overflow' = Append(overflow, <<hash, slot>>)
-          /\ locked' = FALSE
-          /\ lockView' = written
-          /\ ReturnIntern(thread, slot, written)
-          /\ UNCHANGED <<table, tableView, program>>
-
-PublishCollision(thread) ==
-    /\ pc[thread] = "publish_collision"
-    /\ ~locked
-    /\ LET slot == candidate[thread]
-           hash == Hash[Value(thread)]
-           value == arena[slot].value
-           known == view[thread] \cup lockView
-           reads == IF Mutant = "publish_skip_scan" THEN {}
-                    ELSE ScanOverflowReads(hash, value)
-           found == IF Mutant = "publish_skip_scan" THEN NoId
-                    ELSE ScanOverflow(hash, value)
-       IN IF ~(reads \subseteq known)
-          THEN Unreachable(thread, known)
-          ELSE LET seen == AcquireSlots(reads, known)
-               IN /\ lockView' = seen
-                  /\ IF found # NoId
-                     THEN /\ ReturnIntern(thread, found, seen)
-                          /\ UNCHANGED overflow
-                     ELSE /\ overflow' = Append(overflow, <<hash, slot>>)
-                          /\ ReturnIntern(thread, slot, seen)
-                  /\ UNCHANGED <<arena, table, tableView, locked, program>>
-
-Get(thread) ==
-    /\ pc[thread] = "idle"
-    /\ Kind(thread) = "get"
-    /\ LET value == Value(thread)
-           hash == Hash[value]
-           id == table[hash]
-           known == TableAcquire(thread, hash)
-           before == {result.id : result \in
-                         {result \in results :
-                             result.kind = "intern" /\ result.value = value}}
-       IN IF id = NoId
-          THEN /\ ReturnGet(thread, NoId, known, before)
-               /\ UNCHANGED <<arena, table, tableView, overflow, locked, lockView,
-                              program>>
-          ELSE IF id \notin known
-          THEN Unreachable(thread, known)
-          ELSE LET seen == AcquireSlots({id}, known)
-               IN IF arena[id].value = value \/ Mutant = "get_trust_hash"
-                  THEN /\ ReturnGet(thread, id, seen, before)
-                       /\ UNCHANGED <<arena, table, tableView, overflow, locked,
-                                      lockView, program>>
-                  ELSE IF Mutant = "get_skip_overflow"
-                  THEN /\ ReturnGet(thread, NoId, seen, before)
-                       /\ UNCHANGED <<arena, table, tableView, overflow, locked,
-                                      lockView, program>>
-                  ELSE /\ pc' = [pc EXCEPT ![thread] = "get_overflow"]
-                       /\ view' = [view EXCEPT ![thread] = seen]
-                       /\ snapshot' = [snapshot EXCEPT ![thread] = before]
-                       /\ UNCHANGED <<arena, table, tableView, overflow, locked,
-                                      lockView, program, step, candidate, results>>
-
-GetOverflow(thread) ==
-    /\ pc[thread] = "get_overflow"
-    /\ ~locked
-    /\ LET value == Value(thread)
-           hash == Hash[value]
-           known == view[thread] \cup lockView
-           reads == ScanOverflowReads(hash, value)
-       IN IF ~(reads \subseteq known)
-          THEN Unreachable(thread, known)
-          ELSE LET seen == AcquireSlots(reads, known)
-               IN /\ lockView' = seen
-                  /\ ReturnGet(thread, ScanOverflow(hash, value), seen, snapshot[thread])
-                  /\ UNCHANGED <<arena, table, tableView, overflow, locked, program>>
+InsertUnlock(thread) ==
+    /\ pc[thread] = "unlock"
+    /\ Unlock(thread, view[thread])
+    /\ Return(thread, candidate[thread], view[thread])
+    /\ UNCHANGED <<arena, tables, generation, generationView, program, observed>>
 
 Init ==
     /\ arena = <<>>
-    /\ table = [hash \in Hashes |-> NoId]
-    /\ tableView = [hash \in Hashes |-> {}]
-    /\ overflow = <<>>
-    /\ locked = FALSE
-    /\ lockView = {}
+    /\ tables = [shard \in Shards |-> <<{}>>]
+    /\ generation = [shard \in Shards |-> 1]
+    /\ generationView = [shard \in Shards |-> {}]
+    /\ locked = [shard \in Shards |-> FALSE]
+    /\ lockView = [shard \in Shards |-> {}]
     /\ view = [thread \in Threads |-> {}]
     /\ pc = [thread \in Threads |-> "idle"]
     /\ program \in [Threads -> [1..OperationsPerThread -> Operations]]
     /\ step = [thread \in Threads |-> 1]
+    /\ observed = [thread \in Threads |-> 1]
     /\ candidate = [thread \in Threads |-> NoId]
     /\ snapshot = [thread \in Threads |-> {}]
     /\ results = {}
@@ -342,16 +262,15 @@ Finished ==
 
 Next ==
     \/ \E thread \in Threads :
-           \/ InternWithMetadata(thread)
-           \/ ArenaReserve(thread)
-           \/ ArenaWrite(thread)
-           \/ ArenaWriteAfterPublish(thread)
-           \/ TryInsert(thread)
-           \/ InternAtCollision(thread)
-           \/ CollisionPush(thread)
-           \/ PublishCollision(thread)
-           \/ Get(thread)
-           \/ GetOverflow(thread)
+           \/ LoadTable(thread)
+           \/ Probe(thread)
+           \/ Lock(thread)
+           \/ LockedProbe(thread)
+           \/ ArenaPush(thread)
+           \/ StoreSlot(thread)
+           \/ LateWrite(thread)
+           \/ Grow(thread)
+           \/ InsertUnlock(thread)
     \/ Finished
 
 Spec == Init /\ [][Next]_variables
@@ -377,23 +296,26 @@ ReturnedIdsArePublished ==
 ArenaReadsArePublished ==
     \A thread \in Threads : pc[thread] # "unreachable"
 
-OverflowIsCoherent ==
-    \A index \in DOMAIN overflow :
-        LET hash == overflow[index][1]
-            slot == overflow[index][2]
-        IN /\ table[hash] # NoId
-           /\ arena[slot].value # arena[table[hash]].value
-           /\ \A other \in DOMAIN overflow :
-                  other # index /\ overflow[other][1] = hash =>
-                      arena[overflow[other][2]].value # arena[slot].value
+TablesAreCoherent ==
+    \A shard \in Shards :
+        \A index \in DOMAIN tables[shard] :
+            \A slot, other \in tables[shard][index] :
+                /\ Location[arena[slot.id].value] = [shard |-> shard, tag |-> slot.tag]
+                /\ other.id # slot.id => arena[other.id].value # arena[slot.id].value
 
-TableIsWriteOnce ==
-    [][\A hash \in Hashes : table[hash] # NoId => table'[hash] = table[hash]]_variables
+CurrentTableHoldsInterns ==
+    \A result \in Issued :
+        LET shard == Location[result.value].shard
+        IN result.id \in {slot.id : slot \in tables[shard][generation[shard]]}
 
 ViewsHoldOnlyWrittenSlots ==
     \A slot \in UNION ({view[thread] : thread \in Threads}
-                       \cup {tableView[hash] : hash \in Hashes}
-                       \cup {lockView}) :
+                       \cup {lockView[shard] : shard \in Shards}
+                       \cup {generationView[shard] : shard \in Shards}
+                       \cup {entry.view : entry \in
+                                UNION {UNION {tables[shard][index] :
+                                                 index \in DOMAIN tables[shard]} :
+                                          shard \in Shards}}) :
         arena[slot].active
 
 =============================================================================
