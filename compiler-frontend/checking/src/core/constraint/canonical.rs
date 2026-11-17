@@ -1,5 +1,6 @@
 //! Implements canonicalisation for constraints.
 
+use std::cell::RefCell;
 use std::ops::Index;
 use std::rc::Rc;
 
@@ -8,6 +9,7 @@ use files::FileId;
 use indexing::TypeItemId;
 use interner::{Id, Interner};
 use itertools::Itertools;
+use rustc_hash::FxHashMap;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
@@ -42,6 +44,7 @@ pub type CanonicalConstraintId = Id<CanonicalConstraint>;
 #[derive(Default)]
 pub struct Canonicals {
     interner: Interner<CanonicalConstraint>,
+    type_ids: RefCell<FxHashMap<CanonicalConstraintId, TypeId>>,
 }
 
 impl Canonicals {
@@ -50,6 +53,25 @@ impl Canonicals {
     }
 
     pub fn type_id<Q>(&self, context: &CheckContext<Q>, id: CanonicalConstraintId) -> TypeId
+    where
+        Q: ExternalQueries,
+    {
+        let cached = self.type_ids.borrow().get(&id).copied();
+        if let Some(cached) = cached {
+            debug_assert_eq!(
+                cached,
+                self.intern_type_id(context, id),
+                "invariant violated: stale canonical type"
+            );
+            return cached;
+        }
+
+        let type_id = self.intern_type_id(context, id);
+        self.type_ids.borrow_mut().insert(id, type_id);
+        type_id
+    }
+
+    fn intern_type_id<Q>(&self, context: &CheckContext<Q>, id: CanonicalConstraintId) -> TypeId
     where
         Q: ExternalQueries,
     {
