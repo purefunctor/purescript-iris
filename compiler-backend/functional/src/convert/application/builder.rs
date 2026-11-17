@@ -1,12 +1,11 @@
 use smol_str::SmolStr;
 
+use crate::convert::known::KnownTerm;
 use crate::convert::{Context, ConversionResult};
 use crate::tree::{
     Binding, ExpressionId, ExpressionKind, Field, PatternKind, RecordField, RecordUpdate,
     SynthesizedEvidence,
 };
-
-const RECORD_BUILDER: &str = "Record.Builder";
 
 enum BuilderStep {
     Insert { field: Field, value: usize },
@@ -32,19 +31,13 @@ where
 {
     pub(super) fn known_record_build(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
-        let (builder, record) = if self.known_term(function, RECORD_BUILDER, "build")?
-            && let [builder, record] = *arguments
-        {
-            (builder, Some(record))
-        } else if self.known_term(function, RECORD_BUILDER, "buildFromScratch")?
-            && let [builder] = *arguments
-        {
-            (builder, None)
-        } else {
-            return Ok(None);
+        let (builder, record) = match (known, arguments) {
+            (KnownTerm::RecordBuilderBuild, [builder, record]) => (*builder, Some(*record)),
+            (KnownTerm::RecordBuilderBuildFromScratch, [builder]) => (*builder, None),
+            _ => return Ok(None),
         };
 
         let mut operands = Vec::new();
@@ -127,19 +120,19 @@ where
             return Ok(None);
         };
         let (function, arguments) = self.application_spine(*function, arguments);
+        let Some(known) = self.known_term(function)? else { return Ok(None) };
 
         let composition = if let Some(&[outer, inner]) = self.known_instance_member_arguments(
-            function,
+            known,
             &arguments,
-            "Control.Semigroupoid",
-            "compose",
-            RECORD_BUILDER,
+            KnownTerm::ControlSemigroupoidCompose,
+            "Record.Builder",
             "semigroupoidBuilder",
         )? {
             Some((outer, inner, false))
-        } else if self.known_term(function, "Control.Semigroupoid", "composeFlipped")?
+        } else if known == KnownTerm::ControlSemigroupoidComposeFlipped
             && let [dictionary, inner, outer] = *arguments
-            && self.known_named_instance(dictionary, RECORD_BUILDER, "semigroupoidBuilder")?
+            && self.known_named_instance(dictionary, "Record.Builder", "semigroupoidBuilder")?
         {
             Some((inner, outer, true))
         } else {
@@ -158,40 +151,39 @@ where
         }
 
         if let Some([]) = self.known_instance_member_arguments(
-            function,
+            known,
             &arguments,
-            "Control.Category",
-            "identity",
-            RECORD_BUILDER,
+            KnownTerm::ControlCategoryIdentity,
+            "Record.Builder",
             "categoryBuilder",
         )? {
             return Ok(Some(Vec::new()));
         }
-        if self.known_term(function, RECORD_BUILDER, "nub")?
+        if known == KnownTerm::RecordBuilderNub
             && let [constraint] = *arguments
             && self.known_record_constraints(&[constraint])
         {
             return Ok(Some(Vec::new()));
         }
 
-        let step = if self.known_term(function, RECORD_BUILDER, "insert")?
+        let step = if known == KnownTerm::RecordBuilderInsert
             && let [cons, lacks, symbol, proxy, value] = *arguments
             && let Some(field) = self.known_record_label(symbol, &[cons, lacks], proxy)
         {
             operands.push((value, SmolStr::new_static("insertValue")));
             BuilderStep::Insert { field, value: operands.len() - 1 }
-        } else if self.known_term(function, RECORD_BUILDER, "modify")?
+        } else if known == KnownTerm::RecordBuilderModify
             && let [first, second, symbol, proxy, function] = *arguments
             && let Some(field) = self.known_record_label(symbol, &[first, second], proxy)
         {
             operands.push((function, SmolStr::new_static("modifyFunction")));
             BuilderStep::Modify { field, function: operands.len() - 1 }
-        } else if self.known_term(function, RECORD_BUILDER, "delete")?
+        } else if known == KnownTerm::RecordBuilderDelete
             && let [symbol, lacks, cons, proxy] = *arguments
             && let Some(field) = self.known_record_label(symbol, &[lacks, cons], proxy)
         {
             BuilderStep::Delete { field }
-        } else if self.known_term(function, RECORD_BUILDER, "rename")?
+        } else if known == KnownTerm::RecordBuilderRename
             && let [from_symbol, to_symbol, from_cons, from_lacks, to_cons, to_lacks, from, to] =
                 *arguments
             && let Some(from) = self.known_record_label(
@@ -202,7 +194,7 @@ where
             && let Some(to) = self.known_record_label(to_symbol, &[], to)
         {
             BuilderStep::Rename { from, to }
-        } else if let Some(record) = self.known_record_builder_merge(function, &arguments)?
+        } else if let Some(record) = self.known_record_builder_merge(known, &arguments)
             && let Some(fields) = self.literal_record_fields(record)
         {
             let fields = fields.iter().map(|field| {
@@ -218,24 +210,24 @@ where
 
     fn known_record_builder_merge(
         &self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
-    ) -> ConversionResult<Option<ExpressionId>> {
-        if self.known_term(function, RECORD_BUILDER, "union")?
+    ) -> Option<ExpressionId> {
+        if known == KnownTerm::RecordBuilderUnion
             && let [union, record] = *arguments
             && self.known_record_constraints(&[union])
         {
-            return Ok(Some(record));
+            return Some(record);
         }
-        for item_name in ["merge", "disjointUnion"] {
-            if self.known_term(function, RECORD_BUILDER, item_name)?
+        for function in [KnownTerm::RecordBuilderMerge, KnownTerm::RecordBuilderDisjointUnion] {
+            if known == function
                 && let [union, nub, record] = *arguments
                 && self.known_record_constraints(&[union, nub])
             {
-                return Ok(Some(record));
+                return Some(record);
             }
         }
-        Ok(None)
+        None
     }
 
     fn known_record_label(
