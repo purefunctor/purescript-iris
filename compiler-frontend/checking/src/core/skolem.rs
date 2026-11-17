@@ -1,6 +1,7 @@
 //! Checks that each skolem introduced by an expected forall appears only in
 //! judgments structurally dominated by that forall's typed expression.
 
+use std::iter;
 use std::sync::Arc;
 
 use building_types::QueryResult;
@@ -55,6 +56,7 @@ where
     enclosing: Arc<[ErrorCrumb]>,
     discovering: bool,
     expected_skolems: FxHashSet<SkolemScope>,
+    mentions_expected: FxHashMap<TypeId, bool>,
     tasks: Vec<Task<'c>>,
     active: FxHashMap<SkolemScope, u32>,
     reported: FxHashSet<SkolemScope>,
@@ -174,6 +176,7 @@ where
         enclosing,
         discovering,
         expected_skolems,
+        mentions_expected: FxHashMap::default(),
         tasks,
         active: FxHashMap::default(),
         reported,
@@ -601,11 +604,7 @@ fn inspect_type<Q>(
 ) where
     Q: ExternalQueries,
 {
-    // Unification variables are not looked through, so types without rigid
-    // variables cannot contain an escaped skolem.
-    let has_rigid = |type_id| checker.context.lookup_type_flags(type_id).has_rigid();
-
-    if !has_rigid(annotation) {
+    if checker.discovering || !mentions_expected_skolem(checker, annotation) {
         return;
     }
 
@@ -613,7 +612,7 @@ fn inspect_type<Q>(
     let mut visited = FxHashSet::default();
 
     while let Some(type_id) = pending.pop() {
-        if !has_rigid(type_id) || !visited.insert(type_id) {
+        if !mentions_expected_skolem(checker, type_id) || !visited.insert(type_id) {
             continue;
         }
 
@@ -662,6 +661,120 @@ fn inspect_type<Q>(
     }
 }
 
+fn mentions_expected_skolem<Q>(checker: &mut SkolemChecker<'_, '_, '_, Q>, type_id: TypeId) -> bool
+where
+    Q: ExternalQueries,
+{
+    let context = checker.context;
+
+    // Unification variables are not looked through, so types without rigid
+    // variables cannot contain an escaped skolem.
+    if !context.lookup_type_flags(type_id).has_rigid() {
+        return false;
+    }
+
+    if let Some(&mentions) = checker.mentions_expected.get(&type_id) {
+        debug_assert_eq!(
+            mentions,
+            recompute_mentions_expected_skolem(checker, type_id),
+            "invariant violated: remembered skolem mention differs from its recomputation",
+        );
+        return mentions;
+    }
+
+    let mentions = match *context.lookup_type(type_id) {
+        Type::Application(function, argument)
+        | Type::KindApplication(function, argument)
+        | Type::Constrained(function, argument)
+        | Type::ConstraintOrigin(function, argument)
+        | Type::Function(function, argument)
+        | Type::Kinded(function, argument) => {
+            mentions_expected_skolem(checker, function)
+                || mentions_expected_skolem(checker, argument)
+        }
+        Type::Forall(binder, inner) => {
+            let binder = context.lookup_forall_binder(binder);
+            mentions_expected_skolem(checker, binder.kind)
+                || mentions_expected_skolem(checker, inner)
+        }
+        Type::Row(row) => {
+            let row = context.lookup_row_type(row);
+            row.fields.iter().any(|field| mentions_expected_skolem(checker, field.id))
+                || row.tail.is_some_and(|tail| mentions_expected_skolem(checker, tail))
+        }
+        Type::Rigid(name, _, kind) => {
+            name.scope().is_some_and(|scope| checker.expected_skolems.contains(&scope))
+                || mentions_expected_skolem(checker, kind)
+        }
+        Type::Constructor(_, _)
+        | Type::Synonym(_, _)
+        | Type::Integer(_)
+        | Type::String(_, _)
+        | Type::Unification(_)
+        | Type::Free(_)
+        | Type::Unknown(_) => false,
+    };
+
+    checker.mentions_expected.insert(type_id, mentions);
+    mentions
+}
+
+fn recompute_mentions_expected_skolem<Q>(
+    checker: &SkolemChecker<'_, '_, '_, Q>,
+    type_id: TypeId,
+) -> bool
+where
+    Q: ExternalQueries,
+{
+    let context = checker.context;
+    let mut pending = vec![type_id];
+    let mut visited = FxHashSet::default();
+
+    while let Some(type_id) = pending.pop() {
+        if !context.lookup_type_flags(type_id).has_rigid() || !visited.insert(type_id) {
+            continue;
+        }
+
+        match *context.lookup_type(type_id) {
+            Type::Application(function, argument)
+            | Type::KindApplication(function, argument)
+            | Type::Constrained(function, argument)
+            | Type::ConstraintOrigin(function, argument)
+            | Type::Function(function, argument)
+            | Type::Kinded(function, argument) => {
+                pending.push(function);
+                pending.push(argument);
+            }
+            Type::Forall(binder, inner) => {
+                let binder = context.lookup_forall_binder(binder);
+                pending.push(binder.kind);
+                pending.push(inner);
+            }
+            Type::Row(row) => {
+                let row = context.lookup_row_type(row);
+                let fields = row.fields.iter().map(|field| field.id);
+                pending.extend(fields);
+                pending.extend(row.tail);
+            }
+            Type::Rigid(name, _, kind) => {
+                if name.scope().is_some_and(|scope| checker.expected_skolems.contains(&scope)) {
+                    return true;
+                }
+                pending.push(kind);
+            }
+            Type::Constructor(_, _)
+            | Type::Synonym(_, _)
+            | Type::Integer(_)
+            | Type::String(_, _)
+            | Type::Unification(_)
+            | Type::Free(_)
+            | Type::Unknown(_) => {}
+        }
+    }
+
+    false
+}
+
 fn collect_errors<'c, Q>(
     checked: &'c CheckedModule,
     judgments: &'c FxHashSet<ExpressionId>,
@@ -708,16 +821,18 @@ where
     (checker.errors, checker.expected_skolems)
 }
 
-fn leading_scopes<Q>(context: &CheckContext<Q>, mut type_id: TypeId) -> Vec<SkolemScope>
+fn leading_scopes<Q>(
+    context: &CheckContext<Q>,
+    mut type_id: TypeId,
+) -> impl Iterator<Item = SkolemScope>
 where
     Q: ExternalQueries,
 {
-    let mut scopes = Vec::new();
-    while let Type::Forall(binder, inner) = *context.lookup_type(type_id) {
+    iter::from_fn(move || {
+        let Type::Forall(binder, inner) = *context.lookup_type(type_id) else { return None };
         let binder = context.lookup_forall_binder(binder);
-        let Some(scope) = binder.name.scope() else { break };
-        scopes.push(scope);
+        let scope = binder.name.scope()?;
         type_id = inner;
-    }
-    scopes
+        Some(scope)
+    })
 }
