@@ -681,10 +681,10 @@ where
         if let Some(dependency) = self.dependencies.get(&file_id) {
             return Ok(SmolStr::clone(&dependency.module_name));
         }
-        let content = self.queries.content(file_id)?;
-        let (parsed, _) = self.queries.parsed(file_id)?;
-        let name = parsed
-            .module_name(&content)
+        let indexed = self.indexed_module(file_id)?;
+        let name = indexed
+            .name
+            .clone()
             .expect("invariant violated: referenced checked module has no source module name");
         Ok(name)
     }
