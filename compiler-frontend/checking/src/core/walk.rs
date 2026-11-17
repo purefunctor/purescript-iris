@@ -49,7 +49,28 @@ where
     walk(state, context, id, walker).map(|_| ())
 }
 
+#[inline]
 fn walk<Q, W>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+    walker: &mut W,
+) -> QueryResult<ControlFlow<()>>
+where
+    Q: ExternalQueries,
+    W: TypeWalker,
+{
+    let flags = context.lookup_type_flags(id);
+    if !walker.may_visit(flags) {
+        return Ok(ControlFlow::Continue(()));
+    }
+
+    let id = if flags.may_normalise() { normalise::normalise_head(state, context, id) } else { id };
+    walk_core(state, context, id, walker)
+}
+
+#[inline(never)]
+fn walk_core<Q, W>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     id: TypeId,
@@ -67,11 +88,6 @@ where
         };
     }
 
-    if !walker.may_visit(context.lookup_type_flags(id)) {
-        return Ok(ControlFlow::Continue(()));
-    }
-
-    let id = normalise::normalise(state, context, id);
     let t = context.lookup_type(id);
 
     if let WalkAction::Break = walker.visit(state, context, id, t)? {
