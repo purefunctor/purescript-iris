@@ -1,32 +1,59 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mise_version=2026.9.3
-export PATH="$HOME/.local/bin:$PATH"
-if [[ "$("$HOME/.local/bin/mise" version 2>/dev/null | cut -d' ' -f1 || true)" != "$mise_version" ]]; then
-  echo '--- Installing mise'
-  curl --proto '=https' --tlsv1.2 -fsSL https://mise.run \
-    | MISE_VERSION="$mise_version" sh
+export PATH="$HOME/.nix-profile/bin:$PATH"
+export NIX_CONFIG="extra-experimental-features = nix-command flakes"
+if ! command -v nix > /dev/null; then
+  echo '--- Installing Nix'
+  curl --proto '=https' --tlsv1.2 -fsSL https://nixos.org/nix/install | sh -s -- --no-daemon
 fi
 
-echo '--- Installing configured development tools'
-mise trust mise.toml
-mise install --yes
-eval "$(mise env --shell bash)"
-mise ls --current
-rustup override set --path "$PWD" "$RUSTUP_TOOLCHAIN"
-
-repository_root="$PWD"
-sudo tee /etc/profile.d/iris-mise.sh > /dev/null <<EOF
-if [ -z "\${iris_mise_environment_loaded-}" ] && [ -x "$HOME/.local/bin/mise" ]; then
-  eval "\$("$HOME/.local/bin/mise" --cd "$repository_root" env --shell bash)"
-  iris_mise_environment_loaded=1
+echo '--- Removing development tools installed by mise'
+if command -v rustup > /dev/null; then
+  rustup self uninstall -y
 fi
-EOF
+rm -rf "$HOME/.local/bin/mise" "$HOME/.local/share/mise" "$HOME/.local/state/mise" "$HOME/.cache/mise"
+sudo rm -f /etc/profile.d/iris-mise.sh
+sudo sed -i '\|/etc/profile.d/iris-mise.sh|d' /etc/bash.bashrc
 
-bashrc_hook='[ ! -r /etc/profile.d/iris-mise.sh ] || . /etc/profile.d/iris-mise.sh'
-if ! grep -Fqx "$bashrc_hook" /etc/bash.bashrc; then
-  printf '\n%s\n' "$bashrc_hook" | sudo tee -a /etc/bash.bashrc > /dev/null
-fi
+echo '--- Building the development shell'
+state_directory="$HOME/.local/state/iris"
+mkdir -p "$state_directory"
+nix print-dev-env --profile "$state_directory/development-shell" --json > "$state_directory/development-shell.json"
+
+jq -r '
+  def sandbox_only: IN("HOME", "PATH", "SHELL", "CONFIG_SHELL", "HOST_PATH", "TERM", "TZ", "OLDPWD",
+    "SOURCE_DATE_EPOCH", "NIX_BUILD_TOP", "NIX_BUILD_CORES", "NIX_LOG_FD", "NIX_ENFORCE_PURITY",
+    "TMP", "TMPDIR", "TEMP", "TEMPDIR");
+  .variables
+  | "iris_nix_path=\(.PATH.value | @sh)",
+    "case \"$PATH\" in",
+    "  \"$iris_nix_path\" | \"$iris_nix_path\":*) ;;",
+    "  *) PATH=\"$iris_nix_path${PATH:+:$PATH}\" ;;",
+    "esac",
+    "export PATH",
+    "unset iris_nix_path",
+    (to_entries[]
+      | select(.value.type == "exported" and (.key | test("^[A-Z][A-Z0-9_]*$")) and (.key | sandbox_only | not))
+      | "export \(.key)=\(.value.value | @sh)"),
+    .shellHook.value
+' "$state_directory/development-shell.json" | sudo tee /etc/profile.d/iris-nix.sh > /dev/null
+
+hook='[ ! -r /etc/profile.d/iris-nix.sh ] || . /etc/profile.d/iris-nix.sh'
+append_hook_last() {
+  local startup_file="$1"
+  shift
+  local contents
+  contents="$(grep -vFx "$hook" "$startup_file" 2> /dev/null || true)"
+  printf '%s\n\n%s\n' "$contents" "$hook" | "$@" tee "$startup_file" > /dev/null
+}
+append_hook_last /etc/bash.bashrc sudo
+for startup_file in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.bash_profile"; do
+  append_hook_last "$startup_file" env
+done
+
+. /etc/profile.d/iris-nix.sh
+rustc --version
+node --version
 
 printf '\nSetup complete in %ss.\n' "$SECONDS"
