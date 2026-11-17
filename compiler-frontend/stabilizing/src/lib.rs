@@ -19,16 +19,18 @@ use syntax::{SyntaxKind, SyntaxNode};
 /// algorithms like indexing and lowering, which used to have their own
 /// stabilization passes as they traversed the CST.
 pub fn stabilize_module(node: &SyntaxNode) -> StabilizedModule {
-    let pointers: Vec<_> = node.preorder_pointers().collect();
+    let pointers = node.preorder_pointers().filter(|pointer| {
+        !matches!(
+            pointer.kind(),
+            SyntaxKind::Annotation | SyntaxKind::QualifiedName | SyntaxKind::LabelName
+        )
+    });
+
+    let pointers: Vec<_> = pointers.collect();
     let mut ast_ptr_map = StabilizedModule::with_capacity(pointers.len());
 
     for pointer in pointers {
-        if !matches!(
-            pointer.kind(),
-            SyntaxKind::Annotation | SyntaxKind::QualifiedName | SyntaxKind::LabelName
-        ) {
-            ast_ptr_map.allocate_ptr(pointer);
-        }
+        ast_ptr_map.allocate_ptr(pointer);
     }
 
     ast_ptr_map

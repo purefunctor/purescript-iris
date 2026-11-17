@@ -6,10 +6,10 @@ module ImportUnqualifiedExplicit
 Unqualified Imports:
 
 Terms:
+  - Ctor3 is Explicit
   - libFn is Explicit
   - MkLibTy is Explicit
   - Ctor1 is Explicit
-  - Ctor3 is Explicit
 
 Types:
   - LibTy is Explicit
@@ -21,9 +21,9 @@ Classes:
 Qualified Imports:
 
 Exported Terms:
-  - Ctor1
   - libFn
   - MkLibTy
+  - Ctor1
   - Ctor3
 
 Exported Types:
