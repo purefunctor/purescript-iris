@@ -10,7 +10,7 @@ use smol_str::{SmolStr, format_smolstr};
 
 use crate::error::UnsupportedState;
 use crate::initializers::cyclic_initializers;
-use crate::optimize::{expression_globals, reachable_expressions};
+use crate::optimize::{ExpressionReachability, reachable_expressions};
 use crate::tree::{
     Binding, Declaration, DeclarationKind, ExpressionId, ExpressionKind, Global, GlobalId,
     InstanceIdentity, Parameter, ReflectableEvidence, ReflectableOrdering, Storage,
@@ -1045,11 +1045,15 @@ fn unsafe_local_instances(
     let positions = positions.collect::<FxHashMap<_, _>>();
 
     let mut dependencies = vec![Vec::new(); values.len()];
+    let mut reachability = ExpressionReachability::default();
     for (position, (_, _, expression)) in values.iter().enumerate() {
-        let globals = expression_globals(storage, *expression);
-        let dependency_positions =
-            globals.into_iter().filter_map(|global| positions.get(&global).copied());
-        dependencies[position].extend(dependency_positions);
+        reachability.visit(storage, [*expression], |kind| {
+            if let ExpressionKind::Constructor { global } | ExpressionKind::Global { global } = kind
+                && let Some(&dependency) = positions.get(&global.id)
+            {
+                dependencies[position].push(dependency);
+            }
+        });
         dependencies[position].sort_unstable();
         dependencies[position].dedup();
     }
@@ -1218,6 +1222,15 @@ mod tests {
             });
         }
         (storage, declarations)
+    }
+
+    #[test]
+    fn unsafe_instance_keeps_dependencies_from_a_shared_initializer() {
+        let (storage, mut declarations) = instance_chain(1, true);
+        let DeclarationKind::Value(shared) = declarations[1].kind else { unreachable!() };
+        declarations[0].kind = DeclarationKind::Value(shared);
+        declarations.swap(0, 1);
+        assert_eq!(unsafe_local_instances(&storage, &declarations).len(), 1);
     }
 
     #[test]

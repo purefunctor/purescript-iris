@@ -770,7 +770,7 @@ where
         let recursive_globals =
             context.recursive_groups.keys().map(|&term_id| GlobalId::Term(file_id, term_id));
         let recursive_globals = recursive_globals.collect();
-        inline_simple_bindings(&mut context.storage, expression, &recursive_globals);
+        inline_simple_bindings(&mut context.storage, [expression], &recursive_globals);
         Ok(matches!(
             context.storage[expression].kind,
             ExpressionKind::StyleX(StyleXExpression::Call {
