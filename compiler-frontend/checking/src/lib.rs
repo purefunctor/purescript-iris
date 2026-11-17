@@ -165,10 +165,10 @@ impl CheckedModule {
 }
 
 impl CheckedNodeTypes {
-    fn new(stabilized: &StabilizedModule) -> CheckedNodeTypes {
-        let types = AstIdMap::new(stabilized);
-        let type_kinds = AstIdMap::new(stabilized);
-        let expressions = AstIdMap::new(stabilized);
+    fn new(stabilized: &StabilizedModule, tree: &lowering::LoweredTree) -> CheckedNodeTypes {
+        let types = AstIdMap::with_capacity(stabilized, tree.type_count());
+        let type_kinds = AstIdMap::with_capacity(stabilized, tree.type_count());
+        let expressions = AstIdMap::with_capacity(stabilized, tree.expression_count());
         CheckedNodeTypes { types, type_kinds, expressions, ..CheckedNodeTypes::default() }
     }
 
@@ -243,7 +243,7 @@ pub fn check_module(queries: &impl ExternalQueries, file_id: FileId) -> QueryRes
 fn check_source(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<CheckedModule> {
     let mut state = state::CheckState::new(file_id);
     let context = context::CheckContext::new(queries, file_id)?;
-    state.checked.node_types = CheckedNodeTypes::new(&context.stabilized);
+    state.checked.node_types = CheckedNodeTypes::new(&context.stabilized, &context.lowered.tree);
 
     source::check_type_items(&mut state, &context)?;
     source::check_term_items(&mut state, &context)?;

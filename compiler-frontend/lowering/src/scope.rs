@@ -211,8 +211,8 @@ pub struct LoweringGraphNodes {
 
 impl LoweringGraphNodes {
     pub(crate) fn new(stabilized: &StabilizedModule) -> LoweringGraphNodes {
-        let expression_node = AstIdMap::new(stabilized);
-        let type_node = AstIdMap::new(stabilized);
+        let expression_node = AstIdMap::with_capacity(stabilized, stabilized.expression_count());
+        let type_node = AstIdMap::with_capacity(stabilized, stabilized.type_count());
         LoweringGraphNodes { expression_node, type_node, ..LoweringGraphNodes::default() }
     }
 

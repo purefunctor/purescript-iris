@@ -478,9 +478,17 @@ pub struct LoweredTree {
 
 impl LoweredTree {
     pub(crate) fn new(stabilized: &StabilizedModule) -> LoweredTree {
-        let expressions = AstIdMap::new(stabilized);
-        let types = AstIdMap::new(stabilized);
+        let expressions = AstIdMap::with_capacity(stabilized, stabilized.expression_count());
+        let types = AstIdMap::with_capacity(stabilized, stabilized.type_count());
         LoweredTree { expressions, types, ..LoweredTree::default() }
+    }
+
+    pub fn expression_count(&self) -> usize {
+        self.expressions.len()
+    }
+
+    pub fn type_count(&self) -> usize {
+        self.types.len()
     }
 
     pub fn iter_binder(&self) -> impl Iterator<Item = (BinderId, &BinderKind)> {

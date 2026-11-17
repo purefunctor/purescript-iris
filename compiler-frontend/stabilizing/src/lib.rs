@@ -26,12 +26,5 @@ pub fn stabilize_module(node: &SyntaxNode) -> StabilizedModule {
         )
     });
 
-    let pointers: Vec<_> = pointers.collect();
-    let mut ast_ptr_map = StabilizedModule::with_capacity(pointers.len());
-
-    for pointer in pointers {
-        ast_ptr_map.allocate_ptr(pointer);
-    }
-
-    ast_ptr_map
+    StabilizedModule::from_arena(pointers.collect())
 }
