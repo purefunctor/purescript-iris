@@ -40,6 +40,7 @@ pub trait TypeFold {
     }
 }
 
+#[inline]
 pub fn fold_type<Q, F>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
@@ -50,12 +51,26 @@ where
     Q: ExternalQueries,
     F: TypeFold,
 {
-    if !folder.may_change(context.lookup_type_flags(id)) {
+    let flags = context.lookup_type_flags(id);
+    if !folder.may_change(flags) {
         return Ok(id);
     }
 
-    let mut id = normalise::normalise(state, context, id);
+    let id = if flags.may_normalise() { normalise::normalise_head(state, context, id) } else { id };
+    fold_type_core(state, context, id, folder)
+}
 
+#[inline(never)]
+fn fold_type_core<Q, F>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    mut id: TypeId,
+    folder: &mut F,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+    F: TypeFold,
+{
     let t = safe_loop! {
         let t = context.lookup_type(id);
         match folder.transform(state, context, id, t)? {
@@ -116,19 +131,7 @@ where
         Type::Kinded(inner, kind) => fold_pair!(inner, kind, intern_kinded),
         Type::Constructor(_, _) | Type::Synonym(_, _) => id,
         Type::Integer(_) | Type::String(_, _) => id,
-        Type::Row(row_id) => {
-            let original_row = context.lookup_row_type(row_id);
-            let (mut fields, tail) = flatten_row(state, context, row_id)?;
-            for field in fields.iter_mut() {
-                field.id = fold_type(state, context, field.id, folder)?;
-            }
-            let tail = tail.map(|tail| fold_type(state, context, tail, folder)).transpose()?;
-            if fields.as_slice() == original_row.fields.as_ref() && tail == original_row.tail {
-                id
-            } else {
-                context.intern_row(fields, tail)
-            }
-        }
+        Type::Row(row_id) => fold_row(state, context, id, row_id, folder)?,
         Type::Rigid(name, depth, kind) => {
             let folded_kind = fold_type(state, context, kind, folder)?;
             if folded_kind == kind { id } else { context.intern_rigid(name, depth, folded_kind) }
@@ -137,6 +140,31 @@ where
     };
 
     folder.complete(state, context, id, result)
+}
+
+#[inline(never)]
+fn fold_row<Q, F>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: TypeId,
+    row_id: RowTypeId,
+    folder: &mut F,
+) -> QueryResult<TypeId>
+where
+    Q: ExternalQueries,
+    F: TypeFold,
+{
+    let original_row = context.lookup_row_type(row_id);
+    let (mut fields, tail) = flatten_row(state, context, row_id)?;
+    for field in fields.iter_mut() {
+        field.id = fold_type(state, context, field.id, folder)?;
+    }
+    let tail = tail.map(|tail| fold_type(state, context, tail, folder)).transpose()?;
+    if fields.as_slice() == original_row.fields.as_ref() && tail == original_row.tail {
+        Ok(id)
+    } else {
+        Ok(context.intern_row(fields, tail))
+    }
 }
 
 /// Flatten a row type into a single row.
