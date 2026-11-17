@@ -349,6 +349,12 @@ jobs:
             --target-dir performance-target/candidate -p tests-compatibility
           cp performance-target/candidate/release/tests-compatibility compatibility-binaries/candidate
 
+      - name: Prepare core corpus
+        working-directory: candidate
+        env:
+          PACKAGE_CACHE_DIR: ${{ github.workspace }}/compatibility-cache
+        run: ../compatibility-binaries/candidate prepare --preset core --cache-dir "$PACKAGE_CACHE_DIR"
+
       # Callgrind counts depend on the process's starting state, including the working directory
       # and the lengths of its arguments, so both sides run from one directory with paths of
       # equal length.
