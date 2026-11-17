@@ -23,9 +23,16 @@ impl Default for StabilizedModule {
 }
 
 impl StabilizedModule {
-    pub(crate) fn with_capacity(capacity: usize) -> StabilizedModule {
-        let arena = Vec::with_capacity(capacity);
-        let table = HashTable::with_capacity(capacity);
+    pub(crate) fn from_arena(mut arena: Vec<SyntaxNodePtr>) -> StabilizedModule {
+        arena.shrink_to_fit();
+        let mut table = HashTable::with_capacity(arena.len());
+
+        for (index, &ptr) in arena.iter().enumerate() {
+            let id = NonZeroU32::MIN.saturating_add(index as u32);
+            let hash = FxBuildHasher.hash_one(ptr);
+            table.insert_unique(hash, id, |&id| arena_hasher(&arena, id));
+        }
+
         StabilizedModule { arena, table }
     }
 
