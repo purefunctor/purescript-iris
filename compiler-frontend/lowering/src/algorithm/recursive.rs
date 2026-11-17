@@ -145,7 +145,7 @@ fn lower_binder_kind(
             let resolution = cst.name().and_then(|cst| {
                 let (qualifier, name) =
                     lower_qualified_name(context.source, &cst, cst::QualifiedName::upper)?;
-                state.resolve_term_reference(context, qualifier.as_deref(), &name)
+                state.resolve_term_reference(context, qualifier, name)
             });
             if resolution.is_none() {
                 let id = context.stabilized.lookup_cst(cst).expect_id();
@@ -499,7 +499,7 @@ fn lower_expression_kind(
             let resolution = cst.name().and_then(|cst| {
                 let (qualifier, name) =
                     lower_qualified_name(context.source, &cst, cst::QualifiedName::upper)?;
-                state.resolve_term_reference(context, qualifier.as_deref(), &name)
+                state.resolve_term_reference(context, qualifier, name)
             });
             if resolution.is_none() {
                 let id = context.stabilized.lookup_cst(cst).expect_id();
@@ -511,7 +511,7 @@ fn lower_expression_kind(
             let resolution = cst.name().and_then(|cst| {
                 let (qualifier, name) =
                     lower_qualified_name(context.source, &cst, cst::QualifiedName::lower)?;
-                state.resolve_term_full(context, qualifier.as_deref(), name.as_str())
+                state.resolve_term_full(context, qualifier, name)
             });
             if resolution.is_none() {
                 let id = context.stabilized.lookup_cst(cst).expect_id();
@@ -523,7 +523,7 @@ fn lower_expression_kind(
             let resolution = cst.name().and_then(|cst| {
                 let (qualifier, name) =
                     lower_qualified_name(context.source, &cst, cst::QualifiedName::operator_name)?;
-                state.resolve_term_reference(context, qualifier.as_deref(), &name)
+                state.resolve_term_reference(context, qualifier, name)
             });
             if resolution.is_none() {
                 let id = context.stabilized.lookup_cst(cst).expect_id();
@@ -1054,11 +1054,11 @@ fn lower_type_kind(
                 let (qualifier, name) =
                     lower_qualified_name(context.source, &cst, cst::QualifiedName::upper)?;
                 if state.in_constraint {
-                    state.resolve_class_reference(context, qualifier.as_deref(), &name).or_else(
-                        || state.resolve_type_reference(context, qualifier.as_deref(), &name),
-                    )
+                    state
+                        .resolve_class_reference(context, qualifier, name)
+                        .or_else(|| state.resolve_type_reference(context, qualifier, name))
                 } else {
-                    state.resolve_type_reference(context, qualifier.as_deref(), &name)
+                    state.resolve_type_reference(context, qualifier, name)
                 }
             });
             if resolution.is_none() {
@@ -1106,11 +1106,10 @@ fn lower_type_kind(
             // In light of this, we desugar the function arrow into the `Function`
             // constructor, which does have a TypeItemId and can be resolved as a
             // TypeKind::Constructor.
-            if let Some((qualifier, name)) = &qualified
+            if let Some((qualifier, name)) = qualified
                 && name == FUNCTION_ARROW
             {
-                let resolution =
-                    state.resolve_type_reference(context, qualifier.as_deref(), "Function");
+                let resolution = state.resolve_type_reference(context, qualifier, "Function");
                 if resolution.is_none() {
                     let id = context.stabilized.lookup_cst(cst).expect_id();
                     state
@@ -1120,7 +1119,7 @@ fn lower_type_kind(
                 TypeKind::Constructor { resolution }
             } else {
                 let resolution = qualified.and_then(|(qualifier, name)| {
-                    state.resolve_type_reference(context, qualifier.as_deref(), &name)
+                    state.resolve_type_reference(context, qualifier, name)
                 });
                 if resolution.is_none() {
                     let id = context.stabilized.lookup_cst(cst).expect_id();
@@ -1215,9 +1214,7 @@ fn lower_term_operator(
         .qualified()
         .and_then(|cst| lower_qualified_name(context.source, &cst, cst::QualifiedName::operator))?;
 
-    let Some((file_id, term_id)) =
-        state.resolve_term_reference(context, qualifier.as_deref(), &name)
-    else {
+    let Some((file_id, term_id)) = state.resolve_term_reference(context, qualifier, name) else {
         let id = context.stabilized.lookup_cst(cst).expect_id();
         state.errors.push(LoweringError::NotInScope(NotInScope::TermOperator { id }));
         return None;
@@ -1238,9 +1235,7 @@ fn lower_type_operator(
         .qualified()
         .and_then(|cst| lower_qualified_name(context.source, &cst, cst::QualifiedName::operator))?;
 
-    let Some((file_id, type_id)) =
-        state.resolve_type_reference(context, qualifier.as_deref(), &name)
-    else {
+    let Some((file_id, type_id)) = state.resolve_type_reference(context, qualifier, name) else {
         let id = context.stabilized.lookup_cst(cst).expect_id();
         state.errors.push(LoweringError::NotInScope(NotInScope::TypeOperator { id }));
         return None;
@@ -1251,20 +1246,18 @@ fn lower_type_operator(
     Some(id)
 }
 
-pub(crate) fn lower_qualified_name(
-    source: &str,
+pub(crate) fn lower_qualified_name<'source>(
+    source: &'source str,
     cst: &cst::QualifiedName,
     token: impl Fn(&cst::QualifiedName) -> Option<SyntaxToken>,
-) -> Option<(Option<SmolStr>, SmolStr)> {
+) -> Option<(Option<&'source str>, &'source str)> {
     let qualifier = cst.qualifier().and_then(|cst| {
         let token = cst.text()?;
-        let text = token.text(source).trim_end_matches('.');
-        Some(SmolStr::from(text))
+        Some(token.text(source).trim_end_matches('.'))
     });
 
     let token = token(cst)?;
-    let text = token.text(source).trim_start_matches('(').trim_end_matches(')');
-    let name = SmolStr::from(text);
+    let name = token.text(source).trim_start_matches('(').trim_end_matches(')');
 
     Some((qualifier, name))
 }
