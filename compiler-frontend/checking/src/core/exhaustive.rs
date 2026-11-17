@@ -1385,13 +1385,19 @@ where
 {
     let mut redundant = Vec::new();
     let mut matrix = PatternMatrix::new(unconditional.columns);
+    let mut covered = false;
     for vector in &unconditional {
-        let useful = algorithm_u(state, context, &matrix, vector)?;
+        let useful = !covered && algorithm_u(state, context, &matrix, vector)?;
         if useful {
             matrix.push(vector);
+            covered = is_irrefutable_vector(state, vector);
         } else {
             redundant.push(pretty::pretty_witness(context, state, vector)?);
         }
+    }
+
+    if unconditional.iter().any(|vector| is_irrefutable_vector(state, vector)) {
+        return Ok(ExhaustivenessReport { missing: None, redundant });
     }
 
     let query: PatternVector = pattern_types.iter().map(|&t| state.allocate_wildcard(t)).collect();
@@ -1404,6 +1410,10 @@ where
     let missing = missing.transpose()?;
 
     Ok(ExhaustivenessReport { missing, redundant })
+}
+
+fn is_irrefutable_vector(state: &CheckState, vector: &[PatternId]) -> bool {
+    vector.iter().all(|&pattern| matches!(state.patterns[pattern].kind, PatternKind::Wildcard))
 }
 
 #[cfg(test)]
