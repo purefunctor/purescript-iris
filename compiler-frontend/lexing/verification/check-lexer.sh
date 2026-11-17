@@ -28,6 +28,8 @@ mutants=(
   "raw_string_opens_with_four_quotes strings 5 NeverPanics"
   "parenthesis_ignores_line_comment names 3 AnnotationsAreTrivia"
   "parenthesis_position_after_qualifier names 3 PositionsMatchOffsets"
+  "line_comment_takes_newline comments 4 PositionsMatchOffsets"
+  "within_line_keeps_column names 2 PositionsMatchOffsets"
 )
 
 write_config() {
