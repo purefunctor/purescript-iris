@@ -455,7 +455,7 @@ fn lower_instance_class_reference(
     let qualified = head.qualified()?;
     let (qualifier, name) =
         recursive::lower_qualified_name(context.source, &qualified, cst::QualifiedName::upper)?;
-    let resolution = state.resolve_class_reference(context, qualifier.as_deref(), &name);
+    let resolution = state.resolve_class_reference(context, qualifier, name);
 
     if resolution.is_none() {
         let id = context.stabilized.lookup_cst(head).expect_id();
@@ -520,7 +520,7 @@ fn lower_term_item(
                             cst::QualifiedName::upper,
                         )
                     })?;
-                state.resolve_term_reference(context, qualifier.as_deref(), &name)
+                state.resolve_term_reference(context, qualifier, name)
             });
 
             if resolution.is_none() {
@@ -665,7 +665,7 @@ fn lower_derive_clause_item(
     let resolution = cst.qualified().and_then(|qualified| {
         let (qualifier, name) =
             recursive::lower_qualified_name(context.source, &qualified, cst::QualifiedName::upper)?;
-        state.resolve_class_reference(context, qualifier.as_deref(), &name)
+        state.resolve_class_reference(context, qualifier, name)
     });
 
     if resolution.is_none() {
@@ -891,7 +891,7 @@ fn lower_type_item(
                     &cst,
                     cst::QualifiedName::upper,
                 )?;
-                state.resolve_type_reference(context, qualifier.as_deref(), &name)
+                state.resolve_type_reference(context, qualifier, name)
             });
 
             if resolution.is_none() {
