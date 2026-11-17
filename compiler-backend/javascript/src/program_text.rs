@@ -22,26 +22,26 @@ struct ProgramTextState {
 #[derive(Default)]
 struct ProgramTextContents {
     positions: Vec<ProgramPosition>,
+    names: Vec<SmolStr>,
     comment_text: String,
     comments: Vec<Comment>,
 }
 
 enum ProgramPosition {
-    Node(ProgramNode),
+    Node { origin: Option<Origin>, name: Option<NameIndex> },
     Comment,
 }
 
 const POSITION_WIDTH: u32 = 2;
 
-pub(crate) struct ProgramNode {
-    pub(crate) origin: Option<Origin>,
-    pub(crate) name: Option<SmolStr>,
-}
+#[derive(Clone, Copy)]
+struct NameIndex(u32);
 
 pub(crate) struct ProgramSource {
     pub(crate) text: String,
     pub(crate) comments: Vec<Comment>,
     positions: Vec<ProgramPosition>,
+    names: Vec<SmolStr>,
 }
 
 pub(crate) struct OriginScope {
@@ -69,8 +69,14 @@ impl ProgramText {
     }
 
     pub(crate) fn named_span(&self, name: Option<SmolStr>) -> Span {
-        let node = ProgramNode { origin: self.0.origin.get(), name };
-        let start = self.0.contents.borrow_mut().push_position(ProgramPosition::Node(node));
+        let origin = self.0.origin.get();
+        let mut contents = self.0.contents.borrow_mut();
+        let name = name.map(|name| {
+            let index = NameIndex(contents.names.len() as u32);
+            contents.names.push(name);
+            index
+        });
+        let start = contents.push_position(ProgramPosition::Node { origin, name });
         Span::new(start, start + 1)
     }
 
@@ -112,7 +118,7 @@ impl ProgramText {
     }
 
     pub(crate) fn finish(&self) -> ProgramSource {
-        let ProgramTextContents { positions, comment_text, comments } =
+        let ProgramTextContents { positions, names, comment_text, comments } =
             self.0.contents.take();
         let comment_offset = positions.len() as u32 * POSITION_WIDTH;
         let mut text = " ".repeat(comment_offset as usize);
@@ -123,7 +129,7 @@ impl ProgramText {
             comment
         });
         let comments = comments.collect();
-        ProgramSource { text, comments, positions }
+        ProgramSource { text, comments, positions, names }
     }
 }
 
@@ -136,9 +142,11 @@ impl ProgramTextContents {
 }
 
 impl ProgramSource {
-    pub(crate) fn node(&self, column: u32) -> &ProgramNode {
-        match &self.positions[(column / POSITION_WIDTH) as usize] {
-            ProgramPosition::Node(node) => node,
+    pub(crate) fn node(&self, column: u32) -> (Option<Origin>, Option<&SmolStr>) {
+        match self.positions[(column / POSITION_WIDTH) as usize] {
+            ProgramPosition::Node { origin, name } => {
+                (origin, name.map(|NameIndex(index)| &self.names[index as usize]))
+            }
             ProgramPosition::Comment => {
                 unreachable!("invariant violated: generated code was mapped to a comment")
             }

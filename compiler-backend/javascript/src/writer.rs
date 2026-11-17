@@ -18,7 +18,7 @@ use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use smol_str::SmolStr;
 
 use crate::convert::identifier_is_binding;
-use crate::program_text::{ProgramNode, ProgramSource, ProgramText};
+use crate::program_text::{ProgramSource, ProgramText};
 use crate::source_map::{OriginMapping, Position};
 use crate::tree::{ExpressionId, Tree};
 
@@ -839,8 +839,8 @@ impl<'a> Writer<'a> {
         let mut mappings = Vec::<OriginMapping>::with_capacity(tokens.len());
         for token in tokens {
             let generated = Position { line: token.get_dst_line(), column: token.get_dst_col() };
-            let ProgramNode { origin, name } = source.node(token.get_src_col());
-            let (origin, mut name) = (*origin, name.clone());
+            let (origin, name) = source.node(token.get_src_col());
+            let mut name = name.cloned();
             if let Some(previous) = mappings.pop_if(|previous| previous.generated == generated) {
                 name = name.or(previous.name);
             }
