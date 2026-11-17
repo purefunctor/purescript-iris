@@ -3,7 +3,6 @@
 verification_directory="$1"
 model="$2"
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-java_version="temurin-21.0.12+8.0.LTS"
 tla_version="1.7.4"
 tla_sha256="936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 tools_directory="$repository_root/target/tla"
@@ -22,7 +21,7 @@ ensure_tools() {
     echo "$tla_sha256  $download" | sha256sum --check --status
     mv "$download" "$tla_jar"
   fi
-  mise install --yes "java@$java_version" >/dev/null
+  nix develop "$repository_root#verification" --command java -version 2>/dev/null
 }
 
 run_tlc() {
@@ -32,7 +31,7 @@ run_tlc() {
   cp "$verification_directory"/*.tla "$run/"
   cp "$config" "$run/check.cfg"
   local status=0
-  (cd "$run" && mise exec "java@$java_version" -- \
+  (cd "$run" && nix develop "$repository_root#verification" --command \
     java -XX:+UseParallelGC -cp "$tla_jar" tlc2.TLC -workers auto \
       -metadir "$run/states" -config check.cfg "$model") > "$log" 2>&1 || status=$?
   if [[ "$status" -eq 0 ]] && grep -q "Model checking completed. No error has been found." "$log"; then

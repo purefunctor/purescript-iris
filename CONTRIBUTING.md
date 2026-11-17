@@ -4,14 +4,18 @@ Thank you for taking interest in contributing to Iris.
 
 ## Development tools
 
-[`mise.toml`](mise.toml) pins Rust, Node.js, pnpm, and the development CLIs.
-With [mise](https://mise.jdx.dev/) installed, run `mise trust` and `mise install`
-from the repository root, then use `mise exec -- just <recipe>` or activate mise
-in your shell. `just format` uses the pinned nightly toolchain in this environment.
+[`flake.nix`](flake.nix) pins Rust, Node.js, pnpm, and the development CLIs, and
+[`flake.lock`](flake.lock) pins the Nix packages that provide them. With
+[Nix](https://nixos.org/download/) installed and flakes enabled, run `nix develop`
+from the repository root to enter the development shell, or use
+`nix develop --command just <recipe>`. The shell also provides the C toolchain,
+pkg-config, and OpenSSL. `just format` uses the shell's pinned nightly rustfmt.
+`nix flake update` moves the packaged tools to their newest versions; the Rust
+toolchain versions are set in `flake.nix`.
 
-Amp orbs use `.agents/setup` to bootstrap mise and install these tools. Native
-prerequisites are platform-managed: a C/C++ toolchain, pkg-config, OpenSSL
-development libraries, curl, and xz.
+Amp orbs use `.agents/setup` to build the development shell and export it to every
+shell in the orb. The TLA+ model checks in `.agents/scripts/tlc.sh` use the separate
+`verification` shell, which provides Java.
 
 Before pushing a branch, run `just format` and `just licenses`, then squash any
 resulting changes into the relevant commits in the branch.

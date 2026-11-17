@@ -30,10 +30,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install development tools
-        uses: jdx/mise-action@v4
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
         with:
-          version: 2026.9.3
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install development tools
+        uses: nicknovitski/nix-develop@v1
 
       - name: Cache build artifacts
         uses: Swatinem/rust-cache@v2.9.3

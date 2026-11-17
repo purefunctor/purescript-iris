@@ -22,8 +22,8 @@ repeated runs against the same base reuse its build. The base revision must cont
 The command clones the registry and prepares the corpus under `target/compatibility/` itself.
 
 Both sides build with whatever toolchain `rustc` resolves to in the workspace, which the run
-prints. That is the stable Rust pinned in `mise.toml`, which orb setup also sets as the
-repository's rustup override; CI builds with the latest stable instead. Instruction counts differ
+prints. That is the stable Rust pinned in `flake.nix`, which the development shell puts first on
+`PATH`; CI builds with the latest stable instead. Instruction counts differ
 between toolchains, so compare only numbers taken on the same one.
 
 The command prints a Markdown summary and writes `summary.md`, `comparison.json`, every

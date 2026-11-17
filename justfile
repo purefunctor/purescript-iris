@@ -84,7 +84,7 @@ prepare-release version:
 
 [doc("Format imports with module granularity")]
 @format *args="":
-  cargo +"${IRIS_NIGHTLY_TOOLCHAIN:-nightly}" fmt {{args}} -- --config imports_granularity=Module
+  RUSTFMT="${IRIS_NIGHTLY_RUSTFMT:?set by the development shell; run nix develop}" cargo fmt {{args}} -- --config imports_granularity=Module
 
 [doc("Preview compilation progress and watch summaries")]
 @progress-examples:

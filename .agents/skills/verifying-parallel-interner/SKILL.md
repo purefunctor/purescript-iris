@@ -43,7 +43,7 @@ From the repository root, run:
 compiler-core/interner/verification/check.sh
 ```
 
-The script uses `.agents/scripts/tlc.sh` to install Temurin 21.0.12 through mise and download
+The script uses `.agents/scripts/tlc.sh` to run Temurin 25 from the `verification` Nix shell and download
 SHA-256-checked `tla2tools.jar` 1.7.4 to `target/tla/`. Each check runs on a copy of the models in a
 temporary directory. The run takes about 90 seconds. A good run prints three `pass` lines and one
 `caught` line per mutant and property pair, then ends with `All results as expected` and exits with

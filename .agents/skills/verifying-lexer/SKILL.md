@@ -47,7 +47,7 @@ From the repository root, run:
 compiler-frontend/lexing/verification/check-lexer.sh
 ```
 
-The script uses `.agents/scripts/tlc.sh` to install Temurin 21.0.12 through mise and download
+The script uses `.agents/scripts/tlc.sh` to run Temurin 25 from the `verification` Nix shell and download
 SHA-256-checked `tla2tools.jar` 1.7.4 to `target/tla/`. The run takes about 2 minutes on 16 cores.
 It prints one `pass` line for each scenario and one `caught` line for each mutant, then ends with
 `All results as expected` and exits with status 0.

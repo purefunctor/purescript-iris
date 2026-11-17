@@ -32,7 +32,7 @@ compiler-core/building/verification/check.sh --quick
 The full run takes about 8 minutes. `--quick` runs `Serial`, `Parallel`, and the finding configs in
 about 2.5 minutes.
 
-The script uses `.agents/scripts/tlc.sh` to install Temurin 21.0.12 through mise and download
+The script uses `.agents/scripts/tlc.sh` to run Temurin 25 from the `verification` Nix shell and download
 SHA-256-checked `tla2tools.jar` v1.7.4 into `target/tla`. Do not pin v1.8.0. It is a rolling
 prerelease, and GitHub replaces its jar in place. Each config runs on a copy of the model in a
 temporary directory, so TLC writes no trace files into the repository. Logs remain in
@@ -46,7 +46,7 @@ To read a full counterexample, copy the model and a config to a scratch director
 ```bash
 scratch="$(mktemp -d)"
 cp compiler-core/building/verification/{QueryEngine.tla,SpuriousCycle.cfg} "$scratch"
-(cd "$scratch" && mise exec java@temurin-21.0.12+8.0.LTS -- java -cp "$OLDPWD/target/tla/tla2tools-1.7.4.jar" \
+(cd "$scratch" && nix develop "$OLDPWD#verification" --command java -cp "$OLDPWD/target/tla/tla2tools-1.7.4.jar" \
   tlc2.TLC -config SpuriousCycle.cfg -workers auto QueryEngine.tla)
 ```
 
