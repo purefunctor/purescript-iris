@@ -182,6 +182,14 @@ where
             unreachable!("invariant violated: {} is not a valid index", id)
         }
     }
+
+    pub fn count(&self) -> usize {
+        self.arena.count()
+    }
+
+    pub fn metadata_values(&self) -> impl Iterator<Item = M> + '_ {
+        self.arena.iter().map(|(_, (_, metadata))| *metadata)
+    }
 }
 
 impl<T, M> std::ops::Index<Id<T>> for Interner<T, M>
