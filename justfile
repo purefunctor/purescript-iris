@@ -64,6 +64,10 @@ t category *filters: integration-prepare
 @compatibility base="origin/main":
   bash .agents/skills/running-compatibility-checks/scripts/run.sh {{quote(base)}}
 
+[doc("Compare instructions, allocations, and wall time with a base revision")]
+@perf base="origin/main":
+  bash .agents/skills/measuring-performance/scripts/run.sh {{quote(base)}}
+
 [doc("Apply clippy fixes and format")]
 fix:
   cargo clippy --workspace --fix && cargo fmt

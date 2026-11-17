@@ -105,6 +105,29 @@ impl CoreInterners {
     pub fn lookup_string_literal(&self, id: StringLiteralId) -> &lowering::StringLiteral {
         &self.string_literals[id]
     }
+
+    pub fn statistics(&self) -> InternerStatistics {
+        let types_with_unification =
+            self.types.metadata_values().filter(|flags| flags.has_unification()).count();
+        InternerStatistics {
+            types: self.types.count(),
+            types_with_unification,
+            forall_binders: self.forall_binders.count(),
+            row_types: self.row_types.count(),
+            smol_strs: self.smol_strs.count(),
+            string_literals: self.string_literals.count(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InternerStatistics {
+    pub types: usize,
+    pub types_with_unification: usize,
+    pub forall_binders: usize,
+    pub row_types: usize,
+    pub smol_strs: usize,
+    pub string_literals: usize,
 }
 
 #[cfg(test)]
