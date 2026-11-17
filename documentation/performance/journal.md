@@ -203,6 +203,33 @@ digest is unchanged. Its ungated `acme` build wall ratios were 1.023 at 1 thread
 with base and candidate runs overlapping (8 threads: base 1,785–2,030 ms, candidate 1,826–2,189 ms)
 on code the change does not touch; against `1d5ee22ff` the same ratios were 1.002 and 1.004.
 
+### R1
+
+Stabilizing and resolving memory, branch `r1-memory`, 2026-11-17, `just perf` against each commit's
+parent on harness `5db492475`. Live heap is what each stage retains on `acme` (7,374 files, one
+thread), measured with a counting allocator.
+
+| Commit | Stage | Instructions | Allocated bytes | Live heap on `acme` |
+| --- | --- | ---: | ---: | ---: |
+| Size stabilized tables for the nodes they keep | stabilized | -1.01% | -29.18% | 192.0 → 90.5 MB |
+| Allocate import lists with room for one import | resolved | -0.53% | -9.65% | 155.7 → 139.1 MB |
+| Share export tables between resolved imports | resolved | -35.56% | -51.17% | 139.1 → 49.4 MB |
+| Share class member lists between resolved modules | resolved | -28.63% | -22.05% | 49.4 → 42.8 MB |
+
+- The stabilized tables were sized for every node, but Annotation, QualifiedName, and LabelName
+  nodes, more than half of the tree, never get an `AstId`.
+- Most of the resolved memory was copies: every import copied the imported module's whole export
+  table, every visible class copied its members, and each import list reserved room for four
+  imports.
+- Sharing export tables costs `lowered` +0.52% and `functional` +0.25% in instructions: names
+  looked up through an explicit import probe the shared table and then the import's listed set.
+  Build instructions fall 0.24%, `edit_body` 0.84%, and `edit_interface` 0.74%.
+- `indexed` was not changed; its 72 MB on `acme` is the items, names, and import lists each module
+  owns, with no copies.
+- The whole branch against `5db492475`: build instructions -0.45% and allocated bytes -3.63% on
+  `core`; peak resident memory on `acme` 2,941.5 → 2,684.2 MB on one thread and 3,147.6 →
+  2,898.6 MB on eight; `resolved` wall time on one thread 153.8 → 79.2 ms.
+
 ## Measured and rejected
 
 ### F1: cache known-term classification per module
@@ -243,6 +270,16 @@ Applying the same schedule to all sources as one package, which also removes the
 of `executor::execute_parallel`, did not change wall time either (base 2,018–2,240 ms, head
 2,116–2,224 ms) and raised CPU time. The blocked workers had no other ready work: the limit is the
 import graph's critical path, not the order in which ready sources start.
+
+### R1
+
+- Listed import items keyed by name (`FxHashMap<SmolStr, (FileId, ItemId)>`) instead of identity:
+  `lowered` -0.44% but `functional` +0.61%, which iterates every export of every import, and
+  5.8 MB more on `acme`. Measured on a pre-release harness copy, before allocator instructions
+  were split out of the gate.
+- `#[inline]` hints on the import lookups: no effect under the default release profile; only
+  `#[inline(always)]` inlines them into the per-import loop. A single probe site per lookup,
+  with listed entries stored in the export table's value type, was not inlined either.
 
 ## Not tried
 
