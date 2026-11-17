@@ -1,21 +1,22 @@
 //! Implements searching for instance chains.
 
-use std::collections::hash_map::Entry;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use building_types::QueryResult;
 use files::FileId;
 use indexing::{
     DeriveId, IndexedModule, InstanceChainId, InstanceId, InstanceSourceItemId, TypeItemId,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::context::CheckContext;
 use crate::core::constraint::{CanonicalConstraint, CanonicalConstraintId};
-use crate::core::fd::{self, get_all_determined, get_functional_dependencies};
+use crate::core::fd::{self, Positions, get_all_determined, get_functional_dependencies};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
-    ApplicationArgument, CheckedInstance, Type, TypeId, constraint, normalise, toolkit,
+    ApplicationArgument, CheckedInstance, InstanceHead, Type, TypeId, constraint, normalise,
+    toolkit,
 };
 use crate::error::ErrorKind;
 use crate::state::CheckState;
@@ -30,7 +31,7 @@ pub enum InstanceCandidateOrigin {
 }
 
 /// A candidate found for a constraint.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct InstanceCandidate {
     /// The syntactic ID for the instance chain.
     pub chain: Option<InstanceChainKey>,
@@ -70,16 +71,52 @@ impl InstanceChains {
     }
 }
 
+pub fn checked_instance<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    resolution: (FileId, TypeItemId),
+    signature: TypeId,
+    matchable: TypeId,
+) -> QueryResult<CheckedInstance>
+where
+    Q: ExternalQueries,
+{
+    let head = instance_head(state, context, matchable, resolution)?.map(Arc::new);
+    Ok(CheckedInstance { resolution, signature, matchable, head })
+}
+
+pub(crate) fn instance_head<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    matchable: TypeId,
+    resolution: (FileId, TypeItemId),
+) -> QueryResult<Option<InstanceHead>>
+where
+    Q: ExternalQueries,
+{
+    let Some(toolkit::InstanceInfo { binders, constraints, arguments }) =
+        toolkit::instance_info(state, context, matchable, resolution)?
+    else {
+        return Ok(None);
+    };
+    let pattern_variables = binders.iter().map(|binder| binder.name).collect();
+    let type_arguments = constraint::matching::type_arguments(&arguments);
+    Ok(Some(InstanceHead { binders, pattern_variables, constraints, arguments, type_arguments }))
+}
+
 pub fn validate_declared_instance<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     item_id: InstanceSourceItemId,
-    candidate_arguments: &mut FxHashMap<InstanceCandidateOrigin, Option<Vec<TypeId>>>,
 ) -> QueryResult<()>
 where
     Q: ExternalQueries,
 {
     let Some((origin, instance)) = declared_instance_candidate(state, context, item_id) else {
+        return Ok(());
+    };
+
+    let Some(head) = &instance.head else {
         return Ok(());
     };
 
@@ -97,9 +134,10 @@ where
         }
     };
 
-    if !derives_from_data && let Some(constraint) = orphan_instance_head(state, context, instance)?
-    {
-        state.insert_error(ErrorKind::OrphanInstance { constraint });
+    if !derives_from_data && is_orphan_instance(state, context, instance.resolution, head)? {
+        if let Some(constraint) = signature_head_constraint(state, context, &instance)? {
+            state.insert_error(ErrorKind::OrphanInstance { constraint });
+        }
         return Ok(());
     }
 
@@ -107,20 +145,21 @@ where
         return Ok(());
     };
 
-    let Some(OverlappingDeclaredCandidates { matches, wanted }) =
-        collect_overlapping_declared_candidates(
-            state,
-            context,
-            origin,
-            current_position,
-            instance,
-            candidate_arguments,
-        )?
+    let Some(matches) = collect_overlapping_declared_candidates(
+        state,
+        context,
+        origin,
+        current_position,
+        instance.resolution,
+        head,
+    )?
     else {
         return Ok(());
     };
 
-    let constraint = state.canonicals.type_id(context, wanted);
+    let Some(constraint) = signature_head_constraint(state, context, &instance)? else {
+        return Ok(());
+    };
     let instances = matches.iter().map(|candidate| candidate.instance.signature).collect();
     state.insert_error(ErrorKind::OverlappingInstances { constraint, instances });
 
@@ -151,52 +190,57 @@ where
     }
 }
 
-fn orphan_instance_head<Q>(
+fn is_orphan_instance<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    instance: CheckedInstance,
-) -> QueryResult<Option<TypeId>>
+    resolution: (FileId, TypeItemId),
+    head: &InstanceHead,
+) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    let (class_file, class_id) = instance.resolution;
+    let (class_file, class_id) = resolution;
     if class_file == context.id {
-        return Ok(None);
+        return Ok(false);
     }
-
-    let Some(toolkit::InstanceInfo { arguments, .. }) =
-        toolkit::instance_info(state, context, instance.signature, instance.resolution)?
-    else {
-        return Ok(None);
-    };
 
     let Some(class) = toolkit::lookup_file_class(state, context, class_file, class_id)? else {
-        return Ok(None);
+        return Ok(false);
     };
 
-    let type_arguments = constraint::matching::type_arguments(&arguments);
+    let type_arguments = &head.type_arguments;
     if type_arguments.len() != class.type_parameters.len() {
-        return Ok(None);
+        return Ok(false);
     }
 
-    let mut foreign_positions = FxHashSet::default();
+    let mut foreign_positions = Positions::default();
     for (position, &argument) in type_arguments.iter().enumerate() {
         if head_constructor_file(state, context, argument)? != Some(context.id) {
             foreign_positions.insert(position);
         }
     }
 
-    let all_positions = (0..type_arguments.len()).collect();
-    if !fd::positions_cover_all(&class.functional_dependencies, &foreign_positions, &all_positions)
-    {
-        return Ok(None);
-    }
+    let all_positions = Positions::all(type_arguments.len());
+    Ok(fd::positions_cover_all(&class.functional_dependencies, &foreign_positions, &all_positions))
+}
 
-    let head = state.canonicals.intern(CanonicalConstraint {
-        file_id: class_file,
-        type_id: class_id,
-        arguments: Rc::from(arguments),
-    });
+fn signature_head_constraint<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    instance: &CheckedInstance,
+) -> QueryResult<Option<TypeId>>
+where
+    Q: ExternalQueries,
+{
+    let Some(toolkit::InstanceInfo { arguments, .. }) =
+        toolkit::instance_info(state, context, instance.signature, instance.resolution)?
+    else {
+        return Ok(None);
+    };
+
+    let (file_id, type_id) = instance.resolution;
+    let arguments = Rc::from(arguments);
+    let head = state.canonicals.intern(CanonicalConstraint { file_id, type_id, arguments });
 
     Ok(Some(state.canonicals.type_id(context, head)))
 }
@@ -217,44 +261,30 @@ where
     }
 }
 
-struct OverlappingDeclaredCandidates {
-    matches: Vec<InstanceCandidate>,
-    wanted: CanonicalConstraintId,
-}
-
 fn collect_overlapping_declared_candidates<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     origin: InstanceCandidateOrigin,
     origin_position: usize,
-    instance: CheckedInstance,
-    candidate_arguments: &mut FxHashMap<InstanceCandidateOrigin, Option<Vec<TypeId>>>,
-) -> QueryResult<Option<OverlappingDeclaredCandidates>>
+    resolution: (FileId, TypeItemId),
+    head: &InstanceHead,
+) -> QueryResult<Option<Vec<InstanceCandidate>>>
 where
     Q: ExternalQueries,
 {
     // An instance head is the dual of a constraint; we synthesise it here to reuse
     // [`collect_instance_chains`]'s file-scoped enumeration, which scopes modules
     // by walking the head's type constructors, not by matching against candidates.
-    let Some(toolkit::InstanceInfo { arguments, .. }) =
-        toolkit::instance_info(state, context, instance.signature, instance.resolution)?
-    else {
-        return Ok(None);
-    };
-    let (file_id, type_id) = instance.resolution;
-    let arguments: Rc<[ApplicationArgument]> = Rc::from(arguments);
-    let wanted = state.canonicals.intern(CanonicalConstraint {
-        file_id,
-        type_id,
-        arguments: Rc::clone(&arguments),
-    });
-    let left_arguments = constraint::matching::type_arguments(&arguments);
+    let (file_id, type_id) = resolution;
+    let arguments = Rc::from(head.arguments.as_slice());
+    let wanted = state.canonicals.intern(CanonicalConstraint { file_id, type_id, arguments });
 
     let search = collect_instance_chains(state, context, wanted)?;
     let current_chain = instance_candidate_chain(context, origin);
+    let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
 
     fn is_chain_sibling(
-        candidate: InstanceCandidate,
+        candidate: &InstanceCandidate,
         current_chain: Option<InstanceChainKey>,
         origin: InstanceCandidateOrigin,
     ) -> bool {
@@ -266,23 +296,20 @@ where
     }
 
     let reportable_overlap = search.chains().flatten().filter(|candidate| {
-        !is_chain_sibling(**candidate, current_chain, origin)
+        !is_chain_sibling(candidate, current_chain, origin)
             && should_report_overlap(context, candidate.origin, origin, origin_position)
     });
     let mut found = false;
     for candidate in reportable_overlap {
-        let Some(right_arguments) =
-            declared_candidate_arguments(state, context, candidate, candidate_arguments)?
-        else {
+        let Some(candidate_head) = &candidate.instance.head else {
             continue;
         };
         if constraint::matching::declared_instances_overlap(
             state,
             context,
-            instance,
-            &left_arguments,
-            candidate.instance,
-            right_arguments,
+            &functional_dependencies,
+            &head.type_arguments,
+            &candidate_head.type_arguments,
         )? {
             found = true;
             break;
@@ -296,54 +323,27 @@ where
     // second pass only runs for an instance that will produce a diagnostic.
     let mut matches = Vec::new();
     'chain: for chain in search.chains() {
-        for &candidate in chain {
+        for candidate in chain {
             if is_chain_sibling(candidate, current_chain, origin) {
                 continue;
             }
-            let Some(right_arguments) =
-                declared_candidate_arguments(state, context, &candidate, candidate_arguments)?
-            else {
+            let Some(candidate_head) = &candidate.instance.head else {
                 continue;
             };
             if constraint::matching::declared_instances_overlap(
                 state,
                 context,
-                instance,
-                &left_arguments,
-                candidate.instance,
-                right_arguments,
+                &functional_dependencies,
+                &head.type_arguments,
+                &candidate_head.type_arguments,
             )? {
-                matches.push(candidate);
+                matches.push(candidate.clone());
                 continue 'chain;
             }
         }
     }
 
-    Ok(Some(OverlappingDeclaredCandidates { matches, wanted }))
-}
-
-fn declared_candidate_arguments<'a, Q>(
-    state: &mut CheckState,
-    context: &CheckContext<Q>,
-    candidate: &InstanceCandidate,
-    cache: &'a mut FxHashMap<InstanceCandidateOrigin, Option<Vec<TypeId>>>,
-) -> QueryResult<Option<&'a [TypeId]>>
-where
-    Q: ExternalQueries,
-{
-    let arguments = match cache.entry(candidate.origin) {
-        Entry::Occupied(entry) => entry.into_mut(),
-        Entry::Vacant(entry) => {
-            let info = toolkit::instance_info(
-                state,
-                context,
-                candidate.instance.signature,
-                candidate.instance.resolution,
-            )?;
-            entry.insert(info.map(|info| constraint::matching::type_arguments(&info.arguments)))
-        }
-    };
-    Ok(arguments.as_deref())
+    Ok(Some(matches))
 }
 
 /// Collects [`InstanceCandidate`]s for a given constraint.
@@ -488,7 +488,8 @@ fn collect_instances_from_checked(
         .instances
         .iter()
         .filter(|(_, instance)| instance.resolution == (class_file, class_id))
-        .map(|(&id, &instance)| {
+        .map(|(&id, instance)| {
+            let instance = instance.clone();
             let (chain, position) = indexed
                 .pairs
                 .instance_chain_metadata(id)
@@ -501,7 +502,8 @@ fn collect_instances_from_checked(
         .derived_instances
         .iter()
         .filter(|(_, instance)| instance.resolution == (class_file, class_id))
-        .map(|(&id, &instance)| {
+        .map(|(&id, instance)| {
+            let instance = instance.clone();
             let origin = InstanceCandidateOrigin::Derive(file_id, id);
             InstanceCandidate { chain: None, position: 0, origin, instance }
         });
@@ -525,7 +527,7 @@ where
     let all_determined = get_all_determined(&functional_dependencies);
 
     for (position, &argument_type) in arguments.iter().enumerate() {
-        if all_determined.contains(&position) {
+        if all_determined.contains(position) {
             continue;
         }
 

@@ -12,7 +12,9 @@ use crate::context::CheckContext;
 use crate::core::constraint::canonical::CanonicalConstraint;
 use crate::core::constraint::{CanonicalConstraintId, canonical, compiler};
 use crate::core::substitute::{NameToType, SubstituteName};
-use crate::core::{ApplicationArgument, CheckedClass, Name, Type, TypeId, normalise, toolkit};
+use crate::core::{
+    ApplicationArgument, CheckedClass, CheckedSuperclass, Name, Type, TypeId, normalise, toolkit,
+};
 use crate::evidence::{Evidence, EvidenceId, Evidences, SuperclassId};
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
@@ -126,20 +128,12 @@ where
 
     while let Some(parent) = pending.pop_front() {
         let CanonicalConstraint { file_id, type_id, .. } = state.canonicals[parent];
-        let Some(class) = toolkit::lookup_file_class(state, context, file_id, type_id)? else {
+        let Some((substitutions, superclasses)) = class_superclasses(state, context, parent)?
+        else {
             continue;
         };
 
-        if class.superclasses.is_empty() {
-            continue;
-        }
-
-        let CanonicalConstraint { arguments, .. } = &state.canonicals[parent];
-        let Some(substitutions) = superclass_substitutions(context, &class, arguments)? else {
-            continue;
-        };
-
-        for crate::core::CheckedSuperclass { source_id, member, constraint } in class.superclasses {
+        for CheckedSuperclass { source_id, member, constraint } in superclasses {
             let child = SubstituteName::many(state, context, &substitutions, constraint)?;
             if toolkit::contains_unknown(state, context, child)? {
                 state.absorb_unknown(child);
@@ -156,6 +150,35 @@ where
     }
 
     Ok(edges)
+}
+
+fn class_superclasses<Q>(
+    state: &CheckState,
+    context: &CheckContext<Q>,
+    parent: CanonicalConstraintId,
+) -> QueryResult<Option<(NameToType, Vec<CheckedSuperclass>)>>
+where
+    Q: ExternalQueries,
+{
+    let CanonicalConstraint { file_id, type_id, arguments } = &state.canonicals[parent];
+
+    let dependency;
+    let class = if *file_id == context.id {
+        state.checked.classes.get(type_id)
+    } else {
+        dependency = context.checked_dependency(*file_id)?;
+        dependency.classes.get(type_id)
+    };
+
+    let Some(class) = class.filter(|class| !class.superclasses.is_empty()) else {
+        return Ok(None);
+    };
+
+    let Some(substitutions) = superclass_substitutions(context, class, arguments)? else {
+        return Ok(None);
+    };
+
+    Ok(Some((substitutions, class.superclasses.clone())))
 }
 
 pub(crate) fn superclass_substitutions<Q>(

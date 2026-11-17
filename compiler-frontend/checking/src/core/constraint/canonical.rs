@@ -1,5 +1,6 @@
 //! Implements canonicalisation for constraints.
 
+use std::cell::RefCell;
 use std::ops::Index;
 use std::rc::Rc;
 
@@ -43,7 +44,7 @@ pub type CanonicalConstraintId = Id<CanonicalConstraint>;
 #[derive(Default)]
 pub struct Canonicals {
     interner: Interner<CanonicalConstraint>,
-    cache: FxHashMap<TypeId, CanonicalConstraintId>,
+    type_ids: RefCell<FxHashMap<CanonicalConstraintId, TypeId>>,
 }
 
 impl Canonicals {
@@ -52,6 +53,25 @@ impl Canonicals {
     }
 
     pub fn type_id<Q>(&self, context: &CheckContext<Q>, id: CanonicalConstraintId) -> TypeId
+    where
+        Q: ExternalQueries,
+    {
+        let cached = self.type_ids.borrow().get(&id).copied();
+        if let Some(cached) = cached {
+            debug_assert_eq!(
+                cached,
+                self.intern_type_id(context, id),
+                "invariant violated: stale canonical type"
+            );
+            return cached;
+        }
+
+        let type_id = self.intern_type_id(context, id);
+        self.type_ids.borrow_mut().insert(id, type_id);
+        type_id
+    }
+
+    fn intern_type_id<Q>(&self, context: &CheckContext<Q>, id: CanonicalConstraintId) -> TypeId
     where
         Q: ExternalQueries,
     {
@@ -70,20 +90,6 @@ impl Canonicals {
         }
 
         constraint
-    }
-
-    pub fn associate(
-        &mut self,
-        constraint: TypeId,
-        canonical: CanonicalConstraint,
-    ) -> CanonicalConstraintId {
-        let id = self.intern(canonical);
-        self.cache.insert(constraint, id);
-        // TODO: This check was disabled as it does not consider normalisation.
-        // A future version of this check must ensure that normalisation is
-        // taken into account before checking that the cache is not overwritten.
-        // debug_assert!(previous.is_none(), "critical violation: canonical cache overwrite");
-        id
     }
 }
 
@@ -114,9 +120,27 @@ where
 
     let arguments = Rc::from(arguments); // TODO: extract_all_applications
     let canonical = CanonicalConstraint { file_id, type_id, arguments };
-    let canonical_id = state.canonicals.associate(id, canonical);
+    let canonical_id = state.canonicals.intern(canonical);
 
     Ok(Some(canonical_id))
+}
+
+pub fn contains_unknown<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: CanonicalConstraintId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    let arguments = Rc::clone(&state.canonicals[id].arguments);
+    for &argument in arguments.iter() {
+        let (ApplicationArgument::Kind(argument) | ApplicationArgument::Type(argument)) = argument;
+        if toolkit::contains_unknown(state, context, argument)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 pub fn zonk_canonical<Q>(

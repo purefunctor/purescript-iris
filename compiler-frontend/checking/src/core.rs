@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use files::FileId;
 use indexing::{TermItemId, TypeItemId};
+use rustc_hash::FxHashSet;
 use smol_str::{SmolStr, SmolStrBuilder};
 
 /// A globally unique identity for a rigid type variable.
@@ -164,7 +165,7 @@ pub struct CheckedClass {
 }
 
 /// Represents a checked instance declaration head.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckedInstance {
     /// Type class reference.
     pub resolution: (FileId, TypeItemId),
@@ -239,6 +240,16 @@ pub struct CheckedInstance {
     /// [signature]: CheckedInstance::signature
     /// [matchable]: CheckedInstance::matchable
     pub matchable: TypeId,
+    pub head: Option<Arc<InstanceHead>>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InstanceHead {
+    pub binders: Vec<ForallBinder>,
+    pub pattern_variables: FxHashSet<Name>,
+    pub constraints: Vec<TypeId>,
+    pub arguments: Vec<ApplicationArgument>,
+    pub type_arguments: Vec<TypeId>,
 }
 
 /// The core type representation used by the checker after name resolution.
