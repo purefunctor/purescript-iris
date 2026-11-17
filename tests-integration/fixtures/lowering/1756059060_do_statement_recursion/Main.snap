@@ -7,19 +7,19 @@ Expressions:
 
 y'equation@3:27
   -> equation@3:5
-pure@4:33
-  -> top-level
-pure@4:16
-  -> top-level
 a'binder@3:38
   -> binder@3:16
+pure@4:16
+  -> top-level
+x'notBinder@4:21
+  -> top-level
+pure@4:33
+  -> top-level
 x'notBinder@5:6
   -> binder@3:47
 42@7:6
   -> integer 42
 42@8:13
   -> integer 42
-x'notBinder@4:21
-  -> top-level
 
 Types:

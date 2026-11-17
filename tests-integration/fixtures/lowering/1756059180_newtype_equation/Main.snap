@@ -8,11 +8,11 @@ Expressions:
 
 Types:
 
-a@5:29
-  -> forall@5:9
-k@5:15
-  -> forall@4:19
-k@4:22
-  -> forall@4:19
 a@2:17
   -> forall@2:10
+k@4:22
+  -> forall@4:19
+k@5:15
+  -> forall@4:19
+a@5:29
+  -> forall@5:9

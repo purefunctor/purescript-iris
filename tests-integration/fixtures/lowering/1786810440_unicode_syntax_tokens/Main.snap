@@ -5,10 +5,10 @@ module Main
 
 Expressions:
 
-action@10:11
-  -> nothing
 value@7:16
   -> binder@7:8
+action@10:11
+  -> nothing
 pure@10:18
   -> nothing
 value@11:6
@@ -18,9 +18,9 @@ Types:
 
 a@6:26
   -> forall@6:16
+a@6:32
+  -> forall@6:16
 a@6:38
   -> forall@6:16
 a@4:12
   -> forall@4:24
-a@6:32
-  -> forall@6:16

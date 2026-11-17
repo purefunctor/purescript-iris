@@ -5,42 +5,42 @@ module Main
 
 Expressions:
 
-pure@11:6
+pure@9:6
   -> top-level
 42@9:11
   -> integer 42
+{ x }@10:9
+  -> binder@8:10
+pure@11:6
+  -> top-level
+"hello"@11:11
+  -> string String "hello"
 { x, y, z }@12:4
   -> binder@8:10
 { x, y, z }@12:4
   -> equation@10:5
 { x, y, z }@12:4
   -> binder@10:15
-{ x }@10:9
-  -> binder@8:10
-"hello"@11:11
-  -> string String "hello"
-pure@9:6
-  -> top-level
 
 Types:
 
-b@5:39
-  -> forall@5:30
-a@6:61
-  -> forall@6:30
-b@6:73
-  -> forall@6:32
-b@6:48
-  -> forall@6:32
-a@5:35
-  -> forall@5:28
-a@6:44
-  -> forall@6:30
-a@5:52
-  -> forall@5:28
-b@5:64
-  -> forall@5:30
 a@4:32
   -> forall@4:29
 a@4:44
   -> forall@4:29
+a@5:35
+  -> forall@5:28
+b@5:39
+  -> forall@5:30
+a@5:52
+  -> forall@5:28
+b@5:64
+  -> forall@5:30
+a@6:44
+  -> forall@6:30
+b@6:48
+  -> forall@6:32
+a@6:61
+  -> forall@6:30
+b@6:73
+  -> forall@6:32

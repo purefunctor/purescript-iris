@@ -8,25 +8,25 @@ Expressions:
 
 Types:
 
+k@2:25
+  -> forall@2:22
 k@2:30
+  -> forall@2:22
+k@3:18
+  -> forall@2:22
+k@3:27
   -> forall@2:22
 p@4:20
   -> forall@4:17
-p@4:27
-  -> forall@4:17
-k@2:25
-  -> forall@2:22
-a@7:17
-  -> forall@6:17
-a@6:8
-  -> forall@6:17
 a@4:22
   -> forall@3:12
-k@3:27
-  -> forall@2:22
+p@4:27
+  -> forall@4:17
 b@4:29
   -> forall@3:21
+a@6:8
+  -> forall@6:17
 a@7:12
   -> forall@6:17
-k@3:18
-  -> forall@2:22
+a@7:17
+  -> forall@6:17

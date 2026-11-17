@@ -5,22 +5,22 @@ module Main
 
 Expressions:
 
+"hello"@2:8
+  -> string String "hello"
+"""hello"""@4:11
+  -> string RawString "hello"
+'\n'@6:6
+  -> char '\n'
+'\"'@8:17
+  -> char '"'
+'\x2603'@13:13
+  -> char '☃'
+'\n2'@15:20
+  -> char (missing)
 'ab'@17:18
   -> char (missing)
 0x2a@19:9
   -> integer 42
-'\n2'@15:20
-  -> char (missing)
-'\x2603'@13:13
-  -> char '☃'
-'\"'@8:17
-  -> char '"'
-'\n'@6:6
-  -> char '\n'
-"""hello"""@4:11
-  -> string RawString "hello"
-"hello"@2:8
-  -> string String "hello"
 1.25@21:8
   -> number 1.25
 

@@ -5,34 +5,34 @@ module Main
 
 Expressions:
 
+symbols@15:9
+  -> top-level
 integers@18:10
   -> top-level
 value@21:14
   -> binder@21:6
-symbols@15:9
-  -> top-level
 
 Types:
 
-left@12:24
-  -> forall@12:11
+input@10:54
+  -> forall@10:32
+output@10:60
+  -> forall@10:38
+input@10:70
+  -> forall@10:32
+output@10:79
+  -> forall@10:38
+row@20:38
+  -> forall@20:16
+row@20:63
+  -> forall@20:16
+input@8:28
+  -> forall@8:13
 output@8:37
   -> forall@8:19
+left@12:24
+  -> forall@12:11
 right@12:35
   -> forall@12:16
 left@12:44
   -> forall@12:11
-row@20:38
-  -> forall@20:16
-output@10:60
-  -> forall@10:38
-output@10:79
-  -> forall@10:38
-input@8:28
-  -> forall@8:13
-input@10:54
-  -> forall@10:32
-input@10:70
-  -> forall@10:32
-row@20:63
-  -> forall@20:16

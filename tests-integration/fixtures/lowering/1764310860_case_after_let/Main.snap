@@ -7,14 +7,14 @@ Expressions:
 
 3@6:7
   -> integer 3
+a@9:17
+  -> binder@9:12
 1@10:18
   -> integer 1
 b@12:17
   -> binder@12:12
 2@13:18
   -> integer 2
-a@9:17
-  -> binder@9:12
 
 Types:
 
