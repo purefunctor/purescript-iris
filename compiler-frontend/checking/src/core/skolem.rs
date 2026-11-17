@@ -605,7 +605,7 @@ fn inspect_type<Q>(
     // variables cannot contain an escaped skolem.
     let has_rigid = |type_id| checker.context.lookup_type_flags(type_id).has_rigid();
 
-    if !has_rigid(annotation) {
+    if checker.discovering || !has_rigid(annotation) {
         return;
     }
 
