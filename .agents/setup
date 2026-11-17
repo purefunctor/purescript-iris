@@ -16,40 +16,17 @@ eval "$(mise env --shell bash)"
 mise ls --current
 rustup override set --path "$PWD" "$RUSTUP_TOOLCHAIN"
 
-# Amp and supervised services start in fresh non-interactive login shells,
-# while the Terminal starts interactive shells that read .bashrc.
 repository_root="$PWD"
-profile_marker="# Iris mise environment: $repository_root"
-if [[ ! -e "$HOME/.bash_profile" ]]; then
-  # Creating .bash_profile must not hide the previously selected login file.
-  if [[ -r "$HOME/.bash_login" ]]; then
-    printf '%s\n' '[[ ! -r "$HOME/.bash_login" ]] || . "$HOME/.bash_login"' >> "$HOME/.bash_profile"
-  else
-    printf '%s\n' '[[ ! -r "$HOME/.profile" ]] || . "$HOME/.profile"' >> "$HOME/.bash_profile"
-  fi
+sudo tee /etc/profile.d/iris-mise.sh > /dev/null <<EOF
+if [ -z "\${iris_mise_environment_loaded-}" ] && [ -x "$HOME/.local/bin/mise" ]; then
+  eval "\$("$HOME/.local/bin/mise" --cd "$repository_root" env --shell bash)"
+  iris_mise_environment_loaded=1
 fi
-
-for shell_profile in "$HOME/.bash_profile" "$HOME/.bashrc"; do
-  if grep -Fqx "$profile_marker" "$shell_profile" 2>/dev/null; then
-    if ! grep -Fq 'IRIS_MISE_' "$shell_profile"; then
-      continue
-    fi
-
-    # Replace the original login-only hook when updating an existing orb.
-    temporary_profile="$(mktemp)"
-    awk -v marker="$profile_marker" '
-      $0 == marker { replacing = 1; next }
-      replacing && $0 == "fi" { replacing = 0; next }
-      !replacing { print }
-    ' "$shell_profile" > "$temporary_profile"
-    cat "$temporary_profile" > "$shell_profile"
-    rm "$temporary_profile"
-  fi
-  cat >> "$shell_profile" <<EOF
-
-$profile_marker
-eval "\$("$HOME/.local/bin/mise" --cd "$repository_root" env --shell bash)"
 EOF
-done
+
+bashrc_hook='[ ! -r /etc/profile.d/iris-mise.sh ] || . /etc/profile.d/iris-mise.sh'
+if ! grep -Fqx "$bashrc_hook" /etc/bash.bashrc; then
+  printf '\n%s\n' "$bashrc_hook" | sudo tee -a /etc/bash.bashrc > /dev/null
+fi
 
 printf '\nSetup complete in %ss.\n' "$SECONDS"
