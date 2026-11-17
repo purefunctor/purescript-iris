@@ -16,7 +16,7 @@ where
 {
     state: &'a mut CheckState,
     context: &'a CheckContext<'q, Q>,
-    compression: SmallVec<[u32; 4]>,
+    compression: SmallVec<[(u32, TypeId); 4]>,
 }
 
 impl<'a, 'q, Q> ReductionContext<'a, 'q, Q>
@@ -51,7 +51,7 @@ where
             return None;
         };
 
-        self.compression.push(unification_id);
+        self.compression.push((unification_id, solution_id));
         Some(solution_id)
     }
 
@@ -126,8 +126,10 @@ where
         }
     };
 
-    for unification_id in reduction.compression {
-        state.unifications.solve(unification_id, id);
+    for (unification_id, solution_id) in reduction.compression {
+        if solution_id != id {
+            state.unifications.solve(unification_id, id);
+        }
     }
 
     id
