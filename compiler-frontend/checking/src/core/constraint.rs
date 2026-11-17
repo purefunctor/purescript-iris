@@ -196,11 +196,11 @@ fn ignore_unknown_wanted<Q>(
 where
     Q: ExternalQueries,
 {
-    let wanted = state.canonicals.type_id(context, constraint.key.wanted);
-    if !toolkit::contains_unknown(state, context, wanted)? {
+    if !canonical::contains_unknown(state, context, constraint.key.wanted)? {
         return Ok(false);
     }
 
+    let wanted = state.canonicals.type_id(context, constraint.key.wanted);
     state.absorb_unknown(wanted);
     state.checked.evidence.mark_error(constraint.evidence.wanted);
 
@@ -414,8 +414,8 @@ where
     for residual in unique_residuals.into_iter().map(ConstraintInScope::from_parts) {
         // Unknown types replace errors that are reported elsewhere, so the
         // constraints that mention them are left unsolved without an error.
-        let wanted = state.canonicals.type_id(context, residual.key.wanted);
-        if toolkit::contains_unknown(state, context, wanted)? {
+        if canonical::contains_unknown(state, context, residual.key.wanted)? {
+            let wanted = state.canonicals.type_id(context, residual.key.wanted);
             state.absorb_unknown(wanted);
             state.checked.evidence.mark_error(residual.evidence.wanted);
         } else {
