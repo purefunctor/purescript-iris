@@ -8,7 +8,6 @@ use files::FileId;
 use indexing::TypeItemId;
 use interner::{Id, Interner};
 use itertools::Itertools;
-use rustc_hash::FxHashMap;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
@@ -43,7 +42,6 @@ pub type CanonicalConstraintId = Id<CanonicalConstraint>;
 #[derive(Default)]
 pub struct Canonicals {
     interner: Interner<CanonicalConstraint>,
-    cache: FxHashMap<TypeId, CanonicalConstraintId>,
 }
 
 impl Canonicals {
@@ -70,20 +68,6 @@ impl Canonicals {
         }
 
         constraint
-    }
-
-    pub fn associate(
-        &mut self,
-        constraint: TypeId,
-        canonical: CanonicalConstraint,
-    ) -> CanonicalConstraintId {
-        let id = self.intern(canonical);
-        self.cache.insert(constraint, id);
-        // TODO: This check was disabled as it does not consider normalisation.
-        // A future version of this check must ensure that normalisation is
-        // taken into account before checking that the cache is not overwritten.
-        // debug_assert!(previous.is_none(), "critical violation: canonical cache overwrite");
-        id
     }
 }
 
@@ -114,7 +98,7 @@ where
 
     let arguments = Rc::from(arguments); // TODO: extract_all_applications
     let canonical = CanonicalConstraint { file_id, type_id, arguments };
-    let canonical_id = state.canonicals.associate(id, canonical);
+    let canonical_id = state.canonicals.intern(canonical);
 
     Ok(Some(canonical_id))
 }
