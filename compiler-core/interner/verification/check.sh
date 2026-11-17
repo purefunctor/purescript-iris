@@ -4,47 +4,37 @@ set -euo pipefail
 verification_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$verification_directory/../../../.agents/scripts/tlc.sh" "$verification_directory" MCParallelInterner.tla
 
-invariants=(
+properties=(
   EqualValuesShareId
   DistinctValuesNeverShareId
   IdNamesItsValue
   GetFindsReturnedInterns
   ReturnedIdsArePublished
   ArenaReadsArePublished
-  OverflowIsCoherent
+  TablesAreCoherent
+  CurrentTableHoldsInterns
   ViewsHoldOnlyWrittenSlots
 )
-
-action_properties=(
-  TableIsWriteOnce
-)
-
-properties=("${invariants[@]}" "${action_properties[@]}")
 
 scopes=(
   "colliding-pairs 3 2 2"
   "colliding-triples 4 1 3"
-  "two-hash-classes 3 1 4"
+  "two-shards 3 1 4"
 )
 
 mutants=(
-  "trust_hash colliding-pairs DistinctValuesNeverShareId"
-  "skip_occupied_compare colliding-pairs DistinctValuesNeverShareId"
-  "keep_candidate colliding-pairs EqualValuesShareId"
-  "skip_publish_collision colliding-pairs GetFindsReturnedInterns"
-  "skip_publish_collision colliding-pairs EqualValuesShareId"
-  "overwrite_insert colliding-pairs TableIsWriteOnce"
-  "overwrite_insert colliding-pairs EqualValuesShareId"
-  "publish_skip_scan colliding-pairs EqualValuesShareId"
-  "publish_skip_scan colliding-pairs OverflowIsCoherent"
-  "collision_skip_scan colliding-pairs EqualValuesShareId"
-  "collision_skip_scan colliding-pairs OverflowIsCoherent"
-  "collision_unlocked_scan colliding-pairs EqualValuesShareId"
-  "get_skip_overflow colliding-pairs GetFindsReturnedInterns"
-  "get_trust_hash colliding-pairs DistinctValuesNeverShareId"
-  "get_trust_hash colliding-pairs IdNamesItsValue"
-  "scan_hash_only colliding-triples DistinctValuesNeverShareId"
-  "relaxed_table colliding-pairs ArenaReadsArePublished"
+  "trust_tag colliding-pairs DistinctValuesNeverShareId"
+  "get_trust_tag colliding-pairs DistinctValuesNeverShareId"
+  "get_trust_tag colliding-pairs IdNamesItsValue"
+  "skip_locked_probe colliding-pairs EqualValuesShareId"
+  "skip_locked_probe colliding-pairs TablesAreCoherent"
+  "unlocked_insert colliding-pairs EqualValuesShareId"
+  "reuse_observed_table colliding-pairs EqualValuesShareId"
+  "reuse_observed_table colliding-pairs CurrentTableHoldsInterns"
+  "empty_grow colliding-pairs EqualValuesShareId"
+  "empty_grow colliding-pairs GetFindsReturnedInterns"
+  "relaxed_slot colliding-pairs ArenaReadsArePublished"
+  "relaxed_generation colliding-pairs ArenaReadsArePublished"
   "publish_before_write colliding-pairs ArenaReadsArePublished"
   "return_before_write colliding-pairs ReturnedIdsArePublished"
 )
@@ -62,14 +52,6 @@ scope_of() {
   exit 2
 }
 
-is_action_property() {
-  local candidate="$1" property
-  for property in "${action_properties[@]}"; do
-    [[ "$property" == "$candidate" ]] && return 0
-  done
-  return 1
-}
-
 write_config() {
   local name="$1" mutant="$2" threads="$3" operations="$4" values="$5"
   shift 5
@@ -82,7 +64,7 @@ write_config() {
     echo "CONSTANTS"
     echo "    Threads = {$thread_names}"
     echo "    Values <- MCValues"
-    echo "    Hash <- MCHash"
+    echo "    Location <- MCLocation"
     echo "    OperationsPerThread = $operations"
     echo "    Mutant <- MCMutant"
     echo "    MutantName = \"$mutant\""
@@ -90,11 +72,7 @@ write_config() {
     echo "SYMMETRY ThreadSymmetry"
     echo "SPECIFICATION Spec"
     for property in "$@"; do
-      if is_action_property "$property"; then
-        echo "PROPERTY $property"
-      else
-        echo "INVARIANT $property"
-      fi
+      echo "INVARIANT $property"
     done
   } > "$config"
   echo "$config"
@@ -116,7 +94,7 @@ check_mutants() {
     read -r name threads operations values <<< "$(scope_of "$scope")"
     config="$(write_config "mutant-$mutant-$expected" "$mutant" "$threads" "$operations" "$values" "$expected")"
     expect_violation "mutant-$mutant-$expected" "$config" \
-      "^Error: (Invariant|Action property) $expected (of [A-Za-z ]+)?is violated"
+      "^Error: Invariant $expected is violated"
   done
 }
 

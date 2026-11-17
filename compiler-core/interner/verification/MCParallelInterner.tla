@@ -10,7 +10,10 @@ MCValues ==
       [] ValueCount = 3 -> {"x", "y", "w"}
       [] ValueCount = 4 -> {"x", "y", "u", "v"}
 
-MCHash == [value \in MCValues |-> IF value \in {"u", "v"} THEN 2 ELSE 1]
+MCLocation == [value \in MCValues |->
+    CASE value = "u" -> [shard |-> 1, tag |-> 2]
+      [] value = "v" -> [shard |-> 2, tag |-> 1]
+      [] OTHER -> [shard |-> 1, tag |-> 1]]
 
 ThreadSymmetry == Permutations(Threads)
 
