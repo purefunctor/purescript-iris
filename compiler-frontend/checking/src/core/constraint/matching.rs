@@ -1,6 +1,8 @@
 use std::iter;
 
 use building_types::QueryResult;
+use files::FileId;
+use indexing::TypeItemId;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -14,8 +16,7 @@ use crate::core::fd::{
 use crate::core::substitute::SubstituteName;
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
-    ApplicationArgument, CheckedInstance, Name, RowField, RowTypeId, Type, TypeFlags, TypeId,
-    normalise, toolkit,
+    ApplicationArgument, Name, RowField, RowTypeId, Type, TypeFlags, TypeId, normalise, toolkit,
 };
 use crate::source::types;
 use crate::state::CheckState;
@@ -666,39 +667,41 @@ pub fn match_declared<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     wanted: CanonicalConstraintId,
-    candidate: InstanceCandidate,
+    candidate: &InstanceCandidate,
 ) -> QueryResult<MatchInstance>
 where
     Q: ExternalQueries,
 {
-    let Some(declared) = toolkit::instance_info(
-        state,
-        context,
-        candidate.instance.matchable,
-        candidate.instance.resolution,
-    )?
-    else {
+    #[cfg(debug_assertions)]
+    {
+        let crate::core::CheckedInstance { matchable, resolution, .. } = candidate.instance;
+        let recomputed = super::instances::instance_head(state, context, matchable, resolution)?;
+        debug_assert_eq!(
+            recomputed.as_ref(),
+            candidate.instance.head.as_deref(),
+            "invariant violated: stale instance head",
+        );
+    }
+
+    let Some(declared) = &candidate.instance.head else {
         return Ok(MatchInstance::Apart);
     };
 
     let wanted = state.canonicals[wanted].clone();
 
-    let pattern_variables: FxHashSet<Name> =
-        declared.binders.iter().map(|binder| binder.name).collect();
-
     let functional_dependencies =
         get_functional_dependencies(state, context, wanted.file_id, wanted.type_id)?;
 
     let wanted_arguments = type_arguments(&wanted.arguments);
-    let declared_arguments = type_arguments(&declared.arguments);
+    let declared_arguments = &declared.type_arguments;
 
     match match_instance(
         state,
         context,
-        &pattern_variables,
+        &declared.pattern_variables,
         &functional_dependencies,
         &wanted_arguments,
-        &declared_arguments,
+        declared_arguments,
     )? {
         MatchType::Match { bindings } => {
             let matched_names: FxHashSet<_> = bindings.iter().map(|(name, _)| *name).collect();
@@ -729,14 +732,14 @@ where
                 unifications.push((actual_kind, expected_kind));
             }
 
-            for (wanted, declared) in iter::zip(wanted_arguments, declared_arguments) {
+            for (wanted, &declared) in iter::zip(wanted_arguments, declared_arguments) {
                 let wanted = SubstituteName::many(state, context, &substitution, wanted)?;
                 let declared = SubstituteName::many(state, context, &substitution, declared)?;
                 unifications.push((wanted, declared));
             }
 
             let mut constraints = Vec::new();
-            for constraint in declared.constraints {
+            for &constraint in &declared.constraints {
                 let constraint = SubstituteName::many(state, context, &substitution, constraint)?;
                 if let Some(constraint) = canonical::canonicalise(state, context, constraint)? {
                     constraints.push(constraint);
@@ -753,19 +756,19 @@ where
 pub fn declared_instances_overlap<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    left: CheckedInstance,
+    left_resolution: (FileId, TypeItemId),
     left_arguments: &[TypeId],
-    right: CheckedInstance,
+    right_resolution: (FileId, TypeItemId),
     right_arguments: &[TypeId],
 ) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    if left.resolution != right.resolution {
+    if left_resolution != right_resolution {
         return Ok(false);
     }
 
-    let (file_id, type_id) = left.resolution;
+    let (file_id, type_id) = left_resolution;
 
     if left_arguments.len() != right_arguments.len() {
         return Ok(false);

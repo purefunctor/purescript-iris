@@ -12,8 +12,8 @@ use crate::context::CheckContext;
 use crate::core::constraint::ConstraintInScope;
 use crate::core::substitute::{NameToType, RigidRenaming, SubstituteName};
 use crate::core::{
-    ApplicationArgument, CheckedInstance, Type, TypeId, constraint, exhaustive, generalise,
-    normalise, signature, toolkit, unification, zonk,
+    ApplicationArgument, Type, TypeId, constraint, exhaustive, generalise, normalise, signature,
+    toolkit, unification, zonk,
 };
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, SuperclassId};
@@ -80,19 +80,13 @@ fn check_declared_instances<Q>(state: &mut CheckState, context: &CheckContext<Q>
 where
     Q: ExternalQueries,
 {
-    let mut candidate_arguments = FxHashMap::default();
     for &item_id in &context.grouped.instance_sources {
         let crumb = match item_id {
             InstanceSourceItemId::Instance(id) => ErrorCrumb::InstanceDeclaration(id),
             InstanceSourceItemId::Derive(id) => ErrorCrumb::DeriveDeclaration(id),
         };
         state.with_error_crumb(crumb, |state| {
-            constraint::instances::validate_declared_instance(
-                state,
-                context,
-                item_id,
-                &mut candidate_arguments,
-            )
+            constraint::instances::validate_declared_instance(state, context, item_id)
         })?;
     }
 
@@ -179,7 +173,8 @@ where
     let signature = generalise::generalise_implicit(state, context, canonical)?;
     let matchable = toolkit::freshen_instance_signature(state, context, signature)?;
 
-    let instance = CheckedInstance { resolution, signature, matchable };
+    let instance =
+        constraint::instances::checked_instance(state, context, resolution, signature, matchable)?;
     state.checked.instances.insert(instance_id, instance);
 
     Ok(())
