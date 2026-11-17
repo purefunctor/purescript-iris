@@ -1,7 +1,7 @@
 mod recursive;
 
-use std::mem;
 use std::sync::Arc;
+use std::{fmt, mem};
 
 use files::FileId;
 use indexing::{
@@ -43,12 +43,29 @@ pub(crate) struct State {
     pub(crate) synonym_edges: FxHashSet<(TypeItemId, TypeItemId)>,
     let_binding_contexts: Vec<LetBindingContext>,
 
+    term_lookups: NameLookups<TermItemId>,
+    type_lookups: NameLookups<TypeItemId>,
+    class_lookups: NameLookups<TypeItemId>,
+
     pub(crate) in_constraint: bool,
 
     pub(crate) errors: Vec<LoweringError>,
 }
 
 type ItemGraph<T> = DiGraphMap<T, (), FxBuildHasher>;
+
+type NameResolutions<Item> = FxHashMap<SmolStr, Option<(FileId, Item)>>;
+
+struct NameLookups<Item> {
+    unqualified: NameResolutions<Item>,
+    qualified: FxHashMap<SmolStr, NameResolutions<Item>>,
+}
+
+impl<Item> Default for NameLookups<Item> {
+    fn default() -> NameLookups<Item> {
+        NameLookups { unqualified: FxHashMap::default(), qualified: FxHashMap::default() }
+    }
+}
 
 struct LetBindingContext {
     scope: GraphNodeId,
@@ -238,7 +255,9 @@ impl State {
         qualifier: Option<&str>,
         name: &str,
     ) -> Option<(FileId, TermItemId)> {
-        let (file_id, term_id) = context.lookup_term(qualifier, name)?;
+        let (file_id, term_id) = self.term_lookups.lookup(qualifier, name, || {
+            context.resolved.lookup_term(context.prim, qualifier, name)
+        })?;
 
         if context.file_id == file_id
             && let Some(current_id) = self.current_term
@@ -284,7 +303,9 @@ impl State {
         qualifier: Option<&str>,
         name: &str,
     ) -> Option<(FileId, TypeItemId)> {
-        let (file_id, type_id) = context.lookup_type(qualifier, name)?;
+        let (file_id, type_id) = self.type_lookups.lookup(qualifier, name, || {
+            context.resolved.lookup_type(context.prim, qualifier, name)
+        })?;
 
         if context.file_id == file_id
             && let Some(current_id) = self.current_type
@@ -311,7 +332,9 @@ impl State {
         qualifier: Option<&str>,
         name: &str,
     ) -> Option<(FileId, TypeItemId)> {
-        let (file_id, type_id) = context.lookup_class(qualifier, name)?;
+        let (file_id, type_id) = self.class_lookups.lookup(qualifier, name, || {
+            context.resolved.lookup_class(context.prim, qualifier, name)
+        })?;
 
         if context.file_id == file_id
             && let Some(current_id) = self.current_type
@@ -370,35 +393,34 @@ impl State {
     }
 }
 
-impl Context<'_> {
-    fn lookup_term<Q, N>(&self, qualifier: Option<Q>, name: N) -> Option<(FileId, TermItemId)>
-    where
-        Q: AsRef<str>,
-        N: AsRef<str>,
-    {
-        let qualifier = qualifier.as_ref().map(Q::as_ref);
-        let name = name.as_ref();
-        self.resolved.lookup_term(self.prim, qualifier, name)
-    }
+impl<Item: Copy + Eq + fmt::Debug> NameLookups<Item> {
+    fn lookup(
+        &mut self,
+        qualifier: Option<&str>,
+        name: &str,
+        resolve: impl Fn() -> Option<(FileId, Item)>,
+    ) -> Option<(FileId, Item)> {
+        let resolutions = match qualifier {
+            None => &mut self.unqualified,
+            Some(qualifier) => {
+                if !self.qualified.contains_key(qualifier) {
+                    self.qualified.insert(SmolStr::from(qualifier), FxHashMap::default());
+                }
+                self.qualified
+                    .get_mut(qualifier)
+                    .expect("invariant violated: expected qualifier lookups")
+            }
+        };
 
-    fn lookup_type<Q, N>(&self, qualifier: Option<Q>, name: N) -> Option<(FileId, TypeItemId)>
-    where
-        Q: AsRef<str>,
-        N: AsRef<str>,
-    {
-        let qualifier = qualifier.as_ref().map(Q::as_ref);
-        let name = name.as_ref();
-        self.resolved.lookup_type(self.prim, qualifier, name)
-    }
+        if let Some(&resolution) = resolutions.get(name) {
+            debug_assert_eq!(resolution, resolve(), "stale lookup for {qualifier:?} {name:?}");
+            return resolution;
+        }
 
-    fn lookup_class<Q, N>(&self, qualifier: Option<Q>, name: N) -> Option<(FileId, TypeItemId)>
-    where
-        Q: AsRef<str>,
-        N: AsRef<str>,
-    {
-        let qualifier = qualifier.as_ref().map(Q::as_ref);
-        let name = name.as_ref();
-        self.resolved.lookup_class(self.prim, qualifier, name)
+        let resolution = resolve();
+        resolutions.insert(SmolStr::from(name), resolution);
+
+        resolution
     }
 }
 
