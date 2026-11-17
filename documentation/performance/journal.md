@@ -43,13 +43,49 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### S3: lexing and parsing
+
+2026-11-17, branch `s3-lexing-parsing` on `5db492475`. Only `parsed` changes beyond 0.5%; interned
+counts and the output digest are unchanged. Each commit against its parent, `parsed` stage:
+
+| Commit | Instructions | Allocator instructions | Allocations |
+| --- | ---: | ---: | ---: |
+| Check ASCII before Unicode symbol tables in is_operator | -6.877% | +0.000% | +0.000% |
+| Decode each character once in Lexer::take_while | -1.500% | +0.000% | +0.000% |
+| Scan ASCII names by byte with a lookup table | -5.852% | +0.000% | +0.000% |
+| Reserve parser events by the observed events per token | -0.032% | -10.431% | -7.699% |
+| Find the end of line comments with str::find | -2.060% | +0.000% | +0.000% |
+
+The branch against `5db492475`:
+
+| Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: |
+| parsed | 187,390,649 (-15.447%) | 28,297,631 (-10.430%) | 10,166 (-7.699%) | 75,502,329 (-6.405%) |
+| build | 2,035,846,785 (-1.654%) | 225,583,348 (-1.326%) | 1,892,932 (-0.045%) | 439,706,315 (-1.161%) |
+
+Within `parsed`, lexing drops by about 39% and layout is unchanged. Parser events average 5.2 per
+token on `core` and peak at 6.6 per file, which sets the reservation at six. What remains in
+`parsed` is mostly tree construction in `parsing::builder`, which belongs to S2.
 
 ## Measured and rejected
 
-Nothing yet.
+### S3: lexing and parsing
+
+2026-11-17. Measured with a Callgrind probe of `lexing::lex` alone on `core`, against the kept
+change it would replace:
+
+- `Lexer::take_while` over `char_indices` with a local position: lexing rose from 69.6 to about 77
+  million instructions.
+- ASCII name bytes checked with range comparisons instead of the lookup table: 71.4 million against
+  69.6 million.
+- Byte scanning ASCII whitespace in `take_annotation_whitespace`: 55.9 million against 53.6
+  million.
+
+Profiled and left alone: the parser's `failed_alternatives` map (about 900 lookups on `core`), the
+parser's fuel checks in `nth` (about 5 million instructions), and `Layout::take_token`, whose cost
+is spread across `Insert` construction, stack matching, and `insert_sep` with no single hotspot.
 
 ## Not tried
 
-The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, E1, B1, I1) start here
+The work areas in the performance plan (K1 to K5, S1, S2, L1, R1, F1, J1, E1, B1, I1) start here
 until they are measured.
