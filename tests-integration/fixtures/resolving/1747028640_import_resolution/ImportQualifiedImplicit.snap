@@ -9,12 +9,12 @@ Qualified Imports:
 
 L Terms:
   - MkHideTy is Implicit
-  - hideMe is Implicit
+  - Ctor3 is Implicit
   - libFn is Implicit
   - MkLibTy is Implicit
   - Ctor1 is Implicit
   - Ctor2 is Implicit
-  - Ctor3 is Implicit
+  - hideMe is Implicit
 
 L Types:
   - LibTy is Implicit
@@ -26,12 +26,12 @@ L Classes:
 
 Exported Terms:
   - MkHideTy
-  - Ctor3
+  - hideMe
   - libFn
   - MkLibTy
   - Ctor1
   - Ctor2
-  - hideMe
+  - Ctor3
 
 Exported Types:
   - LibTy
