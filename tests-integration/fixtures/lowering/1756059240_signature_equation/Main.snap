@@ -8,9 +8,9 @@ Expressions:
 
 Types:
 
-k@3:12
-  -> forall@2:16
 k@2:19
+  -> forall@2:16
+k@3:12
   -> forall@2:16
 a@3:23
   -> forall@3:6

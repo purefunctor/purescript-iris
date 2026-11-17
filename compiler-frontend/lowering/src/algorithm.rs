@@ -456,7 +456,9 @@ pub(super) fn lower_module(
     indexed: &IndexedModule,
     resolved: &ResolvedModule,
 ) -> State {
-    let mut state = State::default();
+    let tree = LoweredTree::new(stabilized);
+    let nodes = LoweringGraphNodes::new(stabilized);
+    let mut state = State { tree, nodes, ..State::default() };
 
     let root = module.syntax();
     let context = Context { file_id, root, source, prim, stabilized, indexed, resolved };

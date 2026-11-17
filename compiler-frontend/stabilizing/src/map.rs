@@ -74,6 +74,10 @@ impl StabilizedModule {
         arena_index(&self.arena, id.id)
     }
 
+    pub(crate) fn len(&self) -> usize {
+        self.arena.len()
+    }
+
     pub fn shrink_to_fit(&mut self) {
         self.arena.shrink_to_fit();
         self.table.shrink_to_fit(|&id| arena_hasher(&self.arena, id));

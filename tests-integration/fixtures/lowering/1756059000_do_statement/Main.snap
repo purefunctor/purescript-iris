@@ -5,39 +5,39 @@ module Main
 
 Expressions:
 
-42@11:3
-  -> integer 42
-x@3:8
-  -> top-level
-42@6:9
-  -> integer 42
-pure@5:6
-  -> top-level
-pure@6:12
-  -> top-level
-x@7:8
-  -> equation@4:5
-42@12:3
-  -> integer 42
 action@2:9
   -> top-level
-y@7:12
-  -> binder@4:12
-42@10:6
-  -> integer 42
-z@7:16
-  -> equation@6:5
+x@3:8
+  -> top-level
+y@3:10
+  -> top-level
 z@3:12
   -> top-level
 42@4:9
   -> integer 42
-42@13:3
-  -> integer 42
-y@3:10
+pure@5:6
   -> top-level
 42@5:11
   -> integer 42
+42@6:9
+  -> integer 42
+pure@6:12
+  -> top-level
+x@7:8
+  -> equation@4:5
+y@7:12
+  -> binder@4:12
+z@7:16
+  -> equation@6:5
 42@9:8
+  -> integer 42
+42@10:6
+  -> integer 42
+42@11:3
+  -> integer 42
+42@12:3
+  -> integer 42
+42@13:3
   -> integer 42
 
 Types:

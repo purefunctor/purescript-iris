@@ -5,35 +5,35 @@ module Main
 
 Expressions:
 
-21@14:10
-  -> integer 21
 a@3:15
   -> binder@3:4
-42@16:5
-  -> integer 42
+a@9:7
+  -> binder@6:5
 z@10:4
   -> signature@7:5
   -> equation@8:12
 add@14:6
   -> top-level
-a@9:7
-  -> binder@6:5
+21@14:10
+  -> integer 21
 21@14:13
   -> integer 21
+42@16:5
+  -> integer 42
 
 Types:
 
-a@3:19
+a@2:15
   -> forall@2:12
 a@2:20
   -> forall@2:12
-a@5:20
-  -> forall@5:15
-a@2:15
-  -> forall@2:12
-a@5:30
-  -> forall@5:15
 a@3:8
   -> forall@2:12
+a@3:19
+  -> forall@2:12
+a@5:20
+  -> forall@5:15
 b@5:25
   -> forall@5:17
+a@5:30
+  -> forall@5:15
