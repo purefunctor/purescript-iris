@@ -5,13 +5,26 @@ use crate::core::{
     TypeId,
 };
 
-#[derive(Default)]
+const TYPE_CAPACITY: usize = 1 << 18;
+
 pub struct CoreInterners {
     types: interner::parallel::Interner<Type, TypeFlags>,
     forall_binders: interner::parallel::Interner<ForallBinder>,
     row_types: interner::parallel::Interner<RowType>,
     smol_strs: interner::parallel::Interner<SmolStr>,
     string_literals: interner::parallel::Interner<lowering::StringLiteral>,
+}
+
+impl Default for CoreInterners {
+    fn default() -> CoreInterners {
+        CoreInterners {
+            types: interner::parallel::Interner::with_capacity(TYPE_CAPACITY),
+            forall_binders: interner::parallel::Interner::default(),
+            row_types: interner::parallel::Interner::default(),
+            smol_strs: interner::parallel::Interner::default(),
+            string_literals: interner::parallel::Interner::default(),
+        }
+    }
 }
 
 impl CoreInterners {
