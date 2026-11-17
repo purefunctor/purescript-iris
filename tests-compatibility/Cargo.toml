@@ -10,7 +10,6 @@ anyhow = "1"
 building = { version = "0.1.0", path = "../compiler-core/building" }
 checking = { version = "0.1.0", path = "../compiler-frontend/checking" }
 clap = { version = "4", features = ["derive"] }
-criterion = { version = "0.8.2", features = ["html_reports"] }
 files = { version = "0.1.0", path = "../compiler-core/files" }
 flate2 = "1"
 git2 = { version = "0.21", features = ["https"] }
@@ -37,6 +36,7 @@ url = "2.5.8"
 walkdir = "2.5.0"
 
 [dev-dependencies]
+criterion = { version = "0.8.2", features = ["html_reports"] }
 tempfile = "3"
 
 [[bench]]

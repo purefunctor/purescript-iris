@@ -16,4 +16,3 @@ itertools = "0.15.0"
 lexing = { path = "../lexing" }
 lowering = { path = "../lowering" }
 parsing = { path = "../parsing" }
-paste = "1.0.15"
