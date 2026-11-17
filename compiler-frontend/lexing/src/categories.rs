@@ -34,7 +34,7 @@ impl LexerCategories for char {
             // These are the only valid ASCII operators
             '~' | '!' | '#' | '$' | '%' | '&' | '*' | '+' | '.' | '/' | '<' | '=' | '>' | '?'
             | '@' | '\\' | '^' | '|' | '-' | ':' => true,
-            _ => self.is_symbol() && !self.is_ascii(),
+            _ => !self.is_ascii() && self.is_symbol(),
         }
     }
 }
