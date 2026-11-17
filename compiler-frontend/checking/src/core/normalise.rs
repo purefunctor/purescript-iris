@@ -193,21 +193,20 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
-        let t = context.lookup_type(id);
-        if let Type::ConstraintOrigin(constraint, _) = *t {
-            id = normalise(state, context, constraint);
-            continue;
-        }
-
-        if !context.lookup_type_flags(id).may_expand() {
-            return Ok(id);
-        }
-
-        let expanded = match t {
-            Type::Application(..) | Type::KindApplication(..) | Type::Synonym(..) => {
+        let expanded = match context.lookup_type(id) {
+            Type::ConstraintOrigin(constraint, _) => {
+                id = normalise(state, context, *constraint);
+                continue;
+            }
+            Type::Synonym(..) => expand_synonym(state, context, id)?,
+            Type::Application(..) | Type::KindApplication(..)
+                if context.lookup_type_flags(id).may_expand() =>
+            {
                 expand_synonym(state, context, id)?
             }
-            Type::Row(_) => expand_row_tail(state, context, id)?,
+            Type::Row(_) if context.lookup_type_flags(id).may_expand() => {
+                expand_row_tail(state, context, id)?
+            }
             _ => return Ok(id),
         };
 
