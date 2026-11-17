@@ -213,7 +213,9 @@ impl CheckState {
     pub fn with_zonk_cache<T>(&mut self, f: impl FnOnce(&mut CheckState) -> T) -> T {
         assert!(self.zonk_cache.is_none(), "invariant violated: zonk cache enabled twice");
         self.unifications.freeze();
-        self.zonk_cache = Some(FxHashMap::default());
+        let mut zonk_cache = FxHashMap::default();
+        zonk_cache.reserve(3 * self.unifications.entries.len());
+        self.zonk_cache = Some(zonk_cache);
 
         let result = f(self);
 
