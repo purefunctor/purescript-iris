@@ -43,7 +43,32 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### K5: skolem and exhaustiveness passes
+
+2026-11-17, branch `k5-skolem-exhaustive`, five commits on `5db492475`. Only `checked` and the
+edit stages run this code; every other stage moved by at most 0.008%, and interned counts and the
+output digest are unchanged. Together, on `core`:
+
+| Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: |
+| checked | -1.613% | -6.216% | -4.223% | -0.855% |
+| build | -0.741% | -2.542% | -2.554% | -0.212% |
+| edit_body | -1.495% | -5.149% | -4.885% | -0.875% |
+| edit_interface | -1.294% | -5.282% | -4.396% | -0.692% |
+
+Each commit, as its change in `checked` instructions and allocations from the commit before:
+
+- Skip skolem type inspection while discovering scopes: -0.395%, -0.828%. Discovery records every
+  scope it finds as already reported, so it could never report an escape.
+- Memoise expected skolem mentions per audit: -0.607%, -2.648%. Judgments share most of their
+  types, and each inspection walked them again with its own visited set.
+- Skip exhaustiveness search after an irrefutable row: -0.209%, -0.566%. `algorithm_m` now runs
+  for 1,510 of the 3,778 checks on `core`.
+- Stream leading skolem scopes: -0.342%, -0.024%.
+- Check sigma completeness against the constructor list: -0.070%, -0.206%.
+
+After these, the skolem pass is about 1.4% of `checked` instructions (from 2.9%), and the
+exhaustiveness checks about 1.7% (from 1.9%), measured by inclusive cost of their entry points.
 
 ## Measured and rejected
 
@@ -53,3 +78,13 @@ Nothing yet.
 
 The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, E1, B1, I1) start here
 until they are measured.
+
+- A type flag for rigid variables with a skolem scope. The skolem audit could then skip types
+  without one instead of consulting its memo, and the scan for expected scopes over every
+  expression of a module (about 0.28% of `checked`) could stop early. It needs a new bit in
+  `TypeFlags` and the interner's flag computation.
+- Reusing wildcard patterns per type in `CheckState::allocate_wildcard`. Each call interns a
+  pattern, at about 300 instructions per call and 0.23% of `checked` on `core`.
+- Deduplicating constructors in `exhaustive::collect_sigma` by a linear scan instead of a hash
+  set. Not measured: it is quadratic in the number of distinct constructors, and `algorithm_u`
+  already collects the sigma once per row, so large literal case tables would get much slower.
