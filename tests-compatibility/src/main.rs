@@ -1,3 +1,4 @@
+mod performance;
 mod verifier;
 
 use std::path::Path;
@@ -193,10 +194,15 @@ fn run() -> Result<bool> {
 
             Ok(comparison.has_regressions())
         }
+        Command::Measure(args) => {
+            performance::measure(args)?;
+            Ok(false)
+        }
+        Command::ComparePerformance(args) => performance::compare(args),
     }
 }
 
-fn prepare_packages(
+pub(crate) fn prepare_packages(
     cache: &PackageCache,
     packages: &[SelectedPackage],
     message: &'static str,
@@ -236,7 +242,7 @@ fn package_progress(total: u64, message: &'static str) -> ProgressBar {
     progress
 }
 
-fn ensure_default_clone(path: &Path, default_path: &str, url: &str) -> Result<()> {
+pub(crate) fn ensure_default_clone(path: &Path, default_path: &str, url: &str) -> Result<()> {
     if path != Path::new(default_path) || path.exists() {
         return Ok(());
     }
