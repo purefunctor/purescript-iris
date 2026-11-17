@@ -169,7 +169,8 @@ where
     id = normalise(state, context, id);
 
     safe_loop! {
-        if let Type::ConstraintOrigin(constraint, _) = *context.lookup_type(id) {
+        let t = context.lookup_type(id);
+        if let Type::ConstraintOrigin(constraint, _) = *t {
             id = normalise(state, context, constraint);
             continue;
         }
@@ -178,13 +179,14 @@ where
             return Ok(id);
         }
 
-        let expanded = expand_synonym(state, context, id)?;
-        if expanded != id {
-            id = normalise(state, context, expanded);
-            continue;
-        }
+        let expanded = match t {
+            Type::Application(..) | Type::KindApplication(..) | Type::Synonym(..) => {
+                expand_synonym(state, context, id)?
+            }
+            Type::Row(_) => expand_row_tail(state, context, id)?,
+            _ => return Ok(id),
+        };
 
-        let expanded = expand_row_tail(state, context, id)?;
         if expanded == id {
             return Ok(id);
         }
@@ -286,19 +288,19 @@ where
     // the collected spine is discarded without further work.
     let mut arguments: SmallVec<[ApplicationArgument; 4]> = SmallVec::new();
     let mut current = id;
-    safe_loop! {
+    let head = safe_loop! {
         let (function, argument) = match *context.lookup_type(current) {
             Type::Application(function, argument) => (function, ApplicationArgument::Type(argument)),
             Type::KindApplication(function, argument) => {
                 (function, ApplicationArgument::Kind(argument))
             }
-            _ => break,
+            ref head => break head,
         };
         arguments.push(argument);
         current = normalise(state, context, function);
-    }
+    };
 
-    let Type::Synonym(file_id, type_id) = *context.lookup_type(current) else {
+    let Type::Synonym(file_id, type_id) = *head else {
         return Ok(id);
     };
 
