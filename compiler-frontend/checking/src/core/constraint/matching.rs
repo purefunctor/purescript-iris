@@ -1,15 +1,14 @@
 use std::iter;
+use std::sync::Arc;
 
 use building_types::QueryResult;
-use files::FileId;
-use indexing::TypeItemId;
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::constraint::instances::InstanceCandidate;
-use crate::core::constraint::{CanonicalConstraintId, canonical};
+use crate::core::constraint::{CanonicalConstraint, CanonicalConstraintId, canonical};
 use crate::core::fd::{
     Fd, Positions, compute_closure, get_all_determined, get_functional_dependencies,
     positions_cover_all,
@@ -601,61 +600,59 @@ where
     }
 }
 
+pub struct Wanted {
+    pub id: CanonicalConstraintId,
+    pub functional_dependencies: Arc<[Fd]>,
+    pub type_arguments: Vec<TypeId>,
+}
+
+impl Wanted {
+    pub fn new<Q>(
+        state: &CheckState,
+        context: &CheckContext<Q>,
+        id: CanonicalConstraintId,
+    ) -> QueryResult<Wanted>
+    where
+        Q: ExternalQueries,
+    {
+        let CanonicalConstraint { file_id, type_id, arguments } = &state.canonicals[id];
+        let functional_dependencies =
+            get_functional_dependencies(state, context, *file_id, *type_id)?;
+        let type_arguments = type_arguments(arguments);
+        Ok(Wanted { id, functional_dependencies, type_arguments })
+    }
+}
+
 pub fn match_provided<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    wanted: CanonicalConstraintId,
+    wanted: &Wanted,
     provided: CanonicalConstraintId,
 ) -> QueryResult<MatchInstance>
 where
     Q: ExternalQueries,
 {
-    let wanted = &state.canonicals[wanted];
+    let wanted_canonical = &state.canonicals[wanted.id];
     let provided = &state.canonicals[provided];
 
-    if (wanted.file_id, wanted.type_id) != (provided.file_id, provided.type_id)
-        || wanted.arguments.len() != provided.arguments.len()
+    if (wanted_canonical.file_id, wanted_canonical.type_id) != (provided.file_id, provided.type_id)
+        || wanted_canonical.arguments.len() != provided.arguments.len()
     {
         return Ok(MatchInstance::Apart);
     }
 
-    let wanted = wanted.clone();
-    let provided = provided.clone();
-
-    let pattern_variables = FxHashSet::default();
-
-    let functional_dependencies =
-        get_functional_dependencies(state, context, wanted.file_id, wanted.type_id)?;
-
-    let wanted_arguments = wanted
-        .arguments
-        .iter()
-        .filter_map(
-            |argument| {
-                if let ApplicationArgument::Type(id) = argument { Some(*id) } else { None }
-            },
-        )
-        .collect_vec();
-
-    let provided_arguments = provided
-        .arguments
-        .iter()
-        .filter_map(
-            |argument| {
-                if let ApplicationArgument::Type(id) = argument { Some(*id) } else { None }
-            },
-        )
-        .collect_vec();
+    let provided_arguments = type_arguments(&provided.arguments);
 
     match match_instance(
         state,
         context,
-        &pattern_variables,
-        &functional_dependencies,
-        &wanted_arguments,
+        &FxHashSet::default(),
+        &wanted.functional_dependencies,
+        &wanted.type_arguments,
         &provided_arguments,
     )? {
         MatchType::Match { .. } => {
+            let wanted_arguments = wanted.type_arguments.iter().copied();
             let unifications = iter::zip(wanted_arguments, provided_arguments).collect_vec();
             Ok(MatchInstance::Match { unifications, constraints: Vec::new() })
         }
@@ -667,7 +664,7 @@ where
 pub fn match_declared<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    wanted: CanonicalConstraintId,
+    wanted: &Wanted,
     candidate: &InstanceCandidate,
 ) -> QueryResult<MatchInstance>
 where
@@ -688,20 +685,14 @@ where
         return Ok(MatchInstance::Apart);
     };
 
-    let wanted = state.canonicals[wanted].clone();
-
-    let functional_dependencies =
-        get_functional_dependencies(state, context, wanted.file_id, wanted.type_id)?;
-
-    let wanted_arguments = type_arguments(&wanted.arguments);
     let declared_arguments = &declared.type_arguments;
 
     match match_instance(
         state,
         context,
         &declared.pattern_variables,
-        &functional_dependencies,
-        &wanted_arguments,
+        &wanted.functional_dependencies,
+        &wanted.type_arguments,
         declared_arguments,
     )? {
         MatchType::Match { bindings } => {
@@ -733,7 +724,7 @@ where
                 unifications.push((actual_kind, expected_kind));
             }
 
-            for (wanted, &declared) in iter::zip(wanted_arguments, declared_arguments) {
+            for (&wanted, &declared) in iter::zip(&wanted.type_arguments, declared_arguments) {
                 let wanted = SubstituteName::many(state, context, &substitution, wanted)?;
                 let declared = SubstituteName::many(state, context, &substitution, declared)?;
                 unifications.push((wanted, declared));
@@ -757,26 +748,18 @@ where
 pub fn declared_instances_overlap<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    left_resolution: (FileId, TypeItemId),
+    functional_dependencies: &[Fd],
     left_arguments: &[TypeId],
-    right_resolution: (FileId, TypeItemId),
     right_arguments: &[TypeId],
 ) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    if left_resolution != right_resolution {
-        return Ok(false);
-    }
-
-    let (file_id, type_id) = left_resolution;
-
     if left_arguments.len() != right_arguments.len() {
         return Ok(false);
     }
 
-    let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
-    instances_overlap(state, context, &functional_dependencies, left_arguments, right_arguments)
+    instances_overlap(state, context, functional_dependencies, left_arguments, right_arguments)
 }
 
 pub(crate) fn type_arguments(arguments: &[ApplicationArgument]) -> Vec<TypeId> {

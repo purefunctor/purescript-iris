@@ -281,6 +281,7 @@ where
 
     let search = collect_instance_chains(state, context, wanted)?;
     let current_chain = instance_candidate_chain(context, origin);
+    let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
 
     fn is_chain_sibling(
         candidate: &InstanceCandidate,
@@ -306,9 +307,8 @@ where
         if constraint::matching::declared_instances_overlap(
             state,
             context,
-            resolution,
+            &functional_dependencies,
             &head.type_arguments,
-            candidate.instance.resolution,
             &candidate_head.type_arguments,
         )? {
             found = true;
@@ -333,9 +333,8 @@ where
             if constraint::matching::declared_instances_overlap(
                 state,
                 context,
-                resolution,
+                &functional_dependencies,
                 &head.type_arguments,
-                candidate.instance.resolution,
                 &candidate_head.type_arguments,
             )? {
                 matches.push(candidate.clone());

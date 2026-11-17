@@ -242,6 +242,10 @@ fn closure_spans_positions_beyond_one_word() {
     let fundeps = vec![Fd::new([0], [130])];
     assert!(positions_cover_all(&fundeps, &possibly_non_apart, &all_positions));
 
+    for count in [0, 1, 63, 64, 65, 128, 131] {
+        assert_eq!(Positions::all(count), Positions::from_iter(0..count));
+    }
+
     let mut low_positions = Positions::from_iter([0, 130]);
     low_positions.remove(130);
     assert_eq!(low_positions, Positions::from_iter([0]));

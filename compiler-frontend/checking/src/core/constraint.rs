@@ -288,8 +288,10 @@ where
         let mut blocked = FxHashSet::default();
         let mut blocked_on_skolem = false;
 
+        let wanted = matching::Wanted::new(state, context, constraint.key.wanted)?;
+
         for (provided, provided_evidence) in constraint.given() {
-            match matching::match_provided(state, context, constraint.key.wanted, provided)? {
+            match matching::match_provided(state, context, &wanted, provided)? {
                 matching::MatchInstance::Match { unifications, constraints } => {
                     state.checked.evidence.solve(constraint.evidence.wanted, provided_evidence);
                     let constraints = fresh_scoped_constraints(state, &constraint, constraints);
@@ -351,7 +353,7 @@ where
         let search = instances::collect_instance_chains(state, context, constraint.key.wanted)?;
         'chain: for chain in search.chains() {
             for candidate in chain {
-                match matching::match_declared(state, context, constraint.key.wanted, candidate)? {
+                match matching::match_declared(state, context, &wanted, candidate)? {
                     matching::MatchInstance::Match { unifications, constraints } => {
                         let constraints = fresh_scoped_constraints(state, &constraint, constraints);
                         let subgoals = constraints
