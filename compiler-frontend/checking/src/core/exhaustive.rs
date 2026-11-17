@@ -963,10 +963,6 @@ where
                 return Ok(false);
             };
 
-            // Get all constructors for this type
-            let all_constructors: FxHashSet<TermItemId> =
-                indexed.data_constructors(type_item_id).collect();
-
             // Check if sigma covers all constructors
             let sigma_terms: FxHashSet<TermItemId> = sigma
                 .constructors
@@ -977,7 +973,8 @@ where
                 })
                 .collect();
 
-            Ok(all_constructors.iter().all(|term_id| sigma_terms.contains(term_id)))
+            let mut all_constructors = indexed.data_constructors(type_item_id);
+            Ok(all_constructors.all(|term_id| sigma_terms.contains(&term_id)))
         }
         // Records have exactly one constructor, so sigma is always complete for records
         PatternConstructor::Record { .. } => Ok(true),
@@ -1385,13 +1382,19 @@ where
 {
     let mut redundant = Vec::new();
     let mut matrix = PatternMatrix::new(unconditional.columns);
+    let mut covered = false;
     for vector in &unconditional {
-        let useful = algorithm_u(state, context, &matrix, vector)?;
+        let useful = !covered && algorithm_u(state, context, &matrix, vector)?;
         if useful {
             matrix.push(vector);
+            covered = is_irrefutable_vector(state, vector);
         } else {
             redundant.push(pretty::pretty_witness(context, state, vector)?);
         }
+    }
+
+    if unconditional.iter().any(|vector| is_irrefutable_vector(state, vector)) {
+        return Ok(ExhaustivenessReport { missing: None, redundant });
     }
 
     let query: PatternVector = pattern_types.iter().map(|&t| state.allocate_wildcard(t)).collect();
@@ -1404,6 +1407,10 @@ where
     let missing = missing.transpose()?;
 
     Ok(ExhaustivenessReport { missing, redundant })
+}
+
+fn is_irrefutable_vector(state: &CheckState, vector: &[PatternId]) -> bool {
+    vector.iter().all(|&pattern| matches!(state.patterns[pattern].kind, PatternKind::Wildcard))
 }
 
 #[cfg(test)]
