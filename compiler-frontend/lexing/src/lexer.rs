@@ -70,6 +70,15 @@ pub(super) fn lower_kind(source: &str) -> SyntaxKind {
     }
 }
 
+fn advance_position(position: &mut Position, c: char) {
+    if c == '\n' {
+        position.line += 1;
+        position.column = 1;
+    } else {
+        position.column += c.len_utf8() as u32;
+    }
+}
+
 pub(super) struct Lexer<'s> {
     source: &'s str,
     chars: Chars<'s>,
@@ -146,18 +155,17 @@ impl Lexer<'_> {
 
     fn take(&mut self) -> char {
         let c = self.chars.next().unwrap_or(EOF_CHAR);
-        if c == '\n' {
-            self.current_position.line += 1;
-            self.current_position.column = 1;
-        } else {
-            self.current_position.column += c.len_utf8() as u32;
-        }
+        advance_position(&mut self.current_position, c);
         c
     }
 
     fn take_while(&mut self, predicate: impl Fn(char) -> bool) {
-        while predicate(self.first()) && !self.is_eof() {
-            self.take();
+        let mut chars = self.chars.clone();
+        while let Some(c) = chars.next()
+            && predicate(c)
+        {
+            self.chars = chars.clone();
+            advance_position(&mut self.current_position, c);
         }
     }
 
