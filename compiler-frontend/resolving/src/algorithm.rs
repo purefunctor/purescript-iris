@@ -171,11 +171,9 @@ fn resolve_import(
         if matches!(import_kind, ImportKind::Hidden) {
             continue;
         }
-        for (member_name, member_file, member_id) in
-            import_resolved.class.class_members(class_file, type_id)
-        {
-            let member_name = SmolStr::clone(member_name);
-            class_members.insert(class_file, type_id, member_name, member_file, member_id);
+        let class = (class_file, type_id);
+        if let Some(members) = import_resolved.class.classes.get(&class) {
+            class_members.classes.insert(class, Arc::clone(members));
         }
     }
 
@@ -243,12 +241,18 @@ fn export_class_members(state: &mut State, indexed: &IndexedModule, file: FileId
         if !matches!(type_item.kind, IndexedTypeItemKind::Class { .. }) {
             continue;
         }
+        let mut members: Vec<(SmolStr, TermItemId)> = Vec::new();
         for member_term_id in indexed.class_members(type_id) {
             let member_item = &indexed.items[member_term_id];
-            if let Some(name) = &member_item.name {
-                let name = SmolStr::clone(name);
-                state.class.insert(file, type_id, name, file, member_term_id);
+            let Some(name) = &member_item.name else { continue };
+            if let Some((_, existing)) = members.iter_mut().find(|(member, _)| member == name) {
+                *existing = member_term_id;
+            } else {
+                members.push((SmolStr::clone(name), member_term_id));
             }
+        }
+        if !members.is_empty() {
+            state.class.classes.insert((file, type_id), members.into());
         }
     }
 }
