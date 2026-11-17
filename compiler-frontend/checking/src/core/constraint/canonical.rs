@@ -125,6 +125,24 @@ where
     Ok(Some(canonical_id))
 }
 
+pub fn contains_unknown<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    id: CanonicalConstraintId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    let arguments = Rc::clone(&state.canonicals[id].arguments);
+    for &argument in arguments.iter() {
+        let (ApplicationArgument::Kind(argument) | ApplicationArgument::Type(argument)) = argument;
+        if toolkit::contains_unknown(state, context, argument)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 pub fn zonk_canonical<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
