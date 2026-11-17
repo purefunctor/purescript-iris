@@ -25,6 +25,8 @@ pub(crate) struct Parser<'t> {
 
 type Rule = fn(&mut Parser);
 
+const EVENTS_PER_TOKEN: usize = 6;
+
 struct Checkpoint {
     index: usize,
     output: usize,
@@ -42,7 +44,7 @@ struct FailedAlternative {
 impl<'t> Parser<'t> {
     pub(crate) fn new(tokens: &'t [SyntaxKind]) -> Parser<'t> {
         let index = 0;
-        let output = Vec::with_capacity(tokens.len());
+        let output = Vec::with_capacity(tokens.len() * EVENTS_PER_TOKEN);
         let errors = Vec::new();
         let fuel = Cell::new(u16::MAX);
         let failed_alternatives = HashMap::new();
