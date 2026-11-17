@@ -2,7 +2,7 @@ use std::str::Chars;
 
 use syntax::SyntaxKind;
 
-use crate::categories::LexerCategories;
+use crate::categories::{LexerCategories, is_ascii_name};
 use crate::lexed::{LexedBuilder, SyntaxKindInfo};
 use crate::{Lexed, Position};
 
@@ -67,6 +67,15 @@ pub(super) fn lower_kind(source: &str) -> SyntaxKind {
         "type" => SyntaxKind::TYPE,
         "where" => SyntaxKind::WHERE,
         _ => SyntaxKind::LOWER,
+    }
+}
+
+fn advance_position(position: &mut Position, c: char) {
+    if c == '\n' {
+        position.line += 1;
+        position.column = 1;
+    } else {
+        position.column += c.len_utf8() as u32;
     }
 }
 
@@ -146,19 +155,30 @@ impl Lexer<'_> {
 
     fn take(&mut self) -> char {
         let c = self.chars.next().unwrap_or(EOF_CHAR);
-        if c == '\n' {
-            self.current_position.line += 1;
-            self.current_position.column = 1;
-        } else {
-            self.current_position.column += c.len_utf8() as u32;
-        }
+        advance_position(&mut self.current_position, c);
         c
     }
 
     fn take_while(&mut self, predicate: impl Fn(char) -> bool) {
-        while predicate(self.first()) && !self.is_eof() {
-            self.take();
+        let mut chars = self.chars.clone();
+        while let Some(c) = chars.next()
+            && predicate(c)
+        {
+            self.chars = chars.clone();
+            advance_position(&mut self.current_position, c);
         }
+    }
+
+    fn take_within_line(&mut self, length: usize) {
+        self.chars = self.chars.as_str()[length..].chars();
+        self.current_position.column += length as u32;
+    }
+
+    fn take_name(&mut self) {
+        let remaining = self.chars.as_str();
+        let ascii_length = remaining.bytes().position(|byte| !is_ascii_name(byte));
+        self.take_within_line(ascii_length.unwrap_or(remaining.len()));
+        self.take_while(char::is_name);
     }
 
     fn take_while_maximum(&mut self, predicate: impl Fn(char) -> bool, maximum: usize) {
@@ -191,7 +211,8 @@ impl Lexer<'_> {
     fn take_annotation_line_comment(&mut self) {
         self.take();
         self.take();
-        self.take_while(|c| c != '\n');
+        let remaining = self.chars.as_str();
+        self.take_within_line(remaining.find('\n').unwrap_or(remaining.len()));
     }
 
     fn take_annotation_block_comment(&mut self) {
@@ -225,7 +246,7 @@ impl Lexer<'_> {
             let qualifier_position = self.qualifier_position;
             let current_position = self.current_position;
 
-            self.take_while(char::is_name);
+            self.take_name();
             if self.first() == '.' {
                 self.take();
             } else {
@@ -470,13 +491,13 @@ impl Lexer<'_> {
 
     fn take_hole(&mut self) {
         assert_eq!(self.take(), '?');
-        self.take_while(char::is_name);
+        self.take_name();
         self.push(SyntaxKind::HOLE, None);
     }
 
     fn take_lower(&mut self) {
         let start = self.consumed();
-        self.take_while(char::is_name);
+        self.take_name();
         let end = self.consumed();
         let kind = lower_kind(&self.source[start..end]);
         self.push(kind, None);
@@ -484,7 +505,7 @@ impl Lexer<'_> {
 
     fn take_upper(&mut self) {
         self.take();
-        self.take_while(char::is_name);
+        self.take_name();
         self.push(SyntaxKind::UPPER, None);
     }
 
