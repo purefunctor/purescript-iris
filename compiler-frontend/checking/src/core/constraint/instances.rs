@@ -12,7 +12,7 @@ use rustc_hash::FxHashSet;
 
 use crate::context::CheckContext;
 use crate::core::constraint::{CanonicalConstraint, CanonicalConstraintId};
-use crate::core::fd::{self, get_all_determined, get_functional_dependencies};
+use crate::core::fd::{self, Positions, get_all_determined, get_functional_dependencies};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
     ApplicationArgument, CheckedInstance, InstanceHead, Type, TypeId, constraint, normalise,
@@ -213,14 +213,14 @@ where
         return Ok(false);
     }
 
-    let mut foreign_positions = FxHashSet::default();
+    let mut foreign_positions = Positions::default();
     for (position, &argument) in type_arguments.iter().enumerate() {
         if head_constructor_file(state, context, argument)? != Some(context.id) {
             foreign_positions.insert(position);
         }
     }
 
-    let all_positions = (0..type_arguments.len()).collect();
+    let all_positions = Positions::all(type_arguments.len());
     Ok(fd::positions_cover_all(&class.functional_dependencies, &foreign_positions, &all_positions))
 }
 
@@ -528,7 +528,7 @@ where
     let all_determined = get_all_determined(&functional_dependencies);
 
     for (position, &argument_type) in arguments.iter().enumerate() {
-        if all_determined.contains(&position) {
+        if all_determined.contains(position) {
             continue;
         }
 
