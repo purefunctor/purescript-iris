@@ -67,9 +67,18 @@ pub struct AstIdMap<I, V> {
 }
 
 impl<N: AstNode, V> AstIdMap<AstId<N>, V> {
-    pub fn new(stabilized: &StabilizedModule) -> AstIdMap<AstId<N>, V> {
+    pub fn with_capacity(stabilized: &StabilizedModule, capacity: usize) -> AstIdMap<AstId<N>, V> {
         let positions = vec![None; stabilized.len()];
-        AstIdMap { positions, entries: Vec::new() }
+        let entries = Vec::with_capacity(capacity);
+        AstIdMap { positions, entries }
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     pub fn insert(&mut self, id: AstId<N>, value: V) -> Option<V> {
