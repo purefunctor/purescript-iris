@@ -100,7 +100,7 @@ fn resolve_imports(
 
         if let Some(alias) = &indexed_import.alias {
             let alias = SmolStr::clone(alias);
-            let imports = state.qualified.entry(alias).or_default();
+            let imports = state.qualified.entry(alias).or_insert_with(|| Vec::with_capacity(1));
             imports.push(resolved_import);
             let resolved_import = imports.last_mut().unwrap();
             resolve_import(
@@ -121,7 +121,8 @@ fn resolve_imports(
                 indexed_import,
                 import_file_id,
             )?;
-            state.unqualified.entry(name).or_default().push(resolved_import);
+            let imports = state.unqualified.entry(name).or_insert_with(|| Vec::with_capacity(1));
+            imports.push(resolved_import);
         }
     }
 
