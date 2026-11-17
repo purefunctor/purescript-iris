@@ -24,6 +24,7 @@ use itertools::Itertools;
 use resolving::ResolvedModule;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
+use stabilizing::{AstIdMap, StabilizedModule};
 
 use crate::core::{
     CheckedClass, CheckedDataDeclaration, CheckedInstance, CheckedSynonym, ForallBinder,
@@ -94,9 +95,9 @@ pub struct CheckedHoles {
 /// Checked types and kinds keyed by stable node IDs from lowering.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CheckedNodeTypes {
-    pub types: FxHashMap<lowering::TypeId, TypeId>,
-    pub type_kinds: FxHashMap<lowering::TypeId, TypeId>,
-    pub expressions: FxHashMap<lowering::ExpressionId, TypeId>,
+    pub types: AstIdMap<lowering::TypeId, TypeId>,
+    pub type_kinds: AstIdMap<lowering::TypeId, TypeId>,
+    pub expressions: AstIdMap<lowering::ExpressionId, TypeId>,
     pub binders: FxHashMap<lowering::BinderId, TypeId>,
     pub lets: FxHashMap<lowering::LetBindingNameGroupId, TypeId>,
     pub puns: FxHashMap<lowering::RecordPunId, TypeId>,
@@ -164,12 +165,19 @@ impl CheckedModule {
 }
 
 impl CheckedNodeTypes {
+    fn new(stabilized: &StabilizedModule) -> CheckedNodeTypes {
+        let types = AstIdMap::new(stabilized);
+        let type_kinds = AstIdMap::new(stabilized);
+        let expressions = AstIdMap::new(stabilized);
+        CheckedNodeTypes { types, type_kinds, expressions, ..CheckedNodeTypes::default() }
+    }
+
     pub fn lookup_expression(&self, id: lowering::ExpressionId) -> Option<TypeId> {
-        self.expressions.get(&id).copied()
+        self.expressions.get(id).copied()
     }
 
     pub fn lookup_type_kind(&self, id: lowering::TypeId) -> Option<TypeId> {
-        self.type_kinds.get(&id).copied()
+        self.type_kinds.get(id).copied()
     }
 
     pub fn lookup_binder(&self, id: lowering::BinderId) -> Option<TypeId> {
@@ -235,6 +243,7 @@ pub fn check_module(queries: &impl ExternalQueries, file_id: FileId) -> QueryRes
 fn check_source(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<CheckedModule> {
     let mut state = state::CheckState::new(file_id);
     let context = context::CheckContext::new(queries, file_id)?;
+    state.checked.node_types = CheckedNodeTypes::new(&context.stabilized);
 
     source::check_type_items(&mut state, &context)?;
     source::check_term_items(&mut state, &context)?;

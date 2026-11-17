@@ -8,5 +8,5 @@ class TypeEq a b result | a b -> result where
 --                        %
 ```
 
-file:///tests-integration/fixtures/lsp/1786731180_reference_functional_dependency_type_variables/Main.purs @ 7:19..7:20
 file:///tests-integration/fixtures/lsp/1786731180_reference_functional_dependency_type_variables/Main.purs @ 5:26..5:27
+file:///tests-integration/fixtures/lsp/1786731180_reference_functional_dependency_type_variables/Main.purs @ 7:19..7:20

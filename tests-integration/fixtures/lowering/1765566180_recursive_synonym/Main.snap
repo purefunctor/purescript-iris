@@ -8,23 +8,23 @@ Expressions:
 
 Types:
 
-a@28:26
-  -> forall@28:13
-a@25:37
-  -> forall@25:10
-a@20:38
-  -> forall@20:14
-a@30:22
-  -> nothing
 a@19:27
   -> forall@19:13
-a@30:33
-  -> nothing
+a@20:38
+  -> forall@20:14
+k@23:38
+  -> forall@23:35
+a@25:37
+  -> forall@25:10
 a@27:22
   -> nothing
 a@27:33
   -> nothing
-k@23:38
-  -> forall@23:35
+a@28:26
+  -> forall@28:13
+a@30:22
+  -> nothing
+a@30:33
+  -> nothing
 a@31:26
   -> forall@31:13

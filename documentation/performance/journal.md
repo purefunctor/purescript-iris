@@ -363,6 +363,52 @@ allocator, lowering still falls from 161.9M to 159.8M instructions. Memory retai
 module is unchanged by all four commits (15.8 MB on `core`), so the 364 MB `lowered` adds on
 `acme` is what each lowered module keeps, not transient allocation.
 
+### S1: dense `AstId` maps for lowered expressions and types
+
+2026-11-17, branch `s1-dense-ast-id-tables`. `stabilizing::AstIdMap` stores each value in a vector
+and finds it through one slot per stabilized node, presized from the `StabilizedModule`, so inserts
+never rehash. `LoweredTree` expressions and types and `LoweringGraphNodes` expression and type nodes
+use it. Lowering, local references, and lowering snapshots now list entries in insertion order
+instead of hash order. Changes are against `5db492475`:
+
+| Stage | Instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: |
+| lowered | -9.447% | +0.771% | -1.063% |
+| bracketed | -25.303% | +0.000% | +0.000% |
+| sectioned | -27.631% | +0.000% | +0.000% |
+| checked | -0.232% | +0.000% | +0.000% |
+| build | -0.918% | +0.052% | -0.079% |
+| edit_comment | -0.035% | +0.002% | +0.033% |
+| edit_body | -0.190% | +0.001% | +0.013% |
+| edit_interface | -1.563% | +0.032% | -0.481% |
+
+Allocations rise by one slot vector per map per module. Allocator instructions in `lowered` rise
+from 12,308,603 to 17,377,806: the presized slot vectors are zeroed, and the value vectors grow by
+`realloc`, which copies where a hash table rehashed entry by entry outside the allocator. Interned
+counts and generated output are unchanged.
+
+### S1: dense `AstId` maps for checked expression and type nodes
+
+2026-11-17, branch `s1-dense-ast-id-tables`. `CheckedNodeTypes` types, type kinds, and expressions
+use `AstIdMap`, presized in `check_source`. Changes are against the lowering entry above:
+
+| Stage | Instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: |
+| checked | -1.515% | +0.061% | +1.010% |
+| build | -0.702% | +0.037% | +0.251% |
+| edit_comment | -0.028% | +0.001% | +0.024% |
+| edit_body | -1.381% | +0.026% | +0.789% |
+| edit_interface | -1.213% | +0.023% | +0.627% |
+
+Allocated bytes in `checked` rise by 1,114,960 bytes: three slot vectors of 4 bytes per stabilized
+node, kept with each `CheckedModule`. Interned counts and generated output are unchanged.
+
+Both S1 entries together against `5db492475`: `build` -1.614% instructions (-1.091% with the
+allocator), +0.089% allocations, +0.172% allocated bytes; `edit_interface` -2.758%, `edit_body`
+-1.568%. Wall time on `acme` is noisy across runs. Medians of three interleaved runs, one thread:
+`lowered` 0.895, `checked` 0.979, and the whole build 1.003 in this run, against 0.939 in the same
+measurement on `1d5ee22ff`. Peak resident memory went from 2,941.7 MB to 2,968.9 MB on one thread.
+
 ## Measured and rejected
 
 ### F1: cache known-term classification per module
@@ -479,6 +525,21 @@ allocator, so these numbers are not comparable with `just perf` tables:
   instructions for 26 fewer allocations on `core`.
 - Four inline slots instead of eight when collecting Arc slices: -0.13% instructions,
   +0.95% allocations, +0.37% allocated bytes.
+
+### S1: dense `AstId` maps
+
+Measured on 2026-11-17 while building `AstIdMap`, with instructions that still included the
+allocator; changes are against `fcc43af16` on `core`.
+
+- Slots without stored keys, iterated in key order by scanning every slot: `bracketed` +100.9% and
+  `sectioned` +41.3% instructions, because iteration visits every node of the module.
+- Slot vectors grown on demand instead of presized: same instructions as presized, but allocated
+  bytes +20.0% in `lowered` and +4.9% in `checked`.
+- Binder maps (`LoweredTree::binders`, `LoweringGraphNodes::binder_node`,
+  `CheckedNodeTypes::binders`): binders are 7% of node IDs, so the slot vector costs 4 bytes per
+  node for little gain. With slot vectors grown on demand, their inserts went from 2,097,671 to
+  2,076,551 instructions in lowering and from 1,806,059 to 1,665,241 in checking. They stay
+  `FxHashMap`, as do the sparser `AstId` maps.
 
 ## Not tried
 

@@ -5,15 +5,15 @@ module Main
 
 Expressions:
 
-42@7:13
-  -> integer 42
-42@6:6
-  -> integer 42
-x'notBinder@4:4
-  -> binder@2:10
-x'notBinder@3:21
-  -> top-level
 pure@3:16
   -> top-level
+x'notBinder@3:21
+  -> top-level
+x'notBinder@4:4
+  -> binder@2:10
+42@6:6
+  -> integer 42
+42@7:13
+  -> integer 42
 
 Types:

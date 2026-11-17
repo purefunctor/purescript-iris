@@ -19,24 +19,24 @@ Expressions:
   -> integer 1
 2@12:17
   -> integer 2
-input@19:17
-  -> binder@18:7
+3@13:17
+  -> integer 3
+4@14:14
+  -> integer 4
 5@15:16
   -> integer 5
+6@16:12
+  -> integer 6
+input@19:17
+  -> binder@18:7
+value@19:24
+  -> binder@19:8
 value@19:32
   -> binder@19:8
 0@22:12
   -> integer 0
-3@13:17
-  -> integer 3
-6@16:12
-  -> integer 6
-value@19:24
-  -> binder@19:8
 fallback@20:10
   -> equation@21:7
-4@14:14
-  -> integer 4
 
 Number Binders:
 
@@ -45,9 +45,9 @@ Number Binders:
 
 Types:
 
-a@4:26
-  -> forall@4:9
 a@2:19
   -> forall@2:10
 a@4:18
+  -> forall@4:9
+a@4:26
   -> forall@4:9
