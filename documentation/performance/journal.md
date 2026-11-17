@@ -43,13 +43,52 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### K2: constraint solving and instances, 2026-11-17, branch `k2-constraint-solving`
+
+Each commit measured against its parent, `checked` on `core`, with the harness at `5db492475`.
+No commit changed the interned counts beyond the first (278,862 to 278,846 types), and the
+generated JavaScript and source maps are identical throughout. The whole branch takes `checked`
+from 953,213,446 to 903,906,302 instructions (−5.17%) and 1,145,505 to 964,511 allocations
+(−15.80%).
+
+| Commit | Instructions | Allocations |
+| --- | ---: | ---: |
+| Decompose instance heads once at declaration | 953,213,446 → 925,802,724 (−2.88%) | 1,145,505 → 1,040,760 (−9.14%) |
+| Store functional dependency positions in bit sets | 925,802,724 → 921,976,840 (−0.41%) | 1,040,760 → 983,578 (−5.49%) |
+| Remove the write-only canonical constraint cache | 921,976,840 → 918,903,171 (−0.33%) | 983,578 → 982,314 (−0.13%) |
+| Cache the type of each canonical constraint | 918,903,171 → 917,020,507 (−0.20%) | 982,314 → 983,386 (+0.11%) |
+| Hoist functional dependency lookups out of candidate loops | 917,020,507 → 913,246,425 (−0.41%) | 983,386 → 973,284 (−1.03%) |
+| Check constraint arguments for unknown types directly | 913,246,425 → 905,453,913 (−0.85%) | 973,284 → 972,801 (−0.05%) |
+| Read superclasses without cloning the class | 905,453,913 → 903,906,302 (−0.17%) | 972,801 → 964,511 (−0.85%) |
+
+The type cache was measured again after the unknown-type check removed its most frequent caller:
+reverting it then costs +0.31% in `checked` (905,453,913 → 908,270,942), so it stays.
+
+`derive::tools::solve_and_report_constraints` is the solver entry for the members of every
+instance declaration, not only derived ones: 1,461 of its calls on `core` come from
+`check_instance_member_groups` (8.9% of `checked` at the baseline) and 850 from derived members.
 
 ## Measured and rejected
 
-Nothing yet.
+- K2, 2026-11-17: caching superclass elaboration per set of given constraints. On `core`,
+  `superclass_edges` runs 4,409 times; 1,640 calls have no roots, and the other 2,769 cover 2,145
+  distinct (module, roots) pairs, so at most 624 calls (23%) would hit. Not built.
+- K2, 2026-11-17: in `match_instance`, a closure-free `covers` for classes without functional
+  dependencies and presized match vectors and substitution maps. Measured with a checked-only
+  Callgrind probe that includes the allocator: +2.4M instructions with the presized vector, which
+  allocates for candidates rejected at their first argument where the old code never allocated,
+  and +1.9M without it.
 
 ## Not tried
+
+- K2: an index of instances by class in `CheckedModule`. `collect_instance_chains` still costs
+  about 31M instructions on `core` (17.7M from the solver, 13.6M from overlap validation): it
+  rescans every instance of each touched module per (module, class) and sorts the candidates. The
+  index needs `lib.rs` and the two instance declaration sites, and the module being checked still
+  needs a scan until its instances are all declared.
+- K2: reusing elaborated givens across nested implications that add no givens. Elaboration is about
+  30M on `core`, but sharing it would share superclass evidence projections between scopes and
+  change the evidence the backend sees.
 
 The work areas in the performance plan (K1 to K5, S1 to S3, L1, R1, F1, J1, E1, B1, I1) start here
 until they are measured.
