@@ -9,6 +9,7 @@ use crate::tree::{
     ExpressionKind, Origin, Parameter,
 };
 
+use super::known::KnownTerm;
 use super::{Context, ConversionResult};
 
 const LOWERING_CONSTRUCTORS: [(&str, &str); 7] = [
@@ -58,36 +59,35 @@ where
 {
     pub(super) fn known_async_application(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
         let mut selected = None;
-        for (name, arity, operation) in [
-            ("liftEffect", 1, AsyncOperation::LiftEffect),
-            ("service", 1, AsyncOperation::Service),
-            ("sync", 1, AsyncOperation::Sync),
-            ("provide", 2, AsyncOperation::Provide),
-            ("fail", 1, AsyncOperation::Fail),
-            ("catch", 2, AsyncOperation::Catch),
-            ("mapError", 2, AsyncOperation::MapError),
-            ("attempt", 1, AsyncOperation::Attempt),
+        for (function, arity, operation) in [
+            (KnownTerm::IrisEffectAsyncLiftEffect, 1, AsyncOperation::LiftEffect),
+            (KnownTerm::IrisEffectAsyncService, 1, AsyncOperation::Service),
+            (KnownTerm::IrisEffectAsyncSync, 1, AsyncOperation::Sync),
+            (KnownTerm::IrisEffectAsyncProvide, 2, AsyncOperation::Provide),
+            (KnownTerm::IrisEffectAsyncFail, 1, AsyncOperation::Fail),
+            (KnownTerm::IrisEffectAsyncCatch, 2, AsyncOperation::Catch),
+            (KnownTerm::IrisEffectAsyncMapError, 2, AsyncOperation::MapError),
+            (KnownTerm::IrisEffectAsyncAttempt, 1, AsyncOperation::Attempt),
         ] {
-            if arguments.len() == arity && self.known_term(function, "Iris.Effect.Async", name)? {
+            if arguments.len() == arity && known == function {
                 selected = Some((operation, arguments.to_vec()));
                 break;
             }
         }
-        for (module, member, instance, arity, operation) in [
-            ("Control.Applicative", "pure", "applicativeAsync", 1, AsyncOperation::Pure),
-            ("Data.Functor", "map", "functorAsync", 2, AsyncOperation::Map),
-            ("Control.Apply", "apply", "applyAsync", 2, AsyncOperation::Apply),
-            ("Control.Bind", "bind", "bindAsync", 2, AsyncOperation::Bind),
+        for (member, instance, arity, operation) in [
+            (KnownTerm::ControlApplicativePure, "applicativeAsync", 1, AsyncOperation::Pure),
+            (KnownTerm::DataFunctorMap, "functorAsync", 2, AsyncOperation::Map),
+            (KnownTerm::ControlApplyApply, "applyAsync", 2, AsyncOperation::Apply),
+            (KnownTerm::ControlBindBind, "bindAsync", 2, AsyncOperation::Bind),
         ] {
             if selected.is_none()
                 && let Some(operands) = self.known_instance_member_arguments(
-                    function,
+                    known,
                     arguments,
-                    module,
                     member,
                     "Iris.Effect.Async",
                     instance,
@@ -97,11 +97,12 @@ where
                 selected = Some((operation, operands.to_vec()));
             }
         }
-        for (member, operation) in
-            [("applyFirst", AsyncOperation::KeepFirst), ("applySecond", AsyncOperation::KeepSecond)]
-        {
+        for (function, operation) in [
+            (KnownTerm::ControlApplyApplyFirst, AsyncOperation::KeepFirst),
+            (KnownTerm::ControlApplyApplySecond, AsyncOperation::KeepSecond),
+        ] {
             if selected.is_none()
-                && self.known_term(function, "Control.Apply", member)?
+                && known == function
                 && let [dictionary, operands @ ..] = arguments
                 && operands.len() == 2
                 && self.known_named_instance(*dictionary, "Iris.Effect.Async", "applyAsync")?
@@ -111,7 +112,7 @@ where
         }
         if selected.is_none()
             && let Some((action, continuation)) =
-                self.known_discard_arguments(function, arguments, |context, dictionary| {
+                self.known_discard_arguments(known, arguments, |context, dictionary| {
                     context.known_named_instance(dictionary, "Iris.Effect.Async", "bindAsync")
                 })?
         {
@@ -119,7 +120,7 @@ where
         }
         if selected.is_none()
             && let Some((condition, action)) =
-                self.known_conditional_arguments(function, arguments, |context, dictionary| {
+                self.known_conditional_arguments(known, arguments, |context, dictionary| {
                     context.known_named_instance(
                         dictionary,
                         "Iris.Effect.Async",

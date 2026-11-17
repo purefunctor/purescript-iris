@@ -3,6 +3,7 @@ use crate::tree::{
     Binding, EffectExpression, EffectStatement, ExpressionId, ExpressionKind, Parameter,
 };
 
+use super::known::KnownTerm;
 use super::{Context, ConversionResult};
 
 #[derive(Clone, Copy)]
@@ -23,10 +24,10 @@ where
 {
     pub(super) fn known_service_application(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
-        if self.known_term(function, "Iris.Effect", "getService")?
+        if known == KnownTerm::IrisEffectGetService
             && let [dictionary, remaining @ ..] = arguments
         {
             let getter = self.service_getter(*dictionary)?;
@@ -51,39 +52,38 @@ where
 
     pub(super) fn known_sync_application(
         &mut self,
-        function: ExpressionId,
+        known: KnownTerm,
         arguments: &[ExpressionId],
     ) -> ConversionResult<Option<ExpressionId>> {
-        if self.known_term(function, "Iris.Effect.Sync", "make")?
+        if known == KnownTerm::IrisEffectSyncMake
             && let [program] = arguments
         {
             return Ok(Some(*program));
         }
-        if self.known_term(function, "Iris.Effect.Sync", "run")?
+        if known == KnownTerm::IrisEffectSyncRun
             && let [environment, program] = arguments
         {
             return self.sync_application(*program, *environment).map(Some);
         }
 
-        for (name, arity, operation) in [
-            ("liftEffect", 1, SyncOperation::LiftEffect),
-            ("service", 1, SyncOperation::Service),
-            ("provide", 2, SyncOperation::Provide),
+        for (function, arity, operation) in [
+            (KnownTerm::IrisEffectSyncLiftEffect, 1, SyncOperation::LiftEffect),
+            (KnownTerm::IrisEffectSyncService, 1, SyncOperation::Service),
+            (KnownTerm::IrisEffectSyncProvide, 2, SyncOperation::Provide),
         ] {
-            if arguments.len() == arity && self.known_term(function, "Iris.Effect.Sync", name)? {
+            if arguments.len() == arity && known == function {
                 return self.lower_sync(operation, arguments).map(Some);
             }
         }
-        for (module, member, instance, arity, operation) in [
-            ("Control.Applicative", "pure", "applicativeSync", 1, SyncOperation::Pure),
-            ("Data.Functor", "map", "functorSync", 2, SyncOperation::Map),
-            ("Control.Apply", "apply", "applySync", 2, SyncOperation::Apply),
-            ("Control.Bind", "bind", "bindSync", 2, SyncOperation::Bind),
+        for (member, instance, arity, operation) in [
+            (KnownTerm::ControlApplicativePure, "applicativeSync", 1, SyncOperation::Pure),
+            (KnownTerm::DataFunctorMap, "functorSync", 2, SyncOperation::Map),
+            (KnownTerm::ControlApplyApply, "applySync", 2, SyncOperation::Apply),
+            (KnownTerm::ControlBindBind, "bindSync", 2, SyncOperation::Bind),
         ] {
             if let Some(operands) = self.known_instance_member_arguments(
-                function,
+                known,
                 arguments,
-                module,
                 member,
                 "Iris.Effect.Sync",
                 instance,
@@ -93,14 +93,14 @@ where
             }
         }
         if let Some((action, continuation)) =
-            self.known_discard_arguments(function, arguments, |context, dictionary| {
+            self.known_discard_arguments(known, arguments, |context, dictionary| {
                 context.known_named_instance(dictionary, "Iris.Effect.Sync", "bindSync")
             })?
         {
             return self.lower_sync(SyncOperation::Bind, &[action, continuation]).map(Some);
         }
         if let Some((condition, action)) =
-            self.known_conditional_arguments(function, arguments, |context, dictionary| {
+            self.known_conditional_arguments(known, arguments, |context, dictionary| {
                 context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
             })?
             && let Some(unit) = self.unit_value()?
