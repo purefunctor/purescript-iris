@@ -20,6 +20,11 @@ just perf <base-ref>
 The base defaults to `origin/main`. The candidate is the current checkout, including uncommitted
 changes. The base is built in `target/performance/base-worktree` with its own target directory, so
 repeated runs against the same base reuse its build. The base revision must contain the harness.
+The command clones the registry and prepares the corpus under `target/compatibility/` itself.
+
+Both sides build with whatever toolchain `rustc` resolves to in the workspace, which the run
+prints. Without mise activating 1.98.1, that is rustup's default (`nightly-2026-09-09` in orbs).
+Instruction counts differ between toolchains, so compare only numbers taken on the same one.
 
 The command prints a Markdown summary and writes `summary.md`, `comparison.json`, every
 measurement, logs, and one Callgrind profile per stage under `target/performance-reports/`.

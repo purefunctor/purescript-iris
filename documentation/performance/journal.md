@@ -10,7 +10,8 @@ depends on it.
 ## Baseline
 
 Package set 82.1.1, `core` preset (295 files plus the `Prim` modules), Callgrind on one thread,
-release profile with one codegen unit per crate, measured on 2026-11-17 at `fcc43af16` with the
+release profile with one codegen unit per crate, `rustc 1.100.0-nightly (4aa1fbcf4 2026-09-08)`,
+measured on 2026-11-17 at `fcc43af16` with the
 harness applied:
 
 | Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |

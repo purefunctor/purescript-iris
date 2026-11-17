@@ -81,6 +81,7 @@ if ! command -v valgrind >/dev/null; then
 fi
 
 printf 'Performance base: %s (%s)\n' "$base_ref" "$base_commit"
+printf 'Toolchain: %s\n' "$(cd "$workspace" && rustc -V)"
 printf 'Building candidate harness in release mode...\n'
 cargo build --manifest-path "$workspace/Cargo.toml" \
   --target-dir "$head_target" \
@@ -139,6 +140,19 @@ measure() {
     exit 2
   }
 }
+
+# The registry and index are cloned only when prepare runs with their default relative paths,
+# so prepare runs from the workspace without overriding them.
+printf 'Preparing the corpus...\n'
+prepare_options=(--cache-dir "$corpus_dir")
+if [[ -n "${PERF_PACKAGE_SET:-}" ]]; then
+  prepare_options+=(--package-set "$PERF_PACKAGE_SET")
+fi
+for preset in $counted_presets $timed_preset; do
+  prepare_options+=(--preset "$preset")
+done
+(cd "$workspace" && "$candidate_harness" prepare "${prepare_options[@]}") \
+  >>"$report_dir/prepare.log" 2>&1 || setup_failure "preparing the corpus; inspect $report_dir/prepare.log"
 
 base_measurements=()
 candidate_measurements=()
