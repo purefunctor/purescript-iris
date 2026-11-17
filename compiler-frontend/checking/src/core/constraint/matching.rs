@@ -11,7 +11,7 @@ use crate::core::constraint::{CanonicalConstraintId, canonical};
 use crate::core::fd::{
     Fd, compute_closure, get_all_determined, get_functional_dependencies, positions_cover_all,
 };
-use crate::core::substitute::SubstituteName;
+use crate::core::substitute::{NameToType, SubstituteName};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
     ApplicationArgument, CheckedInstance, Name, RowField, RowTypeId, Type, TypeFlags, TypeId,
@@ -703,9 +703,11 @@ where
         MatchType::Match { bindings } => {
             let matched_names: FxHashSet<_> = bindings.iter().map(|(name, _)| *name).collect();
 
-            let mut substitution = FxHashMap::default();
+            let mut substitution = NameToType::default();
             for (name, bound) in bindings {
-                substitution.entry(name).or_insert(bound);
+                if !substitution.contains_key(&name) {
+                    substitution.insert(name, bound);
+                }
             }
 
             for binder in &declared.binders {

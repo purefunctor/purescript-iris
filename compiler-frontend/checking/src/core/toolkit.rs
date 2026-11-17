@@ -7,7 +7,7 @@ use files::FileId;
 use indexing::{TermItemId, TypeItemId};
 use lowering::{TermItemKind, TypeItemKind};
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
@@ -411,7 +411,7 @@ where
 
     let depth = state.depth;
 
-    let mut substitution = FxHashMap::default();
+    let mut substitution = NameToType::default();
     let mut freshened = Vec::new();
 
     for binder in &binders {

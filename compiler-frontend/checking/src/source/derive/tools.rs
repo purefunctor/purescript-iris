@@ -3,11 +3,10 @@ use std::sync::Arc;
 use building_types::QueryResult;
 use files::FileId;
 use indexing::{IndexedTypeItemKind, TermItemId, TypeItemId};
-use rustc_hash::FxHashMap;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::core::substitute::SubstituteName;
+use crate::core::substitute::{NameToType, SubstituteName};
 use crate::core::{CheckedClass, Type, TypeId, toolkit};
 use crate::error::CheckingError;
 use crate::state::CheckState;
@@ -44,7 +43,7 @@ where
         return Ok(());
     }
 
-    let mut bindings = FxHashMap::default();
+    let mut bindings = NameToType::default();
     for (binder_id, &argument) in type_parameters.iter().zip(arguments.iter()) {
         let binder = context.lookup_forall_binder(*binder_id);
         bindings.insert(binder.name, argument);
