@@ -75,9 +75,10 @@ pub fn source_map(
     stabilized: &StabilizedModule,
     line_index: &LineIndex,
 ) -> SourceMap {
+    let index_mappings = module.files().index_mappings();
     let mut positions = FxHashMap::default();
-    let mut mappings = Vec::<SourceMapping>::new();
-    for mapping in module.files().index_mappings() {
+    let mut mappings = Vec::<SourceMapping>::with_capacity(index_mappings.len());
+    for mapping in index_mappings {
         let source = mapping.origin.and_then(|origin| {
             *positions
                 .entry(origin)
