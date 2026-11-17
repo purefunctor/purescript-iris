@@ -1,7 +1,7 @@
 mod recursive;
 
-use std::mem;
 use std::sync::Arc;
+use std::{fmt, mem};
 
 use files::FileId;
 use indexing::{
@@ -14,6 +14,7 @@ use itertools::Itertools;
 use petgraph::prelude::DiGraphMap;
 use resolving::ResolvedModule;
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use smol_str::SmolStr;
 use stabilizing::{ExpectId, StabilizedModule};
 use syntax::ast::AstNode;
@@ -43,12 +44,46 @@ pub(crate) struct State {
     pub(crate) synonym_edges: FxHashSet<(TypeItemId, TypeItemId)>,
     let_binding_contexts: Vec<LetBindingContext>,
 
+    term_lookups: NameLookups<TermItemId>,
+    type_lookups: NameLookups<TypeItemId>,
+    class_lookups: NameLookups<TypeItemId>,
+
     pub(crate) in_constraint: bool,
 
     pub(crate) errors: Vec<LoweringError>,
 }
 
 type ItemGraph<T> = DiGraphMap<T, (), FxBuildHasher>;
+
+type NameResolutions<Item> = FxHashMap<SmolStr, Option<(FileId, Item)>>;
+
+struct NameLookups<Item> {
+    unqualified: NameResolutions<Item>,
+    qualified: FxHashMap<SmolStr, NameResolutions<Item>>,
+}
+
+impl<Item> Default for NameLookups<Item> {
+    fn default() -> NameLookups<Item> {
+        NameLookups { unqualified: FxHashMap::default(), qualified: FxHashMap::default() }
+    }
+}
+
+trait CollectArc: Iterator + Sized {
+    fn collect_arc(self) -> Arc<[Self::Item]> {
+        let mut items: SmallVec<[Self::Item; 8]> = self.collect();
+        if items.is_empty() {
+            return Arc::default();
+        }
+
+        let exact_length = 0..items.len();
+        let mut items = items.drain(..);
+        exact_length
+            .map(|_| items.next().expect("invariant violated: fewer items than counted"))
+            .collect()
+    }
+}
+
+impl<I: Iterator> CollectArc for I {}
 
 struct LetBindingContext {
     scope: GraphNodeId,
@@ -151,7 +186,7 @@ impl State {
         self.nodes.let_node.insert(id, node);
     }
 
-    fn insert_binder_name(&mut self, name: &str, source: BinderNameSource) {
+    fn insert_binder_name(&mut self, name: &SmolStr, source: BinderNameSource) {
         let Some(node) = self.graph_scope else { return };
         let GraphNode::Binder { binders, puns, .. } = &mut self.graph.inner[node] else { return };
 
@@ -160,29 +195,28 @@ impl State {
             .map(|&id| BinderNameSource::Binder(id))
             .or_else(|| puns.get(name).map(|&id| BinderNameSource::RecordPun(id)));
 
-        let name = SmolStr::from(name);
         match source {
             BinderNameSource::Binder(id) => {
-                binders.insert(SmolStr::clone(&name), id);
+                binders.insert(SmolStr::clone(name), id);
             }
             BinderNameSource::RecordPun(id) => {
-                puns.insert(SmolStr::clone(&name), id);
+                puns.insert(SmolStr::clone(name), id);
                 self.nodes.record_pun_node.insert(id, node);
             }
         }
 
         if let Some(existing) = existing {
+            let name = SmolStr::clone(name);
             let error = LoweringError::OverlappingBinderNames { name, duplicate: source, existing };
             self.errors.push(error);
         }
     }
 
-    fn insert_bound_variable(&mut self, name: &str, id: TypeVariableBindingId) {
+    fn insert_bound_variable(&mut self, name: &SmolStr, id: TypeVariableBindingId) {
         let Some(node) = self.graph_scope else { return };
         let GraphNode::Forall { bindings, .. } = &mut self.graph.inner[node] else { return };
 
-        let name = SmolStr::from(name);
-        bindings.insert(name, id);
+        bindings.insert(SmolStr::clone(name), id);
         self.nodes.type_variable_binding_node.insert(id, node);
     }
 
@@ -238,7 +272,9 @@ impl State {
         qualifier: Option<&str>,
         name: &str,
     ) -> Option<(FileId, TermItemId)> {
-        let (file_id, term_id) = context.lookup_term(qualifier, name)?;
+        let (file_id, term_id) = self.term_lookups.lookup(qualifier, name, || {
+            context.resolved.lookup_term(context.prim, qualifier, name)
+        })?;
 
         if context.file_id == file_id
             && let Some(current_id) = self.current_term
@@ -284,7 +320,9 @@ impl State {
         qualifier: Option<&str>,
         name: &str,
     ) -> Option<(FileId, TypeItemId)> {
-        let (file_id, type_id) = context.lookup_type(qualifier, name)?;
+        let (file_id, type_id) = self.type_lookups.lookup(qualifier, name, || {
+            context.resolved.lookup_type(context.prim, qualifier, name)
+        })?;
 
         if context.file_id == file_id
             && let Some(current_id) = self.current_type
@@ -311,7 +349,9 @@ impl State {
         qualifier: Option<&str>,
         name: &str,
     ) -> Option<(FileId, TypeItemId)> {
-        let (file_id, type_id) = context.lookup_class(qualifier, name)?;
+        let (file_id, type_id) = self.class_lookups.lookup(qualifier, name, || {
+            context.resolved.lookup_class(context.prim, qualifier, name)
+        })?;
 
         if context.file_id == file_id
             && let Some(current_id) = self.current_type
@@ -332,7 +372,11 @@ impl State {
         Some((file_id, type_id))
     }
 
-    fn resolve_type_variable(&mut self, id: TypeId, name: &str) -> Option<TypeVariableResolution> {
+    fn resolve_type_variable(
+        &mut self,
+        id: TypeId,
+        name: &SmolStr,
+    ) -> Option<TypeVariableResolution> {
         let node = self.graph_scope?;
         if let GraphNode::Implicit { collecting, bindings, .. } = &mut self.graph.inner[node] {
             if let Some(id) = bindings.get(name) {
@@ -370,35 +414,34 @@ impl State {
     }
 }
 
-impl Context<'_> {
-    fn lookup_term<Q, N>(&self, qualifier: Option<Q>, name: N) -> Option<(FileId, TermItemId)>
-    where
-        Q: AsRef<str>,
-        N: AsRef<str>,
-    {
-        let qualifier = qualifier.as_ref().map(Q::as_ref);
-        let name = name.as_ref();
-        self.resolved.lookup_term(self.prim, qualifier, name)
-    }
+impl<Item: Copy + Eq + fmt::Debug> NameLookups<Item> {
+    fn lookup(
+        &mut self,
+        qualifier: Option<&str>,
+        name: &str,
+        resolve: impl Fn() -> Option<(FileId, Item)>,
+    ) -> Option<(FileId, Item)> {
+        let resolutions = match qualifier {
+            None => &mut self.unqualified,
+            Some(qualifier) => {
+                if !self.qualified.contains_key(qualifier) {
+                    self.qualified.insert(SmolStr::from(qualifier), FxHashMap::default());
+                }
+                self.qualified
+                    .get_mut(qualifier)
+                    .expect("invariant violated: expected qualifier lookups")
+            }
+        };
 
-    fn lookup_type<Q, N>(&self, qualifier: Option<Q>, name: N) -> Option<(FileId, TypeItemId)>
-    where
-        Q: AsRef<str>,
-        N: AsRef<str>,
-    {
-        let qualifier = qualifier.as_ref().map(Q::as_ref);
-        let name = name.as_ref();
-        self.resolved.lookup_type(self.prim, qualifier, name)
-    }
+        if let Some(&resolution) = resolutions.get(name) {
+            debug_assert_eq!(resolution, resolve(), "stale lookup for {qualifier:?} {name:?}");
+            return resolution;
+        }
 
-    fn lookup_class<Q, N>(&self, qualifier: Option<Q>, name: N) -> Option<(FileId, TypeItemId)>
-    where
-        Q: AsRef<str>,
-        N: AsRef<str>,
-    {
-        let qualifier = qualifier.as_ref().map(Q::as_ref);
-        let name = name.as_ref();
-        self.resolved.lookup_class(self.prim, qualifier, name)
+        let resolution = resolve();
+        resolutions.insert(SmolStr::from(name), resolution);
+
+        resolution
     }
 }
 
@@ -455,7 +498,7 @@ fn lower_instance_class_reference(
     let qualified = head.qualified()?;
     let (qualifier, name) =
         recursive::lower_qualified_name(context.source, &qualified, cst::QualifiedName::upper)?;
-    let resolution = state.resolve_class_reference(context, qualifier.as_deref(), &name);
+    let resolution = state.resolve_class_reference(context, qualifier, name);
 
     if resolution.is_none() {
         let id = context.stabilized.lookup_cst(head).expect_id();
@@ -520,7 +563,7 @@ fn lower_term_item(
                             cst::QualifiedName::upper,
                         )
                     })?;
-                state.resolve_term_reference(context, qualifier.as_deref(), &name)
+                state.resolve_term_reference(context, qualifier, name)
             });
 
             if resolution.is_none() {
@@ -557,7 +600,7 @@ fn lower_term_item(
                         cst::ValueEquation::guarded_expression,
                     ))
                 })
-                .collect();
+                .collect_arc();
 
             let kind = TermItemKind::Value { signature, equations };
             state.tree.term_items.insert(item_id, kind);
@@ -581,7 +624,7 @@ fn lower_instance_item(
     state.push_implicit_scope();
     let arguments = recover! {
         let head = cst.as_ref()?.instance_head()?;
-        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect()
+        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect_arc()
     };
 
     state.in_constraint = true;
@@ -590,7 +633,7 @@ fn lower_instance_item(
             .instance_constraints()?
             .children()
             .map(|cst| recursive::lower_type(state, context, &cst))
-            .collect()
+            .collect_arc()
     };
     state.in_constraint = false;
     state.finish_implicit_scope();
@@ -629,7 +672,7 @@ fn lower_derive_item(
     state.push_implicit_scope();
     let arguments = recover! {
         let head = cst.as_ref()?.instance_head()?;
-        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect()
+        head.children().map(|cst| recursive::lower_type(state, context, &cst)).collect_arc()
     };
 
     state.in_constraint = true;
@@ -638,7 +681,7 @@ fn lower_derive_item(
             .instance_constraints()?
             .children()
             .map(|cst| recursive::lower_type(state, context, &cst))
-            .collect()
+            .collect_arc()
     };
     state.in_constraint = false;
     state.finish_implicit_scope();
@@ -665,7 +708,7 @@ fn lower_derive_clause_item(
     let resolution = cst.qualified().and_then(|qualified| {
         let (qualifier, name) =
             recursive::lower_qualified_name(context.source, &qualified, cst::QualifiedName::upper)?;
-        state.resolve_class_reference(context, qualifier.as_deref(), &name)
+        state.resolve_class_reference(context, qualifier, name)
     });
 
     if resolution.is_none() {
@@ -705,7 +748,7 @@ fn lower_type_item(
                 let variables = cst
                     .type_variables()
                     .map(|t| recursive::lower_type_variable_binding(state, context, &t, true))
-                    .collect();
+                    .collect_arc();
 
                 Some(DataDeclaration { variables })
             });
@@ -738,7 +781,7 @@ fn lower_type_item(
                 let variables = cst
                     .type_variables()
                     .map(|t| recursive::lower_type_variable_binding(state, context, &t, true))
-                    .collect();
+                    .collect_arc();
 
                 Some(NewtypeDeclaration { variables })
             });
@@ -773,7 +816,7 @@ fn lower_type_item(
                 let variables = cst
                     .children()
                     .map(|cst| recursive::lower_type_variable_binding(state, context, &cst, false))
-                    .collect();
+                    .collect_arc();
 
                 let type_ = cst.type_().map(|cst| recursive::lower_type(state, context, &cst));
 
@@ -807,7 +850,7 @@ fn lower_type_item(
                     cst.class_head()?
                         .children()
                         .map(|cst| recursive::lower_type_variable_binding(state, context, &cst, true))
-                        .collect()
+                        .collect_arc()
                 };
 
                 state.in_constraint = true;
@@ -815,7 +858,7 @@ fn lower_type_item(
                     cst.class_constraints()?
                         .children()
                         .map(|cst| recursive::lower_type(state, context, &cst))
-                        .collect()
+                        .collect_arc()
                 };
                 state.in_constraint = false;
 
@@ -837,7 +880,7 @@ fn lower_type_item(
                                 &dependency,
                             )
                         });
-                    dependencies.collect()
+                    dependencies.collect_arc()
                 };
 
                 Some(ClassDeclaration { constraints, variables, functional_dependencies })
@@ -891,7 +934,7 @@ fn lower_type_item(
                     &cst,
                     cst::QualifiedName::upper,
                 )?;
-                state.resolve_type_reference(context, qualifier.as_deref(), &name)
+                state.resolve_type_reference(context, qualifier, name)
             });
 
             if resolution.is_none() {
@@ -921,7 +964,8 @@ fn lower_constructors(state: &mut State, context: &Context, id: TypeItemId) {
             continue;
         };
 
-        let arguments = cst.children().map(|t| recursive::lower_type(state, context, &t)).collect();
+        let arguments =
+            cst.children().map(|t| recursive::lower_type(state, context, &t)).collect_arc();
 
         let kind = TermItemKind::Constructor { arguments };
         state.tree.term_items.insert(item_id, kind);
@@ -1026,11 +1070,11 @@ fn lower_instance_statements(
                         cst::InstanceEquationStatement::guarded_expression,
                     ))
                 })
-                .collect();
+                .collect_arc();
             InstanceMemberGroup { statements: statements.clone(), resolution, signature, equations }
         })
     });
-    member_groups.collect()
+    member_groups.collect_arc()
 }
 
 fn lower_roles(context: &Context, id: TypeRoleId) -> Arc<[Role]> {
@@ -1048,7 +1092,7 @@ fn lower_roles(context: &Context, id: TypeRoleId) -> Arc<[Role]> {
                     Role::Unknown
                 }
             })
-            .collect()
+            .collect_arc()
     })
     .unwrap_or_default()
 }
@@ -1064,18 +1108,18 @@ fn lower_functional_dependency(
             let determined = dependency.children().filter_map(|variable| {
                 lower_functional_dependency_variable(state, context, variable_map, variable)
             });
-            let determined = determined.collect();
+            let determined = determined.collect_arc();
             FunctionalDependency { determiners: Arc::from([]), determined }
         }
         cst::FunctionalDependency::FunctionalDependencyDetermines(dependency) => {
             let determiners = dependency.determiners().filter_map(|variable| {
                 lower_functional_dependency_variable(state, context, variable_map, variable)
             });
-            let determiners = determiners.collect();
+            let determiners = determiners.collect_arc();
             let determined = dependency.determined().filter_map(|variable| {
                 lower_functional_dependency_variable(state, context, variable_map, variable)
             });
-            let determined = determined.collect();
+            let determined = determined.collect_arc();
             FunctionalDependency { determiners, determined }
         }
     }
