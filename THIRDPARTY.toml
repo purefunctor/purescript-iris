@@ -10916,16 +10916,6 @@ Additional license information can be found in the ACKNOWLEDGEMENTS.md file.
 """
 
 [[third_party_libraries]]
-package_name = "syntree"
-package_version = "0.18.0"
-repository = "https://github.com/udoprog/syntree"
-license = "MIT"
-
-[[third_party_libraries.licenses]]
-license = "MIT"
-text = "NOT FOUND"
-
-[[third_party_libraries]]
 package_name = "tar"
 package_version = "0.4.46"
 repository = "https://github.com/composefs/tar-rs"

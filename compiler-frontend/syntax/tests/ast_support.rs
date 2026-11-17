@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use syntax::ast::{self, AstNode};
-use syntax::{SyntaxKind, SyntaxNode, SyntaxValue, TreeOwner, cst};
+use syntax::{SyntaxKind, SyntaxNode, TreeBuilder, cst};
 
 thread_local! {
     static REENTRANT_ROOT: RefCell<Option<SyntaxNode>> = const { RefCell::new(None) };
@@ -72,14 +72,14 @@ impl AstNode for DivergentAstNode {
 }
 
 fn root_with_children() -> SyntaxNode {
-    let mut builder = syntree::Builder::new_with();
-    builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
-    builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
-    builder.close().unwrap();
-    builder.open(SyntaxValue::node(SyntaxKind::ModuleImports)).unwrap();
-    builder.close().unwrap();
-    builder.close().unwrap();
-    SyntaxNode::new_root(TreeOwner::new(builder.build().unwrap()))
+    let mut builder = TreeBuilder::with_capacity(3);
+    builder.open(SyntaxKind::Module);
+    builder.open(SyntaxKind::ModuleHeader);
+    builder.close();
+    builder.open(SyntaxKind::ModuleImports);
+    builder.close();
+    builder.close();
+    SyntaxNode::new_root(builder.build())
 }
 
 #[test]

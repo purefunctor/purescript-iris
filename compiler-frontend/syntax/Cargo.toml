@@ -7,6 +7,4 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parking_lot = "0.12.5"
-syntree = "0.18.0"
 text-size = "1.1.1"
