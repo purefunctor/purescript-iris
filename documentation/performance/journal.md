@@ -44,7 +44,7 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-### E1: fat LTO with one codegen unit for shipped binaries
+### Fat LTO with one codegen unit for shipped binaries
 
 2026-11-17, branch `e1-release-profile`, harness `5db492475`. The `dist` profile inherits
 `release` and sets `lto = "fat"` and `codegen-units = 1`; the release and canary workflows build
@@ -80,7 +80,7 @@ On top of `dist`, with a profile from running `measure --timing` on `acme`, it l
 profile, and to 2,009,174,847 with a `core` profile, so training on the measured corpus does not
 inflate the result. Each release target needs its own instrumented build and training run.
 
-### K3: capability bundle validation
+### Capability bundle validation
 
 2026-11-17, branch `k3-bundle-validation-fast-path`, one commit on `5db492475` that changes only
 `checking/src/core/constraint/bundles.rs`. Only `checked` and the edit stages run this code; every
@@ -104,7 +104,7 @@ longer interns synonym expansions.
   (call counts and inclusive costs here measured at `fcc43af16` with a Callgrind probe before the
   harness existed).
 
-### F1: classify known terms once per application head
+### Classify known terms once per application head
 
 2026-11-17, branch `f1-known-terms`, commit "Classify known terms once per application head",
 measured with `just perf 5db492475`. The functional backend tested each application head against
@@ -121,12 +121,12 @@ is now classified once into a `KnownTerm` in `functional/src/convert/known.rs`.
 
 Interned counts and generated output are unchanged.
 
-### I1: read dependency module names from indexed modules
+### Read dependency module names from indexed modules
 
 2026-11-17, branch `f1-known-terms`, commit "Read dependency module names from indexed modules",
-measured with `just perf` against the F1 commit. `functional` read a dependency's `content` and
-`parsed` tree to get its module name, so every edit re-ran `functional` in every importer. It now
-reads `IndexedModule::name`.
+measured with `just perf` against the known-term commit. `functional` read a dependency's `content`
+and `parsed` tree to get its module name, so every edit re-ran `functional` in every importer. It
+now reads `IndexedModule::name`.
 
 | Stage | Instructions | Allocations | Allocated bytes |
 | --- | ---: | ---: | ---: |
@@ -136,7 +136,7 @@ reads `IndexedModule::name`.
 
 Interned counts and generated output are unchanged.
 
-### J1
+### JavaScript rendering and source maps
 
 2026-11-17, branch `j1-javascript-rendering`, five commits against `5db492475`. Stages
 `javascript` and `source_map`; interned counts unchanged; output digest unchanged.
@@ -156,7 +156,7 @@ Interned counts and generated output are unchanged.
   (scanning output between mappings and hashing token names); in `source_map` it is syntax tree
   access in `first_token_start` and the origin position table.
 
-### K5: skolem and exhaustiveness passes
+### Skolem and exhaustiveness passes
 
 2026-11-17, branch `k5-skolem-exhaustive`, five commits on `5db492475`. Only `checked` and the
 edit stages run this code; every other stage moved by at most 0.008%, and interned counts and the
@@ -183,7 +183,7 @@ Each commit, as its change in `checked` instructions and allocations from the co
 After these, the skolem pass is about 1.4% of `checked` instructions (from 2.9%), and the
 exhaustiveness checks about 1.7% (from 1.9%), measured by inclusive cost of their entry points.
 
-### B1: canonicalize build inputs in parallel (2026-11-17)
+### Canonicalize build inputs in parallel (2026-11-17)
 
 `iris_build::compile::build_initial` canonicalized every selected source and every package source
 identity on one thread before planning, about 120 ms for the 7,374 `acme` sources in an orb, while
@@ -204,7 +204,7 @@ digest is unchanged. Its ungated `acme` build wall ratios were 1.023 at 1 thread
 with base and candidate runs overlapping (8 threads: base 1,785–2,030 ms, candidate 1,826–2,189 ms)
 on code the change does not touch; against `1d5ee22ff` the same ratios were 1.002 and 1.004.
 
-### R1
+### Stabilizing and resolving memory
 
 Stabilizing and resolving memory, branch `r1-memory`, 2026-11-17, `just perf` against each commit's
 parent on harness `5db492475`. Live heap is what each stage retains on `acme` (7,374 files, one
@@ -231,7 +231,7 @@ thread), measured with a counting allocator.
   `core`; peak resident memory on `acme` 2,941.5 → 2,684.2 MB on one thread and 3,147.6 →
   2,898.6 MB on eight; `resolved` wall time on one thread 153.8 → 79.2 ms.
 
-### S3: lexing and parsing
+### Lexing and parsing
 
 2026-11-17, branch `s3-lexing-parsing` on `5db492475`. Only `parsed` changes beyond 0.5%; interned
 counts and the output digest are unchanged. Each commit against its parent, `parsed` stage:
@@ -253,9 +253,10 @@ The branch against `5db492475`:
 
 Within `parsed`, lexing drops by about 39% and layout is unchanged. Parser events average 5.2 per
 token on `core` and peak at 6.6 per file, which sets the reservation at six. What remains in
-`parsed` is mostly tree construction in `parsing::builder`, which belongs to S2.
+`parsed` is mostly tree construction in `parsing::builder`, which belongs to the syntax tree storage
+work.
 
-### K1 step 1: sharded type interner (2026-11-17, branch `interner-step1-new`)
+### Sharded type interner (2026-11-17, branch `interner-step1-new`)
 
 `compiler-core/interner/src/parallel.rs` replaces papaya with 1024 shards of open-addressing
 tables of `(tag, Id)` words: probes need no lock, inserts and resizes take the shard lock. The type
@@ -283,7 +284,7 @@ Dropping a `QueryEngine` after checking `acme` at 8 threads falls from about 370
 because the tables no longer own one allocation per entry. Peak memory rises by about 50 MB: retired
 tables stay allocated until the interner is dropped.
 
-### K2: constraint solving and instances, 2026-11-17, branch `k2-constraint-solving`
+### Constraint solving and instances, 2026-11-17, branch `k2-constraint-solving`
 
 Each commit measured against its parent, `checked` on `core`, with the harness at `5db492475`.
 No commit changed the interned counts beyond the first (278,862 to 278,846 types), and the
@@ -308,7 +309,7 @@ reverting it then costs +0.31% in `checked` (905,453,913 → 908,270,942), so it
 instance declaration, not only derived ones: 1,461 of its calls on `core` come from
 `check_instance_member_groups` (8.9% of `checked` at the baseline) and 850 from derived members.
 
-### K4: type traversal and unification (2026-11-17, branch `k4-type-traversal`)
+### Type traversal and unification (2026-11-17, branch `k4-type-traversal`)
 
 Checker changes in `checking/src/core/{fold,walk,normalise,substitute}.rs` and the zonk cache in
 `checking/src/state.rs`, measured commit by commit with harness `5db492475`. Instructions exclude
@@ -336,7 +337,7 @@ Code generation can move stages a change never runs. Creating the zonk cache wit
 LLVM then stopped inlining in other crates; under harness `9615ae229` that cost `resolved` +0.77%
 and `bracketed` +1.21%. Reserving on an empty map leaves every other stage unchanged.
 
-### L1: lowering allocations and lookups
+### Lowering allocations and lookups
 
 2026-11-17, branch `lowering-allocations`, four commits in `compiler-frontend/lowering/src`,
 measured together with `just perf 5db492475`:
@@ -364,7 +365,7 @@ allocator, lowering still falls from 161.9M to 159.8M instructions. Memory retai
 module is unchanged by all four commits (15.8 MB on `core`), so the 364 MB `lowered` adds on
 `acme` is what each lowered module keeps, not transient allocation.
 
-### S1: dense `AstId` maps for lowered expressions and types
+### Dense `AstId` maps for lowered expressions and types
 
 2026-11-17, branch `s1-dense-ast-id-tables`. `stabilizing::AstIdMap` stores each value in a vector
 and finds it through one slot per stabilized node, presized from the `StabilizedModule`, so inserts
@@ -388,7 +389,7 @@ from 12,308,603 to 17,377,806: the presized slot vectors are zeroed, and the val
 `realloc`, which copies where a hash table rehashed entry by entry outside the allocator. Interned
 counts and generated output are unchanged.
 
-### S1: dense `AstId` maps for checked expression and type nodes
+### Dense `AstId` maps for checked expression and type nodes
 
 2026-11-17, branch `s1-dense-ast-id-tables`. `CheckedNodeTypes` types, type kinds, and expressions
 use `AstIdMap`, presized in `check_source`. Changes are against the lowering entry above:
@@ -404,17 +405,18 @@ use `AstIdMap`, presized in `check_source`. Changes are against the lowering ent
 Allocated bytes in `checked` rise by 1,114,960 bytes: three slot vectors of 4 bytes per stabilized
 node, kept with each `CheckedModule`. Interned counts and generated output are unchanged.
 
-Both S1 entries together against `5db492475`: `build` -1.614% instructions (-1.091% with the
-allocator), +0.089% allocations, +0.172% allocated bytes; `edit_interface` -2.758%, `edit_body`
--1.568%. Wall time on `acme` is noisy across runs. Medians of three interleaved runs, one thread:
-`lowered` 0.895, `checked` 0.979, and the whole build 1.003 in this run, against 0.939 in the same
-measurement on `1d5ee22ff`. Peak resident memory went from 2,941.7 MB to 2,968.9 MB on one thread.
+Both dense `AstId` map entries together against `5db492475`: `build` -1.614% instructions (-1.091%
+with the allocator), +0.089% allocations, +0.172% allocated bytes; `edit_interface` -2.758%,
+`edit_body` -1.568%. Wall time on `acme` is noisy across runs. Medians of three interleaved runs,
+one thread: `lowered` 0.895, `checked` 0.979, and the whole build 1.003 in this run, against 0.939
+in the same measurement on `1d5ee22ff`. Peak resident memory went from 2,941.7 MB to 2,968.9 MB on
+one thread.
 
 ## Measured and rejected
 
-### F1: cache known-term classification per module
+### Cache known-term classification per module
 
-2026-11-17, on top of the F1 commit, measured with `just perf` against it. A
+2026-11-17, on top of the known-term commit, measured with `just perf` against it. A
 `RefCell<FxHashMap<(FileId, TermItemId), Option<KnownTerm>>>` in the conversion context memoised
 each term's classification.
 
@@ -426,7 +428,7 @@ each term's classification.
 Rejected: allocated bytes regress beyond the 0.5% gate for under 1% of the stage's instructions.
 Classifying a head is one module-name lookup and a string match, cheap enough without a table.
 
-### J1
+### JavaScript rendering and source maps
 
 - 2026-11-17: borrowing mapping names instead of cloning them, in `finish_with_mappings` and
   in `source_map`. Instructions rose 0.14% in `javascript` and 1.1% in `source_map`, measured
@@ -438,7 +440,7 @@ Classifying a head is one module-name lookup and a string match, cheap enough wi
 - 2026-11-17: reusing the previous origin's position in `source_map` before the hash
   lookup. About 1% of the stage, measured with a probe before the harness existed.
 
-### B1: build sources in import order instead of on demand (2026-11-17)
+### Build sources in import order instead of on demand (2026-11-17)
 
 At 8 threads, workers inside `build_initial` spend 6–8% of their time blocked in
 `Future::wait` on a query another worker is computing, about 1,000 ms in 300 waits for `acme`.
@@ -451,7 +453,7 @@ of `executor::execute_parallel`, did not change wall time either (base 2,018–2
 2,116–2,224 ms) and raised CPU time. The blocked workers had no other ready work: the limit is the
 import graph's critical path, not the order in which ready sources start.
 
-### R1
+### Stabilizing and resolving memory
 
 - Listed import items keyed by name (`FxHashMap<SmolStr, (FileId, ItemId)>`) instead of identity:
   `lowered` -0.44% but `functional` +0.61%, which iterates every export of every import, and
@@ -461,7 +463,7 @@ import graph's critical path, not the order in which ready sources start.
   `#[inline(always)]` inlines them into the per-import loop. A single probe site per lookup,
   with listed entries stored in the export table's value type, was not inlined either.
 
-### S3: lexing and parsing
+### Lexing and parsing
 
 2026-11-17. Measured with a Callgrind probe of `lexing::lex` alone on `core`, against the kept
 change it would replace:
@@ -477,29 +479,29 @@ Profiled and left alone: the parser's `failed_alternatives` map (about 900 looku
 parser's fuel checks in `nth` (about 5 million instructions), and `Layout::take_token`, whose cost
 is spread across `Insert` construction, stack matching, and `insert_sep` with no single hotspot.
 
-### K1: sharded type interner
+### Sharded type interner
 
-- K1, 64 shards, each a `Mutex<hashbrown::HashTable>`: `checked` on `core` -8.7% instructions, but
+- 64 shards, each a `Mutex<hashbrown::HashTable>`: `checked` on `core` -8.7% instructions, but
   checking `acme` at 8 threads took about 1,170 ms against papaya's 1,000 ms.
-- K1, 64 shards with lock-free probes: -5.7% instructions, still about 1,240 ms against 1,000 ms at 8
+- 64 shards with lock-free probes: -5.7% instructions, still about 1,240 ms against 1,000 ms at 8
   threads. 65,794 of 3,391,966 locked inserts (1.9%) found the lock held, and parked threads do not
   show in sampling profiles. Moving the lock to its own cache line did not help. 1024 shards bring
   contention to about 3,600 inserts.
 
-### K2: constraint solving and instances
+### Constraint solving and instances
 
-- K2, 2026-11-17: caching superclass elaboration per set of given constraints. On `core`,
+- 2026-11-17: caching superclass elaboration per set of given constraints. On `core`,
   `superclass_edges` runs 4,409 times; 1,640 calls have no roots, and the other 2,769 cover 2,145
   distinct (module, roots) pairs, so at most 624 calls (23%) would hit. Not built.
-- K2, 2026-11-17: in `match_instance`, a closure-free `covers` for classes without functional
+- 2026-11-17: in `match_instance`, a closure-free `covers` for classes without functional
   dependencies and presized match vectors and substitution maps. Measured with a checked-only
   Callgrind probe that includes the allocator: +2.4M instructions with the presized vector, which
   allocates for candidates rejected at their first argument where the old code never allocated,
   and +1.9M without it.
 
-### K4: type traversal and unification
+### Type traversal and unification
 
-K4 experiments, measured with earlier harness revisions (before `9615ae229` unless noted), so only
+Experiments measured with earlier harness revisions (before `9615ae229` unless noted), so only
 the percentages are comparable.
 
 - Replacing `ReductionContext` in `normalise_head` with a direct loop over the type's variant:
@@ -512,7 +514,7 @@ the percentages are comparable.
 - Creating the zonk cache with a capacity instead of reserving it (harness `9615ae229`): `checked`
   -0.42% instead of -0.71%, and `resolved` and `bracketed` regress (see above).
 
-### L1
+### Lowering allocations and lookups
 
 - The lookup memo on `hashbrown::HashTable`, keyed by borrowed `(qualifier, name)`: `grouped`
   moved by +0.33% without running changed code, because the new callers changed how hashbrown
@@ -527,7 +529,7 @@ allocator, so these numbers are not comparable with `just perf` tables:
 - Four inline slots instead of eight when collecting Arc slices: -0.13% instructions,
   +0.95% allocations, +0.37% allocated bytes.
 
-### S1: dense `AstId` maps
+### Dense `AstId` maps
 
 Measured on 2026-11-17 while building `AstIdMap`, with instructions that still included the
 allocator; changes are against `fcc43af16` on `core`.
@@ -544,12 +546,10 @@ allocator; changes are against `fcc43af16` on `core`.
 
 ## Not tried
 
-The work areas in the performance plan (K1 to K5, S1, S2, L1, R1, J1, B1, I1) start here
-until they are measured.
+Ideas that surfaced while measuring but have not been tried, by the change that surfaced
+them.
 
-### K3: capability bundle validation
-
-From K3:
+### Capability bundle validation
 
 - Memoising per synonym whether its expansion reaches `Bundle`. The bundle walk visits 728
   synonym expansions on `core`, about 1% of `checked`, because each top-level type walks them
@@ -558,11 +558,11 @@ From K3:
   is `Iris.Effect.Bundle`, which each engine resolves in `IrisEffectCore`, and every synonym and
   unification variable would have to set the bit, which leaves the walk above.
 
-### J1
+### JavaScript rendering and source maps
 
 - Fewer `format!` calls in rendering. They are about 2% of `javascript` on `core`.
 
-### K5: skolem and exhaustiveness passes
+### Skolem and exhaustiveness passes
 
 - A type flag for rigid variables with a skolem scope. The skolem audit could then skip types
   without one instead of consulting its memo, and the scan for expected scopes over every
@@ -574,20 +574,20 @@ From K3:
   set. Not measured: it is quadratic in the number of distinct constructors, and `algorithm_u`
   already collects the sigma once per row, so large literal case tables would get much slower.
 
-### K2: constraint solving and instances
+### Constraint solving and instances
 
-- K2: an index of instances by class in `CheckedModule`. `collect_instance_chains` still costs
+- An index of instances by class in `CheckedModule`. `collect_instance_chains` still costs
   about 31M instructions on `core` (17.7M from the solver, 13.6M from overlap validation): it
   rescans every instance of each touched module per (module, class) and sorts the candidates. The
   index needs `lib.rs` and the two instance declaration sites, and the module being checked still
   needs a scan until its instances are all declared.
-- K2: reusing elaborated givens across nested implications that add no givens. Elaboration is about
+- Reusing elaborated givens across nested implications that add no givens. Elaboration is about
   30M on `core`, but sharing it would share superclass evidence projections between scopes and
   change the evidence the backend sees.
 
-### K4: type traversal and unification
+### Type traversal and unification
 
-From K4, with the reason each was not worth trying on `core`:
+With the reason each was not worth trying on `core`:
 
 - Memoising synonym expansion per module: about 3,000 expansions with substitutions across the
   build and edit stages, a third of them repeating a type and 72% containing unification
@@ -599,16 +599,19 @@ From K4, with the reason each was not worth trying on `core`:
 - Skipping `promote_type` or the kind check in `solve_core`: `promote_type` already skips solutions
   without variables, and no flag shows that the kind check (1.5% of `checked`) cannot fail.
 - Folding rows without copying their fields: only 852 row folds on `core`.
-- Of what remains in substitution and zonking, interning is 96M and 61M instructions (K1).
+- Of what remains in substitution and zonking, interning is 96M and 61M instructions (the type
+  interner).
 
-### L1
+### Lowering allocations and lookups
 
-Remaining lowering cost on `core` after L1, from the lowering-only probe profile:
+Remaining lowering cost on `core` after these changes, from the lowering-only probe profile:
 
 - `StabilizedModule::lookup_cst`, called once per lowered node: about 7% of `lowered`. A dense
   table from preorder index to `AstId` in the stabilized module would avoid hashing each node
-  pointer; S2's preorder storage makes it possible, and lowering needs no change if
+  pointer; preorder syntax tree storage makes it possible, and lowering needs no change if
   `lookup_cst` keeps its signature.
-- Syntax tree accessors (`node_sibling`, `children`, `cast`, `token`): about 17%; area S2.
-- Inserts and rehashes into `LoweredTree` and `LoweringGraphNodes` maps: about 15%; area S1.
+- Syntax tree accessors (`node_sibling`, `children`, `cast`, `token`): about 17%; syntax tree
+  storage.
+- Inserts and rehashes into `LoweredTree` and `LoweringGraphNodes` maps: about 15%; the dense
+  `AstId` maps.
 - Sorting in `index_references`: about 2%.
