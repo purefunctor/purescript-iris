@@ -12,6 +12,7 @@ use globset::Glob;
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
+pub mod allocation;
 pub mod package_cache;
 pub mod registry;
 
@@ -20,7 +21,7 @@ pub use package_cache::PackageCache;
 // Match the allocator shipped by the `iris` binary so that verification and
 // benchmarks observe the same multi-threaded allocation behaviour.
 #[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+static GLOBAL: allocation::CountingAllocator = allocation::CountingAllocator;
 
 const CORE_PACKAGES: &str = include_str!("../purescript-core.txt");
 const ACME_PACKAGES: &str = include_str!("../purescript-acme.txt");
