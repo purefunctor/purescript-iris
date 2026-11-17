@@ -43,11 +43,42 @@ numbers measured in the same run of `just perf`, never against this table.
 
 ## In place
 
-Nothing yet.
+### K1 step 1: sharded type interner (2026-11-17, branch `interner-step1-new`)
+
+`compiler-core/interner/src/parallel.rs` replaces papaya with 1024 shards of open-addressing
+tables of `(tag, Id)` words: probes need no lock, inserts and resizes take the shard lock. The type
+table is presized to 2^18 types. `just perf 5db492475`, `core`, Callgrind:
+
+| Stage | Instructions | Allocator instructions | Allocations | Allocated bytes |
+| --- | ---: | ---: | ---: | ---: |
+| checked | 899,721,316 (-5.612%) | 76,850,365 (-14.388%) | 849,506 (-25.840%) | 103,063,629 (-6.633%) |
+| build | 2,016,584,986 (-2.584%) | 216,374,412 (-5.312%) | 1,597,781 (-15.630%) | 437,550,771 (-1.646%) |
+| edit_body | 637,431,744 (-0.823%) | 54,798,173 (-0.736%) | 603,425 (-0.021%) | 70,854,765 (-0.002%) |
+| edit_interface | 736,828,907 (-0.712%) | 60,594,114 (-0.432%) | 670,789 (+0.000%) | 89,680,613 (+0.000%) |
+
+Interned counts and the output digest are unchanged. Presizing alone is -1.307% of `checked`.
+
+Wall time on `acme`, medians of 3 interleaved pairs, candidate over base:
+
+| Threads | checked | build | Peak resident memory |
+| ---: | ---: | ---: | ---: |
+| 1 | 5,728 → 4,427 ms (0.776) | 11,603 → 9,873 ms (0.851) | 2,942 → 2,982 MB |
+| 2 | 2,911 → 2,630 ms (0.863) | 6,088 → 5,672 ms (0.927) | 2,984 → 3,035 MB |
+| 4 | 1,584 → 1,446 ms (0.913) | 3,299 → 3,128 ms (0.980) | 3,042 → 3,085 MB |
+| 8 | 926 → 856 ms (0.940) | 1,859 → 1,761 ms (0.961) | 3,133 → 3,185 MB |
+
+Dropping a `QueryEngine` after checking `acme` at 8 threads falls from about 370 ms to 49 ms,
+because the tables no longer own one allocation per entry. Peak memory rises by about 50 MB: retired
+tables stay allocated until the interner is dropped.
 
 ## Measured and rejected
 
-Nothing yet.
+- K1, 64 shards, each a `Mutex<hashbrown::HashTable>`: `checked` on `core` -8.7% instructions, but
+  checking `acme` at 8 threads took about 1,170 ms against papaya's 1,000 ms.
+- K1, 64 shards with lock-free probes: -5.7% instructions, still about 1,240 ms against 1,000 ms at 8
+  threads. 65,794 of 3,391,966 locked inserts (1.9%) found the lock held, and parked threads do not
+  show in sampling profiles. Moving the lock to its own cache line did not help. 1024 shards bring
+  contention to about 3,600 inserts.
 
 ## Not tried
 
