@@ -11,7 +11,9 @@ Mutants == {
     "qualifier_keeps_position",
     "raw_string_opens_with_four_quotes",
     "parenthesis_ignores_line_comment",
-    "parenthesis_position_after_qualifier"
+    "parenthesis_position_after_qualifier",
+    "line_comment_takes_newline",
+    "within_line_keeps_column"
 }
 
 ASSUME Mutant \in Mutants
@@ -25,6 +27,7 @@ UpperStart == {"A", "E"}
 Digit == {"0", "1"}
 HexDigit == {"0", "1", "a", "e", "A", "E"}
 Name == LowerStart \cup UpperStart \cup Digit \cup {"'"}
+AsciiName == Name
 OperatorCharacter == {"-", "+", ".", "?", "\\"}
 
 Characters ==
@@ -72,9 +75,23 @@ Take(lexer) ==
 
 RECURSIVE TakeWhile(_, _)
 TakeWhile(lexer, characters) ==
-    IF First(lexer) \in characters /\ ~IsEof(lexer)
+    IF ~IsEof(lexer) /\ First(lexer) \in characters
     THEN TakeWhile(Take(lexer), characters)
     ELSE lexer
+
+RECURSIVE RunLength(_, _, _)
+RunLength(lexer, index, characters) ==
+    IF index <= Len(lexer.source) /\ lexer.source[index] \in characters
+    THEN 1 + RunLength(lexer, index + 1, characters)
+    ELSE 0
+
+TakeWithinLine(lexer, length) ==
+    [lexer EXCEPT
+        !.index = @ + length,
+        !.position.column = IF Mutant = "within_line_keeps_column" THEN @ ELSE @ + length]
+
+TakeName(lexer) ==
+    TakeWhile(TakeWithinLine(lexer, RunLength(lexer, lexer.index, AsciiName)), Name)
 
 RECURSIVE TakeWhileMaximum(_, _, _)
 TakeWhileMaximum(lexer, characters, maximum) ==
@@ -84,7 +101,13 @@ TakeWhileMaximum(lexer, characters, maximum) ==
 
 TakeAnnotationWhitespace(lexer) == TakeWhile(lexer, Whitespace)
 
-TakeAnnotationLineComment(lexer) == TakeWhile(Take(Take(lexer)), Characters \ {"\n"})
+TakeAnnotationLineComment(lexer) ==
+    LET text == Take(Take(lexer))
+        length == RunLength(text, text.index, Characters \ {"\n"})
+    IN
+    IF Mutant = "line_comment_takes_newline" /\ text.index + length <= Len(text.source)
+    THEN TakeWithinLine(text, length + 1)
+    ELSE TakeWithinLine(text, length)
 
 RECURSIVE BlockComment(_, _)
 BlockComment(lexer, level) ==
@@ -136,7 +159,7 @@ TakeAnnotation(lexer) ==
 RECURSIVE QualifierLoop(_)
 QualifierLoop(lexer) ==
     IF First(lexer) \in UpperStart THEN
-        LET named == TakeWhile(lexer, Name) IN
+        LET named == TakeName(lexer) IN
         IF First(named) = "." THEN QualifierLoop(Take(named))
         ELSE IF Mutant = "qualifier_keeps_position"
         THEN [lexer EXCEPT !.position = named.position]
@@ -278,11 +301,11 @@ TakeString(lexer) ==
 TakeHole(lexer) ==
     IF First(lexer) # "?"
     THEN Fail(lexer, "take_hole fails assert_eq!")
-    ELSE Push(TakeWhile(Take(lexer), Name), "HOLE", "None")
+    ELSE Push(TakeName(Take(lexer)), "HOLE", "None")
 
-TakeLower(lexer) == Push(TakeWhile(lexer, Name), "LOWER", "None")
+TakeLower(lexer) == Push(TakeName(lexer), "LOWER", "None")
 
-TakeUpper(lexer) == Push(TakeWhile(Take(lexer), Name), "UPPER", "None")
+TakeUpper(lexer) == Push(TakeName(Take(lexer)), "UPPER", "None")
 
 TakeIntegerOrNumber(lexer) ==
     LET error ==
