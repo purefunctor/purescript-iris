@@ -27,7 +27,7 @@ use indexmap::{IndexMap, IndexSet};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
-use crate::core::fd::{compute_closure, get_functional_dependencies};
+use crate::core::fd::{Positions, compute_closure, get_functional_dependencies};
 use crate::core::{TypeId, generalise, toolkit, unification};
 use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
@@ -165,7 +165,7 @@ where
 
     let arguments = matching::type_arguments(&arguments);
 
-    let mut known_positions = FxHashSet::default();
+    let mut known_positions = Positions::default();
     for (position, &argument) in arguments.iter().enumerate() {
         if !matching::is_blocked(state, context, argument)? {
             known_positions.insert(position);
@@ -180,7 +180,7 @@ where
     // improving when functional dependencies determine one of them.
     let closure = compute_closure(&functional_dependencies, &known_positions);
     let determined = arguments.into_iter().enumerate().filter_map(|(position, argument)| {
-        let is_determined = closure.contains(&position) && !known_positions.contains(&position);
+        let is_determined = closure.contains(position) && !known_positions.contains(position);
         is_determined.then_some(argument)
     });
 
@@ -196,11 +196,11 @@ fn ignore_unknown_wanted<Q>(
 where
     Q: ExternalQueries,
 {
-    let wanted = state.canonicals.type_id(context, constraint.key.wanted);
-    if !toolkit::contains_unknown(state, context, wanted)? {
+    if !canonical::contains_unknown(state, context, constraint.key.wanted)? {
         return Ok(false);
     }
 
+    let wanted = state.canonicals.type_id(context, constraint.key.wanted);
     state.absorb_unknown(wanted);
     state.checked.evidence.mark_error(constraint.evidence.wanted);
 
@@ -288,8 +288,10 @@ where
         let mut blocked = FxHashSet::default();
         let mut blocked_on_skolem = false;
 
+        let wanted = matching::Wanted::new(state, context, constraint.key.wanted)?;
+
         for (provided, provided_evidence) in constraint.given() {
-            match matching::match_provided(state, context, constraint.key.wanted, provided)? {
+            match matching::match_provided(state, context, &wanted, provided)? {
                 matching::MatchInstance::Match { unifications, constraints } => {
                     state.checked.evidence.solve(constraint.evidence.wanted, provided_evidence);
                     let constraints = fresh_scoped_constraints(state, &constraint, constraints);
@@ -350,8 +352,8 @@ where
 
         let search = instances::collect_instance_chains(state, context, constraint.key.wanted)?;
         'chain: for chain in search.chains() {
-            for &candidate in chain {
-                match matching::match_declared(state, context, constraint.key.wanted, candidate)? {
+            for candidate in chain {
+                match matching::match_declared(state, context, &wanted, candidate)? {
                     matching::MatchInstance::Match { unifications, constraints } => {
                         let constraints = fresh_scoped_constraints(state, &constraint, constraints);
                         let subgoals = constraints
@@ -412,8 +414,8 @@ where
     for residual in unique_residuals.into_iter().map(ConstraintInScope::from_parts) {
         // Unknown types replace errors that are reported elsewhere, so the
         // constraints that mention them are left unsolved without an error.
-        let wanted = state.canonicals.type_id(context, residual.key.wanted);
-        if toolkit::contains_unknown(state, context, wanted)? {
+        if canonical::contains_unknown(state, context, residual.key.wanted)? {
+            let wanted = state.canonicals.type_id(context, residual.key.wanted);
             state.absorb_unknown(wanted);
             state.checked.evidence.mark_error(residual.evidence.wanted);
         } else {

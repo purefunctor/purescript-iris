@@ -1,4 +1,5 @@
 use std::iter;
+use std::sync::Arc;
 
 use building_types::QueryResult;
 use itertools::Itertools;
@@ -7,15 +8,15 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::constraint::instances::InstanceCandidate;
-use crate::core::constraint::{CanonicalConstraintId, canonical};
+use crate::core::constraint::{CanonicalConstraint, CanonicalConstraintId, canonical};
 use crate::core::fd::{
-    Fd, compute_closure, get_all_determined, get_functional_dependencies, positions_cover_all,
+    Fd, Positions, compute_closure, get_all_determined, get_functional_dependencies,
+    positions_cover_all,
 };
 use crate::core::substitute::SubstituteName;
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{
-    ApplicationArgument, CheckedInstance, Name, RowField, RowTypeId, Type, TypeFlags, TypeId,
-    normalise, toolkit,
+    ApplicationArgument, Name, RowField, RowTypeId, Type, TypeFlags, TypeId, normalise, toolkit,
 };
 use crate::source::types;
 use crate::state::CheckState;
@@ -438,7 +439,7 @@ where
         let argument = types_match(state, context, patterns, wanted, given)?;
         // An apart argument that is not determined by functional dependencies
         // is combined into the outcome whether or not the matches cover it.
-        if argument.is_apart() && !determined.contains(&index) {
+        if argument.is_apart() && !determined.contains(index) {
             return Ok(MatchType::Apart);
         }
         arguments.push(argument);
@@ -449,7 +450,7 @@ where
     }
 
     let arguments = arguments.into_iter().enumerate().filter_map(|(index, argument)| {
-        let non_determined = !determined.contains(&index);
+        let non_determined = !determined.contains(index);
         non_determined.then_some(argument)
     });
 
@@ -467,14 +468,14 @@ fn combine_arguments(arguments: impl IntoIterator<Item = MatchType>) -> MatchTyp
 }
 
 fn covers(fd: &[Fd], types: &[MatchType]) -> QueryResult<bool> {
-    let match_indices: FxHashSet<_> = types
+    let match_indices: Positions = types
         .iter()
         .enumerate()
         .filter_map(|(index, argument)| argument.is_match().then_some(index))
         .collect();
 
     let determined = compute_closure(fd, &match_indices);
-    Ok(types.iter().enumerate().all(|(index, _)| determined.contains(&index)))
+    Ok(types.iter().enumerate().all(|(index, _)| determined.contains(index)))
 }
 
 pub enum MatchInstance {
@@ -599,61 +600,59 @@ where
     }
 }
 
+pub struct Wanted {
+    pub id: CanonicalConstraintId,
+    pub functional_dependencies: Arc<[Fd]>,
+    pub type_arguments: Vec<TypeId>,
+}
+
+impl Wanted {
+    pub fn new<Q>(
+        state: &CheckState,
+        context: &CheckContext<Q>,
+        id: CanonicalConstraintId,
+    ) -> QueryResult<Wanted>
+    where
+        Q: ExternalQueries,
+    {
+        let CanonicalConstraint { file_id, type_id, arguments } = &state.canonicals[id];
+        let functional_dependencies =
+            get_functional_dependencies(state, context, *file_id, *type_id)?;
+        let type_arguments = type_arguments(arguments);
+        Ok(Wanted { id, functional_dependencies, type_arguments })
+    }
+}
+
 pub fn match_provided<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    wanted: CanonicalConstraintId,
+    wanted: &Wanted,
     provided: CanonicalConstraintId,
 ) -> QueryResult<MatchInstance>
 where
     Q: ExternalQueries,
 {
-    let wanted = &state.canonicals[wanted];
+    let wanted_canonical = &state.canonicals[wanted.id];
     let provided = &state.canonicals[provided];
 
-    if (wanted.file_id, wanted.type_id) != (provided.file_id, provided.type_id)
-        || wanted.arguments.len() != provided.arguments.len()
+    if (wanted_canonical.file_id, wanted_canonical.type_id) != (provided.file_id, provided.type_id)
+        || wanted_canonical.arguments.len() != provided.arguments.len()
     {
         return Ok(MatchInstance::Apart);
     }
 
-    let wanted = wanted.clone();
-    let provided = provided.clone();
-
-    let pattern_variables = FxHashSet::default();
-
-    let functional_dependencies =
-        get_functional_dependencies(state, context, wanted.file_id, wanted.type_id)?;
-
-    let wanted_arguments = wanted
-        .arguments
-        .iter()
-        .filter_map(
-            |argument| {
-                if let ApplicationArgument::Type(id) = argument { Some(*id) } else { None }
-            },
-        )
-        .collect_vec();
-
-    let provided_arguments = provided
-        .arguments
-        .iter()
-        .filter_map(
-            |argument| {
-                if let ApplicationArgument::Type(id) = argument { Some(*id) } else { None }
-            },
-        )
-        .collect_vec();
+    let provided_arguments = type_arguments(&provided.arguments);
 
     match match_instance(
         state,
         context,
-        &pattern_variables,
-        &functional_dependencies,
-        &wanted_arguments,
+        &FxHashSet::default(),
+        &wanted.functional_dependencies,
+        &wanted.type_arguments,
         &provided_arguments,
     )? {
         MatchType::Match { .. } => {
+            let wanted_arguments = wanted.type_arguments.iter().copied();
             let unifications = iter::zip(wanted_arguments, provided_arguments).collect_vec();
             Ok(MatchInstance::Match { unifications, constraints: Vec::new() })
         }
@@ -665,40 +664,36 @@ where
 pub fn match_declared<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    wanted: CanonicalConstraintId,
-    candidate: InstanceCandidate,
+    wanted: &Wanted,
+    candidate: &InstanceCandidate,
 ) -> QueryResult<MatchInstance>
 where
     Q: ExternalQueries,
 {
-    let Some(declared) = toolkit::instance_info(
-        state,
-        context,
-        candidate.instance.matchable,
-        candidate.instance.resolution,
-    )?
-    else {
+    #[cfg(debug_assertions)]
+    {
+        let crate::core::CheckedInstance { matchable, resolution, .. } = candidate.instance;
+        let recomputed = super::instances::instance_head(state, context, matchable, resolution)?;
+        debug_assert_eq!(
+            recomputed.as_ref(),
+            candidate.instance.head.as_deref(),
+            "invariant violated: stale instance head",
+        );
+    }
+
+    let Some(declared) = &candidate.instance.head else {
         return Ok(MatchInstance::Apart);
     };
 
-    let wanted = state.canonicals[wanted].clone();
-
-    let pattern_variables: FxHashSet<Name> =
-        declared.binders.iter().map(|binder| binder.name).collect();
-
-    let functional_dependencies =
-        get_functional_dependencies(state, context, wanted.file_id, wanted.type_id)?;
-
-    let wanted_arguments = type_arguments(&wanted.arguments);
-    let declared_arguments = type_arguments(&declared.arguments);
+    let declared_arguments = &declared.type_arguments;
 
     match match_instance(
         state,
         context,
-        &pattern_variables,
-        &functional_dependencies,
-        &wanted_arguments,
-        &declared_arguments,
+        &declared.pattern_variables,
+        &wanted.functional_dependencies,
+        &wanted.type_arguments,
+        declared_arguments,
     )? {
         MatchType::Match { bindings } => {
             let matched_names: FxHashSet<_> = bindings.iter().map(|(name, _)| *name).collect();
@@ -729,14 +724,14 @@ where
                 unifications.push((actual_kind, expected_kind));
             }
 
-            for (wanted, declared) in iter::zip(wanted_arguments, declared_arguments) {
+            for (&wanted, &declared) in iter::zip(&wanted.type_arguments, declared_arguments) {
                 let wanted = SubstituteName::many(state, context, &substitution, wanted)?;
                 let declared = SubstituteName::many(state, context, &substitution, declared)?;
                 unifications.push((wanted, declared));
             }
 
             let mut constraints = Vec::new();
-            for constraint in declared.constraints {
+            for &constraint in &declared.constraints {
                 let constraint = SubstituteName::many(state, context, &substitution, constraint)?;
                 if let Some(constraint) = canonical::canonicalise(state, context, constraint)? {
                     constraints.push(constraint);
@@ -753,26 +748,18 @@ where
 pub fn declared_instances_overlap<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
-    left: CheckedInstance,
+    functional_dependencies: &[Fd],
     left_arguments: &[TypeId],
-    right: CheckedInstance,
     right_arguments: &[TypeId],
 ) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    if left.resolution != right.resolution {
-        return Ok(false);
-    }
-
-    let (file_id, type_id) = left.resolution;
-
     if left_arguments.len() != right_arguments.len() {
         return Ok(false);
     }
 
-    let functional_dependencies = get_functional_dependencies(state, context, file_id, type_id)?;
-    instances_overlap(state, context, &functional_dependencies, left_arguments, right_arguments)
+    instances_overlap(state, context, functional_dependencies, left_arguments, right_arguments)
 }
 
 pub(crate) fn type_arguments(arguments: &[ApplicationArgument]) -> Vec<TypeId> {
@@ -796,8 +783,8 @@ fn instances_overlap<Q>(
 where
     Q: ExternalQueries,
 {
-    let all_positions = FxHashSet::from_iter(0..left_arguments.len());
-    let mut known_non_apart = FxHashSet::default();
+    let all_positions = Positions::all(left_arguments.len());
+    let mut known_non_apart = Positions::default();
     let mut possibly_non_apart = all_positions.clone();
 
     // Closure monotonicity lets these bounds decide whether the final non-apart positions contain
@@ -817,7 +804,7 @@ where
         .is_apart();
 
         if apart {
-            possibly_non_apart.remove(&position);
+            possibly_non_apart.remove(position);
             if !positions_cover_all(functional_dependencies, &possibly_non_apart, &all_positions) {
                 return Ok(false);
             }
