@@ -14,6 +14,7 @@ mise trust mise.toml
 mise install --yes
 eval "$(mise env --shell bash)"
 mise ls --current
+rustup override set --path "$PWD" "$RUSTUP_TOOLCHAIN"
 
 # Amp and supervised services start in fresh non-interactive login shells,
 # while the Terminal starts interactive shells that read .bashrc.
