@@ -6,8 +6,9 @@ pub use error::*;
 use building_types::{QueryProxy, QueryResult};
 use files::FileId;
 use indexing::{ImportId, ImportKind, IndexedModule, TermItemId, TypeItemId};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
+use std::hash::Hash;
 use std::sync::Arc;
 
 pub trait ExternalQueries:
@@ -64,7 +65,7 @@ impl ResolvedClassMembers {
 pub struct ResolvedModule {
     pub unqualified: ResolvedImportsUnqualified,
     pub qualified: ResolvedImportsQualified,
-    pub exports: ResolvedExports,
+    pub exports: Arc<ResolvedExports>,
     pub locals: ResolvedLocals,
     pub class: ResolvedClassMembers,
     pub errors: Vec<ResolvingError>,
@@ -346,58 +347,103 @@ impl ResolvedExports {
     }
 }
 
+type ListedItems<ItemId> = FxHashSet<(FileId, ItemId)>;
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolvedImport {
     pub id: ImportId,
     pub file: FileId,
     pub kind: ImportKind,
     pub exported: bool,
-    terms: FxHashMap<SmolStr, (FileId, TermItemId, ImportKind)>,
-    types: FxHashMap<SmolStr, (FileId, TypeItemId, ImportKind)>,
-    classes: FxHashMap<SmolStr, (FileId, TypeItemId, ImportKind)>,
+    exports: Arc<ResolvedExports>,
+    listed_terms: ListedItems<TermItemId>,
+    listed_types: ListedItems<TypeItemId>,
+    listed_classes: ListedItems<TypeItemId>,
 }
 
 impl ResolvedImport {
-    fn new(id: ImportId, file: FileId, kind: ImportKind, exported: bool) -> ResolvedImport {
-        let terms = FxHashMap::default();
-        let types = FxHashMap::default();
-        let classes = FxHashMap::default();
-        ResolvedImport { id, file, kind, exported, terms, types, classes }
+    fn new(
+        id: ImportId,
+        file: FileId,
+        kind: ImportKind,
+        exported: bool,
+        exports: Arc<ResolvedExports>,
+    ) -> ResolvedImport {
+        let listed_terms = FxHashSet::default();
+        let listed_types = FxHashSet::default();
+        let listed_classes = FxHashSet::default();
+        ResolvedImport {
+            id,
+            file,
+            kind,
+            exported,
+            exports,
+            listed_terms,
+            listed_types,
+            listed_classes,
+        }
     }
 
+    fn item_kind<ItemId>(&self, listed: &ListedItems<ItemId>, item: (FileId, ItemId)) -> ImportKind
+    where
+        ItemId: Hash + Eq,
+    {
+        if !listed.is_empty() && listed.contains(&item) {
+            self.kind
+        } else {
+            match self.kind {
+                ImportKind::Implicit => ImportKind::Implicit,
+                ImportKind::Explicit => ImportKind::Hidden,
+                ImportKind::Hidden => ImportKind::Implicit,
+            }
+        }
+    }
+
+    #[inline(always)]
     pub fn lookup_term(&self, name: &str) -> Option<(FileId, TermItemId, ImportKind)> {
-        self.terms.get(name).copied()
+        let (file, id) = self.exports.lookup_term(name)?;
+        Some((file, id, self.item_kind(&self.listed_terms, (file, id))))
     }
 
+    #[inline(always)]
     pub fn lookup_type(&self, name: &str) -> Option<(FileId, TypeItemId, ImportKind)> {
-        self.types.get(name).copied()
+        let (file, id) = self.exports.lookup_type(name)?;
+        Some((file, id, self.item_kind(&self.listed_types, (file, id))))
+    }
+
+    #[inline(always)]
+    pub fn lookup_class(&self, name: &str) -> Option<(FileId, TypeItemId, ImportKind)> {
+        let (file, id) = self.exports.lookup_class(name)?;
+        Some((file, id, self.item_kind(&self.listed_classes, (file, id))))
     }
 
     pub fn contains_term(&self, file: FileId, term: TermItemId) -> bool {
-        self.terms
-            .values()
-            .any(|&(f, t, kind)| f == file && t == term && !matches!(kind, ImportKind::Hidden))
+        if matches!(self.kind, ImportKind::Explicit) {
+            return self.listed_terms.contains(&(file, term));
+        }
+        self.iter_terms()
+            .any(|(_, f, t, kind)| f == file && t == term && !matches!(kind, ImportKind::Hidden))
     }
 
     pub fn iter_terms(&self) -> impl Iterator<Item = (&SmolStr, FileId, TermItemId, ImportKind)> {
-        self.terms.iter().map(|(k, (f, i, d))| (k, *f, *i, *d))
+        let terms = self.exports.iter_terms();
+        terms.map(|(name, f, i)| (name, f, i, self.item_kind(&self.listed_terms, (f, i))))
     }
 
     pub fn iter_types(&self) -> impl Iterator<Item = (&SmolStr, FileId, TypeItemId, ImportKind)> {
-        self.types.iter().map(|(k, (f, i, d))| (k, *f, *i, *d))
-    }
-
-    pub fn lookup_class(&self, name: &str) -> Option<(FileId, TypeItemId, ImportKind)> {
-        self.classes.get(name).copied()
+        let types = self.exports.iter_types();
+        types.map(|(name, f, i)| (name, f, i, self.item_kind(&self.listed_types, (f, i))))
     }
 
     pub fn iter_classes(&self) -> impl Iterator<Item = (&SmolStr, FileId, TypeItemId, ImportKind)> {
-        self.classes.iter().map(|(k, (f, i, d))| (k, *f, *i, *d))
+        let classes = self.exports.iter_classes();
+        classes.map(|(name, f, i)| (name, f, i, self.item_kind(&self.listed_classes, (f, i))))
     }
 }
 
 pub fn resolve_module(queries: &impl ExternalQueries, file: FileId) -> QueryResult<ResolvedModule> {
     let algorithm::State { unqualified, qualified, exports, locals, class, errors } =
         algorithm::resolve_module(queries, file)?;
+    let exports = Arc::new(exports);
     Ok(ResolvedModule { unqualified, qualified, exports, locals, class, errors })
 }

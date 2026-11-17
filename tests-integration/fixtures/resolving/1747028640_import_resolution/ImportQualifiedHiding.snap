@@ -8,10 +8,10 @@ Unqualified Imports:
 Qualified Imports:
 
 L Terms:
+  - Ctor3 is Implicit
   - libFn is Implicit
   - MkLibTy is Implicit
   - Ctor1 is Implicit
-  - Ctor3 is Implicit
 
 L Types:
   - LibTy is Implicit
@@ -20,9 +20,9 @@ L Types:
 L Classes:
 
 Exported Terms:
-  - Ctor1
   - libFn
   - MkLibTy
+  - Ctor1
   - Ctor3
 
 Exported Types:
