@@ -169,12 +169,15 @@ impl Lexer<'_> {
         }
     }
 
+    fn take_within_line(&mut self, length: usize) {
+        self.chars = self.chars.as_str()[length..].chars();
+        self.current_position.column += length as u32;
+    }
+
     fn take_name(&mut self) {
         let remaining = self.chars.as_str();
         let ascii_length = remaining.bytes().position(|byte| !is_ascii_name(byte));
-        let ascii_length = ascii_length.unwrap_or(remaining.len());
-        self.chars = remaining[ascii_length..].chars();
-        self.current_position.column += ascii_length as u32;
+        self.take_within_line(ascii_length.unwrap_or(remaining.len()));
         self.take_while(char::is_name);
     }
 
@@ -208,7 +211,8 @@ impl Lexer<'_> {
     fn take_annotation_line_comment(&mut self) {
         self.take();
         self.take();
-        self.take_while(|c| c != '\n');
+        let remaining = self.chars.as_str();
+        self.take_within_line(remaining.find('\n').unwrap_or(remaining.len()));
     }
 
     fn take_annotation_block_comment(&mut self) {
