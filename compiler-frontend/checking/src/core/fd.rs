@@ -18,7 +18,12 @@ impl Positions {
     const WORD_BITS: usize = u64::BITS as usize;
 
     pub fn all(count: usize) -> Positions {
-        Positions::from_iter(0..count)
+        let mut words = SmallVec::from_elem(u64::MAX, count / Positions::WORD_BITS);
+        let remainder = count % Positions::WORD_BITS;
+        if remainder != 0 {
+            words.push((1 << remainder) - 1);
+        }
+        Positions { words }
     }
 
     pub fn insert(&mut self, position: usize) -> bool {
