@@ -673,6 +673,11 @@ where
     }
 
     if let Some(&mentions) = checker.mentions_expected.get(&type_id) {
+        debug_assert_eq!(
+            mentions,
+            recompute_mentions_expected_skolem(checker, type_id),
+            "invariant violated: remembered skolem mention differs from its recomputation",
+        );
         return mentions;
     }
 
@@ -711,6 +716,62 @@ where
 
     checker.mentions_expected.insert(type_id, mentions);
     mentions
+}
+
+fn recompute_mentions_expected_skolem<Q>(
+    checker: &SkolemChecker<'_, '_, '_, Q>,
+    type_id: TypeId,
+) -> bool
+where
+    Q: ExternalQueries,
+{
+    let context = checker.context;
+    let mut pending = vec![type_id];
+    let mut visited = FxHashSet::default();
+
+    while let Some(type_id) = pending.pop() {
+        if !context.lookup_type_flags(type_id).has_rigid() || !visited.insert(type_id) {
+            continue;
+        }
+
+        match *context.lookup_type(type_id) {
+            Type::Application(function, argument)
+            | Type::KindApplication(function, argument)
+            | Type::Constrained(function, argument)
+            | Type::ConstraintOrigin(function, argument)
+            | Type::Function(function, argument)
+            | Type::Kinded(function, argument) => {
+                pending.push(function);
+                pending.push(argument);
+            }
+            Type::Forall(binder, inner) => {
+                let binder = context.lookup_forall_binder(binder);
+                pending.push(binder.kind);
+                pending.push(inner);
+            }
+            Type::Row(row) => {
+                let row = context.lookup_row_type(row);
+                let fields = row.fields.iter().map(|field| field.id);
+                pending.extend(fields);
+                pending.extend(row.tail);
+            }
+            Type::Rigid(name, _, kind) => {
+                if name.scope().is_some_and(|scope| checker.expected_skolems.contains(&scope)) {
+                    return true;
+                }
+                pending.push(kind);
+            }
+            Type::Constructor(_, _)
+            | Type::Synonym(_, _)
+            | Type::Integer(_)
+            | Type::String(_, _)
+            | Type::Unification(_)
+            | Type::Free(_)
+            | Type::Unknown(_) => {}
+        }
+    }
+
+    false
 }
 
 fn collect_errors<'c, Q>(
