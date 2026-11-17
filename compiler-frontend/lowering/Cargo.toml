@@ -13,6 +13,7 @@ la-arena = "0.3.1"
 petgraph = "0.8.3"
 resolving = { version = "0.1.0", path = "../resolving" }
 rustc-hash = "2.1.3"
+smallvec = "1.16.1"
 smol_str = "0.3.6"
 stabilizing = { version = "0.1.0", path = "../stabilizing" }
 syntax = { version = "0.1.0", path = "../syntax" }
