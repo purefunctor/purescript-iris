@@ -149,18 +149,17 @@ where
     } = config;
     let started = Instant::now();
     let selected_paths = walk::walk_filtered(root, source_globs, excluded)?.files;
-    let selected_sources = selected_paths.into_iter().map(|path| {
+    let selected_sources = selected_paths.into_par_iter().map(|path| {
         let identity = dunce::canonicalize(&path)?;
         Ok::<_, io::Error>(SelectedSource { path, identity })
     });
-    let selected_sources = selected_sources.process_results(|sources| sources.collect_vec())?;
-    let package_inputs = packages.into_iter().map(|package| {
-        let source_identities = package.source_identities.into_iter().map(dunce::canonicalize);
-        let source_identities =
-            source_identities.process_results(|sources| sources.collect_vec())?;
+    let selected_sources = selected_sources.collect::<Result<Vec<_>, _>>()?;
+    let package_inputs = packages.into_par_iter().map(|package| {
+        let source_identities = package.source_identities.into_par_iter().map(dunce::canonicalize);
+        let source_identities = source_identities.collect::<Result<Vec<_>, _>>()?;
         Ok::<_, io::Error>(PackageInput { source_identities, ..package })
     });
-    let package_inputs = package_inputs.process_results(|packages| packages.collect_vec())?;
+    let package_inputs = package_inputs.collect::<Result<Vec<_>, _>>()?;
     let plan = BuildPlan::new(selected_sources, package_inputs)?;
     events.send(BuildEvent::PlanReady { package_count: plan.package_count() });
 
