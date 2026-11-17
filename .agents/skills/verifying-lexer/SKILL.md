@@ -80,7 +80,7 @@ lengths, and `Alphabets` in `Lexer.tla` sets the characters.
 Compare the covered files with the sync commit:
 
 ```bash
-git diff 7ffe0720dc4d7382ab30d88a9119078d99aa719b -- \
+git diff 692666e250cc83617639bff8f206be12f1c7b585 -- \
   compiler-frontend/lexing/src/lexer.rs compiler-frontend/lexing/src/categories.rs \
   compiler-frontend/lexing/src/lexed.rs compiler-frontend/lexing/src/lib.rs
 ```
@@ -91,7 +91,7 @@ until `Lexer.tla` has the matching change.
 
 ## Coverage record
 
-Sync commit: `7ffe0720dc4d7382ab30d88a9119078d99aa719b`. At this commit, the model describes the
+Sync commit: `692666e250cc83617639bff8f206be12f1c7b585`. At this commit, the model describes the
 code below. Move the sync commit forward only after you confirm that the model still describes the
 code at the new commit.
 
@@ -99,6 +99,7 @@ code at the new commit.
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Lexer` fields                                                                          | The `lexer` record: `source`, `index`, `position`, `annotation`, `qualifier`, `qualifierPosition`, `tokens`, and `fault`.                    |
 | `first`, `second`, `is_eof`, `consumed`, `take`, `take_while`, `take_while_maximum`     | `First`, `Second`, `IsEof`, `Consumed`, `Take`, `TakeWhile`, `TakeWhileMaximum`                                                              |
+| `take_within_line`, `take_name`, `is_ascii_name`                                        | `TakeWithinLine`, `TakeName` with `RunLength`, `AsciiName`                                                                                   |
 | `take_annotation` and its `take_annotation_*` helpers                                   | `TakeAnnotation`, `AnnotationLoop`, `TakeAnnotationWhitespace`, `TakeAnnotationLineComment`, `TakeAnnotationBlockComment` and `BlockComment` |
 | `take_qualifier` and its checkpoint restore                                             | `TakeQualifier`, `QualifierLoop`                                                                                                             |
 | `push`, `LexedBuilder::push`                                                            | `Push`, `PushInfo`                                                                                                                           |
@@ -135,6 +136,9 @@ line comment, which is still trivia by `TriviaEnd`. The
   `OperatorCharacter` replace the predicates.
 - **Every character is one byte and one column.** The model does not cover non-ASCII characters,
   `\r`, tabs, or `\0`, which `first` cannot tell apart from the end of the source.
+- **Every name character is ASCII.** `AsciiName` equals `Name`, so `TakeName` always takes the
+  whole name in its byte scan, and the `take_while(char::is_name)` fallback in `take_name` only
+  confirms that the next character ends the name.
 - **Keywords are out of reach.** No keyword can be spelled from the alphabet, so `TakeLower` always
   pushes `LOWER`, and `lower_kind` is not modelled. `OperatorKind` covers only the operators that
   the alphabet can spell.
@@ -157,6 +161,8 @@ mutant with the scenario, the length, and the property that must catch it.
 | `raw_string_opens_with_four_quotes`    | `take_string` sends five quotes to `unreachable!()` instead of `take_raw_string`.                                    | `NeverPanics`           |
 | `parenthesis_ignores_line_comment`     | `take_operator_name_or_left_parenthesis` takes a `--` after `(` as an operator, as it did before commit `7e4e6b11e`. | `AnnotationsAreTrivia`  |
 | `parenthesis_position_after_qualifier` | `(` takes its position from `current_position`, after the qualifier, as it did before commit `7ffe0720d`.            | `PositionsMatchOffsets` |
+| `line_comment_takes_newline`           | `take_annotation_line_comment` takes the `\n` that ends the comment within the line.                                 | `PositionsMatchOffsets` |
+| `within_line_keeps_column`             | `take_within_line` advances past the characters without advancing the column.                                        | `PositionsMatchOffsets` |
 
 ## When the check fails
 
