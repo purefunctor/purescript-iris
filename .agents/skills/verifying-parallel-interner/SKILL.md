@@ -66,10 +66,10 @@ TLC writes its logs, including counterexample traces, to `target/tla/runs/intern
 Compare the covered files with the sync commit:
 
 ```bash
-git diff 08b67bb5670d2f060815cb181924ec3d09548fd9 -- \
+git diff 6741f8e24c4eed3fd28cfed39d910ee176d9f21a -- \
   compiler-core/interner/src/parallel.rs compiler-core/interner/Cargo.toml
-git diff 08b67bb5670d2f060815cb181924ec3d09548fd9 -- compiler-core/interner/src/lib.rs | rg -A6 'fn id_from_index'
-git diff 08b67bb5670d2f060815cb181924ec3d09548fd9 -- Cargo.lock | rg -A3 'name = "(boxcar|parking_lot)"'
+git diff 6741f8e24c4eed3fd28cfed39d910ee176d9f21a -- compiler-core/interner/src/lib.rs | rg -A6 'fn id_from_index'
+git diff 6741f8e24c4eed3fd28cfed39d910ee176d9f21a -- Cargo.lock | rg -A3 'name = "(boxcar|parking_lot)"'
 ```
 
 If the diff touches a function in the coverage table, the model may no longer describe the code.
@@ -77,7 +77,7 @@ Update the model first, then run the check.
 
 ## Coverage record
 
-Sync commit: `08b67bb5670d2f060815cb181924ec3d09548fd9`. At this commit, the model describes the
+Sync commit: `6741f8e24c4eed3fd28cfed39d910ee176d9f21a`. At this commit, the model describes the
 code below. Move the sync commit forward only after you confirm that the model still describes the
 code at the new commit.
 
@@ -85,6 +85,7 @@ code at the new commit.
 | ---------------------------------------------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `Shard::table` before the first `probe` in `intern_with_metadata` and `get`              | `LoadTable`                          | One Acquire load of `generation`. The `OnceLock` read of `tables[generation]` follows it and adds no edge the model needs. |
 | The first `probe` in `intern_with_metadata` and `get`, with `arena_value(id) == value`   | `Probe`, `ProbeSlots`, `ProbeMatch`  | The probe of the observed table, without the lock. Each entry with the same tag is an Acquire load and an `arena_value` read. |
+| `make_metadata(&value)`, between the first `probe` and the lock                          | Not modelled                         | Caller code that runs without a shard lock, between `Probe` and `Lock`. See the abstractions below.                        |
 | `shard.occupied.0.lock()`                                                                | `Lock`                               | One parking_lot lock acquisition.                                                                                          |
 | `Shard::table` and the second `probe`, under the lock                                    | `LockedProbe`                        | The reload of `generation` and the probe of the current table.                                                             |
 | `self.arena.push((value, metadata))`                                                     | `ArenaPush`                          | boxcar reserve and write. No other thread can learn the index before `StoreSlot`, so the merge hides no interleaving.      |
@@ -135,7 +136,10 @@ may return `None` for that slot, and the interner then panics.
   or Miri for those orderings.
 - No property bounds memory. Retired tables stay allocated until the interner is dropped, because a
   thread may still be probing them. Their total size is below the size of the current table.
-- The model does not include metadata (`M`). The inserting thread's metadata is kept, and
+- The model does not include metadata (`M`). `intern_with_metadata` calls `make_metadata` after
+  the first `probe` misses and before it takes the shard lock, so the callback runs between
+  `Probe` and `Lock` as caller code and never under a shard lock. A thread that then finds the
+  value under the lock drops the metadata it made. The inserting thread's metadata is kept, and
   `CoreInterners` derives metadata from the value.
 - The model assumes that an `Id` passed between threads outside the interner crosses a synchronizing
   edge, such as a channel, a lock, or a thread join. `ReturnedIdsArePublished` makes this assumption
