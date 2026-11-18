@@ -11,11 +11,13 @@ use smol_str::SmolStr;
 /// drops a mapping whose source position repeats the previous one, skips empty spans, and maps
 /// the end of a span as well as its start.
 #[derive(Clone)]
-pub(crate) struct ProgramText(Rc<ProgramTextState>);
+pub(crate) struct ProgramText {
+    inner: Rc<ProgramTextState>,
+}
 
 struct ProgramTextState {
     origin: Cell<Option<Origin>>,
-    function_name: RefCell<Option<SmolStr>>,
+    function_name: Cell<Option<NameIndex>>,
     contents: RefCell<ProgramTextContents>,
 }
 
@@ -35,7 +37,7 @@ enum ProgramPosition {
 const POSITION_WIDTH: u32 = 2;
 
 #[derive(Clone, Copy)]
-struct NameIndex(u32);
+pub(crate) struct NameIndex(u32);
 
 pub(crate) struct ProgramSource {
     pub(crate) text: String,
@@ -51,49 +53,51 @@ pub(crate) struct OriginScope {
 
 pub(crate) struct FunctionNameScope {
     text: ProgramText,
-    enclosing: Option<SmolStr>,
+    enclosing: Option<NameIndex>,
 }
 
 impl ProgramText {
     pub(crate) fn new() -> ProgramText {
         let state = ProgramTextState {
             origin: Cell::new(None),
-            function_name: RefCell::new(None),
+            function_name: Cell::new(None),
             contents: RefCell::default(),
         };
-        ProgramText(Rc::new(state))
+        ProgramText { inner: Rc::new(state) }
     }
 
     pub(crate) fn span(&self) -> Span {
         self.named_span(None)
     }
 
-    pub(crate) fn named_span(&self, name: Option<SmolStr>) -> Span {
-        let origin = self.0.origin.get();
-        let mut contents = self.0.contents.borrow_mut();
-        let name = name.map(|name| {
-            let index = NameIndex(contents.names.len() as u32);
-            contents.names.push(name);
-            index
-        });
+    pub(crate) fn named_span(&self, name: Option<NameIndex>) -> Span {
+        let origin = self.inner.origin.get();
+        let mut contents = self.inner.contents.borrow_mut();
         let start = contents.push_position(ProgramPosition::Node { origin, name });
         Span::new(start, start + 1)
     }
 
-    pub(crate) fn function_name(&self) -> Option<SmolStr> {
-        Option::clone(&self.0.function_name.borrow())
+    pub(crate) fn register_name(&self, name: &SmolStr) -> NameIndex {
+        let mut contents = self.inner.contents.borrow_mut();
+        let index = NameIndex(contents.names.len() as u32);
+        contents.names.push(SmolStr::clone(name));
+        index
+    }
+
+    pub(crate) fn function_name(&self) -> Option<NameIndex> {
+        self.inner.function_name.get()
     }
 
     pub(crate) fn enter_origin(&self, origin: Option<Origin>) -> OriginScope {
-        let enclosing = self.0.origin.get();
+        let enclosing = self.inner.origin.get();
         if origin.is_some() {
-            self.0.origin.set(origin);
+            self.inner.origin.set(origin);
         }
         OriginScope { text: ProgramText::clone(self), enclosing }
     }
 
-    pub(crate) fn enter_function_name(&self, name: Option<SmolStr>) -> FunctionNameScope {
-        let enclosing = self.0.function_name.replace(name);
+    pub(crate) fn enter_function_name(&self, name: Option<NameIndex>) -> FunctionNameScope {
+        let enclosing = self.inner.function_name.replace(name);
         FunctionNameScope { text: ProgramText::clone(self), enclosing }
     }
 
@@ -102,7 +106,7 @@ impl ProgramText {
             !text.contains('\n'),
             "invariant violated: program text comment contains a newline"
         );
-        let mut contents = self.0.contents.borrow_mut();
+        let mut contents = self.inner.contents.borrow_mut();
         let start = contents.comment_text.len() as u32;
         contents.comment_text.push_str("// ");
         contents.comment_text.push_str(text);
@@ -119,7 +123,7 @@ impl ProgramText {
 
     pub(crate) fn finish(&self) -> ProgramSource {
         let ProgramTextContents { positions, names, comment_text, comments } =
-            self.0.contents.take();
+            self.inner.contents.take();
         let comment_offset = positions.len() as u32 * POSITION_WIDTH;
         let mut text = " ".repeat(comment_offset as usize);
         text.push_str(&comment_text);
@@ -156,12 +160,12 @@ impl ProgramSource {
 
 impl Drop for OriginScope {
     fn drop(&mut self) {
-        self.text.0.origin.set(self.enclosing);
+        self.text.inner.origin.set(self.enclosing);
     }
 }
 
 impl Drop for FunctionNameScope {
     fn drop(&mut self) {
-        self.text.0.function_name.replace(self.enclosing.take());
+        self.text.inner.function_name.set(self.enclosing);
     }
 }

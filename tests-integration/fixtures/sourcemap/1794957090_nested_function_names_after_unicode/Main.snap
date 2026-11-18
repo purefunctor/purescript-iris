@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | export function outer(flag) {
+   | ^ 6:1 outer flag =
+   |        ^ (outer) 6:1 outer flag =
+   |                             ^ 6:1 outer flag =
+ 2 |   const s_lection = (value) => {
+   |   ^ 7:7 sélection value = if flag then value else "else"
+   |         ^ (sélection) 7:7 sélection value = if flag then value else "else"
+   |                                ^ 7:7 sélection value = if flag then value else "else"
+ 3 |     if (flag) {
+   |     ^ 7:25 if flag then value else "else"
+   |         ^ 7:28 flag then value else "else"
+   |               ^ 7:25 if flag then value else "else"
+ 4 |       return value;
+   |       ^ 7:38 value else "else"
+ 5 |     } else {
+   |     ^ 7:25 if flag then value else "else"
+ 6 |       return "else";
+   |       ^ 7:49 "else"
+ 7 |     }
+   |     ^ 7:25 if flag then value else "else"
+ 8 |   };
+   |   ^ 7:7 sélection value = if flag then value else "else"
+ 9 |   return (value$1) => s_lection("😀") + s_lection(value$1);
+   |   ^ (outer) 8:6 \value -> sélection "😀" <> sélection value
+   |                       ^ 8:16 sélection "😀" <> sélection value
+   |                                 ^ 8:26 "😀" <> sélection value
+   |                                     ^ 8:16 sélection "😀" <> sélection value
+   |                                         ^ 8:34 sélection value
+   |                                                   ^ 8:44 value
+   |                                                          ^ 8:34 sélection value
+10 | }
+   | ^ 6:1 outer flag =

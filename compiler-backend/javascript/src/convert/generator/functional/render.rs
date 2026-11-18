@@ -35,7 +35,7 @@ use crate::module::{
     Module, ModuleFiles, STYLEX_THEME_FILENAME, foreign_filename, module_filename,
     runtime_filename, stylex_theme_module_filename,
 };
-use crate::program_text::ProgramText;
+use crate::program_text::{NameIndex, ProgramText};
 use crate::tree::{
     ArrayElement, BinaryOperator, ExpressionId, ObjectProperty, Tree, UnaryOperator,
 };
@@ -185,7 +185,7 @@ struct RenderedExpression {
 
 struct TailCallWrapper<'a> {
     name: &'a str,
-    source_name: Option<SmolStr>,
+    source_name: Option<NameIndex>,
     group: &'a TailCallGroup,
     profile: &'a TailCallProfile,
     state: usize,
@@ -227,7 +227,7 @@ struct Abstraction<'a> {
 
 struct AbstractionBinding<'a> {
     name: &'a str,
-    source_name: Option<SmolStr>,
+    source_name: Option<&'a SmolStr>,
     parameters: &'a [PatternId],
     body: FunctionalExpressionId,
     uncurried: bool,
@@ -739,7 +739,7 @@ fn render_source_functions(renderer: &mut ModuleRenderer<'_, '_, '_>) -> ModuleR
         }
         let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(declaration.global.id);
-        let source_name = declaration_source_name(declaration);
+        let source_name = declaration_source_name(writer, declaration);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         let mut context = FunctionContext::new(&generator.reserved_module_names);
         let mut function_renderer = generator.renderer(tree, writer, &mut context);
@@ -785,7 +785,7 @@ fn render_global_tail_call_group<'t>(
             .expect("invariant violated: tail-call profile has no declaration");
         let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(global);
-        let source_name = declaration_source_name(declaration);
+        let source_name = declaration_source_name(writer, declaration);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         generator.render_global_tail_call_wrapper(
             tree,
@@ -1140,7 +1140,7 @@ impl Generator<'_> {
 fn render_named_function(
     renderer: &mut FunctionRenderer<'_, '_, '_>,
     name: &str,
-    source_name: Option<SmolStr>,
+    source_name: Option<NameIndex>,
     expression: FunctionalExpressionId,
     exported: bool,
 ) -> ModuleResult<()> {
@@ -1326,7 +1326,6 @@ fn render_value_declarations(
 
         let _origin = tree.enter_origin(declaration.origin);
         let name = generator.global_name(declaration.global.id);
-        let source_name = declaration_source_name(declaration);
         let exported = file.declaration_is_inline_exported(generator, declaration);
         let generated = matches!(declaration.global.id, GlobalId::Generated(_, _));
         if rendered && (!previous_was_generated || !generated) {
@@ -1335,6 +1334,7 @@ fn render_value_declarations(
 
         if cyclic {
             initializer_cycle.push(declaration.global.id);
+            let source_name = declaration_source_name(writer, declaration);
             writer.constant_iife(name, source_name, exported, |writer| {
                 writer.throw_error(INITIALIZER_CYCLE_MESSAGE);
             });
@@ -1356,6 +1356,7 @@ fn render_value_declarations(
         if let Some(value) = generator.try_inline_expression(tree, expression, &mut context)? {
             writer.constant(tree, name, value, exported);
         } else {
+            let source_name = declaration_source_name(writer, declaration);
             writer.constant_iife(name, source_name, exported, |writer| {
                 generator.render_expression(
                     tree,
@@ -2072,7 +2073,7 @@ impl Generator<'_> {
             return self.render_non_inline_expression(tree, writer, field.expression, context);
         }
         let _origin = tree.enter_origin(self.module.storage[field.expression].origin);
-        let source_name = Some(SmolStr::clone(&field.field.name));
+        let source_name = Some(writer.register_name(&field.field.name));
         let value = self.render_closure(tree, writer, field.expression, source_name, context)?;
         Ok(RenderedExpression { value, pending_evaluation: false })
     }
@@ -2504,7 +2505,7 @@ impl Generator<'_> {
         parameters: &[PatternId],
         body: FunctionalExpressionId,
         uncurried: bool,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         context: &mut FunctionContext,
     ) -> ModuleResult<Option<ExpressionId>> {
         let mut arguments = Vec::with_capacity(parameters.len());
@@ -2526,7 +2527,7 @@ impl Generator<'_> {
             let outermost = arguments.remove(0);
             for (pattern, argument) in parameters[1..].iter().zip(arguments).rev() {
                 let _origin = tree.enter_origin(self.module.storage[*pattern].origin);
-                body = tree.arrow(Option::clone(&source_name), vec![argument], body);
+                body = tree.arrow(source_name, vec![argument], body);
             }
             body = tree.arrow(source_name, vec![outermost], body);
         }
@@ -2578,7 +2579,7 @@ impl Generator<'_> {
         &self,
         tree: &mut Tree,
         expression: FunctionalExpressionId,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         context: &mut FunctionContext,
     ) -> ModuleResult<ExpressionId> {
         let _origin = tree.enter_origin(self.module.storage[expression].origin);
@@ -2601,7 +2602,7 @@ impl Generator<'_> {
         tree: &mut Tree<'t>,
         writer: &mut Writer<'t>,
         expression: FunctionalExpressionId,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         context: &mut FunctionContext,
     ) -> ModuleResult<ExpressionId> {
         let abstraction = match &self.module.storage[expression].kind {
@@ -2637,6 +2638,7 @@ impl Generator<'_> {
         // the loop whose current iteration created that closure.
         let outer_tail_calls = context.tail_calls.take();
         let arguments = self.abstraction_arguments(&abstraction, context);
+        let source_name = source_name.map(|name| writer.register_name(name));
         let result = writer.constant_arrow(name, source_name, arguments.clone(), |writer| {
             self.render_abstraction_body(tree, writer, &abstraction, &arguments, context)
         });
@@ -2742,16 +2744,12 @@ fn render_let(
                     .iter()
                     .position(|binding| binding.parameter.id == local)
                     .expect("invariant violated: local tail-call profile has no binding");
+                let source_name =
+                    binding_source_name(&bindings[position]).map(|name| writer.register_name(name));
                 generator.render_local_tail_call_wrapper(
                     tree,
                     writer,
-                    TailCallWrapper {
-                        name: &names[position],
-                        source_name: binding_source_name(&bindings[position]),
-                        group,
-                        profile,
-                        state,
-                    },
+                    TailCallWrapper { name: &names[position], source_name, group, profile, state },
                     context,
                 )?;
                 optimized.insert(profile.identity);
@@ -4108,13 +4106,13 @@ impl Generator<'_> {
     }
 }
 
-fn declaration_source_name(declaration: &Declaration) -> Option<SmolStr> {
+fn declaration_source_name(writer: &Writer<'_>, declaration: &Declaration) -> Option<NameIndex> {
     let source = matches!(declaration.global.id, GlobalId::Term(_, _));
-    source.then(|| SmolStr::clone(&declaration.global.item_name))
+    source.then(|| writer.register_name(&declaration.global.item_name))
 }
 
-fn binding_source_name(binding: &Binding) -> Option<SmolStr> {
-    binding.origin.is_some().then(|| SmolStr::clone(&binding.parameter.name))
+fn binding_source_name(binding: &Binding) -> Option<&SmolStr> {
+    binding.origin.is_some().then_some(&binding.parameter.name)
 }
 
 fn global_file(id: GlobalId) -> FileId {

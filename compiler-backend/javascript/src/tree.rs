@@ -14,7 +14,7 @@ use oxc_syntax::operator::{
 };
 use smol_str::SmolStr;
 
-use crate::program_text::{OriginScope, ProgramText};
+use crate::program_text::{NameIndex, OriginScope, ProgramText};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) struct ExpressionId(RawIdx);
@@ -80,7 +80,7 @@ impl<'a> Tree<'a> {
         self.program_text.span()
     }
 
-    fn named_span(&self, source_name: Option<SmolStr>) -> Span {
+    fn named_span(&self, source_name: Option<NameIndex>) -> Span {
         self.program_text.named_span(source_name)
     }
 
@@ -451,18 +451,18 @@ impl<'a> Tree<'a> {
 
     pub(crate) fn arrow(
         &mut self,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         parameters: Vec<SmolStr>,
         body: ExpressionId,
     ) -> ExpressionId {
         let parameters = parameters.into_iter().map(|parameter| {
             let pattern = BindingPattern::new_binding_identifier(
-                self.named_span(Option::clone(&source_name)),
+                self.named_span(source_name),
                 self.text(&parameter),
                 &self.builder,
             );
             FormalParameter::new(
-                self.named_span(Option::clone(&source_name)),
+                self.named_span(source_name),
                 [],
                 pattern,
                 None,
@@ -476,7 +476,7 @@ impl<'a> Tree<'a> {
         });
         let parameters = ArenaVec::from_iter_in(parameters, &self.allocator);
         let parameters = FormalParameters::boxed(
-            self.named_span(Option::clone(&source_name)),
+            self.named_span(source_name),
             FormalParameterKind::ArrowFormalParameters,
             parameters,
             None,

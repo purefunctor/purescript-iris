@@ -18,7 +18,7 @@ use oxc_syntax::operator::{AssignmentOperator, BinaryOperator, UpdateOperator};
 use smol_str::SmolStr;
 
 use crate::convert::identifier_is_binding;
-use crate::program_text::{ProgramSource, ProgramText};
+use crate::program_text::{NameIndex, ProgramSource, ProgramText};
 use crate::source_map::{OriginMapping, Position};
 use crate::tree::{ExpressionId, Tree};
 
@@ -59,7 +59,11 @@ impl<'a> Writer<'a> {
         self.program_text.named_span(self.function_name())
     }
 
-    pub(crate) fn function_name(&self) -> Option<SmolStr> {
+    pub(crate) fn register_name(&self, name: &SmolStr) -> NameIndex {
+        self.program_text.register_name(name)
+    }
+
+    pub(crate) fn function_name(&self) -> Option<NameIndex> {
         self.program_text.function_name()
     }
 
@@ -351,7 +355,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn function<R>(
         &mut self,
         name: &str,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         parameters: Vec<SmolStr>,
         exported: bool,
         render: impl FnOnce(&mut Writer<'a>) -> R,
@@ -389,7 +393,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn constant_arrow<R>(
         &mut self,
         name: &str,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         parameters: Vec<SmolStr>,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
@@ -411,7 +415,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn arrow<R>(
         &mut self,
         tree: &mut Tree<'a>,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         parameters: Vec<SmolStr>,
         render: impl FnOnce(&mut Tree<'a>, &mut Writer<'a>) -> R,
     ) -> (ExpressionId, R) {
@@ -471,7 +475,7 @@ impl<'a> Writer<'a> {
     pub(crate) fn constant_iife<R>(
         &mut self,
         name: &str,
-        source_name: Option<SmolStr>,
+        source_name: Option<NameIndex>,
         exported: bool,
         render: impl FnOnce(&mut Writer<'a>) -> R,
     ) -> R {
