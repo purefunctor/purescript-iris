@@ -14,7 +14,7 @@ ASSUME Mutation \in {"None", "TwoOwners", "CleanupIgnoresOwnership", "EdgeAlways
                      "AddEdgeChecksOneHop", "EagerCycle", "EdgeNotRemoved", "WaitersNotWoken",
                      "ChangedAlwaysPrevious", "VerifyIgnoresInputs", "PanicSkipsCleanup",
                      "UnverifiablePropagates", "VerifyingDemandBlocks", "CleanupDropsWaiters",
-                     "UnavailableResultsCached"}
+                     "UnavailableResultsCached", "AcceptUnverifiable", "MarkBuiltWhileCancelled"}
 
 VARIABLES
     content,
@@ -85,8 +85,8 @@ OwnedPromise == [kind |-> "Owned", value |-> {}]
 NewFrame(q) ==
     [q |-> q, pc |-> "enter", owner |-> FALSE, verifying |-> FALSE,
      deps |-> <<>>, todo |-> <<>>, current |-> DerivedKey(q), latest |-> 0,
-     hasPrevious |-> FALSE, previousValue |-> {}, previousBuilt |-> 0,
-     previousChanged |-> 0, oldDeps |-> <<>>, acc |-> {}, payload |-> 0,
+     unchanged |-> FALSE, hasPrevious |-> FALSE, previousValue |-> {}, previousBuilt |-> 0,
+     previousChanged |-> 0, acc |-> {}, payload |-> 0,
      unavailable |-> "none"]
 
 NoOutcome ==
@@ -204,6 +204,11 @@ QueryCoreReadPath(s) ==
                         /\ UNCHANGED engine
                  [] current.kind = "InProgress" ->
                         CreateFuture(s, frame, current.owner)
+                 [] current.kind = "Computed" /\ current.built # revision ->
+                        /\ SetTop(s, [frame EXCEPT
+                              !.pc = "verify", !.verifying = TRUE,
+                              !.previousBuilt = current.built, !.todo = current.deps])
+                        /\ UNCHANGED <<engine, ret, alive, outcome>>
                  [] OTHER ->
                         /\ SetTop(s, [frame EXCEPT !.pc = "upgrade"])
                         /\ UNCHANGED <<engine, ret, alive, outcome>>
@@ -222,13 +227,18 @@ QueryCoreUpgradablePath(s) ==
             [] current.kind = "Computed" /\ current.built = revision ->
                    /\ Return(s, Ok(current.value))
                    /\ UNCHANGED engine
+            [] current.kind = "Computed" /\ current.built # revision /\ frame.unchanged ->
+                   IF cancelled /\ Mutation # "MarkBuiltWhileCancelled"
+                   THEN Fail(s, "Cancelled")
+                   ELSE /\ state' = [state EXCEPT ![frame.q].built = revision]
+                        /\ Return(s, Ok(current.value))
+                        /\ UNCHANGED <<graph, promise>>
             [] OTHER ->
                    /\ Claim(s, frame)
                    /\ SetTop(s, [frame EXCEPT
-                          !.owner = TRUE, !.pc = "verify", !.verifying = TRUE,
-                          !.hasPrevious = TRUE, !.previousValue = current.value,
-                          !.previousBuilt = current.built, !.previousChanged = current.changed,
-                          !.oldDeps = current.deps, !.todo = current.deps, !.latest = 0])
+                          !.owner = TRUE, !.pc = "compute", !.hasPrevious = TRUE,
+                          !.previousValue = current.value,
+                          !.previousChanged = current.changed])
                    /\ UNCHANGED <<graph, promise, ret, alive, outcome>>
 
 FutureWait(s) ==
@@ -248,16 +258,15 @@ FutureWait(s) ==
 Observe(frame, changed, todo) ==
     [frame EXCEPT !.latest = Max(frame.latest, changed), !.todo = todo]
 
+FinishVerification(s, frame, unchanged) ==
+    /\ SetTop(s, [frame EXCEPT !.pc = "upgrade", !.verifying = FALSE, !.unchanged = unchanged])
+    /\ UNCHANGED <<engine, ret, alive, outcome>>
+
 VerifyCore(s) ==
     LET frame == Top(s)
     IN /\ frame.pc = "verify"
        /\ IF frame.todo = <<>>
-          THEN IF frame.previousBuilt >= frame.latest
-               THEN /\ FulfillAndStore(s, frame.q, frame.previousValue, revision,
-                                       frame.previousChanged, frame.oldDeps)
-                    /\ Return(s, Ok(frame.previousValue))
-               ELSE /\ SetTop(s, [frame EXCEPT !.pc = "compute", !.verifying = FALSE])
-                    /\ UNCHANGED <<engine, ret, alive, outcome>>
+          THEN FinishVerification(s, frame, frame.previousBuilt >= frame.latest)
           ELSE \E i \in DOMAIN frame.todo :
                  LET dependency == frame.todo[i]
                      rest == RemoveAt(frame.todo, i)
@@ -277,8 +286,7 @@ VerifyCoreReturn(s) ==
         traced == state[frame.current.q]
     IN /\ frame.pc = "verify_return"
        /\ IF ~ret[s].ok /\ ret[s].error = "Unverifiable" /\ Mutation # "UnverifiablePropagates"
-          THEN /\ SetTop(s, [frame EXCEPT !.pc = "compute", !.verifying = FALSE])
-               /\ UNCHANGED <<engine, ret, alive, outcome>>
+          THEN FinishVerification(s, frame, Mutation = "AcceptUnverifiable")
           ELSE IF ~ret[s].ok
           THEN Fail(s, ret[s].error)
           ELSE /\ SetTop(s, [Observe(frame, IF traced.kind = "Computed" THEN traced.changed ELSE 0,
@@ -516,6 +524,11 @@ CancellationsAreExplained ==
 
 UnverifiableStaysInternal ==
     \A s \in Snapshots : outcome[s].result.error # "Unverifiable"
+
+StaleEntriesStayStaleWhileCancelled ==
+    [][\A q \in Queries :
+          (cancelled /\ state[q].kind = "Computed" /\ state'[q].kind = "Computed") =>
+              state'[q].built = state[q].built]_vars
 
 DemandsComplete == \A s \in Snapshots : alive[s] ~> ~alive[s]
 
