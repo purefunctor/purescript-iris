@@ -56,7 +56,6 @@ where
     enclosing: Arc<[ErrorCrumb]>,
     discovering: bool,
     expected_skolems: FxHashSet<SkolemScope>,
-    mentions_expected: FxHashMap<TypeId, bool>,
     tasks: Vec<Task<'c>>,
     active: FxHashMap<SkolemScope, u32>,
     reported: FxHashSet<SkolemScope>,
@@ -176,7 +175,6 @@ where
         enclosing,
         discovering,
         expected_skolems,
-        mentions_expected: FxHashMap::default(),
         tasks,
         active: FxHashMap::default(),
         reported,
@@ -604,7 +602,7 @@ fn inspect_type<Q>(
 ) where
     Q: ExternalQueries,
 {
-    if checker.discovering || !mentions_expected_skolem(checker, annotation) {
+    if checker.discovering || !has_scoped_rigid(checker, annotation) {
         return;
     }
 
@@ -612,7 +610,7 @@ fn inspect_type<Q>(
     let mut visited = FxHashSet::default();
 
     while let Some(type_id) = pending.pop() {
-        if !mentions_expected_skolem(checker, type_id) || !visited.insert(type_id) {
+        if !has_scoped_rigid(checker, type_id) || !visited.insert(type_id) {
             continue;
         }
 
@@ -661,73 +659,22 @@ fn inspect_type<Q>(
     }
 }
 
-fn mentions_expected_skolem<Q>(checker: &mut SkolemChecker<'_, '_, '_, Q>, type_id: TypeId) -> bool
+fn has_scoped_rigid<Q>(checker: &SkolemChecker<'_, '_, '_, Q>, type_id: TypeId) -> bool
 where
     Q: ExternalQueries,
 {
-    let context = checker.context;
-
     // Only a scoped rigid variable can be an expected skolem. The audit does
     // not look through unification variables, so a type whose flags report no
     // scoped rigid variable cannot mention an expected skolem.
-    if !context.lookup_type_flags(type_id).has_scoped_rigid() {
-        debug_assert!(
-            !recompute_mentions_expected_skolem(checker, type_id),
-            "invariant violated: a type without scoped rigids mentions an expected skolem",
-        );
-        return false;
-    }
-
-    if let Some(&mentions) = checker.mentions_expected.get(&type_id) {
-        debug_assert_eq!(
-            mentions,
-            recompute_mentions_expected_skolem(checker, type_id),
-            "invariant violated: remembered skolem mention differs from its recomputation",
-        );
-        return mentions;
-    }
-
-    let mentions = match *context.lookup_type(type_id) {
-        Type::Application(function, argument)
-        | Type::KindApplication(function, argument)
-        | Type::Constrained(function, argument)
-        | Type::ConstraintOrigin(function, argument)
-        | Type::Function(function, argument)
-        | Type::Kinded(function, argument) => {
-            mentions_expected_skolem(checker, function)
-                || mentions_expected_skolem(checker, argument)
-        }
-        Type::Forall(binder, inner) => {
-            let binder = context.lookup_forall_binder(binder);
-            mentions_expected_skolem(checker, binder.kind)
-                || mentions_expected_skolem(checker, inner)
-        }
-        Type::Row(row) => {
-            let row = context.lookup_row_type(row);
-            row.fields.iter().any(|field| mentions_expected_skolem(checker, field.id))
-                || row.tail.is_some_and(|tail| mentions_expected_skolem(checker, tail))
-        }
-        Type::Rigid(name, _, kind) => {
-            name.scope().is_some_and(|scope| checker.expected_skolems.contains(&scope))
-                || mentions_expected_skolem(checker, kind)
-        }
-        Type::Constructor(_, _)
-        | Type::Synonym(_, _)
-        | Type::Integer(_)
-        | Type::String(_, _)
-        | Type::Unification(_)
-        | Type::Free(_)
-        | Type::Unknown(_) => false,
-    };
-
-    checker.mentions_expected.insert(type_id, mentions);
-    mentions
+    let has_scoped_rigid = checker.context.lookup_type_flags(type_id).has_scoped_rigid();
+    debug_assert!(
+        has_scoped_rigid || !mentions_expected_skolem(checker, type_id),
+        "invariant violated: a type without scoped rigids mentions an expected skolem",
+    );
+    has_scoped_rigid
 }
 
-fn recompute_mentions_expected_skolem<Q>(
-    checker: &SkolemChecker<'_, '_, '_, Q>,
-    type_id: TypeId,
-) -> bool
+fn mentions_expected_skolem<Q>(checker: &SkolemChecker<'_, '_, '_, Q>, type_id: TypeId) -> bool
 where
     Q: ExternalQueries,
 {
