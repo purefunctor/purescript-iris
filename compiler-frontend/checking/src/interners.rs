@@ -29,8 +29,13 @@ impl Default for CoreInterners {
 
 impl CoreInterners {
     pub fn intern_type(&self, t: Type) -> TypeId {
-        let flags = self.type_flags(&t);
-        self.types.intern_with_metadata(t, flags)
+        let id = self.types.intern_with_metadata(t, |t| self.type_flags(t));
+        debug_assert_eq!(
+            self.types.metadata(id),
+            self.type_flags(&self.types[id]),
+            "invariant violated: stored type flags differ from their recomputation",
+        );
+        id
     }
 
     #[inline]
@@ -76,7 +81,10 @@ impl CoreInterners {
                 });
                 fields | tail
             }
-            Type::Rigid(_, _, kind) => TypeFlags::HAS_RIGID | transitive(kind),
+            Type::Rigid(name, _, kind) => {
+                let scoped = if name.scoped { TypeFlags::HAS_SCOPED_RIGID } else { 0 };
+                TypeFlags::HAS_RIGID | scoped | transitive(kind)
+            }
             Type::Unification(_) => TypeFlags::MAY_NORMALISE | TypeFlags::HAS_UNIFICATION,
         };
 
@@ -150,7 +158,7 @@ mod tests {
     use smol_str::SmolStr;
 
     use super::CoreInterners;
-    use crate::core::{Depth, Name, RowField, RowType, Type};
+    use crate::core::{Depth, ForallBinder, Name, RowField, RowType, Type};
 
     #[test]
     fn borrowed_values_remain_stable_during_concurrent_interning() {
@@ -254,5 +262,42 @@ mod tests {
         let with_nested_row = interners.intern_type(Type::Kinded(integer, nested_row));
         assert!(!interners.lookup_type_flags(with_nested_row).may_normalise());
         assert!(interners.lookup_type_flags(with_nested_row).may_zonk());
+    }
+
+    #[test]
+    fn scoped_rigid_flags_include_kinds_and_rows() {
+        let interners = CoreInterners::default();
+        let file = files::Files::default().insert("Main.purs", "");
+        let plain = interners.intern_type(Type::Integer(0));
+        let scoped_name = Name { file, unique: 0, scoped: true };
+        let unscoped_name = Name { file, unique: 1, scoped: false };
+        let scoped = interners.intern_type(Type::Rigid(scoped_name, Depth(0), plain));
+        let unscoped = interners.intern_type(Type::Rigid(unscoped_name, Depth(0), plain));
+        let rigid_kind = interners.intern_type(Type::Rigid(unscoped_name, Depth(0), scoped));
+
+        let binder = ForallBinder { name: unscoped_name, kind: scoped, visible: false };
+        let binder = interners.intern_forall_binder(binder);
+        let binder_kind = interners.intern_type(Type::Forall(binder, unscoped));
+
+        let field = RowField { label: SmolStr::new("field"), id: scoped };
+        let row = interners.intern_row_type(RowType::from_closed(Arc::from([field])));
+        let row_field = interners.intern_type(Type::Row(row));
+        let field = RowField { label: SmolStr::new("outer"), id: unscoped };
+        let fields = Arc::from([field]);
+        let scoped_tail = RowType::from_open(Arc::clone(&fields), scoped);
+        let scoped_tail = interners.intern_row_type(scoped_tail);
+        let scoped_tail = interners.intern_type(Type::Row(scoped_tail));
+        let nested_tail = RowType::from_open(fields, row_field);
+        let nested_tail = interners.intern_row_type(nested_tail);
+        let nested_tail = interners.intern_type(Type::Row(nested_tail));
+
+        for id in [scoped, rigid_kind, binder_kind, row_field, scoped_tail, nested_tail] {
+            assert!(
+                interners.lookup_type_flags(id).has_scoped_rigid(),
+                "{:?}",
+                interners.lookup_type(id)
+            );
+        }
+        assert!(!interners.lookup_type_flags(unscoped).has_scoped_rigid());
     }
 }
