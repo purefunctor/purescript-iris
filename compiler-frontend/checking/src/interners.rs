@@ -29,8 +29,13 @@ impl Default for CoreInterners {
 
 impl CoreInterners {
     pub fn intern_type(&self, t: Type) -> TypeId {
-        let flags = self.type_flags(&t);
-        self.types.intern_with_metadata(t, flags)
+        let id = self.types.intern_with_metadata(t, |t| self.type_flags(t));
+        debug_assert_eq!(
+            self.types.metadata(id),
+            self.type_flags(&self.types[id]),
+            "invariant violated: stored type flags differ from their recomputation",
+        );
+        id
     }
 
     #[inline]

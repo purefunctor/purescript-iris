@@ -208,7 +208,7 @@ where
     M: Copy + Send + Sync + Default + 'static,
 {
     pub fn intern(&self, value: T) -> Id<T> {
-        self.intern_with_metadata(value, M::default())
+        self.intern_with_metadata(value, |_| M::default())
     }
 }
 
@@ -217,7 +217,7 @@ where
     T: Send + Sync + Eq + Hash + 'static,
     M: Copy + Send + Sync + 'static,
 {
-    pub fn intern_with_metadata(&self, value: T, metadata: M) -> Id<T> {
+    pub fn intern_with_metadata(&self, value: T, make_metadata: impl FnOnce(&T) -> M) -> Id<T> {
         let Location { shard, tag } = Location::of(&value);
         let shard = &self.shards[shard];
 
@@ -227,6 +227,8 @@ where
             Probe::Found(id) => return Id::new(id),
             Probe::Vacant(index) => index,
         };
+
+        let metadata = make_metadata(&value);
 
         let mut occupied = shard.occupied.0.lock();
         let (generation, table) = shard.table();
@@ -315,7 +317,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::Interner;
+    use super::{Interner, Location, MINIMUM_SLOTS};
 
     #[test]
     fn test_basic() {
@@ -336,11 +338,49 @@ mod tests {
     fn test_with_metadata() {
         let interner: Interner<&'static str, u8> = Interner::default();
 
-        let a = interner.intern_with_metadata("hello", 7);
-        let b = interner.intern_with_metadata("hello", 99);
+        let a = interner.intern_with_metadata("hello", |_| 7);
+        let b = interner.intern_with_metadata("hello", |_| panic!("metadata computed on a hit"));
 
         assert_eq!(a, b);
         assert_eq!(interner.metadata(a), 7);
+    }
+
+    #[test]
+    fn test_concurrent_metadata_through_growth() {
+        use std::sync::Barrier;
+        use std::thread;
+
+        let interner = Interner::<usize, usize>::default();
+        let shard = Location::of(&0_usize).shard;
+        let values = (0..).filter(|value| Location::of(value).shard == shard);
+        let values = values.take(MINIMUM_SLOTS).collect::<Vec<_>>();
+        let barrier = Barrier::new(8);
+
+        let results = thread::scope(|scope| {
+            let handles = (1..=8).map(|metadata| {
+                let (interner, values, barrier) = (&interner, &values, &barrier);
+                scope.spawn(move || {
+                    let results = values.iter().map(|&value| {
+                        barrier.wait();
+                        let id = interner.intern_with_metadata(value, |_| metadata);
+                        (id, interner.get(&value), interner.metadata(id))
+                    });
+                    results.collect::<Vec<_>>()
+                })
+            });
+            let handles = handles.collect::<Vec<_>>();
+            let mut results = handles.into_iter().map(|handle| handle.join().unwrap());
+            let first_result = results.next().unwrap();
+            results.for_each(|result| assert_eq!(result, first_result));
+            first_result
+        });
+
+        for (&value, &(id, found, metadata)) in values.iter().zip(&results) {
+            assert_eq!(found, Some(id));
+            assert_eq!(interner.get(&value), Some(id));
+            assert!((1..=8).contains(&metadata));
+            assert_eq!(interner.metadata(id), metadata);
+        }
     }
 
     #[test]
