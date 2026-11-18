@@ -52,15 +52,15 @@ cp compiler-core/building/verification/{QueryEngine.tla,SpuriousCycle.cfg} "$scr
 
 ## Configurations
 
-| Config               | Snapshots | Queries | Payloads | Writes | Panics | Expected result                                                                           |
-| -------------------- | --------- | ------- | -------- | ------ | ------ | ----------------------------------------------------------------------------------------- |
-| `Serial.cfg`         | 1         | A, B    | 0, 1, 2  | 2      | 0      | Passes every property                                                                     |
-| `Parallel.cfg`       | 2         | A, B    | 0, 1, 2  | 1      | 0      | Passes every property                                                                     |
-| `ParallelWrites.cfg` | 2         | A, B    | 0, 1     | 2      | 0      | Passes the safety invariants, `CancellationsAreExplained`, and `CyclesAreReal`            |
-| `ParallelChain.cfg`  | 3         | A, B, C | 1        | 0      | 0      | Passes the safety invariants, `CancellationsAreExplained`, and `CyclesAreReal`            |
-| `SpuriousCycle.cfg`  | 1         | A, B    | 0, 1, 2  | 2      | 0      | Passes `CyclesAreReal` through the import flip of finding 1                               |
-| `SpuriousCancel.cfg` | 2         | A, B    | 1        | 2      | 0      | Passes `CancellationsAreExplained` through the import flip of finding 1, seen by a waiter |
-| `PanicHang.cfg`      | 2         | A, B    | 1        | 0      | 1      | Passes every property after a compute panics                                              |
+| Config               | Snapshots | Queries | Payloads | Writes | Panics | Expected result                                                                                                       |
+| -------------------- | --------- | ------- | -------- | ------ | ------ | --------------------------------------------------------------------------------------------------------------------- |
+| `Serial.cfg`         | 1         | A, B    | 0, 1, 2  | 2      | 0      | Passes every property                                                                                                 |
+| `Parallel.cfg`       | 2         | A, B    | 0, 1, 2  | 1      | 0      | Passes every property                                                                                                 |
+| `ParallelWrites.cfg` | 2         | A, B    | 0, 1     | 2      | 0      | Passes the safety invariants, `CancellationsAreExplained`, `CyclesAreReal`, and `StaleEntriesStayStaleWhileCancelled` |
+| `ParallelChain.cfg`  | 3         | A, B, C | 1        | 0      | 0      | Passes the safety invariants, `CancellationsAreExplained`, and `CyclesAreReal`                                        |
+| `SpuriousCycle.cfg`  | 1         | A, B    | 0, 1, 2  | 2      | 0      | Passes `CyclesAreReal` through the import flip of finding 1                                                           |
+| `SpuriousCancel.cfg` | 2         | A, B    | 1        | 2      | 0      | Passes `CancellationsAreExplained` through the import flip of finding 1, seen by a waiter                             |
+| `PanicHang.cfg`      | 2         | A, B    | 1        | 0      | 1      | Passes every property after a compute panics                                                                          |
 
 The safety invariants are the first nine properties in the next section. `SpuriousCycle` and
 `SpuriousCancel` check one property each over the smallest bounds that reached finding 1.
@@ -101,6 +101,11 @@ Each property is one sentence, followed by what users see if it breaks.
   reason.
 - `CyclesAreReal`: a query returns `Cycle` only when the current inputs have a cycle. If it breaks,
   users see a cycle error for a valid program.
+- `StaleEntriesStayStaleWhileCancelled`: while a write or cancel is pending, no stale `Computed`
+  entry is marked as built in the current revision. If it breaks, a cancelled query returns a
+  reused value instead of `Cancelled`. This is a property of steps, so `Serial`, `Parallel`, and
+  `ParallelWrites` list it under `PROPERTIES`. `ParallelChain` and `PanicHang` make no writes, so
+  nothing is cancelled there.
 - `DemandsComplete`: every demand eventually returns. This is a liveness property, checked with weak
   fairness for each snapshot.
 
@@ -116,8 +121,7 @@ fixed, and do not weaken the model to make it pass.
    1. In revision 0, B imports A, and the engine has computed both.
    2. Two edits make A import B and remove B's import of A.
    3. Demanding A recomputes A, which demands B.
-   4. B is stale, so `query_core` marks it `InProgress`, and `verify_core` re-runs B's old
-      dependencies. Those include A.
+   4. B is stale, so `verify_core` re-runs B's old dependencies. Those include A.
    5. A is `InProgress` on the same snapshot, so `create_future` fails `add_edge(self, self)`.
    6. B and A cleaned up and returned `Err(Cycle)`. The next demand succeeded. A waiter on another
       snapshot returned `Cancelled`.
@@ -127,7 +131,9 @@ fixed, and do not weaken the model to make it pass.
       stack is verifying. This replaces the same-snapshot `Cycle` in step 5. It also stops a
       verifying snapshot from waiting on a second snapshot that recomputes from current inputs and
       closes the wait loop, which made the second snapshot report a spurious `Cycle`. Mutation:
-      `VerifyingDemandBlocks`.
+      `VerifyingDemandBlocks`. A verifying frame does not claim its entry, so a demand for a stale
+      query that a frame further up the stack is verifying verifies it again. The second walk
+      stops with `Unverifiable` at an entry that is being computed.
    2. Old dependencies can form a cycle, or reach work of other snapshots, that the current inputs
       do not need. `query_core` treats `Unverifiable` from `verify_core` as "cannot verify" and
       recomputes the query from its current inputs, which finds a real cycle again. Other errors
@@ -189,42 +195,53 @@ properties can fail.
 | `CleanupDropsWaiters`      | The cleanup in `QueryEngine::query` hands the entry to a waiter                                                               | `CancellationsAreExplained` in `SpuriousCancel`                       |
 | `PanicSkipsCleanup`        | `catch_unwind` in `QueryEngine::query` runs the cleanup before it resumes the panic                                           | `InProgressHasLiveOwner` or `BlockedWaitersCanBeWoken` in `PanicHang` |
 | `UnavailableResultsCached` | `compute_core` returns a recorded `Unverifiable` or `Cancelled` instead of storing the value                                  | `FreshCacheIsCorrect` or `OkResultsAreCorrect` in `Serial`            |
+| `AcceptUnverifiable`       | `query_core` treats `Unverifiable` from `verify_core` as a changed dependency                                                 | `FreshCacheIsCorrect` or `OkResultsAreCorrect` in `Serial`            |
+| `MarkBuiltWhileCancelled`  | `query_core` checks `cancelled` before it sets `built` of an unchanged stale entry                                            | `StaleEntriesStayStaleWhileCancelled` in `Serial`                     |
 
 ## Mapping to code
 
 Each TLA+ action is one step that the code makes indivisible with a lock. The code locations match
 the sync commit.
 
-| Model                                                     | Code                                                                                                                                                          | Why the step is indivisible                                                                                                                                                                                                                                                                    |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `QueryCoreReadPath`                                       | The cancel check and the `shard.read()` block in `query_core`                                                                                                 | The thread holds the shard read lock across `create_future`. The owner needs the write lock to fulfill or clean up                                                                                                                                                                             |
-| `QueryCoreUpgradablePath`, `Claim`                        | The `shard.upgradable_read()` block in `query_core`                                                                                                           | A shard has one upgradable holder at a time, which upgrades to write for the insert                                                                                                                                                                                                            |
-| `CreateFuture`                                            | `create_future`, which returns `Unverifiable` without touching the graph while a frame is verifying                                                           | It takes the graph `Mutex` and then the waiters `Mutex`, both under the shard lock                                                                                                                                                                                                             |
-| `FutureWait`                                              | `promise::Future::wait`, and `wait_core`, which computes the query when the promise was transferred                                                           | The slot `Mutex` and `Condvar`                                                                                                                                                                                                                                                                 |
-| `VerifyCore`, `VerifyCoreReturn`                          | `verify_core`, and the match on its result in `query_core`, which recomputes on `Unverifiable`. `QueryFrame::record` records nothing while `verifying` is set | `verify_core` reads or demands each dependency separately and never stops early. The dependencies sit in an `FxHashSet` with no fixed order, so the model tries every order                                                                                                                    |
-| `ComputeCore`, `ComputeChildren`, `ComputeChildrenReturn` | `compute_core`, the nested demands in the query body, and `QueryFrame::record_unavailable`                                                                    | The body runs without locks. Only the store takes a lock                                                                                                                                                                                                                                       |
-| `FulfillAndStore`, `Release`                              | `fulfill_and_store`, `remove_waiter_edges`                                                                                                                    | The shard write lock, with the graph lock inside it. Woken waiters run only after the lock drops, so other threads see only the end state                                                                                                                                                      |
-| `Fail`, `HandOff`, `MarkOwner`                            | The cleanup after `catch_unwind` in `QueryEngine::query` and `hand_off_waiter_edges`                                                                          | The shard write lock, with the graph lock inside it. The entry names the heir as its owner before the lock drops. The model also marks the heir's waiting frame as owner in the same step. The code marks it in `wait_core` when the heir wakes, and the heir's thread runs nothing in between |
-| `ComputePanics`, `UnwindCleanup`                          | Unwinding out of `compute`, caught by `catch_unwind` in each `QueryEngine::query` frame                                                                       | Each frame takes the shard write lock for its own entry, innermost first, and hands it off. A snapshot that joins an outer entry between two releases is handed that entry or keeps waiting on its heir, the same as a waiter that joined before the panic                                     |
-| `TakeSnapshot`                                            | `QueryEngine::snapshot`, and `lock_shared_recursive` in `QueryControlGuard::new`                                                                              | It blocks only while a writer holds the lock, so the model allows it while a writer waits                                                                                                                                                                                                      |
-| `RequestWrite`, `CommitWrite`                             | `set_input_transaction` sets `cancelled`, takes `query_lock.write()`, bumps `revision`, and clears `cancelled`                                                | The write lock waits for every snapshot to drop                                                                                                                                                                                                                                                |
-| `RequestWrite`, `CancelWithoutWrite`                      | `request_cancel`, and `set_input_transaction` when the new value equals the old one                                                                           | The same lock, without a revision bump                                                                                                                                                                                                                                                         |
+| Model                                                     | Code                                                                                                                                                                                                         | Why the step is indivisible                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `QueryCoreReadPath`                                       | The cancel check and the `shard.read()` block in `query_core`, which copies `trace.built` and the dependencies of a stale entry                                                                              | The thread holds the shard read lock across `create_future`. The owner needs the write lock to fulfill or clean up. Starting verification changes only the frame, so other snapshots still read the stale entry and can verify it at the same time                                             |
+| `QueryCoreUpgradablePath`, `Claim`                        | The `shard.upgradable_read()` block in `query_core`, which runs after verification. It sets `built` of an unchanged stale entry to the revision unless a cancel is pending, and claims any other stale entry | A shard has one upgradable holder at a time, which upgrades to write for the update or the insert. A stale entry found here is the entry that was verified: every store writes `built == revision`, and the revision cannot change while a snapshot lives                                      |
+| `CreateFuture`                                            | `create_future`, which returns `Unverifiable` without touching the graph while a frame is verifying                                                                                                          | It takes the graph `Mutex` and then the waiters `Mutex`, both under the shard lock                                                                                                                                                                                                             |
+| `FutureWait`                                              | `promise::Future::wait`, and `wait_core`, which computes the query when the promise was transferred                                                                                                          | The slot `Mutex` and `Condvar`                                                                                                                                                                                                                                                                 |
+| `VerifyCore`, `VerifyCoreReturn`, `FinishVerification`    | `verify_core`, and the match on its result in `query_core`, which treats `Unverifiable` as a changed dependency. `QueryFrame::record` records nothing while `verifying` is set                               | `verify_core` reads or demands each dependency separately and never stops early. The dependencies sit in an `FxHashSet` with no fixed order, so the model tries every order. The frame holds no lock and owns no entry until verification ends                                                 |
+| `ComputeCore`, `ComputeChildren`, `ComputeChildrenReturn` | `compute_core`, the nested demands in the query body, and `QueryFrame::record_unavailable`                                                                                                                   | The body runs without locks. Only the store takes a lock                                                                                                                                                                                                                                       |
+| `FulfillAndStore`, `Release`                              | `fulfill_and_store`, `remove_waiter_edges`                                                                                                                                                                   | The shard write lock, with the graph lock inside it. Woken waiters run only after the lock drops, so other threads see only the end state                                                                                                                                                      |
+| `Fail`, `HandOff`, `MarkOwner`                            | The cleanup after `catch_unwind` in `QueryEngine::query` and `hand_off_waiter_edges`                                                                                                                         | The shard write lock, with the graph lock inside it. The entry names the heir as its owner before the lock drops. The model also marks the heir's waiting frame as owner in the same step. The code marks it in `wait_core` when the heir wakes, and the heir's thread runs nothing in between |
+| `ComputePanics`, `UnwindCleanup`                          | Unwinding out of `compute`, caught by `catch_unwind` in each `QueryEngine::query` frame                                                                                                                      | Each frame takes the shard write lock for its own entry, innermost first, and hands it off. A snapshot that joins an outer entry between two releases is handed that entry or keeps waiting on its heir, the same as a waiter that joined before the panic                                     |
+| `TakeSnapshot`                                            | `QueryEngine::snapshot`, and `lock_shared_recursive` in `QueryControlGuard::new`                                                                                                                             | It blocks only while a writer holds the lock, so the model allows it while a writer waits                                                                                                                                                                                                      |
+| `RequestWrite`, `CommitWrite`                             | `set_input_transaction` sets `cancelled`, takes `query_lock.write()`, bumps `revision`, and clears `cancelled`                                                                                               | The write lock waits for every snapshot to drop                                                                                                                                                                                                                                                |
+| `RequestWrite`, `CancelWithoutWrite`                      | `request_cancel`, and `set_input_transaction` when the new value equals the old one                                                                                                                          | The same lock, without a revision bump                                                                                                                                                                                                                                                         |
 
 ## What the model leaves out
 
 - The model has one lock per query instead of 16 shards. The protocol is the same.
-- Derived queries always run through a snapshot. The root `QueryEngine` from `QueryControl::default`
-  has no lock guard, but production code queries only through snapshots.
+- Every modeled query runs while the revision cannot change. That holds for a snapshot, and for a
+  query on the root `QueryEngine` from the thread that mutates it, as `update_module_name` in
+  `lifecycle.rs` does after it writes a source. The root from `QueryControl::default` has no lock
+  guard, so a root query that overlaps a write from another thread is not supported and not
+  modeled. It can pass a value computed before the write to a waiting snapshot, which caches its
+  own result as fresh, and it can claim or lower `built` on an entry that is fresh in the new
+  revision.
 - The model covers content writes only. `remove_file` and `remove_foreign_file` take the same write
   lock and also discard entries. `remove_file` discards every `InProgress` entry, whoever owns it.
   Because the model leaves it out, the `ELSE 0` branch in `VerifyCoreReturn` never runs.
 - The only errors are `Cycle`, `Unverifiable`, and `Cancelled`. `MissingContent` takes the same
   cleanup path.
 - Query bodies recover only from `Unverifiable` and `Cancelled`. A body that recovers from `Cycle`
-  defines its own result, which `Eval` does not describe.
-- The model checks cancellation at query entry and before compute, as the code does. No property
-  catches a deleted cancellation check, and the model cannot measure how long a compute runs before
-  it stops.
+  defines its own result, which `Eval` does not describe. The engine relies on this too. Such a
+  body can cache two entries that list each other as dependencies, and verifying them never
+  claims an entry, so the walk does not end.
+- The model checks cancellation at query entry, before it marks a verified entry as built in the
+  current revision, and before compute, as the code does. `StaleEntriesStayStaleWhileCancelled`
+  catches a deleted check before marking. No property catches the other two, and the model cannot
+  measure how long a compute runs before it stops. The model checks and marks in one step. In the
+  code a cancel can arrive between the check and the write to `built`.
 - `FulfillAndStore` is one step, so the model cannot express fulfilling waiters before removing
   their edges. Check that order in code review.
 - The script does not check that every write completes. New snapshots can keep a writer waiting
@@ -234,14 +251,14 @@ the sync commit.
 
 ## Coverage record
 
-- **Sync commit:** `d3596689241f609b81e620869bfadfdd30283788`
+- **Sync commit:** `be607ff8956bfcf75da178b77a0d9bdcb4bdcf04`
 - **Covered code:**
   - `compiler-core/building/src/engine.rs`: `QueryEngine::query`, `fulfill_and_store`,
     `remove_waiter_edges`, `hand_off_waiter_edges`, `compute_core`, `verify_core`, `create_future`,
     `wait_core`, `query_core`, `set_input_transaction`, `snapshot`, `request_cancel`,
     `QueryControlGuard`, `QueryFrame::record`, `QueryFrame::record_unavailable`,
-    `LocalState::is_verifying`, `LocalState::with_unavailable_dependency`,
-    `LocalState::take_unavailable_dependency`
+    `LocalState::with_verifying`, `LocalState::is_verifying`,
+    `LocalState::with_unavailable_dependency`, `LocalState::take_unavailable_dependency`
   - `compiler-core/building/src/engine/graph.rs`: `SnapshotGraph::add_edge`, `remove_edge`
   - `compiler-core/building/src/engine/promise.rs`: `Future::wait`, `Promise::fulfill`,
     `Promise::transfer`, `Drop for Promise`
@@ -249,7 +266,7 @@ the sync commit.
 To find changes since the sync commit:
 
 ```bash
-git log --oneline d3596689241f609b81e620869bfadfdd30283788..HEAD -- compiler-core/building/src/engine.rs compiler-core/building/src/engine/
+git log --oneline be607ff8956bfcf75da178b77a0d9bdcb4bdcf04..HEAD -- compiler-core/building/src/engine.rs compiler-core/building/src/engine/
 ```
 
 For each commit, check whether it changes a step in the mapping table. If it does, update the model
