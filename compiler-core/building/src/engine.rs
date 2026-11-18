@@ -822,7 +822,7 @@ impl QueryEngine {
         //
         // For in-progress queries, we can simply push to the internally mutable
         // vector of waiters and then wait on the future.
-        {
+        let stale = {
             let guard = shard.read();
             match guard.get(&key).unwrap_or(&DerivedState::NotComputed) {
                 DerivedState::Computed { computed, trace, .. } if trace.built == revision => {
@@ -836,11 +836,25 @@ impl QueryEngine {
 
                     return self.wait_core(key, shards, compute, revision, future, local);
                 }
-                _ => (),
+                DerivedState::Computed { trace, dependencies, .. } => {
+                    Some((trace.built, Arc::clone(dependencies)))
+                }
+                DerivedState::NotComputed => None,
             }
-        }
+        };
 
-        // Otherwise, we will have to perform computation or cache verification.
+        let unchanged = match stale {
+            Some((built, dependencies)) => {
+                let verify = || self.verify_core(&dependencies, revision);
+                match LocalState::with_verifying(local, verify) {
+                    Ok(latest) => built >= latest,
+                    Err(QueryError::Unverifiable) => false,
+                    Err(error) => return Err(error),
+                }
+            }
+            None => false,
+        };
+
         // Instead of a write lock, we use an upgradable read lock for two reasons:
         // we want to ensure that only a single thread can observe the NotComputed
         // state for any given query while allowing read locks to be acquired for
@@ -867,10 +881,9 @@ impl QueryEngine {
 
                     self.wait_core(key, shards, compute, revision, future, local)
                 }
-                DerivedState::Computed { computed, trace, dependencies } => {
+                DerivedState::Computed { computed, trace, .. } => {
                     let computed = V::clone(computed);
                     let trace = *trace;
-                    let dependencies = Arc::clone(dependencies);
 
                     // If the cached value was built during the current revision
                     // we can skip dependency verification entirely. This is also
@@ -879,34 +892,27 @@ impl QueryEngine {
                         return Ok(computed);
                     }
 
-                    // Same as NotComputed, see comment above.
-                    {
-                        let mut guard = RwLockUpgradableReadGuard::upgrade(guard);
-                        guard.insert(key, DerivedState::in_progress(self.control.id));
-                        LocalState::mark_in_progress(local);
-                    }
-
-                    let verify = || self.verify_core(&dependencies, revision);
-                    let unchanged = match LocalState::with_verifying(local, verify) {
-                        Ok(latest) => trace.built >= latest,
-                        Err(QueryError::Unverifiable) => false,
-                        Err(error) => return Err(error),
-                    };
-
                     // If the cached value was built more recently the the
                     // latest change, we can update its built timestamp to
                     // the current revision. This allows the query to hit
                     // the fastest path if it's called in the same revision.
                     if unchanged {
-                        let trace = Trace { built: revision, ..trace };
-                        self.fulfill_and_store(
-                            key,
-                            shards,
-                            V::clone(&computed),
-                            trace,
-                            dependencies,
-                        );
+                        if self.control.global.cancelled.load(Ordering::Relaxed) {
+                            return Err(QueryError::Cancelled);
+                        }
+                        let mut guard = RwLockUpgradableReadGuard::upgrade(guard);
+                        let Some(DerivedState::Computed { trace, .. }) = guard.get_mut(&key) else {
+                            unreachable!("invariant violated: expected Computed");
+                        };
+                        trace.built = revision;
                         return Ok(computed);
+                    }
+
+                    // Same as NotComputed, see comment above.
+                    {
+                        let mut guard = RwLockUpgradableReadGuard::upgrade(guard);
+                        guard.insert(key, DerivedState::in_progress(self.control.id));
+                        LocalState::mark_in_progress(local);
                     }
 
                     self.compute_core(

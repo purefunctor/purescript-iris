@@ -43,6 +43,8 @@ if ! $quick; then
   mutant CleanupDropsWaiters SpuriousCancel "Invariant CancellationsAreExplained is violated"
   mutant UnavailableResultsCached Serial "Invariant (FreshCacheIsCorrect|OkResultsAreCorrect) is violated"
   mutant PanicSkipsCleanup PanicHang "Invariant (BlockedWaitersCanBeWoken|InProgressHasLiveOwner) is violated"
+  mutant AcceptUnverifiable Serial "Invariant (FreshCacheIsCorrect|OkResultsAreCorrect) is violated"
+  mutant MarkBuiltWhileCancelled Serial "Action property StaleEntriesStayStaleWhileCancelled is violated"
 fi
 
 finish_checks
