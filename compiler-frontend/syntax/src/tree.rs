@@ -1,79 +1,148 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::ops::Range;
 use std::sync::Arc;
 
-use parking_lot::Mutex;
-use syntree::pointer::PointerU32;
 pub use text_size::{TextRange, TextSize};
 
 use crate::SyntaxKind;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ElementCategory {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ElementCategory {
     Node,
     Token,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SyntaxValue {
-    pub kind: SyntaxKind,
-    pub category: ElementCategory,
+#[derive(Debug, PartialEq, Eq)]
+struct Element {
+    kind: SyntaxKind,
+    category: ElementCategory,
+    range: TextRange,
+    subtree_end: u32,
+    parent: u32,
 }
 
-impl SyntaxValue {
-    pub const fn node(kind: SyntaxKind) -> SyntaxValue {
-        SyntaxValue { kind, category: ElementCategory::Node }
-    }
+const NO_PARENT: u32 = u32::MAX;
 
-    pub const fn token(kind: SyntaxKind) -> SyntaxValue {
-        SyntaxValue { kind, category: ElementCategory::Token }
-    }
+pub struct TreeBuilder {
+    elements: Vec<Element>,
+    offset: TextSize,
+    parent: u32,
 }
 
-syntree::flavor! {
-    pub struct SyntaxFlavor {
-        type Index = u32;
-        type Width = u32;
+impl TreeBuilder {
+    pub fn with_capacity(capacity: usize) -> TreeBuilder {
+        let elements = Vec::with_capacity(capacity);
+        TreeBuilder { elements, offset: TextSize::new(0), parent: NO_PARENT }
+    }
+
+    pub fn open(&mut self, kind: SyntaxKind) {
+        self.parent = self.push(kind, ElementCategory::Node, self.offset);
+    }
+
+    pub fn token(&mut self, kind: SyntaxKind, length: u32) {
+        let end = self
+            .offset
+            .checked_add(length.into())
+            .expect("invariant violated: syntax tree byte span exceeds u32");
+        self.push(kind, ElementCategory::Token, end);
+        self.offset = end;
+    }
+
+    pub fn close(&mut self) {
+        let subtree_end = self.elements.len() as u32;
+        let node = self
+            .elements
+            .get_mut(self.parent as usize)
+            .expect("invariant violated: syntax tree must be balanced");
+        node.range = TextRange::new(node.range.start(), self.offset);
+        node.subtree_end = subtree_end;
+        self.parent = node.parent;
+    }
+
+    pub fn build(self) -> Arc<TreeOwner> {
+        let root = self.elements.first().expect("invariant violated: syntax tree must have a root");
+        assert!(
+            self.parent == NO_PARENT
+                && root.category == ElementCategory::Node
+                && root.subtree_end as usize == self.elements.len(),
+            "invariant violated: syntax tree must be balanced under a single root node"
+        );
+        Arc::new(TreeOwner { elements: self.elements.into_boxed_slice() })
+    }
+
+    fn push(&mut self, kind: SyntaxKind, category: ElementCategory, end: TextSize) -> u32 {
+        let subtree_end = u32::try_from(self.elements.len() + 1)
+            .expect("invariant violated: syntax tree exceeds u32 elements");
+        let id = subtree_end - 1;
+        let range = TextRange::new(self.offset, end);
+        self.elements.push(Element { kind, category, range, subtree_end, parent: self.parent });
+        id
     }
 }
-
-pub type Syntree = syntree::Tree<SyntaxValue, SyntaxFlavor>;
 
 /// Owns the textless syntax structure shared by syntax handles.
-///
-/// The tree is immutable here, but Syntree's replaceable node values make it
-/// non-`Sync`; the mutex permits sharing it across parallel queries.
 ///
 /// Structural equality deliberately ignores source text. Consumers which derive
 /// values from [`SyntaxNode::text`] or [`SyntaxToken::text`] must also track the
 /// corresponding source as an input.
 #[derive(Debug)]
 pub struct TreeOwner {
-    tree: Mutex<Syntree>,
-    root: PointerU32,
+    elements: Box<[Element]>,
 }
 
 impl TreeOwner {
-    pub fn new(tree: Syntree) -> Arc<TreeOwner> {
-        let root = tree.first().expect("invariant violated: syntax tree must have a root").id();
-        Arc::new(TreeOwner { tree: Mutex::new(tree), root })
+    fn at(&self, id: u32) -> &Element {
+        &self.elements[id as usize]
+    }
+
+    fn parent(&self, id: u32) -> Option<u32> {
+        let parent = self.at(id).parent;
+        (parent != NO_PARENT).then_some(parent)
+    }
+
+    fn subtree(&self, id: u32) -> Range<u32> {
+        id..self.at(id).subtree_end
+    }
+
+    fn first_child(&self, id: u32) -> Option<u32> {
+        let child = id + 1;
+        (child < self.at(id).subtree_end).then_some(child)
+    }
+
+    fn next_sibling(&self, id: u32) -> Option<u32> {
+        let parent = self.parent(id)?;
+        self.next_sibling_within(id, self.at(parent).subtree_end)
+    }
+
+    fn next_sibling_within(&self, id: u32, parent_subtree_end: u32) -> Option<u32> {
+        let sibling = self.at(id).subtree_end;
+        (sibling < parent_subtree_end).then_some(sibling)
+    }
+
+    fn prev_sibling(&self, id: u32) -> Option<u32> {
+        let parent = self.parent(id)?;
+        if parent + 1 == id {
+            return None;
+        }
+        let mut sibling = id - 1;
+        while self.at(sibling).parent != parent {
+            sibling = self.at(sibling).parent;
+        }
+        Some(sibling)
+    }
+
+    fn children(&self, id: u32) -> impl Iterator<Item = u32> {
+        let subtree_end = self.at(id).subtree_end;
+        std::iter::successors(self.first_child(id), move |&child| {
+            self.next_sibling_within(child, subtree_end)
+        })
     }
 }
 
 impl PartialEq for TreeOwner {
     fn eq(&self, other: &Self) -> bool {
-        if std::ptr::eq(self, other) {
-            return true;
-        }
-        if std::ptr::from_ref(self) < std::ptr::from_ref(other) {
-            let this = self.tree.lock();
-            let other = other.tree.lock();
-            *this == *other
-        } else {
-            let other = other.tree.lock();
-            let this = self.tree.lock();
-            *this == *other
-        }
+        std::ptr::eq(self, other) || self.elements == other.elements
     }
 }
 
@@ -82,13 +151,13 @@ impl Eq for TreeOwner {}
 #[derive(Clone)]
 pub struct SyntaxNode {
     owner: Arc<TreeOwner>,
-    id: PointerU32,
+    id: u32,
 }
 
 #[derive(Clone)]
 pub struct SyntaxToken {
     owner: Arc<TreeOwner>,
-    id: PointerU32,
+    id: u32,
 }
 
 macro_rules! handle_impls {
@@ -113,12 +182,8 @@ macro_rules! handle_impls {
 handle_impls!(SyntaxNode);
 handle_impls!(SyntaxToken);
 
-fn range(node: &syntree::Node<'_, SyntaxValue, SyntaxFlavor>) -> TextRange {
-    TextRange::new(node.span().start.into(), node.span().end.into())
-}
-
-fn element(owner: &Arc<TreeOwner>, id: PointerU32, value: SyntaxValue) -> SyntaxElement {
-    match value.category {
+fn element(owner: &Arc<TreeOwner>, id: u32) -> SyntaxElement {
+    match owner.at(id).category {
         ElementCategory::Node => SyntaxNode { owner: Arc::clone(owner), id }.into(),
         ElementCategory::Token => SyntaxToken { owner: Arc::clone(owner), id }.into(),
     }
@@ -126,8 +191,7 @@ fn element(owner: &Arc<TreeOwner>, id: PointerU32, value: SyntaxValue) -> Syntax
 
 impl SyntaxNode {
     pub fn new_root(owner: Arc<TreeOwner>) -> SyntaxNode {
-        let id = owner.root;
-        SyntaxNode { owner, id }
+        SyntaxNode { owner, id: 0 }
     }
 
     pub fn owner(&self) -> Arc<TreeOwner> {
@@ -135,11 +199,11 @@ impl SyntaxNode {
     }
 
     pub fn kind(&self) -> SyntaxKind {
-        self.owner.tree.lock().get(self.id).unwrap().value().kind
+        self.owner.at(self.id).kind
     }
 
     pub fn text_range(&self) -> TextRange {
-        range(&self.owner.tree.lock().get(self.id).unwrap())
+        self.owner.at(self.id).range
     }
 
     pub fn text<'a>(&self, source: &'a str) -> &'a str {
@@ -150,7 +214,7 @@ impl SyntaxNode {
     }
 
     pub fn parent(&self) -> Option<SyntaxNode> {
-        let id = self.owner.tree.lock().get(self.id)?.parent()?.id();
+        let id = self.owner.parent(self.id)?;
         Some(SyntaxNode { owner: Arc::clone(&self.owner), id })
     }
 
@@ -163,75 +227,81 @@ impl SyntaxNode {
     }
 
     pub fn children(&self) -> SyntaxNodeChildren {
-        SyntaxNodeChildren { owner: Arc::clone(&self.owner), next: self.first_element_id() }
+        SyntaxNodeChildren {
+            owner: Arc::clone(&self.owner),
+            next: self.owner.first_child(self.id),
+            subtree_end: self.owner.at(self.id).subtree_end,
+        }
     }
 
     pub fn children_with_tokens(&self) -> SyntaxElementChildren {
-        SyntaxElementChildren { owner: Arc::clone(&self.owner), next: self.first_element_id() }
-    }
-
-    fn first_element_id(&self) -> Option<PointerU32> {
-        let tree = self.owner.tree.lock();
-        Some(tree.get(self.id)?.first()?.id())
+        SyntaxElementChildren {
+            owner: Arc::clone(&self.owner),
+            next: self.owner.first_child(self.id),
+            subtree_end: self.owner.at(self.id).subtree_end,
+        }
     }
 
     pub(crate) fn token(&self, kind: SyntaxKind) -> Option<SyntaxToken> {
-        let tree = self.owner.tree.lock();
-        let token = tree.get(self.id)?.children().find(|child| {
-            let value = child.value();
-            value.category == ElementCategory::Token && value.kind == kind
+        let id = self.owner.children(self.id).find(|&id| {
+            let child = self.owner.at(id);
+            child.category == ElementCategory::Token && child.kind == kind
         })?;
-        Some(SyntaxToken { owner: Arc::clone(&self.owner), id: token.id() })
+        Some(SyntaxToken { owner: Arc::clone(&self.owner), id })
     }
 
     pub(crate) fn token_in_set(&self, set: crate::TokenSet) -> Option<SyntaxToken> {
-        let tree = self.owner.tree.lock();
-        let token = tree.get(self.id)?.children().find(|child| {
-            let value = child.value();
-            value.category == ElementCategory::Token && set.contains(value.kind)
+        let id = self.owner.children(self.id).find(|&id| {
+            let child = self.owner.at(id);
+            child.category == ElementCategory::Token && set.contains(child.kind)
         })?;
-        Some(SyntaxToken { owner: Arc::clone(&self.owner), id: token.id() })
+        Some(SyntaxToken { owner: Arc::clone(&self.owner), id })
     }
 
     pub fn first_child(&self) -> Option<SyntaxNode> {
-        let tree = self.owner.tree.lock();
-        let child = tree
-            .get(self.id)?
-            .children()
-            .find(|child| child.value().category == ElementCategory::Node)?;
-        Some(SyntaxNode { owner: Arc::clone(&self.owner), id: child.id() })
+        let id = self
+            .owner
+            .children(self.id)
+            .find(|&id| self.owner.at(id).category == ElementCategory::Node)?;
+        Some(SyntaxNode { owner: Arc::clone(&self.owner), id })
     }
 
     pub fn first_child_or_token(&self) -> Option<SyntaxElement> {
-        let tree = self.owner.tree.lock();
-        let child = tree.get(self.id)?.first()?;
-        Some(element(&self.owner, child.id(), child.value()))
+        let id = self.owner.first_child(self.id)?;
+        Some(element(&self.owner, id))
     }
 
     pub fn split_leading_annotation(&self) -> (Option<TextRange>, Option<TextRange>) {
-        let tree = self.owner.tree.lock();
-        let Some(node) = tree.get(self.id) else { return (None, None) };
-        let first = node.first();
-        let annotation = first.filter(|child| child.value().kind == SyntaxKind::Annotation);
-        let start = if annotation.is_some() { first.and_then(|child| child.next()) } else { first };
-        let children = start.zip(node.last()).map(|(start, end)| range(&start).cover(range(&end)));
-        (annotation.map(|annotation| range(&annotation)), children)
+        let owner = &self.owner;
+        let first = owner.first_child(self.id);
+        let annotation = first.filter(|&child| owner.at(child).kind == SyntaxKind::Annotation);
+        let start = if annotation.is_some() {
+            first.and_then(|child| owner.next_sibling(child))
+        } else {
+            first
+        };
+        let children = start.map(|start| {
+            TextRange::new(owner.at(start).range.start(), owner.at(self.id).range.end())
+        });
+        (annotation.map(|annotation| owner.at(annotation).range), children)
     }
 
     pub fn first_token(&self) -> Option<SyntaxToken> {
-        let tree = self.owner.tree.lock();
-        let node = tree.get(self.id)?;
-        let id =
-            node.walk().inside().find(|node| node.value().category == ElementCategory::Token)?.id();
+        let id = self
+            .owner
+            .subtree(self.id)
+            .find(|&id| self.owner.at(id).category == ElementCategory::Token)?;
         Some(SyntaxToken { owner: Arc::clone(&self.owner), id })
     }
 
     pub fn next_sibling_or_token(&self) -> Option<SyntaxElement> {
-        sibling(&self.owner, self.id, true)
+        let id = self.owner.next_sibling(self.id)?;
+        Some(element(&self.owner, id))
     }
 
     pub fn prev_sibling_or_token(&self) -> Option<SyntaxElement> {
-        sibling(&self.owner, self.id, false)
+        let id = self.owner.prev_sibling(self.id)?;
+        Some(element(&self.owner, id))
     }
 
     pub fn next_sibling(&self) -> Option<SyntaxNode> {
@@ -243,38 +313,20 @@ impl SyntaxNode {
     }
 
     pub fn preorder(&self) -> Preorder {
-        let tree = self.owner.tree.lock();
-        let mut events = Vec::new();
-        collect_node_events(&self.owner, tree.get(self.id).unwrap(), &mut events);
-        Preorder(events.into_iter())
+        Preorder(Walk::new(self))
     }
 
     /// Returns compact node metadata in preorder without materializing token events.
     pub fn preorder_pointers(&self) -> PreorderPointers {
-        let tree = self.owner.tree.lock();
-        let root = tree.get(self.id).unwrap();
-        let pointers = root.walk().inside().filter_map(|node| {
-            let value = node.value();
-            (value.category == ElementCategory::Node).then(|| SyntaxNodePtr::from_raw(&node))
-        });
-        PreorderPointers(pointers.collect::<Vec<_>>().into_iter())
+        PreorderPointers { owner: Arc::clone(&self.owner), ids: self.owner.subtree(self.id) }
     }
 
     pub fn preorder_with_tokens(&self) -> PreorderWithTokens {
-        let tree = self.owner.tree.lock();
-        let mut events = Vec::new();
-        collect_events(&self.owner, tree.get(self.id).unwrap(), &mut events);
-        PreorderWithTokens(events.into_iter())
+        PreorderWithTokens(Walk::new(self))
     }
 
     pub fn tokens(&self) -> SyntaxTokens {
-        let tree = self.owner.tree.lock();
-        let root = tree.get(self.id).unwrap();
-        let tokens = root.walk().inside().filter_map(|node| {
-            (node.value().category == ElementCategory::Token).then_some(node.id())
-        });
-        let tokens = tokens.collect::<Vec<_>>().into_iter();
-        SyntaxTokens { owner: Arc::clone(&self.owner), tokens }
+        SyntaxTokens { owner: Arc::clone(&self.owner), ids: self.owner.subtree(self.id) }
     }
 
     pub fn token_at_offset(&self, offset: TextSize) -> TokenAtOffset<SyntaxToken> {
@@ -288,11 +340,11 @@ impl SyntaxNode {
 
 impl SyntaxToken {
     pub fn kind(&self) -> SyntaxKind {
-        self.owner.tree.lock().get(self.id).unwrap().value().kind
+        self.owner.at(self.id).kind
     }
 
     pub fn text_range(&self) -> TextRange {
-        range(&self.owner.tree.lock().get(self.id).unwrap())
+        self.owner.at(self.id).range
     }
 
     pub fn text<'a>(&self, source: &'a str) -> &'a str {
@@ -303,7 +355,10 @@ impl SyntaxToken {
     }
 
     pub fn parent(&self) -> SyntaxNode {
-        let id = self.owner.tree.lock().get(self.id).unwrap().parent().unwrap().id();
+        let id = self
+            .owner
+            .parent(self.id)
+            .expect("invariant violated: syntax token must have a parent");
         SyntaxNode { owner: Arc::clone(&self.owner), id }
     }
 
@@ -312,11 +367,13 @@ impl SyntaxToken {
     }
 
     pub fn next_sibling_or_token(&self) -> Option<SyntaxElement> {
-        sibling(&self.owner, self.id, true)
+        let id = self.owner.next_sibling(self.id)?;
+        Some(element(&self.owner, id))
     }
 
     pub fn prev_sibling_or_token(&self) -> Option<SyntaxElement> {
-        sibling(&self.owner, self.id, false)
+        let id = self.owner.prev_sibling(self.id)?;
+        Some(element(&self.owner, id))
     }
 }
 
@@ -373,18 +430,17 @@ impl From<SyntaxToken> for SyntaxElement {
 /// Iterates child nodes lazily, as most callers stop at the first match.
 pub struct SyntaxNodeChildren {
     owner: Arc<TreeOwner>,
-    next: Option<PointerU32>,
+    next: Option<u32>,
+    subtree_end: u32,
 }
 
 impl Iterator for SyntaxNodeChildren {
     type Item = SyntaxNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let tree = self.owner.tree.lock();
         while let Some(id) = self.next {
-            let node = tree.get(id)?;
-            self.next = node.next().map(|node| node.id());
-            if node.value().category == ElementCategory::Node {
+            self.next = self.owner.next_sibling_within(id, self.subtree_end);
+            if self.owner.at(id).category == ElementCategory::Node {
                 return Some(SyntaxNode { owner: Arc::clone(&self.owner), id });
             }
         }
@@ -395,17 +451,17 @@ impl Iterator for SyntaxNodeChildren {
 /// Iterates child elements lazily, as most callers stop at the first match.
 pub struct SyntaxElementChildren {
     owner: Arc<TreeOwner>,
-    next: Option<PointerU32>,
+    next: Option<u32>,
+    subtree_end: u32,
 }
 
 impl Iterator for SyntaxElementChildren {
     type Item = SyntaxElement;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let tree = self.owner.tree.lock();
-        let node = tree.get(self.next?)?;
-        self.next = node.next().map(|node| node.id());
-        Some(element(&self.owner, node.id(), node.value()))
+        let id = self.next?;
+        self.next = self.owner.next_sibling_within(id, self.subtree_end);
+        Some(element(&self.owner, id))
     }
 }
 
@@ -415,96 +471,110 @@ pub enum WalkEvent<T> {
     Leave(T),
 }
 
-pub struct Preorder(std::vec::IntoIter<WalkEvent<SyntaxNode>>);
+impl<T> WalkEvent<T> {
+    fn map<U>(self, transform: impl FnOnce(T) -> U) -> WalkEvent<U> {
+        match self {
+            WalkEvent::Enter(value) => WalkEvent::Enter(transform(value)),
+            WalkEvent::Leave(value) => WalkEvent::Leave(transform(value)),
+        }
+    }
+}
+
+struct Walk {
+    owner: Arc<TreeOwner>,
+    root: u32,
+    next: Option<WalkEvent<u32>>,
+}
+
+impl Walk {
+    fn new(node: &SyntaxNode) -> Walk {
+        Walk { owner: node.owner(), root: node.id, next: Some(WalkEvent::Enter(node.id)) }
+    }
+}
+
+impl Iterator for Walk {
+    type Item = WalkEvent<u32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let event = self.next.take()?;
+        self.next = match event {
+            WalkEvent::Enter(id) => match self.owner.first_child(id) {
+                Some(child) => Some(WalkEvent::Enter(child)),
+                None => Some(WalkEvent::Leave(id)),
+            },
+            WalkEvent::Leave(id) if id == self.root => None,
+            WalkEvent::Leave(id) => match self.owner.next_sibling(id) {
+                Some(sibling) => Some(WalkEvent::Enter(sibling)),
+                None => Some(WalkEvent::Leave(self.owner.at(id).parent)),
+            },
+        };
+        Some(event)
+    }
+}
+
+pub struct Preorder(Walk);
 
 impl Iterator for Preorder {
     type Item = WalkEvent<SyntaxNode>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        loop {
+            let event = self.0.next()?;
+            let owner = &self.0.owner;
+            let (WalkEvent::Enter(id) | WalkEvent::Leave(id)) = event;
+            if owner.at(id).category == ElementCategory::Node {
+                return Some(event.map(|id| SyntaxNode { owner: Arc::clone(owner), id }));
+            }
+        }
     }
 }
 
-pub struct PreorderPointers(std::vec::IntoIter<SyntaxNodePtr>);
+pub struct PreorderPointers {
+    owner: Arc<TreeOwner>,
+    ids: Range<u32>,
+}
 
 impl Iterator for PreorderPointers {
     type Item = SyntaxNodePtr;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let id = self.ids.find(|&id| self.owner.at(id).category == ElementCategory::Node)?;
+        Some(SyntaxNodePtr::from_element(id, self.owner.at(id)))
     }
 }
 
-pub struct PreorderWithTokens(std::vec::IntoIter<WalkEvent<SyntaxElement>>);
+pub struct PreorderWithTokens(Walk);
 
 impl Iterator for PreorderWithTokens {
     type Item = WalkEvent<SyntaxElement>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        let event = self.0.next()?;
+        Some(event.map(|id| element(&self.0.owner, id)))
     }
 }
 
 pub struct SyntaxTokens {
     owner: Arc<TreeOwner>,
-    tokens: std::vec::IntoIter<PointerU32>,
+    ids: Range<u32>,
 }
 
 impl Iterator for SyntaxTokens {
     type Item = SyntaxToken;
 
     fn next(&mut self) -> Option<SyntaxToken> {
-        let id = self.tokens.next()?;
+        let id = self.ids.find(|&id| self.owner.at(id).category == ElementCategory::Token)?;
         Some(SyntaxToken { owner: Arc::clone(&self.owner), id })
     }
 }
 
-fn collect_events(
-    owner: &Arc<TreeOwner>,
-    node: syntree::Node<'_, SyntaxValue, SyntaxFlavor>,
-    out: &mut Vec<WalkEvent<SyntaxElement>>,
-) {
-    let value = node.value();
-    let current = element(owner, node.id(), value);
-    out.push(WalkEvent::Enter(current.clone()));
-    for child in node.children() {
-        collect_events(owner, child, out);
-    }
-    out.push(WalkEvent::Leave(current));
-}
-
-fn collect_node_events(
-    owner: &Arc<TreeOwner>,
-    node: syntree::Node<'_, SyntaxValue, SyntaxFlavor>,
-    out: &mut Vec<WalkEvent<SyntaxNode>>,
-) {
-    let current = (node.value().category == ElementCategory::Node)
-        .then(|| SyntaxNode { owner: Arc::clone(owner), id: node.id() });
-    if let Some(current) = &current {
-        out.push(WalkEvent::Enter(current.clone()));
-    }
-    for child in node.children() {
-        collect_node_events(owner, child, out);
-    }
-    if let Some(current) = current {
-        out.push(WalkEvent::Leave(current));
-    }
-}
-
-fn sibling(owner: &Arc<TreeOwner>, id: PointerU32, next: bool) -> Option<SyntaxElement> {
-    let tree = owner.tree.lock();
-    let node = tree.get(id)?;
-    let node = if next { node.next()? } else { node.prev()? };
-    Some(element(owner, node.id(), node.value()))
-}
-
 fn node_sibling(node: &SyntaxNode, next: bool) -> Option<SyntaxNode> {
-    let tree = node.owner.tree.lock();
-    let mut sibling = tree.get(node.id)?;
+    let owner = &node.owner;
+    let mut id = node.id;
     loop {
-        sibling = if next { sibling.next()? } else { sibling.prev()? };
-        if sibling.value().category == ElementCategory::Node {
-            return Some(SyntaxNode { owner: Arc::clone(&node.owner), id: sibling.id() });
+        id = if next { owner.next_sibling(id)? } else { owner.prev_sibling(id)? };
+        if owner.at(id).category == ElementCategory::Node {
+            return Some(SyntaxNode { owner: Arc::clone(owner), id });
         }
     }
 }
@@ -533,29 +603,25 @@ impl<T> TokenAtOffset<T> {
 }
 
 fn token_at_offset(node: &SyntaxNode, offset: TextSize) -> TokenAtOffset<SyntaxToken> {
-    let tree = node.owner.tree.lock();
-    let root = tree.get(node.id).unwrap();
     let mut left = None;
 
-    for raw in root.walk().inside() {
-        if raw.value().category != ElementCategory::Token {
+    for id in node.owner.subtree(node.id) {
+        let element = node.owner.at(id);
+        if element.category != ElementCategory::Token {
             continue;
         }
 
-        let id = raw.id();
-        let range = range(&raw);
+        let range = element.range;
         if !range.is_empty() && range.start() == offset {
-            return left
-                .filter(|(_, range): &(PointerU32, TextRange)| range.end() == offset)
-                .map_or_else(
-                    || TokenAtOffset::Single(SyntaxToken { owner: Arc::clone(&node.owner), id }),
-                    |(left, _)| {
-                        TokenAtOffset::Between(
-                            SyntaxToken { owner: Arc::clone(&node.owner), id: left },
-                            SyntaxToken { owner: Arc::clone(&node.owner), id },
-                        )
-                    },
-                );
+            return left.filter(|(_, range): &(u32, TextRange)| range.end() == offset).map_or_else(
+                || TokenAtOffset::Single(SyntaxToken { owner: Arc::clone(&node.owner), id }),
+                |(left, _)| {
+                    TokenAtOffset::Between(
+                        SyntaxToken { owner: Arc::clone(&node.owner), id: left },
+                        SyntaxToken { owner: Arc::clone(&node.owner), id },
+                    )
+                },
+            );
         }
         if range.contains(offset) {
             return TokenAtOffset::Single(SyntaxToken { owner: Arc::clone(&node.owner), id });
@@ -572,19 +638,18 @@ fn token_at_offset(node: &SyntaxNode, offset: TextSize) -> TokenAtOffset<SyntaxT
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SyntaxNodePtr {
-    id: PointerU32,
+    id: u32,
     kind: SyntaxKind,
     range: TextRange,
 }
 
 impl SyntaxNodePtr {
     pub fn new(node: &SyntaxNode) -> SyntaxNodePtr {
-        let tree = node.owner.tree.lock();
-        SyntaxNodePtr::from_raw(&tree.get(node.id).unwrap())
+        SyntaxNodePtr::from_element(node.id, node.owner.at(node.id))
     }
 
-    fn from_raw(node: &syntree::Node<'_, SyntaxValue, SyntaxFlavor>) -> SyntaxNodePtr {
-        SyntaxNodePtr { id: node.id(), kind: node.value().kind, range: range(node) }
+    fn from_element(id: u32, element: &Element) -> SyntaxNodePtr {
+        SyntaxNodePtr { id, kind: element.kind, range: element.range }
     }
 
     pub fn kind(&self) -> SyntaxKind {
@@ -592,11 +657,10 @@ impl SyntaxNodePtr {
     }
 
     pub fn try_to_node(&self, root: &SyntaxNode) -> Option<SyntaxNode> {
-        let tree = root.owner.tree.lock();
-        let node = tree.get(self.id)?;
-        (node.value().category == ElementCategory::Node
-            && node.value().kind == self.kind
-            && range(&node) == self.range)
+        let element = root.owner.elements.get(self.id as usize)?;
+        (element.category == ElementCategory::Node
+            && element.kind == self.kind
+            && element.range == self.range)
             .then(|| SyntaxNode { owner: Arc::clone(&root.owner), id: self.id })
     }
 
@@ -695,18 +759,14 @@ mod tests {
     use super::*;
 
     fn root_with_boundary_tokens() -> SyntaxNode {
-        let mut builder = syntree::Builder::new_with();
-        let root = SyntaxValue::node(SyntaxKind::Module);
-        builder.open(root).unwrap();
-        let lower = SyntaxValue::token(SyntaxKind::LOWER);
-        builder.token(lower, 1).unwrap();
-        let separator = SyntaxValue::token(SyntaxKind::LAYOUT_SEPARATOR);
-        builder.token_empty(separator).unwrap();
-        let upper = SyntaxValue::token(SyntaxKind::UPPER);
-        builder.token(upper, 2).unwrap();
-        builder.close().unwrap();
+        let mut builder = TreeBuilder::with_capacity(4);
+        builder.open(SyntaxKind::Module);
+        builder.token(SyntaxKind::LOWER, 1);
+        builder.token(SyntaxKind::LAYOUT_SEPARATOR, 0);
+        builder.token(SyntaxKind::UPPER, 2);
+        builder.close();
 
-        SyntaxNode::new_root(TreeOwner::new(builder.build().unwrap()))
+        SyntaxNode::new_root(builder.build())
     }
 
     #[test]
@@ -761,22 +821,20 @@ mod tests {
     }
 
     #[test]
-    fn tokens_include_nested_raw_tokens_and_stay_inside_the_subtree() {
-        let mut builder = syntree::Builder::new_with();
-        builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
-        builder.open(SyntaxValue::token(SyntaxKind::TEXT)).unwrap();
-        builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
-        builder.token(SyntaxValue::token(SyntaxKind::UPPER), 2).unwrap();
-        builder.close().unwrap();
-        builder.close().unwrap();
-        builder.token(SyntaxValue::token(SyntaxKind::LOWER), 1).unwrap();
-        builder.close().unwrap();
-        let root = SyntaxNode::new_root(TreeOwner::new(builder.build().unwrap()));
+    fn tokens_include_nested_tokens_and_stay_inside_the_subtree() {
+        let mut builder = TreeBuilder::with_capacity(4);
+        builder.open(SyntaxKind::Module);
+        builder.open(SyntaxKind::ModuleHeader);
+        builder.token(SyntaxKind::UPPER, 2);
+        builder.close();
+        builder.token(SyntaxKind::LOWER, 1);
+        builder.close();
+        let root = SyntaxNode::new_root(builder.build());
 
         let kinds = root.tokens().map(|token| token.kind()).collect::<Vec<_>>();
-        assert_eq!(kinds, [SyntaxKind::TEXT, SyntaxKind::UPPER, SyntaxKind::LOWER]);
+        assert_eq!(kinds, [SyntaxKind::UPPER, SyntaxKind::LOWER]);
 
-        let header = root.preorder_pointers().nth(1).unwrap().to_node(&root);
+        let header = root.first_child().unwrap();
         let kinds = header.tokens().map(|token| token.kind()).collect::<Vec<_>>();
         assert_eq!(kinds, [SyntaxKind::UPPER]);
     }
@@ -790,30 +848,104 @@ mod tests {
     }
 
     #[test]
-    fn preorder_finds_nodes_nested_under_raw_token_elements() {
-        let mut builder = syntree::Builder::new_with();
-        builder.open(SyntaxValue::node(SyntaxKind::Module)).unwrap();
-        builder.open(SyntaxValue::token(SyntaxKind::TEXT)).unwrap();
-        builder.open(SyntaxValue::node(SyntaxKind::ModuleHeader)).unwrap();
-        builder.close().unwrap();
-        builder.close().unwrap();
-        builder.close().unwrap();
-        let root = SyntaxNode::new_root(TreeOwner::new(builder.build().unwrap()));
+    fn preorder_skips_tokens_and_stays_inside_the_subtree() {
+        let mut builder = TreeBuilder::with_capacity(6);
+        builder.open(SyntaxKind::Module);
+        builder.token(SyntaxKind::LOWER, 1);
+        builder.open(SyntaxKind::ModuleHeader);
+        builder.token(SyntaxKind::UPPER, 2);
+        builder.close();
+        builder.open(SyntaxKind::ModuleImports);
+        builder.close();
+        builder.token(SyntaxKind::LOWER, 1);
+        builder.close();
+        let root = SyntaxNode::new_root(builder.build());
 
-        let events = root.preorder().map(|event| match event {
-            WalkEvent::Enter(node) => WalkEvent::Enter(node.kind()),
-            WalkEvent::Leave(node) => WalkEvent::Leave(node.kind()),
-        });
-        let events = events.collect::<Vec<_>>();
+        let kinds = |node: &SyntaxNode| {
+            let events = node.preorder().map(|event| event.map(|node| node.kind()));
+            events.collect::<Vec<_>>()
+        };
 
         assert_eq!(
-            events,
-            vec![
+            kinds(&root),
+            [
                 WalkEvent::Enter(SyntaxKind::Module),
                 WalkEvent::Enter(SyntaxKind::ModuleHeader),
                 WalkEvent::Leave(SyntaxKind::ModuleHeader),
+                WalkEvent::Enter(SyntaxKind::ModuleImports),
+                WalkEvent::Leave(SyntaxKind::ModuleImports),
                 WalkEvent::Leave(SyntaxKind::Module),
             ]
         );
+        assert_eq!(
+            kinds(&root.first_child().unwrap()),
+            [
+                WalkEvent::Enter(SyntaxKind::ModuleHeader),
+                WalkEvent::Leave(SyntaxKind::ModuleHeader),
+            ]
+        );
+    }
+
+    #[test]
+    fn navigation_skips_subtrees_and_keeps_zero_width_siblings() {
+        let mut builder = TreeBuilder::with_capacity(9);
+        builder.open(SyntaxKind::Module);
+        builder.open(SyntaxKind::Annotation);
+        builder.token(SyntaxKind::TEXT, 2);
+        builder.close();
+        builder.open(SyntaxKind::ModuleHeader);
+        builder.open(SyntaxKind::QualifiedName);
+        builder.token(SyntaxKind::UPPER, 3);
+        builder.close();
+        builder.close();
+        builder.token(SyntaxKind::ERROR, 0);
+        builder.open(SyntaxKind::ModuleImports);
+        builder.token(SyntaxKind::LOWER, 1);
+        builder.close();
+        builder.close();
+        let root = SyntaxNode::new_root(builder.build());
+
+        let children = root.children().collect::<Vec<_>>();
+        let [annotation, header, imports] = children.as_slice() else { panic!("missing children") };
+        let error = header.next_sibling_or_token().unwrap().into_token().unwrap();
+        assert_eq!(error.kind(), SyntaxKind::ERROR);
+        assert_eq!(error.text_range(), TextRange::empty(5.into()));
+        assert_eq!(error.parent(), root);
+        assert_eq!(annotation.next_sibling().as_ref(), Some(header));
+        assert_eq!(header.next_sibling().as_ref(), Some(imports));
+        assert_eq!(error.prev_sibling_or_token().unwrap().as_node(), Some(header));
+        assert_eq!(imports.prev_sibling().as_ref(), Some(header));
+        assert!(imports.next_sibling_or_token().is_none());
+        assert_eq!(
+            root.split_leading_annotation(),
+            (Some(TextRange::new(0.into(), 2.into())), Some(TextRange::new(2.into(), 6.into())))
+        );
+        let pointer = SyntaxNodePtr::new(imports);
+        assert_eq!(pointer.try_to_node(&root).as_ref(), Some(imports));
+        assert!(pointer.try_to_node(&root_with_boundary_tokens()).is_none());
+        assert!(matches!(
+            root.token_at_offset(5.into()),
+            TokenAtOffset::Between(left, right)
+                if left.kind() == SyntaxKind::UPPER && right.kind() == SyntaxKind::LOWER
+        ));
+    }
+
+    #[test]
+    fn deep_tree_is_walked_without_recursion() {
+        let depth = 32_768;
+        let mut builder = TreeBuilder::with_capacity(depth + 1);
+        for _ in 0..depth {
+            builder.open(SyntaxKind::Module);
+        }
+        builder.token(SyntaxKind::LOWER, 3);
+        for _ in 0..depth {
+            builder.close();
+        }
+        let root = SyntaxNode::new_root(builder.build());
+
+        let deepest = root.preorder_pointers().last().unwrap().to_node(&root);
+        assert_eq!(deepest.parent_ancestors().count(), depth - 1);
+        assert_eq!(root.preorder_with_tokens().count(), 2 * (depth + 1));
+        assert_eq!(root.first_token().unwrap().text("abc"), "abc");
     }
 }

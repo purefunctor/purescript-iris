@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use lexing::{Lexed, Position};
-use syntax::{SyntaxFlavor, SyntaxKind, SyntaxValue, TreeOwner};
-use syntree::Builder as SyntreeBuilder;
+use syntax::{SyntaxKind, TreeBuilder};
 
 use crate::{ParseError, ParsedModule};
 
@@ -37,12 +36,12 @@ struct Builder<'l, 's> {
     position: Position,
     annotated: bool,
     qualified: bool,
-    builder: SyntreeBuilder<SyntaxValue, SyntaxFlavor>,
+    builder: TreeBuilder,
     errors: Vec<ParseError>,
 }
 
 impl<'l, 's> Builder<'l, 's> {
-    fn new(lexed: &'l Lexed<'s>) -> Builder<'l, 's> {
+    fn new(lexed: &'l Lexed<'s>, capacity: usize) -> Builder<'l, 's> {
         let info = lexed.info(0);
         let index = 0;
         let previous_end = 0;
@@ -52,7 +51,7 @@ impl<'l, 's> Builder<'l, 's> {
         let position = info.position;
         let annotated = false;
         let qualified = false;
-        let builder = SyntreeBuilder::new_with();
+        let builder = TreeBuilder::with_capacity(capacity);
         let errors = Vec::new();
         Builder {
             lexed,
@@ -70,28 +69,20 @@ impl<'l, 's> Builder<'l, 's> {
     }
 
     fn build(self) -> (ParsedModule, Vec<ParseError>) {
-        let tree = self
-            .builder
-            .build()
-            .expect("invariant violated: parser must produce a balanced syntax tree");
-        (ParsedModule::new(TreeOwner::new(tree)), self.errors)
+        (ParsedModule::new(self.builder.build()), self.errors)
     }
 
     fn start(&mut self, kind: SyntaxKind) {
         if kind != SyntaxKind::Node {
-            self.builder
-                .open(SyntaxValue::node(kind))
-                .expect("critical violation: syntax tree capacity exceeded");
+            self.builder.open(kind);
         }
     }
 
     fn annotate(&mut self) {
         if !self.annotated && self.previous_end < self.annotation_end {
-            let length = (self.annotation_end - self.previous_end) as usize;
+            let length = self.annotation_end - self.previous_end;
             self.start(SyntaxKind::Annotation);
-            self.builder
-                .token(SyntaxValue::token(SyntaxKind::TEXT), length)
-                .expect("critical violation: syntax tree capacity exceeded");
+            self.builder.token(SyntaxKind::TEXT, length);
             self.finish();
         }
 
@@ -100,11 +91,9 @@ impl<'l, 's> Builder<'l, 's> {
 
     fn qualify(&mut self) {
         if !self.qualified && self.annotation_end < self.qualifier_end {
-            let length = (self.qualifier_end - self.annotation_end) as usize;
+            let length = self.qualifier_end - self.annotation_end;
             self.start(SyntaxKind::Qualifier);
-            self.builder
-                .token(SyntaxValue::token(SyntaxKind::TEXT), length)
-                .expect("critical violation: syntax tree capacity exceeded");
+            self.builder.token(SyntaxKind::TEXT, length);
             self.finish();
         }
 
@@ -113,9 +102,7 @@ impl<'l, 's> Builder<'l, 's> {
 
     fn token(&mut self, kind: SyntaxKind) {
         if kind.is_layout_token() {
-            self.builder
-                .token_empty(SyntaxValue::token(kind))
-                .expect("critical violation: syntax tree capacity exceeded");
+            self.builder.token(kind, 0);
             return;
         }
 
@@ -128,10 +115,7 @@ impl<'l, 's> Builder<'l, 's> {
         self.qualify();
 
         if !matches!(kind, SyntaxKind::ERROR) {
-            let length = (self.token_end - self.qualifier_end) as usize;
-            self.builder
-                .token(SyntaxValue::token(kind), length)
-                .expect("critical violation: syntax tree capacity exceeded");
+            self.builder.token(kind, self.token_end - self.qualifier_end);
         }
 
         self.previous_end = self.token_end;
@@ -151,21 +135,29 @@ impl<'l, 's> Builder<'l, 's> {
         let offset = self.qualifier_end as usize;
         let position = self.position;
         let message = message.into();
-        self.builder
-            .token_empty(SyntaxValue::token(SyntaxKind::ERROR))
-            .expect("critical violation: syntax tree capacity exceeded");
+        self.builder.token(SyntaxKind::ERROR, 0);
         self.errors.push(ParseError { offset, position, message });
     }
 
     fn finish(&mut self) {
-        self.builder
-            .close()
-            .expect("invariant violated: parser must produce a balanced syntax tree");
+        self.builder.close();
     }
 }
 
+fn element_capacity(lexed: &Lexed<'_>, events: &[Event]) -> usize {
+    let elements = events.iter().filter(|event| match event {
+        Event::Start { kind } => *kind != SyntaxKind::Node,
+        Event::Token { .. } | Event::Error => true,
+        Event::Annotate | Event::Qualify | Event::Finish => false,
+    });
+    let annotations = lexed.annotations().flatten();
+    let qualifiers = (0..lexed.len()).filter_map(|index| lexed.qualifier(index));
+    elements.count() + 2 * (annotations.count() + qualifiers.count())
+}
+
 pub(crate) fn build(lexed: &Lexed<'_>, output: Output) -> (ParsedModule, Vec<ParseError>) {
-    let mut builder = Builder::new(lexed);
+    let capacity = element_capacity(lexed, &output.events);
+    let mut builder = Builder::new(lexed, capacity);
     let mut errors = output.errors.into_iter();
 
     for event in output.events {

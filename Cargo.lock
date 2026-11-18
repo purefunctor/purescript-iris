@@ -2955,7 +2955,6 @@ dependencies = [
  "lexing",
  "smol_str",
  "syntax",
- "syntree",
  "test_each_file",
 ]
 
@@ -3797,7 +3796,6 @@ dependencies = [
  "hashbrown 0.17.1",
  "rustc-hash",
  "syntax",
- "syntree",
 ]
 
 [[package]]
@@ -3913,16 +3911,8 @@ dependencies = [
 name = "syntax"
 version = "0.1.0"
 dependencies = [
- "parking_lot",
- "syntree",
  "text-size",
 ]
-
-[[package]]
-name = "syntree"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00c99c9cda412afe293a6b962af651b4594161ba88c1affe7ef66459ea040a06"
 
 [[package]]
 name = "tabled"
