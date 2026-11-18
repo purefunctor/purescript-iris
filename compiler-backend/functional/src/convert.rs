@@ -219,11 +219,11 @@ fn convert(mut context: Context<'_, impl checking::ExternalQueries>) -> Conversi
         .iter()
         .filter_map(|declaration| declaration.recursive_group.map(|_| declaration.global.id));
     let recursive_globals = recursive_globals.collect::<FxHashSet<_>>();
-    for declaration in &declarations {
-        if let DeclarationKind::Value(expression) = declaration.kind {
-            inline_simple_bindings(&mut context.storage, expression, &recursive_globals);
-        }
-    }
+    let roots = declarations.iter().filter_map(|declaration| match declaration.kind {
+        DeclarationKind::Value(expression) => Some(expression),
+        DeclarationKind::Constructor { .. } | DeclarationKind::Foreign => None,
+    });
+    inline_simple_bindings(&mut context.storage, roots, &recursive_globals);
     // StyleX consumes the emitted expressions, including literals substituted for local bindings.
     let stylex_theme_imports = context.validate_stylex_uses(&declarations)?;
 

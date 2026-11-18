@@ -13,47 +13,8 @@ use crate::tree::{
 
 pub fn inline_simple_bindings(
     storage: &mut Storage,
-    expression: ExpressionId,
-    recursive_globals: &FxHashSet<GlobalId>,
-) {
-    let mut visited = FxHashSet::default();
-    optimize_expression(storage, expression, recursive_globals, &mut visited);
-}
-
-pub(crate) fn reachable_expressions(
-    storage: &Storage,
     roots: impl IntoIterator<Item = ExpressionId>,
-) -> FxHashSet<ExpressionId> {
-    let mut reachable = FxHashSet::default();
-    let mut pending = roots.into_iter().collect::<Vec<_>>();
-    while let Some(expression) = pending.pop() {
-        if !reachable.insert(expression) {
-            continue;
-        }
-        for_each_expression_child(&storage[expression].kind, |child| pending.push(child));
-    }
-    reachable
-}
-
-pub(crate) fn expression_globals(
-    storage: &Storage,
-    expression: ExpressionId,
-) -> FxHashSet<GlobalId> {
-    let reachable = reachable_expressions(storage, [expression]);
-    let globals = reachable.into_iter().filter_map(|expression| match &storage[expression].kind {
-        ExpressionKind::Constructor { global } | ExpressionKind::Global { global } => {
-            Some(global.id)
-        }
-        _ => None,
-    });
-    globals.collect()
-}
-
-fn optimize_expression(
-    storage: &mut Storage,
-    expression: ExpressionId,
     recursive_globals: &FxHashSet<GlobalId>,
-    visited: &mut FxHashSet<ExpressionId>,
 ) {
     enum Pending {
         Enter {
@@ -71,39 +32,92 @@ fn optimize_expression(
         },
     }
 
-    let effect_position = EffectPosition::Constructed;
-    let mut pending = vec![Pending::Enter { expression, effect_position }];
-    while let Some(work) = pending.pop() {
-        match work {
-            Pending::Enter { expression, effect_position } => {
-                if !visited.insert(expression) {
-                    continue;
+    let mut visited = FxHashSet::default();
+    let mut pending = Vec::new();
+    for expression in roots {
+        reset_visitation(&mut visited);
+        let effect_position = EffectPosition::Constructed;
+        pending.push(Pending::Enter { expression, effect_position });
+        while let Some(work) = pending.pop() {
+            match work {
+                Pending::Enter { expression, effect_position } => {
+                    if !visited.insert(expression) {
+                        continue;
+                    }
+                    let kind = &storage[expression].kind;
+                    if let ExpressionKind::Let { recursive: false, bindings, body } = kind {
+                        // Inlining uses the entry-time bindings even if descendants mutate storage.
+                        let bindings = Arc::clone(bindings);
+                        let body = *body;
+                        pending.push(Pending::Inline {
+                            expression,
+                            bindings,
+                            body,
+                            effect_position,
+                        });
+                    } else {
+                        pending.push(Pending::Fold { expression });
+                    }
+                    let children_start = pending.len();
+                    for_each_evaluated_child(kind, effect_position, |child, evaluation| {
+                        let effect_position = evaluation.effect_position;
+                        pending.push(Pending::Enter { expression: child, effect_position });
+                    });
+                    pending[children_start..].reverse();
                 }
-                let kind = &storage[expression].kind;
-                if let ExpressionKind::Let { recursive: false, bindings, body } = kind {
-                    // Inlining uses the entry-time bindings even if descendants mutate storage.
-                    let bindings = Arc::clone(bindings);
-                    let body = *body;
-                    pending.push(Pending::Inline { expression, bindings, body, effect_position });
-                } else {
-                    pending.push(Pending::Fold { expression });
+                Pending::Fold { expression } => {
+                    fold_negation(storage, expression);
                 }
-                let children_start = pending.len();
-                for_each_evaluated_child(kind, effect_position, |child, evaluation| {
-                    let effect_position = evaluation.effect_position;
-                    pending.push(Pending::Enter { expression: child, effect_position });
-                });
-                pending[children_start..].reverse();
-            }
-            Pending::Fold { expression } => {
-                fold_negation(storage, expression);
-            }
-            Pending::Inline { expression, bindings, body, effect_position } => {
-                if !fold_negation(storage, expression) {
-                    let scope = LetScope { bindings: &bindings, body, effect_position };
-                    inline_bindings(storage, expression, scope, recursive_globals);
+                Pending::Inline { expression, bindings, body, effect_position } => {
+                    if !fold_negation(storage, expression) {
+                        let scope = LetScope { bindings: &bindings, body, effect_position };
+                        inline_bindings(storage, expression, scope, recursive_globals);
+                    }
                 }
             }
+        }
+    }
+}
+
+fn reset_visitation(visited: &mut FxHashSet<ExpressionId>) {
+    if visited.capacity() / 4 > visited.len().max(16) {
+        *visited = FxHashSet::default();
+    } else {
+        visited.clear();
+    }
+}
+
+pub(crate) fn reachable_expressions(
+    storage: &Storage,
+    roots: impl IntoIterator<Item = ExpressionId>,
+) -> FxHashSet<ExpressionId> {
+    let mut reachability = ExpressionReachability::default();
+    reachability.visit(storage, roots, |_| {});
+    reachability.visited
+}
+
+#[derive(Default)]
+pub(crate) struct ExpressionReachability {
+    visited: FxHashSet<ExpressionId>,
+    pending: Vec<ExpressionId>,
+}
+
+impl ExpressionReachability {
+    pub(crate) fn visit(
+        &mut self,
+        storage: &Storage,
+        roots: impl IntoIterator<Item = ExpressionId>,
+        mut visit: impl FnMut(&ExpressionKind),
+    ) {
+        reset_visitation(&mut self.visited);
+        self.pending.extend(roots);
+        while let Some(expression) = self.pending.pop() {
+            if !self.visited.insert(expression) {
+                continue;
+            }
+            let kind = &storage[expression].kind;
+            visit(kind);
+            for_each_expression_child(kind, |child| self.pending.push(child));
         }
     }
 }
@@ -701,7 +715,7 @@ mod tests {
     #[test]
     fn deep_traversals_do_not_use_the_call_stack() {
         let (mut storage, root, replacement) = nested_arrays(100_000);
-        inline_simple_bindings(&mut storage, root, &FxHashSet::default());
+        inline_simple_bindings(&mut storage, [root], &FxHashSet::default());
         assert_eq!(local_uses(&storage, root, LocalId(0)), 1);
         substitute_local(&mut storage, root, &value_binding(replacement));
         assert_eq!(local_uses(&storage, root, LocalId(0)), 0);
@@ -720,7 +734,7 @@ mod tests {
             },
             origin: None,
         });
-        inline_simple_bindings(&mut storage, binding, &FxHashSet::default());
+        inline_simple_bindings(&mut storage, [binding], &FxHashSet::default());
         assert_eq!(storage[binding].kind, storage[root].kind);
         assert_eq!(local_uses(&storage, binding, LocalId(1)), 0);
     }
@@ -772,8 +786,7 @@ mod tests {
         assert_eq!(local_uses(&storage, target, LocalId(0)), 1);
     }
 
-    #[test]
-    fn optimization_preserves_dfs_order_and_does_not_revisit_mutated_shared_nodes() {
+    fn shared_negation() -> (Storage, ExpressionId, ExpressionId, ExpressionId, ExpressionId) {
         let (mut storage, local, value) = nested_arrays(0);
         let negation = storage.allocate_expression(Expression {
             kind: ExpressionKind::Unary { operator: UnaryOperator::IntegerNegate, value: local },
@@ -782,17 +795,17 @@ mod tests {
         let binding = storage.allocate_expression(Expression {
             kind: ExpressionKind::Let {
                 recursive: false,
-                bindings: [Binding {
-                    parameter: Parameter { id: LocalId(0), name: "value".into() },
-                    expression: value,
-                    source_order: 0,
-                    origin: None,
-                }]
-                .into(),
+                bindings: [value_binding(value)].into(),
                 body: negation,
             },
             origin: None,
         });
+        (storage, local, value, negation, binding)
+    }
+
+    #[test]
+    fn optimization_preserves_dfs_order_and_does_not_revisit_mutated_shared_nodes() {
+        let (mut storage, local, value, negation, binding) = shared_negation();
         let later_negation = storage.allocate_expression(Expression {
             kind: ExpressionKind::Unary { operator: UnaryOperator::IntegerNegate, value: local },
             origin: None,
@@ -801,9 +814,7 @@ mod tests {
             kind: ExpressionKind::Array { elements: [binding, negation, later_negation].into() },
             origin: None,
         });
-        let mut visited = FxHashSet::default();
-        optimize_expression(&mut storage, root, &FxHashSet::default(), &mut visited);
-        assert_eq!(visited.len(), 6);
+        inline_simple_bindings(&mut storage, [root], &FxHashSet::default());
         assert_eq!(storage[local].kind, storage[value].kind);
         assert_eq!(
             storage[binding].kind,
@@ -814,6 +825,33 @@ mod tests {
             storage[negation].kind,
             ExpressionKind::Unary { operator: UnaryOperator::IntegerNegate, value: local }
         );
+    }
+
+    #[test]
+    fn optimization_revisits_mutated_shared_nodes_for_a_later_root() {
+        let (mut storage, _, _, negation, binding) = shared_negation();
+        inline_simple_bindings(&mut storage, [binding, negation], &FxHashSet::default());
+        assert_eq!(
+            storage[negation].kind,
+            ExpressionKind::Literal { literal: Literal::Integer(-42) }
+        );
+    }
+
+    #[test]
+    fn reachability_visits_shared_nodes_once_even_with_a_cycle() {
+        let (mut storage, _, leaf) = nested_arrays(0);
+        let root = storage.allocate_expression(Expression {
+            kind: ExpressionKind::TrivialEvidence,
+            origin: None,
+        });
+        let cycle = ExpressionKind::Array { elements: [root, leaf, leaf].into() };
+        storage.replace_expression_kind(root, cycle.clone());
+
+        let mut reachability = ExpressionReachability::default();
+        let mut reached = Vec::new();
+        reachability.visit(&storage, [root], |kind| reached.push(kind.clone()));
+        assert_eq!(reached, [cycle, storage[leaf].kind.clone()]);
+        inline_simple_bindings(&mut storage, [root], &FxHashSet::default());
     }
 
     #[test]
@@ -833,7 +871,7 @@ mod tests {
         });
 
         assert_eq!(visited_children(&storage[root].kind), vec![replacement, local]);
-        inline_simple_bindings(&mut storage, root, &FxHashSet::default());
+        inline_simple_bindings(&mut storage, [root], &FxHashSet::default());
         assert_eq!(local_uses(&storage, root, LocalId(0)), 1);
         substitute_local(&mut storage, root, &value_binding(replacement));
         assert_eq!(local_uses(&storage, root, LocalId(0)), 0);
