@@ -667,9 +667,14 @@ where
 {
     let context = checker.context;
 
-    // Unification variables are not looked through, so types without rigid
-    // variables cannot contain an escaped skolem.
-    if !context.lookup_type_flags(type_id).has_rigid() {
+    // Only a scoped rigid variable can be an expected skolem. The audit does
+    // not look through unification variables, so a type whose flags report no
+    // scoped rigid variable cannot mention an expected skolem.
+    if !context.lookup_type_flags(type_id).has_scoped_rigid() {
+        debug_assert!(
+            !recompute_mentions_expected_skolem(checker, type_id),
+            "invariant violated: a type without scoped rigids mentions an expected skolem",
+        );
         return false;
     }
 
