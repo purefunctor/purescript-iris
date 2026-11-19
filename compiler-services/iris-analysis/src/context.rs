@@ -15,6 +15,7 @@ pub trait AnalyzerQueries:
         Stabilized = Arc<stabilizing::StabilizedModule>,
         Indexed = Arc<indexing::IndexedModule>,
         Lowered = Arc<lowering::LoweredModule>,
+        Grouped = Arc<lowering::GroupedModule>,
         Resolved = Arc<resolving::ResolvedModule>,
         Checked = Arc<checking::CheckedModule>,
     >
@@ -29,6 +30,7 @@ impl<Queries> AnalyzerQueries for Queries where
             Stabilized = Arc<stabilizing::StabilizedModule>,
             Indexed = Arc<indexing::IndexedModule>,
             Lowered = Arc<lowering::LoweredModule>,
+            Grouped = Arc<lowering::GroupedModule>,
             Resolved = Arc<resolving::ResolvedModule>,
             Checked = Arc<checking::CheckedModule>,
         >

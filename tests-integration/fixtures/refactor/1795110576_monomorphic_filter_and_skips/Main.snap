@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -26,6 +26,7 @@
+       commentedLine = singleLine
+       {- leading block comment -}
+       commentedBlock = commentedLine
++      clean :: Int
+       clean = commentedBlock
+     in
+       finish clean
+
+Skipped:
+Main.purs:14:5: localIdentity (polymorphic_or_unsolved)
+Main.purs:15:5: wrapped (polymorphic_or_unsolved)
+Main.purs:19:3: wrap (polymorphic_or_unsolved)
+Main.purs:23:7: singleLine (not_at_line_start)
+Main.purs:26:7: commentedLine (leading_comment)
+Main.purs:28:7: commentedBlock (leading_comment)
+Main.purs:32:9: finish (not_at_line_start)
+Main.purs:37:2: tabbed (tab_indentation)
+Main.purs:43:7: inlineValue (not_at_line_start)

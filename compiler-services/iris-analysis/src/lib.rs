@@ -12,6 +12,7 @@ pub mod hover;
 pub mod locate;
 pub mod nominal;
 pub mod position;
+pub mod refactor;
 pub mod references;
 pub mod rename;
 pub mod semantic_tokens;

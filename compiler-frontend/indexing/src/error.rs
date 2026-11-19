@@ -40,3 +40,9 @@ pub enum IndexingError {
     DuplicateExport { id: ExportItemId, existing: ExportItemId },
     DuplicateImport { duplicate: ImportItemId, existing: ImportItemId },
 }
+
+impl IndexingError {
+    pub fn is_warning(&self) -> bool {
+        matches!(self, IndexingError::DuplicateImport { .. })
+    }
+}

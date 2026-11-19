@@ -574,3 +574,107 @@ pub fn lsp(path: &Path) -> FixtureResult {
 
     Ok(())
 }
+
+pub fn refactor(path: &Path) -> FixtureResult {
+    let folder = fixture_folder(path)?;
+    let file = module_name(path)?;
+    let loaded = crate::load_fixture(folder)?;
+    let source_path = snapshot_path(folder).join(path.file_name().ok_or_else(|| {
+        invalid_data(format!("fixture path has no file name: {}", path.display()))
+    })?);
+    let source_url = Url::from_file_path(&source_path).map_err(|()| {
+        invalid_data(format!(
+            "fixture path cannot be converted to a URL: {}",
+            source_path.display()
+        ))
+    })?;
+    let id = loaded.files.id(source_url.as_str()).ok_or_else(|| {
+        invalid_data(format!("fixture source was not loaded: {}", source_path.display()))
+    })?;
+
+    let original = loaded.engine.content(id).map_err(|error| invalid_data(error.to_string()))?;
+    let plan = iris_analysis::refactor::let_signatures::add_let_signatures(&loaded.engine, [id])
+        .map_err(|error| invalid_data(error.to_string()))?;
+
+    let mut report = String::new();
+    if let Some(file_plan) = plan.files.first() {
+        let modified = iris_analysis::refactor::apply_edits(&original, &file_plan.edits)
+            .map_err(|error| invalid_data(error.to_string()))?;
+
+        let diff = similar::TextDiff::from_lines(original.as_ref(), modified.as_str());
+        let mut unified = diff.unified_diff();
+        unified.context_radius(3);
+        unified.header("a/Main.purs", "b/Main.purs");
+        report.push_str(&unified.to_string());
+
+        loaded.engine.set_content(id, modified);
+        let (_, parse_errors) =
+            loaded.engine.parsed(id).map_err(|error| invalid_data(error.to_string()))?;
+        let indexed = loaded.engine.indexed(id).map_err(|error| invalid_data(error.to_string()))?;
+        let resolved =
+            loaded.engine.resolved(id).map_err(|error| invalid_data(error.to_string()))?;
+        let lowered = loaded.engine.lowered(id).map_err(|error| invalid_data(error.to_string()))?;
+        let grouped = loaded.engine.grouped(id).map_err(|error| invalid_data(error.to_string()))?;
+        let checked = loaded.engine.checked(id).map_err(|error| invalid_data(error.to_string()))?;
+
+        let indexed_errors =
+            indexed.errors.iter().filter(|error| !error.is_warning()).collect::<Vec<_>>();
+        let checking_errors =
+            checked.errors.iter().filter(|error| !error.kind.is_warning()).collect::<Vec<_>>();
+
+        if !parse_errors.is_empty()
+            || !indexed_errors.is_empty()
+            || !resolved.errors.is_empty()
+            || !lowered.errors.is_empty()
+            || !grouped.cycle_errors.is_empty()
+            || !checking_errors.is_empty()
+        {
+            return Err(invalid_data(format!(
+                "refactored module failed re-check: parse={:?} indexed={:?} resolved={:?} lowered={:?} grouped={:?} checking={:?}",
+                parse_errors,
+                indexed_errors,
+                resolved.errors,
+                lowered.errors,
+                grouped.cycle_errors,
+                checking_errors,
+            ))
+            .into());
+        }
+    } else {
+        report.push_str("No changes.\n");
+    }
+
+    if !plan.skipped.is_empty() {
+        report.push_str("\nSkipped:\n");
+        for entry in &plan.skipped {
+            let before = &original[..entry.offset.min(original.len())];
+            let line_start = before.rfind('\n').map_or(0, |index| index + 1);
+            let line = before.matches('\n').count() + 1;
+            let column = before[line_start..].chars().count() + 1;
+            match &entry.detail {
+                Some(detail) => {
+                    report.push_str(&format!(
+                        "Main.purs:{line}:{column}: {} ({}: {detail})\n",
+                        entry.name,
+                        entry.reason.as_str(),
+                    ));
+                }
+                None => {
+                    report.push_str(&format!(
+                        "Main.purs:{line}:{column}: {} ({})\n",
+                        entry.name,
+                        entry.reason.as_str(),
+                    ));
+                }
+            }
+        }
+    }
+
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(snapshot_path(folder));
+    settings.set_prepend_module_to_snapshot(false);
+    settings.set_omit_expression(true);
+    settings.bind(|| insta::assert_snapshot!(file, report));
+
+    Ok(())
+}
