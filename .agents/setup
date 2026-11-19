@@ -8,14 +8,6 @@ if ! command -v nix > /dev/null; then
   curl --proto '=https' --tlsv1.2 -fsSL https://nixos.org/nix/install | sh -s -- --no-daemon
 fi
 
-echo '--- Removing development tools installed by mise'
-if command -v rustup > /dev/null; then
-  rustup self uninstall -y
-fi
-rm -rf "$HOME/.local/bin/mise" "$HOME/.local/share/mise" "$HOME/.local/state/mise" "$HOME/.cache/mise"
-sudo rm -f /etc/profile.d/iris-mise.sh
-sudo sed -i '\|/etc/profile.d/iris-mise.sh|d' /etc/bash.bashrc
-
 echo '--- Building the development shell'
 state_directory="$HOME/.local/state/iris"
 mkdir -p "$state_directory"
