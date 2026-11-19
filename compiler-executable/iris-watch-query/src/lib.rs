@@ -236,12 +236,29 @@ pub fn render_unified_diff(path: &str, original: &str, modified: &str) -> String
     unified.to_string()
 }
 
+pub fn render_refactor_skipped(answer: &RefactorAnswer) -> Option<String> {
+    if answer.skipped.is_empty() {
+        return None;
+    }
+    let mut lines = Vec::with_capacity(answer.skipped.len() + 1);
+    lines.push(format!("Skipped {}:", answer.skipped.len()));
+    for entry in &answer.skipped {
+        let line = match &entry.detail {
+            Some(detail) => {
+                format!("{}: {} ({}: {detail})", entry.location, entry.name, entry.reason)
+            }
+            None => format!("{}: {} ({})", entry.location, entry.name, entry.reason),
+        };
+        lines.push(line);
+    }
+    Some(lines.join("\n"))
+}
+
 pub fn render_refactor_summary(answer: &RefactorAnswer) -> String {
     let file_count = answer.files.len();
     let signatures_added: usize = answer.files.iter().map(|file| file.signatures_added).sum();
     let imports_added: usize = answer.files.iter().map(|file| file.imports_added).sum();
     let imports_updated: usize = answer.files.iter().map(|file| file.imports_updated).sum();
-    let skipped_count = answer.skipped.len();
 
     let mut lines = Vec::new();
     if file_count == 0 {
@@ -267,17 +284,8 @@ pub fn render_refactor_summary(answer: &RefactorAnswer) -> String {
         lines.push(format!("{}.", parts.join(", ")));
     }
 
-    if skipped_count > 0 {
-        lines.push(format!("Skipped {skipped_count}:"));
-        for entry in &answer.skipped {
-            let line = match &entry.detail {
-                Some(detail) => {
-                    format!("{}: {} ({}: {detail})", entry.location, entry.name, entry.reason)
-                }
-                None => format!("{}: {} ({})", entry.location, entry.name, entry.reason),
-            };
-            lines.push(line);
-        }
+    if let Some(skipped) = render_refactor_skipped(answer) {
+        lines.push(skipped);
     }
 
     lines.join("\n")

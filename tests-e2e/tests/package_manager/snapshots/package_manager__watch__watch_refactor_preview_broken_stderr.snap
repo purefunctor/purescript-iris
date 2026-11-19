@@ -1,0 +1,6 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+expression: "String::from_utf8_lossy(&preview_broken.stderr)"
+---
+Skipped 1:
+src/Broken.purs:1:1: Broken (module_has_errors: 1 checking error)

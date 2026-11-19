@@ -239,11 +239,10 @@ pub(crate) fn refactor(
     let target_files = match module {
         Some(name) => {
             let file_id = module_file(context, name)?;
-            let is_project =
-                context.files.get(&file_id).is_some_and(|file| file.kind == SourceKind::Project);
-            if !is_project {
+            let is_editable = context.files.get(&file_id).is_some_and(|file| file.editable);
+            if !is_editable {
                 return Err(QueryFailure::Failed(format!(
-                    "module {name} is not a project source file"
+                    "module {name} is not an editable project source file"
                 )));
             }
             vec![file_id]
@@ -252,7 +251,7 @@ pub(crate) fn refactor(
             let mut project_files = context
                 .files
                 .iter()
-                .filter(|(_, file)| file.kind == SourceKind::Project)
+                .filter(|(_, file)| file.editable)
                 .map(|(&file_id, file)| (relative(context, &file.path), file_id))
                 .collect::<Vec<_>>();
             project_files.sort_by(|(left_path, _), (right_path, _)| left_path.cmp(right_path));
@@ -435,6 +434,6 @@ impl AnalyzerHost for WatchHost<'_> {
     }
 
     fn is_editable(&self, file_id: FileId) -> bool {
-        self.context.files.get(&file_id).is_some_and(|file| file.kind == SourceKind::Project)
+        self.context.files.get(&file_id).is_some_and(|file| file.editable)
     }
 }

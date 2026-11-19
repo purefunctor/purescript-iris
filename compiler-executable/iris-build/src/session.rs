@@ -56,6 +56,7 @@ pub struct SessionSnapshot {
 pub struct SourceFile {
     pub path: PathBuf,
     pub kind: SourceKind,
+    pub editable: bool,
 }
 
 /// Where a source file comes from, as the language server's `SourceMetadata` distinguishes.
@@ -384,7 +385,11 @@ fn source_files(
             .ok()
             .and_then(|url| url.to_file_path().ok())
             .ok_or_else(|| SessionFailure::InvalidPath(PathBuf::from(&*locator)))?;
-        Ok((file_id, SourceFile { path, kind }))
+        let editable = match compilation.source_metadata(file_id) {
+            Some(SourceOwner::Package(package)) => package.editable,
+            Some(SourceOwner::Builtin) | None => false,
+        };
+        Ok((file_id, SourceFile { path, kind, editable }))
     });
     files.collect()
 }

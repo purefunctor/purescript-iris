@@ -311,6 +311,12 @@ pub enum RefactorCommand {
 }
 
 impl RefactorCommand {
+    pub fn has_module(&self) -> bool {
+        match self {
+            RefactorCommand::LetSignatures(OptionalQueryName { name }) => name.is_some(),
+        }
+    }
+
     pub fn into_query(self) -> Query {
         match self {
             RefactorCommand::LetSignatures(OptionalQueryName { name }) => {
