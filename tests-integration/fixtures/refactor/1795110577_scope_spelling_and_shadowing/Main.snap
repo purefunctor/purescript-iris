@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -17,12 +17,19 @@
+ example :: { "hyphen-label" :: Prim.Int, "" :: Prim.String, "_" :: Prim.Boolean }
+ example =
+   let
++    primInt :: Prim.Int
+     primInt = 1
++    localInt :: Int
+     localInt = LocalInt
++    primString :: Prim.String
+     primString = "hello"
++    otherFoo :: M.Foo
+     otherFoo = O.Foo
++    ambiguousBox :: O.Box
+     ambiguousBox = Ma.BoxA
++    reexportedShared :: Shared
+     reexportedShared = Shared
++    quotedRecord :: { "" :: Prim.String, "_" :: Prim.Boolean, "hyphen-label" :: Prim.Int }
+     quotedRecord = { "hyphen-label": primInt, "": primString, "_": true }
+   in
+     keep localInt otherFoo ambiguousBox reexportedShared quotedRecord

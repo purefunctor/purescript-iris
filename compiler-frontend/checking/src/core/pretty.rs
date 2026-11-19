@@ -4,8 +4,11 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use building_types::{QueryProxy, QueryResult};
+use files::FileId;
+use indexing::{IndexedTypeItemKind, TypeItemId};
 use lowering::StringKind;
 use pretty::{Arena, DocAllocator, DocBuilder};
+use resolving::{ResolvedModule, ScopeSpelling, TypeNamespace};
 use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, SmolStrBuilder, format_smolstr};
 
@@ -161,12 +164,145 @@ fn try_next_suffix(suffix: NonZeroU32) -> Option<NonZeroU32> {
     suffix.get().checked_add(1).and_then(NonZeroU32::new)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TypeNameResolution {
+    Name(SmolStr),
+    FallbackDefiningModule,
+    Unresolved,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BundleRendering {
+    Infix,
+    Constructor,
+}
+
+pub trait TypeNameResolver {
+    fn resolve_type(
+        &mut self,
+        file_id: FileId,
+        type_id: TypeItemId,
+        name: &str,
+        namespace: TypeNamespace,
+    ) -> TypeNameResolution;
+
+    fn bundle_rendering(&self) -> BundleRendering {
+        BundleRendering::Infix
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OutOfScopePolicy {
+    RecordUnresolved,
+    FallbackDefiningModule,
+}
+
+pub struct ModuleScopeResolver<'a> {
+    resolved: &'a ResolvedModule,
+    prim: &'a ResolvedModule,
+    bundle_operator: Option<(FileId, TypeItemId)>,
+    planned_spellings: Option<&'a FxHashMap<(FileId, TypeItemId), SmolStr>>,
+    out_of_scope: OutOfScopePolicy,
+    unresolved: Vec<(FileId, TypeItemId)>,
+}
+
+impl<'a> ModuleScopeResolver<'a> {
+    pub fn new(
+        resolved: &'a ResolvedModule,
+        prim: &'a ResolvedModule,
+        out_of_scope: OutOfScopePolicy,
+    ) -> ModuleScopeResolver<'a> {
+        ModuleScopeResolver {
+            resolved,
+            prim,
+            bundle_operator: None,
+            planned_spellings: None,
+            out_of_scope,
+            unresolved: Vec::new(),
+        }
+    }
+
+    pub fn with_bundle_operator(
+        mut self,
+        bundle_operator: Option<(FileId, TypeItemId)>,
+    ) -> ModuleScopeResolver<'a> {
+        self.bundle_operator = bundle_operator;
+        self
+    }
+
+    pub fn with_planned_spellings(
+        mut self,
+        planned_spellings: &'a FxHashMap<(FileId, TypeItemId), SmolStr>,
+    ) -> ModuleScopeResolver<'a> {
+        self.planned_spellings = Some(planned_spellings);
+        self
+    }
+
+    pub fn unresolved(&self) -> &[(FileId, TypeItemId)] {
+        &self.unresolved
+    }
+}
+
+impl TypeNameResolver for ModuleScopeResolver<'_> {
+    fn resolve_type(
+        &mut self,
+        file_id: FileId,
+        type_id: TypeItemId,
+        name: &str,
+        namespace: TypeNamespace,
+    ) -> TypeNameResolution {
+        match self.resolved.spell_type_item(self.prim, file_id, type_id, name, namespace) {
+            ScopeSpelling::Unqualified(spelled) => TypeNameResolution::Name(spelled),
+            ScopeSpelling::Qualified { qualifier, name } => {
+                TypeNameResolution::Name(format_smolstr!("{qualifier}.{name}"))
+            }
+            ScopeSpelling::NotInScope => {
+                if let Some(planned) =
+                    self.planned_spellings.and_then(|map| map.get(&(file_id, type_id)))
+                {
+                    return TypeNameResolution::Name(SmolStr::clone(planned));
+                }
+                match self.out_of_scope {
+                    OutOfScopePolicy::RecordUnresolved => {
+                        if !self.unresolved.contains(&(file_id, type_id)) {
+                            self.unresolved.push((file_id, type_id));
+                        }
+                        TypeNameResolution::Unresolved
+                    }
+                    OutOfScopePolicy::FallbackDefiningModule => {
+                        TypeNameResolution::FallbackDefiningModule
+                    }
+                }
+            }
+        }
+    }
+
+    fn bundle_rendering(&self) -> BundleRendering {
+        let Some((effect_file, operator_id)) = self.bundle_operator else {
+            return BundleRendering::Constructor;
+        };
+        let spelling = self.resolved.spell_type_item(
+            self.prim,
+            effect_file,
+            operator_id,
+            "&",
+            TypeNamespace::Type,
+        );
+        if matches!(spelling, ScopeSpelling::Unqualified(_)) {
+            BundleRendering::Infix
+        } else {
+            BundleRendering::Constructor
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PrettyConfig {
     width: usize,
     show_rigid_kinds: bool,
     show_forall_kinds: bool,
     fully_qualified_names: bool,
+    quote_record_labels: bool,
 }
 
 impl PrettyConfig {
@@ -176,6 +312,7 @@ impl PrettyConfig {
             show_rigid_kinds: true,
             show_forall_kinds: true,
             fully_qualified_names: false,
+            quote_record_labels: false,
         }
     }
 
@@ -200,6 +337,12 @@ impl PrettyConfig {
     #[must_use]
     pub const fn fully_qualified_names(mut self) -> PrettyConfig {
         self.fully_qualified_names = true;
+        self
+    }
+
+    #[must_use]
+    pub const fn quote_record_labels(mut self) -> PrettyConfig {
+        self.quote_record_labels = true;
         self
     }
 }
@@ -255,6 +398,23 @@ where
 
     pub fn render_kind_signature(&self, name: &str, id: TypeId) -> QueryResult<SmolStr> {
         self.state().render_kind_signature(name, id)
+    }
+
+    pub fn render_with_resolver(
+        &self,
+        id: TypeId,
+        resolver: &mut dyn TypeNameResolver,
+    ) -> QueryResult<Option<SmolStr>> {
+        self.state().render_with_resolver(id, resolver)
+    }
+
+    pub fn render_signature_with_resolver(
+        &self,
+        name: &str,
+        id: TypeId,
+        resolver: &mut dyn TypeNameResolver,
+    ) -> QueryResult<Option<SmolStr>> {
+        self.state().render_signature_with_resolver(name, id, resolver)
     }
 }
 
@@ -312,12 +472,42 @@ where
         self.render_with_signature(Some(name), id, Precedence::Top)
     }
 
+    pub fn render_with_resolver(
+        &mut self,
+        id: TypeId,
+        resolver: &mut dyn TypeNameResolver,
+    ) -> QueryResult<Option<SmolStr>> {
+        self.names.set_default_name("t");
+        self.render_with_signature_and_resolver(None, id, Precedence::Top, Some(resolver))
+    }
+
+    pub fn render_signature_with_resolver(
+        &mut self,
+        name: &str,
+        id: TypeId,
+        resolver: &mut dyn TypeNameResolver,
+    ) -> QueryResult<Option<SmolStr>> {
+        self.names.set_default_name("t");
+        self.render_with_signature_and_resolver(Some(name), id, Precedence::Top, Some(resolver))
+    }
+
     fn render_with_signature(
         &mut self,
         signature: Option<&str>,
         id: TypeId,
         precedence: Precedence,
     ) -> QueryResult<SmolStr> {
+        let rendered = self.render_with_signature_and_resolver(signature, id, precedence, None)?;
+        Ok(rendered.expect("invariant violated: unscoped render produced unresolved type"))
+    }
+
+    fn render_with_signature_and_resolver(
+        &mut self,
+        signature: Option<&str>,
+        id: TypeId,
+        precedence: Precedence,
+        resolver: Option<&mut dyn TypeNameResolver>,
+    ) -> QueryResult<Option<SmolStr>> {
         let arena = Arena::new();
         let mut printer = Printer::new(
             &arena,
@@ -327,6 +517,8 @@ where
             self.config.show_rigid_kinds,
             self.config.show_forall_kinds,
             self.config.fully_qualified_names,
+            self.config.quote_record_labels,
+            resolver,
         );
 
         let document = if let Some(name) = signature {
@@ -335,11 +527,15 @@ where
             printer.traverse(precedence, id)?
         };
 
+        if printer.had_unresolved {
+            return Ok(None);
+        }
+
         let mut output = SmolStrBuilder::new();
         document
             .render_fmt(self.config.width, &mut output)
             .expect("critical failure: failed to render type");
-        Ok(output.finish())
+        Ok(Some(output.finish()))
     }
 }
 
@@ -353,7 +549,7 @@ enum Precedence {
     Atom,
 }
 
-struct Printer<'arena, 'context, 'names, Q>
+struct Printer<'arena, 'context, 'names, 'resolver, Q>
 where
     Q: PrettyQueries + ?Sized,
 {
@@ -364,12 +560,16 @@ where
     show_rigid_kinds: bool,
     show_forall_kinds: bool,
     fully_qualified_names: bool,
+    quote_record_labels: bool,
+    resolver: Option<&'resolver mut dyn TypeNameResolver>,
+    had_unresolved: bool,
 }
 
-impl<'arena, 'context, 'names, Q> Printer<'arena, 'context, 'names, Q>
+impl<'arena, 'context, 'names, 'resolver, Q> Printer<'arena, 'context, 'names, 'resolver, Q>
 where
     Q: PrettyQueries + ?Sized,
 {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         arena: &'arena Arena<'arena>,
         queries: &'context Q,
@@ -378,7 +578,9 @@ where
         show_rigid_kinds: bool,
         show_forall_kinds: bool,
         fully_qualified_names: bool,
-    ) -> Printer<'arena, 'context, 'names, Q> {
+        quote_record_labels: bool,
+        resolver: Option<&'resolver mut dyn TypeNameResolver>,
+    ) -> Printer<'arena, 'context, 'names, 'resolver, Q> {
         Printer {
             arena,
             queries,
@@ -387,6 +589,9 @@ where
             show_rigid_kinds,
             show_forall_kinds,
             fully_qualified_names,
+            quote_record_labels,
+            resolver,
+            had_unresolved: false,
         }
     }
 
@@ -411,6 +616,24 @@ where
         Ok(indexed.items[type_id].name.as_ref().map(|name| name.to_string()))
     }
 
+    fn lookup_type_item_metadata(
+        &self,
+        file_id: files::FileId,
+        type_id: indexing::TypeItemId,
+    ) -> QueryResult<Option<(String, TypeNamespace)>> {
+        let indexed = self.queries.indexed(file_id)?;
+        let item = &indexed.items[type_id];
+        let Some(name) = item.name.as_ref() else {
+            return Ok(None);
+        };
+        let namespace = if matches!(item.kind, IndexedTypeItemKind::Class { .. }) {
+            TypeNamespace::Class
+        } else {
+            TypeNamespace::Type
+        };
+        Ok(Some((name.to_string(), namespace)))
+    }
+
     fn lookup_module_name(&self, file_id: files::FileId) -> QueryResult<Option<SmolStr>> {
         let content = self.queries.content(file_id)?;
         let (parsed, _) = self.queries.parsed(file_id)?;
@@ -418,13 +641,29 @@ where
     }
 
     fn display_type_name(
-        &self,
+        &mut self,
         file_id: files::FileId,
         type_id: indexing::TypeItemId,
     ) -> QueryResult<Option<String>> {
-        let Some(name) = self.lookup_type_name(file_id, type_id)? else {
+        let Some((name, namespace)) = self.lookup_type_item_metadata(file_id, type_id)? else {
             return Ok(None);
         };
+
+        if let Some(resolver) = &mut self.resolver {
+            return match resolver.resolve_type(file_id, type_id, &name, namespace) {
+                TypeNameResolution::Name(spelled) => Ok(Some(spelled.to_string())),
+                TypeNameResolution::FallbackDefiningModule => {
+                    let Some(module_name) = self.lookup_module_name(file_id)? else {
+                        return Ok(Some(name));
+                    };
+                    Ok(Some(format!("{module_name}.{name}")))
+                }
+                TypeNameResolution::Unresolved => {
+                    self.had_unresolved = true;
+                    Ok(None)
+                }
+            };
+        }
 
         if !self.fully_qualified_names {
             return Ok(Some(name));
@@ -455,6 +694,16 @@ where
             return Ok(name == "Bundle");
         }
         Ok(false)
+    }
+
+    fn is_bundle_infix(&self, id: TypeId) -> QueryResult<bool> {
+        if !self.is_bundle_constructor(id)? {
+            return Ok(false);
+        }
+        Ok(self
+            .resolver
+            .as_ref()
+            .is_none_or(|resolver| resolver.bundle_rendering() == BundleRendering::Infix))
     }
 
     fn is_record_constructor(&self, id: TypeId) -> QueryResult<bool> {
@@ -507,7 +756,7 @@ where
                 self.parens_if(precedence > Precedence::Atom, kinded)
             }
 
-            &Type::Constructor(..) if self.is_bundle_constructor(id)? => self.arena.text("(&)"),
+            &Type::Constructor(..) if self.is_bundle_infix(id)? => self.arena.text("(&)"),
 
             &Type::Constructor(file_id, type_id) | &Type::Synonym(file_id, type_id) => {
                 let name = self
@@ -573,7 +822,7 @@ where
     }
 }
 
-impl<'arena, 'context, 'names, Q> Printer<'arena, 'context, 'names, Q>
+impl<'arena, 'context, 'names, 'resolver, Q> Printer<'arena, 'context, 'names, 'resolver, Q>
 where
     Q: PrettyQueries + ?Sized,
 {
@@ -595,7 +844,7 @@ where
         }
 
         if let &[right, left] = arguments.as_slice()
-            && self.is_bundle_constructor(function)?
+            && self.is_bundle_infix(function)?
         {
             let left = self.traverse(Precedence::Application, left)?;
             let right = self.traverse(Precedence::Bundle, right)?;
@@ -654,7 +903,7 @@ where
     }
 }
 
-impl<'arena, 'context, 'names, Q> Printer<'arena, 'context, 'names, Q>
+impl<'arena, 'context, 'names, 'resolver, Q> Printer<'arena, 'context, 'names, 'resolver, Q>
 where
     Q: PrettyQueries + ?Sized,
 {
@@ -764,7 +1013,7 @@ where
     }
 }
 
-impl<'arena, 'context, 'names, Q> Printer<'arena, 'context, 'names, Q>
+impl<'arena, 'context, 'names, 'resolver, Q> Printer<'arena, 'context, 'names, 'resolver, Q>
 where
     Q: PrettyQueries + ?Sized,
 {
@@ -817,7 +1066,14 @@ where
 
         let fields = fields.iter().map(|field| {
             let field_type = self.traverse(Precedence::Top, field.id)?;
-            Ok((field.label.to_string(), field_type))
+            let label = if self.quote_record_labels && !is_unquoted_record_label(&field.label) {
+                lowering::literal::encode_normal_string(&lowering::StringLiteral::from(
+                    field.label.as_str(),
+                ))
+            } else {
+                field.label.to_string()
+            };
+            Ok((label, field_type))
         });
 
         let fields = fields.collect::<QueryResult<Vec<_>>>()?;
@@ -850,6 +1106,29 @@ where
             Ok(fields)
         }
     }
+}
+
+fn is_unquoted_record_label(label: &str) -> bool {
+    if label == "_" {
+        return false;
+    }
+    let mut characters = label.chars();
+    let Some(first) = characters.next() else {
+        return false;
+    };
+    let valid_start = if first.is_ascii() {
+        first.is_ascii_lowercase() || first == '_'
+    } else {
+        first.is_lowercase()
+    };
+    valid_start
+        && characters.all(|character| {
+            if character.is_ascii() {
+                character.is_ascii_alphanumeric() || character == '_' || character == '\''
+            } else {
+                character.is_alphanumeric()
+            }
+        })
 }
 
 #[cfg(test)]

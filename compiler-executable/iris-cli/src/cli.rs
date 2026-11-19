@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
 use iris_package::{AddConfig, NewConfig};
 use iris_self_update::{Channel, SelfUpdateConfig};
-use iris_watch_server::protocol::{InstanceSearch, Namespace, Query};
+use iris_watch_server::protocol::{InstanceSearch, Namespace, Query, RefactorKind};
 use itertools::Itertools;
 use tracing::level_filters::LevelFilter;
 use usage::{Args, Subcommands, ValueEnum};
@@ -279,6 +279,45 @@ pub struct WatchOptions {
 pub enum WatchCommand {
     /// Ask a running `iris watch` about the project.
     Query(QueryOptions),
+    #[usage(help = "Run a type-aware refactoring against a running `iris watch`.")]
+    Refactor(RefactorOptions),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct RefactorOptions {
+    #[usage(
+        short,
+        long,
+        value_name = "DIR",
+        help = "Output directory of the watcher. Defaults to output in the workspace root."
+    )]
+    pub output: Option<PathBuf>,
+
+    #[usage(long, help = "Print planned changes as a unified diff without modifying files.")]
+    pub preview: bool,
+
+    #[usage(long, help = "Print the watcher's response as JSON.")]
+    pub json: bool,
+
+    #[usage(subcommand)]
+    pub refactor: RefactorCommand,
+}
+
+#[derive(Debug, Subcommands)]
+pub enum RefactorCommand {
+    #[usage(help = "Add type signatures to monomorphic let and where bindings.")]
+    LetSignatures(OptionalQueryName),
+}
+
+impl RefactorCommand {
+    pub fn into_query(self) -> Query {
+        match self {
+            RefactorCommand::LetSignatures(OptionalQueryName { name }) => {
+                Query::Refactor { refactor: RefactorKind::LetSignatures, module: name }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -436,10 +475,18 @@ impl ItemQuery {
 impl WatchOptions {
     /// Takes `iris watch query`'s options. A query without its own `--output` reads the one given
     /// to `iris watch`, so a watcher's command line still finds it with `query` appended.
-    pub fn take_query(&mut self) -> Option<QueryOptions> {
-        let Some(WatchCommand::Query(mut query)) = self.command.take() else { return None };
-        query.output = query.output.or_else(|| self.output.take());
-        Some(query)
+    pub fn take_command(&mut self) -> Option<WatchCommand> {
+        let mut command = self.command.take()?;
+        let inherited_output = self.output.take();
+        match &mut command {
+            WatchCommand::Query(query) => {
+                query.output = query.output.take().or(inherited_output);
+            }
+            WatchCommand::Refactor(refactor) => {
+                refactor.output = refactor.output.take().or(inherited_output);
+            }
+        }
+        Some(command)
     }
 
     pub fn into_config(self) -> WatchConfig {

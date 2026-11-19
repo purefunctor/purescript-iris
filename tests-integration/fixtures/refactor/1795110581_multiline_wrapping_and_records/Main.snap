@@ -1,0 +1,96 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -3,14 +3,53 @@
+ deeplyIndented :: Int -> Int
+ deeplyIndented seed =
+   let
++    outer :: Int
+     outer =
+       let
++        longRecord ::
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          }
+         longRecord =
+           { firstVeryLongRecordFieldName: seed
+           , secondVeryLongRecordFieldName: "hello"
+           , thirdVeryLongRecordFieldName: true
+           , fourthVeryLongRecordFieldName: seed
+           }
++        longFunction ::
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          } ->
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          } ->
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          } ->
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          } ->
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          } ->
++          { firstVeryLongRecordFieldName :: Int
++          , fourthVeryLongRecordFieldName :: Int
++          , secondVeryLongRecordFieldName :: String
++          , thirdVeryLongRecordFieldName :: Boolean
++          } ->
++          Int
+         longFunction a b c d e f =
+           pick a b c d e f
+       in
+@@ -18,4 +57,36 @@
+   in
+     outer
+   where
++  pick ::
++    { firstVeryLongRecordFieldName :: Int
++    , fourthVeryLongRecordFieldName :: Int
++    , secondVeryLongRecordFieldName :: String
++    , thirdVeryLongRecordFieldName :: Boolean
++    } ->
++    { firstVeryLongRecordFieldName :: Int
++    , fourthVeryLongRecordFieldName :: Int
++    , secondVeryLongRecordFieldName :: String
++    , thirdVeryLongRecordFieldName :: Boolean
++    } ->
++    { firstVeryLongRecordFieldName :: Int
++    , fourthVeryLongRecordFieldName :: Int
++    , secondVeryLongRecordFieldName :: String
++    , thirdVeryLongRecordFieldName :: Boolean
++    } ->
++    { firstVeryLongRecordFieldName :: Int
++    , fourthVeryLongRecordFieldName :: Int
++    , secondVeryLongRecordFieldName :: String
++    , thirdVeryLongRecordFieldName :: Boolean
++    } ->
++    { firstVeryLongRecordFieldName :: Int
++    , fourthVeryLongRecordFieldName :: Int
++    , secondVeryLongRecordFieldName :: String
++    , thirdVeryLongRecordFieldName :: Boolean
++    } ->
++    { firstVeryLongRecordFieldName :: Int
++    , fourthVeryLongRecordFieldName :: Int
++    , secondVeryLongRecordFieldName :: String
++    , thirdVeryLongRecordFieldName :: Boolean
++    } ->
++    Int
+   pick r _ _ _ _ _ = r.firstVeryLongRecordFieldName

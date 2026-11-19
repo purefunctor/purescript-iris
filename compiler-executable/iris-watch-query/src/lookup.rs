@@ -6,17 +6,19 @@ use std::path::Path;
 use files::FileId;
 use iris_analysis::nominal::{self, NamedItem, QualifiedName};
 use iris_analysis::position::PositionEncoding;
+use iris_analysis::refactor::let_signatures;
 use iris_analysis::{AnalyzerCapabilities, AnalyzerContext, AnalyzerError, AnalyzerHost};
 use iris_build::SourceKind;
 use iris_diagnostics::Severity;
-use iris_watch_server::protocol::{InstanceSearch, Namespace};
+use iris_watch_server::protocol::{InstanceSearch, Namespace, RefactorKind};
 use lsp_types::{Location, Uri};
 use url::Url;
 
 use crate::{
     BuildState, Declaration, DeclarationsAnswer, Dependent, DependentsAnswer, DiagnosticEntry,
     DiagnosticSeverity, DiagnosticsAnswer, InstanceEntry, InstancesAnswer, JavascriptAnswer,
-    LocationsAnswer, QueryContext, QueryFailure, SearchAnswer, SearchResult,
+    LocationsAnswer, QueryContext, QueryFailure, RefactorAnswer, RefactorEdit, RefactorFile,
+    RefactorSkipped, SearchAnswer, SearchResult, sha256_hex,
 };
 
 pub(crate) fn signature(
@@ -227,6 +229,83 @@ pub(crate) fn javascript(
         }),
         Err(_) => Err(QueryFailure::Failed(format!("no JavaScript was generated for {name}"))),
     }
+}
+
+pub(crate) fn refactor(
+    context: &QueryContext,
+    refactor: RefactorKind,
+    module: Option<&str>,
+) -> Result<RefactorAnswer, QueryFailure> {
+    let target_files = match module {
+        Some(name) => {
+            let file_id = module_file(context, name)?;
+            let is_project =
+                context.files.get(&file_id).is_some_and(|file| file.kind == SourceKind::Project);
+            if !is_project {
+                return Err(QueryFailure::Failed(format!(
+                    "module {name} is not a project source file"
+                )));
+            }
+            vec![file_id]
+        }
+        None => {
+            let mut project_files = context
+                .files
+                .iter()
+                .filter(|(_, file)| file.kind == SourceKind::Project)
+                .map(|(&file_id, file)| (relative(context, &file.path), file_id))
+                .collect::<Vec<_>>();
+            project_files.sort_by(|(left_path, _), (right_path, _)| left_path.cmp(right_path));
+            project_files.into_iter().map(|(_, file_id)| file_id).collect()
+        }
+    };
+
+    let plan = match refactor {
+        RefactorKind::LetSignatures => {
+            let_signatures::add_let_signatures(&context.engine, target_files)?
+        }
+    };
+
+    let mut files = Vec::with_capacity(plan.files.len());
+    for file_plan in plan.files {
+        let content = context.engine.content(file_plan.file_id)?;
+        let path = display_path(context, file_plan.file_id);
+        let sha256 = sha256_hex(&content);
+        let edits = file_plan.edits.into_iter().map(|edit| {
+            let (line, column) = line_column(&content, edit.start_byte);
+            RefactorEdit {
+                start_byte: edit.start_byte,
+                end_byte: edit.end_byte,
+                line,
+                column,
+                new_text: edit.new_text,
+            }
+        });
+        let edits = edits.collect();
+        files.push(RefactorFile {
+            path,
+            sha256,
+            edits,
+            signatures_added: file_plan.signatures_added,
+            imports_added: file_plan.imports_added,
+            imports_updated: file_plan.imports_updated,
+        });
+    }
+
+    let mut skipped = Vec::with_capacity(plan.skipped.len());
+    for entry in plan.skipped {
+        let content = context.engine.content(entry.file_id)?;
+        let path = display_path(context, entry.file_id);
+        let (line, column) = line_column(&content, entry.offset);
+        skipped.push(RefactorSkipped {
+            location: format!("{path}:{line}:{column}"),
+            name: entry.name,
+            reason: entry.reason.as_str().to_string(),
+            detail: entry.detail,
+        });
+    }
+
+    Ok(RefactorAnswer { files, skipped })
 }
 
 /// The item's signature and documentation. An item checking rejected is still listed, marked

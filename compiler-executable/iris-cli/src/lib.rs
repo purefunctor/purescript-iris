@@ -3,6 +3,8 @@ mod format;
 mod logging;
 mod skills;
 
+use std::{env, fs};
+
 use iris_self_update::{Availability, Update};
 use iris_watch_server::client::{self, ClientError};
 use iris_watch_server::discovery::OutputLock;
@@ -45,8 +47,11 @@ pub fn run() -> i32 {
             }
         },
         cli::Command::Watch(mut options) => {
-            if let Some(options) = options.take_query() {
-                return query(options);
+            if let Some(command) = options.take_command() {
+                return match command {
+                    cli::WatchCommand::Query(options) => query(options),
+                    cli::WatchCommand::Refactor(options) => refactor(options),
+                };
             }
             let config = options.into_config();
             // Locking before Spago runs stops a second watcher before it fetches and builds.
@@ -239,6 +244,141 @@ fn query(options: cli::QueryOptions) -> i32 {
         }
         Response::Error { message } => {
             if !options.json {
+                eprintln!("{message}");
+            }
+            1
+        }
+        Response::Cancelled => {
+            unreachable!("invariant violated: cancelled queries are sent again")
+        }
+    }
+}
+
+fn refactor(options: cli::RefactorOptions) -> i32 {
+    let query = options.refactor.into_query();
+    let output = match iris_build::resolve_output(options.output.as_deref()) {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    let (discovery, response) = match client::query(&output, &query) {
+        Ok(answer) => answer,
+        Err(error @ ClientError::NoWatcher { .. }) => {
+            eprintln!("{error}; start one with `iris watch`, or retry if it is starting");
+            return NO_WATCHER;
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    if discovery.version != VERSION {
+        let executable = discovery.executable.as_ref().map_or_else(
+            || "the watcher's `iris`".to_string(),
+            |executable| executable.display().to_string(),
+        );
+        eprintln!(
+            "warning: the watcher runs Iris {} and this is Iris {VERSION}; \
+             use {executable} if answers look wrong",
+            discovery.version
+        );
+    }
+
+    match response {
+        Response::Result { value } => {
+            if options.preview && options.json {
+                println!("{}", Response::Result { value }.to_line().trim_end());
+                return 0;
+            }
+            let raw_json = options.json.then(|| Response::Result { value: value.clone() });
+            let answer = match iris_watch_query::parse_refactor_answer(value) {
+                Ok(answer) => answer,
+                Err(error) => {
+                    eprintln!("the watcher sent an answer this Iris cannot read: {error}");
+                    return 1;
+                }
+            };
+            let root = match discovery.root {
+                Some(root) => root,
+                None => match env::current_dir() {
+                    Ok(directory) => directory,
+                    Err(error) => {
+                        eprintln!("could not determine working directory: {error}");
+                        return 1;
+                    }
+                },
+            };
+
+            let mut prepared = Vec::with_capacity(answer.files.len());
+            for file in &answer.files {
+                let disk_path = root.join(&file.path);
+                if !options.preview {
+                    let metadata = match fs::symlink_metadata(&disk_path) {
+                        Ok(metadata) => metadata,
+                        Err(error) => {
+                            eprintln!("could not inspect {}: {error}", disk_path.display());
+                            return 1;
+                        }
+                    };
+                    if metadata.file_type().is_symlink() {
+                        eprintln!("refusing to replace symlink {}", disk_path.display());
+                        return 1;
+                    }
+                }
+                let original = match fs::read_to_string(&disk_path) {
+                    Ok(content) => content,
+                    Err(error) => {
+                        eprintln!("could not read {}: {error}", disk_path.display());
+                        return 1;
+                    }
+                };
+                if iris_watch_query::sha256_hex(&original) != file.sha256 {
+                    eprintln!(
+                        "refusing to modify {}: file changed on disk since the watcher snapshot",
+                        file.path
+                    );
+                    return 1;
+                }
+                let modified = match iris_watch_query::apply_file_edits(&original, &file.edits) {
+                    Ok(modified) => modified,
+                    Err(error) => {
+                        eprintln!("failed to apply edits to {}: {error}", file.path);
+                        return 1;
+                    }
+                };
+                prepared.push((disk_path, file.path.as_str(), original, modified));
+            }
+
+            if options.preview {
+                for (_, relative_path, original, modified) in prepared {
+                    print!(
+                        "{}",
+                        iris_watch_query::render_unified_diff(relative_path, &original, &modified)
+                    );
+                }
+                return 0;
+            }
+
+            for (disk_path, _, _, modified) in prepared {
+                if let Err(error) = fs::write(&disk_path, &modified) {
+                    eprintln!("could not write {}: {error}", disk_path.display());
+                    return 1;
+                }
+            }
+
+            if let Some(raw_json) = raw_json {
+                println!("{}", raw_json.to_line().trim_end());
+            } else {
+                println!("{}", iris_watch_query::render_refactor_summary(&answer));
+            }
+            0
+        }
+        Response::Error { message } => {
+            if options.json {
+                println!("{}", Response::Error { message }.to_line().trim_end());
+            } else {
                 eprintln!("{message}");
             }
             1

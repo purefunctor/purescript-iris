@@ -8,8 +8,9 @@ Build a Spago workspace or package and rebuild when inputs change.
 Usage: iris watch [FLAGS] [SUBCOMMAND]
 
 Commands:
-  query  Ask a running `iris watch` about the project.
-  help   Print this message or the help of the given subcommand(s)
+  query     Ask a running `iris watch` about the project.
+  refactor  Run a type-aware refactoring against a running `iris watch`.
+  help      Print this message or the help of the given subcommand(s)
 
 Flags:
   -p, --package <NAME>  Workspace package to build.

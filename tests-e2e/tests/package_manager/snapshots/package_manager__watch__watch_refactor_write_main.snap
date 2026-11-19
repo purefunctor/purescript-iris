@@ -1,0 +1,5 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+expression: "String::from_utf8_lossy(&write_main.stdout)"
+---
+Added 3 signatures across 1 file, updated 1 import.

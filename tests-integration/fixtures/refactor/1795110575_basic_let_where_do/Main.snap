@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -14,33 +14,42 @@
+ letAndWhere :: Int -> Int
+ letAndWhere input =
+   let
++    doubled :: Int
+     doubled = step input -- trailing comment
++    tripled :: Int
+     tripled = step doubled
+     annotated :: Int
+     annotated = tripled
+   in
+     combine annotated
+   where
++  step :: Int -> Int
+   step 0 = 1
+   step n = n
+ 
++  combine :: Int -> Int
+   combine x =
+     let
++      offset :: String
+       offset = "ok"
+     in
+       keep x offset
+ 
++  keep :: Int -> String -> Int
+   keep x _ = x
+ 
+ doAndAdo :: Box Int
+ doAndAdo = do
+   x <- Box 1
+   let
++    first :: Int
+     first = x
++    second :: String
+     second = "hi"
+   ado
+     y <- Box first
+     let
++      third :: String
+       third = second
+     in
+       pick y third

@@ -80,6 +80,7 @@ async fn serve(
         pid: process::id(),
         version: String::clone(&config.version),
         executable: env::current_exe().ok(),
+        root: Some(project.root_directory().to_path_buf()),
     })?;
 
     if !config.quiet {

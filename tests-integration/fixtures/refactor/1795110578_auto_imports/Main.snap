@@ -1,0 +1,51 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -1,27 +1,40 @@
+ module Main where
+ 
+-import Single (mkAlpha)
++import Single (mkAlpha, Alpha)
+ import Multi
+   ( mkBeta
+   , mkGamma
++  , Beta
++  , Gamma
+   )
+-import Shadowed (mkShadowed) as Sh
++import Shadowed (mkShadowed, Local) as Sh
+ import HiddenMod hiding (Hidden)
+ import Producer (makeFresh, makeClashA, makeClashB)
+ import Secret (mkUnusedPair)
++import FreshA (Clash, Fresh)
++import FreshB (Clash) as FreshB
++import HiddenMod (Hidden) as HiddenMod
+ 
+ data Local = Local
+ 
+ example :: Int
+ example =
+   let
++    a :: Alpha
+     a = mkAlpha
++    b :: Beta
+     b = mkBeta
++    g :: Gamma
+     g = mkGamma
++    f :: Fresh
+     f = makeFresh
++    c1 :: Clash
+     c1 = makeClashA
++    c2 :: FreshB.Clash
+     c2 = makeClashB
++    s :: Sh.Local
+     s = Sh.mkShadowed
++    h :: HiddenMod.Hidden
+     h = mkHidden
+     unimportable = mkUnusedPair
+   in
+
+Skipped:
+Main.purs:26:5: unimportable (unimportable_types: Secret.Private)

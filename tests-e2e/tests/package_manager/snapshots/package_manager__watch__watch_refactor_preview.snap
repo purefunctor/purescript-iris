@@ -1,0 +1,24 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+expression: "String::from_utf8_lossy(&preview.stdout)"
+---
+--- a/src/Main.purs
++++ b/src/Main.purs
+@@ -1,13 +1,16 @@
+ module Main where
+ 
+-import Shapes (mkSquare, size)
++import Shapes (mkSquare, size, Shape)
+ 
+ main :: Int
+ main =
+   let
++    shape :: Shape
+     shape = mkSquare 2
++    doubled :: Int
+     doubled = step (size shape)
+   in
+     doubled
+   where
++  step :: Int -> Int
+   step n = n

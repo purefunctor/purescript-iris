@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -5,6 +5,7 @@
+ example :: Int
+ example =
+   let
++    x :: Int
+     x = value
+   in
+     x
