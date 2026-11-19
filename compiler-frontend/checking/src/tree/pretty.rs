@@ -468,13 +468,12 @@ where
             let mut constructor_type = result;
             for &argument_id in constructor.arguments.iter().rev() {
                 let argument = type_pretty.render(argument_id)?;
-                let argument = match *self.queries.lookup_type(argument_id) {
-                    Type::Forall(..)
-                    | Type::Constrained(..)
-                    | Type::Function(..)
-                    | Type::Kinded(..) => format!("({argument})"),
-                    _ => argument.to_string(),
-                };
+                let needs_parens = matches!(
+                    *self.queries.lookup_type(argument_id),
+                    Type::Forall(..) | Type::Constrained(..) | Type::Kinded(..)
+                ) || type_pretty.is_function_type(argument_id)?;
+                let argument =
+                    if needs_parens { format!("({argument})") } else { argument.to_string() };
 
                 let result = constructor_type;
                 constructor_type = self

@@ -6,7 +6,7 @@ identity ::
   forall k (@a :: k -> k -> Prim.Type).
     Main.Category @k (a :: k -> k -> Prim.Type) =>
     (forall (t :: k). (a :: k -> k -> Prim.Type) (t :: k) (t :: k))
-test :: Prim.Function Prim.Int Prim.Int
+test :: Prim.Int -> Prim.Int
 test' :: Prim.Int -> Prim.Int
 
 Types

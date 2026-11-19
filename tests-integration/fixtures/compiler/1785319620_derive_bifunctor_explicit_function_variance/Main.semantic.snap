@@ -7,4 +7,4 @@ data ArrowSyntax @a @b
 
 data ArrowConstructor :: Prim.Type -> Prim.Type -> Prim.Type
 data ArrowConstructor @a @b
-  | ArrowConstructor :: Prim.Function a b -> Main.ArrowConstructor a b
+  | ArrowConstructor :: (a -> b) -> Main.ArrowConstructor a b

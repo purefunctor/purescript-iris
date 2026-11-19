@@ -17,7 +17,5 @@ dictionary heytingAlgebraFunction ::
   disj :: (a -> b) -> (a -> b) -> a -> b
   disj = \left -> \right -> \value -> disj {heytingAlgebraDict} (left value) (right value)
 
-test :: Prim.Function Prim.Char Prim.Boolean ->
-Prim.Function Prim.Char Prim.Boolean ->
-Prim.Function Prim.Char Prim.Boolean
+test :: (Prim.Char -> Prim.Boolean) -> (Prim.Char -> Prim.Boolean) -> Prim.Char -> Prim.Boolean
 test = disj {heytingAlgebraFunction {heytingAlgebraBoolean}}

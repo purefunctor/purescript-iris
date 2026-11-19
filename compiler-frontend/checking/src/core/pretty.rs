@@ -452,6 +452,24 @@ where
         self.names.assign_display_name(name, display);
     }
 
+    pub(crate) fn is_function_type(&self, id: TypeId) -> QueryResult<bool> {
+        match *self.queries.lookup_type(id) {
+            Type::Function(..) => Ok(true),
+            Type::Application(function, _) => {
+                if let Type::Application(constructor, _) = *self.queries.lookup_type(function)
+                    && let Type::Constructor(file_id, type_id) =
+                        *self.queries.lookup_type(constructor)
+                    && file_id == self.queries.prim_id()
+                {
+                    let indexed = self.queries.indexed(file_id)?;
+                    return Ok(indexed.items[type_id].name.as_deref() == Some("Function"));
+                }
+                Ok(false)
+            }
+            _ => Ok(false),
+        }
+    }
+
     pub fn render(&mut self, id: TypeId) -> QueryResult<SmolStr> {
         self.names.set_default_name("t");
         self.render_with_signature(None, id, Precedence::Top)
@@ -710,6 +728,25 @@ where
         self.is_prim_type(id, "Record")
     }
 
+    fn is_function_constructor(&self, id: TypeId) -> QueryResult<bool> {
+        self.is_prim_type(id, "Function")
+    }
+
+    fn split_function_type(&self, id: TypeId) -> QueryResult<Option<(TypeId, TypeId)>> {
+        match *self.lookup_type(id) {
+            Type::Function(argument, result) => Ok(Some((argument, result))),
+            Type::Application(function, result) => {
+                if let Type::Application(constructor, argument) = *self.lookup_type(function)
+                    && self.is_function_constructor(constructor)?
+                {
+                    return Ok(Some((argument, result)));
+                }
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
     fn is_type_kind(&self, id: TypeId) -> QueryResult<bool> {
         self.is_prim_type(id, "Type")
     }
@@ -841,6 +878,12 @@ where
         while let Type::Application(inner_function, argument) = *self.lookup_type(function) {
             function = inner_function;
             arguments.push(argument);
+        }
+
+        if let &[result, argument] = arguments.as_slice()
+            && self.is_function_constructor(function)?
+        {
+            return self.traverse_function(precedence, argument, result);
         }
 
         if let &[right, left] = arguments.as_slice()
@@ -992,7 +1035,7 @@ where
     ) -> QueryResult<Doc<'arena>> {
         let mut arguments = vec![argument];
 
-        while let Type::Function(argument, next_result) = *self.lookup_type(result) {
+        while let Some((argument, next_result)) = self.split_function_type(result)? {
             result = next_result;
             arguments.push(argument);
         }
