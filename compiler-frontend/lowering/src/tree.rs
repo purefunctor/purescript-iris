@@ -557,6 +557,12 @@ impl LoweredTree {
         &self.let_binding_groups[id]
     }
 
+    pub fn iter_let_binding_groups(
+        &self,
+    ) -> impl Iterator<Item = (LetBindingNameGroupId, &LetBindingNameGroup)> {
+        self.let_binding_groups.iter()
+    }
+
     pub fn let_binding_group_for_signature(
         &self,
         signature: crate::source::LetBindingSignatureId,

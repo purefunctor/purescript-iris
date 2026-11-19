@@ -52,6 +52,39 @@ impl ResolvedClassMembers {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ScopeSpelling {
+    Unqualified(SmolStr),
+    Qualified { qualifier: SmolStr, name: SmolStr },
+    NotInScope,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeNamespace {
+    Type,
+    Class,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UniqueLookup<ItemId> {
+    None,
+    Unique(FileId, ItemId),
+    Ambiguous,
+}
+
+impl<ItemId: Copy + Eq> UniqueLookup<ItemId> {
+    fn insert(&mut self, file: FileId, item: ItemId) {
+        match *self {
+            UniqueLookup::None => *self = UniqueLookup::Unique(file, item),
+            UniqueLookup::Unique(existing_file, existing_item)
+                if existing_file == file && existing_item == item => {}
+            UniqueLookup::Unique(_, _) | UniqueLookup::Ambiguous => {
+                *self = UniqueLookup::Ambiguous;
+            }
+        }
+    }
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ResolvedModule {
     pub unqualified: ResolvedImportsUnqualified,
@@ -217,6 +250,101 @@ impl ResolvedModule {
         }
 
         prim.exports.contains_term(file_id, item_id)
+    }
+
+    fn unique_visible<'a, ItemId, LookupFn>(
+        imports: impl IntoIterator<Item = &'a ResolvedImport>,
+        lookup: LookupFn,
+    ) -> UniqueLookup<ItemId>
+    where
+        ItemId: Copy + Eq,
+        LookupFn: Fn(&ResolvedImport) -> Option<(FileId, ItemId, ImportKind)>,
+    {
+        let mut explicit = UniqueLookup::None;
+        let mut implicit = UniqueLookup::None;
+        for import in imports {
+            match lookup(import) {
+                Some((file_id, item_id, ImportKind::Explicit)) => {
+                    explicit.insert(file_id, item_id);
+                }
+                Some((file_id, item_id, ImportKind::Implicit)) => {
+                    implicit.insert(file_id, item_id);
+                }
+                _ => {}
+            }
+        }
+        if explicit != UniqueLookup::None { explicit } else { implicit }
+    }
+
+    pub fn spell_type_item(
+        &self,
+        prim: &ResolvedModule,
+        file_id: FileId,
+        type_id: TypeItemId,
+        name: &str,
+        namespace: TypeNamespace,
+    ) -> ScopeSpelling {
+        let target = (file_id, type_id);
+        let lookup_local = match namespace {
+            TypeNamespace::Type => self.locals.lookup_type(name),
+            TypeNamespace::Class => self.locals.lookup_class(name),
+        };
+        if lookup_local == Some(target) {
+            return ScopeSpelling::Unqualified(SmolStr::new(name));
+        }
+
+        let lookup_import = |import: &ResolvedImport| match namespace {
+            TypeNamespace::Type => import.lookup_type(name),
+            TypeNamespace::Class => import.lookup_class(name),
+        };
+        let lookup_prim = || match namespace {
+            TypeNamespace::Type => prim.exports.lookup_type(name),
+            TypeNamespace::Class => prim.exports.lookup_class(name),
+        };
+
+        if lookup_local.is_none() {
+            match ResolvedModule::unique_visible(self.unqualified.values().flatten(), lookup_import)
+            {
+                UniqueLookup::Unique(found_file, found_id) if (found_file, found_id) == target => {
+                    return ScopeSpelling::Unqualified(SmolStr::new(name));
+                }
+                UniqueLookup::Unique(_, _) | UniqueLookup::Ambiguous => {}
+                UniqueLookup::None => {
+                    if !self.unqualified.contains_key("Prim") && lookup_prim() == Some(target) {
+                        return ScopeSpelling::Unqualified(SmolStr::new(name));
+                    }
+                }
+            }
+        }
+
+        let mut best_qualifier: Option<&SmolStr> = None;
+        for (qualifier, imports) in &self.qualified {
+            if ResolvedModule::unique_visible(imports.iter(), lookup_import)
+                == UniqueLookup::Unique(file_id, type_id)
+            {
+                let replace = best_qualifier.is_none_or(|current| {
+                    (qualifier.len(), qualifier.as_str()) < (current.len(), current.as_str())
+                });
+                if replace {
+                    best_qualifier = Some(qualifier);
+                }
+            }
+        }
+        if let Some(qualifier) = best_qualifier {
+            return ScopeSpelling::Qualified {
+                qualifier: SmolStr::clone(qualifier),
+                name: SmolStr::new(name),
+            };
+        }
+
+        if !self.qualified.contains_key("Prim") && lookup_prim() == Some(target) {
+            return ScopeSpelling::Qualified {
+                qualifier: SmolStr::new_static("Prim"),
+                name: SmolStr::new(name),
+            };
+        }
+
+        ScopeSpelling::NotInScope
     }
 }
 
