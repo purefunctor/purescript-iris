@@ -33,6 +33,7 @@ pub struct SkippedEntry {
 pub enum SkipReason {
     ModuleHasErrors,
     Unchecked,
+    ScopedTypeVariable,
     PolymorphicOrUnsolved,
     LeadingComment,
     NotAtLineStart,
@@ -45,6 +46,7 @@ impl SkipReason {
         match self {
             SkipReason::ModuleHasErrors => "module_has_errors",
             SkipReason::Unchecked => "unchecked",
+            SkipReason::ScopedTypeVariable => "scoped_type_variable",
             SkipReason::PolymorphicOrUnsolved => "polymorphic_or_unsolved",
             SkipReason::LeadingComment => "leading_comment",
             SkipReason::NotAtLineStart => "not_at_line_start",

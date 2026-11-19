@@ -18,6 +18,16 @@ polyAndOuterRigid value =
   where
   wrap x = x
 
+class Tag a where
+  tag :: a -> Box a
+
+instance Tag (Box item) where
+  tag value =
+    let
+      same = value
+    in
+      Box same
+
 layoutAndCommentSkips :: Int
 layoutAndCommentSkips =
   let singleLine = 1 in
