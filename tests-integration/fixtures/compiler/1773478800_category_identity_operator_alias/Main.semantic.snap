@@ -11,12 +11,12 @@ interface Category a where
   identity :: forall (t :: k). a t t
 
 dictionary semigroupoidFn :: Main.Semigroupoid @Prim.Type Prim.Function where
-  compose :: forall b c d. Prim.Function c d -> Prim.Function b c -> Prim.Function b d
+  compose :: forall b c d. (c -> d) -> (b -> c) -> b -> d
   compose = \f -> \g -> \x -> f (g x)
 
 dictionary categoryFn :: Main.Category @Prim.Type Prim.Function where
   superclass semigroupoidDict = semigroupoidFn
-  identity :: forall t. Prim.Function t t
+  identity :: forall t. t -> t
   identity = \x -> x
 
 test :: forall a. a -> a

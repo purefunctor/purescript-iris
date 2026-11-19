@@ -3,7 +3,7 @@ source: tests-integration/src/fixtures.rs
 ---
 Terms
 ArrowSyntax :: forall @a @b. (a -> b) -> Main.ArrowSyntax a b
-ArrowConstructor :: forall @a @b. Prim.Function a b -> Main.ArrowConstructor a b
+ArrowConstructor :: forall @a @b. (a -> b) -> Main.ArrowConstructor a b
 
 Types
 ArrowSyntax :: Prim.Type -> Prim.Type -> Prim.Type

@@ -16,7 +16,7 @@ identity :: forall a. a -> a
 identity = \a -> a
 
 dictionary profunctorFn :: Main.Profunctor Prim.Function where
-  dimap :: forall a b c d. (a -> b) -> (c -> d) -> Prim.Function b c -> Prim.Function a d
+  dimap :: forall a b c d. (a -> b) -> (c -> d) -> (b -> c) -> a -> d
   dimap = \ab -> \cd -> \bc -> \a -> cd (bc (ab a))
 
 lens :: forall s a. (a -> s) -> (s -> a) -> Main.Lens s a

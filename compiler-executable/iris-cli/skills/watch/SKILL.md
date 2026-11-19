@@ -91,10 +91,13 @@ verifies file digests before writing edits back to disk.
 
 - Writes modified files by default and prints a summary of signatures added, imports added or
   updated, and skipped bindings or modules.
-- `--preview` skips writing files and prints a unified diff (`.patch`) to stdout.
+- `--preview` skips writing files, prints a unified diff (`.patch`) to stdout, and prints any
+  skipped bindings or modules to stderr so stdout stays valid patch output.
 - `--json` prints the raw watcher response JSON envelope (`kind` and `value` or `message`);
   combine `--preview --json` to inspect the machine-readable edit plan without touching disk.
-- Only project source files are modified; dependencies and `Prim` are refused, and modules with
-  parse, resolve, lowering, or checking errors are skipped.
+- Only editable workspace and local project files are modified; fetched dependencies (`.spago/p/`
+  and git checkouts) and `Prim` are excluded and refused when named explicitly. Modules with
+  parse, indexing, resolving, lowering, cycle, or checking errors are skipped; naming an errored
+  module explicitly exits with status 1.
 - After applying edits, run `iris watch query wait` and `iris watch query diagnostics` to confirm
   the rebuild succeeded cleanly.

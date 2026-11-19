@@ -16,7 +16,7 @@ composeOrder = \_ ->
 partiallyComposedOrder :: Prim.Boolean -> Prim.Int
 partiallyComposedOrder = \_ ->
   let
-    composedFunction :: Prim.Function Prim.Int Prim.Int
+    composedFunction :: Prim.Int -> Prim.Int
     composedFunction =
       compose {semigroupoidFn} (observe "outer" \value -> value) (observe "inner" \value -> value)
   in
@@ -34,7 +34,7 @@ flippedComposeOrder = \_ ->
 partiallyFlippedComposedOrder :: Prim.Boolean -> Prim.Int
 partiallyFlippedComposedOrder = \_ ->
   let
-    composedFunction :: Prim.Function Prim.Int Prim.Int
+    composedFunction :: Prim.Int -> Prim.Int
     composedFunction =
       composeFlipped {semigroupoidFn} (observe "inner" \value -> value)
         (observe "outer" \value -> value)

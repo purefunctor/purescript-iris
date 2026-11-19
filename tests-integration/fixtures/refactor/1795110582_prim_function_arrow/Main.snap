@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -18,7 +18,9 @@
+ example :: Boolean
+ example =
+   let
++    composed :: Int -> Boolean
+     composed = compose toBool toString
++    curried :: Int -> String -> Boolean
+     curried = compose combine (\n -> n)
+   in
+     curried 1 (toString 2) && composed 3

@@ -1073,8 +1073,99 @@ value =
     assert_eq!(non_project.status.code(), Some(1));
     assert!(
         String::from_utf8_lossy(&non_project.stderr)
-            .contains("module Prim is not a project source file"),
+            .contains("module Prim is not an editable project source file"),
         "{}",
         String::from_utf8_lossy(&non_project.stderr)
+    );
+
+    workspace.write(
+        "src/Broken.purs",
+        r#"module Broken where
+
+broken :: Int
+broken = "not an int"
+"#,
+    );
+    let preview_broken =
+        workspace.command(&["watch", "refactor", "--preview", "let-signatures", "Broken"]);
+    assert_eq!(preview_broken.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&preview_broken.stdout).is_empty());
+    insta::assert_snapshot!(
+        "watch_refactor_preview_broken_stderr",
+        String::from_utf8_lossy(&preview_broken.stderr)
+    );
+
+    let preview_broken_json = workspace.command(&[
+        "watch",
+        "refactor",
+        "--preview",
+        "--json",
+        "let-signatures",
+        "Broken",
+    ]);
+    assert_eq!(preview_broken_json.status.code(), Some(1));
+    let broken_response: serde_json::Value =
+        serde_json::from_slice(&preview_broken_json.stdout).unwrap();
+    assert_eq!(broken_response["value"]["skipped"][0]["reason"], "module_has_errors");
+    assert_eq!(broken_response["value"]["skipped"][0]["detail"], "1 checking error");
+
+    let preview_all_with_broken =
+        workspace.command(&["watch", "refactor", "--preview", "let-signatures"]);
+    assert_success(&preview_all_with_broken);
+    assert!(String::from_utf8_lossy(&preview_all_with_broken.stdout).is_empty());
+    assert!(
+        String::from_utf8_lossy(&preview_all_with_broken.stderr)
+            .contains("src/Broken.purs:1:1: Broken (module_has_errors: 1 checking error)"),
+        "{}",
+        String::from_utf8_lossy(&preview_all_with_broken.stderr)
+    );
+}
+
+#[test]
+fn refactors_only_editable_sources_and_excludes_fetched_dependencies() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace:
+  packageSet:
+    registry: 64.10.0
+package:
+  name: application
+  dependencies: [prelude]
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Prelude
+
+value :: Int
+value =
+  let
+    composed = identity <<< identity
+  in
+    composed 1
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+
+    let preview =
+        workspace.command(&["watch", "refactor", "--preview", "--json", "let-signatures"]);
+    assert_success(&preview);
+    let response: serde_json::Value = serde_json::from_slice(&preview.stdout).unwrap();
+    let files = response["value"]["files"].as_array().unwrap();
+    let paths = files.iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>();
+    assert_eq!(paths, vec!["src/Main.purs"]);
+
+    let dependency = workspace.command(&["watch", "refactor", "let-signatures", "Data.Show"]);
+    assert_eq!(dependency.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&dependency.stderr)
+            .contains("module Data.Show is not an editable project source file"),
+        "{}",
+        String::from_utf8_lossy(&dependency.stderr)
     );
 }

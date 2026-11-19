@@ -14,7 +14,7 @@ newtype ConcreteNewtype @a
   | ConcreteNewtype :: Main.ConcreteTagged a -> Main.ConcreteNewtype a
 
 dictionary semigroupoidFn :: Main.Semigroupoid @Prim.Type Prim.Function where
-  compose :: forall a b c. Prim.Function b c -> Prim.Function a b -> Prim.Function a c
+  compose :: forall a b c. (b -> c) -> (a -> b) -> a -> c
   compose = \f -> \g -> \x -> f (g x)
 
 make :: forall a. a -> Main.HiddenTagged a

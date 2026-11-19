@@ -3,10 +3,7 @@ source: tests-integration/src/fixtures.rs
 ---
 Terms
 disj :: forall @a. Main.HeytingAlgebra a => a -> a -> a
-test ::
-  Prim.Function Prim.Char Prim.Boolean ->
-  Prim.Function Prim.Char Prim.Boolean ->
-  Prim.Function Prim.Char Prim.Boolean
+test :: (Prim.Char -> Prim.Boolean) -> (Prim.Char -> Prim.Boolean) -> Prim.Char -> Prim.Boolean
 
 Types
 HeytingAlgebra :: Prim.Type -> Prim.Constraint

@@ -255,6 +255,7 @@ fn query(options: cli::QueryOptions) -> i32 {
 }
 
 fn refactor(options: cli::RefactorOptions) -> i32 {
+    let explicit_module = options.refactor.has_module();
     let query = options.refactor.into_query();
     let output = match iris_build::resolve_output(options.output.as_deref()) {
         Ok(output) => output,
@@ -288,10 +289,6 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
 
     match response {
         Response::Result { value } => {
-            if options.preview && options.json {
-                println!("{}", Response::Result { value }.to_line().trim_end());
-                return 0;
-            }
             let raw_json = options.json.then(|| Response::Result { value: value.clone() });
             let answer = match iris_watch_query::parse_refactor_answer(value) {
                 Ok(answer) => answer,
@@ -300,6 +297,17 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
                     return 1;
                 }
             };
+            let explicit_module_has_errors = explicit_module
+                && answer.files.is_empty()
+                && answer.skipped.iter().any(|entry| entry.reason == "module_has_errors");
+            let exit_code = i32::from(explicit_module_has_errors);
+
+            if options.preview && options.json {
+                if let Some(raw_json) = raw_json {
+                    println!("{}", raw_json.to_line().trim_end());
+                }
+                return exit_code;
+            }
             let root = match discovery.root {
                 Some(root) => root,
                 None => match env::current_dir() {
@@ -358,7 +366,10 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
                         iris_watch_query::render_unified_diff(relative_path, &original, &modified)
                     );
                 }
-                return 0;
+                if let Some(skipped) = iris_watch_query::render_refactor_skipped(&answer) {
+                    eprintln!("{skipped}");
+                }
+                return exit_code;
             }
 
             for (disk_path, _, _, modified) in prepared {
@@ -370,10 +381,12 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
 
             if let Some(raw_json) = raw_json {
                 println!("{}", raw_json.to_line().trim_end());
+            } else if explicit_module_has_errors {
+                eprintln!("{}", iris_watch_query::render_refactor_summary(&answer));
             } else {
                 println!("{}", iris_watch_query::render_refactor_summary(&answer));
             }
-            0
+            exit_code
         }
         Response::Error { message } => {
             if options.json {

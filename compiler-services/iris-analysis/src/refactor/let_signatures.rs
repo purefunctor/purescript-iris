@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
+use checking::core::Name;
 use checking::core::pretty::{ModuleScopeResolver, OutOfScopePolicy, Pretty, PrettyConfig};
 use checking::{Type, TypeId};
 use files::FileId;
@@ -53,15 +54,22 @@ fn refactor_module(
     let grouped = engine.grouped(file_id)?;
     let checked = engine.checked(file_id)?;
 
-    let has_indexed_error = indexed.errors.iter().any(|error| !error.is_warning());
-    let has_checking_error = checked.errors.iter().any(|error| !error.kind.is_warning());
-    if !parse_errors.is_empty()
-        || has_indexed_error
-        || !resolved.errors.is_empty()
-        || !lowered.errors.is_empty()
-        || !grouped.cycle_errors.is_empty()
-        || has_checking_error
-    {
+    let parse_error_count = parse_errors.len();
+    let indexed_error_count = indexed.errors.iter().filter(|error| !error.is_warning()).count();
+    let resolved_error_count = resolved.errors.len();
+    let lowered_error_count = lowered.errors.len();
+    let cycle_error_count = grouped.cycle_errors.len();
+    let checking_error_count =
+        checked.errors.iter().filter(|error| !error.kind.is_warning()).count();
+    let error_detail = format_error_stages([
+        ("parse", parse_error_count),
+        ("indexing", indexed_error_count),
+        ("resolving", resolved_error_count),
+        ("lowering", lowered_error_count),
+        ("cycle", cycle_error_count),
+        ("checking", checking_error_count),
+    ]);
+    if let Some(detail) = error_detail {
         let module_name = parsed
             .module_name(&content)
             .map(|name| name.to_string())
@@ -71,7 +79,7 @@ fn refactor_module(
             offset: 0,
             name: module_name,
             reason: SkipReason::ModuleHasErrors,
-            detail: None,
+            detail: Some(detail),
         }];
         return Ok((None, skipped));
     }
@@ -130,15 +138,33 @@ fn refactor_module(
             continue;
         };
 
-        if !is_strictly_monomorphic(engine, type_id) {
-            skipped.push(SkippedEntry {
-                file_id,
-                offset,
-                name: name.to_string(),
-                reason: SkipReason::PolymorphicOrUnsolved,
-                detail: None,
-            });
-            continue;
+        match classify_binding_type(engine, type_id) {
+            BindingTypeClassification::Monomorphic => {}
+            BindingTypeClassification::ScopedTypeVariables(names) => {
+                let mut pretty_state = Pretty::new(engine, &checked).state();
+                let rendered_names = names
+                    .into_iter()
+                    .map(|rigid_name| pretty_state.display_name(rigid_name).to_string())
+                    .collect::<Vec<_>>();
+                skipped.push(SkippedEntry {
+                    file_id,
+                    offset,
+                    name: name.to_string(),
+                    reason: SkipReason::ScopedTypeVariable,
+                    detail: Some(rendered_names.join(", ")),
+                });
+                continue;
+            }
+            BindingTypeClassification::PolymorphicOrUnsolved => {
+                skipped.push(SkippedEntry {
+                    file_id,
+                    offset,
+                    name: name.to_string(),
+                    reason: SkipReason::PolymorphicOrUnsolved,
+                    detail: None,
+                });
+                continue;
+            }
         }
 
         let annotation_range = AnnotationSyntaxRange::from_node(equation.syntax());
@@ -319,30 +345,71 @@ fn has_leading_comment(content: &str, start: usize, end: usize) -> bool {
     leading.contains("--") || leading.contains("{-") || leading.contains("-}")
 }
 
-fn is_strictly_monomorphic(engine: &impl AnalyzerQueries, id: TypeId) -> bool {
+enum BindingTypeClassification {
+    Monomorphic,
+    ScopedTypeVariables(Vec<Name>),
+    PolymorphicOrUnsolved,
+}
+
+fn classify_binding_type(engine: &impl AnalyzerQueries, id: TypeId) -> BindingTypeClassification {
+    let mut rigid_names = Vec::new();
+    if !collect_binding_type_rigids(engine, id, &mut rigid_names) {
+        return BindingTypeClassification::PolymorphicOrUnsolved;
+    }
+    if rigid_names.is_empty() {
+        BindingTypeClassification::Monomorphic
+    } else {
+        BindingTypeClassification::ScopedTypeVariables(rigid_names)
+    }
+}
+
+fn collect_binding_type_rigids(
+    engine: &impl AnalyzerQueries,
+    id: TypeId,
+    rigid_names: &mut Vec<Name>,
+) -> bool {
     match *engine.lookup_type(id) {
         Type::Constructor(_, _) | Type::Synonym(_, _) | Type::Integer(_) | Type::String(_, _) => {
+            true
+        }
+        Type::Rigid(name, _, _) => {
+            if !rigid_names.contains(&name) {
+                rigid_names.push(name);
+            }
             true
         }
         Type::Application(left, right)
         | Type::Function(left, right)
         | Type::Kinded(left, right) => {
-            is_strictly_monomorphic(engine, left) && is_strictly_monomorphic(engine, right)
+            collect_binding_type_rigids(engine, left, rigid_names)
+                && collect_binding_type_rigids(engine, right, rigid_names)
         }
         Type::Row(row_id) => {
             let row = engine.lookup_row_type(row_id);
-            row.fields.iter().all(|field| is_strictly_monomorphic(engine, field.id))
-                && row.tail.is_none_or(|tail| is_strictly_monomorphic(engine, tail))
+            row.fields
+                .iter()
+                .all(|field| collect_binding_type_rigids(engine, field.id, rigid_names))
+                && row
+                    .tail
+                    .is_none_or(|tail| collect_binding_type_rigids(engine, tail, rigid_names))
         }
         Type::Forall(_, _)
         | Type::Constrained(_, _)
         | Type::ConstraintOrigin(_, _)
-        | Type::Rigid(_, _, _)
         | Type::Unification(_)
         | Type::Free(_)
         | Type::Unknown(_)
         | Type::KindApplication(_, _) => false,
     }
+}
+
+fn format_error_stages<const COUNT: usize>(stages: [(&str, usize); COUNT]) -> Option<String> {
+    let parts = stages.into_iter().filter(|&(_, count)| count > 0).map(|(stage, count)| {
+        let noun = if count == 1 { "error" } else { "errors" };
+        format!("{count} {stage} {noun}")
+    });
+    let parts = parts.collect::<Vec<_>>();
+    (!parts.is_empty()).then(|| parts.join(", "))
 }
 
 fn lookup_iris_effect_bundle_operator(
