@@ -961,3 +961,120 @@ fn run_query(workspace: &TestWorkspace, query: &str) -> String {
         String::from_utf8_lossy(&output.stderr)
     )
 }
+
+#[test]
+fn refactors_let_signatures_through_the_running_watcher() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/Shapes.purs",
+        r#"module Shapes where
+
+data Shape = Square Int | Circle Int
+
+mkSquare :: Int -> Shape
+mkSquare = Square
+
+size :: Shape -> Int
+size (Square side) = side
+size (Circle radius) = radius
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Shapes (mkSquare, size)
+
+main :: Int
+main =
+  let
+    shape = mkSquare 2
+    doubled = step (size shape)
+  in
+    doubled
+  where
+  step n = n
+"#,
+    );
+    workspace.write(
+        "src/Extra.purs",
+        r#"module Extra where
+
+value :: Int
+value =
+  let
+    inner = 1
+  in
+    inner
+"#,
+    );
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial compilation", |stdout, _| stdout.contains("Build succeeded"));
+
+    let main_before = workspace.read("src/Main.purs");
+    let extra_before = workspace.read("src/Extra.purs");
+
+    let preview = workspace.command(&["watch", "refactor", "--preview", "let-signatures", "Main"]);
+    assert_success(&preview);
+    assert_eq!(workspace.read("src/Main.purs"), main_before);
+    insta::assert_snapshot!("watch_refactor_preview", String::from_utf8_lossy(&preview.stdout));
+
+    let preview_json =
+        workspace.command(&["watch", "refactor", "--preview", "--json", "let-signatures", "Main"]);
+    assert_success(&preview_json);
+    assert_eq!(workspace.read("src/Main.purs"), main_before);
+    let mut response: serde_json::Value = serde_json::from_slice(&preview_json.stdout).unwrap();
+    for file in response["value"]["files"].as_array_mut().unwrap() {
+        assert_eq!(file["sha256"].as_str().unwrap().len(), 64);
+        file["sha256"] = serde_json::Value::String("[sha256]".to_string());
+    }
+    insta::assert_snapshot!(
+        "watch_refactor_preview_json",
+        serde_json::to_string_pretty(&response).unwrap()
+    );
+
+    let write_main = workspace.command(&["watch", "refactor", "let-signatures", "Main"]);
+    assert_success(&write_main);
+    insta::assert_snapshot!(
+        "watch_refactor_write_main",
+        String::from_utf8_lossy(&write_main.stdout)
+    );
+    assert_eq!(workspace.read("src/Extra.purs"), extra_before);
+
+    let wait_after_main = workspace.command(&["watch", "query", "wait"]);
+    assert_success(&wait_after_main);
+    assert_eq!(String::from_utf8_lossy(&wait_after_main.stdout).trim(), "Build succeeded.");
+    let diagnostics = workspace.command(&["watch", "query", "diagnostics"]);
+    assert_success(&diagnostics);
+    assert_eq!(String::from_utf8_lossy(&diagnostics.stdout).trim(), "No diagnostics.");
+
+    let write_all_from_subdir =
+        workspace.command_in("src", &["watch", "refactor", "let-signatures"]);
+    assert_success(&write_all_from_subdir);
+    insta::assert_snapshot!(
+        "watch_refactor_write_all_from_subdir",
+        String::from_utf8_lossy(&write_all_from_subdir.stdout)
+    );
+    assert!(workspace.read("src/Extra.purs").contains("    inner :: Int\n    inner = 1"));
+
+    let wait_after_all = workspace.command(&["watch", "query", "wait"]);
+    assert_success(&wait_after_all);
+    assert_eq!(String::from_utf8_lossy(&wait_after_all.stdout).trim(), "Build succeeded.");
+
+    let non_project = workspace.command(&["watch", "refactor", "let-signatures", "Prim"]);
+    assert_eq!(non_project.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&non_project.stderr)
+            .contains("module Prim is not a project source file"),
+        "{}",
+        String::from_utf8_lossy(&non_project.stderr)
+    );
+}

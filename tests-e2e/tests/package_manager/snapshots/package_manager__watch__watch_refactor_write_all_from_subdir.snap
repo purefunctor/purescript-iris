@@ -1,0 +1,5 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+expression: "String::from_utf8_lossy(&write_all_from_subdir.stdout)"
+---
+Added 1 signature across 1 file.

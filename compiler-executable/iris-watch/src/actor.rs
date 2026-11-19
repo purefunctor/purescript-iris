@@ -118,7 +118,8 @@ impl BuildActor {
                         let response = Response::Result { value };
                         let _ = request.reply.send(response);
                     } else {
-                        self.synchronize(false).await?;
+                        let everything = matches!(request.query, Query::Refactor { .. });
+                        self.synchronize(everything).await?;
                         self.dispatch(request);
                     }
                 }

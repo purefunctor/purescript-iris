@@ -1861,6 +1861,8 @@ dependencies = [
  "javascript",
  "serde",
  "serde_json",
+ "sha2",
+ "similar 3.2.0",
  "url",
 ]
 

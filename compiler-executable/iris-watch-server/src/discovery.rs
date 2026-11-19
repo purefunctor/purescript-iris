@@ -25,6 +25,8 @@ pub struct Discovery {
     pub version: String,
     /// The watcher's executable, which a client from a different Iris version can point to.
     pub executable: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub root: Option<PathBuf>,
 }
 
 #[derive(Debug, Error)]

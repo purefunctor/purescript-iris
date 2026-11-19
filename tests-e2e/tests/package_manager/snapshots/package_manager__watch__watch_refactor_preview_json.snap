@@ -1,0 +1,49 @@
+---
+source: tests-e2e/tests/package_manager/watch.rs
+expression: "serde_json::to_string_pretty(&response).unwrap()"
+---
+{
+  "kind": "result",
+  "value": {
+    "files": [
+      {
+        "edits": [
+          {
+            "column": 30,
+            "end_byte": 48,
+            "line": 3,
+            "new_text": ", Shape",
+            "start_byte": 48
+          },
+          {
+            "column": 1,
+            "end_byte": 76,
+            "line": 8,
+            "new_text": "    shape :: Shape\n",
+            "start_byte": 76
+          },
+          {
+            "column": 1,
+            "end_byte": 99,
+            "line": 9,
+            "new_text": "    doubled :: Int\n",
+            "start_byte": 99
+          },
+          {
+            "column": 1,
+            "end_byte": 156,
+            "line": 13,
+            "new_text": "  step :: Int -> Int\n",
+            "start_byte": 156
+          }
+        ],
+        "imports_added": 0,
+        "imports_updated": 1,
+        "path": "src/Main.purs",
+        "sha256": "[sha256]",
+        "signatures_added": 3
+      }
+    ],
+    "skipped": []
+  }
+}

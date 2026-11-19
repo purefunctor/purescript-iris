@@ -42,6 +42,17 @@ pub enum Query {
     Diagnostics { name: Option<String> },
     /// The JavaScript generated for a module.
     Javascript { name: String },
+    Refactor {
+        refactor: RefactorKind,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        module: Option<String>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RefactorKind {
+    LetSignatures,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
