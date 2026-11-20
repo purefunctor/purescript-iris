@@ -1863,6 +1863,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "similar 3.2.0",
+ "thiserror",
  "url",
 ]
 

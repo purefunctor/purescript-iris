@@ -4,6 +4,7 @@
 //! JSON into text for agents. Queries address the loaded context by qualified name, such as
 //! `Data.Foo.bar`, never by file position.
 
+mod changes;
 mod lookup;
 
 use std::collections::BTreeMap;
@@ -14,13 +15,13 @@ use std::sync::Arc;
 use building::{QueryEngine, QueryError};
 use files::FileId;
 use iris_analysis::AnalyzerError;
-use iris_analysis::refactor::{SourceEdit, apply_edits};
 use iris_build::SourceFile;
 use iris_watch_server::protocol::Query;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use similar::TextDiff;
+
+pub use crate::changes::{RefactorChangeError, RefactorChanges};
 
 /// What the latest rebuild did, which decides whether `output/` matches the engine.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -177,6 +178,13 @@ pub struct RefactorAnswer {
     pub skipped: Vec<RefactorSkipped>,
 }
 
+impl RefactorAnswer {
+    pub fn is_blocked_by_module_errors(&self) -> bool {
+        self.files.is_empty()
+            && self.skipped.iter().any(|entry| entry.reason == "module_has_errors")
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RefactorFile {
     pub path: String,
@@ -205,7 +213,7 @@ pub struct RefactorSkipped {
     pub detail: Option<String>,
 }
 
-pub fn sha256_hex(content: &str) -> String {
+pub(crate) fn sha256_hex(content: &str) -> String {
     let digest = Sha256::digest(content.as_bytes());
     let mut output = String::with_capacity(digest.len() * 2);
     for byte in digest {
@@ -216,24 +224,6 @@ pub fn sha256_hex(content: &str) -> String {
 
 pub fn parse_refactor_answer(value: Value) -> Result<RefactorAnswer, serde_json::Error> {
     serde_json::from_value(value)
-}
-
-pub fn apply_file_edits(source: &str, edits: &[RefactorEdit]) -> Result<String, String> {
-    let source_edits = edits.iter().map(|edit| SourceEdit {
-        start_byte: edit.start_byte,
-        end_byte: edit.end_byte,
-        new_text: String::clone(&edit.new_text),
-    });
-    let source_edits = source_edits.collect::<Vec<_>>();
-    apply_edits(source, &source_edits).map_err(|error| error.to_string())
-}
-
-pub fn render_unified_diff(path: &str, original: &str, modified: &str) -> String {
-    let diff = TextDiff::from_lines(original, modified);
-    let mut unified = diff.unified_diff();
-    unified.context_radius(3);
-    unified.header(&format!("a/{path}"), &format!("b/{path}"));
-    unified.to_string()
 }
 
 pub fn render_refactor_skipped(answer: &RefactorAnswer) -> Option<String> {

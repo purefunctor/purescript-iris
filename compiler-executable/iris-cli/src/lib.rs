@@ -3,9 +3,10 @@ mod format;
 mod logging;
 mod skills;
 
-use std::{env, fs};
+use std::env;
 
 use iris_self_update::{Availability, Update};
+use iris_watch_query::RefactorChanges;
 use iris_watch_server::client::{self, ClientError};
 use iris_watch_server::discovery::OutputLock;
 use iris_watch_server::protocol::Response;
@@ -297,9 +298,8 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
                     return 1;
                 }
             };
-            let explicit_module_has_errors = explicit_module
-                && answer.files.is_empty()
-                && answer.skipped.iter().any(|entry| entry.reason == "module_has_errors");
+            let explicit_module_has_errors =
+                explicit_module && answer.is_blocked_by_module_errors();
             let exit_code = i32::from(explicit_module_has_errors);
 
             if options.preview && options.json {
@@ -319,64 +319,25 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
                 },
             };
 
-            let mut prepared = Vec::with_capacity(answer.files.len());
-            for file in &answer.files {
-                let disk_path = root.join(&file.path);
-                if !options.preview {
-                    let metadata = match fs::symlink_metadata(&disk_path) {
-                        Ok(metadata) => metadata,
-                        Err(error) => {
-                            eprintln!("could not inspect {}: {error}", disk_path.display());
-                            return 1;
-                        }
-                    };
-                    if metadata.file_type().is_symlink() {
-                        eprintln!("refusing to replace symlink {}", disk_path.display());
-                        return 1;
-                    }
-                }
-                let original = match fs::read_to_string(&disk_path) {
-                    Ok(content) => content,
-                    Err(error) => {
-                        eprintln!("could not read {}: {error}", disk_path.display());
-                        return 1;
-                    }
-                };
-                if iris_watch_query::sha256_hex(&original) != file.sha256 {
-                    eprintln!(
-                        "refusing to modify {}: file changed on disk since the watcher snapshot",
-                        file.path
-                    );
+            let changes = match RefactorChanges::prepare(&root, &answer) {
+                Ok(changes) => changes,
+                Err(error) => {
+                    eprintln!("{error}");
                     return 1;
                 }
-                let modified = match iris_watch_query::apply_file_edits(&original, &file.edits) {
-                    Ok(modified) => modified,
-                    Err(error) => {
-                        eprintln!("failed to apply edits to {}: {error}", file.path);
-                        return 1;
-                    }
-                };
-                prepared.push((disk_path, file.path.as_str(), original, modified));
-            }
+            };
 
             if options.preview {
-                for (_, relative_path, original, modified) in prepared {
-                    print!(
-                        "{}",
-                        iris_watch_query::render_unified_diff(relative_path, &original, &modified)
-                    );
-                }
+                print!("{}", changes.patch());
                 if let Some(skipped) = iris_watch_query::render_refactor_skipped(&answer) {
                     eprintln!("{skipped}");
                 }
                 return exit_code;
             }
 
-            for (disk_path, _, _, modified) in prepared {
-                if let Err(error) = fs::write(&disk_path, &modified) {
-                    eprintln!("could not write {}: {error}", disk_path.display());
-                    return 1;
-                }
+            if let Err(error) = changes.write() {
+                eprintln!("{error}");
+                return 1;
             }
 
             if let Some(raw_json) = raw_json {
