@@ -560,7 +560,7 @@ fn normalized_watch_log(stdout: &str) -> String {
     lines.join("\n")
 }
 
-struct WatchProcess {
+pub(super) struct WatchProcess {
     child: Child,
     output: Arc<WatchOutput>,
     readers: Vec<JoinHandle<()>>,
@@ -588,7 +588,7 @@ struct WatchStreams {
 }
 
 impl WatchProcess {
-    fn new(mut child: Child) -> WatchProcess {
+    pub(super) fn new(mut child: Child) -> WatchProcess {
         let output = Arc::new(WatchOutput::default());
         let stdout =
             child.stdout.take().expect("invariant violated: watch process stdout is not piped");
@@ -601,7 +601,7 @@ impl WatchProcess {
         WatchProcess { child, output, readers, stdout_cursor: 0, stderr_cursor: 0 }
     }
 
-    fn wait_for(&mut self, description: &str, predicate: impl Fn(&str, &str) -> bool) {
+    pub(super) fn wait_for(&mut self, description: &str, predicate: impl Fn(&str, &str) -> bool) {
         let deadline = Instant::now() + Duration::from_secs(30);
         let output = Arc::clone(&self.output);
         let mut streams = output.lock();
@@ -640,7 +640,7 @@ impl WatchProcess {
         String::clone(&self.output.lock().stderr)
     }
 
-    fn stop(&mut self) {
+    pub(super) fn stop(&mut self) {
         if self.child.try_wait().unwrap().is_none() {
             self.child.kill().unwrap();
         }

@@ -2,6 +2,8 @@
 mod add;
 #[path = "package_manager/build.rs"]
 mod build;
+#[path = "package_manager/mcp.rs"]
+mod mcp;
 #[path = "package_manager/new.rs"]
 mod new;
 #[path = "package_manager/run.rs"]
