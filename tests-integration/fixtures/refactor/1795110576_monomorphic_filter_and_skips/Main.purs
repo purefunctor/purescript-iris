@@ -28,6 +28,22 @@ instance Tag (Box item) where
     in
       Box same
 
+data Proxy :: forall k. k -> Type
+data Proxy a = Proxy
+
+class Named (s :: Symbol) where
+  named :: Proxy s -> Int
+
+instance Named s where
+  named _ =
+    let
+      label = Proxy :: Proxy s
+    in
+      keepProxy label
+
+keepProxy :: forall k (a :: k). Proxy a -> Int
+keepProxy _ = 0
+
 layoutAndCommentSkips :: Int
 layoutAndCommentSkips =
   let singleLine = 1 in

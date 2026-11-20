@@ -97,7 +97,7 @@ verifies file digests before writing edits back to disk.
   combine `--preview --json` to inspect the machine-readable edit plan without touching disk.
 - Only editable workspace and local project files are modified; fetched dependencies (`.spago/p/`
   and git checkouts) and `Prim` are excluded and refused when named explicitly. Modules with
-  parse, indexing, resolving, lowering, cycle, or checking errors are skipped; naming an errored
-  module explicitly exits with status 1.
+  parse, indexing, resolving, lowering, cycle, checking, foreign, or codegen errors are skipped;
+  naming an errored module explicitly exits with status 1.
 - After applying edits, run `iris watch query wait` and `iris watch query diagnostics` to confirm
   the rebuild succeeded cleanly.
