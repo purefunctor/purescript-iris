@@ -23,11 +23,11 @@ pub(super) fn let_binding_statements(p: &mut Parser) {
     };
     p.expect(SyntaxKind::LAYOUT_START);
     while p.at_in(LET_BINDING_START) {
-        p.prefer_with_prefix(
-            let_binding_signature_or_equation_head,
-            let_binding_signature_or_equation,
-            let_binding_pattern,
-        );
+        if p.speculate(let_binding_signature_or_equation_head) {
+            let_binding_signature_or_equation(p);
+        } else {
+            let_binding_pattern(p);
+        }
         recover_until_end(p, "Unexpected tokens in let binding statement");
         if !p.at(SyntaxKind::LAYOUT_END) {
             p.expect(SyntaxKind::LAYOUT_SEPARATOR);

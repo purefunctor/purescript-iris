@@ -6,7 +6,6 @@ mod names;
 mod types;
 
 use std::cell::Cell;
-use std::collections::HashMap;
 
 #[cfg(debug_assertions)]
 use drop_bomb::DropBomb;
@@ -20,25 +19,16 @@ pub(crate) struct Parser<'t> {
     output: Vec<Event>,
     errors: Vec<ParserError>,
     fuel: Cell<u16>,
-    failed_alternatives: HashMap<(usize, usize), FailedAlternative>,
 }
 
 type Rule = fn(&mut Parser);
 
 const EVENTS_PER_TOKEN: usize = 6;
 
-struct Checkpoint {
+struct Snapshot {
     index: usize,
     output: usize,
     errors: usize,
-}
-
-/// The output of an alternative that failed with errors, replayed when an
-/// enclosing alternative parses the same tokens again.
-struct FailedAlternative {
-    index: usize,
-    output: Box<[Event]>,
-    errors: Box<[ParserError]>,
 }
 
 impl<'t> Parser<'t> {
@@ -47,8 +37,7 @@ impl<'t> Parser<'t> {
         let output = Vec::with_capacity(tokens.len() * EVENTS_PER_TOKEN);
         let errors = Vec::new();
         let fuel = Cell::new(u16::MAX);
-        let failed_alternatives = HashMap::new();
-        Parser { index, tokens, output, errors, fuel, failed_alternatives }
+        Parser { index, tokens, output, errors, fuel }
     }
 
     pub(crate) fn finish(self) -> Output {
@@ -86,110 +75,38 @@ impl<'t> Parser<'t> {
         NodeMarker::new(index, token_index)
     }
 
+    fn checkpoint(&self) -> Checkpoint {
+        Checkpoint::new(self.index, self.errors.len())
+    }
+
     fn optional(&mut self, rule: Rule) {
-        let initial_index = self.index;
-        let initial_output = self.output.len();
-        let initial_errors = self.errors.len();
-
+        let snapshot = self.snapshot();
         rule(self);
-
-        if self.errors.len() != initial_errors {
-            self.index = initial_index;
-            self.output.truncate(initial_output);
-            self.errors.truncate(initial_errors);
+        if !self.succeeded_since(&snapshot) {
+            self.rewind(&snapshot);
         }
     }
 
-    /// Prefers `rule` when it parses without errors, then `other`; if both
-    /// fail, keeps `rule`'s output and diagnostics for error recovery.
-    ///
-    /// `prefix` must parse the leading tokens of `rule`, such that its failure
-    /// implies `rule` fails. This lets `other` run first when the prefix fails,
-    /// without losing `rule`'s diagnostics if `other` fails too. Failed
-    /// outputs are replayed after backtracking to avoid exponential reparsing
-    /// across nested choices. Replay is keyed by `rule` and token index, so
-    /// each `rule` must have a fixed `other`, and both must be deterministic
-    /// from that index.
-    fn prefer_with_prefix(&mut self, prefix: Rule, rule: Rule, other: Rule) {
-        let key = (self.index, rule as usize);
-        if let Some(failed) = self.failed_alternatives.remove(&key) {
-            self.replay(&failed);
-            self.failed_alternatives.insert(key, failed);
-            return;
-        }
-
-        let checkpoint = self.checkpoint();
-        let failed = if self.speculate(prefix) {
-            rule(self);
-            if self.succeeded_since(&checkpoint) {
-                return;
-            }
-            let failed = self.failed_since(&checkpoint);
-            self.rewind(&checkpoint);
-
-            other(self);
-            if self.succeeded_since(&checkpoint) {
-                return;
-            }
-            self.rewind(&checkpoint);
-
-            self.replay(&failed);
-            failed
-        } else {
-            other(self);
-            if self.succeeded_since(&checkpoint) {
-                return;
-            }
-            self.rewind(&checkpoint);
-
-            rule(self);
-            debug_assert!(
-                !self.succeeded_since(&checkpoint),
-                "invariant violated: rule succeeded after its prefix failed"
-            );
-            self.failed_since(&checkpoint)
-        };
-
-        self.failed_alternatives.insert(key, failed);
-    }
-
-    /// Returns whether `rule` parses without errors, without consuming input.
     fn speculate(&mut self, rule: Rule) -> bool {
-        let checkpoint = self.checkpoint();
+        let snapshot = self.snapshot();
         rule(self);
-        let succeeded = self.succeeded_since(&checkpoint);
-        self.rewind(&checkpoint);
+        let succeeded = self.succeeded_since(&snapshot);
+        self.rewind(&snapshot);
         succeeded
     }
 
-    fn checkpoint(&self) -> Checkpoint {
-        Checkpoint { index: self.index, output: self.output.len(), errors: self.errors.len() }
+    fn snapshot(&self) -> Snapshot {
+        Snapshot { index: self.index, output: self.output.len(), errors: self.errors.len() }
     }
 
-    fn succeeded_since(&self, checkpoint: &Checkpoint) -> bool {
-        self.errors.len() == checkpoint.errors
+    fn succeeded_since(&self, snapshot: &Snapshot) -> bool {
+        self.errors.len() == snapshot.errors
     }
 
-    fn failed_since(&self, checkpoint: &Checkpoint) -> FailedAlternative {
-        let index = self.index;
-        let output = self.output[checkpoint.output..].into();
-        let errors = self.errors[checkpoint.errors..].into();
-        FailedAlternative { index, output, errors }
-    }
-
-    fn replay(&mut self, failed: &FailedAlternative) {
-        if failed.index > self.index {
-            self.fuel.set(u16::MAX);
-        }
-        self.index = failed.index;
-        self.output.extend_from_slice(&failed.output);
-        self.errors.extend_from_slice(&failed.errors);
-    }
-
-    fn rewind(&mut self, checkpoint: &Checkpoint) {
-        self.index = checkpoint.index;
-        self.output.truncate(checkpoint.output);
-        self.errors.truncate(checkpoint.errors);
+    fn rewind(&mut self, snapshot: &Snapshot) {
+        self.index = snapshot.index;
+        self.output.truncate(snapshot.output);
+        self.errors.truncate(snapshot.errors);
     }
 
     fn error(&mut self, message: &'static str) {
@@ -270,9 +187,9 @@ struct MarkerBomb {
 }
 
 impl MarkerBomb {
-    fn new() -> MarkerBomb {
+    fn new(_message: &'static str) -> MarkerBomb {
         #[cfg(debug_assertions)]
-        let inner = DropBomb::new("critical failure: failed to call end or cancel");
+        let inner = DropBomb::new(_message);
         MarkerBomb {
             #[cfg(debug_assertions)]
             inner,
@@ -285,6 +202,30 @@ impl MarkerBomb {
     }
 }
 
+struct Checkpoint {
+    index: usize,
+    errors: usize,
+    bomb: MarkerBomb,
+}
+
+impl Checkpoint {
+    fn new(index: usize, errors: usize) -> Checkpoint {
+        let bomb = MarkerBomb::new("critical failure: failed to call expect or cancel");
+        Checkpoint { index, errors, bomb }
+    }
+
+    fn expect(mut self, parser: &mut Parser, message: &'static str) {
+        self.bomb.defuse();
+        if parser.index == self.index && parser.errors.len() == self.errors {
+            parser.error(message);
+        }
+    }
+
+    fn cancel(mut self) {
+        self.bomb.defuse();
+    }
+}
+
 struct NodeMarker {
     index: usize,
     token_index: usize,
@@ -293,7 +234,7 @@ struct NodeMarker {
 
 impl NodeMarker {
     fn new(index: usize, token_index: usize) -> NodeMarker {
-        let bomb = MarkerBomb::new();
+        let bomb = MarkerBomb::new("critical failure: failed to call end or cancel");
         NodeMarker { index, token_index, bomb }
     }
 

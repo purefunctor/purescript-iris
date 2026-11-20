@@ -12,7 +12,7 @@ finalBind :: Main.Effect Prim.Int
 finalLet :: forall t0. t0
 missingDoAction :: forall t0. t0
 missingFinalBindAction :: ?[empty do block]
-missingFinalDiscardAction :: ?[empty do block]
+missingFinalDiscardAction :: forall t0. t0
 
 Types
 Effect :: Prim.Type -> Prim.Type

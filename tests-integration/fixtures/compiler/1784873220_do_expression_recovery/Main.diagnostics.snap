@@ -28,15 +28,6 @@ Error! · [ParseError] · Main.purs:26:1
   │   ╰
   •
 
-Error! · [ParseError] · Main.purs:26:1
-  •
-  │
-  • Expected LEFT_ARROW
-  │
-  │
-  │   ╰
-  •
-
 Error! · [EmptyDoBlock] · Main.purs:9:11
   •
   │
@@ -80,24 +71,6 @@ Error! · [EmptyDoBlock] · Main.purs:21:26
   │
   │   missingFinalBindAction = do
   │                            ╰─
-  •
-
-Warning! · [InvalidFinalBind] · Main.purs:25:3
-  •
-  │
-  • Invalid final bind statement in do expression
-  │
-  │     (
-  │     ╰
-  •
-
-Error! · [EmptyDoBlock] · Main.purs:24:29
-  •
-  │
-  • Empty do block
-  │
-  │   missingFinalDiscardAction = do
-  │                               ╰─
   •
 
 Error! · [MissingFFIModule] · Main.purs:5:1

@@ -284,10 +284,6 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
             | ExpressionTick
             | ExpressionLetIn
             | ExpressionAdo
-            | ExpressionInfixChain
-            | ExpressionInfixPair
-            | ExpressionOperatorChain
-            | ExpressionOperatorPair
             | RecordUpdateLeaf
             | DoStatementDiscard
             | CaseTrunk
@@ -306,8 +302,9 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
             }
             RecordUpdates => has_child(cst::RecordUpdate::can_cast),
             BinderTyped => has_child(cst::Binder::can_cast) && has_child(cst::Type::can_cast),
-            BinderNamed | BinderParenthesized | BinderOperatorChain | BinderOperatorPair
-            | CaseBranchBinders => has_child(cst::Binder::can_cast),
+            BinderNamed | BinderParenthesized | CaseBranchBinders => {
+                has_child(cst::Binder::can_cast)
+            }
             ExpressionTyped => {
                 has_child(cst::Expression::can_cast) && has_child(cst::Type::can_cast)
             }
@@ -335,8 +332,6 @@ fn validate_syntax(root: &SyntaxNode, lexed: &Lexed<'_>) -> Result<(), FormatErr
             | TypeRowItem
             | TypeRowTail
             | TypeParenthesized
-            | TypeOperatorChain
-            | TypeOperatorPair
             | ClassConstraints
             | InstanceConstraints => has_child(cst::Type::can_cast),
             NewtypeEquation => has_kind_containing(DataConstructor, cst::Type::can_cast),
