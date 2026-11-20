@@ -22,31 +22,27 @@ pub(super) fn binder(p: &mut Parser) {
 
 pub(super) fn binder_1(p: &mut Parser) {
     let mut m = p.start();
-    let mut i = 0;
 
     let left_operand = p.checkpoint();
     binder_2(p);
     if p.at_in(names::OPERATOR) {
         left_operand.expect(p, "Expected binder");
-    } else {
-        left_operand.cancel();
-    }
-
-    while p.at_in(names::OPERATOR) {
-        let mut n = p.start();
-        let mut o = p.start();
-        names::operator(p);
-        o.end(p, SyntaxKind::TermOperator);
-        let right_operand = p.checkpoint();
-        binder_2(p);
-        right_operand.expect(p, "Expected binder");
-        n.end(p, SyntaxKind::BinderOperatorPair);
-        i += 1;
-    }
-
-    if i > 0 {
+        loop {
+            let mut n = p.start();
+            let mut o = p.start();
+            names::operator(p);
+            o.end(p, SyntaxKind::TermOperator);
+            let right_operand = p.checkpoint();
+            binder_2(p);
+            right_operand.expect(p, "Expected binder");
+            n.end(p, SyntaxKind::BinderOperatorPair);
+            if !p.at_in(names::OPERATOR) {
+                break;
+            }
+        }
         m.end(p, SyntaxKind::BinderOperatorChain);
     } else {
+        left_operand.cancel();
         m.cancel(p);
     }
 }
