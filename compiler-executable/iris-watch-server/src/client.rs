@@ -12,7 +12,10 @@ use crate::transport;
 
 #[derive(Debug, Error)]
 pub enum ClientError {
-    #[error("no `iris watch` is running for {}", .output.display())]
+    #[error(
+        "no `iris watch` is running for {}; start one with `iris watch`, or retry if it is starting",
+        .output.display()
+    )]
     NoWatcher { output: PathBuf },
     #[error(transparent)]
     Discovery(#[from] DiscoveryError),

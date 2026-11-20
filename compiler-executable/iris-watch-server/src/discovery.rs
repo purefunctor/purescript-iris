@@ -29,6 +29,22 @@ pub struct Discovery {
     pub root: Option<PathBuf>,
 }
 
+impl Discovery {
+    pub fn version_warning(&self, version: &str) -> Option<String> {
+        if self.version == version {
+            return None;
+        }
+        let executable = self.executable.as_ref().map_or_else(
+            || "the watcher's `iris`".to_string(),
+            |executable| executable.display().to_string(),
+        );
+        Some(format!(
+            "the watcher runs Iris {} and this is Iris {version}; use {executable} if answers look wrong",
+            self.version
+        ))
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum DiscoveryError {
     #[error(

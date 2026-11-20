@@ -205,7 +205,7 @@ fn query(options: cli::QueryOptions) -> i32 {
     let (discovery, response) = match client::query(&output, &query) {
         Ok(answer) => answer,
         Err(error @ ClientError::NoWatcher { .. }) => {
-            eprintln!("{error}; start one with `iris watch`, or retry if it is starting");
+            eprintln!("{error}");
             return NO_WATCHER;
         }
         Err(error) => {
@@ -213,16 +213,8 @@ fn query(options: cli::QueryOptions) -> i32 {
             return 1;
         }
     };
-    if discovery.version != VERSION {
-        let executable = discovery.executable.as_ref().map_or_else(
-            || "the watcher's `iris`".to_string(),
-            |executable| executable.display().to_string(),
-        );
-        eprintln!(
-            "warning: the watcher runs Iris {} and this is Iris {VERSION}; \
-             use {executable} if answers look wrong",
-            discovery.version
-        );
+    if let Some(warning) = discovery.version_warning(VERSION) {
+        eprintln!("warning: {warning}");
     }
     if options.json {
         println!("{}", response.to_line().trim_end());
@@ -268,7 +260,7 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
     let (discovery, response) = match client::query(&output, &query) {
         Ok(answer) => answer,
         Err(error @ ClientError::NoWatcher { .. }) => {
-            eprintln!("{error}; start one with `iris watch`, or retry if it is starting");
+            eprintln!("{error}");
             return NO_WATCHER;
         }
         Err(error) => {
@@ -276,16 +268,8 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
             return 1;
         }
     };
-    if discovery.version != VERSION {
-        let executable = discovery.executable.as_ref().map_or_else(
-            || "the watcher's `iris`".to_string(),
-            |executable| executable.display().to_string(),
-        );
-        eprintln!(
-            "warning: the watcher runs Iris {} and this is Iris {VERSION}; \
-             use {executable} if answers look wrong",
-            discovery.version
-        );
+    if let Some(warning) = discovery.version_warning(VERSION) {
+        eprintln!("warning: {warning}");
     }
 
     match response {
