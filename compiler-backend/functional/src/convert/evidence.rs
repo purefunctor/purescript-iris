@@ -397,7 +397,7 @@ pub(super) fn evidence_variable(
                     }
                     Evidence::Given(binder) => {
                         if let Some((parameter, key)) = context.service_binder(*binder).cloned() {
-                            expressions.push(context.merged_service_evidence(parameter, key));
+                            expressions.push(context.merged_service_evidence(parameter, key)?);
                             continue;
                         }
                         let parameter = context.evidence_parameter(*binder)?;

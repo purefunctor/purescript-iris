@@ -3,6 +3,7 @@ use files::FileId;
 use indexing::{IndexedTermItemKind, InstanceId, InstanceSourceItemId, TermItemId, TypeItemId};
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
 
 use crate::tree::{ExpressionId, ExpressionKind, GlobalId, InstanceIdentity};
 
@@ -10,17 +11,30 @@ use super::Context;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FunctionalCore {
+    pub(super) iris_effect: IrisEffectCore,
     pub(super) known_terms: FxHashMap<(FileId, TermItemId), KnownTerm>,
     pub(super) known_instances: FxHashMap<InstanceIdentity, KnownInstance>,
     pub(super) known_thunk_instances: FxHashMap<(FileId, InstanceId), (FileId, TypeItemId)>,
+    pub(super) known_unit_term: Option<(FileId, TermItemId)>,
+    pub(super) known_asynchronous_constructors: Option<KnownAsynchronousConstructors>,
 }
 
 impl FunctionalCore {
     pub fn new(queries: &impl checking::ExternalQueries) -> QueryResult<FunctionalCore> {
+        let iris_effect = IrisEffectCore::collect(queries)?;
         let known_terms = collect_known_terms(queries)?;
         let known_instances = collect_known_instances(queries)?;
         let known_thunk_instances = collect_known_thunk_instances(queries)?;
-        Ok(FunctionalCore { known_terms, known_instances, known_thunk_instances })
+        let known_unit_term = find_term(queries, "Data.Unit", "unit")?;
+        let known_asynchronous_constructors = KnownAsynchronousConstructors::collect(queries)?;
+        Ok(FunctionalCore {
+            iris_effect,
+            known_terms,
+            known_instances,
+            known_thunk_instances,
+            known_unit_term,
+            known_asynchronous_constructors,
+        })
     }
 }
 
@@ -311,6 +325,37 @@ fn collect_known_terms(
     Ok(terms)
 }
 
+fn find_term(
+    queries: &impl checking::ExternalQueries,
+    module_name: &str,
+    term_name: &str,
+) -> QueryResult<Option<(FileId, TermItemId)>> {
+    let Some(file_id) = queries.module_file(module_name) else { return Ok(None) };
+    let indexed = queries.indexed(file_id)?;
+    let mut terms = indexed.items.iter_terms();
+    let term = terms.find(|(_, item)| item.name.as_deref() == Some(term_name));
+    Ok(term.map(|(term_id, _)| (file_id, term_id)))
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct IrisEffectCore {
+    pub(super) get_service: (FileId, TermItemId),
+}
+
+impl IrisEffectCore {
+    fn collect(queries: &impl checking::ExternalQueries) -> QueryResult<IrisEffectCore> {
+        let file_id = queries
+            .module_file("Iris.Effect")
+            .unwrap_or_else(|| unreachable!("invariant violated: Iris.Effect not found"));
+        let resolved = queries.resolved(file_id)?;
+        let get_service = resolved
+            .exports
+            .lookup_term("getService")
+            .unwrap_or_else(|| unreachable!("invariant violated: getService not in Iris.Effect"));
+        Ok(IrisEffectCore { get_service })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum KnownInstance {
     ApplicativeAsync,
@@ -514,6 +559,61 @@ fn collect_known_thunk_instances(
         }
     }
     Ok(known_thunk_instances)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct KnownAsynchronousConstructors {
+    pub(super) pure: SmolStr,
+    pub(super) throw: SmolStr,
+    pub(super) run: SmolStr,
+    pub(super) bind: SmolStr,
+    pub(super) catch: SmolStr,
+    pub(super) left: SmolStr,
+    pub(super) right: SmolStr,
+}
+
+impl KnownAsynchronousConstructors {
+    fn collect(
+        queries: &impl checking::ExternalQueries,
+    ) -> QueryResult<Option<KnownAsynchronousConstructors>> {
+        let Some(pure) = find_constructor(queries, "Iris.Effect.Fiber", "Pure")? else {
+            return Ok(None);
+        };
+        let Some(throw) = find_constructor(queries, "Iris.Effect.Fiber", "Throw")? else {
+            return Ok(None);
+        };
+        let Some(run) = find_constructor(queries, "Iris.Effect.Fiber", "Run")? else {
+            return Ok(None);
+        };
+        let Some(bind) = find_constructor(queries, "Iris.Effect.Fiber", "Bind")? else {
+            return Ok(None);
+        };
+        let Some(catch) = find_constructor(queries, "Iris.Effect.Fiber", "Catch")? else {
+            return Ok(None);
+        };
+        let Some(left) = find_constructor(queries, "Data.Either", "Left")? else {
+            return Ok(None);
+        };
+        let Some(right) = find_constructor(queries, "Data.Either", "Right")? else {
+            return Ok(None);
+        };
+        Ok(Some(KnownAsynchronousConstructors { pure, throw, run, bind, catch, left, right }))
+    }
+}
+
+fn find_constructor(
+    queries: &impl checking::ExternalQueries,
+    module_name: &str,
+    constructor_name: &str,
+) -> QueryResult<Option<SmolStr>> {
+    let Some(file_id) = queries.module_file(module_name) else { return Ok(None) };
+    let indexed = queries.indexed(file_id)?;
+    let mut terms = indexed.items.iter_terms();
+    let constructor = terms.find(|&(term_id, item)| {
+        item.name.as_deref() == Some(constructor_name)
+            && indexed.constructor_type(term_id).is_some()
+    });
+    Ok(constructor.and_then(|(_, item)| item.name.clone()))
 }
 
 impl<'c, Q> Context<'c, Q>

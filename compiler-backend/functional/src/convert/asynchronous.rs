@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
+use smol_str::SmolStr;
 
 use crate::optimize::{local_uses, reachable_expressions};
 use crate::tree::{
@@ -9,18 +10,8 @@ use crate::tree::{
     ExpressionKind, Origin, Parameter,
 };
 
-use super::known::{KnownInstance, KnownTerm};
+use super::known::{KnownAsynchronousConstructors, KnownInstance, KnownTerm};
 use super::{Context, ConversionResult};
-
-const LOWERING_CONSTRUCTORS: [(&str, &str); 7] = [
-    ("Iris.Effect.Fiber", "Pure"),
-    ("Iris.Effect.Fiber", "Throw"),
-    ("Iris.Effect.Fiber", "Run"),
-    ("Iris.Effect.Fiber", "Bind"),
-    ("Iris.Effect.Fiber", "Catch"),
-    ("Data.Either", "Left"),
-    ("Data.Either", "Right"),
-];
 
 #[derive(Clone, Copy)]
 enum AsyncOperation {
@@ -128,36 +119,22 @@ where
             selected = Some((AsyncOperation::When, vec![condition, action, unit]));
         }
         let Some((operation, operands)) = selected else { return Ok(None) };
-        if !self.lowering_constructors_available()? {
+        if self.functional_core.known_asynchronous_constructors.is_none() {
             return Ok(None);
         }
         self.lower_async(operation, &operands).map(Some)
     }
 
-    fn lowering_constructors_available(&mut self) -> ConversionResult<bool> {
-        if let Some(available) = self.lowering_constructors_available {
-            return Ok(available);
-        }
-        let mut available = true;
-        for (module_name, constructor_name) in LOWERING_CONSTRUCTORS {
-            available &= self.constructor_exists(module_name, constructor_name)?;
-        }
-        self.lowering_constructors_available = Some(available);
-        Ok(available)
-    }
-
-    fn constructor_exists(
-        &self,
-        module_name: &str,
-        constructor_name: &str,
-    ) -> ConversionResult<bool> {
-        let Some(file_id) = self.queries.module_file(module_name) else { return Ok(false) };
-        let indexed = self.indexed_module(file_id)?;
-        let mut terms = indexed.items.iter_terms();
-        Ok(terms.any(|(term_id, item)| {
-            item.name.as_deref() == Some(constructor_name)
-                && indexed.constructor_type(term_id).is_some()
-        }))
+    fn lowering_constructor_value(
+        &mut self,
+        constructor: impl Fn(&KnownAsynchronousConstructors) -> &SmolStr,
+        arguments: impl IntoIterator<Item = ExpressionId>,
+    ) -> ExpressionId {
+        let Some(constructors) = &self.functional_core.known_asynchronous_constructors else {
+            unreachable!("invariant violated: asynchronous lowering without its constructors")
+        };
+        let tag = SmolStr::clone(constructor(constructors));
+        self.constructor_value(&tag, arguments)
     }
 
     fn lower_async(
@@ -261,13 +238,15 @@ where
                 let value = self.execute_async(*program, environment)?;
                 let parameter = self.fresh_parameter("attemptValue".into())?;
                 let local = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
-                let succeeded = self.constructor_value("Right", [local]);
+                let succeeded =
+                    self.lowering_constructor_value(|constructors| &constructors.right, [local]);
                 let binding =
                     Binding { parameter, expression: value, source_order: 0, origin: self.origin };
                 let body = self.sync_bindings(vec![binding], succeeded);
                 let parameter = self.fresh_parameter("caughtError".into())?;
                 let error = self.expression(ExpressionKind::Local { parameter: parameter.clone() });
-                let handler = self.constructor_value("Left", [error]);
+                let handler =
+                    self.lowering_constructor_value(|constructors| &constructors.left, [error]);
                 let catch = AsyncExpression::Catch { body, parameter, handler };
                 self.expression(ExpressionKind::Async(catch))
             }
@@ -456,7 +435,8 @@ where
                     context.suspend(step, continuation)
                 }
                 ExpressionKind::Async(AsyncExpression::Fail(error)) => {
-                    let step = context.constructor_value("Throw", [error]);
+                    let step = context
+                        .lowering_constructor_value(|constructors| &constructors.throw, [error]);
                     Ok(context.expression(ExpressionKind::Effect {
                         effect: EffectExpression::Pure(step),
                     }))
@@ -467,7 +447,10 @@ where
                     let handler = context.sequence_statement(handler, None, effects)?;
                     let handler = context.resumed_step(handler);
                     let handler = context.parameter_abstraction([parameter], handler);
-                    let step = context.constructor_value("Catch", [body, handler]);
+                    let step = context.lowering_constructor_value(
+                        |constructors| &constructors.catch,
+                        [body, handler],
+                    );
                     context.suspend(step, continuation)
                 }
                 ExpressionKind::Let { recursive: false, bindings, body } => {
@@ -643,7 +626,8 @@ where
     ) -> ExpressionId {
         match continuation {
             None => {
-                let step = self.constructor_value("Pure", [value]);
+                let step =
+                    self.lowering_constructor_value(|constructors| &constructors.pure, [value]);
                 self.expression(ExpressionKind::Effect { effect: EffectExpression::Pure(step) })
             }
             Some(Continuation::Inline { parameter, body, origin }) => {
@@ -673,7 +657,10 @@ where
                 let continuation = self.with_origin(origin, |context| {
                     context.parameter_abstraction([parameter], body)
                 });
-                self.constructor_value("Bind", [step, continuation])
+                self.lowering_constructor_value(
+                    |constructors| &constructors.bind,
+                    [step, continuation],
+                )
             }
             Some(continuation @ Continuation::Join { .. }) => {
                 let parameter = self.fresh_parameter("value".into())?;
@@ -681,7 +668,10 @@ where
                 let body = self.finish_statement(value, Some(continuation));
                 let body = self.resumed_step(body);
                 let continuation = self.parameter_abstraction([parameter], body);
-                self.constructor_value("Bind", [step, continuation])
+                self.lowering_constructor_value(
+                    |constructors| &constructors.bind,
+                    [step, continuation],
+                )
             }
         };
         Ok(self.expression(ExpressionKind::Effect { effect: EffectExpression::Pure(step) }))
@@ -710,7 +700,7 @@ where
         let body = self.executed_effect(effect);
         let thunk = ExpressionKind::UncurriedAbstraction { parameters: Arc::from([]), body };
         let thunk = self.expression(thunk);
-        self.constructor_value("Run", [thunk])
+        self.lowering_constructor_value(|constructors| &constructors.run, [thunk])
     }
 
     fn executed_effect(&mut self, effect: ExpressionId) -> ExpressionId {

@@ -1,6 +1,7 @@
 use crate::optimize::local_uses;
 use crate::tree::{
-    Binding, EffectExpression, EffectStatement, ExpressionId, ExpressionKind, Parameter,
+    Binding, EffectExpression, EffectStatement, ExpressionId, ExpressionKind, FieldIdentity,
+    Parameter,
 };
 
 use super::known::{KnownInstance, KnownTerm};
@@ -40,13 +41,17 @@ where
         &mut self,
         dictionary: ExpressionId,
     ) -> ConversionResult<ExpressionId> {
+        let get_service = FieldIdentity::Member(
+            self.functional_core.iris_effect.get_service.0,
+            self.functional_core.iris_effect.get_service.1,
+        );
         if let ExpressionKind::Record { fields } = &self.storage[dictionary].kind
             && let [field] = fields.as_ref()
-            && field.field.name == "getService"
+            && field.field.identity == get_service
         {
             return Ok(field.expression);
         }
-        let field = self.label_field("getService".into());
+        let field = self.member_field(self.functional_core.iris_effect.get_service)?;
         Ok(self.expression(ExpressionKind::Project { record: dictionary, field }))
     }
 

@@ -1193,21 +1193,10 @@ where
     }
 
     pub(super) fn unit_value(&mut self) -> ConversionResult<Option<ExpressionId>> {
-        if self.unit_global.is_none() {
-            let mut unit = None;
-            if let Some(file_id) = self.queries.module_file("Data.Unit") {
-                let indexed = self.indexed_module(file_id)?;
-                let mut terms = indexed.items.iter_terms();
-                if let Some((term_id, _)) =
-                    terms.find(|(_, item)| item.name.as_deref() == Some("unit"))
-                {
-                    unit = Some(self.term_global(file_id, term_id)?);
-                }
-            }
-            self.unit_global = Some(unit);
-        }
-        let Some(Some(global)) = &self.unit_global else { return Ok(None) };
-        let global = Global::clone(global);
+        let Some((file_id, term_id)) = self.functional_core.known_unit_term else {
+            return Ok(None);
+        };
+        let global = self.term_global(file_id, term_id)?;
         Ok(Some(self.expression(ExpressionKind::Global { global })))
     }
 

@@ -106,8 +106,6 @@ struct Context<'c, Q> {
     /// The virtual StyleX modules whose terms were referenced, the only source of StyleX
     /// intrinsics and expressions.
     referenced_stylex_modules: FxHashSet<FileId>,
-    lowering_constructors_available: Option<bool>,
-    unit_global: Option<Option<Global>>,
     service_binders: FxHashMap<EvidenceBinderId, (Parameter, SmolStr)>,
     service_plans: FxHashMap<(FileId, TermItemId), Option<services::ServicePlan>>,
 
@@ -180,8 +178,6 @@ where
             indexed_dependencies: RefCell::default(),
             stylex_modules: OnceCell::new(),
             referenced_stylex_modules: FxHashSet::default(),
-            lowering_constructors_available: None,
-            unit_global: None,
             service_binders: FxHashMap::default(),
             service_plans: FxHashMap::default(),
 
