@@ -23,9 +23,11 @@ use syntax::{SyntaxNodePtr, cst};
 
 use building_types::QueryResult;
 
-use crate::{Diagnostic, DiagnosticsContext, ExternalQueries, Span};
+use crate::{Diagnostic, DiagnosticsContext, ExternalQueries, Severity, Span};
 
 pub trait ToDiagnostics {
+    fn severity(&self) -> Severity;
+
     fn to_diagnostics<Q>(
         &self,
         context: &DiagnosticsContext<'_, Q>,
@@ -52,6 +54,10 @@ where
 }
 
 impl ToDiagnostics for FunctionalModuleError {
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -202,6 +208,10 @@ where
 }
 
 impl ToDiagnostics for JavaScriptModuleError {
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -234,6 +244,12 @@ impl ToDiagnostics for JavaScriptModuleError {
 }
 
 impl ToDiagnostics for JavaScriptModuleDiagnostic {
+    fn severity(&self) -> Severity {
+        match self {
+            JavaScriptModuleDiagnostic::InitializerCycle { .. } => Severity::Error,
+        }
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -252,6 +268,15 @@ impl ToDiagnostics for JavaScriptModuleDiagnostic {
 }
 
 impl ToDiagnostics for ForeignError {
+    fn severity(&self) -> Severity {
+        match self {
+            ForeignError::Parse { .. } => Severity::Warning,
+            ForeignError::MissingModule { .. }
+            | ForeignError::AmbiguousModule { .. }
+            | ForeignError::MissingImplementation { .. } => Severity::Error,
+        }
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -305,6 +330,10 @@ impl ToDiagnostics for ForeignError {
 }
 
 impl ToDiagnostics for ParseError {
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
     fn to_diagnostics<Q>(
         &self,
         _context: &DiagnosticsContext<'_, Q>,
@@ -320,6 +349,10 @@ impl ToDiagnostics for ParseError {
 }
 
 impl ToDiagnostics for LoweringError {
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -519,6 +552,10 @@ where
 }
 
 impl ToDiagnostics for ResolvingError {
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -690,6 +727,10 @@ where
 }
 
 impl ToDiagnostics for IndexingError {
+    fn severity(&self) -> Severity {
+        if self.is_warning() { Severity::Warning } else { Severity::Error }
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -752,6 +793,10 @@ impl ToDiagnostics for IndexingError {
 }
 
 impl ToDiagnostics for CheckingError {
+    fn severity(&self) -> Severity {
+        if self.kind.is_warning() { Severity::Warning } else { Severity::Error }
+    }
+
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
