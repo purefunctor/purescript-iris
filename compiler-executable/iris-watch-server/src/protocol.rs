@@ -4,6 +4,7 @@
 //! associates the answer with its query; no request ID is needed. The shape is maintained within
 //! Iris and may change between releases.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -68,7 +69,7 @@ pub enum Response {
 
 /// Which of the items sharing a name a query is about. Without one, a query is about both the
 /// value and the type or class with that name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Namespace {
     /// Values, including functions, data constructors, and class members.
@@ -78,7 +79,7 @@ pub enum Namespace {
 }
 
 /// Which instances an `instances` query finds.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum InstanceSearch {
     /// The instances of the named class.

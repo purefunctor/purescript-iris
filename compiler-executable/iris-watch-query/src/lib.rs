@@ -4,26 +4,28 @@
 //! JSON into text for agents. Queries address the loaded context by qualified name, such as
 //! `Data.Foo.bar`, never by file position.
 
+mod changes;
 mod lookup;
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use building::{QueryEngine, QueryError};
 use files::FileId;
 use iris_analysis::AnalyzerError;
-use iris_analysis::refactor::{SourceEdit, apply_edits};
 use iris_build::SourceFile;
 use iris_watch_server::protocol::Query;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use similar::TextDiff;
+
+pub use crate::changes::{RefactorChangeError, RefactorChanges};
 
 /// What the latest rebuild did, which decides whether `output/` matches the engine.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "outcome", rename_all = "lowercase")]
 pub enum BuildState {
     /// Every module was written to `output/`.
@@ -71,57 +73,72 @@ impl From<AnalyzerError> for QueryFailure {
 }
 
 /// The answer to `wait`, which the watcher computes itself.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct WaitAnswer {
     pub build: BuildState,
 }
 
 /// A declaration's signature and documentation comment.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Declaration {
     pub signature: String,
     pub documentation: Option<String>,
 }
 
 /// The answer to `signature` and `module`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DeclarationsAnswer {
     pub declarations: Vec<Declaration>,
 }
 
-/// The answer to `definition` and `references`: `path:line:column` locations.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// The answer to `definition` and `references`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LocationsAnswer {
-    pub locations: Vec<String>,
+    pub locations: Vec<SourceLocation>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// A location as `path:line:column`, counted from 1, which orders by line and column numerically
+/// rather than as text.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+pub struct SourceLocation {
+    pub path: String,
+    pub line: usize,
+    pub column: usize,
+}
+
+impl fmt::Display for SourceLocation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}:{}:{}", self.path, self.line, self.column)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DependentsAnswer {
     pub dependents: Vec<Dependent>,
 }
 
 /// A module that imports the queried module directly, or through `through`, the module it imports
 /// on the way.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Dependent {
     pub module: String,
     pub path: String,
     pub through: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct InstancesAnswer {
     pub instances: Vec<InstanceEntry>,
 }
 
 /// An instance's location and head, such as `forall a. Show a => Show (Array a)`.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct InstanceEntry {
-    pub location: String,
+    pub location: SourceLocation,
     pub head: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SearchAnswer {
     pub results: Vec<SearchResult>,
     /// How many declarations matched, including those left out of `results`.
@@ -130,26 +147,26 @@ pub struct SearchAnswer {
 
 /// A matching declaration's qualified name and, if it was checked, its signature under that name
 /// on one line.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SearchResult {
     pub name: String,
     pub signature: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DiagnosticsAnswer {
     pub diagnostics: Vec<DiagnosticEntry>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DiagnosticEntry {
-    pub location: String,
+    pub location: SourceLocation,
     pub severity: DiagnosticSeverity,
     pub code: String,
     pub message: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum DiagnosticSeverity {
     Error,
@@ -165,19 +182,26 @@ impl DiagnosticSeverity {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct JavascriptAnswer {
     pub source: String,
     pub stylex_theme_source: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RefactorAnswer {
     pub files: Vec<RefactorFile>,
     pub skipped: Vec<RefactorSkipped>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+impl RefactorAnswer {
+    pub fn is_blocked_by_module_errors(&self) -> bool {
+        self.files.is_empty()
+            && self.skipped.iter().any(|entry| entry.reason == "module_has_errors")
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RefactorFile {
     pub path: String,
     pub sha256: String,
@@ -187,7 +211,7 @@ pub struct RefactorFile {
     pub imports_updated: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RefactorEdit {
     pub start_byte: usize,
     pub end_byte: usize,
@@ -196,16 +220,16 @@ pub struct RefactorEdit {
     pub new_text: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RefactorSkipped {
-    pub location: String,
+    pub location: SourceLocation,
     pub name: String,
     pub reason: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }
 
-pub fn sha256_hex(content: &str) -> String {
+pub(crate) fn sha256_hex(content: &str) -> String {
     let digest = Sha256::digest(content.as_bytes());
     let mut output = String::with_capacity(digest.len() * 2);
     for byte in digest {
@@ -216,24 +240,6 @@ pub fn sha256_hex(content: &str) -> String {
 
 pub fn parse_refactor_answer(value: Value) -> Result<RefactorAnswer, serde_json::Error> {
     serde_json::from_value(value)
-}
-
-pub fn apply_file_edits(source: &str, edits: &[RefactorEdit]) -> Result<String, String> {
-    let source_edits = edits.iter().map(|edit| SourceEdit {
-        start_byte: edit.start_byte,
-        end_byte: edit.end_byte,
-        new_text: String::clone(&edit.new_text),
-    });
-    let source_edits = source_edits.collect::<Vec<_>>();
-    apply_edits(source, &source_edits).map_err(|error| error.to_string())
-}
-
-pub fn render_unified_diff(path: &str, original: &str, modified: &str) -> String {
-    let diff = TextDiff::from_lines(original, modified);
-    let mut unified = diff.unified_diff();
-    unified.context_radius(3);
-    unified.header(&format!("a/{path}"), &format!("b/{path}"));
-    unified.to_string()
 }
 
 pub fn render_refactor_skipped(answer: &RefactorAnswer) -> Option<String> {
@@ -337,10 +343,10 @@ pub fn answer(query: &Query, context: &QueryContext) -> Result<Value, QueryFailu
 
 /// Renders the answer to `query` as text for agents: PureScript syntax for signatures,
 /// `path:line:column` for locations, and no decoration.
-pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> {
+pub fn render(query: &Query, value: &Value) -> Result<String, serde_json::Error> {
     let text = match query {
         Query::Wait => {
-            let WaitAnswer { build } = serde_json::from_value(value)?;
+            let WaitAnswer { build } = WaitAnswer::deserialize(value)?;
             match build {
                 BuildState::Succeeded => "Build succeeded.".to_string(),
                 BuildState::Diagnostics => {
@@ -351,7 +357,7 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             }
         }
         Query::Signature { .. } | Query::Module { .. } => {
-            let DeclarationsAnswer { declarations } = serde_json::from_value(value)?;
+            let DeclarationsAnswer { declarations } = DeclarationsAnswer::deserialize(value)?;
             if declarations.is_empty() {
                 return Ok("No exports.".to_string());
             }
@@ -365,14 +371,15 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             declarations.collect::<Vec<_>>().join("\n\n")
         }
         Query::Definition { .. } | Query::References { .. } => {
-            let LocationsAnswer { locations } = serde_json::from_value(value)?;
+            let LocationsAnswer { locations } = LocationsAnswer::deserialize(value)?;
             if locations.is_empty() {
                 return Ok("No locations.".to_string());
             }
-            locations.join("\n")
+            let locations = locations.iter().map(SourceLocation::to_string);
+            locations.collect::<Vec<_>>().join("\n")
         }
         Query::Dependents { .. } => {
-            let DependentsAnswer { dependents } = serde_json::from_value(value)?;
+            let DependentsAnswer { dependents } = DependentsAnswer::deserialize(value)?;
             if dependents.is_empty() {
                 return Ok("No dependents.".to_string());
             }
@@ -387,7 +394,7 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             dependents.collect::<Vec<_>>().join("\n")
         }
         Query::Instances { .. } => {
-            let InstancesAnswer { instances } = serde_json::from_value(value)?;
+            let InstancesAnswer { instances } = InstancesAnswer::deserialize(value)?;
             if instances.is_empty() {
                 return Ok("No instances.".to_string());
             }
@@ -398,7 +405,7 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             instances.collect::<Vec<_>>().join("\n")
         }
         Query::Search { .. } => {
-            let SearchAnswer { results, matches } = serde_json::from_value(value)?;
+            let SearchAnswer { results, matches } = SearchAnswer::deserialize(value)?;
             if results.is_empty() {
                 return Ok("No matches.".to_string());
             }
@@ -414,7 +421,7 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             lines.join("\n")
         }
         Query::Diagnostics { .. } => {
-            let DiagnosticsAnswer { diagnostics } = serde_json::from_value(value)?;
+            let DiagnosticsAnswer { diagnostics } = DiagnosticsAnswer::deserialize(value)?;
             if diagnostics.is_empty() {
                 return Ok("No diagnostics.".to_string());
             }
@@ -425,7 +432,8 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             diagnostics.collect::<Vec<_>>().join("\n")
         }
         Query::Javascript { name } => {
-            let JavascriptAnswer { source, stylex_theme_source } = serde_json::from_value(value)?;
+            let JavascriptAnswer { source, stylex_theme_source } =
+                JavascriptAnswer::deserialize(value)?;
             match stylex_theme_source {
                 Some(stylex_theme_source) => {
                     let filename = javascript::module_filename(name);
@@ -436,7 +444,7 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             }
         }
         Query::Refactor { .. } => {
-            let answer = serde_json::from_value::<RefactorAnswer>(value)?;
+            let answer = RefactorAnswer::deserialize(value)?;
             render_refactor_summary(&answer)
         }
     };

@@ -1,6 +1,5 @@
 //! The queries themselves, over a snapshot of the engine.
 
-use std::fmt;
 use std::path::Path;
 
 use files::FileId;
@@ -18,7 +17,7 @@ use crate::{
     BuildState, Declaration, DeclarationsAnswer, Dependent, DependentsAnswer, DiagnosticEntry,
     DiagnosticSeverity, DiagnosticsAnswer, InstanceEntry, InstancesAnswer, JavascriptAnswer,
     LocationsAnswer, QueryContext, QueryFailure, RefactorAnswer, RefactorEdit, RefactorFile,
-    RefactorSkipped, SearchAnswer, SearchResult, sha256_hex,
+    RefactorSkipped, SearchAnswer, SearchResult, SourceLocation, sha256_hex,
 };
 
 pub(crate) fn signature(
@@ -66,7 +65,7 @@ pub(crate) fn definition(
         AnalyzerContext::new(&host, PositionEncoding::Utf32, AnalyzerCapabilities::default());
     let locations = items.into_iter().map(|item| {
         let location = nominal::definition(&analyzer, item)?;
-        Ok::<_, AnalyzerError>(source_position(context, &location).to_string())
+        Ok::<_, AnalyzerError>(source_location(context, &location))
     });
     let locations = locations.collect::<Result<Vec<_>, _>>()?;
     Ok(LocationsAnswer { locations })
@@ -81,14 +80,13 @@ pub(crate) fn references(
     let host = WatchHost { context };
     let analyzer =
         AnalyzerContext::new(&host, PositionEncoding::Utf32, AnalyzerCapabilities::default());
-    let mut positions = Vec::new();
+    let mut locations = Vec::new();
     for item in items {
         let references = nominal::references(&analyzer, item)?;
-        positions.extend(references.iter().map(|location| source_position(context, location)));
+        locations.extend(references.iter().map(|location| source_location(context, location)));
     }
-    positions.sort();
-    positions.dedup();
-    let locations = positions.iter().map(SourcePosition::to_string).collect();
+    locations.sort();
+    locations.dedup();
     Ok(LocationsAnswer { locations })
 }
 
@@ -141,15 +139,13 @@ pub(crate) fn instances(
     let analyzer =
         AnalyzerContext::new(&host, PositionEncoding::Utf32, AnalyzerCapabilities::default());
     let found = nominal::instances(&analyzer, target, search)?;
-    let positioned = found
-        .into_iter()
-        .map(|instance| (source_position(context, &instance.location), instance.head));
-    let mut positioned = positioned.collect::<Vec<_>>();
-    positioned.sort_by(|(left, _), (right, _)| left.cmp(right));
-    let instances = positioned
-        .into_iter()
-        .map(|(position, head)| InstanceEntry { location: position.to_string(), head });
-    Ok(InstancesAnswer { instances: instances.collect() })
+    let instances = found.into_iter().map(|instance| {
+        let location = source_location(context, &instance.location);
+        InstanceEntry { location, head: instance.head }
+    });
+    let mut instances = instances.collect::<Vec<_>>();
+    instances.sort_by(|left, right| left.location.cmp(&right.location));
+    Ok(InstancesAnswer { instances })
 }
 
 /// How many results `search` answers with signatures; the rest are only counted.
@@ -196,7 +192,7 @@ pub(crate) fn diagnostics(
                 Severity::Warning => DiagnosticSeverity::Warning,
             };
             diagnostics.push(DiagnosticEntry {
-                location: format!("{path}:{line}:{column}"),
+                location: SourceLocation { path: String::clone(&path), line, column },
                 severity,
                 code: diagnostic.code.to_string(),
                 message: String::clone(&diagnostic.message),
@@ -297,7 +293,7 @@ pub(crate) fn refactor(
         let path = display_path(context, entry.file_id);
         let (line, column) = line_column(&content, entry.offset);
         skipped.push(RefactorSkipped {
-            location: format!("{path}:{line}:{column}"),
+            location: SourceLocation { path, line, column },
             name: entry.name,
             reason: entry.reason.as_str().to_string(),
             detail: entry.detail,
@@ -361,28 +357,13 @@ fn module_name(context: &QueryContext, file_id: FileId) -> Result<String, QueryF
     Ok(name.unwrap_or_else(|| display_path(context, file_id)))
 }
 
-/// A location as `path:line:column`, counted from 1, which orders by line and column numerically
-/// rather than as text.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct SourcePosition {
-    path: String,
-    line: u32,
-    column: u32,
-}
-
-impl fmt::Display for SourcePosition {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}:{}:{}", self.path, self.line, self.column)
-    }
-}
-
-fn source_position(context: &QueryContext, location: &Location) -> SourcePosition {
+fn source_location(context: &QueryContext, location: &Location) -> SourceLocation {
     let path = Url::parse(location.uri.as_str()).ok().and_then(|url| url.to_file_path().ok());
     let path =
         path.map_or_else(|| location.uri.as_str().to_string(), |path| relative(context, &path));
-    let line = location.range.start.line + 1;
-    let column = location.range.start.character + 1;
-    SourcePosition { path, line, column }
+    let line = location.range.start.line as usize + 1;
+    let column = location.range.start.character as usize + 1;
+    SourceLocation { path, line, column }
 }
 
 fn display_path(context: &QueryContext, file_id: FileId) -> String {

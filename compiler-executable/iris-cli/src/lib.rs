@@ -3,9 +3,10 @@ mod format;
 mod logging;
 mod skills;
 
-use std::{env, fs};
+use std::env;
 
 use iris_self_update::{Availability, Update};
+use iris_watch_query::RefactorChanges;
 use iris_watch_server::client::{self, ClientError};
 use iris_watch_server::discovery::OutputLock;
 use iris_watch_server::protocol::Response;
@@ -51,6 +52,7 @@ pub fn run() -> i32 {
                 return match command {
                     cli::WatchCommand::Query(options) => query(options),
                     cli::WatchCommand::Refactor(options) => refactor(options),
+                    cli::WatchCommand::Mcp(options) => mcp(options),
                 };
             }
             let config = options.into_config();
@@ -204,7 +206,7 @@ fn query(options: cli::QueryOptions) -> i32 {
     let (discovery, response) = match client::query(&output, &query) {
         Ok(answer) => answer,
         Err(error @ ClientError::NoWatcher { .. }) => {
-            eprintln!("{error}; start one with `iris watch`, or retry if it is starting");
+            eprintln!("{error}");
             return NO_WATCHER;
         }
         Err(error) => {
@@ -212,16 +214,8 @@ fn query(options: cli::QueryOptions) -> i32 {
             return 1;
         }
     };
-    if discovery.version != VERSION {
-        let executable = discovery.executable.as_ref().map_or_else(
-            || "the watcher's `iris`".to_string(),
-            |executable| executable.display().to_string(),
-        );
-        eprintln!(
-            "warning: the watcher runs Iris {} and this is Iris {VERSION}; \
-             use {executable} if answers look wrong",
-            discovery.version
-        );
+    if let Some(warning) = discovery.version_warning(VERSION) {
+        eprintln!("warning: {warning}");
     }
     if options.json {
         println!("{}", response.to_line().trim_end());
@@ -231,7 +225,7 @@ fn query(options: cli::QueryOptions) -> i32 {
             if options.json {
                 return 0;
             }
-            match iris_watch_query::render(&query, value) {
+            match iris_watch_query::render(&query, &value) {
                 Ok(text) => {
                     println!("{text}");
                     0
@@ -254,6 +248,23 @@ fn query(options: cli::QueryOptions) -> i32 {
     }
 }
 
+fn mcp(options: cli::McpOptions) -> i32 {
+    let output = match iris_build::resolve_output(options.output.as_deref()) {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    match iris_watch_mcp::serve(output, VERSION.to_string()) {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("error: MCP server failed: {error}");
+            1
+        }
+    }
+}
+
 fn refactor(options: cli::RefactorOptions) -> i32 {
     let explicit_module = options.refactor.has_module();
     let query = options.refactor.into_query();
@@ -267,7 +278,7 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
     let (discovery, response) = match client::query(&output, &query) {
         Ok(answer) => answer,
         Err(error @ ClientError::NoWatcher { .. }) => {
-            eprintln!("{error}; start one with `iris watch`, or retry if it is starting");
+            eprintln!("{error}");
             return NO_WATCHER;
         }
         Err(error) => {
@@ -275,16 +286,8 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
             return 1;
         }
     };
-    if discovery.version != VERSION {
-        let executable = discovery.executable.as_ref().map_or_else(
-            || "the watcher's `iris`".to_string(),
-            |executable| executable.display().to_string(),
-        );
-        eprintln!(
-            "warning: the watcher runs Iris {} and this is Iris {VERSION}; \
-             use {executable} if answers look wrong",
-            discovery.version
-        );
+    if let Some(warning) = discovery.version_warning(VERSION) {
+        eprintln!("warning: {warning}");
     }
 
     match response {
@@ -297,9 +300,8 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
                     return 1;
                 }
             };
-            let explicit_module_has_errors = explicit_module
-                && answer.files.is_empty()
-                && answer.skipped.iter().any(|entry| entry.reason == "module_has_errors");
+            let explicit_module_has_errors =
+                explicit_module && answer.is_blocked_by_module_errors();
             let exit_code = i32::from(explicit_module_has_errors);
 
             if options.preview && options.json {
@@ -319,64 +321,25 @@ fn refactor(options: cli::RefactorOptions) -> i32 {
                 },
             };
 
-            let mut prepared = Vec::with_capacity(answer.files.len());
-            for file in &answer.files {
-                let disk_path = root.join(&file.path);
-                if !options.preview {
-                    let metadata = match fs::symlink_metadata(&disk_path) {
-                        Ok(metadata) => metadata,
-                        Err(error) => {
-                            eprintln!("could not inspect {}: {error}", disk_path.display());
-                            return 1;
-                        }
-                    };
-                    if metadata.file_type().is_symlink() {
-                        eprintln!("refusing to replace symlink {}", disk_path.display());
-                        return 1;
-                    }
-                }
-                let original = match fs::read_to_string(&disk_path) {
-                    Ok(content) => content,
-                    Err(error) => {
-                        eprintln!("could not read {}: {error}", disk_path.display());
-                        return 1;
-                    }
-                };
-                if iris_watch_query::sha256_hex(&original) != file.sha256 {
-                    eprintln!(
-                        "refusing to modify {}: file changed on disk since the watcher snapshot",
-                        file.path
-                    );
+            let changes = match RefactorChanges::prepare(&root, &answer) {
+                Ok(changes) => changes,
+                Err(error) => {
+                    eprintln!("{error}");
                     return 1;
                 }
-                let modified = match iris_watch_query::apply_file_edits(&original, &file.edits) {
-                    Ok(modified) => modified,
-                    Err(error) => {
-                        eprintln!("failed to apply edits to {}: {error}", file.path);
-                        return 1;
-                    }
-                };
-                prepared.push((disk_path, file.path.as_str(), original, modified));
-            }
+            };
 
             if options.preview {
-                for (_, relative_path, original, modified) in prepared {
-                    print!(
-                        "{}",
-                        iris_watch_query::render_unified_diff(relative_path, &original, &modified)
-                    );
-                }
+                print!("{}", changes.patch());
                 if let Some(skipped) = iris_watch_query::render_refactor_skipped(&answer) {
                     eprintln!("{skipped}");
                 }
                 return exit_code;
             }
 
-            for (disk_path, _, _, modified) in prepared {
-                if let Err(error) = fs::write(&disk_path, &modified) {
-                    eprintln!("could not write {}: {error}", disk_path.display());
-                    return 1;
-                }
+            if let Err(error) = changes.write() {
+                eprintln!("{error}");
+                return 1;
             }
 
             if let Some(raw_json) = raw_json {

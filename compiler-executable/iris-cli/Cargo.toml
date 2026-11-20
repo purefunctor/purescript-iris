@@ -23,6 +23,7 @@ iris-lsp = { version = "0.1.0", path = "../iris-lsp" }
 iris-package = { version = "0.1.0", path = "../iris-package" }
 iris-self-update = { version = "0.1.0", path = "../iris-self-update" }
 iris-watch = { version = "0.1.0", path = "../iris-watch" }
+iris-watch-mcp = { version = "0.1.0", path = "../iris-watch-mcp" }
 iris-watch-query = { version = "0.1.0", path = "../iris-watch-query" }
 iris-watch-server = { version = "0.1.0", path = "../iris-watch-server" }
 itertools = "0.15.0"

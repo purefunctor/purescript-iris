@@ -75,7 +75,8 @@ Always run it after writing files and before other queries, so answers reflect y
 - `javascript` fails while any module has errors, because nothing is written to `output/` then.
 - Each query invocation connects, receives its answer, and exits; there is no client session.
 - `--json` prints the watcher's response as JSON: successful answers have `kind` and `value`;
-  errors have `kind` and `message`.
+  errors have `kind` and `message`. Locations in `value` are objects with `path`, `line`, and
+  `column`.
 - Exit status: 0 answered, 1 the query failed (the message says why, for example an unknown name),
   2 invalid arguments, 4 no watcher.
 
@@ -101,3 +102,23 @@ verifies file digests before writing edits back to disk.
   naming an errored module explicitly exits with status 1.
 - After applying edits, run `iris watch query wait` and `iris watch query diagnostics` to confirm
   the rebuild succeeded cleanly.
+
+## MCP server
+
+`iris watch mcp` serves the same queries and refactorings as MCP tools over standard input and
+output. Add it to the agent's MCP configuration; it finds the watcher the same way `iris watch query`
+does, so `iris watch` must still be running:
+
+```json
+{ "mcpServers": { "iris": { "command": "iris", "args": ["watch", "mcp"] } } }
+```
+
+- Each query is a tool with the same name, such as `wait`, `signature`, and `references`.
+  `iris watch refactor let-signatures` is `refactor_let_signatures`, which writes files unless
+  `preview` is set.
+- Each result has the text `iris watch query` prints and, as structured content, the same `value`
+  that `--json` prints. Every tool declares an output schema for it. `refactor_let_signatures` also
+  reports `written`, and `patch` when previewing.
+- Add `"--output", "DIR"` to `args` when the watcher was started with `--output DIR`.
+- Without a watcher, tools return an error rather than exit status 4. The server keeps running and
+  finds a watcher that starts later.

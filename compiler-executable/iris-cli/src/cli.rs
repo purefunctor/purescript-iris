@@ -281,6 +281,22 @@ pub enum WatchCommand {
     Query(QueryOptions),
     #[usage(help = "Run a type-aware refactoring against a running `iris watch`.")]
     Refactor(RefactorOptions),
+    #[usage(
+        help = "Serve the queries and refactorings as MCP tools over standard input and output."
+    )]
+    Mcp(McpOptions),
+}
+
+#[derive(Debug, Args)]
+#[usage(args_override_self = false)]
+pub struct McpOptions {
+    #[usage(
+        short,
+        long,
+        value_name = "DIR",
+        help = "Output directory of the watcher. Defaults to output in the workspace root."
+    )]
+    pub output: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -490,6 +506,9 @@ impl WatchOptions {
             }
             WatchCommand::Refactor(refactor) => {
                 refactor.output = refactor.output.take().or(inherited_output);
+            }
+            WatchCommand::Mcp(mcp) => {
+                mcp.output = mcp.output.take().or(inherited_output);
             }
         }
         Some(command)
