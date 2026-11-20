@@ -224,7 +224,7 @@ fn query(options: cli::QueryOptions) -> i32 {
             if options.json {
                 return 0;
             }
-            match iris_watch_query::render(&query, value) {
+            match iris_watch_query::render(&query, &value) {
                 Ok(text) => {
                     println!("{text}");
                     0
