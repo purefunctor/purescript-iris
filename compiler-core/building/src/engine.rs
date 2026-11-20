@@ -159,7 +159,7 @@ struct DerivedStorage {
     exported: Shards<FileId, DerivedState<Arc<ExportedModule>>>,
     bracketed: Shards<FileId, DerivedState<Arc<sugar::Bracketed>>>,
     sectioned: Shards<FileId, DerivedState<Arc<sugar::Sectioned>>>,
-    checked_core: Shards<(), DerivedState<Arc<checking::context::CheckedCore>>>,
+    checked_core: Shards<(), DerivedState<Arc<checking::CheckedCore>>>,
     checked: Shards<FileId, DerivedState<Arc<CheckedModule>>>,
     documented: Shards<FileId, DerivedState<Arc<DocumentedModule>>>,
     functional:
@@ -1383,13 +1383,13 @@ impl QueryEngine {
         )
     }
 
-    pub fn checked_core(&self) -> QueryResult<Arc<checking::context::CheckedCore>> {
+    pub fn checked_core(&self) -> QueryResult<Arc<checking::CheckedCore>> {
         self.query(
             QueryKey::CheckedCore,
             (),
             |derived| &derived.checked_core,
             |this| {
-                let core = checking::context::CheckedCore::new(this)?;
+                let core = checking::CheckedCore::new(this)?;
                 Ok(Arc::new(core))
             },
         )
@@ -1504,6 +1504,8 @@ impl QueryProxy for QueryEngine {
 
     type Sectioned = Arc<sugar::Sectioned>;
 
+    type CheckedCore = Arc<checking::CheckedCore>;
+
     type Checked = Arc<checking::CheckedModule>;
 
     type Documented = Arc<documenting::DocumentedModule>;
@@ -1550,6 +1552,10 @@ impl QueryProxy for QueryEngine {
 
     fn sectioned(&self, id: FileId) -> QueryResult<Self::Sectioned> {
         QueryEngine::sectioned(self, id)
+    }
+
+    fn checked_core(&self) -> QueryResult<Arc<checking::CheckedCore>> {
+        QueryEngine::checked_core(self)
     }
 
     fn checked(&self, id: FileId) -> QueryResult<Arc<checking::CheckedModule>> {
@@ -1631,10 +1637,6 @@ impl checking::PrettyQueries for QueryEngine {
 }
 
 impl checking::ExternalQueries for QueryEngine {
-    fn checked_core(&self) -> QueryResult<Arc<checking::context::CheckedCore>> {
-        QueryEngine::checked_core(self)
-    }
-
     fn intern_type(&self, t: checking::Type) -> checking::TypeId {
         self.interned.checking.intern_type(t)
     }

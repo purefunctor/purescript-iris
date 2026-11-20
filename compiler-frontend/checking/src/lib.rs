@@ -1,4 +1,6 @@
 pub mod context;
+pub use context::CheckedCore;
+
 pub mod error;
 pub mod evidence;
 pub mod holes;
@@ -47,14 +49,6 @@ pub trait ExternalQueries:
         Checked = Arc<CheckedModule>,
     > + core::pretty::PrettyQueries
 {
-    fn checked_core(&self) -> QueryResult<Arc<context::CheckedCore>>
-    where
-        Self: Sized,
-    {
-        let core = context::CheckedCore::new(self)?;
-        Ok(Arc::new(core))
-    }
-
     fn intern_type(&self, t: Type) -> TypeId;
 
     fn lookup_type_flags(&self, id: TypeId) -> core::TypeFlags;

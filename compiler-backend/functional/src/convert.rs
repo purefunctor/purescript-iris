@@ -92,6 +92,7 @@ struct Context<'c, Q> {
     module_name: SmolStr,
     indexed: Arc<indexing::IndexedModule>,
     lowered: Arc<lowering::LoweredModule>,
+    core: Arc<checking::CheckedCore>,
     checked: Arc<checking::CheckedModule>,
     recursive_groups: FxHashMap<TermItemId, RecursiveGroupId>,
     record_pun_names: FxHashMap<lowering::RecordPunId, SmolStr>,
@@ -133,6 +134,7 @@ where
         let indexed = queries.indexed(file_id)?;
         let lowered = queries.lowered(file_id)?;
         let grouped = queries.grouped(file_id)?;
+        let core = queries.checked_core()?;
         let checked = queries.checked(file_id)?;
 
         let mut recursive_groups = FxHashMap::default();
@@ -163,6 +165,7 @@ where
             module_name,
             indexed,
             lowered,
+            core,
             checked,
             recursive_groups,
             record_pun_names,

@@ -1,11 +1,10 @@
 use std::collections::hash_map::Entry;
-use std::sync::Arc;
 
 use checking::core::Name;
 use checking::core::pretty::{ModuleScopeResolver, OutOfScopePolicy, Pretty, PrettyConfig};
 use checking::{Type, TypeId};
 use files::FileId;
-use indexing::{IndexedTypeItemKind, TypeItemId};
+use indexing::TypeItemId;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 use syntax::ast::AstNode;
@@ -84,7 +83,8 @@ where
     let stabilized = engine.stabilized(file_id)?;
     let root = parsed.syntax_node();
     let prim = engine.resolved(engine.prim_id())?;
-    let bundle_operator = lookup_iris_effect_bundle_operator(engine)?;
+    let core = engine.checked_core()?;
+    let bundle_operator = Some((core.iris_effect.file_id, core.iris_effect.bundle_operator));
 
     let groups = lowered.tree.iter_let_binding_groups().map(|(group_id, group)| {
         let sort_offset = group
@@ -405,21 +405,4 @@ fn collect_binding_type_info(
         | Type::Free(_)
         | Type::Unknown(_) => false,
     }
-}
-
-fn lookup_iris_effect_bundle_operator(
-    engine: &impl AnalyzerQueries,
-) -> Result<Option<(FileId, TypeItemId)>, AnalyzerError> {
-    let Some(effect_file) = engine.module_file("Iris.Effect") else {
-        return Ok(None);
-    };
-    let indexed: Arc<indexing::IndexedModule> = engine.indexed(effect_file)?;
-    for (type_id, item) in indexed.items.iter_types() {
-        if matches!(item.kind, IndexedTypeItemKind::Operator { .. })
-            && item.name.as_deref() == Some("&")
-        {
-            return Ok(Some((effect_file, type_id)));
-        }
-    }
-    Ok(None)
 }

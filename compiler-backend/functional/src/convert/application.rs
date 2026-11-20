@@ -604,15 +604,17 @@ where
                     break;
                 }
                 PatternKind::Constructor { global, arguments } if arguments.is_empty() => {
-                    let GlobalId::Term(file_id, _) = global.id else { return Ok(None) };
-                    if self.source_module_name(file_id)? != "Data.Ordering" {
+                    let GlobalId::Term(file_id, term_id) = global.id else { return Ok(None) };
+                    let constructor = Some((file_id, term_id));
+                    let known_terms = &self.core.known_terms;
+                    let comparison = if constructor == known_terms.ordering_lt {
+                        Comparison::LessThan
+                    } else if constructor == known_terms.ordering_eq {
+                        Comparison::Equal
+                    } else if constructor == known_terms.ordering_gt {
+                        Comparison::GreaterThan
+                    } else {
                         return Ok(None);
-                    }
-                    let comparison = match global.item_name.as_str() {
-                        "LT" => Comparison::LessThan,
-                        "EQ" => Comparison::Equal,
-                        "GT" => Comparison::GreaterThan,
-                        _ => return Ok(None),
                     };
                     if !covered.contains(&comparison) {
                         covered.push(comparison);
