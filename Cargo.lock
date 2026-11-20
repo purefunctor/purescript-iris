@@ -1710,6 +1710,7 @@ dependencies = [
  "iris-package",
  "iris-self-update",
  "iris-watch",
+ "iris-watch-mcp",
  "iris-watch-query",
  "iris-watch-server",
  "itertools 0.15.0",

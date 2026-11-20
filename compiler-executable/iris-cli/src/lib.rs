@@ -52,6 +52,7 @@ pub fn run() -> i32 {
                 return match command {
                     cli::WatchCommand::Query(options) => query(options),
                     cli::WatchCommand::Refactor(options) => refactor(options),
+                    cli::WatchCommand::Mcp(options) => mcp(options),
                 };
             }
             let config = options.into_config();
@@ -243,6 +244,23 @@ fn query(options: cli::QueryOptions) -> i32 {
         }
         Response::Cancelled => {
             unreachable!("invariant violated: cancelled queries are sent again")
+        }
+    }
+}
+
+fn mcp(options: cli::McpOptions) -> i32 {
+    let output = match iris_build::resolve_output(options.output.as_deref()) {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
+    match iris_watch_mcp::serve(output, VERSION.to_string()) {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("error: MCP server failed: {error}");
+            1
         }
     }
 }
