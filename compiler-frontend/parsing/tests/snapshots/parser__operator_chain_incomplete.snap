@@ -1,0 +1,610 @@
+---
+source: compiler-frontend/parsing/tests/parser.rs
+---
+(
+    Module@0..448
+      ModuleHeader@0..36
+        MODULE@0..6 "module"
+        Annotation@6..7
+          TEXT@6..7 " "
+        ModuleName@7..30
+          UPPER@7..30 "OperatorChainIncomplete"
+        Annotation@30..31
+          TEXT@30..31 " "
+        WHERE@31..36 "where"
+      LAYOUT_START@36..36 ""
+      ModuleStatements@36..447
+        ValueEquation@36..54
+          Annotation@36..38
+            TEXT@36..38 "\n\n"
+          LOWER@38..46 "topLevel"
+          FunctionBinders@46..48
+            BinderVariable@46..48
+              Annotation@46..47
+                TEXT@46..47 " "
+              LOWER@47..48 "n"
+          Unconditional@48..54
+            Annotation@48..49
+              TEXT@48..49 " "
+            EQUAL@49..50 "="
+            WhereExpression@50..54
+              ExpressionOperatorChain@50..54
+                ExpressionVariable@50..52
+                  Annotation@50..51
+                    TEXT@50..51 " "
+                  QualifiedName@51..52
+                    LOWER@51..52 "n"
+                ExpressionOperatorPair@52..54
+                  TermOperator@52..54
+                    Annotation@52..53
+                      TEXT@52..53 " "
+                    QualifiedName@53..54
+                      OPERATOR@53..54 "+"
+        LAYOUT_SEPARATOR@54..54 ""
+        ValueEquation@54..120
+          Annotation@54..56
+            TEXT@54..56 "\n\n"
+          LOWER@56..67 "letEquation"
+          FunctionBinders@67..69
+            BinderVariable@67..69
+              Annotation@67..68
+                TEXT@67..68 " "
+              LOWER@68..69 "n"
+          Unconditional@69..120
+            Annotation@69..70
+              TEXT@69..70 " "
+            EQUAL@70..71 "="
+            WhereExpression@71..120
+              ExpressionLetIn@71..120
+                Annotation@71..74
+                  TEXT@71..74 "\n  "
+                LET@74..77 "let"
+                LetBindingStatements@77..109
+                  LAYOUT_START@77..77 ""
+                  LetBindingEquation@77..89
+                    Annotation@77..82
+                      TEXT@77..82 "\n    "
+                    LOWER@82..83 "m"
+                    Unconditional@83..89
+                      Annotation@83..84
+                        TEXT@83..84 " "
+                      EQUAL@84..85 "="
+                      WhereExpression@85..89
+                        ExpressionOperatorChain@85..89
+                          ExpressionVariable@85..87
+                            Annotation@85..86
+                              TEXT@85..86 " "
+                            QualifiedName@86..87
+                              LOWER@86..87 "n"
+                          ExpressionOperatorPair@87..89
+                            TermOperator@87..89
+                              Annotation@87..88
+                                TEXT@87..88 " "
+                              QualifiedName@88..89
+                                OPERATOR@88..89 "+"
+                  LAYOUT_SEPARATOR@89..89 ""
+                  LetBindingPattern@89..109
+                    BinderConstructor@89..103
+                      Annotation@89..94
+                        TEXT@89..94 "\n    "
+                      QualifiedName@94..99
+                        UPPER@94..99 "Tuple"
+                      BinderVariable@99..101
+                        Annotation@99..100
+                          TEXT@99..100 " "
+                        LOWER@100..101 "a"
+                      BinderVariable@101..103
+                        Annotation@101..102
+                          TEXT@101..102 " "
+                        LOWER@102..103 "b"
+                    Annotation@103..104
+                      TEXT@103..104 " "
+                    EQUAL@104..105 "="
+                    WhereExpression@105..109
+                      ExpressionOperatorChain@105..109
+                        ExpressionVariable@105..107
+                          Annotation@105..106
+                            TEXT@105..106 " "
+                          QualifiedName@106..107
+                            LOWER@106..107 "n"
+                        ExpressionOperatorPair@107..109
+                          TermOperator@107..109
+                            Annotation@107..108
+                              TEXT@107..108 " "
+                            QualifiedName@108..109
+                              OPERATOR@108..109 "+"
+                  LAYOUT_END@109..109 ""
+                Annotation@109..112
+                  TEXT@109..112 "\n  "
+                IN@112..114 "in"
+                ExpressionVariable@114..120
+                  Annotation@114..119
+                    TEXT@114..119 "\n    "
+                  QualifiedName@119..120
+                    LOWER@119..120 "m"
+        LAYOUT_SEPARATOR@120..120 ""
+        ValueEquation@120..159
+          Annotation@120..122
+            TEXT@120..122 "\n\n"
+          LOWER@122..128 "doBind"
+          FunctionBinders@128..130
+            BinderVariable@128..130
+              Annotation@128..129
+                TEXT@128..129 " "
+              LOWER@129..130 "x"
+          Unconditional@130..159
+            Annotation@130..131
+              TEXT@130..131 " "
+            EQUAL@131..132 "="
+            WhereExpression@132..159
+              ExpressionDo@132..159
+                Annotation@132..133
+                  TEXT@132..133 " "
+                DO@133..135 "do"
+                DoStatements@135..159
+                  LAYOUT_START@135..135 ""
+                  DoStatementBind@135..146
+                    BinderVariable@135..139
+                      Annotation@135..138
+                        TEXT@135..138 "\n  "
+                      LOWER@138..139 "y"
+                    Annotation@139..140
+                      TEXT@139..140 " "
+                    LEFT_ARROW@140..142 "<-"
+                    ExpressionOperatorChain@142..146
+                      ExpressionVariable@142..144
+                        Annotation@142..143
+                          TEXT@142..143 " "
+                        QualifiedName@143..144
+                          LOWER@143..144 "x"
+                      ExpressionOperatorPair@144..146
+                        TermOperator@144..146
+                          Annotation@144..145
+                            TEXT@144..145 " "
+                          QualifiedName@145..146
+                            OPERATOR@145..146 "+"
+                  LAYOUT_SEPARATOR@146..146 ""
+                  DoStatementDiscard@146..159
+                    ExpressionApplicationChain@146..159
+                      ExpressionVariable@146..153
+                        Annotation@146..149
+                          TEXT@146..149 "\n  "
+                        QualifiedName@149..153
+                          LOWER@149..153 "pure"
+                      ExpressionTermArgument@153..159
+                        ExpressionParenthesized@153..159
+                          Annotation@153..154
+                            TEXT@153..154 " "
+                          LEFT_PARENTHESIS@154..155 "("
+                          ExpressionOperatorChain@155..158
+                            ExpressionVariable@155..156
+                              QualifiedName@155..156
+                                LOWER@155..156 "x"
+                            ExpressionOperatorPair@156..158
+                              TermOperator@156..158
+                                Annotation@156..157
+                                  TEXT@156..157 " "
+                                QualifiedName@157..158
+                                  OPERATOR@157..158 "+"
+                          RIGHT_PARENTHESIS@158..159 ")"
+                  LAYOUT_END@159..159 ""
+        LAYOUT_SEPARATOR@159..159 ""
+        ValueEquation@159..206
+          Annotation@159..161
+            TEXT@159..161 "\n\n"
+          LOWER@161..170 "guardBind"
+          FunctionBinders@170..172
+            BinderVariable@170..172
+              Annotation@170..171
+                TEXT@170..171 " "
+              LOWER@171..172 "x"
+          Conditionals@172..206
+            PatternGuarded@172..194
+              Annotation@172..175
+                TEXT@172..175 "\n  "
+              PIPE@175..176 "|"
+              PatternGuardBinder@176..190
+                BinderConstructor@176..183
+                  Annotation@176..177
+                    TEXT@176..177 " "
+                  QualifiedName@177..181
+                    UPPER@177..181 "Just"
+                  BinderVariable@181..183
+                    Annotation@181..182
+                      TEXT@181..182 " "
+                    LOWER@182..183 "y"
+                Annotation@183..184
+                  TEXT@183..184 " "
+                LEFT_ARROW@184..186 "<-"
+                ExpressionOperatorChain@186..190
+                  ExpressionVariable@186..188
+                    Annotation@186..187
+                      TEXT@186..187 " "
+                    QualifiedName@187..188
+                      LOWER@187..188 "x"
+                  ExpressionOperatorPair@188..190
+                    TermOperator@188..190
+                      Annotation@188..189
+                        TEXT@188..189 " "
+                      QualifiedName@189..190
+                        OPERATOR@189..190 "+"
+              Annotation@190..191
+                TEXT@190..191 " "
+              EQUAL@191..192 "="
+              WhereExpression@192..194
+                ExpressionVariable@192..194
+                  Annotation@192..193
+                    TEXT@192..193 " "
+                  QualifiedName@193..194
+                    LOWER@193..194 "y"
+            PatternGuarded@194..206
+              Annotation@194..197
+                TEXT@194..197 "\n  "
+              PIPE@197..198 "|"
+              PatternGuardExpression@198..202
+                ExpressionOperatorChain@198..202
+                  ExpressionVariable@198..200
+                    Annotation@198..199
+                      TEXT@198..199 " "
+                    QualifiedName@199..200
+                      LOWER@199..200 "x"
+                  ExpressionOperatorPair@200..202
+                    TermOperator@200..202
+                      Annotation@200..201
+                        TEXT@200..201 " "
+                      QualifiedName@201..202
+                        OPERATOR@201..202 "+"
+              Annotation@202..203
+                TEXT@202..203 " "
+              EQUAL@203..204 "="
+              WhereExpression@204..206
+                ExpressionVariable@204..206
+                  Annotation@204..205
+                    TEXT@204..205 " "
+                  QualifiedName@205..206
+                    LOWER@205..206 "x"
+        LAYOUT_SEPARATOR@206..206 ""
+        ValueEquation@206..230
+          Annotation@206..208
+            TEXT@206..208 "\n\n"
+          LOWER@208..216 "adjacent"
+          FunctionBinders@216..220
+            BinderVariable@216..218
+              Annotation@216..217
+                TEXT@216..217 " "
+              LOWER@217..218 "a"
+            BinderVariable@218..220
+              Annotation@218..219
+                TEXT@218..219 " "
+              LOWER@219..220 "b"
+          Unconditional@220..230
+            Annotation@220..221
+              TEXT@220..221 " "
+            EQUAL@221..222 "="
+            WhereExpression@222..230
+              ExpressionOperatorChain@222..230
+                ExpressionVariable@222..224
+                  Annotation@222..223
+                    TEXT@222..223 " "
+                  QualifiedName@223..224
+                    LOWER@223..224 "a"
+                ExpressionOperatorPair@224..226
+                  TermOperator@224..226
+                    Annotation@224..225
+                      TEXT@224..225 " "
+                    QualifiedName@225..226
+                      OPERATOR@225..226 "+"
+                ExpressionOperatorPair@226..230
+                  TermOperator@226..228
+                    Annotation@226..227
+                      TEXT@226..227 " "
+                    QualifiedName@227..228
+                      OPERATOR@227..228 "*"
+                  ExpressionVariable@228..230
+                    Annotation@228..229
+                      TEXT@228..229 " "
+                    QualifiedName@229..230
+                      LOWER@229..230 "b"
+        LAYOUT_SEPARATOR@230..230 ""
+        ValueEquation@230..251
+          Annotation@230..232
+            TEXT@230..232 "\n\n"
+          LOWER@232..243 "missingHead"
+          Unconditional@243..251
+            Annotation@243..244
+              TEXT@243..244 " "
+            EQUAL@244..245 "="
+            WhereExpression@245..251
+              ExpressionParenthesized@245..251
+                Annotation@245..246
+                  TEXT@245..246 " "
+                LEFT_PARENTHESIS@246..247 "("
+                ExpressionOperatorChain@247..250
+                  ExpressionOperatorPair@247..250
+                    TermOperator@247..248
+                      QualifiedName@247..248
+                        OPERATOR@247..248 "+"
+                    ExpressionInteger@248..250
+                      Annotation@248..249
+                        TEXT@248..249 " "
+                      INTEGER@249..250 "1"
+                RIGHT_PARENTHESIS@250..251 ")"
+        LAYOUT_SEPARATOR@251..251 ""
+        ValueEquation@251..278
+          Annotation@251..253
+            TEXT@251..253 "\n\n"
+          LOWER@253..262 "tickChain"
+          FunctionBinders@262..266
+            BinderVariable@262..264
+              Annotation@262..263
+                TEXT@262..263 " "
+              LOWER@263..264 "a"
+            BinderVariable@264..266
+              Annotation@264..265
+                TEXT@264..265 " "
+              LOWER@265..266 "b"
+          Unconditional@266..278
+            Annotation@266..267
+              TEXT@266..267 " "
+            EQUAL@267..268 "="
+            WhereExpression@268..278
+              ExpressionInfixChain@268..278
+                ExpressionVariable@268..270
+                  Annotation@268..269
+                    TEXT@268..269 " "
+                  QualifiedName@269..270
+                    LOWER@269..270 "a"
+                ExpressionInfixPair@270..278
+                  ExpressionTick@270..276
+                    Annotation@270..271
+                      TEXT@270..271 " "
+                    TICK@271..272 "`"
+                    ExpressionOperatorChain@272..275
+                      ExpressionVariable@272..273
+                        QualifiedName@272..273
+                          LOWER@272..273 "f"
+                      ExpressionOperatorPair@273..275
+                        TermOperator@273..275
+                          Annotation@273..274
+                            TEXT@273..274 " "
+                          QualifiedName@274..275
+                            OPERATOR@274..275 "+"
+                    TICK@275..276 "`"
+                  ExpressionVariable@276..278
+                    Annotation@276..277
+                      TEXT@276..277 " "
+                    QualifiedName@277..278
+                      LOWER@277..278 "b"
+        LAYOUT_SEPARATOR@278..278 ""
+        ValueEquation@278..312
+          Annotation@278..280
+            TEXT@278..280 "\n\n"
+          LOWER@280..292 "tickAdjacent"
+          FunctionBinders@292..296
+            BinderVariable@292..294
+              Annotation@292..293
+                TEXT@292..293 " "
+              LOWER@293..294 "a"
+            BinderVariable@294..296
+              Annotation@294..295
+                TEXT@294..295 " "
+              LOWER@295..296 "b"
+          Unconditional@296..312
+            Annotation@296..297
+              TEXT@296..297 " "
+            EQUAL@297..298 "="
+            WhereExpression@298..312
+              ExpressionInfixChain@298..312
+                ExpressionVariable@298..300
+                  Annotation@298..299
+                    TEXT@298..299 " "
+                  QualifiedName@299..300
+                    LOWER@299..300 "a"
+                ExpressionInfixPair@300..312
+                  ExpressionTick@300..310
+                    Annotation@300..301
+                      TEXT@300..301 " "
+                    TICK@301..302 "`"
+                    ExpressionOperatorChain@302..309
+                      ExpressionVariable@302..303
+                        QualifiedName@302..303
+                          LOWER@302..303 "f"
+                      ExpressionOperatorPair@303..305
+                        TermOperator@303..305
+                          Annotation@303..304
+                            TEXT@303..304 " "
+                          QualifiedName@304..305
+                            OPERATOR@304..305 "+"
+                      ExpressionOperatorPair@305..309
+                        TermOperator@305..307
+                          Annotation@305..306
+                            TEXT@305..306 " "
+                          QualifiedName@306..307
+                            OPERATOR@306..307 "*"
+                        ExpressionVariable@307..309
+                          Annotation@307..308
+                            TEXT@307..308 " "
+                          QualifiedName@308..309
+                            LOWER@308..309 "g"
+                    TICK@309..310 "`"
+                  ExpressionVariable@310..312
+                    Annotation@310..311
+                      TEXT@310..311 " "
+                    QualifiedName@311..312
+                      LOWER@311..312 "b"
+        LAYOUT_SEPARATOR@312..312 ""
+        ValueEquation@312..336
+          Annotation@312..314
+            TEXT@312..314 "\n\n"
+          LOWER@314..326 "infixMissing"
+          FunctionBinders@326..328
+            BinderVariable@326..328
+              Annotation@326..327
+                TEXT@326..327 " "
+              LOWER@327..328 "a"
+          Unconditional@328..336
+            Annotation@328..329
+              TEXT@328..329 " "
+            EQUAL@329..330 "="
+            WhereExpression@330..336
+              ExpressionInfixChain@330..336
+                ExpressionVariable@330..332
+                  Annotation@330..331
+                    TEXT@330..331 " "
+                  QualifiedName@331..332
+                    LOWER@331..332 "a"
+                ExpressionInfixPair@332..336
+                  ExpressionTick@332..336
+                    Annotation@332..333
+                      TEXT@332..333 " "
+                    TICK@333..334 "`"
+                    ExpressionVariable@334..335
+                      QualifiedName@334..335
+                        LOWER@334..335 "f"
+                    TICK@335..336 "`"
+        LAYOUT_SEPARATOR@336..336 ""
+        ValueEquation@336..357
+          Annotation@336..338
+            TEXT@336..338 "\n\n"
+          LOWER@338..347 "infixHead"
+          FunctionBinders@347..349
+            BinderVariable@347..349
+              Annotation@347..348
+                TEXT@347..348 " "
+              LOWER@348..349 "b"
+          Unconditional@349..357
+            Annotation@349..350
+              TEXT@349..350 " "
+            EQUAL@350..351 "="
+            WhereExpression@351..357
+              ExpressionInfixChain@351..357
+                ExpressionInfixPair@351..357
+                  ExpressionTick@351..355
+                    Annotation@351..352
+                      TEXT@351..352 " "
+                    TICK@352..353 "`"
+                    ExpressionVariable@353..354
+                      QualifiedName@353..354
+                        LOWER@353..354 "f"
+                    TICK@354..355 "`"
+                  ExpressionVariable@355..357
+                    Annotation@355..356
+                      TEXT@355..356 " "
+                    QualifiedName@356..357
+                      LOWER@356..357 "b"
+        LAYOUT_SEPARATOR@357..357 ""
+        TypeSynonymEquation@357..376
+          Annotation@357..359
+            TEXT@357..359 "\n\n"
+          TYPE@359..363 "type"
+          Annotation@363..364
+            TEXT@363..364 " "
+          UPPER@364..370 "TypeOp"
+          Annotation@370..371
+            TEXT@370..371 " "
+          EQUAL@371..372 "="
+          TypeOperatorChain@372..376
+            TypeConstructor@372..374
+              Annotation@372..373
+                TEXT@372..373 " "
+              QualifiedName@373..374
+                UPPER@373..374 "A"
+            TypeOperatorPair@374..376
+              TypeOperator@374..376
+                Annotation@374..375
+                  TEXT@374..375 " "
+                QualifiedName@375..376
+                  OPERATOR@375..376 "+"
+        LAYOUT_SEPARATOR@376..376 ""
+        TypeSynonymEquation@376..401
+          Annotation@376..378
+            TEXT@376..378 "\n\n"
+          TYPE@378..382 "type"
+          Annotation@382..383
+            TEXT@382..383 " "
+          UPPER@383..393 "TypeOpHead"
+          Annotation@393..394
+            TEXT@393..394 " "
+          EQUAL@394..395 "="
+          TypeParenthesized@395..401
+            Annotation@395..396
+              TEXT@395..396 " "
+            LEFT_PARENTHESIS@396..397 "("
+            TypeOperatorChain@397..400
+              TypeOperatorPair@397..400
+                TypeOperator@397..398
+                  QualifiedName@397..398
+                    OPERATOR@397..398 "+"
+                TypeConstructor@398..400
+                  Annotation@398..399
+                    TEXT@398..399 " "
+                  QualifiedName@399..400
+                    UPPER@399..400 "A"
+            RIGHT_PARENTHESIS@400..401 ")"
+        LAYOUT_SEPARATOR@401..401 ""
+        ValueEquation@401..421
+          Annotation@401..403
+            TEXT@401..403 "\n\n"
+          LOWER@403..411 "binderOp"
+          FunctionBinders@411..417
+            BinderParenthesized@411..417
+              Annotation@411..412
+                TEXT@411..412 " "
+              LEFT_PARENTHESIS@412..413 "("
+              BinderOperatorChain@413..416
+                BinderVariable@413..414
+                  LOWER@413..414 "x"
+                BinderOperatorPair@414..416
+                  TermOperator@414..416
+                    Annotation@414..415
+                      TEXT@414..415 " "
+                    QualifiedName@415..416
+                      OPERATOR@415..416 ":"
+              RIGHT_PARENTHESIS@416..417 ")"
+          Unconditional@417..421
+            Annotation@417..418
+              TEXT@417..418 " "
+            EQUAL@418..419 "="
+            WhereExpression@419..421
+              ExpressionVariable@419..421
+                Annotation@419..420
+                  TEXT@419..420 " "
+                QualifiedName@420..421
+                  LOWER@420..421 "x"
+        LAYOUT_SEPARATOR@421..421 ""
+        ValueEquation@421..447
+          Annotation@421..423
+            TEXT@421..423 "\n\n"
+          LOWER@423..435 "binderOpHead"
+          FunctionBinders@435..442
+            BinderParenthesized@435..442
+              Annotation@435..436
+                TEXT@435..436 " "
+              LEFT_PARENTHESIS@436..437 "("
+              BinderOperatorChain@437..441
+                BinderOperatorPair@437..441
+                  TermOperator@437..438
+                    QualifiedName@437..438
+                      OPERATOR@437..438 ":"
+                  BinderVariable@438..441
+                    Annotation@438..439
+                      TEXT@438..439 " "
+                    LOWER@439..441 "xs"
+              RIGHT_PARENTHESIS@441..442 ")"
+          Unconditional@442..447
+            Annotation@442..443
+              TEXT@442..443 " "
+            EQUAL@443..444 "="
+            WhereExpression@444..447
+              ExpressionVariable@444..447
+                Annotation@444..445
+                  TEXT@444..445 " "
+                QualifiedName@445..447
+                  LOWER@445..447 "xs"
+      LAYOUT_END@447..447 ""
+      Annotation@447..448
+        TEXT@447..448 "\n"
+      END_OF_FILE@448..448 ""
+    ,
+    [],
+)
