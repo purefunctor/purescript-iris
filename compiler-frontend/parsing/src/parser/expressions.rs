@@ -16,60 +16,52 @@ pub fn expression(p: &mut Parser) {
 
 fn expression_1(p: &mut Parser) {
     let mut m = p.start();
-    let mut i = 0;
 
     let left_operand = p.checkpoint();
     expression_2(p);
     if p.at_in(names::OPERATOR) {
         left_operand.expect(p, "Expected expression");
-    } else {
-        left_operand.cancel();
-    }
-
-    while p.at_in(names::OPERATOR) {
-        let mut n = p.start();
-        let mut o = p.start();
-        names::operator(p);
-        o.end(p, SyntaxKind::TermOperator);
-        let right_operand = p.checkpoint();
-        expression_2(p);
-        right_operand.expect(p, "Expected expression");
-        n.end(p, SyntaxKind::ExpressionOperatorPair);
-        i += 1;
-    }
-
-    if i > 0 {
+        loop {
+            let mut n = p.start();
+            let mut o = p.start();
+            names::operator(p);
+            o.end(p, SyntaxKind::TermOperator);
+            let right_operand = p.checkpoint();
+            expression_2(p);
+            right_operand.expect(p, "Expected expression");
+            n.end(p, SyntaxKind::ExpressionOperatorPair);
+            if !p.at_in(names::OPERATOR) {
+                break;
+            }
+        }
         m.end(p, SyntaxKind::ExpressionOperatorChain);
     } else {
+        left_operand.cancel();
         m.cancel(p);
     }
 }
 
 fn expression_2(p: &mut Parser) {
     let mut m = p.start();
-    let mut i = 0;
 
     let left_operand = p.checkpoint();
     expression_3(p);
     if p.at(SyntaxKind::TICK) {
         left_operand.expect(p, "Expected expression");
-    } else {
-        left_operand.cancel();
-    }
-
-    while p.at(SyntaxKind::TICK) {
-        let mut n = p.start();
-        tick_expression(p);
-        let right_operand = p.checkpoint();
-        expression_3(p);
-        right_operand.expect(p, "Expected expression");
-        n.end(p, SyntaxKind::ExpressionInfixPair);
-        i += 1;
-    }
-
-    if i > 0 {
+        loop {
+            let mut n = p.start();
+            tick_expression(p);
+            let right_operand = p.checkpoint();
+            expression_3(p);
+            right_operand.expect(p, "Expected expression");
+            n.end(p, SyntaxKind::ExpressionInfixPair);
+            if !p.at(SyntaxKind::TICK) {
+                break;
+            }
+        }
         m.end(p, SyntaxKind::ExpressionInfixChain);
     } else {
+        left_operand.cancel();
         m.cancel(p);
     }
 }
@@ -84,31 +76,27 @@ fn tick_expression(p: &mut Parser) {
 
 fn tick_expression_1(p: &mut Parser) {
     let mut m = p.start();
-    let mut i = 0;
 
     let left_operand = p.checkpoint();
     expression_3(p);
     if p.at_in(names::OPERATOR) {
         left_operand.expect(p, "Expected expression");
-    } else {
-        left_operand.cancel();
-    }
-
-    while p.at_in(names::OPERATOR) {
-        let mut n = p.start();
-        let mut o = p.start();
-        names::operator(p);
-        o.end(p, SyntaxKind::TermOperator);
-        let right_operand = p.checkpoint();
-        expression_3(p);
-        right_operand.expect(p, "Expected expression");
-        n.end(p, SyntaxKind::ExpressionOperatorPair);
-        i += 1;
-    }
-
-    if i > 0 {
+        loop {
+            let mut n = p.start();
+            let mut o = p.start();
+            names::operator(p);
+            o.end(p, SyntaxKind::TermOperator);
+            let right_operand = p.checkpoint();
+            expression_3(p);
+            right_operand.expect(p, "Expected expression");
+            n.end(p, SyntaxKind::ExpressionOperatorPair);
+            if !p.at_in(names::OPERATOR) {
+                break;
+            }
+        }
         m.end(p, SyntaxKind::ExpressionOperatorChain);
     } else {
+        left_operand.cancel();
         m.cancel(p);
     }
 }

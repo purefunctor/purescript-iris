@@ -76,7 +76,7 @@ impl<'t> Parser<'t> {
     }
 
     fn checkpoint(&self) -> Checkpoint {
-        Checkpoint::new(self.index, self.errors.len())
+        Checkpoint::new(self.index)
     }
 
     fn optional(&mut self, rule: Rule) {
@@ -109,6 +109,7 @@ impl<'t> Parser<'t> {
         self.errors.truncate(snapshot.errors);
     }
 
+    #[cold]
     fn error(&mut self, message: &'static str) {
         self.errors.push(ParserError::Message(message));
         self.output.push(Event::Error);
@@ -204,19 +205,18 @@ impl MarkerBomb {
 
 struct Checkpoint {
     index: usize,
-    errors: usize,
     bomb: MarkerBomb,
 }
 
 impl Checkpoint {
-    fn new(index: usize, errors: usize) -> Checkpoint {
+    fn new(index: usize) -> Checkpoint {
         let bomb = MarkerBomb::new("critical failure: failed to call expect or cancel");
-        Checkpoint { index, errors, bomb }
+        Checkpoint { index, bomb }
     }
 
     fn expect(mut self, parser: &mut Parser, message: &'static str) {
         self.bomb.defuse();
-        if parser.index == self.index && parser.errors.len() == self.errors {
+        if parser.index == self.index {
             parser.error(message);
         }
     }
