@@ -74,7 +74,7 @@ where
         else {
             return Ok(None);
         };
-        let iris_effect = &self.core.iris_effect;
+        let iris_effect = &self.checked_core.iris_effect;
         if (class_file, class_id) != (iris_effect.file_id, iris_effect.has) {
             return Ok(None);
         }
@@ -137,24 +137,24 @@ where
         let field = self.label_field(label);
         let getter = self.expression(ExpressionKind::Project { record, field });
         let getter = self.parameter_abstraction([parameter], getter);
-        Ok(self.service_getter_record(getter))
+        self.service_getter_record(getter)
     }
 
     pub(super) fn merged_service_evidence(
         &mut self,
         parameter: Parameter,
         key: SmolStr,
-    ) -> ExpressionId {
+    ) -> ConversionResult<ExpressionId> {
         let record = self.expression(ExpressionKind::Local { parameter });
         let field = self.label_field(key);
         let getter = self.expression(ExpressionKind::Project { record, field });
         self.service_getter_record(getter)
     }
 
-    fn service_getter_record(&mut self, getter: ExpressionId) -> ExpressionId {
-        let field = self.label_field("getService".into());
+    fn service_getter_record(&mut self, getter: ExpressionId) -> ConversionResult<ExpressionId> {
+        let field = self.member_field(self.functional_core.iris_effect.get_service)?;
         let fields = Arc::from([RecordField { field, expression: getter }]);
-        self.expression(ExpressionKind::Record { fields })
+        Ok(self.expression(ExpressionKind::Record { fields }))
     }
 
     fn global_service_plan(

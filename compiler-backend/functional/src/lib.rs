@@ -8,7 +8,7 @@ pub mod pretty;
 pub mod stylex;
 pub mod tree;
 
-pub use convert::convert_module;
+pub use convert::{FunctionalCore, convert_module};
 pub use error::{ModuleError, ModuleResult, UnsupportedState};
 
 use std::sync::Arc;

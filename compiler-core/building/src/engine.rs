@@ -162,6 +162,7 @@ struct DerivedStorage {
     checked_core: Shards<(), DerivedState<Arc<checking::CheckedCore>>>,
     checked: Shards<FileId, DerivedState<Arc<CheckedModule>>>,
     documented: Shards<FileId, DerivedState<Arc<DocumentedModule>>>,
+    functional_core: Shards<(), DerivedState<Arc<functional::FunctionalCore>>>,
     functional:
         Shards<FileId, DerivedState<functional::ModuleResult<Arc<functional::tree::Module>>>>,
     javascript: Shards<FileId, DerivedState<javascript::ModuleResult<Arc<javascript::Module>>>>,
@@ -189,6 +190,7 @@ impl Drop for DerivedStorage {
                 checked_core,
                 checked,
                 documented,
+                functional_core,
                 functional,
                 javascript,
                 source_map,
@@ -208,6 +210,7 @@ impl Drop for DerivedStorage {
             checked_core.drop_in(scope);
             checked.drop_in(scope);
             documented.drop_in(scope);
+            functional_core.drop_in(scope);
             functional.drop_in(scope);
             javascript.drop_in(scope);
             source_map.drop_in(scope);
@@ -244,7 +247,8 @@ fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
         QueryKey::ForeignContent(_)
         | QueryKey::ForeignModule(_)
         | QueryKey::Module(_)
-        | QueryKey::CheckedCore => false,
+        | QueryKey::CheckedCore
+        | QueryKey::FunctionalCore => false,
     }
 }
 
@@ -695,6 +699,9 @@ impl QueryEngine {
         }
 
         macro_rules! derived_changed {
+            ($field:ident) => {
+                derived_changed!($field, &(), self.$field())
+            };
             ($field:ident, $key:expr) => {
                 derived_changed!($field, $key, self.$field(*$key))
             };
@@ -730,11 +737,10 @@ impl QueryEngine {
                 QueryKey::Exported(k) => derived_changed!(exported, k),
                 QueryKey::Bracketed(k) => derived_changed!(bracketed, k),
                 QueryKey::Sectioned(k) => derived_changed!(sectioned, k),
-                QueryKey::CheckedCore => {
-                    derived_changed!(checked_core, &(), self.checked_core())
-                }
+                QueryKey::CheckedCore => derived_changed!(checked_core),
                 QueryKey::Checked(k) => derived_changed!(checked, k),
                 QueryKey::Documented(k) => derived_changed!(documented, k),
+                QueryKey::FunctionalCore => derived_changed!(functional_core),
                 QueryKey::Functional(k) => derived_changed!(functional, k),
                 QueryKey::JavaScript(k) => derived_changed!(javascript, k),
                 QueryKey::SourceMap(k) => derived_changed!(source_map, k),
@@ -1043,6 +1049,27 @@ impl QueryEngine {
         }
     }
 
+    fn remove_core_query<T>(
+        &self,
+        file_id: FileId,
+        removed_modules: &FxHashSet<ModuleNameId>,
+        queries: &Shards<(), DerivedState<T>>,
+    ) {
+        for shard in &queries.inner {
+            let mut queries = shard.write();
+            let remove = queries.get(&()).is_some_and(|state| {
+                matches!(state, DerivedState::InProgress { .. })
+                    || state_references_removed_file(state, file_id, removed_modules)
+            });
+            if remove {
+                let state = queries
+                    .remove(&())
+                    .expect("invariant violated: expected removable core query state");
+                self.discard_query_state(state);
+            }
+        }
+    }
+
     fn discard_query_state<T>(&self, state: DerivedState<T>) {
         if let DerivedState::InProgress { id, waiters } = state {
             let waiters = waiters.into_inner();
@@ -1098,19 +1125,8 @@ impl QueryEngine {
             source_map,
         );
 
-        for shard in &self.derived.checked_core.inner {
-            let mut queries = shard.write();
-            let remove = queries.get(&()).is_some_and(|state| {
-                matches!(state, DerivedState::InProgress { .. })
-                    || state_references_removed_file(state, file_id, &removed_modules)
-            });
-            if remove {
-                let state = queries
-                    .remove(&())
-                    .expect("invariant violated: expected removable checked core state");
-                self.discard_query_state(state);
-            }
-        }
+        self.remove_core_query(file_id, &removed_modules, &self.derived.checked_core);
+        self.remove_core_query(file_id, &removed_modules, &self.derived.functional_core);
 
         self.control.global.cancelled.store(false, Ordering::Relaxed);
     }
@@ -1407,6 +1423,18 @@ impl QueryEngine {
         )
     }
 
+    pub fn functional_core(&self) -> QueryResult<Arc<functional::FunctionalCore>> {
+        self.query(
+            QueryKey::FunctionalCore,
+            (),
+            |derived| &derived.functional_core,
+            |this| {
+                let core = functional::FunctionalCore::new(this)?;
+                Ok(Arc::new(core))
+            },
+        )
+    }
+
     pub fn functional(
         &self,
         id: FileId,
@@ -1510,6 +1538,8 @@ impl QueryProxy for QueryEngine {
 
     type Documented = Arc<documenting::DocumentedModule>;
 
+    type FunctionalCore = Arc<functional::FunctionalCore>;
+
     fn content(&self, id: FileId) -> QueryResult<Arc<str>> {
         QueryEngine::content(self, id)
     }
@@ -1564,6 +1594,10 @@ impl QueryProxy for QueryEngine {
 
     fn documented(&self, id: FileId) -> QueryResult<Arc<documenting::DocumentedModule>> {
         QueryEngine::documented(self, id)
+    }
+
+    fn functional_core(&self) -> QueryResult<Arc<functional::FunctionalCore>> {
+        QueryEngine::functional_core(self)
     }
 
     fn prim_id(&self) -> FileId {
@@ -1693,6 +1727,7 @@ mod tests {
     use foreign_javascript::ForeignError;
     use parking_lot::Mutex;
     use resolving::ResolvedModule;
+    use rustc_hash::FxHashSet;
 
     use crate::prim;
 
@@ -2280,16 +2315,17 @@ mod tests {
             assert!(dependencies.contains(&QueryKey::Lowered(main)));
             assert!(dependencies.contains(&QueryKey::Grouped(main)));
             assert!(dependencies.contains(&QueryKey::Checked(main)));
+            assert!(dependencies.contains(&QueryKey::FunctionalCore));
         }
         {
             let shard = engine.derived.javascript.shard(&main).read();
             let DerivedState::Computed { dependencies, .. } = shard.get(&main).unwrap() else {
                 unreachable!("invariant violated: expected computed query");
             };
-            assert_eq!(
-                dependencies.as_ref(),
-                &[QueryKey::Functional(main), QueryKey::Foreign(main)]
-            );
+            let dependencies = dependencies.iter().copied().collect::<FxHashSet<_>>();
+            let expected =
+                FxHashSet::from_iter([QueryKey::Functional(main), QueryKey::Foreign(main)]);
+            assert_eq!(dependencies, expected);
         }
 
         let unrelated = files.insert("Unrelated.purs", "module Unrelated where\n\nvalue = 1");

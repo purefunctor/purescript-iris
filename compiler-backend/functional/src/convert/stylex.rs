@@ -1,5 +1,7 @@
 //! Recognition and lowering for the virtual StyleX modules.
 
+use std::sync::Arc;
+
 use building_types::QueryResult;
 use files::FileId;
 use indexing::TermItemId;
@@ -21,9 +23,46 @@ use crate::tree::{
 
 use super::{Context, ConversionResult, term_declaration};
 
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct IrisStyleXCore {
+    modules: StyleXModules,
+    intrinsics: FxHashMap<(FileId, TermItemId), StyleXIntrinsic>,
+}
+
+impl IrisStyleXCore {
+    pub(super) fn collect(queries: &impl checking::ExternalQueries) -> QueryResult<IrisStyleXCore> {
+        let modules = StyleXModules {
+            root: queries.module_file("Iris.StyleX"),
+            when: queries.module_file("Iris.StyleX.When"),
+            types: queries.module_file("Iris.StyleX.Types"),
+        };
+        let mut intrinsics = FxHashMap::default();
+        for (file_id, module) in [
+            (modules.root, StyleXModule::Root),
+            (modules.when, StyleXModule::When),
+            (modules.types, StyleXModule::Types),
+        ] {
+            let Some(file_id) = file_id else { continue };
+            let indexed = queries.indexed(file_id)?;
+            for (term_id, item) in indexed.items.iter_terms() {
+                let Some(name) = item.name.as_deref() else { continue };
+                let intrinsic = match module {
+                    StyleXModule::Root => stylex_root_intrinsic(name).map(StyleXIntrinsic::Root),
+                    StyleXModule::When => stylex_when_intrinsic(name),
+                    StyleXModule::Types => stylex_type_intrinsic(name).map(StyleXIntrinsic::Types),
+                };
+                if let Some(intrinsic) = intrinsic {
+                    intrinsics.insert((file_id, term_id), intrinsic);
+                }
+            }
+        }
+        Ok(IrisStyleXCore { modules, intrinsics })
+    }
+}
+
 /// Files of the virtual StyleX modules, which have no runtime representation.
-#[derive(Debug, Clone, Copy)]
-pub(super) struct StyleXModules {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StyleXModules {
     root: Option<FileId>,
     when: Option<FileId>,
     types: Option<FileId>,
@@ -37,17 +76,9 @@ enum StyleXModule {
 }
 
 impl StyleXModules {
-    fn module(&self, file_id: FileId) -> Option<StyleXModule> {
+    fn contains(&self, file_id: FileId) -> bool {
         let file_id = Some(file_id);
-        if file_id == self.root {
-            Some(StyleXModule::Root)
-        } else if file_id == self.when {
-            Some(StyleXModule::When)
-        } else if file_id == self.types {
-            Some(StyleXModule::Types)
-        } else {
-            None
-        }
+        file_id == self.root || file_id == self.when || file_id == self.types
     }
 }
 
@@ -84,7 +115,7 @@ where
             return Ok(None);
         };
         let GlobalId::Term(file_id, term_id) = global.id else { return Ok(None) };
-        let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id)? else {
+        let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id) else {
             return Ok(None);
         };
         let expression = match (intrinsic, arguments) {
@@ -192,7 +223,7 @@ where
         file_id: FileId,
         term_id: TermItemId,
     ) -> ConversionResult<Option<ExpressionId>> {
-        let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id)? else {
+        let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id) else {
             return Ok(None);
         };
         self.referenced_stylex_modules.insert(file_id);
@@ -281,20 +312,8 @@ where
         &self,
         file_id: FileId,
         term_id: TermItemId,
-    ) -> QueryResult<Option<StyleXIntrinsic>> {
-        let Some(module) = self.stylex_modules().module(file_id) else {
-            return Ok(None);
-        };
-        let indexed = self.indexed_module(file_id)?;
-        let Some(name) = indexed.items[term_id].name.as_deref() else {
-            return Ok(None);
-        };
-        let intrinsic = match module {
-            StyleXModule::Root => stylex_root_intrinsic(name).map(StyleXIntrinsic::Root),
-            StyleXModule::When => stylex_when_intrinsic(name),
-            StyleXModule::Types => stylex_type_intrinsic(name).map(StyleXIntrinsic::Types),
-        };
-        Ok(intrinsic)
+    ) -> Option<StyleXIntrinsic> {
+        self.functional_core.iris_stylex.intrinsics.get(&(file_id, term_id)).copied()
     }
 
     /// Returns the imported theme values that StyleX evaluates statically in this module.
@@ -349,8 +368,7 @@ where
         match &self.storage[expression].kind {
             ExpressionKind::Global { global }
                 if let GlobalId::Term(file_id, term_id) = global.id
-                    && let Some(intrinsic) =
-                        self.stylex_intrinsic_identity(file_id, term_id)? =>
+                    && let Some(intrinsic) = self.stylex_intrinsic_identity(file_id, term_id) =>
             {
                 let state = UnsupportedState::InvalidStyleXUse {
                     function: intrinsic.qualified_name(),
@@ -757,7 +775,7 @@ where
         // commonJS resolution hashes the imported export name; it does not read its value.
         // Following an ordinary alias here would authorize a hash with no matching definition.
         // Lower only this declaration, without querying or validating its functional module.
-        let mut context = Context::new(self.queries, file_id)?;
+        let mut context = Context::new(self.queries, file_id, Arc::clone(&self.functional_core))?;
         let Some(declaration) = term_declaration(&mut context, term_id, true)? else {
             return Ok(false);
         };
@@ -883,16 +901,8 @@ where
         })
     }
 
-    fn stylex_modules(&self) -> StyleXModules {
-        *self.stylex_modules.get_or_init(|| StyleXModules {
-            root: self.queries.module_file("Iris.StyleX"),
-            when: self.queries.module_file("Iris.StyleX.When"),
-            types: self.queries.module_file("Iris.StyleX.Types"),
-        })
-    }
-
     pub(super) fn module_is_virtual(&self, file_id: FileId) -> bool {
-        self.stylex_modules().module(file_id).is_some()
+        self.functional_core.iris_stylex.modules.contains(file_id)
     }
 
     pub(super) fn validate_runtime_reference(
