@@ -9,7 +9,7 @@ use crate::tree::{
     ExpressionKind, Origin, Parameter,
 };
 
-use super::known::KnownTerm;
+use super::known::{KnownInstance, KnownTerm};
 use super::{Context, ConversionResult};
 
 const LOWERING_CONSTRUCTORS: [(&str, &str); 7] = [
@@ -79,19 +79,19 @@ where
             }
         }
         for (member, instance, arity, operation) in [
-            (KnownTerm::ControlApplicativePure, "applicativeAsync", 1, AsyncOperation::Pure),
-            (KnownTerm::DataFunctorMap, "functorAsync", 2, AsyncOperation::Map),
-            (KnownTerm::ControlApplyApply, "applyAsync", 2, AsyncOperation::Apply),
-            (KnownTerm::ControlBindBind, "bindAsync", 2, AsyncOperation::Bind),
+            (
+                KnownTerm::ControlApplicativePure,
+                KnownInstance::ApplicativeAsync,
+                1,
+                AsyncOperation::Pure,
+            ),
+            (KnownTerm::DataFunctorMap, KnownInstance::FunctorAsync, 2, AsyncOperation::Map),
+            (KnownTerm::ControlApplyApply, KnownInstance::ApplyAsync, 2, AsyncOperation::Apply),
+            (KnownTerm::ControlBindBind, KnownInstance::BindAsync, 2, AsyncOperation::Bind),
         ] {
             if selected.is_none()
-                && let Some(operands) = self.known_instance_member_arguments(
-                    known,
-                    arguments,
-                    member,
-                    "Iris.Effect.Async",
-                    instance,
-                )?
+                && let Some(operands) =
+                    self.known_instance_member_arguments(known, arguments, member, instance)
                 && operands.len() == arity
             {
                 selected = Some((operation, operands.to_vec()));
@@ -105,7 +105,7 @@ where
                 && known == function
                 && let [dictionary, operands @ ..] = arguments
                 && operands.len() == 2
-                && self.known_named_instance(*dictionary, "Iris.Effect.Async", "applyAsync")?
+                && self.known_instance(*dictionary) == Some(KnownInstance::ApplyAsync)
             {
                 selected = Some((operation, operands.to_vec()));
             }
@@ -113,20 +113,16 @@ where
         if selected.is_none()
             && let Some((action, continuation)) =
                 self.known_discard_arguments(known, arguments, |context, dictionary| {
-                    context.known_named_instance(dictionary, "Iris.Effect.Async", "bindAsync")
-                })?
+                    context.known_instance(dictionary) == Some(KnownInstance::BindAsync)
+                })
         {
             selected = Some((AsyncOperation::Bind, vec![action, continuation]));
         }
         if selected.is_none()
             && let Some((condition, action)) =
                 self.known_conditional_arguments(known, arguments, |context, dictionary| {
-                    context.known_named_instance(
-                        dictionary,
-                        "Iris.Effect.Async",
-                        "applicativeAsync",
-                    )
-                })?
+                    context.known_instance(dictionary) == Some(KnownInstance::ApplicativeAsync)
+                })
             && let Some(unit) = self.unit_value()?
         {
             selected = Some((AsyncOperation::When, vec![condition, action, unit]));

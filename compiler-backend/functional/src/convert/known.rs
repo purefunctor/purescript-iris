@@ -1,22 +1,26 @@
 use building_types::QueryResult;
 use files::FileId;
-use indexing::{IndexedTermItemKind, TermItemId};
+use indexing::{IndexedTermItemKind, InstanceId, InstanceSourceItemId, TermItemId, TypeItemId};
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 
-use crate::tree::{ExpressionId, ExpressionKind, GlobalId};
+use crate::tree::{ExpressionId, ExpressionKind, GlobalId, InstanceIdentity};
 
 use super::Context;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FunctionalCore {
     pub(super) known_terms: FxHashMap<(FileId, TermItemId), KnownTerm>,
+    pub(super) known_instances: FxHashMap<InstanceIdentity, KnownInstance>,
+    pub(super) known_thunk_instances: FxHashMap<(FileId, InstanceId), (FileId, TypeItemId)>,
 }
 
 impl FunctionalCore {
     pub fn new(queries: &impl checking::ExternalQueries) -> QueryResult<FunctionalCore> {
         let known_terms = collect_known_terms(queries)?;
-        Ok(FunctionalCore { known_terms })
+        let known_instances = collect_known_instances(queries)?;
+        let known_thunk_instances = collect_known_thunk_instances(queries)?;
+        Ok(FunctionalCore { known_terms, known_instances, known_thunk_instances })
     }
 }
 
@@ -307,6 +311,211 @@ fn collect_known_terms(
     Ok(terms)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum KnownInstance {
+    ApplicativeAsync,
+    ApplicativeSync,
+    ApplyAsync,
+    ApplySync,
+    BindAsync,
+    BindSync,
+    CategoryBuilder,
+    CategoryFunction,
+    DiscardUnit,
+    EqBoolean,
+    EqChar,
+    EqInt,
+    EqNumber,
+    EqString,
+    EuclideanRingInt,
+    EuclideanRingNumber,
+    FunctorAsync,
+    FunctorSync,
+    HeytingAlgebraBoolean,
+    OrdBoolean,
+    OrdChar,
+    OrdInt,
+    OrdNumber,
+    OrdString,
+    RingInt,
+    RingNumber,
+    SemigroupArray,
+    SemigroupString,
+    SemigroupoidBuilder,
+    SemigroupoidFunction,
+    SemiringInt,
+    SemiringNumber,
+}
+
+const KNOWN_INSTANCES: &[(KnownInstance, &str, &str, &str, &str)] = &[
+    (
+        KnownInstance::ApplicativeAsync,
+        "Control.Applicative",
+        "Applicative",
+        "Iris.Effect.Async",
+        "Async",
+    ),
+    (
+        KnownInstance::ApplicativeSync,
+        "Control.Applicative",
+        "Applicative",
+        "Iris.Effect.Sync",
+        "Sync",
+    ),
+    (KnownInstance::ApplyAsync, "Control.Apply", "Apply", "Iris.Effect.Async", "Async"),
+    (KnownInstance::ApplySync, "Control.Apply", "Apply", "Iris.Effect.Sync", "Sync"),
+    (KnownInstance::BindAsync, "Control.Bind", "Bind", "Iris.Effect.Async", "Async"),
+    (KnownInstance::BindSync, "Control.Bind", "Bind", "Iris.Effect.Sync", "Sync"),
+    (KnownInstance::CategoryBuilder, "Control.Category", "Category", "Record.Builder", "Builder"),
+    (KnownInstance::CategoryFunction, "Control.Category", "Category", "Prim", "Function"),
+    (KnownInstance::DiscardUnit, "Control.Bind", "Discard", "Data.Unit", "Unit"),
+    (KnownInstance::EqBoolean, "Data.Eq", "Eq", "Prim", "Boolean"),
+    (KnownInstance::EqChar, "Data.Eq", "Eq", "Prim", "Char"),
+    (KnownInstance::EqInt, "Data.Eq", "Eq", "Prim", "Int"),
+    (KnownInstance::EqNumber, "Data.Eq", "Eq", "Prim", "Number"),
+    (KnownInstance::EqString, "Data.Eq", "Eq", "Prim", "String"),
+    (KnownInstance::EuclideanRingInt, "Data.EuclideanRing", "EuclideanRing", "Prim", "Int"),
+    (KnownInstance::EuclideanRingNumber, "Data.EuclideanRing", "EuclideanRing", "Prim", "Number"),
+    (KnownInstance::FunctorAsync, "Data.Functor", "Functor", "Iris.Effect.Async", "Async"),
+    (KnownInstance::FunctorSync, "Data.Functor", "Functor", "Iris.Effect.Sync", "Sync"),
+    (
+        KnownInstance::HeytingAlgebraBoolean,
+        "Data.HeytingAlgebra",
+        "HeytingAlgebra",
+        "Prim",
+        "Boolean",
+    ),
+    (KnownInstance::OrdBoolean, "Data.Ord", "Ord", "Prim", "Boolean"),
+    (KnownInstance::OrdChar, "Data.Ord", "Ord", "Prim", "Char"),
+    (KnownInstance::OrdInt, "Data.Ord", "Ord", "Prim", "Int"),
+    (KnownInstance::OrdNumber, "Data.Ord", "Ord", "Prim", "Number"),
+    (KnownInstance::OrdString, "Data.Ord", "Ord", "Prim", "String"),
+    (KnownInstance::RingInt, "Data.Ring", "Ring", "Prim", "Int"),
+    (KnownInstance::RingNumber, "Data.Ring", "Ring", "Prim", "Number"),
+    (KnownInstance::SemigroupArray, "Data.Semigroup", "Semigroup", "Prim", "Array"),
+    (KnownInstance::SemigroupString, "Data.Semigroup", "Semigroup", "Prim", "String"),
+    (
+        KnownInstance::SemigroupoidBuilder,
+        "Control.Semigroupoid",
+        "Semigroupoid",
+        "Record.Builder",
+        "Builder",
+    ),
+    (
+        KnownInstance::SemigroupoidFunction,
+        "Control.Semigroupoid",
+        "Semigroupoid",
+        "Prim",
+        "Function",
+    ),
+    (KnownInstance::SemiringInt, "Data.Semiring", "Semiring", "Prim", "Int"),
+    (KnownInstance::SemiringNumber, "Data.Semiring", "Semiring", "Prim", "Number"),
+];
+
+fn collect_known_instances(
+    queries: &impl checking::ExternalQueries,
+) -> QueryResult<FxHashMap<InstanceIdentity, KnownInstance>> {
+    let mut instances = FxHashMap::default();
+    for &(known, class_module, class_name, head_module, head_name) in KNOWN_INSTANCES {
+        let Some(class) = find_exported_class(queries, class_module, class_name)? else {
+            continue;
+        };
+        let Some(head) = find_exported_type(queries, head_module, head_name)? else {
+            continue;
+        };
+        let mut candidates = Vec::new();
+        for file_id in [class.0, head.0].into_iter().unique() {
+            let indexed = queries.indexed(file_id)?;
+            let checked = queries.checked(file_id)?;
+            for &source in indexed.items.instance_sources() {
+                let (identity, instance) = match source {
+                    InstanceSourceItemId::Instance(item) => {
+                        let id = indexed.items[item].id;
+                        let identity = InstanceIdentity::Declared(file_id, id);
+                        let instance = checked.lookup_instance(id);
+                        (identity, instance)
+                    }
+                    InstanceSourceItemId::Derive(item) => {
+                        let id = indexed.items[item].id;
+                        let identity = InstanceIdentity::Derived(file_id, id);
+                        let instance = checked.lookup_derived_instance(id);
+                        (identity, instance)
+                    }
+                };
+                let Some(instance) = instance else { continue };
+                if instance.resolution == class && instance_head(queries, &instance) == Some(head) {
+                    candidates.push(identity);
+                }
+            }
+        }
+        if let [identity] = *candidates {
+            instances.insert(identity, known);
+        }
+    }
+    Ok(instances)
+}
+
+fn instance_head(
+    queries: &impl checking::ExternalQueries,
+    instance: &checking::core::CheckedInstance,
+) -> Option<(FileId, TypeItemId)> {
+    let [argument] = *instance.head.as_ref()?.type_arguments else { return None };
+    let mut current = argument;
+    loop {
+        match *queries.lookup_type(current) {
+            checking::Type::Application(function, _)
+            | checking::Type::KindApplication(function, _)
+            | checking::Type::Kinded(function, _) => current = function,
+            checking::Type::Constructor(file_id, type_id) => return Some((file_id, type_id)),
+            _ => return None,
+        }
+    }
+}
+
+fn find_exported_class(
+    queries: &impl checking::ExternalQueries,
+    module_name: &str,
+    class_name: &str,
+) -> QueryResult<Option<(FileId, TypeItemId)>> {
+    let Some(file_id) = queries.module_file(module_name) else { return Ok(None) };
+    let resolved = queries.resolved(file_id)?;
+    Ok(resolved.exports.lookup_class(class_name))
+}
+
+fn find_exported_type(
+    queries: &impl checking::ExternalQueries,
+    module_name: &str,
+    type_name: &str,
+) -> QueryResult<Option<(FileId, TypeItemId)>> {
+    let Some(file_id) = queries.module_file(module_name) else { return Ok(None) };
+    let resolved = queries.resolved(file_id)?;
+    Ok(resolved.exports.lookup_type(type_name))
+}
+
+const THUNK_MODULES: [&str; 2] = ["Effect", "Control.Monad.ST.Internal"];
+
+fn collect_known_thunk_instances(
+    queries: &impl checking::ExternalQueries,
+) -> QueryResult<FxHashMap<(FileId, InstanceId), (FileId, TypeItemId)>> {
+    let mut known_thunk_instances = FxHashMap::default();
+    for module_name in THUNK_MODULES {
+        let Some(file_id) = queries.module_file(module_name) else { continue };
+        let indexed = queries.indexed(file_id)?;
+        let checked = queries.checked(file_id)?;
+        let instances = indexed.items.iter_instances().filter_map(|(_, item)| {
+            let instance = checked.lookup_instance(item.id)?;
+            Some((instance.resolution, item.id))
+        });
+        let instances = instances.into_group_map();
+        for (class, instances) in instances {
+            if let [instance_id] = *instances {
+                known_thunk_instances.insert((file_id, instance_id), class);
+            }
+        }
+    }
+    Ok(known_thunk_instances)
+}
+
 impl<'c, Q> Context<'c, Q>
 where
     Q: checking::ExternalQueries,
@@ -317,5 +526,13 @@ where
         };
         let GlobalId::Term(file_id, term_id) = global.id else { return None };
         self.functional_core.known_terms.get(&(file_id, term_id)).copied()
+    }
+
+    pub(super) fn known_instance(&self, expression: ExpressionId) -> Option<KnownInstance> {
+        let ExpressionKind::Global { global } = &self.storage[expression].kind else {
+            return None;
+        };
+        let GlobalId::Instance(identity) = global.id else { return None };
+        self.functional_core.known_instances.get(&identity).copied()
     }
 }

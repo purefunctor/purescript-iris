@@ -14,54 +14,44 @@ use crate::tree::{
     RecordUpdate, UnaryOperator,
 };
 
-use super::known::KnownTerm;
+use super::known::{KnownInstance, KnownTerm};
 use super::{Context, ConversionResult};
 
 mod builder;
 
-const BINARY_INSTANCE_MEMBERS: &[(KnownTerm, &str, &str, BinaryOperator)] = &[
+const BINARY_INSTANCE_MEMBERS: &[(KnownTerm, KnownInstance, BinaryOperator)] = &[
     (
         KnownTerm::DataHeytingAlgebraConj,
-        "Data.HeytingAlgebra",
-        "heytingAlgebraBoolean",
+        KnownInstance::HeytingAlgebraBoolean,
         BinaryOperator::BooleanAnd,
     ),
     (
         KnownTerm::DataHeytingAlgebraDisj,
-        "Data.HeytingAlgebra",
-        "heytingAlgebraBoolean",
+        KnownInstance::HeytingAlgebraBoolean,
         BinaryOperator::BooleanOr,
     ),
-    (KnownTerm::DataSemiringAdd, "Data.Semiring", "semiringInt", BinaryOperator::IntegerAdd),
-    (KnownTerm::DataRingSub, "Data.Ring", "ringInt", BinaryOperator::IntegerSubtract),
-    (KnownTerm::DataSemiringMul, "Data.Semiring", "semiringInt", BinaryOperator::IntegerMultiply),
-    (KnownTerm::DataSemiringAdd, "Data.Semiring", "semiringNumber", BinaryOperator::NumberAdd),
-    (KnownTerm::DataRingSub, "Data.Ring", "ringNumber", BinaryOperator::NumberSubtract),
-    (KnownTerm::DataSemiringMul, "Data.Semiring", "semiringNumber", BinaryOperator::NumberMultiply),
+    (KnownTerm::DataSemiringAdd, KnownInstance::SemiringInt, BinaryOperator::IntegerAdd),
+    (KnownTerm::DataRingSub, KnownInstance::RingInt, BinaryOperator::IntegerSubtract),
+    (KnownTerm::DataSemiringMul, KnownInstance::SemiringInt, BinaryOperator::IntegerMultiply),
+    (KnownTerm::DataSemiringAdd, KnownInstance::SemiringNumber, BinaryOperator::NumberAdd),
+    (KnownTerm::DataRingSub, KnownInstance::RingNumber, BinaryOperator::NumberSubtract),
+    (KnownTerm::DataSemiringMul, KnownInstance::SemiringNumber, BinaryOperator::NumberMultiply),
     (
         KnownTerm::DataEuclideanRingDiv,
-        "Data.EuclideanRing",
-        "euclideanRingInt",
+        KnownInstance::EuclideanRingInt,
         BinaryOperator::IntegerDivide,
     ),
     (
         KnownTerm::DataEuclideanRingMod,
-        "Data.EuclideanRing",
-        "euclideanRingInt",
+        KnownInstance::EuclideanRingInt,
         BinaryOperator::IntegerModulo,
     ),
     (
         KnownTerm::DataEuclideanRingDiv,
-        "Data.EuclideanRing",
-        "euclideanRingNumber",
+        KnownInstance::EuclideanRingNumber,
         BinaryOperator::NumberDivide,
     ),
-    (
-        KnownTerm::DataSemigroupAppend,
-        "Data.Semigroup",
-        "semigroupString",
-        BinaryOperator::StringAppend,
-    ),
+    (KnownTerm::DataSemigroupAppend, KnownInstance::SemigroupString, BinaryOperator::StringAppend),
 ];
 
 const BINARY_FUNCTIONS: &[(KnownTerm, BinaryOperator)] = &[
@@ -78,20 +68,20 @@ const UNARY_FUNCTIONS: &[(KnownTerm, UnaryOperator)] = &[
     (KnownTerm::DataArrayLength, UnaryOperator::ArrayLength),
 ];
 
-const EQ_INSTANCES: &[(&str, PrimitiveType)] = &[
-    ("eqBoolean", PrimitiveType::Boolean),
-    ("eqInt", PrimitiveType::Integer),
-    ("eqNumber", PrimitiveType::Number),
-    ("eqChar", PrimitiveType::Char),
-    ("eqString", PrimitiveType::String),
+const EQ_INSTANCES: &[(KnownInstance, PrimitiveType)] = &[
+    (KnownInstance::EqBoolean, PrimitiveType::Boolean),
+    (KnownInstance::EqInt, PrimitiveType::Integer),
+    (KnownInstance::EqNumber, PrimitiveType::Number),
+    (KnownInstance::EqChar, PrimitiveType::Char),
+    (KnownInstance::EqString, PrimitiveType::String),
 ];
 
-const ORD_INSTANCES: &[(&str, PrimitiveType)] = &[
-    ("ordBoolean", PrimitiveType::Boolean),
-    ("ordInt", PrimitiveType::Integer),
-    ("ordNumber", PrimitiveType::Number),
-    ("ordChar", PrimitiveType::Char),
-    ("ordString", PrimitiveType::String),
+const ORD_INSTANCES: &[(KnownInstance, PrimitiveType)] = &[
+    (KnownInstance::OrdBoolean, PrimitiveType::Boolean),
+    (KnownInstance::OrdInt, PrimitiveType::Integer),
+    (KnownInstance::OrdNumber, PrimitiveType::Number),
+    (KnownInstance::OrdChar, PrimitiveType::Char),
+    (KnownInstance::OrdString, PrimitiveType::String),
 ];
 
 const ORD_FUNCTIONS: &[(KnownTerm, Comparison)] = &[
@@ -288,9 +278,8 @@ where
             known,
             known_arguments,
             KnownTerm::ControlCategoryIdentity,
-            "Control.Category",
-            "categoryFn",
-        )? {
+            KnownInstance::CategoryFunction,
+        ) {
             return Ok(Some(*argument));
         }
         if known == KnownTerm::UnsafeCoerceUnsafeCoerce
@@ -356,9 +345,8 @@ where
             known,
             arguments,
             KnownTerm::ControlSemigroupoidCompose,
-            "Control.Semigroupoid",
-            "semigroupoidFn",
-        )? && let [outer, inner, remaining @ ..] = arguments
+            KnownInstance::SemigroupoidFunction,
+        ) && let [outer, inner, remaining @ ..] = arguments
             && let [] | [_] = remaining
         {
             let composition = self.function_composition(
@@ -373,7 +361,7 @@ where
         if known == KnownTerm::ControlSemigroupoidComposeFlipped
             && let [dictionary, inner, outer, remaining @ ..] = arguments
             && let [] | [_] = remaining
-            && self.known_named_instance(*dictionary, "Control.Semigroupoid", "semigroupoidFn")?
+            && self.known_instance(*dictionary) == Some(KnownInstance::SemigroupoidFunction)
         {
             let composition = self.function_composition(
                 *outer,
@@ -396,9 +384,8 @@ where
             known,
             arguments,
             KnownTerm::DataHeytingAlgebraNot,
-            "Data.HeytingAlgebra",
-            "heytingAlgebraBoolean",
-        )? {
+            KnownInstance::HeytingAlgebraBoolean,
+        ) {
             return Ok(Some(ExpressionKind::Unary {
                 operator: UnaryOperator::BooleanNot,
                 value: *value,
@@ -407,27 +394,23 @@ where
         if known == KnownTerm::DataRingNegate
             && let [dictionary, value] = arguments
         {
-            if self.known_named_instance(*dictionary, "Data.Ring", "ringInt")? {
+            if self.known_instance(*dictionary) == Some(KnownInstance::RingInt) {
                 return Ok(Some(ExpressionKind::Unary {
                     operator: UnaryOperator::IntegerNegate,
                     value: *value,
                 }));
             }
-            if self.known_named_instance(*dictionary, "Data.Ring", "ringNumber")? {
+            if self.known_instance(*dictionary) == Some(KnownInstance::RingNumber) {
                 return Ok(Some(ExpressionKind::Unary {
                     operator: UnaryOperator::NumberNegate,
                     value: *value,
                 }));
             }
         }
-        for &(member, module_name, instance_name, operator) in BINARY_INSTANCE_MEMBERS {
-            if let Some([left, right]) = self.known_instance_member_arguments(
-                known,
-                arguments,
-                member,
-                module_name,
-                instance_name,
-            )? {
+        for &(member, instance, operator) in BINARY_INSTANCE_MEMBERS {
+            if let Some([left, right]) =
+                self.known_instance_member_arguments(known, arguments, member, instance)
+            {
                 return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
             }
         }
@@ -449,9 +432,8 @@ where
             known,
             arguments,
             KnownTerm::DataSemigroupAppend,
-            "Data.Semigroup",
-            "semigroupArray",
-        )? {
+            KnownInstance::SemigroupArray,
+        ) {
             return Ok(Some(self.array_concatenation(*left, *right)));
         }
         if known == KnownTerm::DataSemigroupConcatArray
@@ -520,16 +502,14 @@ where
         }
         if known == KnownTerm::DataEqEq
             && let [record, left, right] = arguments
-            && let Some(operand) =
-                self.known_primitive_instance(*record, "Data.Eq", EQ_INSTANCES)?
+            && let Some(operand) = self.known_primitive_instance(*record, EQ_INSTANCES)
         {
             let operator = BinaryOperator::Comparison { operand, comparison: Comparison::Equal };
             return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
         }
         if known == KnownTerm::DataEqNotEq
             && let [dictionary, left, right] = arguments
-            && let Some(operand) =
-                self.known_primitive_instance(*dictionary, "Data.Eq", EQ_INSTANCES)?
+            && let Some(operand) = self.known_primitive_instance(*dictionary, EQ_INSTANCES)
         {
             let operator = BinaryOperator::Comparison { operand, comparison: Comparison::NotEqual };
             return Ok(Some(ExpressionKind::Binary { operator, left: *left, right: *right }));
@@ -537,8 +517,7 @@ where
         for &(function, comparison) in ORD_FUNCTIONS {
             if known == function
                 && let [dictionary, left, right] = arguments
-                && let Some(operand) =
-                    self.known_primitive_instance(*dictionary, "Data.Ord", ORD_INSTANCES)?
+                && let Some(operand) = self.known_primitive_instance(*dictionary, ORD_INSTANCES)
             {
                 let kind = self.primitive_comparison(operand, comparison, *left, *right);
                 return Ok(Some(kind));
@@ -579,8 +558,7 @@ where
             return Ok(None);
         }
         let [record, left, right] = *arguments.as_slice() else { return Ok(None) };
-        let Some(operand) = self.known_primitive_instance(record, "Data.Ord", ORD_INSTANCES)?
-        else {
+        let Some(operand) = self.known_primitive_instance(record, ORD_INSTANCES) else {
             return Ok(None);
         };
 
@@ -733,7 +711,7 @@ where
         );
         if thunk_member
             && let Some((dictionary, operands)) = arguments.split_first()
-            && self.known_thunk_instance(*dictionary, Some(self.class_member_parent(function)?))?
+            && self.known_thunk_instance(*dictionary, Some(self.class_member_parent(function)?))
         {
             match (known, operands) {
                 (KnownTerm::ControlApplicativePure, [value]) => {
@@ -766,7 +744,7 @@ where
         if let Some((action, continuation)) =
             self.known_discard_arguments(known, arguments, |context, dictionary| {
                 context.known_thunk_instance(dictionary, None)
-            })?
+            })
             && let Some((parameter, body)) = self.effect_continuation(continuation)?
         {
             return Ok(Some(EffectExpression::Bind { action, parameter, body }));
@@ -774,7 +752,7 @@ where
         if let Some((condition, action)) =
             self.known_conditional_arguments(known, arguments, |context, dictionary| {
                 context.known_thunk_instance(dictionary, None)
-            })?
+            })
         {
             return self.unit_statement(EffectStatement::When { condition, action });
         }
@@ -796,34 +774,33 @@ where
         &self,
         known: KnownTerm,
         arguments: &[ExpressionId],
-        known_bind: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
-    ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
+        known_bind: impl Fn(&Self, ExpressionId) -> bool,
+    ) -> Option<(ExpressionId, ExpressionId)> {
         if let Some([dictionary, action, continuation]) = self.known_instance_member_arguments(
             known,
             arguments,
             KnownTerm::ControlBindDiscard,
-            "Control.Bind",
-            "discardUnit",
-        )? && known_bind(self, *dictionary)?
+            KnownInstance::DiscardUnit,
+        ) && known_bind(self, *dictionary)
         {
-            return Ok(Some((*action, *continuation)));
+            return Some((*action, *continuation));
         }
-        Ok(None)
+        None
     }
 
     pub(super) fn known_conditional_arguments(
         &mut self,
         known: KnownTerm,
         arguments: &[ExpressionId],
-        known_applicative: impl Fn(&Self, ExpressionId) -> QueryResult<bool>,
-    ) -> QueryResult<Option<(ExpressionId, ExpressionId)>> {
+        known_applicative: impl Fn(&Self, ExpressionId) -> bool,
+    ) -> Option<(ExpressionId, ExpressionId)> {
         for (function, negated) in [
             (KnownTerm::ControlApplicativeWhen, false),
             (KnownTerm::ControlApplicativeUnless, true),
         ] {
             if known == function
                 && let [dictionary, condition, action] = *arguments
-                && known_applicative(self, dictionary)?
+                && known_applicative(self, dictionary)
             {
                 let condition = if negated {
                     let operator = UnaryOperator::BooleanNot;
@@ -831,10 +808,10 @@ where
                 } else {
                     condition
                 };
-                return Ok(Some((condition, action)));
+                return Some((condition, action));
             }
         }
-        Ok(None)
+        None
     }
 
     fn known_reference_application(
@@ -1239,19 +1216,13 @@ where
         known: KnownTerm,
         arguments: &'a [ExpressionId],
         member: KnownTerm,
-        instance_module_name: &str,
-        instance_name: &str,
-    ) -> QueryResult<Option<&'a [ExpressionId]>> {
+        instance: KnownInstance,
+    ) -> Option<&'a [ExpressionId]> {
         if known != member {
-            return Ok(None);
+            return None;
         }
-        let Some((record, arguments)) = arguments.split_first() else {
-            return Ok(None);
-        };
-        if !self.known_named_instance(*record, instance_module_name, instance_name)? {
-            return Ok(None);
-        }
-        Ok(Some(arguments))
+        let (record, arguments) = arguments.split_first()?;
+        (self.known_instance(*record) == Some(instance)).then_some(arguments)
     }
 
     fn class_member_parent(&self, expression: ExpressionId) -> QueryResult<(FileId, TypeItemId)> {
@@ -1267,89 +1238,33 @@ where
         Ok((file_id, parent))
     }
 
-    pub(super) fn known_named_instance(
-        &self,
-        expression: ExpressionId,
-        module_name: &str,
-        instance_name: &str,
-    ) -> QueryResult<bool> {
-        let ExpressionKind::Global { global } = &self.storage[expression].kind else {
-            return Ok(false);
-        };
-        let GlobalId::Instance(identity) = global.id else { return Ok(false) };
-        let instance_file = match identity {
-            InstanceIdentity::Declared(file_id, _) | InstanceIdentity::Derived(file_id, _) => {
-                file_id
-            }
-        };
-        Ok(global.item_name == instance_name
-            && self.source_module_name(instance_file)? == module_name)
-    }
-
     fn known_primitive_instance(
         &self,
         expression: ExpressionId,
-        module_name: &str,
-        instances: &[(&str, PrimitiveType)],
-    ) -> QueryResult<Option<PrimitiveType>> {
-        for &(instance_name, operand) in instances {
-            if self.known_named_instance(expression, module_name, instance_name)? {
-                return Ok(Some(operand));
-            }
-        }
-        Ok(None)
+        instances: &[(KnownInstance, PrimitiveType)],
+    ) -> Option<PrimitiveType> {
+        let known = self.known_instance(expression)?;
+        instances.iter().find_map(|&(instance, operand)| (instance == known).then_some(operand))
     }
 
     fn known_thunk_instance(
         &self,
         expression: ExpressionId,
         expected_class: Option<(FileId, TypeItemId)>,
-    ) -> QueryResult<bool> {
+    ) -> bool {
         let ExpressionKind::Global { global } = &self.storage[expression].kind else {
-            return Ok(false);
+            return false;
         };
         let GlobalId::Instance(InstanceIdentity::Declared(instance_file, instance_id)) = global.id
         else {
-            return Ok(false);
+            return false;
         };
-        let thunk_modules = self.thunk_modules.get_or_init(|| {
-            let effect = self.queries.module_file("Effect");
-            let state_thread = self.queries.module_file("Control.Monad.ST.Internal");
-            [effect, state_thread]
-        });
-        if !thunk_modules.contains(&Some(instance_file)) {
-            return Ok(false);
-        }
-
-        let checked = if instance_file == self.file_id {
-            Arc::clone(&self.checked)
-        } else {
-            self.queries.checked(instance_file)?
+        let Some(&class) =
+            self.functional_core.known_thunk_instances.get(&(instance_file, instance_id))
+        else {
+            return false;
         };
-        let instance = checked.lookup_instance(instance_id);
-        let Some(instance) = instance else { return Ok(false) };
-        if expected_class.is_some_and(|class| instance.resolution != class) {
-            return Ok(false);
-        }
-        let key = (instance_file, instance_id);
-        if let Some(&canonical) = self.canonical_thunk_instances.borrow().get(&key) {
-            return Ok(canonical);
-        }
-
-        let indexed = self.indexed_module(instance_file)?;
-        let canonical_instances = indexed.items.iter_instances().filter_map(|(_, candidate)| {
-            let candidate_instance = checked.lookup_instance(candidate.id)?;
-            (candidate_instance.resolution == instance.resolution).then_some(candidate.id)
-        });
-        let mut canonical_instances = canonical_instances.take(2);
-        let canonical = match canonical_instances.next() {
-            Some(canonical_instance) => {
-                canonical_instances.next().is_none() && instance_id == canonical_instance
-            }
-            None => false,
-        };
-        self.canonical_thunk_instances.borrow_mut().insert(key, canonical);
-        Ok(canonical)
+        expected_class.is_none_or(|expected_class| class == expected_class)
     }
 }
 

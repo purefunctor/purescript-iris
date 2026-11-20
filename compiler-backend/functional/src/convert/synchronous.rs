@@ -3,7 +3,7 @@ use crate::tree::{
     Binding, EffectExpression, EffectStatement, ExpressionId, ExpressionKind, Parameter,
 };
 
-use super::known::KnownTerm;
+use super::known::{KnownInstance, KnownTerm};
 use super::{Context, ConversionResult};
 
 #[derive(Clone, Copy)]
@@ -76,33 +76,34 @@ where
             }
         }
         for (member, instance, arity, operation) in [
-            (KnownTerm::ControlApplicativePure, "applicativeSync", 1, SyncOperation::Pure),
-            (KnownTerm::DataFunctorMap, "functorSync", 2, SyncOperation::Map),
-            (KnownTerm::ControlApplyApply, "applySync", 2, SyncOperation::Apply),
-            (KnownTerm::ControlBindBind, "bindSync", 2, SyncOperation::Bind),
+            (
+                KnownTerm::ControlApplicativePure,
+                KnownInstance::ApplicativeSync,
+                1,
+                SyncOperation::Pure,
+            ),
+            (KnownTerm::DataFunctorMap, KnownInstance::FunctorSync, 2, SyncOperation::Map),
+            (KnownTerm::ControlApplyApply, KnownInstance::ApplySync, 2, SyncOperation::Apply),
+            (KnownTerm::ControlBindBind, KnownInstance::BindSync, 2, SyncOperation::Bind),
         ] {
-            if let Some(operands) = self.known_instance_member_arguments(
-                known,
-                arguments,
-                member,
-                "Iris.Effect.Sync",
-                instance,
-            )? && operands.len() == arity
+            if let Some(operands) =
+                self.known_instance_member_arguments(known, arguments, member, instance)
+                && operands.len() == arity
             {
                 return self.lower_sync(operation, operands).map(Some);
             }
         }
         if let Some((action, continuation)) =
             self.known_discard_arguments(known, arguments, |context, dictionary| {
-                context.known_named_instance(dictionary, "Iris.Effect.Sync", "bindSync")
-            })?
+                context.known_instance(dictionary) == Some(KnownInstance::BindSync)
+            })
         {
             return self.lower_sync(SyncOperation::Bind, &[action, continuation]).map(Some);
         }
         if let Some((condition, action)) =
             self.known_conditional_arguments(known, arguments, |context, dictionary| {
-                context.known_named_instance(dictionary, "Iris.Effect.Sync", "applicativeSync")
-            })?
+                context.known_instance(dictionary) == Some(KnownInstance::ApplicativeSync)
+            })
             && let Some(unit) = self.unit_value()?
         {
             return self.lower_sync(SyncOperation::When, &[condition, action, unit]).map(Some);

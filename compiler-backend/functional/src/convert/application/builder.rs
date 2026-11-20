@@ -1,6 +1,6 @@
 use smol_str::SmolStr;
 
-use crate::convert::known::KnownTerm;
+use crate::convert::known::{KnownInstance, KnownTerm};
 use crate::convert::{Context, ConversionResult};
 use crate::tree::{
     Binding, ExpressionId, ExpressionKind, Field, PatternKind, RecordField, RecordUpdate,
@@ -126,13 +126,12 @@ where
             known,
             &arguments,
             KnownTerm::ControlSemigroupoidCompose,
-            "Record.Builder",
-            "semigroupoidBuilder",
-        )? {
+            KnownInstance::SemigroupoidBuilder,
+        ) {
             Some((outer, inner, false))
         } else if known == KnownTerm::ControlSemigroupoidComposeFlipped
             && let [dictionary, inner, outer] = *arguments
-            && self.known_named_instance(dictionary, "Record.Builder", "semigroupoidBuilder")?
+            && self.known_instance(dictionary) == Some(KnownInstance::SemigroupoidBuilder)
         {
             Some((inner, outer, true))
         } else {
@@ -154,9 +153,8 @@ where
             known,
             &arguments,
             KnownTerm::ControlCategoryIdentity,
-            "Record.Builder",
-            "categoryBuilder",
-        )? {
+            KnownInstance::CategoryBuilder,
+        ) {
             return Ok(Some(Vec::new()));
         }
         if known == KnownTerm::RecordBuilderNub
