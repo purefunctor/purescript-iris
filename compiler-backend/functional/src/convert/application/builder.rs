@@ -120,7 +120,7 @@ where
             return Ok(None);
         };
         let (function, arguments) = self.application_spine(*function, arguments);
-        let Some(known) = self.known_term(function)? else { return Ok(None) };
+        let Some(known) = self.known_term(function) else { return Ok(None) };
 
         let composition = if let Some(&[outer, inner]) = self.known_instance_member_arguments(
             known,

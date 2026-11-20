@@ -74,7 +74,7 @@ where
         else {
             return Ok(None);
         };
-        let iris_effect = &self.core.iris_effect;
+        let iris_effect = &self.checked_core.iris_effect;
         if (class_file, class_id) != (iris_effect.file_id, iris_effect.has) {
             return Ok(None);
         }

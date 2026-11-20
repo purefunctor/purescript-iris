@@ -1,5 +1,7 @@
 //! Recognition and lowering for the virtual StyleX modules.
 
+use std::sync::Arc;
+
 use building_types::QueryResult;
 use files::FileId;
 use indexing::TermItemId;
@@ -757,7 +759,7 @@ where
         // commonJS resolution hashes the imported export name; it does not read its value.
         // Following an ordinary alias here would authorize a hash with no matching definition.
         // Lower only this declaration, without querying or validating its functional module.
-        let mut context = Context::new(self.queries, file_id)?;
+        let mut context = Context::new(self.queries, file_id, Arc::clone(&self.functional_core))?;
         let Some(declaration) = term_declaration(&mut context, term_id, true)? else {
             return Ok(false);
         };

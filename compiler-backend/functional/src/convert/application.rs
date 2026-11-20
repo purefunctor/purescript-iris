@@ -162,7 +162,7 @@ where
             }
             synthetic = true;
         }
-        if let Some(known) = self.known_term(known_function)?
+        if let Some(known) = self.known_term(known_function)
             && let Some(expression) = self.known_application(
                 known_function,
                 known,
@@ -206,7 +206,7 @@ where
             && let Some((function, arguments)) = known_arguments.split_first()
             && arguments.len() == arity
         {
-            if self.known_term(*function)? == Some(KnownTerm::RecordUnsafeUnionUnsafeUnionFn)
+            if self.known_term(*function) == Some(KnownTerm::RecordUnsafeUnionUnsafeUnionFn)
                 && let [left, right] = arguments
                 && let Some(fields) = self.literal_record_union(*left, *right)
             {
@@ -575,7 +575,7 @@ where
     ) -> ConversionResult<Option<ExpressionId>> {
         let [scrutinee] = scrutinees else { return Ok(None) };
         let (function, arguments) = self.application_spine(*scrutinee, &[]);
-        if self.known_term(function)? != Some(KnownTerm::DataOrdCompare) {
+        if self.known_term(function) != Some(KnownTerm::DataOrdCompare) {
             return Ok(None);
         }
         let [record, left, right] = *arguments.as_slice() else { return Ok(None) };
@@ -606,7 +606,7 @@ where
                 PatternKind::Constructor { global, arguments } if arguments.is_empty() => {
                     let GlobalId::Term(file_id, term_id) = global.id else { return Ok(None) };
                     let constructor = Some((file_id, term_id));
-                    let known_terms = &self.core.known_terms;
+                    let known_terms = &self.checked_core.known_terms;
                     let comparison = if constructor == known_terms.ordering_lt {
                         Comparison::LessThan
                     } else if constructor == known_terms.ordering_eq {

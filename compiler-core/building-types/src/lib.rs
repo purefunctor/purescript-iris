@@ -29,6 +29,7 @@ pub enum QueryKey {
     CheckedCore,
     Checked(FileId),
     Documented(FileId),
+    FunctionalCore,
     Functional(FileId),
     JavaScript(FileId),
     SourceMap(FileId),
@@ -62,6 +63,7 @@ pub trait QueryProxy {
     type CheckedCore;
     type Checked;
     type Documented;
+    type FunctionalCore;
 
     fn content(&self, id: FileId) -> QueryResult<Arc<str>>;
 
@@ -90,6 +92,8 @@ pub trait QueryProxy {
     fn checked(&self, id: FileId) -> QueryResult<Self::Checked>;
 
     fn documented(&self, id: FileId) -> QueryResult<Self::Documented>;
+
+    fn functional_core(&self) -> QueryResult<Self::FunctionalCore>;
 
     fn prim_id(&self) -> FileId;
 

@@ -38,6 +38,8 @@ use self::declaration::{derive_declaration, instance_declaration, term_declarati
 use self::evidence::{EvidenceHoisting, EvidenceKeys, EvidenceScope};
 use self::stylex::StyleXModules;
 
+pub use self::known::FunctionalCore;
+
 type ConversionResult<T> = Result<T, ConversionError>;
 
 #[derive(Debug, Error)]
@@ -63,7 +65,7 @@ struct Dependency {
 }
 
 pub fn convert_module(
-    queries: &impl checking::ExternalQueries,
+    queries: &impl checking::ExternalQueries<FunctionalCore = Arc<FunctionalCore>>,
     file_id: FileId,
 ) -> QueryResult<ModuleResult<Module>> {
     if checking::has_source_errors(queries, file_id)?
@@ -79,10 +81,11 @@ pub fn convert_module(
 }
 
 fn convert_module_inner(
-    queries: &impl checking::ExternalQueries,
+    queries: &impl checking::ExternalQueries<FunctionalCore = Arc<FunctionalCore>>,
     file_id: FileId,
 ) -> ConversionResult<Module> {
-    let context = Context::new(queries, file_id)?;
+    let functional_core = queries.functional_core()?;
+    let context = Context::new(queries, file_id, functional_core)?;
     convert(context)
 }
 
@@ -92,7 +95,8 @@ struct Context<'c, Q> {
     module_name: SmolStr,
     indexed: Arc<indexing::IndexedModule>,
     lowered: Arc<lowering::LoweredModule>,
-    core: Arc<checking::CheckedCore>,
+    checked_core: Arc<checking::CheckedCore>,
+    functional_core: Arc<FunctionalCore>,
     checked: Arc<checking::CheckedModule>,
     recursive_groups: FxHashMap<TermItemId, RecursiveGroupId>,
     record_pun_names: FxHashMap<lowering::RecordPunId, SmolStr>,
@@ -125,7 +129,11 @@ impl<'c, Q> Context<'c, Q>
 where
     Q: checking::ExternalQueries,
 {
-    fn new(queries: &'c Q, file_id: FileId) -> ConversionResult<Context<'c, Q>> {
+    fn new(
+        queries: &'c Q,
+        file_id: FileId,
+        functional_core: Arc<FunctionalCore>,
+    ) -> ConversionResult<Context<'c, Q>> {
         let content = queries.content(file_id)?;
         let (parsed, _) = queries.parsed(file_id)?;
         let module_name = parsed.module_name(&content).filter(|name| !name.is_empty()).ok_or(
@@ -134,7 +142,7 @@ where
         let indexed = queries.indexed(file_id)?;
         let lowered = queries.lowered(file_id)?;
         let grouped = queries.grouped(file_id)?;
-        let core = queries.checked_core()?;
+        let checked_core = queries.checked_core()?;
         let checked = queries.checked(file_id)?;
 
         let mut recursive_groups = FxHashMap::default();
@@ -165,7 +173,8 @@ where
             module_name,
             indexed,
             lowered,
-            core,
+            checked_core,
+            functional_core,
             checked,
             recursive_groups,
             record_pun_names,
