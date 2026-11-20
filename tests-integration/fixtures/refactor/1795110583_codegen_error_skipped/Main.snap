@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+No changes.
+
+Skipped:
+Main.purs:1:1: Main (module_has_errors: 1 codegen error)

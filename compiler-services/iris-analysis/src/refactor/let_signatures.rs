@@ -27,10 +27,16 @@ struct CandidateBinding {
     rendered: Option<SmolStr>,
 }
 
-pub fn add_let_signatures(
-    engine: &impl AnalyzerQueries,
+pub fn add_let_signatures<Queries>(
+    engine: &Queries,
     files: impl IntoIterator<Item = FileId>,
-) -> Result<RefactorPlan, AnalyzerError> {
+) -> Result<RefactorPlan, AnalyzerError>
+where
+    Queries: AnalyzerQueries
+        + iris_diagnostics::ExternalQueries
+        + foreign_javascript::ForeignQueries
+        + javascript::ModuleQueries,
+{
     let mut plan = RefactorPlan::default();
     for file_id in files {
         let (file_plan, skipped) = refactor_module(engine, file_id)?;
@@ -42,34 +48,21 @@ pub fn add_let_signatures(
     Ok(plan)
 }
 
-fn refactor_module(
-    engine: &impl AnalyzerQueries,
+fn refactor_module<Queries>(
+    engine: &Queries,
     file_id: FileId,
-) -> Result<(Option<FileRefactorPlan>, Vec<SkippedEntry>), AnalyzerError> {
+) -> Result<(Option<FileRefactorPlan>, Vec<SkippedEntry>), AnalyzerError>
+where
+    Queries: AnalyzerQueries
+        + iris_diagnostics::ExternalQueries
+        + foreign_javascript::ForeignQueries
+        + javascript::ModuleQueries,
+{
     let content = engine.content(file_id)?;
-    let (parsed, parse_errors) = engine.parsed(file_id)?;
-    let indexed = engine.indexed(file_id)?;
-    let resolved = engine.resolved(file_id)?;
-    let lowered = engine.lowered(file_id)?;
-    let grouped = engine.grouped(file_id)?;
-    let checked = engine.checked(file_id)?;
+    let (parsed, _) = engine.parsed(file_id)?;
 
-    let parse_error_count = parse_errors.len();
-    let indexed_error_count = indexed.errors.iter().filter(|error| !error.is_warning()).count();
-    let resolved_error_count = resolved.errors.len();
-    let lowered_error_count = lowered.errors.len();
-    let cycle_error_count = grouped.cycle_errors.len();
-    let checking_error_count =
-        checked.errors.iter().filter(|error| !error.kind.is_warning()).count();
-    let error_detail = format_error_stages([
-        ("parse", parse_error_count),
-        ("indexing", indexed_error_count),
-        ("resolving", resolved_error_count),
-        ("lowering", lowered_error_count),
-        ("cycle", cycle_error_count),
-        ("checking", checking_error_count),
-    ]);
-    if let Some(detail) = error_detail {
+    let error_counts = iris_diagnostics::count_errors(engine, file_id)?;
+    if let Some(detail) = error_counts.summary() {
         let module_name = parsed
             .module_name(&content)
             .map(|name| name.to_string())
@@ -83,6 +76,10 @@ fn refactor_module(
         }];
         return Ok((None, skipped));
     }
+
+    let resolved = engine.resolved(file_id)?;
+    let lowered = engine.lowered(file_id)?;
+    let checked = engine.checked(file_id)?;
 
     let stabilized = engine.stabilized(file_id)?;
     let root = parsed.syntax_node();
@@ -351,65 +348,63 @@ enum BindingTypeClassification {
     PolymorphicOrUnsolved,
 }
 
+struct BindingTypeInfo {
+    rigid_names: Vec<Name>,
+    has_kind_application: bool,
+}
+
 fn classify_binding_type(engine: &impl AnalyzerQueries, id: TypeId) -> BindingTypeClassification {
-    let mut rigid_names = Vec::new();
-    if !collect_binding_type_rigids(engine, id, &mut rigid_names) {
+    let mut info = BindingTypeInfo { rigid_names: Vec::new(), has_kind_application: false };
+    if !collect_binding_type_info(engine, id, &mut info) {
         return BindingTypeClassification::PolymorphicOrUnsolved;
     }
-    if rigid_names.is_empty() {
-        BindingTypeClassification::Monomorphic
+    if !info.rigid_names.is_empty() {
+        BindingTypeClassification::ScopedTypeVariables(info.rigid_names)
+    } else if info.has_kind_application {
+        BindingTypeClassification::PolymorphicOrUnsolved
     } else {
-        BindingTypeClassification::ScopedTypeVariables(rigid_names)
+        BindingTypeClassification::Monomorphic
     }
 }
 
-fn collect_binding_type_rigids(
+fn collect_binding_type_info(
     engine: &impl AnalyzerQueries,
     id: TypeId,
-    rigid_names: &mut Vec<Name>,
+    info: &mut BindingTypeInfo,
 ) -> bool {
     match *engine.lookup_type(id) {
         Type::Constructor(_, _) | Type::Synonym(_, _) | Type::Integer(_) | Type::String(_, _) => {
             true
         }
         Type::Rigid(name, _, _) => {
-            if !rigid_names.contains(&name) {
-                rigid_names.push(name);
+            if !info.rigid_names.contains(&name) {
+                info.rigid_names.push(name);
             }
             true
+        }
+        Type::KindApplication(left, right) => {
+            info.has_kind_application = true;
+            collect_binding_type_info(engine, left, info)
+                && collect_binding_type_info(engine, right, info)
         }
         Type::Application(left, right)
         | Type::Function(left, right)
         | Type::Kinded(left, right) => {
-            collect_binding_type_rigids(engine, left, rigid_names)
-                && collect_binding_type_rigids(engine, right, rigid_names)
+            collect_binding_type_info(engine, left, info)
+                && collect_binding_type_info(engine, right, info)
         }
         Type::Row(row_id) => {
             let row = engine.lookup_row_type(row_id);
-            row.fields
-                .iter()
-                .all(|field| collect_binding_type_rigids(engine, field.id, rigid_names))
-                && row
-                    .tail
-                    .is_none_or(|tail| collect_binding_type_rigids(engine, tail, rigid_names))
+            row.fields.iter().all(|field| collect_binding_type_info(engine, field.id, info))
+                && row.tail.is_none_or(|tail| collect_binding_type_info(engine, tail, info))
         }
         Type::Forall(_, _)
         | Type::Constrained(_, _)
         | Type::ConstraintOrigin(_, _)
         | Type::Unification(_)
         | Type::Free(_)
-        | Type::Unknown(_)
-        | Type::KindApplication(_, _) => false,
+        | Type::Unknown(_) => false,
     }
-}
-
-fn format_error_stages<const COUNT: usize>(stages: [(&str, usize); COUNT]) -> Option<String> {
-    let parts = stages.into_iter().filter(|&(_, count)| count > 0).map(|(stage, count)| {
-        let noun = if count == 1 { "error" } else { "errors" };
-        format!("{count} {stage} {noun}")
-    });
-    let parts = parts.collect::<Vec<_>>();
-    (!parts.is_empty()).then(|| parts.join(", "))
 }
 
 fn lookup_iris_effect_bundle_operator(
