@@ -3,6 +3,6 @@ source: tests-integration/src/fixtures.rs
 ---
 Terms
 bind :: forall t0 t1. t0 -> (t0 -> t1) -> t1
-test :: Prim.Int
+test :: forall (t0 :: Prim.Type -> Prim.Type) t1. (t0 :: Prim.Type -> Prim.Type) t1
 
 Types

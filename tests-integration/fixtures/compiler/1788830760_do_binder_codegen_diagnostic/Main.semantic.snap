@@ -4,5 +4,5 @@ source: tests-integration/src/fixtures.rs
 bind :: forall t0 t1. t0 -> (t0 -> t1) -> t1
 bind = \x -> \f -> f x
 
-test :: Prim.Int
-test = bind (\<error> -> 1) \<error> -> 3
+test :: forall t0 t1. t0 t1
+test = <error> (\<error> -> 1) \_ -> 3

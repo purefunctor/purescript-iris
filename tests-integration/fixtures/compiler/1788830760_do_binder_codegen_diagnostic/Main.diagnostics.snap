@@ -1,15 +1,6 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [ParseError] · Main.purs:6:3
-  •
-  │
-  • Expected LEFT_ARROW
-  │
-  │     \ @ -> 1
-  │     ╰
-  •
-
 Error! · [ParseError] · Main.purs:6:5
   •
   │
@@ -17,4 +8,31 @@ Error! · [ParseError] · Main.purs:6:5
   │
   │     \ @ -> 1
   │       ╰
+  •
+
+Error! · [NotInScope] · Main.purs:5:8
+  •
+  │
+  • 'discard' is not in scope
+  │
+  │   test = do
+  │          ╰─
+  •
+
+Error! · [CannotUnify] · Main.purs:6:3
+  •
+  │
+  • Cannot unify 'Int' with '(t0 :: Type -> Type) ?13'
+  │
+  │     \ @ -> 1
+  │     ╰───────
+  •
+
+Error! · [CannotUnify] · Main.purs:7:3
+  •
+  │
+  • Cannot unify 'Int' with '(t0 :: Type -> Type) t1'
+  │
+  │     3
+  │     ╰
   •
