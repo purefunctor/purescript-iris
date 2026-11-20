@@ -699,6 +699,9 @@ impl QueryEngine {
         }
 
         macro_rules! derived_changed {
+            ($field:ident) => {
+                derived_changed!($field, &(), self.$field())
+            };
             ($field:ident, $key:expr) => {
                 derived_changed!($field, $key, self.$field(*$key))
             };
@@ -734,14 +737,10 @@ impl QueryEngine {
                 QueryKey::Exported(k) => derived_changed!(exported, k),
                 QueryKey::Bracketed(k) => derived_changed!(bracketed, k),
                 QueryKey::Sectioned(k) => derived_changed!(sectioned, k),
-                QueryKey::CheckedCore => {
-                    derived_changed!(checked_core, &(), self.checked_core())
-                }
+                QueryKey::CheckedCore => derived_changed!(checked_core),
                 QueryKey::Checked(k) => derived_changed!(checked, k),
                 QueryKey::Documented(k) => derived_changed!(documented, k),
-                QueryKey::FunctionalCore => {
-                    derived_changed!(functional_core, &(), self.functional_core())
-                }
+                QueryKey::FunctionalCore => derived_changed!(functional_core),
                 QueryKey::Functional(k) => derived_changed!(functional, k),
                 QueryKey::JavaScript(k) => derived_changed!(javascript, k),
                 QueryKey::SourceMap(k) => derived_changed!(source_map, k),
