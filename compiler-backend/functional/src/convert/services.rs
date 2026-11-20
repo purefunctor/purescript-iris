@@ -74,9 +74,8 @@ where
         else {
             return Ok(None);
         };
-        if self.source_module_name(class_file)? != "Iris.Effect"
-            || self.type_item_name(class_file, class_id)?.as_deref() != Some("Has")
-        {
+        let iris_effect = &self.core.iris_effect;
+        if (class_file, class_id) != (iris_effect.file_id, iris_effect.has) {
             return Ok(None);
         }
         let checking::Type::Constructor(service_file, service_id) =
