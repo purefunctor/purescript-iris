@@ -650,6 +650,7 @@ pub struct IrisEffectCore {
     pub file_id: FileId,
     pub has: TypeItemId,
     pub bundle: TypeId,
+    pub bundle_operator: TypeItemId,
 }
 
 impl IrisEffectCore {
@@ -665,6 +666,7 @@ impl IrisEffectCore {
             file_id,
             has: lookup.class_item("Has"),
             bundle: lookup.type_constructor("Bundle"),
+            bundle_operator: lookup.type_item("&"),
         })
     }
 }
