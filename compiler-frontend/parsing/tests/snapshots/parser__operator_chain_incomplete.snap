@@ -40,6 +40,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                       TEXT@52..53 " "
                     QualifiedName@53..54
                       OPERATOR@53..54 "+"
+                  ERROR@54..54 ""
         LAYOUT_SEPARATOR@54..54 ""
         ValueEquation@54..120
           Annotation@54..56
@@ -82,6 +83,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                                 TEXT@87..88 " "
                               QualifiedName@88..89
                                 OPERATOR@88..89 "+"
+                            ERROR@89..89 ""
                   LAYOUT_SEPARATOR@89..89 ""
                   LetBindingPattern@89..109
                     BinderConstructor@89..103
@@ -113,6 +115,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                               TEXT@107..108 " "
                             QualifiedName@108..109
                               OPERATOR@108..109 "+"
+                          ERROR@109..109 ""
                   LAYOUT_END@109..109 ""
                 Annotation@109..112
                   TEXT@109..112 "\n  "
@@ -163,6 +166,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                             TEXT@144..145 " "
                           QualifiedName@145..146
                             OPERATOR@145..146 "+"
+                        ERROR@146..146 ""
                   LAYOUT_SEPARATOR@146..146 ""
                   DoStatementDiscard@146..159
                     ExpressionApplicationChain@146..159
@@ -186,6 +190,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                                   TEXT@156..157 " "
                                 QualifiedName@157..158
                                   OPERATOR@157..158 "+"
+                              ERROR@158..158 ""
                           RIGHT_PARENTHESIS@158..159 ")"
                   LAYOUT_END@159..159 ""
         LAYOUT_SEPARATOR@159..159 ""
@@ -228,6 +233,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                         TEXT@188..189 " "
                       QualifiedName@189..190
                         OPERATOR@189..190 "+"
+                    ERROR@190..190 ""
               Annotation@190..191
                 TEXT@190..191 " "
               EQUAL@191..192 "="
@@ -254,6 +260,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                         TEXT@200..201 " "
                       QualifiedName@201..202
                         OPERATOR@201..202 "+"
+                    ERROR@202..202 ""
               Annotation@202..203
                 TEXT@202..203 " "
               EQUAL@203..204 "="
@@ -294,6 +301,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                       TEXT@224..225 " "
                     QualifiedName@225..226
                       OPERATOR@225..226 "+"
+                  ERROR@226..226 ""
                 ExpressionOperatorPair@226..230
                   TermOperator@226..228
                     Annotation@226..227
@@ -320,6 +328,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                   TEXT@245..246 " "
                 LEFT_PARENTHESIS@246..247 "("
                 ExpressionOperatorChain@247..250
+                  ERROR@247..247 ""
                   ExpressionOperatorPair@247..250
                     TermOperator@247..248
                       QualifiedName@247..248
@@ -369,6 +378,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                             TEXT@273..274 " "
                           QualifiedName@274..275
                             OPERATOR@274..275 "+"
+                        ERROR@275..275 ""
                     TICK@275..276 "`"
                   ExpressionVariable@276..278
                     Annotation@276..277
@@ -415,6 +425,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                             TEXT@303..304 " "
                           QualifiedName@304..305
                             OPERATOR@304..305 "+"
+                        ERROR@305..305 ""
                       ExpressionOperatorPair@305..309
                         TermOperator@305..307
                           Annotation@305..306
@@ -462,6 +473,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                       QualifiedName@334..335
                         LOWER@334..335 "f"
                     TICK@335..336 "`"
+                  ERROR@336..336 ""
         LAYOUT_SEPARATOR@336..336 ""
         ValueEquation@336..357
           Annotation@336..338
@@ -478,6 +490,7 @@ source: compiler-frontend/parsing/tests/parser.rs
             EQUAL@350..351 "="
             WhereExpression@351..357
               ExpressionInfixChain@351..357
+                ERROR@351..351 ""
                 ExpressionInfixPair@351..357
                   ExpressionTick@351..355
                     Annotation@351..352
@@ -515,6 +528,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                   TEXT@374..375 " "
                 QualifiedName@375..376
                   OPERATOR@375..376 "+"
+              ERROR@376..376 ""
         LAYOUT_SEPARATOR@376..376 ""
         TypeSynonymEquation@376..401
           Annotation@376..378
@@ -531,6 +545,7 @@ source: compiler-frontend/parsing/tests/parser.rs
               TEXT@395..396 " "
             LEFT_PARENTHESIS@396..397 "("
             TypeOperatorChain@397..400
+              ERROR@397..397 ""
               TypeOperatorPair@397..400
                 TypeOperator@397..398
                   QualifiedName@397..398
@@ -560,6 +575,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                       TEXT@414..415 " "
                     QualifiedName@415..416
                       OPERATOR@415..416 ":"
+                  ERROR@416..416 ""
               RIGHT_PARENTHESIS@416..417 ")"
           Unconditional@417..421
             Annotation@417..418
@@ -582,6 +598,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 TEXT@435..436 " "
               LEFT_PARENTHESIS@436..437 "("
               BinderOperatorChain@437..441
+                ERROR@437..437 ""
                 BinderOperatorPair@437..441
                   TermOperator@437..438
                     QualifiedName@437..438
@@ -606,5 +623,142 @@ source: compiler-frontend/parsing/tests/parser.rs
         TEXT@447..448 "\n"
       END_OF_FILE@448..448 ""
     ,
-    [],
+    [
+        ParseError {
+            offset: 56,
+            position: Position {
+                line: 5,
+                column: 1,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 94,
+            position: Position {
+                line: 8,
+                column: 5,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 112,
+            position: Position {
+                line: 9,
+                column: 3,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 149,
+            position: Position {
+                line: 14,
+                column: 3,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 158,
+            position: Position {
+                line: 14,
+                column: 12,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 191,
+            position: Position {
+                line: 17,
+                column: 19,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 203,
+            position: Position {
+                line: 18,
+                column: 9,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 227,
+            position: Position {
+                line: 20,
+                column: 20,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 247,
+            position: Position {
+                line: 22,
+                column: 16,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 275,
+            position: Position {
+                line: 24,
+                column: 23,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 306,
+            position: Position {
+                line: 26,
+                column: 27,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 338,
+            position: Position {
+                line: 30,
+                column: 1,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 352,
+            position: Position {
+                line: 30,
+                column: 15,
+            },
+            message: "Expected expression",
+        },
+        ParseError {
+            offset: 378,
+            position: Position {
+                line: 34,
+                column: 1,
+            },
+            message: "Expected type",
+        },
+        ParseError {
+            offset: 397,
+            position: Position {
+                line: 34,
+                column: 20,
+            },
+            message: "Expected type",
+        },
+        ParseError {
+            offset: 416,
+            position: Position {
+                line: 36,
+                column: 14,
+            },
+            message: "Expected binder",
+        },
+        ParseError {
+            offset: 437,
+            position: Position {
+                line: 38,
+                column: 15,
+            },
+            message: "Expected binder",
+        },
+    ],
 )

@@ -25,7 +25,7 @@ type Rule = fn(&mut Parser);
 
 const EVENTS_PER_TOKEN: usize = 6;
 
-struct Checkpoint {
+struct Snapshot {
     index: usize,
     output: usize,
     errors: usize,
@@ -75,40 +75,38 @@ impl<'t> Parser<'t> {
         NodeMarker::new(index, token_index)
     }
 
+    fn checkpoint(&self) -> Checkpoint {
+        Checkpoint::new(self.index, self.errors.len())
+    }
+
     fn optional(&mut self, rule: Rule) {
-        let initial_index = self.index;
-        let initial_output = self.output.len();
-        let initial_errors = self.errors.len();
-
+        let snapshot = self.snapshot();
         rule(self);
-
-        if self.errors.len() != initial_errors {
-            self.index = initial_index;
-            self.output.truncate(initial_output);
-            self.errors.truncate(initial_errors);
+        if !self.succeeded_since(&snapshot) {
+            self.rewind(&snapshot);
         }
     }
 
     fn speculate(&mut self, rule: Rule) -> bool {
-        let checkpoint = self.checkpoint();
+        let snapshot = self.snapshot();
         rule(self);
-        let succeeded = self.succeeded_since(&checkpoint);
-        self.rewind(&checkpoint);
+        let succeeded = self.succeeded_since(&snapshot);
+        self.rewind(&snapshot);
         succeeded
     }
 
-    fn checkpoint(&self) -> Checkpoint {
-        Checkpoint { index: self.index, output: self.output.len(), errors: self.errors.len() }
+    fn snapshot(&self) -> Snapshot {
+        Snapshot { index: self.index, output: self.output.len(), errors: self.errors.len() }
     }
 
-    fn succeeded_since(&self, checkpoint: &Checkpoint) -> bool {
-        self.errors.len() == checkpoint.errors
+    fn succeeded_since(&self, snapshot: &Snapshot) -> bool {
+        self.errors.len() == snapshot.errors
     }
 
-    fn rewind(&mut self, checkpoint: &Checkpoint) {
-        self.index = checkpoint.index;
-        self.output.truncate(checkpoint.output);
-        self.errors.truncate(checkpoint.errors);
+    fn rewind(&mut self, snapshot: &Snapshot) {
+        self.index = snapshot.index;
+        self.output.truncate(snapshot.output);
+        self.errors.truncate(snapshot.errors);
     }
 
     fn error(&mut self, message: &'static str) {
@@ -189,9 +187,9 @@ struct MarkerBomb {
 }
 
 impl MarkerBomb {
-    fn new() -> MarkerBomb {
+    fn new(_message: &'static str) -> MarkerBomb {
         #[cfg(debug_assertions)]
-        let inner = DropBomb::new("critical failure: failed to call end or cancel");
+        let inner = DropBomb::new(_message);
         MarkerBomb {
             #[cfg(debug_assertions)]
             inner,
@@ -204,6 +202,30 @@ impl MarkerBomb {
     }
 }
 
+struct Checkpoint {
+    index: usize,
+    errors: usize,
+    bomb: MarkerBomb,
+}
+
+impl Checkpoint {
+    fn new(index: usize, errors: usize) -> Checkpoint {
+        let bomb = MarkerBomb::new("critical failure: failed to call expect or cancel");
+        Checkpoint { index, errors, bomb }
+    }
+
+    fn expect(mut self, parser: &mut Parser, message: &'static str) {
+        self.bomb.defuse();
+        if parser.index == self.index && parser.errors.len() == self.errors {
+            parser.error(message);
+        }
+    }
+
+    fn cancel(mut self) {
+        self.bomb.defuse();
+    }
+}
+
 struct NodeMarker {
     index: usize,
     token_index: usize,
@@ -212,7 +234,7 @@ struct NodeMarker {
 
 impl NodeMarker {
     fn new(index: usize, token_index: usize) -> NodeMarker {
-        let bomb = MarkerBomb::new();
+        let bomb = MarkerBomb::new("critical failure: failed to call end or cancel");
         NodeMarker { index, token_index, bomb }
     }
 

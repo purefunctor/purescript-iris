@@ -1,13 +1,11 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [FunctionalCodegen] · Main.purs:8:23
+Error! · [ParseError] · Main.purs:9:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
+  • Expected expression
   │
-  │ An expression contains an error.
   │
-  │   missingRightOperand = 1 +
-  │                         ╰──
+  │   ╰
   •

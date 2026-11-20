@@ -47,13 +47,22 @@ pub(super) fn type_3(p: &mut Parser) {
     let mut m = p.start();
     let mut i = 0;
 
+    let left_operand = p.checkpoint();
     type_4(p);
+    if p.at_in(names::OPERATOR) {
+        left_operand.expect(p, "Expected type");
+    } else {
+        left_operand.cancel();
+    }
+
     while p.at_in(names::OPERATOR) {
         let mut n = p.start();
         let mut o = p.start();
         names::operator(p);
         o.end(p, SyntaxKind::TypeOperator);
+        let right_operand = p.checkpoint();
         type_4(p);
+        right_operand.expect(p, "Expected type");
         n.end(p, SyntaxKind::TypeOperatorPair);
         i += 1;
     }

@@ -18,13 +18,22 @@ fn expression_1(p: &mut Parser) {
     let mut m = p.start();
     let mut i = 0;
 
+    let left_operand = p.checkpoint();
     expression_2(p);
+    if p.at_in(names::OPERATOR) {
+        left_operand.expect(p, "Expected expression");
+    } else {
+        left_operand.cancel();
+    }
+
     while p.at_in(names::OPERATOR) {
         let mut n = p.start();
         let mut o = p.start();
         names::operator(p);
         o.end(p, SyntaxKind::TermOperator);
+        let right_operand = p.checkpoint();
         expression_2(p);
+        right_operand.expect(p, "Expected expression");
         n.end(p, SyntaxKind::ExpressionOperatorPair);
         i += 1;
     }
@@ -40,12 +49,21 @@ fn expression_2(p: &mut Parser) {
     let mut m = p.start();
     let mut i = 0;
 
+    let left_operand = p.checkpoint();
     expression_3(p);
+    if p.at(SyntaxKind::TICK) {
+        left_operand.expect(p, "Expected expression");
+    } else {
+        left_operand.cancel();
+    }
+
     while p.at(SyntaxKind::TICK) {
-        let mut m = p.start();
+        let mut n = p.start();
         tick_expression(p);
+        let right_operand = p.checkpoint();
         expression_3(p);
-        m.end(p, SyntaxKind::ExpressionInfixPair);
+        right_operand.expect(p, "Expected expression");
+        n.end(p, SyntaxKind::ExpressionInfixPair);
         i += 1;
     }
 
@@ -68,13 +86,22 @@ fn tick_expression_1(p: &mut Parser) {
     let mut m = p.start();
     let mut i = 0;
 
+    let left_operand = p.checkpoint();
     expression_3(p);
+    if p.at_in(names::OPERATOR) {
+        left_operand.expect(p, "Expected expression");
+    } else {
+        left_operand.cancel();
+    }
+
     while p.at_in(names::OPERATOR) {
         let mut n = p.start();
         let mut o = p.start();
         names::operator(p);
         o.end(p, SyntaxKind::TermOperator);
+        let right_operand = p.checkpoint();
         expression_3(p);
+        right_operand.expect(p, "Expected expression");
         n.end(p, SyntaxKind::ExpressionOperatorPair);
         i += 1;
     }
