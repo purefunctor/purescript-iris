@@ -782,6 +782,39 @@ app = main
       }
     }
     "#);
+    let references = workspace.command(&["watch", "query", "--json", "references", "Shapes.size"]);
+    assert_success(&references);
+    let response: serde_json::Value = serde_json::from_slice(&references.stdout).unwrap();
+    let response = serde_json::to_string_pretty(&response).unwrap();
+    insta::assert_snapshot!(response, @r#"
+    {
+      "kind": "result",
+      "value": {
+        "locations": [
+          {
+            "column": 8,
+            "line": 6,
+            "path": "src/Main.purs"
+          },
+          {
+            "column": 10,
+            "line": 9,
+            "path": "src/Main.purs"
+          },
+          {
+            "column": 10,
+            "line": 12,
+            "path": "src/Main.purs"
+          },
+          {
+            "column": 16,
+            "line": 17,
+            "path": "src/Shapes.purs"
+          }
+        ]
+      }
+    }
+    "#);
     // Built-in modules are materialized files, as in the language server, so their
     // declarations have locations an agent can read.
     let definition = workspace.command(&["watch", "query", "definition", "Prim.Int"]);

@@ -8,7 +8,7 @@ mod changes;
 mod lookup;
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -90,10 +90,25 @@ pub struct DeclarationsAnswer {
     pub declarations: Vec<Declaration>,
 }
 
-/// The answer to `definition` and `references`: `path:line:column` locations.
+/// The answer to `definition` and `references`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LocationsAnswer {
-    pub locations: Vec<String>,
+    pub locations: Vec<SourceLocation>,
+}
+
+/// A location as `path:line:column`, counted from 1, which orders by line and column numerically
+/// rather than as text.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct SourceLocation {
+    pub path: String,
+    pub line: usize,
+    pub column: usize,
+}
+
+impl fmt::Display for SourceLocation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}:{}:{}", self.path, self.line, self.column)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,7 +133,7 @@ pub struct InstancesAnswer {
 /// An instance's location and head, such as `forall a. Show a => Show (Array a)`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InstanceEntry {
-    pub location: String,
+    pub location: SourceLocation,
     pub head: Option<String>,
 }
 
@@ -144,7 +159,7 @@ pub struct DiagnosticsAnswer {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiagnosticEntry {
-    pub location: String,
+    pub location: SourceLocation,
     pub severity: DiagnosticSeverity,
     pub code: String,
     pub message: String,
@@ -206,7 +221,7 @@ pub struct RefactorEdit {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RefactorSkipped {
-    pub location: String,
+    pub location: SourceLocation,
     pub name: String,
     pub reason: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -359,7 +374,8 @@ pub fn render(query: &Query, value: Value) -> Result<String, serde_json::Error> 
             if locations.is_empty() {
                 return Ok("No locations.".to_string());
             }
-            locations.join("\n")
+            let locations = locations.iter().map(SourceLocation::to_string);
+            locations.collect::<Vec<_>>().join("\n")
         }
         Query::Dependents { .. } => {
             let DependentsAnswer { dependents } = serde_json::from_value(value)?;
