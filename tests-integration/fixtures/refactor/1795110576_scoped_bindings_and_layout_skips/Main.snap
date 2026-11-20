@@ -1,0 +1,52 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -11,11 +11,14 @@
+ polyAndOuterRigid :: forall a. a -> a
+ polyAndOuterRigid value =
+   let
++    localIdentity :: forall localIdentity_a. localIdentity_a -> localIdentity_a
+     localIdentity = identity
++    wrapped :: a
+     wrapped = wrap value
+   in
+     localIdentity wrapped
+   where
++  wrap :: a -> a
+   wrap x = x
+ 
+ class Tag a where
+@@ -24,6 +27,7 @@
+ instance Tag (Box item) where
+   tag value =
+     let
++      same :: Box item
+       same = value
+     in
+       Box same
+@@ -37,6 +41,7 @@
+ instance Named s where
+   named _ =
+     let
++      label :: Proxy s
+       label = Proxy :: Proxy s
+     in
+       keepProxy label
+@@ -52,6 +57,7 @@
+       commentedLine = singleLine
+       {- leading block comment -}
+       commentedBlock = commentedLine
++      clean :: Int
+       clean = commentedBlock
+     in
+       finish clean
+
+Skipped:
+Main.purs:49:7: singleLine (not_at_line_start)
+Main.purs:52:7: commentedLine (leading_comment)
+Main.purs:54:7: commentedBlock (leading_comment)
+Main.purs:58:9: finish (not_at_line_start)
+Main.purs:63:2: tabbed (tab_indentation)
+Main.purs:69:7: inlineValue (not_at_line_start)

@@ -1,0 +1,40 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -9,6 +9,7 @@
+ concreteProxy :: Int
+ concreteProxy =
+   let
++    hello :: Proxy "hello"
+     hello = Proxy :: Proxy "hello"
+   in
+     keepProxy hello
+@@ -16,6 +17,7 @@
+ explicitKind :: forall k (a :: k). Proxy a -> Int
+ explicitKind p =
+   let
++    same :: Proxy a
+     same = p
+   in
+     keepProxy same
+@@ -27,6 +29,7 @@
+ instance Poly a where
+   poly _ =
+     let
++      same :: Proxy a
+       same = Proxy :: Proxy a
+     in
+       keepProxy same
+@@ -50,6 +53,7 @@
+ emptyRowProxyUse :: Int
+ emptyRowProxyUse =
+   let
++    emptyRow :: Proxy ()
+     emptyRow = Proxy :: Proxy (() :: Row Type)
+   in
+     takeEmptyRowTypeProxy emptyRow
+
+Skipped:
+Main.purs:43:5: same (polymorphic_or_unsolved)

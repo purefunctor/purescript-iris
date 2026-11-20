@@ -322,7 +322,7 @@ pub struct RefactorOptions {
 
 #[derive(Debug, Subcommands)]
 pub enum RefactorCommand {
-    #[usage(help = "Add type signatures to monomorphic let and where bindings.")]
+    #[usage(help = "Add type signatures to let and where bindings.")]
     LetSignatures(OptionalQueryName),
 }
 
