@@ -16,7 +16,7 @@ use crate::core::{
     ForallBinder, ForallBinderId, Name, RowField, RowType, RowTypeId, SmolStrId, StringLiteralId,
     Type, TypeId,
 };
-use crate::{CheckedModule, safe_loop};
+use crate::{CheckedCore, CheckedModule, safe_loop};
 
 pub(crate) type Doc<'a> = DocBuilder<'a, Arena<'a>, ()>;
 
@@ -36,6 +36,7 @@ pub trait PrettyQueries:
         Parsed = parsing::FullParsedModule,
         Indexed = Arc<indexing::IndexedModule>,
         Lowered = Arc<lowering::LoweredModule>,
+        CheckedCore = Arc<CheckedCore>,
     >
 {
     fn lookup_type(&self, id: TypeId) -> &Type;

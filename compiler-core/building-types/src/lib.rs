@@ -59,6 +59,7 @@ pub trait QueryProxy {
     type Exported;
     type Bracketed;
     type Sectioned;
+    type CheckedCore;
     type Checked;
     type Documented;
 
@@ -83,6 +84,8 @@ pub trait QueryProxy {
     fn bracketed(&self, id: FileId) -> QueryResult<Self::Bracketed>;
 
     fn sectioned(&self, id: FileId) -> QueryResult<Self::Sectioned>;
+
+    fn checked_core(&self) -> QueryResult<Self::CheckedCore>;
 
     fn checked(&self, id: FileId) -> QueryResult<Self::Checked>;
 
