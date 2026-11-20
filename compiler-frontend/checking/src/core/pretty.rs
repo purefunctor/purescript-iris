@@ -457,15 +457,11 @@ where
         match *self.queries.lookup_type(id) {
             Type::Function(..) => Ok(true),
             Type::Application(function, _) => {
-                if let Type::Application(constructor, _) = *self.queries.lookup_type(function)
-                    && let Type::Constructor(file_id, type_id) =
-                        *self.queries.lookup_type(constructor)
-                    && file_id == self.queries.prim_id()
-                {
-                    let indexed = self.queries.indexed(file_id)?;
-                    return Ok(indexed.items[type_id].name.as_deref() == Some("Function"));
-                }
-                Ok(false)
+                let Type::Application(constructor, _) = *self.queries.lookup_type(function) else {
+                    return Ok(false);
+                };
+                let core = self.queries.checked_core()?;
+                Ok(constructor == core.prim.function)
             }
             _ => Ok(false),
         }
@@ -528,9 +524,11 @@ where
         resolver: Option<&mut dyn TypeNameResolver>,
     ) -> QueryResult<Option<SmolStr>> {
         let arena = Arena::new();
+        let core = self.queries.checked_core()?;
         let mut printer = Printer::new(
             &arena,
             self.queries,
+            &core,
             &self.checked.names,
             &mut self.names,
             self.config.show_rigid_kinds,
@@ -574,6 +572,7 @@ where
 {
     arena: &'arena Arena<'arena>,
     queries: &'context Q,
+    core: &'context CheckedCore,
     names: &'context FxHashMap<Name, SmolStrId>,
     pretty_names: &'names mut PrettyNames,
     show_rigid_kinds: bool,
@@ -592,6 +591,7 @@ where
     fn new(
         arena: &'arena Arena<'arena>,
         queries: &'context Q,
+        core: &'context CheckedCore,
         names: &'context FxHashMap<Name, SmolStrId>,
         pretty_names: &'names mut PrettyNames,
         show_rigid_kinds: bool,
@@ -603,6 +603,7 @@ where
         Printer {
             arena,
             queries,
+            core,
             names,
             pretty_names,
             show_rigid_kinds,
@@ -624,15 +625,6 @@ where
 
     fn lookup_smol_str(&self, id: SmolStrId) -> &smol_str::SmolStr {
         self.queries.lookup_smol_str(id)
-    }
-
-    fn lookup_type_name(
-        &self,
-        file_id: files::FileId,
-        type_id: indexing::TypeItemId,
-    ) -> QueryResult<Option<String>> {
-        let indexed = self.queries.indexed(file_id)?;
-        Ok(indexed.items[type_id].name.as_ref().map(|name| name.to_string()))
     }
 
     fn lookup_type_item_metadata(
@@ -695,61 +687,27 @@ where
         Ok(Some(format!("{module_name}.{name}")))
     }
 
-    fn is_prim_type(&self, id: TypeId, expected: &str) -> QueryResult<bool> {
-        if let Type::Constructor(file_id, type_id) = *self.lookup_type(id)
-            && file_id == self.queries.prim_id()
-            && let Some(name) = self.lookup_type_name(file_id, type_id)?
-        {
-            return Ok(name == expected);
-        }
-        Ok(false)
+    fn is_bundle_infix(&self, id: TypeId) -> bool {
+        id == self.core.iris_effect.bundle
+            && self
+                .resolver
+                .as_ref()
+                .is_none_or(|resolver| resolver.bundle_rendering() == BundleRendering::Infix)
     }
 
-    fn is_bundle_constructor(&self, id: TypeId) -> QueryResult<bool> {
-        if let Type::Constructor(file_id, type_id) = *self.lookup_type(id)
-            && self.queries.module_file("Iris.Effect") == Some(file_id)
-            && let Some(name) = self.lookup_type_name(file_id, type_id)?
-        {
-            return Ok(name == "Bundle");
-        }
-        Ok(false)
-    }
-
-    fn is_bundle_infix(&self, id: TypeId) -> QueryResult<bool> {
-        if !self.is_bundle_constructor(id)? {
-            return Ok(false);
-        }
-        Ok(self
-            .resolver
-            .as_ref()
-            .is_none_or(|resolver| resolver.bundle_rendering() == BundleRendering::Infix))
-    }
-
-    fn is_record_constructor(&self, id: TypeId) -> QueryResult<bool> {
-        self.is_prim_type(id, "Record")
-    }
-
-    fn is_function_constructor(&self, id: TypeId) -> QueryResult<bool> {
-        self.is_prim_type(id, "Function")
-    }
-
-    fn split_function_type(&self, id: TypeId) -> QueryResult<Option<(TypeId, TypeId)>> {
+    fn split_function_type(&self, id: TypeId) -> Option<(TypeId, TypeId)> {
         match *self.lookup_type(id) {
-            Type::Function(argument, result) => Ok(Some((argument, result))),
+            Type::Function(argument, result) => Some((argument, result)),
             Type::Application(function, result) => {
                 if let Type::Application(constructor, argument) = *self.lookup_type(function)
-                    && self.is_function_constructor(constructor)?
+                    && constructor == self.core.prim.function
                 {
-                    return Ok(Some((argument, result)));
+                    return Some((argument, result));
                 }
-                Ok(None)
+                None
             }
-            _ => Ok(None),
+            _ => None,
         }
-    }
-
-    fn is_type_kind(&self, id: TypeId) -> QueryResult<bool> {
-        self.is_prim_type(id, "Type")
     }
 
     fn parens_if(&self, condition: bool, doc: Doc<'arena>) -> Doc<'arena> {
@@ -794,7 +752,7 @@ where
                 self.parens_if(precedence > Precedence::Atom, kinded)
             }
 
-            &Type::Constructor(..) if self.is_bundle_infix(id)? => self.arena.text("(&)"),
+            &Type::Constructor(..) if self.is_bundle_infix(id) => self.arena.text("(&)"),
 
             &Type::Constructor(file_id, type_id) | &Type::Synonym(file_id, type_id) => {
                 let name = self
@@ -833,7 +791,7 @@ where
 
             &Type::Rigid(name, _, kind) => {
                 let text = self.pretty_names.display_name(self.queries, self.names, name);
-                if self.show_rigid_kinds && !self.is_type_kind(kind)? {
+                if self.show_rigid_kinds && kind != self.core.prim.t {
                     let kind = self.traverse(Precedence::Top, kind)?;
                     self.arena
                         .text(format!("({text} :: "))
@@ -870,7 +828,7 @@ where
         mut function: TypeId,
         argument: TypeId,
     ) -> QueryResult<Doc<'arena>> {
-        if self.is_record_constructor(function)? {
+        if function == self.core.prim.record {
             return self.format_record_application(argument);
         }
 
@@ -882,13 +840,13 @@ where
         }
 
         if let &[result, argument] = arguments.as_slice()
-            && self.is_function_constructor(function)?
+            && function == self.core.prim.function
         {
             return self.traverse_function(precedence, argument, result);
         }
 
         if let &[right, left] = arguments.as_slice()
-            && self.is_bundle_infix(function)?
+            && self.is_bundle_infix(function)
         {
             let left = self.traverse(Precedence::Application, left)?;
             let right = self.traverse(Precedence::Bundle, right)?;
@@ -968,7 +926,7 @@ where
         let binders = binders.iter().map(|binder| {
             let name = self.pretty_names.display_name(self.queries, self.names, binder.name);
             let text = if binder.visible { format!("@{name}") } else { name.to_string() };
-            if self.show_forall_kinds && !self.is_type_kind(binder.kind)? {
+            if self.show_forall_kinds && binder.kind != self.core.prim.t {
                 let kind = self.traverse(Precedence::Top, binder.kind)?;
                 Ok(self
                     .arena
@@ -1036,7 +994,7 @@ where
     ) -> QueryResult<Doc<'arena>> {
         let mut arguments = vec![argument];
 
-        while let Some((argument, next_result)) = self.split_function_type(result)? {
+        while let Some((argument, next_result)) = self.split_function_type(result) {
             result = next_result;
             arguments.push(argument);
         }
