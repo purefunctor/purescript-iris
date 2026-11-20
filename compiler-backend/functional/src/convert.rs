@@ -10,7 +10,7 @@ mod services;
 mod stylex;
 mod synchronous;
 
-use std::cell::{OnceCell, RefCell};
+use std::cell::RefCell;
 use std::sync::Arc;
 
 use building_types::{QueryError, QueryResult};
@@ -36,7 +36,6 @@ use crate::tree::{
 
 use self::declaration::{derive_declaration, instance_declaration, term_declaration};
 use self::evidence::{EvidenceHoisting, EvidenceKeys, EvidenceScope};
-use self::stylex::StyleXModules;
 
 pub use self::known::FunctionalCore;
 
@@ -102,7 +101,6 @@ struct Context<'c, Q> {
     record_pun_names: FxHashMap<lowering::RecordPunId, SmolStr>,
     dependencies: FxHashMap<FileId, Dependency>,
     indexed_dependencies: RefCell<FxHashMap<FileId, Arc<indexing::IndexedModule>>>,
-    stylex_modules: OnceCell<StyleXModules>,
     /// The virtual StyleX modules whose terms were referenced, the only source of StyleX
     /// intrinsics and expressions.
     referenced_stylex_modules: FxHashSet<FileId>,
@@ -176,7 +174,6 @@ where
             record_pun_names,
             dependencies: FxHashMap::default(),
             indexed_dependencies: RefCell::default(),
-            stylex_modules: OnceCell::new(),
             referenced_stylex_modules: FxHashSet::default(),
             service_binders: FxHashMap::default(),
             service_plans: FxHashMap::default(),

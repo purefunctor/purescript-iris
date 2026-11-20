@@ -8,10 +8,12 @@ use smol_str::SmolStr;
 use crate::tree::{ExpressionId, ExpressionKind, GlobalId, InstanceIdentity};
 
 use super::Context;
+use super::stylex::IrisStyleXCore;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FunctionalCore {
     pub(super) iris_effect: IrisEffectCore,
+    pub(super) iris_stylex: IrisStyleXCore,
     pub(super) known_terms: FxHashMap<(FileId, TermItemId), KnownTerm>,
     pub(super) known_instances: FxHashMap<InstanceIdentity, KnownInstance>,
     pub(super) known_thunk_instances: FxHashMap<(FileId, InstanceId), (FileId, TypeItemId)>,
@@ -22,6 +24,7 @@ pub struct FunctionalCore {
 impl FunctionalCore {
     pub fn new(queries: &impl checking::ExternalQueries) -> QueryResult<FunctionalCore> {
         let iris_effect = IrisEffectCore::collect(queries)?;
+        let iris_stylex = IrisStyleXCore::collect(queries)?;
         let known_terms = collect_known_terms(queries)?;
         let known_instances = collect_known_instances(queries)?;
         let known_thunk_instances = collect_known_thunk_instances(queries)?;
@@ -29,6 +32,7 @@ impl FunctionalCore {
         let known_asynchronous_constructors = KnownAsynchronousConstructors::collect(queries)?;
         Ok(FunctionalCore {
             iris_effect,
+            iris_stylex,
             known_terms,
             known_instances,
             known_thunk_instances,
