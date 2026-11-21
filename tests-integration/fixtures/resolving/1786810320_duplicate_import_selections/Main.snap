@@ -30,3 +30,74 @@ Local Types:
 Local Classes:
 
 Class Members:
+
+Diagnostics
+Warning! · [DuplicateImport] · Main.purs:5:5
+  •
+  │
+  • Import list contains multiple references to 'value'
+  │
+  │     , value
+  │       ╰────
+  │
+  • First imported here
+  │
+  │     ( value
+  │       ╰────
+  •
+
+Warning! · [DuplicateImport] · Main.purs:7:5
+  •
+  │
+  • Import list contains multiple references to 'Choice(Second)'
+  │
+  │     , Choice(Second)
+  │       ╰─────────────
+  │
+  • First imported here
+  │
+  │     , Choice(First)
+  │       ╰────────────
+  •
+
+Warning! · [DuplicateImport] · Main.purs:8:5
+  •
+  │
+  • Import list contains multiple references to 'Choice(..)'
+  │
+  │     , Choice(..)
+  │       ╰─────────
+  │
+  • First imported here
+  │
+  │     , Choice(First)
+  │       ╰────────────
+  •
+
+Warning! · [DuplicateImport] · Main.purs:9:5
+  •
+  │
+  • Import list contains multiple references to 'Choice(First, First)'
+  │
+  │     , Choice(First, First)
+  │       ╰───────────────────
+  │
+  • First imported here
+  │
+  │     , Choice(First, First)
+  │       ╰───────────────────
+  •
+
+Warning! · [DuplicateImport] · Main.purs:9:5
+  •
+  │
+  • Import list contains multiple references to 'Choice(First, First)'
+  │
+  │     , Choice(First, First)
+  │       ╰───────────────────
+  │
+  • First imported here
+  │
+  │     , Choice(First)
+  │       ╰────────────
+  •
