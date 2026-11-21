@@ -1,13 +1,22 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [UnreportedUnknownType] · Main.purs:13:29
+Error! · [ReflectedIntegerOutOfRange] · Main.purs:13:16
   •
   │
-  • Unknown type '?[invalid kind]' remained unresolved without a reported error
+  • Type-level integer '2147483648' cannot be reflected as an 'Int' because it is outside the range
+  │ -2147483648 to 2147483647
   │
   │   aboveMaximum = reflectType (Proxy :: Proxy 2147483648)
-  │                               ╰────
+  │                  ╰──────────────────────────────────────
+  •
+
+Error! · [ReflectedIntegerOutOfRange] · Main.purs:16:15
+  •
   │
-  • This is an internal compiler error.
+  • Type-level integer '99999999999999999999' cannot be reflected as an 'Int' because it is outside
+  │ the range -2147483648 to 2147483647
+  │
+  │   beyondInt64 = reflectType (Proxy :: Proxy 99999999999999999999)
+  │                 ╰────────────────────────────────────────────────
   •

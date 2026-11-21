@@ -92,7 +92,7 @@ where
     let right_int = extract_integer(state, context, right)?;
 
     if let (Some(left_int), Some(right_int)) = (left_int, right_int) {
-        let result = match left_int.cmp(&right_int) {
+        let result = match left_int.cmp(right_int) {
             Ordering::Less => context.prim_ordering.lt,
             Ordering::Equal => context.prim_ordering.eq,
             Ordering::Greater => context.prim_ordering.gt,

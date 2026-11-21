@@ -13,6 +13,7 @@ indexmap = "2.14.2"
 itertools = "0.15.0"
 la-arena = "0.3.1"
 lowering = { version = "0.1.0", path = "../lowering" }
+num-bigint = "0.5.1"
 parking_lot = "0.12.5"
 petgraph = "0.8.3"
 pretty = "0.12"

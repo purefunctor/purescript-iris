@@ -111,7 +111,9 @@ impl<'a> TypeEncoder<'a> {
             | checking::Type::Synonym(file_id, type_id) => schema::Type::Constructor {
                 reference: self.resolve_type_reference(file_id, type_id)?,
             },
-            checking::Type::Integer(value) => schema::Type::Integer { value },
+            checking::Type::Integer(value) => {
+                schema::Type::Integer { value: self.engine.lookup_integer(value).to_string() }
+            }
             checking::Type::String(kind, value) => {
                 let value = self.engine.lookup_string_literal(value);
                 let value = match value.to_utf8() {

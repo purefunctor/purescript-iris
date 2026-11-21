@@ -1,8 +1,9 @@
+use num_bigint::BigInt;
 use smol_str::SmolStr;
 
 use crate::core::{
-    ForallBinder, ForallBinderId, RowType, RowTypeId, SmolStrId, StringLiteralId, Type, TypeFlags,
-    TypeId,
+    ForallBinder, ForallBinderId, IntegerId, RowType, RowTypeId, SmolStrId, StringLiteralId, Type,
+    TypeFlags, TypeId,
 };
 
 const TYPE_CAPACITY: usize = 1 << 18;
@@ -11,6 +12,7 @@ pub struct CoreInterners {
     types: interner::parallel::Interner<Type, TypeFlags>,
     forall_binders: interner::parallel::Interner<ForallBinder>,
     row_types: interner::parallel::Interner<RowType>,
+    integers: interner::parallel::Interner<BigInt>,
     smol_strs: interner::parallel::Interner<SmolStr>,
     string_literals: interner::parallel::Interner<lowering::StringLiteral>,
 }
@@ -21,6 +23,7 @@ impl Default for CoreInterners {
             types: interner::parallel::Interner::with_capacity(TYPE_CAPACITY),
             forall_binders: interner::parallel::Interner::default(),
             row_types: interner::parallel::Interner::default(),
+            integers: interner::parallel::Interner::default(),
             smol_strs: interner::parallel::Interner::default(),
             string_literals: interner::parallel::Interner::default(),
         }
@@ -109,6 +112,15 @@ impl CoreInterners {
         &self.row_types[id]
     }
 
+    pub fn intern_integer(&self, integer: BigInt) -> IntegerId {
+        self.integers.intern(integer)
+    }
+
+    #[inline]
+    pub fn lookup_integer(&self, id: IntegerId) -> &BigInt {
+        &self.integers[id]
+    }
+
     pub fn intern_smol_str(&self, s: SmolStr) -> SmolStrId {
         self.smol_strs.intern(s)
     }
@@ -155,6 +167,7 @@ pub struct InternerStatistics {
 mod tests {
     use std::sync::Arc;
 
+    use num_bigint::BigInt;
     use smol_str::SmolStr;
 
     use super::CoreInterners;
@@ -163,7 +176,8 @@ mod tests {
     #[test]
     fn borrowed_values_remain_stable_during_concurrent_interning() {
         let interners = CoreInterners::default();
-        let type_id = interners.intern_type(Type::Integer(-1));
+        let minus_one = interners.intern_integer(BigInt::from(-1));
+        let type_id = interners.intern_type(Type::Integer(minus_one));
         let row_id = interners.intern_row_type(RowType::from_closed(Arc::from([])));
         let string_id = interners.intern_smol_str(SmolStr::new("stable"));
         let borrowed_type = interners.lookup_type(type_id);
@@ -175,11 +189,12 @@ mod tests {
                 let interners = &interners;
                 scope.spawn(move || {
                     for value in 0..4096 {
-                        let id = interners.intern_type(Type::Integer(value));
+                        let integer = interners.intern_integer(BigInt::from(value));
+                        let id = interners.intern_type(Type::Integer(integer));
                         let fields = Arc::from([RowField { label: SmolStr::new("field"), id }]);
                         interners.intern_row_type(RowType::from_closed(fields));
                         interners.intern_smol_str(SmolStr::new(value.to_string()));
-                        assert_eq!(borrowed_type, &Type::Integer(-1));
+                        assert_eq!(borrowed_type, &Type::Integer(minus_one));
                         assert_eq!(borrowed_row, &RowType::from_closed(Arc::from([])));
                         assert_eq!(borrowed_string, "stable");
                     }
@@ -196,7 +211,8 @@ mod tests {
     fn normalisation_flags_describe_head_reductions() {
         let interners = CoreInterners::default();
 
-        let integer = interners.intern_type(Type::Integer(0));
+        let zero = interners.intern_integer(BigInt::from(0));
+        let integer = interners.intern_type(Type::Integer(zero));
         let unification = interners.intern_type(Type::Unification(0));
         let application = interners.intern_type(Type::Application(integer, unification));
 
@@ -226,7 +242,8 @@ mod tests {
         let interners = CoreInterners::default();
         let file = files::Files::default().insert("Main.purs", "");
 
-        let integer = interners.intern_type(Type::Integer(0));
+        let zero = interners.intern_integer(BigInt::from(0));
+        let integer = interners.intern_type(Type::Integer(zero));
         let unification = interners.intern_type(Type::Unification(0));
         let name = Name { file, unique: 0, scoped: false };
         let rigid = interners.intern_type(Type::Rigid(name, Depth(0), integer));
@@ -268,7 +285,8 @@ mod tests {
     fn scoped_rigid_flags_include_kinds_and_rows() {
         let interners = CoreInterners::default();
         let file = files::Files::default().insert("Main.purs", "");
-        let plain = interners.intern_type(Type::Integer(0));
+        let zero = interners.intern_integer(BigInt::from(0));
+        let plain = interners.intern_type(Type::Integer(zero));
         let scoped_name = Name { file, unique: 0, scoped: true };
         let unscoped_name = Name { file, unique: 1, scoped: false };
         let scoped = interners.intern_type(Type::Rigid(scoped_name, Depth(0), plain));

@@ -1462,6 +1462,16 @@ impl ToDiagnostics for CheckingError {
                 let message = lookup_message(*message_id);
                 ("CustomFailure", message.to_string())
             }
+            ErrorKind::ReflectedIntegerOutOfRange { integer } => {
+                let integer = context.queries.lookup_integer(*integer);
+                (
+                    "ReflectedIntegerOutOfRange",
+                    format!(
+                        "Type-level integer '{integer}' cannot be reflected as an 'Int' because it is \
+                     outside the range -2147483648 to 2147483647"
+                    ),
+                )
+            }
             ErrorKind::PropertyIsMissing { labels } => {
                 let noun = if labels.len() == 1 { "property" } else { "properties" };
                 let labels = labels.iter().map(|label| format!("'{label}'")).join(", ");

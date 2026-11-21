@@ -1,4 +1,37 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Module Main rejected; see Main.diagnostics.snap
+@export addBeyondInt64 = \addSumDict%0 -> "Proxy"
+
+@export subtractBeyondInt64 = \addRightDict%1 -> "Proxy"
+
+@export mulBeyondInt64 = \mulProductDict%2 -> "Proxy"
+
+@export negativeBeyondInt64 = \mulProductDict%3 -> "Proxy"
+
+@export hexadecimalBeyondInt64 = \toStringStringDict%4 -> "Proxy"
+
+@export compareBeyondInt64 = \compareGTDict%5 -> "Proxy"
+
+@export compareBelowInt64 = \compareLTDict%6 -> "Proxy"
+
+@export digits = \toStringNStringDict%8 isSymbolStringDict%7 ->
+  reflectSymbol isSymbolStringDict%7 "Proxy"
+
+@export reflectedBeyondInt64 = digits <trivial evidence> (symbol "99999999999999999999")
+
+@export reflectedMaximum = digits <trivial evidence>
+  (symbol "170141183460469231731687303715884105727")
+
+@export reflectedMinimum = digits <trivial evidence>
+  (symbol "-170141183460469231731687303715884105728")
+
+@export forceSolve = {
+  addBeyondInt64: addBeyondInt64 <trivial evidence>,
+  subtractBeyondInt64: subtractBeyondInt64 <trivial evidence>,
+  mulBeyondInt64: mulBeyondInt64 <trivial evidence>,
+  negativeBeyondInt64: negativeBeyondInt64 <trivial evidence>,
+  hexadecimalBeyondInt64: hexadecimalBeyondInt64 <trivial evidence>,
+  compareBeyondInt64: compareBeyondInt64 <trivial evidence>,
+  compareBelowInt64: compareBelowInt64 <trivial evidence>
+}

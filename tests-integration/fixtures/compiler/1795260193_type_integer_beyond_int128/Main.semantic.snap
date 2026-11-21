@@ -1,18 +1,20 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-literalBeyondInt128 :: Type.Proxy.Proxy @Prim.Int ?[missing integer value]
+literalBeyondInt128 :: Type.Proxy.Proxy @Prim.Int 170141183460469231731687303715884105728
 literalBeyondInt128 = Proxy
 
-addBeyondInt128 :: forall sum. Prim.Int.Add ?[missing integer value] 1 sum => Type.Proxy.Proxy @Prim.Int sum
+addBeyondInt128 :: forall sum.
+  Prim.Int.Add 170141183460469231731687303715884105727 1 sum => Type.Proxy.Proxy @Prim.Int sum
 addBeyondInt128 = \{addDict} -> Proxy
 
 mulBeyondInt128 :: forall product.
-  Prim.Int.Mul ?[missing integer value] ?[missing integer value] product =>
+  Prim.Int.Mul 100000000000000000000 100000000000000000000 product =>
   Type.Proxy.Proxy @Prim.Int product
 mulBeyondInt128 = \{mulDict} -> Proxy
 
-forceSolve :: { addBeyondInt128 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
-, mulBeyondInt128 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+forceSolve :: { addBeyondInt128 :: Type.Proxy.Proxy @Prim.Int 170141183460469231731687303715884105728
+, mulBeyondInt128 :: Type.Proxy.Proxy @Prim.Int 10000000000000000000000000000000000000000
 }
-forceSolve = { addBeyondInt128: addBeyondInt128 {error}, mulBeyondInt128: mulBeyondInt128 {error} }
+forceSolve =
+  { addBeyondInt128: addBeyondInt128 {trivial}, mulBeyondInt128: mulBeyondInt128 {trivial} }

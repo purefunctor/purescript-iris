@@ -2,10 +2,13 @@
 source: tests-integration/src/fixtures.rs
 ---
 tenBillion :: Prim.String
-tenBillion = int64Digits {error} {error} {error}
+tenBillion =
+  int64Digits {int64Range {trivial} {trivial} {inRange}} {trivial} {isSymbol("10000000000")}
 
 maximum :: Prim.String
-maximum = int64Digits {error} {error} {error}
+maximum =
+  int64Digits {int64Range {trivial} {trivial} {inRange}} {trivial} {isSymbol("9223372036854775807")}
 
 minimum :: Prim.String
-minimum = int64Digits {error} {error} {error}
+minimum =
+  int64Digits {int64Range {trivial} {trivial} {inRange}} {trivial} {isSymbol("-9223372036854775808")}

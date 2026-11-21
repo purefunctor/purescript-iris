@@ -10,6 +10,7 @@ pub mod prim_type_error;
 use std::sync::Arc;
 
 use lowering::StringLiteral;
+use num_bigint::BigInt;
 
 use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
@@ -138,18 +139,18 @@ where
     }
 }
 
-pub fn extract_integer<Q>(
+pub fn extract_integer<'q, Q>(
     state: &mut CheckState,
-    context: &CheckContext<Q>,
+    context: &CheckContext<'q, Q>,
     id: TypeId,
-) -> QueryResult<Option<i32>>
+) -> QueryResult<Option<&'q BigInt>>
 where
     Q: ExternalQueries,
 {
     // Only the head is inspected, so expanding it is enough.
     let id = normalise::expand(state, context, id)?;
     match *context.lookup_type(id) {
-        Type::Integer(value) => Ok(Some(value)),
+        Type::Integer(value) => Ok(Some(context.queries.lookup_integer(value))),
         _ => Ok(None),
     }
 }
@@ -203,10 +204,11 @@ where
     context.queries.intern_type(Type::String(lowering::StringKind::String, value))
 }
 
-pub fn intern_integer<Q>(context: &CheckContext<Q>, value: i32) -> TypeId
+pub fn intern_integer<Q>(context: &CheckContext<Q>, value: BigInt) -> TypeId
 where
     Q: ExternalQueries,
 {
+    let value = context.queries.intern_integer(value);
     context.queries.intern_type(Type::Integer(value))
 }
 
@@ -357,14 +359,12 @@ where
         let Some(arguments) = canonical.expect_type_arguments::<2>() else {
             return Ok(None);
         };
-        prim_reflectable::match_reflectable(state, context, &arguments)?
+        return prim_reflectable::match_reflectable(state, context, &arguments);
     } else {
         None
     };
 
-    let resolution = if context.known_reflectable.is_symbol == Some((file_id, item_id))
-        || context.known_reflectable.reflectable == Some((file_id, item_id))
-    {
+    let resolution = if context.known_reflectable.is_symbol == Some((file_id, item_id)) {
         CompilerResolution::Synthesized
     } else {
         CompilerResolution::Trivial
@@ -417,6 +417,9 @@ where
         let reflected = if let Some(symbol) = extract_symbol(state, context, value)? {
             ReflectableEvidence::String(StringLiteral::clone(symbol))
         } else if let Some(integer) = extract_integer(state, context, value)? {
+            let integer = i32::try_from(integer).unwrap_or_else(|_| {
+                unreachable!("invariant violated: solved Reflectable constraint has a large Int")
+            });
             ReflectableEvidence::Integer(integer)
         } else if value == context.prim_boolean.true_ {
             ReflectableEvidence::Boolean(true)

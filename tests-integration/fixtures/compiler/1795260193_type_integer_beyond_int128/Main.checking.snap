@@ -2,18 +2,18 @@
 source: tests-integration/src/fixtures.rs
 ---
 Terms
-literalBeyondInt128 :: Type.Proxy.Proxy @Prim.Int ?[missing integer value]
+literalBeyondInt128 :: Type.Proxy.Proxy @Prim.Int 170141183460469231731687303715884105728
 addBeyondInt128 ::
   forall (sum :: Prim.Int).
-    Prim.Int.Add ?[missing integer value] 1 (sum :: Prim.Int) =>
+    Prim.Int.Add 170141183460469231731687303715884105727 1 (sum :: Prim.Int) =>
     Type.Proxy.Proxy @Prim.Int (sum :: Prim.Int)
 mulBeyondInt128 ::
   forall (product :: Prim.Int).
-    Prim.Int.Mul ?[missing integer value] ?[missing integer value] (product :: Prim.Int) =>
+    Prim.Int.Mul 100000000000000000000 100000000000000000000 (product :: Prim.Int) =>
     Type.Proxy.Proxy @Prim.Int (product :: Prim.Int)
 forceSolve ::
-  { addBeyondInt128 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
-  , mulBeyondInt128 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+  { addBeyondInt128 :: Type.Proxy.Proxy @Prim.Int 170141183460469231731687303715884105728
+  , mulBeyondInt128 :: Type.Proxy.Proxy @Prim.Int 10000000000000000000000000000000000000000
   }
 
 Types

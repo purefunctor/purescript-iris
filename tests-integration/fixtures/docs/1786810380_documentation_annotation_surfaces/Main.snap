@@ -232,7 +232,7 @@ source: tests-integration/src/fixtures.rs
                 "argument": {
                   "argument": {
                     "tag": "integer",
-                    "value": 42
+                    "value": "42"
                   },
                   "function": {
                     "argument": {

@@ -1,14 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [UnreportedUnknownType] · Main.purs:8:1
-  •
-  │
-  • Unknown type 'Add ?[missing integer value] 1 (sum :: Int)' remained unresolved without a
-  │ reported error
-  │
-  │   addBeyondInt64 :: forall sum. Add 99999999999999999999 1 sum => Proxy sum
-  │   ╰────────────────────────────────────────────────────────────────────────
-  │
-  • This is an internal compiler error.
-  •
+

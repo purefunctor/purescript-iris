@@ -141,7 +141,7 @@ pub enum Type {
     Function { argument: Box<Type>, result: Box<Type> },
     Kinded { expression: Box<Type>, kind: Box<Type> },
     Constructor { reference: TypeReference },
-    Integer { value: i32 },
+    Integer { value: String },
     String { kind: StringLiteralKind, value: StringLiteralValue },
     Row { fields: Vec<TypeRowField>, tail: Option<Box<Type>> },
     Rigid { name: String, kind: Box<Type> },
