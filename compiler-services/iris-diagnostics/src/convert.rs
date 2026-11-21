@@ -910,9 +910,6 @@ impl ToDiagnostics for CheckingError {
                 "DeriveInvalidArity",
                 format!("Invalid arity for derive: expected {expected}, got {actual}"),
             ),
-            ErrorKind::DeriveNotSupportedYet { .. } => {
-                ("DeriveNotSupportedYet", "Deriving this class is not supported yet".to_string())
-            }
             ErrorKind::DeriveMissingFunctor => (
                 "DeriveMissingFunctor",
                 "Deriving Functor requires Data.Functor to be in scope".to_string(),

@@ -89,10 +89,6 @@ pub enum ErrorKind {
         expected: usize,
         actual: usize,
     },
-    DeriveNotSupportedYet {
-        class_file: files::FileId,
-        class_id: indexing::TypeItemId,
-    },
     DeriveMissingFunctor,
     EmptyAdoBlock,
     EmptyDoBlock,
