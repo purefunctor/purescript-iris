@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+maximum :: Prim.Int
+maximum = reflectType {reflectable(2147483647)} Proxy
+
+minimum :: Prim.Int
+minimum = reflectType {reflectable(-2147483648)} Proxy
+
+aboveMaximum :: Prim.Int
+aboveMaximum = reflectType {error} Proxy
+
+beyondInt64 :: Prim.Int
+beyondInt64 = reflectType {error} Proxy

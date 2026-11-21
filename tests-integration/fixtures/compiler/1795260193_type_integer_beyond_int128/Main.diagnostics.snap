@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [UnreportedUnknownType] · Main.purs:7:23
+  •
+  │
+  • Unknown type '?[invalid kind]' remained unresolved without a reported error
+  │
+  │   literalBeyondInt128 = Proxy
+  │                         ╰────
+  │
+  • This is an internal compiler error.
+  •

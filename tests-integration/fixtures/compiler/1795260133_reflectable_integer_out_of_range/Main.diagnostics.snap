@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [UnreportedUnknownType] · Main.purs:13:29
+  •
+  │
+  • Unknown type '?[invalid kind]' remained unresolved without a reported error
+  │
+  │   aboveMaximum = reflectType (Proxy :: Proxy 2147483648)
+  │                               ╰────
+  │
+  • This is an internal compiler error.
+  •

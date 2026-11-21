@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+tenBillion :: Prim.String
+tenBillion = int64Digits {error} {error} {error}
+
+maximum :: Prim.String
+maximum = int64Digits {error} {error} {error}
+
+minimum :: Prim.String
+minimum = int64Digits {error} {error} {error}

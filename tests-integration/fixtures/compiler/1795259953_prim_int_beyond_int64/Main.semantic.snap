@@ -1,0 +1,52 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+addBeyondInt64 :: forall sum. Prim.Int.Add ?[missing integer value] 1 sum => Type.Proxy.Proxy @Prim.Int sum
+addBeyondInt64 = \{addDict} -> Proxy
+
+subtractBeyondInt64 :: forall right. Prim.Int.Add 1 right ?[missing integer value] => Type.Proxy.Proxy @Prim.Int right
+subtractBeyondInt64 = \{addDict} -> Proxy
+
+mulBeyondInt64 :: forall product.
+  Prim.Int.Mul ?[missing integer value] ?[missing integer value] product =>
+  Type.Proxy.Proxy @Prim.Int product
+mulBeyondInt64 = \{mulDict} -> Proxy
+
+negativeBeyondInt64 :: forall product.
+  Prim.Int.Mul ?[missing integer value] 2 product => Type.Proxy.Proxy @Prim.Int product
+negativeBeyondInt64 = \{mulDict} -> Proxy
+
+hexadecimalBeyondInt64 :: forall string.
+  Prim.Int.ToString ?[missing integer value] string => Type.Proxy.Proxy @Prim.Symbol string
+hexadecimalBeyondInt64 = \{toStringDict} -> Proxy
+
+compareBeyondInt64 :: Prim.Int.Compare ?[missing integer value] ?[missing integer value] Prim.Ordering.GT =>
+Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+compareBeyondInt64 = \{compareDict} -> Proxy
+
+compareBelowInt64 :: Prim.Int.Compare ?[missing integer value] ?[missing integer value] Prim.Ordering.LT =>
+Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+compareBelowInt64 = \{compareDict} -> Proxy
+
+digits :: forall @n string. Prim.Int.ToString n string => Data.Symbol.IsSymbol string => Prim.String
+digits = \{toStringDict} -> \{isSymbolDict} -> reflectSymbol {isSymbolDict} Proxy
+
+reflectedBeyondInt64 :: Prim.String
+reflectedBeyondInt64 = digits {error} {error}
+
+reflectedMaximum :: Prim.String
+reflectedMaximum = digits {error} {error}
+
+reflectedMinimum :: Prim.String
+reflectedMinimum = digits {error} {error}
+
+forceSolve :: { addBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+, compareBelowInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+, compareBeyondInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+, hexadecimalBeyondInt64 :: Type.Proxy.Proxy @Prim.Symbol ?[ignored constraint]
+, mulBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+, negativeBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+, subtractBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+}
+forceSolve =
+  { addBeyondInt64: addBeyondInt64 {error}, subtractBeyondInt64: subtractBeyondInt64 {error}, mulBeyondInt64: mulBeyondInt64 {error}, negativeBeyondInt64: negativeBeyondInt64 {error}, hexadecimalBeyondInt64: hexadecimalBeyondInt64 {error}, compareBeyondInt64: compareBeyondInt64 {error}, compareBelowInt64: compareBelowInt64 {error} }

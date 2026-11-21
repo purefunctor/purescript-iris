@@ -1,0 +1,49 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+addBeyondInt64 ::
+  forall (sum :: Prim.Int).
+    Prim.Int.Add ?[missing integer value] 1 (sum :: Prim.Int) =>
+    Type.Proxy.Proxy @Prim.Int (sum :: Prim.Int)
+subtractBeyondInt64 ::
+  forall (right :: Prim.Int).
+    Prim.Int.Add 1 (right :: Prim.Int) ?[missing integer value] =>
+    Type.Proxy.Proxy @Prim.Int (right :: Prim.Int)
+mulBeyondInt64 ::
+  forall (product :: Prim.Int).
+    Prim.Int.Mul ?[missing integer value] ?[missing integer value] (product :: Prim.Int) =>
+    Type.Proxy.Proxy @Prim.Int (product :: Prim.Int)
+negativeBeyondInt64 ::
+  forall (product :: Prim.Int).
+    Prim.Int.Mul ?[missing integer value] 2 (product :: Prim.Int) =>
+    Type.Proxy.Proxy @Prim.Int (product :: Prim.Int)
+hexadecimalBeyondInt64 ::
+  forall (string :: Prim.Symbol).
+    Prim.Int.ToString ?[missing integer value] (string :: Prim.Symbol) =>
+    Type.Proxy.Proxy @Prim.Symbol (string :: Prim.Symbol)
+compareBeyondInt64 ::
+  Prim.Int.Compare ?[missing integer value] ?[missing integer value] Prim.Ordering.GT =>
+  Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+compareBelowInt64 ::
+  Prim.Int.Compare ?[missing integer value] ?[missing integer value] Prim.Ordering.LT =>
+  Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+digits ::
+  forall (@n :: Prim.Int) (string :: Prim.Symbol).
+    Prim.Int.ToString (n :: Prim.Int) (string :: Prim.Symbol) =>
+    Data.Symbol.IsSymbol (string :: Prim.Symbol) =>
+    Prim.String
+reflectedBeyondInt64 :: Prim.String
+reflectedMaximum :: Prim.String
+reflectedMinimum :: Prim.String
+forceSolve ::
+  { addBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+  , compareBelowInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+  , compareBeyondInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+  , hexadecimalBeyondInt64 :: Type.Proxy.Proxy @Prim.Symbol ?[ignored constraint]
+  , mulBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+  , negativeBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+  , subtractBeyondInt64 :: Type.Proxy.Proxy @Prim.Int ?[ignored constraint]
+  }
+
+Types

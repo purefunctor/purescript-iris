@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+aboveMaximum :: Prim.String
+aboveMaximum = int64Digits {error} {error} {error}
+
+belowMinimum :: Prim.String
+belowMinimum = int64Digits {error} {error} {error}

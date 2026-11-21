@@ -1,0 +1,9 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+tenBillion :: Prim.String
+maximum :: Prim.String
+minimum :: Prim.String
+
+Types
