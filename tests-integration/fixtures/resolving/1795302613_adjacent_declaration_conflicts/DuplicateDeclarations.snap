@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module DuplicateDeclarations
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - value
+  - Second
+  - First
+
+Exported Types:
+  - Choice
+
+Exported Classes:
+
+Local Terms:
+  - value
+  - Second
+  - First
+
+Local Types:
+  - Choice
+
+Local Classes:
+
+Class Members:

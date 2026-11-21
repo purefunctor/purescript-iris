@@ -1,0 +1,32 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module MismatchedDeclarations
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - Alias
+  - Circle
+  - external
+
+Exported Types:
+  - Alias
+
+Exported Classes:
+  - Shape
+
+Local Terms:
+  - Alias
+  - Circle
+  - external
+
+Local Types:
+  - Alias
+
+Local Classes:
+  - Shape
+
+Class Members:

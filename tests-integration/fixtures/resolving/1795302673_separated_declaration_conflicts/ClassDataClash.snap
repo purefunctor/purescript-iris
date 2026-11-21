@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ClassDataClash
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - Shared
+
+Exported Types:
+  - Between
+  - Shared
+
+Exported Classes:
+  - Shared
+
+Local Terms:
+  - Shared
+
+Local Types:
+  - Between
+  - Shared
+
+Local Classes:
+  - Shared
+
+Class Members:

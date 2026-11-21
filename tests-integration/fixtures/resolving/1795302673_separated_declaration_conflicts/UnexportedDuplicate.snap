@@ -1,0 +1,26 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module UnexportedDuplicate
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - exported
+
+Exported Types:
+
+Exported Classes:
+
+Local Terms:
+  - between
+  - exported
+  - hidden
+
+Local Types:
+
+Local Classes:
+
+Class Members:
