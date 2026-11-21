@@ -1532,6 +1532,7 @@ dependencies = [
 name = "indexing"
 version = "0.1.0"
 dependencies = [
+ "building-types",
  "insta",
  "la-arena",
  "lexing",
@@ -2372,6 +2373,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 name = "lowering"
 version = "0.1.0"
 dependencies = [
+ "building-types",
  "files",
  "indexing",
  "indexmap",
@@ -3016,6 +3018,7 @@ dependencies = [
 name = "parsing"
 version = "0.1.0"
 dependencies = [
+ "building-types",
  "drop_bomb",
  "insta",
  "lexing",

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use building_types::Severity;
 use indexing::TypeItemId;
 use smol_str::SmolStr;
 use stabilizing::AstId;
@@ -20,6 +21,12 @@ pub enum LoweringError {
     },
     RecursiveSynonym(RecursiveGroup),
     RecursiveKinds(RecursiveGroup),
+}
+
+impl LoweringError {
+    pub fn severity(&self) -> Severity {
+        Severity::Error
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

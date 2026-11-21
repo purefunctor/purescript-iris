@@ -1,5 +1,7 @@
 use std::fmt;
 
+use building_types::Severity;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Span {
     pub start: u32,
@@ -16,12 +18,6 @@ impl Span {
 pub struct RelatedSpan {
     pub span: Span,
     pub message: String,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Severity {
-    Error,
-    Warning,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,8 +55,8 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    /// Creates a [`Severity::Error`]-level [`Diagnostic`].
-    pub fn error(
+    pub fn new(
+        severity: Severity,
         code: &'static str,
         message: impl Into<String>,
         span: Span,
@@ -70,7 +66,7 @@ impl Diagnostic {
         let related = Vec::new();
         let trivia = Vec::new();
         Diagnostic {
-            severity: Severity::Error,
+            severity,
             code: DiagnosticCode::new(code),
             message,
             span,
@@ -80,25 +76,14 @@ impl Diagnostic {
         }
     }
 
-    /// Creates a [`Severity::Warning`]-level [`Diagnostic`].
-    pub fn warning(
+    /// Creates a [`Severity::Error`]-level [`Diagnostic`].
+    pub fn error(
         code: &'static str,
         message: impl Into<String>,
         span: Span,
         source: &'static str,
     ) -> Diagnostic {
-        let message = message.into();
-        let related = Vec::new();
-        let trivia = Vec::new();
-        Diagnostic {
-            severity: Severity::Warning,
-            code: DiagnosticCode::new(code),
-            message,
-            span,
-            related,
-            trivia,
-            source,
-        }
+        Diagnostic::new(Severity::Error, code, message, span, source)
     }
 
     /// Attaches a [`RelatedSpan`] to a [`Diagnostic`].

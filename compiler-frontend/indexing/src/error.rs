@@ -1,3 +1,5 @@
+use building_types::Severity;
+
 use crate::source::*;
 use crate::{TermItemId, TypeItemId};
 
@@ -42,7 +44,16 @@ pub enum IndexingError {
 }
 
 impl IndexingError {
-    pub fn is_warning(&self) -> bool {
-        matches!(self, IndexingError::DuplicateImport { .. })
+    pub fn severity(&self) -> Severity {
+        match self {
+            IndexingError::DuplicateImport { .. } => Severity::Warning,
+            IndexingError::DuplicateItem { .. }
+            | IndexingError::MismatchedItem { .. }
+            | IndexingError::OrphanRole { .. }
+            | IndexingError::DuplicateRole { .. }
+            | IndexingError::UnsupportedRole { .. }
+            | IndexingError::InvalidExport { .. }
+            | IndexingError::DuplicateExport { .. } => Severity::Error,
+        }
     }
 }

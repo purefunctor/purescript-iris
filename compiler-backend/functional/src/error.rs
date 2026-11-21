@@ -1,3 +1,4 @@
+use building_types::Severity;
 use checking::evidence::EvidenceVarId;
 use checking::tree as checked_tree;
 use files::FileId;
@@ -14,6 +15,15 @@ pub enum ModuleError {
     SourceErrors { file_id: FileId },
     #[error("cannot convert checked module {file_id:?}: {state}")]
     Unsupported { file_id: FileId, state: UnsupportedState },
+}
+
+impl ModuleError {
+    pub fn severity(&self) -> Option<Severity> {
+        match self {
+            ModuleError::SourceErrors { .. } => None,
+            ModuleError::Unsupported { .. } => Some(Severity::Error),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

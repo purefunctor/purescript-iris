@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::iter;
 use std::sync::Arc;
 
-use building_types::QueryResult;
+use building_types::{QueryResult, Severity};
 use files::{FileId, ForeignFileCandidates, ForeignFileId, ForeignSourceKind};
 use indexing::{IndexedModule, IndexedTermItemKind, TermItemId};
 use oxc_allocator::Allocator;
@@ -28,6 +28,17 @@ pub enum ForeignError {
     AmbiguousModule { declaration: TermItemId },
     MissingImplementation { declaration: TermItemId, name: SmolStr },
     Parse { declaration: TermItemId, message: Arc<str> },
+}
+
+impl ForeignError {
+    pub fn severity(&self) -> Severity {
+        match self {
+            ForeignError::Parse { .. } => Severity::Warning,
+            ForeignError::MissingModule { .. }
+            | ForeignError::AmbiguousModule { .. }
+            | ForeignError::MissingImplementation { .. } => Severity::Error,
+        }
+    }
 }
 
 pub trait ForeignQueries {

@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use building_types::Severity;
 use smol_str::SmolStr;
 
 use crate::core::{SmolStrId, TypeId};
@@ -87,10 +88,6 @@ pub enum ErrorKind {
         class_id: indexing::TypeItemId,
         expected: usize,
         actual: usize,
-    },
-    DeriveNotSupportedYet {
-        class_file: files::FileId,
-        class_id: indexing::TypeItemId,
     },
     DeriveMissingFunctor,
     EmptyAdoBlock,
@@ -202,18 +199,15 @@ pub enum ErrorKind {
 }
 
 impl ErrorKind {
-    /// Whether the error is reported as a warning.
-    ///
-    /// A module that has only warnings still compiles.
-    pub fn is_warning(&self) -> bool {
-        matches!(
-            self,
+    pub fn severity(&self) -> Severity {
+        match self {
             ErrorKind::InvalidFinalBind
-                | ErrorKind::MissingInstanceMembers { .. }
-                | ErrorKind::RedundantPatterns { .. }
-                | ErrorKind::MissingPatterns { .. }
-                | ErrorKind::CustomWarning { .. }
-        )
+            | ErrorKind::MissingInstanceMembers { .. }
+            | ErrorKind::RedundantPatterns { .. }
+            | ErrorKind::MissingPatterns { .. }
+            | ErrorKind::CustomWarning { .. } => Severity::Warning,
+            _ => Severity::Error,
+        }
     }
 }
 
@@ -221,4 +215,10 @@ impl ErrorKind {
 pub struct CheckingError {
     pub kind: ErrorKind,
     pub crumbs: Arc<[ErrorCrumb]>,
+}
+
+impl CheckingError {
+    pub fn severity(&self) -> Severity {
+        self.kind.severity()
+    }
 }

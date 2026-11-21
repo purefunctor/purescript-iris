@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use building_types::Severity;
 use lexing::{Lexed, Position};
 use smol_str::{SmolStr, ToSmolStr};
 use syntax::ast::AstNode;
@@ -13,6 +14,12 @@ pub struct ParseError {
     pub offset: usize,
     pub position: Position,
     pub message: Arc<str>,
+}
+
+impl ParseError {
+    pub fn severity(&self) -> Severity {
+        Severity::Error
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

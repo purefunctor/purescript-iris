@@ -5,6 +5,7 @@ edition = "2024"
 license.workspace = true
 
 [dependencies]
+building-types = { version = "0.1.0", path = "../../compiler-core/building-types" }
 drop_bomb = "0.1.5"
 lexing = { version = "0.1.0", path = "../lexing" }
 smol_str = "0.3.6"

@@ -271,7 +271,7 @@ where
         return Ok(());
     };
 
-    if state.checked.errors.iter().any(|error| !error.kind.is_warning())
+    if state.checked.errors.iter().any(|error| error.severity().is_error())
         || has_source_errors(context.queries, context.id)?
     {
         return Ok(());
@@ -298,7 +298,7 @@ where
 
 pub fn has_checking_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
     let checked = queries.checked(file_id)?;
-    Ok(checked.errors.iter().any(|error| !error.kind.is_warning()))
+    Ok(checked.errors.iter().any(|error| error.severity().is_error()))
 }
 
 pub fn has_source_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {

@@ -411,7 +411,6 @@ where
         }
         kind @ (ErrorKind::CannotDeriveClass { .. }
         | ErrorKind::DeriveInvalidArity { .. }
-        | ErrorKind::DeriveNotSupportedYet { .. }
         | ErrorKind::DeriveMissingFunctor
         | ErrorKind::EmptyAdoBlock
         | ErrorKind::EmptyDoBlock
