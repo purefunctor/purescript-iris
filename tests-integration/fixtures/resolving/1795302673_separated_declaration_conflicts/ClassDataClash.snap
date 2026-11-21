@@ -12,7 +12,6 @@ Exported Terms:
 
 Exported Types:
   - Between
-  - Shared
 
 Exported Classes:
   - Shared
@@ -22,9 +21,23 @@ Local Terms:
 
 Local Types:
   - Between
-  - Shared
 
 Local Classes:
   - Shared
 
 Class Members:
+
+Diagnostics
+Error! · [DuplicateDeclaration] · ClassDataClash.purs:7:1
+  •
+  │
+  • 'Shared' is declared more than once
+  │
+  │   data Shared = Shared
+  │   ╰───────────────────
+  │
+  • Previous declaration
+  │
+  │   class Shared a
+  │   ╰─────────────
+  •

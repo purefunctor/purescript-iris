@@ -28,3 +28,32 @@ Local Types:
 Local Classes:
 
 Class Members:
+
+Diagnostics
+Error! · [DuplicateDeclaration] · DuplicateDeclarations.purs:4:1
+  •
+  │
+  • 'value' is declared more than once
+  │
+  │   value :: String
+  │   ╰──────────────
+  │
+  • Previous declaration
+  │
+  │   value :: Int
+  │   ╰───────────
+  •
+
+Error! · [DuplicateDeclaration] · DuplicateDeclarations.purs:8:1
+  •
+  │
+  • 'Choice' is declared more than once
+  │
+  │   data Choice = Second
+  │   ╰───────────────────
+  │
+  • Previous declaration
+  │
+  │   data Choice = First
+  │   ╰──────────────────
+  •
