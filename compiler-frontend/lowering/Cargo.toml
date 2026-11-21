@@ -5,6 +5,7 @@ edition = "2024"
 license.workspace = true
 
 [dependencies]
+building-types = { version = "0.1.0", path = "../../compiler-core/building-types" }
 files = { version = "0.1.0", path = "../../compiler-core/files" }
 indexing = { version = "0.1.0", path = "../indexing" }
 indexmap = "2.14.2"

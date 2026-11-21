@@ -49,6 +49,22 @@ pub enum QueryError {
 
 pub type QueryResult<T> = Result<T, QueryError>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Severity {
+    Error,
+    Warning,
+}
+
+impl Severity {
+    pub fn is_error(self) -> bool {
+        matches!(self, Severity::Error)
+    }
+
+    pub fn is_warning(self) -> bool {
+        matches!(self, Severity::Warning)
+    }
+}
+
 pub trait QueryProxy {
     type LineIndex;
     type Parsed;

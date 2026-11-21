@@ -26,8 +26,6 @@ use building_types::QueryResult;
 use crate::{Diagnostic, DiagnosticsContext, ExternalQueries, Severity, Span};
 
 pub trait ToDiagnostics {
-    fn severity(&self) -> Severity;
-
     fn to_diagnostics<Q>(
         &self,
         context: &DiagnosticsContext<'_, Q>,
@@ -54,10 +52,6 @@ where
 }
 
 impl ToDiagnostics for FunctionalModuleError {
-    fn severity(&self) -> Severity {
-        Severity::Error
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -208,10 +202,6 @@ where
 }
 
 impl ToDiagnostics for JavaScriptModuleError {
-    fn severity(&self) -> Severity {
-        Severity::Error
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -244,12 +234,6 @@ impl ToDiagnostics for JavaScriptModuleError {
 }
 
 impl ToDiagnostics for JavaScriptModuleDiagnostic {
-    fn severity(&self) -> Severity {
-        match self {
-            JavaScriptModuleDiagnostic::InitializerCycle { .. } => Severity::Error,
-        }
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -257,8 +241,13 @@ impl ToDiagnostics for JavaScriptModuleDiagnostic {
         let JavaScriptModuleDiagnostic::InitializerCycle { declarations } = self;
         let mut spans = declarations.iter().filter_map(|&global| global_span(context, global));
         let span = spans.next().unwrap_or_else(|| context.module_span());
-        let mut diagnostic =
-            Diagnostic::error("JavaScriptInitializerCycle", self.to_string(), span, "javascript");
+        let mut diagnostic = Diagnostic::new(
+            self.severity(),
+            "JavaScriptInitializerCycle",
+            self.to_string(),
+            span,
+            "javascript",
+        );
         for span in spans {
             diagnostic =
                 diagnostic.with_related(span, "This declaration is a member of the same cycle");
@@ -268,15 +257,6 @@ impl ToDiagnostics for JavaScriptModuleDiagnostic {
 }
 
 impl ToDiagnostics for ForeignError {
-    fn severity(&self) -> Severity {
-        match self {
-            ForeignError::Parse { .. } => Severity::Warning,
-            ForeignError::MissingModule { .. }
-            | ForeignError::AmbiguousModule { .. }
-            | ForeignError::MissingImplementation { .. } => Severity::Error,
-        }
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -297,25 +277,29 @@ impl ToDiagnostics for ForeignError {
         };
 
         let diagnostic = match self {
-            ForeignError::MissingModule { name, .. } => Diagnostic::error(
+            ForeignError::MissingModule { name, .. } => Diagnostic::new(
+                self.severity(),
                 "MissingFFIModule",
                 format!("No JavaScript FFI module was found for foreign import '{name}'"),
                 span,
                 "foreign-javascript",
             ),
-            ForeignError::AmbiguousModule { .. } => Diagnostic::error(
+            ForeignError::AmbiguousModule { .. } => Diagnostic::new(
+                self.severity(),
                 "AmbiguousFFIModule",
                 "Both JavaScript and JSX FFI modules were found. Remove one of the foreign files",
                 span,
                 "foreign-javascript",
             ),
-            ForeignError::MissingImplementation { name, .. } => Diagnostic::error(
+            ForeignError::MissingImplementation { name, .. } => Diagnostic::new(
+                self.severity(),
                 "MissingFFIImplementation",
                 format!("JavaScript FFI module does not export '{name}'"),
                 span,
                 "foreign-javascript",
             ),
-            ForeignError::Parse { message, .. } => Diagnostic::warning(
+            ForeignError::Parse { message, .. } => Diagnostic::new(
+                self.severity(),
                 "UnparseableFFIModule",
                 format!(
                     "Oxc could not parse the JavaScript FFI module. Fix the invalid or unsupported JavaScript syntax; Iris treated the module as opaque and skipped export-name validation: {message}"
@@ -330,10 +314,6 @@ impl ToDiagnostics for ForeignError {
 }
 
 impl ToDiagnostics for ParseError {
-    fn severity(&self) -> Severity {
-        Severity::Error
-    }
-
     fn to_diagnostics<Q>(
         &self,
         _context: &DiagnosticsContext<'_, Q>,
@@ -344,15 +324,17 @@ impl ToDiagnostics for ParseError {
         let offset =
             u32::try_from(self.offset).expect("invariant violated: source offset exceeds u32");
         let span = Span::new(offset, offset);
-        Ok(vec![Diagnostic::error("ParseError", self.message.as_ref(), span, "parsing")])
+        Ok(vec![Diagnostic::new(
+            self.severity(),
+            "ParseError",
+            self.message.as_ref(),
+            span,
+            "parsing",
+        )])
     }
 }
 
 impl ToDiagnostics for LoweringError {
-    fn severity(&self) -> Severity {
-        Severity::Error
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -451,7 +433,7 @@ impl ToDiagnostics for LoweringError {
                     format!("'{text}' is not in scope")
                 };
 
-                Ok(vec![Diagnostic::error("NotInScope", message, span, "lowering")])
+                Ok(vec![Diagnostic::new(self.severity(), "NotInScope", message, span, "lowering")])
             }
 
             LoweringError::InvalidStringEscape { source } => {
@@ -465,7 +447,8 @@ impl ToDiagnostics for LoweringError {
                 let Some(ptr) = ptr else { return Ok(Vec::new()) };
                 let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
 
-                Ok(vec![Diagnostic::error(
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
                     "InvalidStringEscape",
                     "Invalid escape sequence in string literal",
                     span,
@@ -486,8 +469,13 @@ impl ToDiagnostics for LoweringError {
                 let Some(duplicate) = span(*duplicate) else { return Ok(Vec::new()) };
 
                 let message = format!("Name '{name}' is bound more than once");
-                let mut diagnostic =
-                    Diagnostic::error("OverlappingBinderNames", message, duplicate, "lowering");
+                let mut diagnostic = Diagnostic::new(
+                    self.severity(),
+                    "OverlappingBinderNames",
+                    message,
+                    duplicate,
+                    "lowering",
+                );
                 if let Some(existing) = span(*existing) {
                     diagnostic = diagnostic.with_related(existing, "First bound here");
                 }
@@ -497,6 +485,7 @@ impl ToDiagnostics for LoweringError {
 
             LoweringError::RecursiveSynonym(group) => Ok(convert_recursive_group(
                 context,
+                self.severity(),
                 &group.group,
                 "RecursiveSynonym",
                 "Invalid type synonym cycle",
@@ -504,6 +493,7 @@ impl ToDiagnostics for LoweringError {
 
             LoweringError::RecursiveKinds(group) => Ok(convert_recursive_group(
                 context,
+                self.severity(),
                 &group.group,
                 "RecursiveKinds",
                 "Invalid kind cycle",
@@ -514,6 +504,7 @@ impl ToDiagnostics for LoweringError {
 
 fn convert_recursive_group<Q>(
     context: &DiagnosticsContext<'_, Q>,
+    severity: Severity,
     group: &[indexing::TypeItemId],
     code: &'static str,
     message: &'static str,
@@ -542,7 +533,7 @@ where
 
     let Some(&primary) = spans.first() else { return Vec::new() };
 
-    let mut diagnostic = Diagnostic::error(code, message, primary, "lowering");
+    let mut diagnostic = Diagnostic::new(severity, code, message, primary, "lowering");
 
     for &span in &spans[1..] {
         diagnostic = diagnostic.with_related(span, "Includes this type");
@@ -552,10 +543,6 @@ where
 }
 
 impl ToDiagnostics for ResolvingError {
-    fn severity(&self) -> Severity {
-        Severity::Error
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -564,7 +551,13 @@ impl ToDiagnostics for ResolvingError {
             ResolvingError::DuplicateModule { name } => {
                 let span = context.module_name_span().unwrap_or_else(|| context.module_span());
                 let message = format!("Module '{name}' has been defined multiple times");
-                Ok(vec![Diagnostic::error("DuplicateModule", message, span, "resolving")])
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
+                    "DuplicateModule",
+                    message,
+                    span,
+                    "resolving",
+                )])
             }
             ResolvingError::InstanceNameConflict { name, instance, existing } => {
                 let pointer = match instance {
@@ -596,7 +589,8 @@ impl ToDiagnostics for ResolvingError {
                         context.stabilized.syntax_ptr(context.indexed.items[*id].id),
                     ),
                 };
-                let mut diagnostic = Diagnostic::error(code, message, span, "resolving");
+                let mut diagnostic =
+                    Diagnostic::new(self.severity(), code, message, span, "resolving");
                 if let Some(span) =
                     pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
                 {
@@ -619,6 +613,7 @@ impl ToDiagnostics for ResolvingError {
                 );
                 Ok(export_conflict(
                     context,
+                    self.severity(),
                     name,
                     pointer(*duplicate),
                     pointer(*existing),
@@ -640,6 +635,7 @@ impl ToDiagnostics for ResolvingError {
                 );
                 Ok(export_conflict(
                     context,
+                    self.severity(),
                     name,
                     pointer(*duplicate),
                     pointer(*existing),
@@ -665,7 +661,13 @@ impl ToDiagnostics for ResolvingError {
 
                 let Some(span) = context.span_from_ast_ptr(&ptr) else { return Ok(Vec::new()) };
 
-                Ok(vec![Diagnostic::error("InvalidImportStatement", message, span, "resolving")])
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
+                    "InvalidImportStatement",
+                    message,
+                    span,
+                    "resolving",
+                )])
             }
 
             ResolvingError::InvalidImportItem { id } => {
@@ -675,7 +677,13 @@ impl ToDiagnostics for ResolvingError {
                 let text = context.text_of(span).trim();
                 let message = format!("Cannot import item '{text}'");
 
-                Ok(vec![Diagnostic::error("InvalidImportItem", message, span, "resolving")])
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
+                    "InvalidImportItem",
+                    message,
+                    span,
+                    "resolving",
+                )])
             }
         }
     }
@@ -683,6 +691,7 @@ impl ToDiagnostics for ResolvingError {
 
 fn export_conflict<Q>(
     context: &DiagnosticsContext<'_, Q>,
+    severity: Severity,
     name: &SmolStr,
     duplicate: Option<SyntaxNodePtr>,
     existing: Option<SyntaxNodePtr>,
@@ -706,7 +715,7 @@ where
     let primary = span(duplicate)
         .or_else(|| context.module_name_span())
         .unwrap_or_else(|| context.module_span());
-    let mut diagnostic = Diagnostic::error(code, message, primary, "resolving");
+    let mut diagnostic = Diagnostic::new(severity, code, message, primary, "resolving");
     if let Some(existing) = span(existing) {
         diagnostic = diagnostic.with_related(existing, related);
     }
@@ -727,10 +736,6 @@ where
 }
 
 impl ToDiagnostics for IndexingError {
-    fn severity(&self) -> Severity {
-        if self.is_warning() { Severity::Warning } else { Severity::Error }
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -746,7 +751,7 @@ impl ToDiagnostics for IndexingError {
                 let message = format!("Import list contains multiple references to '{text}'");
 
                 let mut diagnostic =
-                    Diagnostic::warning("DuplicateImport", message, span, "indexing");
+                    Diagnostic::new(self.severity(), "DuplicateImport", message, span, "indexing");
 
                 if let Some(existing_ptr) = context.stabilized.syntax_ptr(*existing)
                     && let Some(existing_span) = context.span_from_syntax_ptr(&existing_ptr)
@@ -762,15 +767,26 @@ impl ToDiagnostics for IndexingError {
                 };
                 let message =
                     format!("The role declaration for '{name}' should follow its definition");
-                Ok(vec![Diagnostic::error("OrphanRoleDeclaration", message, span, "indexing")])
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
+                    "OrphanRoleDeclaration",
+                    message,
+                    span,
+                    "indexing",
+                )])
             }
             IndexingError::DuplicateRole { id, existing } => {
                 let Some((span, name)) = role_declaration(context, *id) else {
                     return Ok(Vec::new());
                 };
                 let message = format!("Duplicate role declaration for '{name}'");
-                let mut diagnostic =
-                    Diagnostic::error("DuplicateRoleDeclaration", message, span, "indexing");
+                let mut diagnostic = Diagnostic::new(
+                    self.severity(),
+                    "DuplicateRoleDeclaration",
+                    message,
+                    span,
+                    "indexing",
+                );
                 if let Some((existing_span, _)) = role_declaration(context, *existing) {
                     diagnostic =
                         diagnostic.with_related(existing_span, "Previous role declaration");
@@ -782,7 +798,13 @@ impl ToDiagnostics for IndexingError {
                     return Ok(Vec::new());
                 };
                 let message = "Role declarations are only supported for data types, not for type synonyms nor type classes".to_string();
-                Ok(vec![Diagnostic::error("UnsupportedRoleDeclaration", message, span, "indexing")])
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
+                    "UnsupportedRoleDeclaration",
+                    message,
+                    span,
+                    "indexing",
+                )])
             }
             IndexingError::DuplicateItem { .. }
             | IndexingError::MismatchedItem { .. }
@@ -793,10 +815,6 @@ impl ToDiagnostics for IndexingError {
 }
 
 impl ToDiagnostics for CheckingError {
-    fn severity(&self) -> Severity {
-        if self.kind.is_warning() { Severity::Warning } else { Severity::Error }
-    }
-
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
         Q: ExternalQueries,
@@ -1070,11 +1088,7 @@ impl ToDiagnostics for CheckingError {
             }
         };
 
-        let mut diagnostic = if self.kind.is_warning() {
-            Diagnostic::warning(code, message, span, "checking")
-        } else {
-            Diagnostic::error(code, message, span, "checking")
-        };
+        let mut diagnostic = Diagnostic::new(self.severity(), code, message, span, "checking");
 
         if let ErrorKind::AmbiguousCapability { services, .. }
         | ErrorKind::CapabilityNotDeclared { services, .. }

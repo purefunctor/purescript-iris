@@ -618,9 +618,9 @@ pub fn refactor(path: &Path) -> FixtureResult {
         let checked = loaded.engine.checked(id).map_err(|error| invalid_data(error.to_string()))?;
 
         let indexed_errors =
-            indexed.errors.iter().filter(|error| !error.is_warning()).collect::<Vec<_>>();
+            indexed.errors.iter().filter(|error| error.severity().is_error()).collect::<Vec<_>>();
         let checking_errors =
-            checked.errors.iter().filter(|error| !error.kind.is_warning()).collect::<Vec<_>>();
+            checked.errors.iter().filter(|error| error.severity().is_error()).collect::<Vec<_>>();
 
         if !parse_errors.is_empty()
             || !indexed_errors.is_empty()

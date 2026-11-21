@@ -1,3 +1,4 @@
+use building_types::Severity;
 use files::FileId;
 use functional::tree::GlobalId;
 use thiserror::Error;
@@ -10,12 +11,29 @@ pub enum ModuleDiagnostic {
     InitializerCycle { declarations: Vec<GlobalId> },
 }
 
+impl ModuleDiagnostic {
+    pub fn severity(&self) -> Severity {
+        match self {
+            ModuleDiagnostic::InitializerCycle { .. } => Severity::Error,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ModuleError {
     #[error(transparent)]
     Functional(#[from] functional::ModuleError),
     #[error("cannot convert functional module {file_id:?} to JavaScript: {state}")]
     Unsupported { file_id: FileId, state: UnsupportedState },
+}
+
+impl ModuleError {
+    pub fn severity(&self) -> Option<Severity> {
+        match self {
+            ModuleError::Functional(error) => error.severity(),
+            ModuleError::Unsupported { .. } => Some(Severity::Error),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]

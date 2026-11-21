@@ -65,30 +65,32 @@ where
     let foreign_validation = queries.foreign_validation(file_id)?;
 
     let mut counts = ErrorCounts {
-        parse: count_severity_errors(parse_errors.iter()),
-        indexing: count_severity_errors(indexed.errors.iter()),
-        resolving: count_severity_errors(resolved.errors.iter()),
-        lowering: count_severity_errors(lowered.errors.iter()),
-        cycle: count_severity_errors(grouped.cycle_errors.iter()),
-        checking: count_severity_errors(checked.errors.iter()),
-        foreign: count_severity_errors(foreign_validation.errors.iter()),
+        parse: parse_errors.iter().filter(|error| error.severity().is_error()).count(),
+        indexing: indexed.errors.iter().filter(|error| error.severity().is_error()).count(),
+        resolving: resolved.errors.iter().filter(|error| error.severity().is_error()).count(),
+        lowering: lowered.errors.iter().filter(|error| error.severity().is_error()).count(),
+        cycle: grouped.cycle_errors.iter().filter(|error| error.severity().is_error()).count(),
+        checking: checked.errors.iter().filter(|error| error.severity().is_error()).count(),
+        foreign: foreign_validation
+            .errors
+            .iter()
+            .filter(|error| error.severity().is_error())
+            .count(),
         codegen: 0,
     };
 
     if !counts.has_frontend_errors() {
         counts.codegen = match queries.javascript(file_id)? {
-            Ok(module) => count_severity_errors(module.diagnostics().iter()),
-            Err(error) => usize::from(error.severity() == Severity::Error),
+            Ok(module) => module
+                .diagnostics()
+                .iter()
+                .filter(|diagnostic| diagnostic.severity().is_error())
+                .count(),
+            Err(error) => usize::from(error.severity().is_some_and(Severity::is_error)),
         };
     }
 
     Ok(counts)
-}
-
-fn count_severity_errors<'a, E: ToDiagnostics + 'a>(
-    entries: impl IntoIterator<Item = &'a E>,
-) -> usize {
-    entries.into_iter().filter(|entry| entry.severity() == Severity::Error).count()
 }
 
 pub struct DiagnosticCollection {
