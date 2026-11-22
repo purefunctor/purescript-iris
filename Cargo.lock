@@ -1750,6 +1750,7 @@ dependencies = [
  "resolving",
  "smol_str",
  "stabilizing",
+ "sugar",
  "syntax",
  "textwrap",
  "unicode-width",

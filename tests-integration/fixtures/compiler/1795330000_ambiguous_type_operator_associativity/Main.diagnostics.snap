@@ -1,13 +1,30 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Error! · [UnreportedUnknownType] · Main.purs:13:28
+Error! · [NonAssociative] · Main.purs:13:40
   •
   │
-  • The unknown type '?[invalid operator chain]' was accepted without an error that explains it.
-  │
-  │ This is an unsupported internal compiler state.
+  • Cannot chain non-associative operators '<=>' and '<=>' without parentheses
   │
   │   ambiguousNonAssociative :: Int <=> Int <=> Int -> Int
-  │                              ╰──────────────────
+  │                                          ╰──
+  │
+  • Previous operator
+  │
+  │   ambiguousNonAssociative :: Int <=> Int <=> Int -> Int
+  │                                  ╰──
+  •
+
+Error! · [MixedAssociativity] · Main.purs:16:44
+  •
+  │
+  • Cannot mix '<+>' (infixl 6) and '<*>' (infixr 6) without parentheses
+  │
+  │   ambiguousMixedAssociativity :: Int <+> Int <*> Int -> Int
+  │                                              ╰──
+  │
+  • Previous operator
+  │
+  │   ambiguousMixedAssociativity :: Int <+> Int <*> Int -> Int
+  │                                      ╰──
   •

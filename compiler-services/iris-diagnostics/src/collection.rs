@@ -4,6 +4,8 @@ use building_types::QueryResult;
 use checking::FrontendErrorCounts;
 use files::FileId;
 use foreign_javascript::ForeignQueries;
+use itertools::Itertools;
+use sugar::OperatorChainError;
 
 use crate::{Diagnostic, DiagnosticsContext, ExternalQueries, Severity, ToDiagnostics};
 
@@ -27,6 +29,7 @@ impl ErrorCounts {
             ("resolving", source.resolving),
             ("lowering", source.lowering),
             ("cycle", source.cycle),
+            ("bracketing", source.bracketing),
             ("checking", checking),
             ("foreign", self.foreign),
             ("codegen", self.codegen),
@@ -121,6 +124,7 @@ where
     let resolved = queries.resolved(file_id)?;
     let lowered = queries.lowered(file_id)?;
     let grouped = queries.grouped(file_id)?;
+    let bracketed = queries.bracketed(file_id)?;
     let checked = queries.checked(file_id)?;
     let foreign_validation = queries.foreign_validation(file_id)?;
 
@@ -145,6 +149,13 @@ where
         diagnostics.extend(error.to_diagnostics(&context)?);
     }
     for error in &grouped.cycle_errors {
+        diagnostics.extend(error.to_diagnostics(&context)?);
+    }
+    let bracketing_errors = bracketed.errors().sorted_by_key(|error| match error {
+        OperatorChainError::Term(error) => error.operator.id.into_raw(),
+        OperatorChainError::Type(error) => error.operator.id.into_raw(),
+    });
+    for error in bracketing_errors {
         diagnostics.extend(error.to_diagnostics(&context)?);
     }
     for error in &resolved.errors {

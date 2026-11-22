@@ -15,11 +15,13 @@ use javascript::{
     ModuleDiagnostic as JavaScriptModuleDiagnostic, ModuleError as JavaScriptModuleError,
     UnsupportedState as JavaScriptUnsupportedState,
 };
-use lowering::LoweringError;
+use lowering::{Associativity, LoweringError};
 use parsing::ParseError;
 use resolving::{ExportSource, ResolvingError};
 use smol_str::SmolStr;
 use stabilizing::AstId;
+use sugar::bracketing::OperatorInfo;
+use sugar::{AssociativityError, AssociativityErrorKind, OperatorChainError};
 use syntax::ast::AstNode;
 use syntax::{SyntaxNodePtr, cst};
 
@@ -553,6 +555,74 @@ where
     }
 
     vec![diagnostic]
+}
+
+impl ToDiagnostics for OperatorChainError {
+    fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
+    where
+        Q: ExternalQueries,
+    {
+        let diagnostic = match self {
+            OperatorChainError::Term(error) => {
+                associativity_diagnostic(context, self.severity(), error)
+            }
+            OperatorChainError::Type(error) => {
+                associativity_diagnostic(context, self.severity(), error)
+            }
+        };
+        Ok(vec![diagnostic])
+    }
+}
+
+fn associativity_diagnostic<Q, N>(
+    context: &DiagnosticsContext<'_, Q>,
+    severity: Severity,
+    error: &AssociativityError<AstId<N>>,
+) -> Diagnostic
+where
+    Q: ExternalQueries,
+    N: AstNode,
+{
+    let AssociativityError { kind, previous, operator } = error;
+
+    let previous_span = syntax_span(context, previous.id);
+    let operator_span = syntax_span(context, operator.id);
+    let previous_text = span_text(context, previous_span);
+    let operator_text = span_text(context, operator_span);
+
+    let (code, message) = match kind {
+        AssociativityErrorKind::NonAssociative => (
+            "NonAssociative",
+            format!(
+                "Cannot chain non-associative operators '{previous_text}' and '{operator_text}' without parentheses"
+            ),
+        ),
+        AssociativityErrorKind::MixedAssociativity => (
+            "MixedAssociativity",
+            format!(
+                "Cannot mix '{previous_text}' ({}) and '{operator_text}' ({}) without parentheses",
+                fixity(previous),
+                fixity(operator),
+            ),
+        ),
+    };
+
+    let span = operator_span.unwrap_or_else(|| context.fallback_span());
+    let mut diagnostic = Diagnostic::new(severity, code, message, span, "sugar");
+    if let Some(previous_span) = previous_span {
+        diagnostic = diagnostic.with_related(previous_span, "Previous operator");
+    }
+
+    diagnostic
+}
+
+fn fixity<T>(operator: &OperatorInfo<T>) -> String {
+    let keyword = match operator.associativity {
+        Associativity::None => "infix",
+        Associativity::Left => "infixl",
+        Associativity::Right => "infixr",
+    };
+    format!("{keyword} {}", operator.precedence)
 }
 
 impl ToDiagnostics for ResolvingError {

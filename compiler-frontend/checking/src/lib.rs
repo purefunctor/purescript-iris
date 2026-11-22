@@ -301,6 +301,7 @@ pub struct SourceErrorCounts {
     pub resolving: usize,
     pub lowering: usize,
     pub cycle: usize,
+    pub bracketing: usize,
 }
 
 impl SourceErrorCounts {
@@ -310,6 +311,7 @@ impl SourceErrorCounts {
             || self.resolving > 0
             || self.lowering > 0
             || self.cycle > 0
+            || self.bracketing > 0
     }
 }
 
@@ -334,12 +336,14 @@ pub fn count_source_errors(
     let resolved = queries.resolved(file_id)?;
     let lowered = queries.lowered(file_id)?;
     let grouped = queries.grouped(file_id)?;
+    let bracketed = queries.bracketed(file_id)?;
     Ok(SourceErrorCounts {
         parse: parse_errors.iter().filter(|error| error.severity().is_error()).count(),
         indexing: indexed.errors.iter().filter(|error| error.severity().is_error()).count(),
         resolving: resolved.errors.iter().filter(|error| error.severity().is_error()).count(),
         lowering: lowered.errors.iter().filter(|error| error.severity().is_error()).count(),
         cycle: grouped.cycle_errors.iter().filter(|error| error.severity().is_error()).count(),
+        bracketing: bracketed.errors().filter(|error| error.severity().is_error()).count(),
     })
 }
 
