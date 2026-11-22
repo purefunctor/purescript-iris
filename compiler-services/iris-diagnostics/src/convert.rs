@@ -513,30 +513,31 @@ fn convert_recursive_group<Q>(
 where
     Q: ExternalQueries,
 {
-    let spans = group.iter().filter_map(|id| {
-        let ptr = match context.indexed.items[*id].kind {
+    let spans = group.iter().filter_map(|&id| {
+        let equation = match context.indexed.items[id].kind {
             IndexedTypeItemKind::Synonym { equation, .. } => {
-                context.stabilized.syntax_ptr(equation?)?
+                equation.and_then(|equation| context.stabilized.syntax_ptr(equation))
             }
             IndexedTypeItemKind::Data { equation, .. } => {
-                context.stabilized.syntax_ptr(equation?)?
+                equation.and_then(|equation| context.stabilized.syntax_ptr(equation))
             }
             IndexedTypeItemKind::Newtype { equation, .. } => {
-                context.stabilized.syntax_ptr(equation?)?
+                equation.and_then(|equation| context.stabilized.syntax_ptr(equation))
             }
-            IndexedTypeItemKind::Foreign { id, .. } => context.stabilized.syntax_ptr(id)?,
-            _ => return None,
+            _ => None,
         };
+        let ptr =
+            equation.or_else(|| context.indexed.type_item_ptr(context.stabilized, id).next())?;
         context.span_from_syntax_ptr(&ptr)
     });
 
     let spans = spans.collect_vec();
 
-    let Some(&primary) = spans.first() else { return Vec::new() };
+    let primary = spans.first().copied().unwrap_or_else(|| context.fallback_span());
 
     let mut diagnostic = Diagnostic::new(severity, code, message, primary, "lowering");
 
-    for &span in &spans[1..] {
+    for &span in spans.iter().skip(1) {
         diagnostic = diagnostic.with_related(span, "Includes this type");
     }
 

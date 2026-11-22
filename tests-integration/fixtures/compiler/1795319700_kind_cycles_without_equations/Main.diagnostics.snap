@@ -1,4 +1,20 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [RecursiveKinds] · Main.purs:3:1
+  •
+  │
+  • Invalid kind cycle
+  │
+  │   class Cyclic :: (Cyclic Int => Type) -> Constraint
+  │   ╰─────────────────────────────────────────────────
+  •
 
+Error! · [RecursiveKinds] · Main.purs:6:1
+  •
+  │
+  • Invalid kind cycle
+  │
+  │   data Orphan :: Orphan -> Type
+  │   ╰────────────────────────────
+  •
