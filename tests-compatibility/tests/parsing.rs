@@ -5,7 +5,6 @@ use std::time::Instant;
 
 use building::{QueryEngine, prim};
 use files::Files;
-use iris_diagnostics::{DiagnosticsContext, Severity, ToDiagnostics};
 use tests_compatibility::all_source_files;
 
 type ErrorPerFile<E> = HashMap<PathBuf, E>;
@@ -56,53 +55,16 @@ fn test_index_package_set() {
         }
     }
 
-    for (file, id, source) in sources {
-        let Ok((parsed, _)) = engine.parsed(id) else {
-            continue;
-        };
-        let Ok(stabilized) = engine.stabilized(id) else {
-            continue;
-        };
+    for (file, id, _) in sources {
         let Ok(indexed) = engine.indexed(id) else {
             continue;
         };
 
-        let root = parsed.syntax_node();
-        let Ok(lowered) = engine.lowered(id) else {
-            if !indexed.errors.is_empty() {
-                all_errors.insert(
-                    file,
-                    indexed.errors.iter().map(|error| format!("{error:?}")).collect(),
-                );
-            }
-            continue;
-        };
-        let Ok(checked) = engine.checked(id) else {
-            continue;
-        };
-
-        let context = DiagnosticsContext::new(
-            &engine,
-            &source,
-            &root,
-            &stabilized,
-            &indexed,
-            &lowered,
-            &checked,
-        );
         let errors: Vec<_> = indexed
             .errors
             .iter()
-            .filter_map(|error| {
-                let diagnostics = error.to_diagnostics(&context).unwrap();
-                if diagnostics.is_empty()
-                    || diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error)
-                {
-                    Some(format!("{error:?}"))
-                } else {
-                    None
-                }
-            })
+            .filter(|error| error.severity().is_error())
+            .map(|error| format!("{error:?}"))
             .collect();
 
         if !errors.is_empty() {
