@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotGeneraliseRecursiveFunction] · Main.purs:6:1
   •
   │
-  • Unable to generalise the type of this recursive function.
+  • Could not generalise the type of this recursive function
   │
   │   test value = append value (test value)
   │   ╰─────────────────────────────────────
-  • while
   │
-  │   The inferred type was: forall t0. Semigroup t0 => t0 -> t0
-  │   Try adding a type signature.
+  • Inferred type: 'forall t0. Semigroup t0 => t0 -> t0'
+  │
+  • Hint: Add an explicit type signature.
   •

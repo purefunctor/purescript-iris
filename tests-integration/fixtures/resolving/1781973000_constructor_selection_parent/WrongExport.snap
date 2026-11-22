@@ -30,7 +30,7 @@ Diagnostics
 Error! · [InvalidExportItem] · WrongExport.purs:1:21
   •
   │
-  • Cannot export item 'A(B)'
+  • Cannot export 'A(B)'
   │
   │   module WrongExport (A(B)) where
   │                       ╰───

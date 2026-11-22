@@ -314,7 +314,7 @@ fn export_list(p: &mut Parser) {
     p.expect(SyntaxKind::LEFT_PARENTHESIS);
 
     if p.at(SyntaxKind::RIGHT_PARENTHESIS) {
-        p.error("Empty export list");
+        p.error("Export list cannot be empty");
         p.consume();
         return m.end(p, SyntaxKind::ExportList);
     }
@@ -324,7 +324,7 @@ fn export_list(p: &mut Parser) {
         if p.at_in(EXPORT_ITEM_START) {
             export_item(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_PARENTHESIS) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -370,7 +370,11 @@ fn export_item(p: &mut Parser) {
         p.expect(SyntaxKind::UPPER);
         m.end(p, SyntaxKind::ExportClass);
     } else if p.eat(SyntaxKind::TYPE) {
-        p.expect_in(names::OPERATOR_NAME, SyntaxKind::OPERATOR_NAME, "Expected OPERATOR_NAME");
+        p.expect_in(
+            names::OPERATOR_NAME,
+            SyntaxKind::OPERATOR_NAME,
+            "Expected a parenthesised operator",
+        );
         m.end(p, SyntaxKind::ExportTypeOperator);
     } else if p.eat_in(names::OPERATOR_NAME, SyntaxKind::OPERATOR_NAME) {
         m.end(p, SyntaxKind::ExportOperator);
@@ -397,7 +401,7 @@ fn type_items(p: &mut Parser) {
     while !p.at(SyntaxKind::RIGHT_PARENTHESIS) && !p.at_eof() {
         if p.eat(SyntaxKind::UPPER) {
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_PARENTHESIS) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -487,7 +491,7 @@ fn import_list(p: &mut Parser) {
     }
 
     if p.at(SyntaxKind::RIGHT_PARENTHESIS) {
-        p.error("Empty import list");
+        p.error("Import list cannot be empty");
         p.consume();
         return m.end(p, SyntaxKind::ImportList);
     }
@@ -497,7 +501,7 @@ fn import_list(p: &mut Parser) {
         if p.at_in(IMPORT_ITEM_START) {
             import_item(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_PARENTHESIS) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -535,7 +539,11 @@ fn import_item(p: &mut Parser) {
         p.expect(SyntaxKind::UPPER);
         m.end(p, SyntaxKind::ImportClass);
     } else if p.eat(SyntaxKind::TYPE) {
-        p.expect_in(names::OPERATOR_NAME, SyntaxKind::OPERATOR_NAME, "Expected OPERATOR_NAME");
+        p.expect_in(
+            names::OPERATOR_NAME,
+            SyntaxKind::OPERATOR_NAME,
+            "Expected a parenthesised operator",
+        );
         m.end(p, SyntaxKind::ImportTypeOperator);
     } else if p.eat_in(names::OPERATOR_NAME, SyntaxKind::OPERATOR_NAME) {
         m.end(p, SyntaxKind::ImportOperator);
@@ -603,7 +611,7 @@ fn infix_declaration(p: &mut Parser) {
     if p.at_in(INFIX_KEYWORD) {
         p.consume();
     } else {
-        p.error("Expected INFIX_KEYWORD");
+        p.error("Expected 'infix', 'infixl', or 'infixr'");
     }
 
     p.expect(SyntaxKind::INTEGER);
@@ -611,13 +619,13 @@ fn infix_declaration(p: &mut Parser) {
 
     let mut n = p.start();
     if !(p.eat_in(names::LOWER, SyntaxKind::LOWER) || p.eat(SyntaxKind::UPPER)) {
-        p.error("Expected LOWER or UPPER");
+        p.error("Expected an identifier");
     }
     n.end(p, SyntaxKind::QualifiedName);
 
     p.expect(SyntaxKind::AS);
 
-    p.expect_in(names::OPERATOR, SyntaxKind::OPERATOR, "Expected OPERATOR");
+    p.expect_in(names::OPERATOR, SyntaxKind::OPERATOR, "Expected an operator");
 
     m.end(p, SyntaxKind::InfixDeclaration);
 }
@@ -638,7 +646,7 @@ fn role_or_synonym_signature_or_equation(p: &mut Parser) {
                 p.consume();
                 n.end(p, SyntaxKind::TypeRole);
             } else {
-                p.error_recover("Expected NOMINAL, REPRESENTATIONAL, or PHANTOM");
+                p.error_recover("Expected 'nominal', 'representational', or 'phantom'");
             }
         }
         return m.end(p, SyntaxKind::TypeRoleDeclaration);
@@ -709,7 +717,7 @@ fn class_constraints(p: &mut Parser) {
             if p.at_in(types::TYPE_ATOM_START) {
                 types::type_5(p);
                 if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_PARENTHESIS) {
-                    p.error_recover("Trailing comma");
+                    p.error_recover("Unexpected trailing comma");
                 } else if !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                     p.expect(SyntaxKind::COMMA);
                 }
@@ -748,13 +756,13 @@ fn class_functional_dependencies(p: &mut Parser) {
     let mut m = p.start();
     p.expect(SyntaxKind::PIPE);
     if p.at_in(FUNCTIONAL_DEPENDENCY_END) || p.at_eof() {
-        p.error("Expected LOWER or RIGHT_ARROW");
+        p.error("Expected a type variable or '->'");
     }
     while !p.at_in(FUNCTIONAL_DEPENDENCY_END) && !p.at_eof() {
         if p.at_in(FUNCTIONAL_DEPENDENCY_START) {
             class_functional_dependency(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::WHERE) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at_in(FUNCTIONAL_DEPENDENCY_END) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -785,7 +793,7 @@ fn class_functional_dependency(p: &mut Parser) {
 
 fn class_functional_dependency_variables(p: &mut Parser) {
     if !p.at_in(names::LOWER) {
-        p.error("Expected LOWER");
+        p.error("Expected a lowercase identifier");
     }
     while p.at_in(names::LOWER) {
         types::type_variable(p);
@@ -821,7 +829,7 @@ fn class_statements(p: &mut Parser) {
 
 fn class_statement(p: &mut Parser) {
     let mut m = p.start();
-    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
     p.expect(SyntaxKind::DOUBLE_COLON);
     types::type_(p);
     m.end(p, SyntaxKind::ClassMemberStatement);
@@ -859,7 +867,7 @@ const INSTANCE_CONSTRAINTS_RECOVERY: TokenSet = TokenSet::new(&[
 
 fn instance_name(p: &mut Parser) {
     let mut m = p.start();
-    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
     p.expect(SyntaxKind::DOUBLE_COLON);
     m.end(p, SyntaxKind::InstanceName);
 }
@@ -871,7 +879,7 @@ fn instance_constraints(p: &mut Parser) {
             if p.at_in(types::TYPE_ATOM_START) {
                 types::type_3(p);
                 if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_PARENTHESIS) {
-                    p.error_recover("Trailing comma");
+                    p.error_recover("Unexpected trailing comma");
                 } else if !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                     p.expect(SyntaxKind::COMMA);
                 }
@@ -1018,7 +1026,7 @@ fn derive_clause(p: &mut Parser) {
     p.expect(SyntaxKind::DERIVE);
     p.expect(SyntaxKind::LEFT_PARENTHESIS);
     if p.at(SyntaxKind::RIGHT_PARENTHESIS) {
-        p.error("Expected UPPER");
+        p.error("Expected an uppercase identifier");
     }
     while !p.at(SyntaxKind::RIGHT_PARENTHESIS) && !p.at_eof() {
         if p.at(SyntaxKind::UPPER) {
@@ -1026,7 +1034,7 @@ fn derive_clause(p: &mut Parser) {
             names::upper(p);
             n.end(p, SyntaxKind::DeriveClass);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_PARENTHESIS) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -1094,7 +1102,7 @@ fn foreign_import(p: &mut Parser) {
         p.expect(SyntaxKind::UPPER);
         SyntaxKind::ForeignImportDataDeclaration
     } else {
-        p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+        p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
         SyntaxKind::ForeignImportValueDeclaration
     };
     p.expect(SyntaxKind::DOUBLE_COLON);

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:9:1
   •
   │
-  • Cannot derive for type: Box
+  • Cannot derive an instance for type 'Box'
   │
   │   derive instance Functor Box
   │   ╰──────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:9:1
 Error! · [CannotDeriveForType] · Main.purs:11:1
   •
   │
-  • Cannot derive for type: Box
+  • Cannot derive an instance for type 'Box'
   │
   │   derive instance Foldable Box
   │   ╰───────────────────────────
@@ -22,7 +22,7 @@ Error! · [CannotDeriveForType] · Main.purs:11:1
 Error! · [CannotDeriveForType] · Main.purs:13:1
   •
   │
-  • Cannot derive for type: Pair
+  • Cannot derive an instance for type 'Pair'
   │
   │   derive instance Bifunctor Pair
   │   ╰─────────────────────────────

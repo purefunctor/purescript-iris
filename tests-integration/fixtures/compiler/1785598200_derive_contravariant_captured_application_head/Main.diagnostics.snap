@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:8:1
   •
   │
-  • Cannot derive for type: Triple @Type @Type @Type t0 Int String
+  • Cannot derive an instance for type 'Triple @Type @Type @Type t0 Int String'
   │
   │   derive instance Contravariant Captured
   │   ╰─────────────────────────────────────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:19:9
   •
   │
-  • Cannot unify 'String' with 'Int'
+  • Could not match 'String' with 'Int'
   │
   │       f = a
   │           ╰
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:19:9
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'unit'
+  • No JavaScript FFI module found for foreign import 'unit'
   │
   │   foreign import unit :: Unit
   │   ╰──────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall a. a -> Effect a
   │   ╰─────────────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:7:1
 Error! · [MissingFFIModule] · Main.purs:8:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'map'
+  • No JavaScript FFI module found for foreign import 'map'
   │
   │   foreign import map :: forall a b. (a -> b) -> Effect a -> Effect b
   │   ╰─────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ Error! · [MissingFFIModule] · Main.purs:8:1
 Error! · [MissingFFIModule] · Main.purs:9:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'apply'
+  • No JavaScript FFI module found for foreign import 'apply'
   │
   │   foreign import apply :: forall a b. Effect (a -> b) -> Effect a -> Effect b
   │   ╰──────────────────────────────────────────────────────────────────────────

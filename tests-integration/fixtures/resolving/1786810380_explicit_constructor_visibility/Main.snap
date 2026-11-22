@@ -32,7 +32,7 @@ Diagnostics
 Error! · [InvalidImportItem] · Main.purs:3:17
   •
   │
-  • Cannot import item 'Hidden(Hidden)'
+  • Cannot import 'Hidden(Hidden)'
   │
   │   import Library (Hidden(Hidden))
   │                   ╰─────────────

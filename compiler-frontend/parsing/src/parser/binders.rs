@@ -26,7 +26,7 @@ pub(super) fn binder_1(p: &mut Parser) {
     let left_operand = p.checkpoint();
     binder_2(p);
     if p.at_in(names::OPERATOR) {
-        left_operand.expect(p, "Expected binder");
+        left_operand.expect(p, "Expected a pattern");
         loop {
             let mut n = p.start();
             let mut o = p.start();
@@ -34,7 +34,7 @@ pub(super) fn binder_1(p: &mut Parser) {
             o.end(p, SyntaxKind::TermOperator);
             let right_operand = p.checkpoint();
             binder_2(p);
-            right_operand.expect(p, "Expected binder");
+            right_operand.expect(p, "Expected a pattern");
             n.end(p, SyntaxKind::BinderOperatorPair);
             if !p.at_in(names::OPERATOR) {
                 break;
@@ -59,7 +59,7 @@ fn binder_2(p: &mut Parser) {
             p.consume();
             m.end(p, SyntaxKind::BinderNumber);
         } else {
-            p.error("Expected INTEGER or NUMBER");
+            p.error("Expected a number literal");
             m.end(p, SyntaxKind::BinderInteger);
         }
     } else if p.at(SyntaxKind::UPPER) {
@@ -156,7 +156,7 @@ fn binder_array(p: &mut Parser, mut m: NodeMarker) {
         if p.at_in(BINDER_START) {
             binder(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_SQUARE) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_SQUARE) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -176,7 +176,7 @@ fn binder_record(p: &mut Parser, mut m: NodeMarker) {
         if p.at_in(names::RECORD_LABEL) {
             generic::record_item(p, binder);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_CURLY) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_CURLY) {
                 p.expect(SyntaxKind::COMMA);
             }

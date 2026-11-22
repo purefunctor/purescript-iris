@@ -35,12 +35,12 @@ Diagnostics
 Error! · [RedefinedIdent] · Members.purs:6:1
   •
   │
-  • Instance name 'classInt' conflicts with a local value declaration
+  • Instance name 'classInt' conflicts with a value declaration in this module
   │
   │   instance classInt :: Class Int where
   │   ╰───────────────────────────────────
   │
-  • Conflicting declaration
+  • Value declared here
   │
   │     classInt :: a
   │     ╰────────────
@@ -49,12 +49,12 @@ Error! · [RedefinedIdent] · Members.purs:6:1
 Error! · [RedefinedIdent] · Members.purs:9:1
   •
   │
-  • Instance name 'classString' conflicts with a local value declaration
+  • Instance name 'classString' conflicts with a value declaration in this module
   │
   │   instance classString :: Other String where
   │   ╰─────────────────────────────────────────
   │
-  • Conflicting declaration
+  • Value declared here
   │
   │     classString :: a
   │     ╰───────────────

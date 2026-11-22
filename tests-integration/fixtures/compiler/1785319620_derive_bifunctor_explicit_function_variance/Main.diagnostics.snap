@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ContravariantOccurrence] · Main.purs:6:1
   •
   │
-  • Type variable occurs in contravariant position: t0
+  • Type variable 't0' appears in a contravariant position
   │
   │   derive instance Bifunctor ArrowSyntax
   │   ╰────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [ContravariantOccurrence] · Main.purs:6:1
 Error! · [ContravariantOccurrence] · Main.purs:9:1
   •
   │
-  • Type variable occurs in contravariant position: t1
+  • Type variable 't1' appears in a contravariant position
   │
   │   derive instance Bifunctor ArrowConstructor
   │   ╰─────────────────────────────────────────

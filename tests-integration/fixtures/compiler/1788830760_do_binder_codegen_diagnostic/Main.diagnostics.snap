@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:6:5
   •
   │
-  • Unexpected token in function binders
+  • Unexpected token in function patterns
   │
   │     \ @ -> 1
   │       ╰
@@ -13,7 +13,7 @@ Error! · [ParseError] · Main.purs:6:5
 Error! · [NotInScope] · Main.purs:5:8
   •
   │
-  • 'discard' is not in scope
+  • Unknown value 'discard', required by this 'do' block
   │
   │   test = do
   │          ╰─
@@ -22,7 +22,7 @@ Error! · [NotInScope] · Main.purs:5:8
 Error! · [CannotUnify] · Main.purs:6:3
   •
   │
-  • Cannot unify 'Int' with '(t0 :: Type -> Type) ?13'
+  • Could not match 'Int' with '(t0 :: Type -> Type) ?13'
   │
   │     \ @ -> 1
   │     ╰───────
@@ -31,7 +31,7 @@ Error! · [CannotUnify] · Main.purs:6:3
 Error! · [CannotUnify] · Main.purs:7:3
   •
   │
-  • Cannot unify 'Int' with '(t0 :: Type -> Type) t1'
+  • Could not match 'Int' with '(t0 :: Type -> Type) t1'
   │
   │     3
   │     ╰

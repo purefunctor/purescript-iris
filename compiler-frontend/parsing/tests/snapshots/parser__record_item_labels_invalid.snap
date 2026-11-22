@@ -150,7 +150,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 3,
                 column: 11,
             },
-            message: "Invalid string label in record pun",
+            message: "String literals cannot be used in record puns",
         },
         ParseError {
             offset: 55,
@@ -158,7 +158,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 3,
                 column: 25,
             },
-            message: "Invalid string label in record pun",
+            message: "String literals cannot be used in record puns",
         },
         ParseError {
             offset: 75,
@@ -166,7 +166,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 4,
                 column: 11,
             },
-            message: "Invalid reserved keyword in record pun",
+            message: "Reserved keywords cannot be used in record puns",
         },
         ParseError {
             offset: 88,
@@ -174,7 +174,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 4,
                 column: 24,
             },
-            message: "Invalid reserved keyword in record pun",
+            message: "Reserved keywords cannot be used in record puns",
         },
         ParseError {
             offset: 107,
@@ -182,7 +182,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 11,
             },
-            message: "Invalid reserved keyword in record pun",
+            message: "Reserved keywords cannot be used in record puns",
         },
         ParseError {
             offset: 113,
@@ -190,7 +190,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 17,
             },
-            message: "Invalid reserved keyword in record pun",
+            message: "Reserved keywords cannot be used in record puns",
         },
         ParseError {
             offset: 125,
@@ -198,7 +198,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 29,
             },
-            message: "Invalid reserved keyword in record pun",
+            message: "Reserved keywords cannot be used in record puns",
         },
         ParseError {
             offset: 131,
@@ -206,7 +206,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 35,
             },
-            message: "Invalid reserved keyword in record pun",
+            message: "Reserved keywords cannot be used in record puns",
         },
     ],
 )

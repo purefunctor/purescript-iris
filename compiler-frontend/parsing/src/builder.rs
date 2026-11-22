@@ -155,6 +155,79 @@ fn element_capacity(lexed: &Lexed<'_>, events: &[Event]) -> usize {
     elements.count() + 2 * (annotations.count() + qualifiers.count())
 }
 
+fn expected_syntax_kind(kind: SyntaxKind) -> Option<&'static str> {
+    let description = match kind {
+        SyntaxKind::HOLE => "a typed hole",
+        SyntaxKind::UPPER => "an uppercase identifier",
+        SyntaxKind::LOWER => "a lowercase identifier",
+        SyntaxKind::OPERATOR => "an operator",
+        SyntaxKind::OPERATOR_NAME => "a parenthesised operator",
+        SyntaxKind::AT => "'@'",
+        SyntaxKind::BACKSLASH => "'\\'",
+        SyntaxKind::COLON => "':'",
+        SyntaxKind::DOUBLE_COLON => "'::'",
+        SyntaxKind::COMMA => "','",
+        SyntaxKind::EQUAL => "'='",
+        SyntaxKind::MINUS => "'-'",
+        SyntaxKind::PERIOD => "'.'",
+        SyntaxKind::DOUBLE_PERIOD | SyntaxKind::DOUBLE_PERIOD_OPERATOR_NAME => "'..'",
+        SyntaxKind::PIPE => "'|'",
+        SyntaxKind::TICK => "'`'",
+        SyntaxKind::UNDERSCORE => "'_'",
+        SyntaxKind::LEFT_ARROW => "'<-'",
+        SyntaxKind::RIGHT_ARROW => "'->'",
+        SyntaxKind::LEFT_THICK_ARROW => "'<='",
+        SyntaxKind::RIGHT_THICK_ARROW => "'=>'",
+        SyntaxKind::LEFT_PARENTHESIS => "'('",
+        SyntaxKind::RIGHT_PARENTHESIS => "')'",
+        SyntaxKind::LEFT_CURLY => "'{'",
+        SyntaxKind::RIGHT_CURLY => "'}'",
+        SyntaxKind::LEFT_SQUARE => "'['",
+        SyntaxKind::RIGHT_SQUARE => "']'",
+        SyntaxKind::ADO => "'ado'",
+        SyntaxKind::AS => "'as'",
+        SyntaxKind::CASE => "'case'",
+        SyntaxKind::CLASS => "'class'",
+        SyntaxKind::DATA => "'data'",
+        SyntaxKind::DERIVE => "'derive'",
+        SyntaxKind::DO => "'do'",
+        SyntaxKind::ELSE => "'else'",
+        SyntaxKind::FORALL => "'forall'",
+        SyntaxKind::FOREIGN => "'foreign'",
+        SyntaxKind::HIDING => "'hiding'",
+        SyntaxKind::IF => "'if'",
+        SyntaxKind::IMPORT => "'import'",
+        SyntaxKind::IN => "'in'",
+        SyntaxKind::INFIX => "'infix'",
+        SyntaxKind::INFIXL => "'infixl'",
+        SyntaxKind::INFIXR => "'infixr'",
+        SyntaxKind::INSTANCE => "'instance'",
+        SyntaxKind::LET => "'let'",
+        SyntaxKind::MODULE => "'module'",
+        SyntaxKind::NEWTYPE => "'newtype'",
+        SyntaxKind::NOMINAL => "'nominal'",
+        SyntaxKind::OF => "'of'",
+        SyntaxKind::PHANTOM => "'phantom'",
+        SyntaxKind::REPRESENTATIONAL => "'representational'",
+        SyntaxKind::ROLE => "'role'",
+        SyntaxKind::THEN => "'then'",
+        SyntaxKind::TYPE => "'type'",
+        SyntaxKind::WHERE => "'where'",
+        SyntaxKind::CHAR => "a character literal",
+        SyntaxKind::INTEGER => "an integer literal",
+        SyntaxKind::NUMBER => "a number literal",
+        SyntaxKind::RAW_STRING | SyntaxKind::STRING => "a string literal",
+        SyntaxKind::TRUE => "'true'",
+        SyntaxKind::FALSE => "'false'",
+        SyntaxKind::LAYOUT_START => "an indented block",
+        SyntaxKind::LAYOUT_SEPARATOR => "a new line or ';' at this indentation",
+        SyntaxKind::LAYOUT_END => "the end of this block",
+        SyntaxKind::END_OF_FILE => "the end of the file",
+        _ => return None,
+    };
+    Some(description)
+}
+
 pub(crate) fn build(lexed: &Lexed<'_>, output: Output) -> (ParsedModule, Vec<ParseError>) {
     let capacity = element_capacity(lexed, &output.events);
     let mut builder = Builder::new(lexed, capacity);
@@ -170,7 +243,11 @@ pub(crate) fn build(lexed: &Lexed<'_>, output: Output) -> (ParsedModule, Vec<Par
                 match errors.next().expect("invariant violated: missing parser error") {
                     ParserError::Message(message) => builder.error(message),
                     ParserError::Expected(kind) => {
-                        builder.error(format!("Expected {kind:?}"));
+                        if let Some(description) = expected_syntax_kind(kind) {
+                            builder.error(format!("Expected {description}"));
+                        } else {
+                            builder.error(format!("Expected {kind:?}"));
+                        }
                     }
                 }
             }

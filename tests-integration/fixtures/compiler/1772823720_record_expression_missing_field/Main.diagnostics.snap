@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [PropertyIsMissing] · Main.purs:4:8
   •
   │
-  • Missing required properties: b
+  • Missing required property 'b'
   │
   │   test = { a: 1 }
   │          ╰───────

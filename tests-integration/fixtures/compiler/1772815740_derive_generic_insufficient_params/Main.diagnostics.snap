@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [DeriveInvalidArity] · Main.purs:7:1
   •
   │
-  • Invalid arity for derive: expected 2, got 1
+  • Deriving 'Generic' requires 2 type arguments, but found 1
   │
   │   derive instance Generic Box
   │   ╰──────────────────────────
@@ -13,7 +13,7 @@ Error! · [DeriveInvalidArity] · Main.purs:7:1
 Error! · [CannotUnify] · Main.purs:7:1
   •
   │
-  • Cannot unify 'Type -> Constraint' with 'Constraint'
+  • Could not match 'Type -> Constraint' with 'Constraint'
   │
   │   derive instance Generic Box
   │   ╰──────────────────────────

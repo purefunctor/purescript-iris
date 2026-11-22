@@ -4,35 +4,48 @@ source: tests-integration/src/fixtures.rs
 Warning! · [RedundantPattern] · Main.purs:5:1
   •
   │
-  • Pattern match has redundant patterns: _, Unit
+  • Pattern match contains unreachable patterns
   │
   │   unit :: Unit -> Int
   │   ╰──────────────────
+  │
+  • Redundant patterns:
+  │   _
+  │   Unit
   •
 
 Warning! · [RedundantPattern] · Main.purs:12:1
   •
   │
-  • Pattern match has redundant patterns: Yes
+  • Pattern match contains an unreachable pattern
   │
   │   yes :: YesNo -> Int
   │   ╰──────────────────
+  │
+  • Redundant pattern:
+  │   Yes
   •
 
 Warning! · [RedundantPattern] · Main.purs:17:1
   •
   │
-  • Pattern match has redundant patterns: No
+  • Pattern match contains an unreachable pattern
   │
   │   no :: YesNo -> Int
   │   ╰─────────────────
+  │
+  • Redundant pattern:
+  │   No
   •
 
 Warning! · [RedundantPattern] · Main.purs:22:1
   •
   │
-  • Pattern match has redundant patterns: _
+  • Pattern match contains an unreachable pattern
   │
   │   yesNo :: YesNo -> Int
   │   ╰────────────────────
+  │
+  • Redundant pattern:
+  │   _
   •

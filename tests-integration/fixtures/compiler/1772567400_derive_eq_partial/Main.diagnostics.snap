@@ -4,20 +4,20 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:9:1
   •
   │
-  • Overlapping type class instances found for: Eq (Either Int b)
+  • Overlapping type class instances found for 'Eq (Either Int b)'
   │
   │   derive instance Eq (Either Int b)
   │   ╰────────────────────────────────
-  • while
   │
-  │   forall b1. Eq b1 => Eq (Either Int b1) is matching
-  │   forall b. Eq (Either Int b) is matching
+  • Matching instances:
+  │   forall b1. Eq b1 => Eq (Either Int b1)
+  │   forall b. Eq (Either Int b)
   •
 
 Error! · [NoInstanceFound] · Main.purs:9:1
   •
   │
-  • No instance found for: Eq b
+  • No type class instance found for 'Eq b'
   │
   │   derive instance Eq (Either Int b)
   │   ╰────────────────────────────────

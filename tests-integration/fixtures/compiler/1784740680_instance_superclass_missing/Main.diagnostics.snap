@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:11:1
   •
   │
-  • No instance found for: Parent Missing
+  • No type class instance found for 'Parent Missing'
   │
   │   instance Child Missing
   │   ╰─────────────────────

@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [RedefinedIdent] · Main.purs:6:1
   •
   │
-  • Instance name 'classInt' conflicts with a local value declaration
+  • Instance name 'classInt' conflicts with a value declaration in this module
   │
   │   instance classInt :: Class
   │   ╰─────────────────────────
   │
-  • Conflicting declaration
+  • Value declared here
   │
   │   foreign import classInt :: Int
   │   ╰─────────────────────────────
@@ -18,7 +18,7 @@ Error! · [RedefinedIdent] · Main.purs:6:1
 Error! · [InstanceHeadMismatch] · Main.purs:6:1
   •
   │
-  • Instance head mismatch: expected 1 arguments, got 0
+  • Class 'Class' expects 1 type argument, but this instance provides 0
   │
   │   instance classInt :: Class
   │   ╰─────────────────────────
@@ -27,7 +27,7 @@ Error! · [InstanceHeadMismatch] · Main.purs:6:1
 Error! · [CannotUnify] · Main.purs:6:1
   •
   │
-  • Cannot unify 'Type -> Constraint' with 'Constraint'
+  • Could not match 'Type -> Constraint' with 'Constraint'
   │
   │   instance classInt :: Class
   │   ╰─────────────────────────
@@ -36,7 +36,7 @@ Error! · [CannotUnify] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'classInt'
+  • No JavaScript FFI module found for foreign import 'classInt'
   │
   │   foreign import classInt :: Int
   │   ╰─────────────────────────────

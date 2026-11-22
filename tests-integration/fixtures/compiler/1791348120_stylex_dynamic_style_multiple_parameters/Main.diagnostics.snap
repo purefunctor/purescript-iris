@@ -4,11 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:5:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.create' requires dynamic namespaces to take exactly one parameter; group several
-  │ values in a record.
+  • 'Iris.StyleX.create' requires dynamic style namespaces to take exactly 1 parameter
   │
   │   styles = StyleX.create { at: \x y -> { left: x, top: y } }
   │   ╰─────────────────────────────────────────────────────────
+  │
+  • Hint: Group multiple values into a single record parameter.
   •

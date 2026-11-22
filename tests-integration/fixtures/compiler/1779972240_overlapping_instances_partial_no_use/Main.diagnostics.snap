@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:11:1
   •
   │
-  • Overlapping type class instances found for: Test (Pair String b)
+  • Overlapping type class instances found for 'Test (Pair String b)'
   │
   │   instance testRight :: Test (Pair String b) where
   │   ╰───────────────────────────────────────────────
-  • while
   │
-  │   forall a. Test (Pair a Int) is matching
-  │   forall b. Test (Pair String b) is matching
+  • Matching instances:
+  │   forall a. Test (Pair a Int)
+  │   forall b. Test (Pair String b)
   •

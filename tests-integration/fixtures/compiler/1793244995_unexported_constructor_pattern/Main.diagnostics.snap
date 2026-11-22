@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:9:3
   •
   │
-  • 'Store.Counter' is not in scope
+  • Unknown data constructor 'Store.Counter'
   │
   │     Store.Counter count -> count
   │     ╰────────────

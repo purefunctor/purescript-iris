@@ -4,8 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [AmbiguousFFIModule] · Main.purs:3:1
   •
   │
-  • Both JavaScript and JSX FFI modules were found. Remove one of the foreign files
+  • Found both JavaScript and JSX FFI modules for this module
   │
   │   foreign import component :: Int
   │   ╰──────────────────────────────
+  │
+  • Hint: Remove one of the foreign files.
   •

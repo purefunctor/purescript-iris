@@ -4,26 +4,32 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidTypeApplication] · Main.purs:12:15
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   wantedShow :: Int String -> String
   │                 ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •
 
 Error! · [InvalidTypeApplication] · Main.purs:15:27
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   wantedShowArray :: Array (Int String) -> String
   │                             ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •
 
 Error! · [InvalidTypeApplication] · Main.purs:18:21
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   wantedDependency :: Int String -> Int
   │                       ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •

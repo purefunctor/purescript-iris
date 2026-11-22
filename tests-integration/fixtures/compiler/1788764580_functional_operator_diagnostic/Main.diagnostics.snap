@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:3:10
   •
   │
-  • 'missing' is not in scope
+  • Unknown value or constructor 'missing'
   │
   │   infixl 5 missing as +++
   │            ╰──────

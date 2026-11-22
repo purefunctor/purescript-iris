@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidFinalLet] · Main.purs:7:3
   •
   │
-  • Invalid final let statement in do expression
+  • A 'do' block cannot end with a 'let' statement
   │
   │     let x = 1
   │     ╰────────
@@ -13,7 +13,7 @@ Error! · [InvalidFinalLet] · Main.purs:7:3
 Error! · [InvalidFinalLet] · Main.purs:10:3
   •
   │
-  • Invalid final let statement in do expression
+  • A 'do' block cannot end with a 'let' statement
   │
   │     let x = 1
   │     ╰────────

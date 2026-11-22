@@ -4,35 +4,47 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:13:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Tuple (Just _) (Just _)
+  • Pattern match is not exhaustive
   │
   │   incomplete1 = case _ of
   │                 ╰────────
+  │
+  • Missing pattern:
+  │   Tuple (Just _) (Just _)
   •
 
 Warning! · [MissingPatterns] · Main.purs:18:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Tuple (Just _) Nothing
+  • Pattern match is not exhaustive
   │
   │   incomplete2 = case _ of
   │                 ╰────────
+  │
+  • Missing pattern:
+  │   Tuple (Just _) Nothing
   •
 
 Warning! · [MissingPatterns] · Main.purs:23:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Tuple Nothing (Just _)
+  • Pattern match is not exhaustive
   │
   │   incomplete3 = case _ of
   │                 ╰────────
+  │
+  • Missing pattern:
+  │   Tuple Nothing (Just _)
   •
 
 Warning! · [MissingPatterns] · Main.purs:28:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Tuple Nothing Nothing
+  • Pattern match is not exhaustive
   │
   │   incomplete4 = case _ of
   │                 ╰────────
+  │
+  • Missing pattern:
+  │   Tuple Nothing Nothing
   •

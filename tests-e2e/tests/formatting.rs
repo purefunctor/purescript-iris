@@ -222,12 +222,12 @@ workspace: {}
     status: 2
     --- stdout
     --- stderr
-    error: [WORKSPACE]/src/ZInvalid.purs: cannot format: 1:7: Expected UPPER
+    error: [WORKSPACE]/src/ZInvalid.purs: cannot format: 1:7: Expected an uppercase identifier
     $ iris format --write --file src/AValid.purs --file src/ZInvalid.purs
     status: 2
     --- stdout
     --- stderr
-    error: src/ZInvalid.purs: cannot format: 1:7: Expected UPPER
+    error: src/ZInvalid.purs: cannot format: 1:7: Expected an uppercase identifier
     ");
     insta::assert_snapshot!(workspace.summary(), @"
     --- spago.yaml

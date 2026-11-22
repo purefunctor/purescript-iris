@@ -7,7 +7,7 @@ status: 1
 Error! · [ParseError] · src/Main.purs:5:1
   •
   │
-  • Expected ELSE
+  • Expected 'else'
   │
   │
   │   ╰

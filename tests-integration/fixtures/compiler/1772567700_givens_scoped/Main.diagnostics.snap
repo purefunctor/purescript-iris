@@ -4,11 +4,11 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:13:7
   •
   │
-  • No instance found for: Given Int
+  • No type class instance found for 'Given Int'
   │
   │     c = consume 42
   │         ╰─────────
-  • while
   │
-  │   Given a is in scope
+  • Constraints in scope:
+  │   Given a
   •

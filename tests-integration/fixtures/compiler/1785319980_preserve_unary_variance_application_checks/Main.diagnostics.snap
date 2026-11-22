@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:7:1
   •
   │
-  • Cannot derive for type: (f :: Type -> Type) (t0 -> Int)
+  • Cannot derive an instance for type '(f :: Type -> Type) (t0 -> Int)'
   │
   │   derive instance Contravariant (Wrapped f)
   │   ╰────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:7:1
 Error! · [CannotDeriveForType] · Main.purs:10:1
   •
   │
-  • Cannot derive for type: (f1 :: Type -> Type) t1
+  • Cannot derive an instance for type '(f1 :: Type -> Type) t1'
   │
   │   derive instance Profunctor (Wrong f)
   │   ╰───────────────────────────────────

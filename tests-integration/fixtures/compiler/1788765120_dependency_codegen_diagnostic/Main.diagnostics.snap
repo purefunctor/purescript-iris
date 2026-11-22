@@ -4,9 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [JavaScriptCodegen] · Library.purs:1:1
   •
   │
-  • Cannot generate JavaScript for module 'Library'.
-  │
-  │ The number literal '1.0e999' cannot be represented as a finite JavaScript number.
+  • Number literal '1.0e999' cannot be represented as a finite JavaScript number
   │
   │   module Library where
   │   ╰───────────────────

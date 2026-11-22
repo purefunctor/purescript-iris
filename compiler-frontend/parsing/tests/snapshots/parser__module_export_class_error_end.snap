@@ -33,7 +33,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 1,
                 column: 40,
             },
-            message: "Expected UPPER",
+            message: "Expected an uppercase identifier",
         },
     ],
 )

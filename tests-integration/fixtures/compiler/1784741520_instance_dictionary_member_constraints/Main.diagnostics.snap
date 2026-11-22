@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:12:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'boolean'
+  • No JavaScript FFI module found for foreign import 'boolean'
   │
   │   foreign import boolean :: Boolean
   │   ╰────────────────────────────────

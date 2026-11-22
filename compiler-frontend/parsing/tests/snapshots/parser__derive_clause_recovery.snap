@@ -191,7 +191,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 4,
                 column: 11,
             },
-            message: "Expected UPPER",
+            message: "Expected an uppercase identifier",
         },
         ParseError {
             offset: 104,
@@ -199,7 +199,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 7,
                 column: 13,
             },
-            message: "Trailing comma",
+            message: "Unexpected trailing comma",
         },
         ParseError {
             offset: 144,
@@ -207,7 +207,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 10,
                 column: 14,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 190,
@@ -215,7 +215,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 13,
                 column: 14,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 190,
@@ -231,7 +231,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 16,
                 column: 10,
             },
-            message: "Expected LEFT_PARENTHESIS",
+            message: "Expected '('",
         },
         ParseError {
             offset: 224,
@@ -239,7 +239,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 18,
                 column: 1,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 224,
@@ -247,7 +247,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 18,
                 column: 1,
             },
-            message: "Expected RIGHT_PARENTHESIS",
+            message: "Expected ')'",
         },
     ],
 )

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingBinderNames] · Main.purs:8:27
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   acrossArguments x (Pair _ x) = x
   │                             ╰
@@ -18,7 +18,7 @@ Error! · [OverlappingBinderNames] · Main.purs:8:27
 Error! · [OverlappingBinderNames] · Main.purs:11:21
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   constructor (Pair x x) = x
   │                       ╰
@@ -32,7 +32,7 @@ Error! · [OverlappingBinderNames] · Main.purs:11:21
 Error! · [OverlappingBinderNames] · Main.purs:14:16
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   operator (x /\ x) = x
   │                  ╰
@@ -46,7 +46,7 @@ Error! · [OverlappingBinderNames] · Main.purs:14:16
 Error! · [OverlappingBinderNames] · Main.purs:17:11
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   array [x, x] = x
   │             ╰
@@ -60,7 +60,7 @@ Error! · [OverlappingBinderNames] · Main.purs:17:11
 Error! · [OverlappingBinderNames] · Main.purs:21:15
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   named x@(Pair x _) = 0
   │                 ╰

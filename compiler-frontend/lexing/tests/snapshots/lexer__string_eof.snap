@@ -7,7 +7,7 @@ annotation : ""
       kind : STRING
       text : "\"hello\n"
   position : Position { line: 1, column: 1 }
-     error : Some("Unterminated single quoted string literal")
+     error : Some("Unterminated string literal")
 
 annotation : ""
  qualifier : ""

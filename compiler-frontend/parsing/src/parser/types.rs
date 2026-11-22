@@ -49,7 +49,7 @@ pub(super) fn type_3(p: &mut Parser) {
     let left_operand = p.checkpoint();
     type_4(p);
     if p.at_in(names::OPERATOR) {
-        left_operand.expect(p, "Expected type");
+        left_operand.expect(p, "Expected a type");
         loop {
             let mut n = p.start();
             let mut o = p.start();
@@ -57,7 +57,7 @@ pub(super) fn type_3(p: &mut Parser) {
             o.end(p, SyntaxKind::TypeOperator);
             let right_operand = p.checkpoint();
             type_4(p);
-            right_operand.expect(p, "Expected type");
+            right_operand.expect(p, "Expected a type");
             n.end(p, SyntaxKind::TypeOperatorPair);
             if !p.at_in(names::OPERATOR) {
                 break;
@@ -167,7 +167,7 @@ fn type_variable_bindings(p: &mut Parser) {
             if p.at_in(TYPE_VARIABLE_BINDING_RECOVERY) {
                 break;
             }
-            p.error_recover("Unexpected token in variable bindings.");
+            p.error_recover("Unexpected token in variable bindings");
         }
     }
 }
@@ -178,7 +178,7 @@ fn type_variable_binding(p: &mut Parser) {
     let closing = p.eat(SyntaxKind::LEFT_PARENTHESIS);
 
     p.eat(SyntaxKind::AT);
-    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
 
     if p.eat(SyntaxKind::DOUBLE_COLON) {
         type_(p);
@@ -222,7 +222,7 @@ fn type_kinded_variable(p: &mut Parser) {
     let mut n = p.start();
     p.expect(SyntaxKind::LEFT_PARENTHESIS);
     let mut o = p.start();
-    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
     o.end(p, SyntaxKind::TypeVariable);
     p.expect(SyntaxKind::RIGHT_PARENTHESIS);
     n.end(p, SyntaxKind::TypeParenthesized);
@@ -249,7 +249,7 @@ fn type_row(p: &mut Parser) {
             row_item(p);
             let ending = p.at_next(SyntaxKind::PIPE) || p.at_next(SyntaxKind::RIGHT_PARENTHESIS);
             if p.at(SyntaxKind::COMMA) && ending {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::PIPE) && !p.at(SyntaxKind::RIGHT_PARENTHESIS) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -305,7 +305,7 @@ fn type_record(p: &mut Parser) {
             row_item(p);
             let ending = p.at_next(SyntaxKind::PIPE) || p.at_next(SyntaxKind::RIGHT_CURLY);
             if p.at(SyntaxKind::COMMA) && ending {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::PIPE) && !p.at(SyntaxKind::RIGHT_CURLY) {
                 p.expect(SyntaxKind::COMMA);
             }

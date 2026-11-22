@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:11:18
   •
   │
-  • No instance found for: Show a
+  • No type class instance found for 'Show a'
   │
   │     show (Box x) = show x
   │                    ╰─────

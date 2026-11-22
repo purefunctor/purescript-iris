@@ -4,42 +4,42 @@ source: tests-integration/src/fixtures.rs
 Error! · [TermHole] · Main.purs:14:9
   •
   │
-  • Hole '?local' has inferred type: Local
+  • Hole '?local' has inferred type 'Local'
   │
   │   local = ?local
   │           ╰─────
-  • while
   │
-  │   LocalOnly :: Local is in scope
-  │   Shared :: Local is in scope
-  │   local :: Local is in scope
-  │   localValue :: Local is in scope
-  │   shadowedValue :: Local is in scope
+  • In scope:
+  │   LocalOnly :: Local
+  │   Shared :: Local
+  │   local :: Local
+  │   localValue :: Local
+  │   shadowedValue :: Local
   •
 
 Error! · [TermHole] · Main.purs:17:10
   •
   │
-  • Hole '?remote' has inferred type: Remote
+  • Hole '?remote' has inferred type 'Remote'
   │
   │   remote = ?remote
   │            ╰──────
-  • while
   │
-  │   RemoteOnly :: Remote is in scope
-  │   remote :: Remote is in scope
-  │   remoteValue :: Remote is in scope
+  • In scope:
+  │   RemoteOnly :: Remote
+  │   remote :: Remote
+  │   remoteValue :: Remote
   •
 
 Error! · [TermHole] · Main.purs:20:28
   •
   │
-  • Hole '?binder' has inferred type: Remote
+  • Hole '?binder' has inferred type 'Remote'
   │
   │   binderShadow remoteValue = ?binder
   │                              ╰──────
-  • while
   │
-  │   RemoteOnly :: Remote is in scope
-  │   remote :: Remote is in scope
+  • In scope:
+  │   RemoteOnly :: Remote
+  │   remote :: Remote
   •

@@ -4,11 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:6:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.defineConsts' cannot use imported value 'Tokens.accent'; defineConsts arguments
-  │ must use same-module static values.
+  • 'Iris.StyleX.defineConsts' cannot use imported value 'Tokens.accent'
   │
   │   constants = StyleX.defineConsts { accent }
   │   ╰─────────────────────────────────────────
+  │
+  • Hint: Use a static value defined in this module instead.
   •

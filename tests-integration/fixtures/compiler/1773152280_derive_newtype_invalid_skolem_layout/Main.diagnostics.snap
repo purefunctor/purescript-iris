@@ -4,9 +4,11 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidNewtypeDeriveSkolemArguments] · Main.purs:13:1
   •
   │
-  • Cannot derive newtype instance where skolemised arguments do not appear trailing in the inner
-  │ type.
+  • Cannot derive a newtype instance for this type
   │
   │   derive newtype instance Empty (InvalidVector Int)
   │   ╰────────────────────────────────────────────────
+  │
+  • Type arguments left out of the instance head must appear last in the wrapped type and nowhere
+  │ else
   •

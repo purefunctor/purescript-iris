@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidExportItem] · Files.purs:1:15
   •
   │
-  • Cannot export imported item 'ByteCount(..)'; re-export 'module Size' instead
+  • Cannot export imported item 'ByteCount(..)' directly
   │
   │   module Files (ByteCount(..), fileSize) where
   │                 ╰────────────
@@ -13,12 +13,14 @@ Error! · [InvalidExportItem] · Files.purs:1:15
   │
   │   import Size (ByteCount(..))
   │                ╰────────────
+  │
+  • Hint: Re-export 'module Size' instead.
   •
 
 Error! · [NotInScope] · Main.purs:7:3
   •
   │
-  • 'ByteCount' is not in scope
+  • Unknown data constructor 'ByteCount'
   │
   │     ByteCount n -> n
   │     ╰────────
@@ -27,7 +29,7 @@ Error! · [NotInScope] · Main.purs:7:3
 Error! · [InvalidImportItem] · Main.purs:3:15
   •
   │
-  • Cannot import item 'ByteCount(..)'
+  • Cannot import 'ByteCount(..)'
   │
   │   import Files (ByteCount(..), fileSize)
   │                 ╰────────────

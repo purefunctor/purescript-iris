@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:12:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind ::
   │   ╰─────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:12:1
 Error! · [MissingFFIModule] · Main.purs:20:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discard'
+  • No JavaScript FFI module found for foreign import 'discard'
   │
   │   foreign import discard ::
   │   ╰────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:20:1
 Error! · [MissingFFIModule] · Main.purs:28:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'stepZero'
+  • No JavaScript FFI module found for foreign import 'stepZero'
   │
   │   foreign import stepZero :: Action 0 Int
   │   ╰──────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:28:1
 Error! · [MissingFFIModule] · Main.purs:30:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'stepOne'
+  • No JavaScript FFI module found for foreign import 'stepOne'
   │
   │   foreign import stepOne :: Action 1 String
   │   ╰────────────────────────────────────────
@@ -40,7 +40,7 @@ Error! · [MissingFFIModule] · Main.purs:30:1
 Error! · [MissingFFIModule] · Main.purs:32:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'stepTwo'
+  • No JavaScript FFI module found for foreign import 'stepTwo'
   │
   │   foreign import stepTwo :: Action 2 Boolean
   │   ╰─────────────────────────────────────────
@@ -49,7 +49,7 @@ Error! · [MissingFFIModule] · Main.purs:32:1
 Error! · [MissingFFIModule] · Main.purs:34:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'stepThree'
+  • No JavaScript FFI module found for foreign import 'stepThree'
   │
   │   foreign import stepThree :: Action 3 String
   │   ╰──────────────────────────────────────────
@@ -58,7 +58,7 @@ Error! · [MissingFFIModule] · Main.purs:34:1
 Error! · [MissingFFIModule] · Main.purs:36:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'stepFour'
+  • No JavaScript FFI module found for foreign import 'stepFour'
   │
   │   foreign import stepFour :: Action 4 Number
   │   ╰─────────────────────────────────────────

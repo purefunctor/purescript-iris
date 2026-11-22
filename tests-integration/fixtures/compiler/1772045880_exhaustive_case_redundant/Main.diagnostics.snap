@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [RedundantPattern] · Main.purs:5:8
   •
   │
-  • Pattern match has redundant patterns: Just _
+  • Pattern match contains an unreachable pattern
   │
   │   test = case _ of
   │          ╰────────
+  │
+  • Redundant pattern:
+  │   Just _
   •

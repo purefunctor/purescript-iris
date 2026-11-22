@@ -4,12 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:7:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.Types.color' must be called directly with all of its arguments.
-  │
-  │ It cannot be passed around as a function or partially applied.
+  • 'Iris.StyleX.Types.color' must be called directly with all of its arguments
   │
   │   partialColor :: String -> TypedValue Color String
   │   ╰────────────────────────────────────────────────
+  │
+  • It cannot be passed as a value or partially applied
   •

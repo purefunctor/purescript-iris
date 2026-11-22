@@ -4,19 +4,18 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:6:27
   •
   │
-  • Cannot unify 'Type' with 'Type -> Type'
+  • Could not match 'Type' with 'Type -> Type'
   │
   │   derive instance Bifunctor (Triple Int String)
   │                             ╰──────────────────
-  • while
   │
-  │   matching 'Type -> Type' with 'Type -> Type -> Type'
+  • While matching 'Type -> Type' with 'Type -> Type -> Type'
   •
 
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Cannot derive for type: Triple Int String
+  • Cannot derive an instance for type 'Triple Int String'
   │
   │   derive instance Bifunctor (Triple Int String)
   │   ╰────────────────────────────────────────────

@@ -4,19 +4,21 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidCapabilityBundleMember] · Main.purs:10:21
   •
   │
-  • Capability bundle member 'service' is a type variable. Name each service explicitly; synonym
-  │ parameters cannot stand for bundle members.
+  • Capability bundle member 'service' cannot be a type variable
   │
   │   type With service = service & Logger
   │                       ╰───────────────
+  │
+  • Hint: Name each service explicitly instead of using a type synonym parameter.
   •
 
 Error! · [InvalidCapabilityBundleMember] · Main.purs:12:38
   •
   │
-  • Capability bundle member 'service' is a type variable. Name each service explicitly; synonym
-  │ parameters cannot stand for bundle members.
+  • Capability bundle member 'service' cannot be a type variable
   │
   │   invalid :: forall @service services. Has (service & Logger) services => Record services -> service
   │                                        ╰────────────────────────────────────────────────────────────
+  │
+  • Hint: Name each service explicitly instead of using a type synonym parameter.
   •

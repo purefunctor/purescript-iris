@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:11:16
   •
   │
-  • Cannot unify '?1 -> Proxy ?3' with 'Proxy value'
+  • Could not match '?1 -> Proxy ?3' with 'Proxy value'
   │
   │   test = consume \_ extra -> Proxy
   │                  ╰────────────────
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:11:16
 Error! · [MissingFFIModule] · Main.purs:8:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'consume'
+  • No JavaScript FFI module found for foreign import 'consume'
   │
   │   foreign import consume :: (Unit -> forall value. Proxy value) -> Unit
   │   ╰────────────────────────────────────────────────────────────────────

@@ -4,11 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:5:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.create' requires dynamic namespaces to use their parameter; write a namespace that
-  │ ignores it as a record.
+  • 'Iris.StyleX.create' requires dynamic style namespaces to use their parameter
   │
   │   styles = StyleX.create { fixed: \(_ :: Int) -> { width: 4 } }
   │   ╰────────────────────────────────────────────────────────────
+  │
+  • Hint: Write a namespace that does not need a parameter as a plain record instead.
   •

@@ -7,7 +7,7 @@ annotation : ""
       kind : RAW_STRING
       text : "\"\"\"hello\n"
   position : Position { line: 1, column: 1 }
-     error : Some("Unterminated triple quoted string literal")
+     error : Some("Unterminated triple-quoted string literal")
 
 annotation : ""
  qualifier : ""

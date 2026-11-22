@@ -1,4 +1,4 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-cannot format: 4:1: Expected ELSE
+cannot format: 4:1: Expected 'else'

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:17:1
   •
   │
-  • Cannot derive for type: ImportedAlias
+  • Cannot derive an instance for type 'ImportedAlias'
   │
   │   derive instance Eq1 ImportedAlias
   │   ╰────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:17:1
 Error! · [PartialSynonymApplication] · Main.purs:27:21
   •
   │
-  • Partial type synonym application
+  • Type synonym 'ProductInt' is partially applied
   │
   │   derive instance Eq1 ProductInt
   │                       ╰─────────
@@ -22,7 +22,7 @@ Error! · [PartialSynonymApplication] · Main.purs:27:21
 Error! · [CannotDeriveForType] · Main.purs:27:1
   •
   │
-  • Cannot derive for type: ?[partial synonym application]
+  • Cannot derive an instance for type '?[partial synonym application]'
   │
   │   derive instance Eq1 ProductInt
   │   ╰─────────────────────────────
@@ -31,11 +31,11 @@ Error! · [CannotDeriveForType] · Main.purs:27:1
 Error! · [NoInstanceFound] · Main.purs:21:1
   •
   │
-  • No instance found for: Eq (NoBase t0)
+  • No type class instance found for 'Eq (NoBase t0)'
   │
   │   derive instance Eq1 NoBase
   │   ╰─────────────────────────
-  • while
   │
-  │   Eq t0 is in scope
+  • Constraints in scope:
+  │   Eq t0
   •

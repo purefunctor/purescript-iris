@@ -3,8 +3,6 @@ source: tests-integration/src/fixtures.rs
 ---
 Diagnostics
 
-4:0..4:30 analyzer/functional [FunctionalCodegen] Cannot generate JavaScript for module 'Main'.
+4:0..4:30 analyzer/functional [FunctionalCodegen] 'Iris.StyleX.props' must be called directly with all of its arguments
 
-'Iris.StyleX.props' must be called directly with all of its arguments.
-
-It cannot be passed around as a function or partially applied.
+It cannot be passed as a value or partially applied

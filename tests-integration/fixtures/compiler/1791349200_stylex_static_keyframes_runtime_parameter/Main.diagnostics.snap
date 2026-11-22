@@ -4,10 +4,8 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:5:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.keyframes' must directly initialize a non-recursive value or be used inside create,
-  │ defineVars, createTheme, or viewTransitionClass.
+  • 'Iris.StyleX.keyframes' must directly initialise a non-recursive value or be used inside
+  │ 'create', 'defineVars', 'createTheme', or 'viewTransitionClass'
   │
   │   nested :: Number -> StyleX.Keyframes
   │   ╰───────────────────────────────────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Module2.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'div'
+  • No JavaScript FFI module found for foreign import 'div'
   │
   │   foreign import div :: { className :: String } -> JSX -> JSX
   │   ╰──────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ pub(super) fn lower(p: &mut Parser) {
     p.annotate();
     let mut m = p.start();
     p.qualify();
-    p.expect_in(LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    p.expect_in(LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
     m.end(p, SyntaxKind::QualifiedName);
 }
 
@@ -32,7 +32,7 @@ pub(super) fn operator(p: &mut Parser) {
     p.annotate();
     let mut m = p.start();
     p.qualify();
-    p.expect_in(OPERATOR, SyntaxKind::OPERATOR, "Expected OPERATOR");
+    p.expect_in(OPERATOR, SyntaxKind::OPERATOR, "Expected an operator");
     m.end(p, SyntaxKind::QualifiedName)
 }
 
@@ -40,12 +40,12 @@ pub(super) fn operator_name(p: &mut Parser) {
     p.annotate();
     let mut m = p.start();
     p.qualify();
-    p.expect_in(OPERATOR_NAME, SyntaxKind::OPERATOR_NAME, "Expected OPERATOR_NAME");
+    p.expect_in(OPERATOR_NAME, SyntaxKind::OPERATOR_NAME, "Expected a parenthesised operator");
     m.end(p, SyntaxKind::QualifiedName);
 }
 
 pub(super) fn label(p: &mut Parser) {
     let mut m = p.start();
-    p.expect_in(RECORD_LABEL, SyntaxKind::TEXT, "Expected RECORD_LABEL");
+    p.expect_in(RECORD_LABEL, SyntaxKind::TEXT, "Expected a record label");
     m.end(p, SyntaxKind::LabelName);
 }

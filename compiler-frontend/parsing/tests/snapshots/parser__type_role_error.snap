@@ -54,7 +54,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 3,
                 column: 17,
             },
-            message: "Expected NOMINAL, REPRESENTATIONAL, or PHANTOM",
+            message: "Expected 'nominal', 'representational', or 'phantom'",
         },
         ParseError {
             offset: 62,
@@ -62,7 +62,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 3,
                 column: 35,
             },
-            message: "Expected NOMINAL, REPRESENTATIONAL, or PHANTOM",
+            message: "Expected 'nominal', 'representational', or 'phantom'",
         },
     ],
 )

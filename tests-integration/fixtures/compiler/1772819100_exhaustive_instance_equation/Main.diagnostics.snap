@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:6:1
   •
   │
-  • Pattern match is not exhaustive. Missing: false
+  • Pattern match is not exhaustive
   │
   │   instance cBool :: C Boolean where
   │   ╰────────────────────────────────
+  │
+  • Missing pattern:
+  │   false
   •

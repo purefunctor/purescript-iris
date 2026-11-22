@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [DuplicateModule] · Types.purs:1:8
   •
   │
-  • Module 'Types' has been defined multiple times
+  • Module 'Types' is defined more than once
   │
   │   module Types where
   │          ╰────
@@ -13,7 +13,7 @@ Error! · [DuplicateModule] · Types.purs:1:8
 Error! · [DuplicateModule] · Types2.purs:1:8
   •
   │
-  • Module 'Types' has been defined multiple times
+  • Module 'Types' is defined more than once
   │
   │   module Types where
   │          ╰────

@@ -4,9 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ An expression contains an error.
+  • Expression could not be lowered to JavaScript
   │
   │   module Main where
   │   ╰────────────────

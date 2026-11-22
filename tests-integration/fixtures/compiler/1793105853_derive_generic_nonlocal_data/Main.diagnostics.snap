@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:8:1
   •
   │
-  • Cannot derive for type: Wrapper
+  • Cannot derive an instance for type 'Wrapper'
   │
   │   derive instance Generic Wrapper _
   │   ╰────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:8:1
 Error! · [CannotDeriveForType] · Main.purs:10:1
   •
   │
-  • Cannot derive for type: Opaque
+  • Cannot derive an instance for type 'Opaque'
   │
   │   derive instance Generic Opaque _
   │   ╰───────────────────────────────

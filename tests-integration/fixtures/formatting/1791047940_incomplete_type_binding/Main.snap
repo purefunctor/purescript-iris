@@ -1,4 +1,4 @@
 ---
 source: tests-integration/tests/formatting.rs
 ---
-cannot format: 3:10: Expected DOUBLE_COLON
+cannot format: 3:10: Expected '::'

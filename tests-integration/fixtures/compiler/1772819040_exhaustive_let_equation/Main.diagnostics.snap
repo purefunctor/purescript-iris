@@ -4,17 +4,23 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:8:5
   •
   │
-  • Pattern match is not exhaustive. Missing: Nothing
+  • Pattern match is not exhaustive
   │
   │       f :: Maybe Int -> Int
   │       ╰────────────────────
+  │
+  • Missing pattern:
+  │   Nothing
   •
 
 Warning! · [MissingPatterns] · Main.purs:15:5
   •
   │
-  • Pattern match is not exhaustive. Missing: Just _
+  • Pattern match is not exhaustive
   │
   │       g :: Maybe Int -> Int
   │       ╰────────────────────
+  │
+  • Missing pattern:
+  │   Just _
   •

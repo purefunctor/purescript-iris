@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:13:26
   •
   │
-  • No instance found for: Coercible @Type (Nominal Int) (Nominal String)
+  • No type class instance found for 'Coercible @Type (Nominal Int) (Nominal String)'
   │
   │   coerceNominalDifferent = coerce
   │                            ╰─────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [PartialSynonymApplication] · Main.purs:13:12
   •
   │
-  • Partial type synonym application
+  • Type synonym 'ReaderT' is partially applied
   │
   │   type Bad = ReaderT Int
   │              ╰──────────

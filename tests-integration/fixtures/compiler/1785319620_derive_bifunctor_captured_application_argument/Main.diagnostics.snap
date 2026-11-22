@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:8:1
   •
   │
-  • Cannot derive for type: Triple t0 Int t1
+  • Cannot derive an instance for type 'Triple t0 Int t1'
   │
   │   derive instance Bifunctor Captured
   │   ╰─────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:8:1
 Error! · [CannotDeriveForType] · Main.purs:13:1
   •
   │
-  • Cannot derive for type: Outer (Triple t2 Int Boolean) t3
+  • Cannot derive an instance for type 'Outer (Triple t2 Int Boolean) t3'
   │
   │   derive instance Bifunctor NestedCaptured
   │   ╰───────────────────────────────────────

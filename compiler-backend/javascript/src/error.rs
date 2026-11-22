@@ -7,7 +7,7 @@ pub type ModuleResult<T> = Result<T, ModuleError>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ModuleDiagnostic {
-    #[error("This declaration is cyclic with other declarations")]
+    #[error("Declaration is part of a value initialisation cycle")]
     InitializerCycle { declarations: Vec<GlobalId> },
 }
 

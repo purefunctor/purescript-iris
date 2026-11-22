@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [RecursiveKinds] · Main.purs:3:1
   •
   │
-  • Invalid kind cycle
+  • Cycle in kind declarations
   │
   │   class Cyclic :: (Cyclic Int => Type) -> Constraint
   │   ╰─────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [RecursiveKinds] · Main.purs:3:1
 Error! · [RecursiveKinds] · Main.purs:6:1
   •
   │
-  • Invalid kind cycle
+  • Cycle in kind declarations
   │
   │   data Orphan :: Orphan -> Type
   │   ╰────────────────────────────

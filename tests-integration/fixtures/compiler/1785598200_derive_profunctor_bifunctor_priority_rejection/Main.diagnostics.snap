@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CovariantOccurrence] · Main.purs:10:1
   •
   │
-  • Type variable occurs in covariant position: t0
+  • Type variable 't0' appears in a covariant position
   │
   │   derive instance Profunctor Nested
   │   ╰────────────────────────────────

@@ -4,59 +4,69 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:5:1
   •
   │
-  • Cannot unify 'Box t0' with '?4 -> Box ?4'
+  • Could not match 'Box t0' with '?4 -> Box ?4'
   │
   │   test (Box _) = 0
   │   ╰───────────────
-  • while
   │
-  │   matching '(?4 -> Box ?4) -> Int' with 'Box t0 -> Int'
+  • While matching '(?4 -> Box ?4) -> Int' with 'Box t0 -> Int'
   •
 
 Warning! · [RedundantPattern] · Main.purs:5:1
   •
   │
-  • Pattern match has redundant patterns: Box
+  • Pattern match contains an unreachable pattern
   │
   │   test (Box _) = 0
   │   ╰───────────────
+  │
+  • Redundant pattern:
+  │   Box
   •
 
 Warning! · [MissingPatterns] · Main.purs:5:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Other
+  • Pattern match is not exhaustive
   │
   │   test (Box _) = 0
   │   ╰───────────────
+  │
+  • Missing pattern:
+  │   Other
   •
 
 Error! · [CannotUnify] · Main.purs:8:1
   •
   │
-  • Cannot unify 't1 -> Box t1' with 'Box ?8'
+  • Could not match 't1 -> Box t1' with 'Box ?8'
   │
   │   test2 Box = 0
   │   ╰────────────
-  • while
   │
-  │   matching 'Box ?8 -> Int' with '(t1 -> Box t1) -> Int'
+  • While matching 'Box ?8 -> Int' with '(t1 -> Box t1) -> Int'
   •
 
 Warning! · [RedundantPattern] · Main.purs:8:1
   •
   │
-  • Pattern match has redundant patterns: Box _
+  • Pattern match contains an unreachable pattern
   │
   │   test2 Box = 0
   │   ╰────────────
+  │
+  • Redundant pattern:
+  │   Box _
   •
 
 Warning! · [MissingPatterns] · Main.purs:8:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Other
+  • Pattern match is not exhaustive
   │
   │   test2 Box = 0
   │   ╰────────────
+  │
+  • Missing pattern:
+  │   Other
   •

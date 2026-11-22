@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:8:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'unify'
+  • No JavaScript FFI module found for foreign import 'unify'
   │
   │   foreign import unify :: forall r. Box r -> Box r -> Box r
   │   ╰────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:8:1
 Error! · [MissingFFIModule] · Main.purs:10:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'withF'
+  • No JavaScript FFI module found for foreign import 'withF'
   │
   │   foreign import withF :: forall r. Box ( f :: F | r )
   │   ╰───────────────────────────────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:10:1
 Error! · [MissingFFIModule] · Main.purs:11:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'withG'
+  • No JavaScript FFI module found for foreign import 'withG'
   │
   │   foreign import withG :: forall r. Box ( g :: G | r )
   │   ╰───────────────────────────────────────────────────

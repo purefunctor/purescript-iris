@@ -4,17 +4,23 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:7:9
   •
   │
-  • Pattern match is not exhaustive. Missing: Nothing
+  • Pattern match is not exhaustive
   │
   │   test1 = case _ of
   │           ╰────────
+  │
+  • Missing pattern:
+  │   Nothing
   •
 
 Warning! · [MissingPatterns] · Main.purs:10:9
   •
   │
-  • Pattern match is not exhaustive. Missing: Just _
+  • Pattern match is not exhaustive
   │
   │   test2 = case _ of
   │           ╰────────
+  │
+  • Missing pattern:
+  │   Just _
   •

@@ -20,7 +20,7 @@ fn expression_1(p: &mut Parser) {
     let left_operand = p.checkpoint();
     expression_2(p);
     if p.at_in(names::OPERATOR) {
-        left_operand.expect(p, "Expected expression");
+        left_operand.expect(p, "Expected an expression");
         loop {
             let mut n = p.start();
             let mut o = p.start();
@@ -28,7 +28,7 @@ fn expression_1(p: &mut Parser) {
             o.end(p, SyntaxKind::TermOperator);
             let right_operand = p.checkpoint();
             expression_2(p);
-            right_operand.expect(p, "Expected expression");
+            right_operand.expect(p, "Expected an expression");
             n.end(p, SyntaxKind::ExpressionOperatorPair);
             if !p.at_in(names::OPERATOR) {
                 break;
@@ -47,13 +47,13 @@ fn expression_2(p: &mut Parser) {
     let left_operand = p.checkpoint();
     expression_3(p);
     if p.at(SyntaxKind::TICK) {
-        left_operand.expect(p, "Expected expression");
+        left_operand.expect(p, "Expected an expression");
         loop {
             let mut n = p.start();
             tick_expression(p);
             let right_operand = p.checkpoint();
             expression_3(p);
-            right_operand.expect(p, "Expected expression");
+            right_operand.expect(p, "Expected an expression");
             n.end(p, SyntaxKind::ExpressionInfixPair);
             if !p.at(SyntaxKind::TICK) {
                 break;
@@ -80,7 +80,7 @@ fn tick_expression_1(p: &mut Parser) {
     let left_operand = p.checkpoint();
     expression_3(p);
     if p.at_in(names::OPERATOR) {
-        left_operand.expect(p, "Expected expression");
+        left_operand.expect(p, "Expected an expression");
         loop {
             let mut n = p.start();
             let mut o = p.start();
@@ -88,7 +88,7 @@ fn tick_expression_1(p: &mut Parser) {
             o.end(p, SyntaxKind::TermOperator);
             let right_operand = p.checkpoint();
             expression_3(p);
-            right_operand.expect(p, "Expected expression");
+            right_operand.expect(p, "Expected an expression");
             n.end(p, SyntaxKind::ExpressionOperatorPair);
             if !p.at_in(names::OPERATOR) {
                 break;
@@ -216,7 +216,7 @@ fn case_trunk(p: &mut Parser) {
         if p.at_in(EXPRESSION_START) {
             expression(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::OF) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::OF) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -224,7 +224,7 @@ fn case_trunk(p: &mut Parser) {
             if p.at_in(EXPRESSION_ATOM_RECOVERY) {
                 break;
             }
-            p.error_recover("Unexpected token in case trunk");
+            p.error_recover("Unexpected token in 'case' expression");
         }
     }
     m.end(p, SyntaxKind::CaseTrunk);
@@ -275,7 +275,7 @@ fn case_branch_binders(p: &mut Parser) {
             if p.at(SyntaxKind::COMMA)
                 && (p.at_next(SyntaxKind::RIGHT_ARROW) || p.at_next(SyntaxKind::PIPE))
             {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_ARROW) && !p.at(SyntaxKind::PIPE) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -283,7 +283,7 @@ fn case_branch_binders(p: &mut Parser) {
             if p.at_in(BINDERS_LIST_RECOVERY) {
                 break;
             }
-            p.error_recover("Unexpected token in branch binders");
+            p.error_recover("Unexpected token in branch patterns");
         }
     }
     m.end(p, SyntaxKind::CaseBranchBinders);
@@ -387,7 +387,7 @@ fn record_updates(p: &mut Parser) {
         if p.at_in(names::RECORD_LABEL) {
             record_update(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_CURLY) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_CURLY) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -482,7 +482,7 @@ fn expression_array(p: &mut Parser, mut m: NodeMarker) {
         if p.at_in(EXPRESSION_START) {
             expression(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_SQUARE) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_SQUARE) {
                 p.expect(SyntaxKind::COMMA);
             }
@@ -502,7 +502,7 @@ fn expression_record(p: &mut Parser, mut m: NodeMarker) {
         if p.at_in(names::RECORD_LABEL) {
             generic::record_item(p, expression);
             if p.at(SyntaxKind::COMMA) && p.at_next(SyntaxKind::RIGHT_CURLY) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(SyntaxKind::RIGHT_CURLY) {
                 p.expect(SyntaxKind::COMMA);
             }

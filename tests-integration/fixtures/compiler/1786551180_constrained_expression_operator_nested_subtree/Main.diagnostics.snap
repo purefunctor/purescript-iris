@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'apply'
+  • No JavaScript FFI module found for foreign import 'apply'
   │
   │   foreign import apply
   │   ╰───────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:13:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'identity'
+  • No JavaScript FFI module found for foreign import 'identity'
   │
   │   foreign import identity :: forall a. a -> a
   │   ╰──────────────────────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:13:1
 Error! · [MissingFFIModule] · Main.purs:14:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'constrainedValue'
+  • No JavaScript FFI module found for foreign import 'constrainedValue'
   │
   │   foreign import constrainedValue :: First Int => Int
   │   ╰──────────────────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:14:1
 Error! · [MissingFFIModule] · Main.purs:15:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'consumeConstrained'
+  • No JavaScript FFI module found for foreign import 'consumeConstrained'
   │
   │   foreign import consumeConstrained :: (First Int => Int) -> Int
   │   ╰─────────────────────────────────────────────────────────────

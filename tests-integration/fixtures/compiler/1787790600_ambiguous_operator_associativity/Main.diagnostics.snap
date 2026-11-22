@@ -4,27 +4,31 @@ source: tests-integration/src/fixtures.rs
 Error! · [NonAssociative] · Main.purs:11:35
   •
   │
-  • Cannot chain non-associative operators '<=>' and '<=>' without parentheses
+  • Non-associative operator '<=>' cannot be chained
   │
   │   ambiguousNonAssociative = 1 <=> 2 <=> 3
   │                                     ╰──
   │
-  • Previous operator
+  • Previous operator here
   │
   │   ambiguousNonAssociative = 1 <=> 2 <=> 3
   │                               ╰──
+  │
+  • Hint: Add parentheses to clarify the grouping.
   •
 
 Error! · [MixedAssociativity] · Main.purs:31:39
   •
   │
-  • Cannot mix '<+>' (infixl 6) and '<*>' (infixr 6) without parentheses
+  • Cannot mix '<+>' ('infixl 6') with '<*>' ('infixr 6')
   │
   │   ambiguousMixedAssociativity = 1 <+> 2 <*> 3
   │                                         ╰──
   │
-  • Previous operator
+  • Previous operator here
   │
   │   ambiguousMixedAssociativity = 1 <+> 2 <*> 3
   │                                   ╰──
+  │
+  • Hint: Add parentheses to clarify the grouping.
   •

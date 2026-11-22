@@ -6,7 +6,7 @@ use lsp_types::{
 use syntax::TextSize;
 use unicode_width::UnicodeWidthChar;
 
-use crate::{Diagnostic, Severity, Span};
+use crate::{Diagnostic, DiagnosticSection, Severity, Span};
 
 const DIAGNOSTIC_WIDTH: usize = 100;
 const RICH_BRANCH: &str = "  •";
@@ -69,15 +69,7 @@ pub fn format_rich_with_path(
         output.push_str(&format!("{branch}\n{stem}\n"));
 
         let message_width = DIAGNOSTIC_WIDTH.saturating_sub(RICH_BRANCH.chars().count() + 1);
-        let wrapped = textwrap::wrap(&diagnostic.message, message_width);
-        for (index, line) in wrapped.iter().enumerate() {
-            let gutter = if index == 0 { &branch } else { &stem };
-            if line.is_empty() {
-                output.push_str(&format!("{gutter}\n"));
-            } else {
-                output.push_str(&format!("{gutter} {}\n", paint_quoted_text(line, color)));
-            }
-        }
+        render_bullet_text(&mut output, &diagnostic.message, message_width, &branch, &stem, color);
         output.push_str(&format!("{stem}\n"));
         render_rich_source(
             &mut output,
@@ -90,16 +82,7 @@ pub fn format_rich_with_path(
 
         for related in &diagnostic.related {
             output.push_str(&format!("{stem}\n"));
-            let wrapped = textwrap::wrap(&related.message, message_width);
-            for (index, line) in wrapped.iter().enumerate() {
-                let gutter = if index == 0 { &branch } else { &stem };
-                if line.is_empty() {
-                    output.push_str(&format!("{gutter}\n"));
-                } else {
-                    let message = paint_quoted_text(line, color);
-                    output.push_str(&format!("{gutter} {message}\n"));
-                }
-            }
+            render_bullet_text(&mut output, &related.message, message_width, &branch, &stem, color);
             output.push_str(&format!("{stem}\n"));
             render_rich_source(
                 &mut output,
@@ -111,13 +94,40 @@ pub fn format_rich_with_path(
             );
         }
 
-        if !diagnostic.trivia.is_empty() {
-            output.push_str(&format!("{branch} while\n{stem}\n"));
-            for trivia in &diagnostic.trivia {
-                let wrapped = textwrap::wrap(trivia, message_width.saturating_sub(2));
-                for line in wrapped {
-                    let trivia = paint_quoted_text(&line, color);
-                    output.push_str(&format!("{stem}   {trivia}\n"));
+        for section in &diagnostic.sections {
+            output.push_str(&format!("{stem}\n"));
+            match section {
+                DiagnosticSection::Context(text) => {
+                    render_bullet_text(&mut output, text, message_width, &branch, &stem, color);
+                }
+                DiagnosticSection::List { heading, items } => {
+                    render_bullet_text(&mut output, heading, message_width, &branch, &stem, color);
+                    for item in items {
+                        let wrapped = textwrap::wrap(item, message_width.saturating_sub(2));
+                        for line in wrapped {
+                            let line = paint_quoted_text(&line, color);
+                            output.push_str(&format!("{stem}   {line}\n"));
+                        }
+                    }
+                }
+                DiagnosticSection::Hint(text) => {
+                    let full = format!("Hint: {text}");
+                    let wrapped = textwrap::wrap(&full, message_width);
+                    for (index, line) in wrapped.iter().enumerate() {
+                        let gutter = if index == 0 { &branch } else { &stem };
+                        if line.is_empty() {
+                            output.push_str(&format!("{gutter}\n"));
+                        } else if index == 0
+                            && let Some(rest) = line.strip_prefix("Hint:")
+                        {
+                            let prefix = painted("Hint:", ANSI_CYAN, color);
+                            let rest = paint_quoted_text(rest, color);
+                            output.push_str(&format!("{gutter} {prefix}{rest}\n"));
+                        } else {
+                            let line = paint_quoted_text(line, color);
+                            output.push_str(&format!("{gutter} {line}\n"));
+                        }
+                    }
                 }
             }
         }
@@ -125,6 +135,26 @@ pub fn format_rich_with_path(
     }
 
     output
+}
+
+fn render_bullet_text(
+    output: &mut String,
+    text: &str,
+    width: usize,
+    branch: &str,
+    stem: &str,
+    color: bool,
+) {
+    let wrapped = textwrap::wrap(text, width);
+    for (index, line) in wrapped.iter().enumerate() {
+        let gutter = if index == 0 { branch } else { stem };
+        if line.is_empty() {
+            output.push_str(&format!("{gutter}\n"));
+        } else {
+            let line = paint_quoted_text(line, color);
+            output.push_str(&format!("{gutter} {line}\n"));
+        }
+    }
 }
 
 fn render_rich_source(
@@ -220,12 +250,30 @@ fn paint_quoted_text(text: &str, color: bool) -> String {
 
     let mut output = String::new();
     let mut quoted = false;
-    for character in text.chars() {
-        if character == '\'' {
-            output.push_str(if quoted { ANSI_RESET } else { ANSI_CYAN });
+    let mut characters = text.chars().peekable();
+    let mut previous: Option<char> = None;
+    while let Some(character) = characters.next() {
+        let next = characters.peek().copied();
+        let is_apostrophe = !quoted
+            && character == '\''
+            && previous.is_some_and(char::is_alphanumeric)
+            && next.is_some_and(char::is_alphanumeric);
+        let is_inner_prime = quoted
+            && character == '\''
+            && next.is_some_and(|next| next.is_alphanumeric() || next == '\'');
+        if character == '\'' && !is_apostrophe && !is_inner_prime {
+            if quoted {
+                output.push(character);
+                output.push_str(ANSI_RESET);
+            } else {
+                output.push_str(ANSI_CYAN);
+                output.push(character);
+            }
             quoted = !quoted;
+        } else {
+            output.push(character);
         }
-        output.push(character);
+        previous = Some(character);
     }
     if quoted {
         output.push_str(ANSI_RESET);
@@ -266,6 +314,32 @@ fn offset_to_lsp_position(
     Some(Position { line: line_col.line, character })
 }
 
+fn format_lsp_message(diagnostic: &Diagnostic) -> String {
+    if diagnostic.sections.is_empty() {
+        return diagnostic.message.clone();
+    }
+
+    let mut message = diagnostic.message.clone();
+    for section in &diagnostic.sections {
+        message.push_str("\n\n");
+        match section {
+            DiagnosticSection::Context(text) => message.push_str(text),
+            DiagnosticSection::List { heading, items } => {
+                message.push_str(heading);
+                for item in items {
+                    message.push_str("\n  ");
+                    message.push_str(item);
+                }
+            }
+            DiagnosticSection::Hint(text) => {
+                message.push_str("Hint: ");
+                message.push_str(text);
+            }
+        }
+    }
+    message
+}
+
 pub fn to_lsp_diagnostic(
     diagnostic: &Diagnostic,
     line_index: &LineIndex,
@@ -301,7 +375,7 @@ pub fn to_lsp_diagnostic(
         code: Some(Code::String(diagnostic.code.to_string())),
         code_description: None,
         source: Some(format!("analyzer/{}", diagnostic.source)),
-        message: Message::String(String::clone(&diagnostic.message)),
+        message: Message::String(format_lsp_message(diagnostic)),
         related_information: if related_information.is_empty() {
             None
         } else {
@@ -310,4 +384,92 @@ pub fn to_lsp_diagnostic(
         tags: None,
         data: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use line_index::LineIndex;
+    use lsp_types::{Message, PositionEncodingKind, Uri};
+
+    use super::{
+        ANSI_CYAN, ANSI_RESET, format_rich_with_path, paint_quoted_text, to_lsp_diagnostic,
+    };
+    use crate::{Diagnostic, Severity, Span};
+
+    #[test]
+    fn paint_quoted_text_preserves_apostrophes_and_balances_quotes() {
+        let painted = paint_quoted_text("Module's export 'foo'' cannot be used", true);
+        assert_eq!(
+            painted,
+            format!("Module's export {ANSI_CYAN}'foo''{ANSI_RESET} cannot be used")
+        );
+    }
+
+    #[test]
+    fn format_rich_renders_context_list_and_hint_sections() {
+        let content = "module Main where\nvalue = 1\n";
+        let line_index = LineIndex::new(content);
+        let diagnostic = Diagnostic::new(
+            Severity::Error,
+            "SampleCode",
+            "Primary headline",
+            Span::new(18, 23),
+            "checking",
+        )
+        .with_context("While matching 'Int' with 'String'")
+        .with_list("Matching instances:", vec!["Eq Int".to_owned(), "Eq a".to_owned()])
+        .with_hint("Add an explicit type signature.");
+
+        let rendered =
+            format_rich_with_path(&[diagnostic], content, &line_index, "Main.purs", false);
+        assert_eq!(
+            rendered,
+            "\
+Error! · [SampleCode] · Main.purs:2:1
+  •
+  │
+  • Primary headline
+  │
+  │   value = 1
+  │   ╰────
+  │
+  • While matching 'Int' with 'String'
+  │
+  • Matching instances:
+  │   Eq Int
+  │   Eq a
+  │
+  • Hint: Add an explicit type signature.
+  •
+
+"
+        );
+    }
+
+    #[test]
+    fn lsp_diagnostic_appends_structured_sections() {
+        let content = "module Main where\nvalue = 1\n";
+        let line_index = LineIndex::new(content);
+        let uri: Uri = "file:///Main.purs".parse().unwrap();
+        let diagnostic = Diagnostic::new(
+            Severity::Error,
+            "SampleCode",
+            "Primary headline",
+            Span::new(18, 23),
+            "checking",
+        )
+        .with_context("Inferred type: 'Int'")
+        .with_list("In scope:", vec!["a :: Int".to_owned()])
+        .with_hint("Add an explicit type signature.");
+
+        let lsp = to_lsp_diagnostic(&diagnostic, &line_index, &uri, &PositionEncodingKind::UTF16)
+            .unwrap();
+        assert_eq!(
+            lsp.message,
+            Message::String(
+                "Primary headline\n\nInferred type: 'Int'\n\nIn scope:\n  a :: Int\n\nHint: Add an explicit type signature."
+                    .to_owned()
+            )
+        );
+    }
 }

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:13:22
   •
   │
-  • 'missing' is not in scope
+  • Unknown value 'missing'
   │
   │   failedBody = apply _ missing
   │                        ╰──────
@@ -13,7 +13,7 @@ Error! · [NotInScope] · Main.purs:13:22
 Error! · [CannotUnify] · Main.purs:16:19
   •
   │
-  • Cannot unify 'Int -> Int' with 'Int'
+  • Could not match 'Int -> Int' with 'Int'
   │
   │   invalidExpected = identity _
   │                     ╰─────────

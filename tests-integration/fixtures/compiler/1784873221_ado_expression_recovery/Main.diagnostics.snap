@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:11:1
   •
   │
-  • Expected LAYOUT_START
+  • Expected an indented block
   │
   │   missingAdoAction = ado
   │   ╰
@@ -13,7 +13,7 @@ Error! · [ParseError] · Main.purs:11:1
 Error! · [ParseError] · Main.purs:11:1
   •
   │
-  • Expected LAYOUT_END
+  • Expected the end of this block
   │
   │   missingAdoAction = ado
   │   ╰
@@ -22,7 +22,7 @@ Error! · [ParseError] · Main.purs:11:1
 Error! · [ParseError] · Main.purs:11:1
   •
   │
-  • Expected IN
+  • Expected 'in'
   │
   │   missingAdoAction = ado
   │   ╰
@@ -31,7 +31,7 @@ Error! · [ParseError] · Main.purs:11:1
 Error! · [EmptyAdoBlock] · Main.purs:9:12
   •
   │
-  • Empty ado block
+  • An 'ado' block cannot be empty
   │
   │   emptyAdo = ado
   │              ╰──
@@ -40,7 +40,7 @@ Error! · [EmptyAdoBlock] · Main.purs:9:12
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall value. value -> Effect value
   │   ╰─────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'map'
+  • No JavaScript FFI module found for foreign import 'map'
   │
   │   foreign import map :: forall value result. (value -> result) -> Effect value -> Effect result
   │   ╰────────────────────────────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ Error! · [MissingFFIModule] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'apply'
+  • No JavaScript FFI module found for foreign import 'apply'
   │
   │   foreign import apply :: forall value result. Effect (value -> result) -> Effect value -> Effect result
   │   ╰─────────────────────────────────────────────────────────────────────────────────────────────────────

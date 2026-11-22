@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:23:1
   •
   │
-  • No instance found for: Ord NoOrd
+  • No type class instance found for 'Ord NoOrd'
   │
   │   derive instance Ord ContainsNoOrd
   │   ╰────────────────────────────────

@@ -4,26 +4,35 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:5:9
   •
   │
-  • Pattern match is not exhaustive. Missing: Other
+  • Pattern match is not exhaustive
   │
   │   test = [\(Chosen value) -> value, \(Chosen _) -> 23]
   │           ╰───────────────────────
+  │
+  • Missing pattern:
+  │   Other
   •
 
 Warning! · [MissingPatterns] · Main.purs:5:35
   •
   │
-  • Pattern match is not exhaustive. Missing: Other
+  • Pattern match is not exhaustive
   │
   │   test = [\(Chosen value) -> value, \(Chosen _) -> 23]
   │                                     ╰────────────────
+  │
+  • Missing pattern:
+  │   Other
   •
 
 Warning! · [MissingPatterns] · Main.purs:17:19
   •
   │
-  • Pattern match is not exhaustive. Missing: Other
+  • Pattern match is not exhaustive
   │
   │   test2 = [extract, \(Chosen _) -> 29]
   │                     ╰────────────────
+  │
+  • Missing pattern:
+  │   Other
   •

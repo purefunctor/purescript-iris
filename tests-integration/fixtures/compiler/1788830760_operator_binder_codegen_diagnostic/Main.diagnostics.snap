@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:7:6
   •
   │
-  • Cannot unify 'N' with '?2 -> ?3'
+  • Could not match 'N' with '?2 -> ?3'
   │
   │   test (a :+ b) = 1
   │        ╰───────

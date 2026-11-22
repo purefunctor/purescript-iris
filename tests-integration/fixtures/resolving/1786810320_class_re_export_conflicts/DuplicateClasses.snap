@@ -34,7 +34,7 @@ Error! · [DuplicateDeclaration] · DuplicateClasses.purs:7:1
   │   class Shared a
   │   ╰─────────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   class Shared a
   │   ╰─────────────

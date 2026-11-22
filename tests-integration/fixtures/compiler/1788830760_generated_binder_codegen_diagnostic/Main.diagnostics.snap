@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:7:1
   •
   │
-  • Cannot unify 'Int -> Ordering' with 'Ordering'
+  • Could not match 'Int -> Ordering' with 'Ordering'
   │
   │   derive instance ordTest :: Ord Test
   │   ╰──────────────────────────────────

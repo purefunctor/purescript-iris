@@ -4,11 +4,11 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:6:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.create' cannot statically evaluate imported value 'Tokens.alias'; use a same-module
-  │ static value or an exported defineVars, defineConsts, or defineMarker definition.
+  • 'Iris.StyleX.create' cannot statically evaluate imported value 'Tokens.alias'
   │
   │   styles = StyleX.create { root: { color: alias.accent } }
   │   ╰───────────────────────────────────────────────────────
+  │
+  • Hint: Use a same-module static value or an exported 'defineVars', 'defineConsts', or
+  │ 'defineMarker' definition.
   •

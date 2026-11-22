@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [CapabilityNotDeclared] · Main.purs:9:19
   •
   │
-  • Capability 'Http' is not declared in the capability set '( console :: Console )'.
+  • Capability 'Http' is not declared in '( console :: Console )'
   │
   │   missing :: Record (console :: Console) -> Http
   │                     ╰───────────────────
   │
-  • This operation requires the capability
+  • Required by this expression
   │
   │   missing = getService
   │             ╰─────────
@@ -18,12 +18,12 @@ Error! · [CapabilityNotDeclared] · Main.purs:9:19
 Error! · [CapabilityNotDeclared] · Main.purs:12:25
   •
   │
-  • Capability 'Http' is not declared in the capability set '( http :: Console )'.
+  • Capability 'Http' is not declared in '( http :: Console )'
   │
   │   wrongIdentity :: Record (http :: Console) -> Http
   │                           ╰────────────────
   │
-  • This operation requires the capability
+  • Required by this expression
   │
   │   wrongIdentity = getService
   │                   ╰─────────
@@ -32,12 +32,12 @@ Error! · [CapabilityNotDeclared] · Main.purs:12:25
 Error! · [CapabilityNotDeclared] · Main.purs:15:35
   •
   │
-  • Capability 'Console' is not declared in the capability set '()'.
+  • Capability 'Console' is not declared in '()'
   │
   │   annotated = (getService :: Record () -> Console)
   │                                     ╰─
   │
-  • This operation requires the capability
+  • Required by this expression
   │
   │   annotated = (getService :: Record () -> Console)
   │                ╰─────────
@@ -46,12 +46,12 @@ Error! · [CapabilityNotDeclared] · Main.purs:15:35
 Error! · [CapabilityNotDeclared] · Main.purs:19:19
   •
   │
-  • Capability 'Http' is not declared in the capability set '( console :: Console )'.
+  • Capability 'Http' is not declared in '( console :: Console )'
   │
   │     local :: Record (console :: Console) -> Http
   │                     ╰───────────────────
   │
-  • This operation requires the capability
+  • Required by this expression
   │
   │     local = getService
   │             ╰─────────

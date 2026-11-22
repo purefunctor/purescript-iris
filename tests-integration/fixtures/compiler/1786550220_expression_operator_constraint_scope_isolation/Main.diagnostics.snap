@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:17:29
   •
   │
-  • No instance found for: First @Type Int
+  • No type class instance found for 'First @Type Int'
   │
   │   test = constrainedValue <+> needsFirst
   │                               ╰─────────
@@ -13,7 +13,7 @@ Error! · [NoInstanceFound] · Main.purs:17:29
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'combine'
+  • No JavaScript FFI module found for foreign import 'combine'
   │
   │   foreign import combine
   │   ╰─────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:13:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'constrainedValue'
+  • No JavaScript FFI module found for foreign import 'constrainedValue'
   │
   │   foreign import constrainedValue :: First Int => Int
   │   ╰──────────────────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:13:1
 Error! · [MissingFFIModule] · Main.purs:14:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'needsFirst'
+  • No JavaScript FFI module found for foreign import 'needsFirst'
   │
   │   foreign import needsFirst :: First Int => Int
   │   ╰────────────────────────────────────────────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:12:49
   •
   │
-  • No instance found for: Eq a
+  • No type class instance found for 'Eq a'
   │
   │   evidenceDoesNotEscape = { scoped: show, leaked: show }
   │                                                   ╰───
@@ -13,16 +13,18 @@ Error! · [NoInstanceFound] · Main.purs:12:49
 Error! · [EscapedSkolem] · Main.purs:19:1
   •
   │
-  • Type variable 'a1' has escaped its scope, appearing in type 'a1'
+  • Rigid type variable 'a1' escaped its scope
   │
   │   typeDoesNotEscape = consume { value: \value -> value }
   │   ╰─────────────────────────────────────────────────────
+  │
+  • Appears in type 'a1'
   •
 
 Error! · [MissingFFIModule] · Main.purs:14:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'consume'
+  • No JavaScript FFI module found for foreign import 'consume'
   │
   │   foreign import consume
   │   ╰─────────────────────

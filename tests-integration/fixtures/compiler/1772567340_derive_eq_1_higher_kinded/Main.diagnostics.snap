@@ -4,11 +4,11 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:11:1
   •
   │
-  • No instance found for: Eq1 (f :: Type -> Type)
+  • No type class instance found for 'Eq1 (f :: Type -> Type)'
   │
   │   derive instance Eq a => Eq (WrapNoEq1 f a)
   │   ╰─────────────────────────────────────────
-  • while
   │
-  │   Eq a is in scope
+  • Constraints in scope:
+  │   Eq a
   •

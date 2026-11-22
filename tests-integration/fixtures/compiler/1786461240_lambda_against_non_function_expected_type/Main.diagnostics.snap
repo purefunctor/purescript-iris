@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:8:17
   •
   │
-  • Cannot unify '?0 -> Int' with 'Int'
+  • Could not match '?0 -> Int' with 'Int'
   │
   │   test = consume (\value -> 0)
   │                   ╰──────────
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:8:17
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'consume'
+  • No JavaScript FFI module found for foreign import 'consume'
   │
   │   foreign import consume :: Int -> Unit
   │   ╰────────────────────────────────────

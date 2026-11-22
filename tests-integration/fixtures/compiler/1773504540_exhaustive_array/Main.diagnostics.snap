@@ -4,17 +4,23 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:3:1
   •
   │
-  • Pattern match is not exhaustive. Missing: _
+  • Pattern match is not exhaustive
   │
   │   testNonExhaustive :: Array Int -> Int
   │   ╰────────────────────────────────────
+  │
+  • Missing pattern:
+  │   _
   •
 
 Warning! · [RedundantPattern] · Main.purs:7:1
   •
   │
-  • Pattern match has redundant patterns: [_]
+  • Pattern match contains an unreachable pattern
   │
   │   testRedundant :: Array Int -> Int
   │   ╰────────────────────────────────
+  │
+  • Redundant pattern:
+  │   [_]
   •

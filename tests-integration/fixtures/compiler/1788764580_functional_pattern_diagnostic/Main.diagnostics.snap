@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:4:6
   •
   │
-  • 'Missing' is not in scope
+  • Unknown data constructor 'Missing'
   │
   │   test Missing = 1
   │        ╰──────

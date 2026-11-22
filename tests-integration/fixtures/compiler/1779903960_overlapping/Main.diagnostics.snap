@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:9:1
   •
   │
-  • Overlapping type class instances found for: Test Int
+  • Overlapping type class instances found for 'Test Int'
   │
   │   instance testInt :: Test Int where
   │   ╰─────────────────────────────────
-  • while
   │
-  │   forall a. Test a is matching
-  │   Test Int is matching
+  • Matching instances:
+  │   forall a. Test a
+  │   Test Int
   •

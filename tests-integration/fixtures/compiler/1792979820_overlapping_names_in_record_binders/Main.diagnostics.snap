@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingBinderNames] · Main.purs:4:22
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   punAndArgument { x } x = x
   │                        ╰
@@ -18,7 +18,7 @@ Error! · [OverlappingBinderNames] · Main.purs:4:22
 Error! · [OverlappingBinderNames] · Main.purs:7:21
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   punAndField { x, a: x } = x
   │                       ╰
@@ -32,7 +32,7 @@ Error! · [OverlappingBinderNames] · Main.purs:7:21
 Error! · [OverlappingBinderNames] · Main.purs:10:19
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   fields { a: x, b: x } = x
   │                     ╰

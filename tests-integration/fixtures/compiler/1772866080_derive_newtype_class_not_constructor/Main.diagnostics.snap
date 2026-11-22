@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:5:1
   •
   │
-  • Cannot derive for type: Int -> Int
+  • Cannot derive an instance for type 'Int -> Int'
   │
   │   derive instance Newtype (Int -> Int) _
   │   ╰─────────────────────────────────────

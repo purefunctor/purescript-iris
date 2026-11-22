@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CoercibleConstructorNotInScope] · Main.purs:7:16
   •
   │
-  • Constructor not in scope for Coercible
+  • Constructor for 'HiddenAge' must be in scope to derive 'Coercible'
   │
   │   coerceHidden = coerce
   │                  ╰─────
@@ -13,7 +13,7 @@ Error! · [CoercibleConstructorNotInScope] · Main.purs:7:16
 Error! · [NoInstanceFound] · Main.purs:7:16
   •
   │
-  • No instance found for: Coercible @Type Int HiddenAge
+  • No type class instance found for 'Coercible @Type Int HiddenAge'
   │
   │   coerceHidden = coerce
   │                  ╰─────

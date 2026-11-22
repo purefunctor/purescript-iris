@@ -39,12 +39,12 @@ Diagnostics
 Error! · [RedefinedIdent] · Derived.purs:10:1
   •
   │
-  • Instance name 'first' conflicts with a local value declaration
+  • Instance name 'first' conflicts with a value declaration in this module
   │
   │   derive newtype instance first :: Class First
   │   ╰───────────────────────────────────────────
   │
-  • Conflicting declaration
+  • Value declared here
   │
   │   foreign import first :: Int
   │   ╰──────────────────────────
@@ -53,12 +53,12 @@ Error! · [RedefinedIdent] · Derived.purs:10:1
 Error! · [RedefinedIdent] · Derived.purs:14:1
   •
   │
-  • Instance name 'second' conflicts with a local value declaration
+  • Instance name 'second' conflicts with a value declaration in this module
   │
   │   derive newtype instance second :: Class Second
   │   ╰─────────────────────────────────────────────
   │
-  • Conflicting declaration
+  • Value declared here
   │
   │   foreign import second :: Int
   │   ╰───────────────────────────

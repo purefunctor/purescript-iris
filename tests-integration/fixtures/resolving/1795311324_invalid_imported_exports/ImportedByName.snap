@@ -37,7 +37,7 @@ Diagnostics
 Error! · [InvalidExportItem] · ImportedByName.purs:1:24
   •
   │
-  • Cannot export imported item 'ByteCount(..)'; re-export 'module Library' instead
+  • Cannot export imported item 'ByteCount(..)' directly
   │
   │   module ImportedByName (ByteCount(..), helper, class Helper, (+), type (:+)) where
   │                          ╰────────────
@@ -46,12 +46,14 @@ Error! · [InvalidExportItem] · ImportedByName.purs:1:24
   │
   │   import Library (ByteCount(..), helper, class Helper, (+), type (:+))
   │                   ╰────────────
+  │
+  • Hint: Re-export 'module Library' instead.
   •
 
 Error! · [InvalidExportItem] · ImportedByName.purs:1:39
   •
   │
-  • Cannot export imported item 'helper'; re-export 'module Library' instead
+  • Cannot export imported item 'helper' directly
   │
   │   module ImportedByName (ByteCount(..), helper, class Helper, (+), type (:+)) where
   │                                         ╰─────
@@ -60,12 +62,14 @@ Error! · [InvalidExportItem] · ImportedByName.purs:1:39
   │
   │   import Library (ByteCount(..), helper, class Helper, (+), type (:+))
   │                                  ╰─────
+  │
+  • Hint: Re-export 'module Library' instead.
   •
 
 Error! · [InvalidExportItem] · ImportedByName.purs:1:47
   •
   │
-  • Cannot export imported item 'class Helper'; re-export 'module Library' instead
+  • Cannot export imported item 'class Helper' directly
   │
   │   module ImportedByName (ByteCount(..), helper, class Helper, (+), type (:+)) where
   │                                                 ╰───────────
@@ -74,12 +78,14 @@ Error! · [InvalidExportItem] · ImportedByName.purs:1:47
   │
   │   import Library (ByteCount(..), helper, class Helper, (+), type (:+))
   │                                          ╰───────────
+  │
+  • Hint: Re-export 'module Library' instead.
   •
 
 Error! · [InvalidExportItem] · ImportedByName.purs:1:61
   •
   │
-  • Cannot export imported item '(+)'; re-export 'module Library' instead
+  • Cannot export imported item '(+)' directly
   │
   │   module ImportedByName (ByteCount(..), helper, class Helper, (+), type (:+)) where
   │                                                               ╰──
@@ -88,12 +94,14 @@ Error! · [InvalidExportItem] · ImportedByName.purs:1:61
   │
   │   import Library (ByteCount(..), helper, class Helper, (+), type (:+))
   │                                                        ╰──
+  │
+  • Hint: Re-export 'module Library' instead.
   •
 
 Error! · [InvalidExportItem] · ImportedByName.purs:1:66
   •
   │
-  • Cannot export imported item 'type (:+)'; re-export 'module Library' instead
+  • Cannot export imported item 'type (:+)' directly
   │
   │   module ImportedByName (ByteCount(..), helper, class Helper, (+), type (:+)) where
   │                                                                    ╰────────
@@ -102,4 +110,6 @@ Error! · [InvalidExportItem] · ImportedByName.purs:1:66
   │
   │   import Library (ByteCount(..), helper, class Helper, (+), type (:+))
   │                                                             ╰────────
+  │
+  • Hint: Re-export 'module Library' instead.
   •

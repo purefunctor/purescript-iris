@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:8:1
   •
   │
-  • Overlapping type class instances found for: Newtype Wrapper String
+  • Overlapping type class instances found for 'Newtype Wrapper String'
   │
   │   derive instance Newtype Wrapper _
   │   ╰────────────────────────────────
-  • while
   │
-  │   Newtype Wrapper String is matching
-  │   Newtype Wrapper String is matching
+  • Matching instances:
+  │   Newtype Wrapper String
+  │   Newtype Wrapper String
   •

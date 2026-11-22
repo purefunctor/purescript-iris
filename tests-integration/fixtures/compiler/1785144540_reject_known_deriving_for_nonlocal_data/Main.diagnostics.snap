@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:7:1
   •
   │
-  • Cannot derive for type: ImportedStructural a
+  • Cannot derive an instance for type 'ImportedStructural a'
   │
   │   derive instance Eq a => Eq (ImportedStructural a)
   │   ╰────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:7:1
 Error! · [CannotDeriveForType] · Main.purs:8:1
   •
   │
-  • Cannot derive for type: ImportedStructural a1
+  • Cannot derive an instance for type 'ImportedStructural a1'
   │
   │   derive instance Ord a => Ord (ImportedStructural a)
   │   ╰──────────────────────────────────────────────────
@@ -22,7 +22,7 @@ Error! · [CannotDeriveForType] · Main.purs:8:1
 Error! · [CannotDeriveForType] · Main.purs:10:1
   •
   │
-  • Cannot derive for type: ImportedLifted
+  • Cannot derive an instance for type 'ImportedLifted'
   │
   │   derive instance Eq1 ImportedLifted
   │   ╰─────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [CannotDeriveForType] · Main.purs:10:1
 Error! · [CannotDeriveForType] · Main.purs:11:1
   •
   │
-  • Cannot derive for type: ImportedLifted
+  • Cannot derive an instance for type 'ImportedLifted'
   │
   │   derive instance Ord1 ImportedLifted
   │   ╰──────────────────────────────────
@@ -40,7 +40,7 @@ Error! · [CannotDeriveForType] · Main.purs:11:1
 Error! · [CannotDeriveForType] · Main.purs:13:1
   •
   │
-  • Cannot derive for type: ImportedOpaque
+  • Cannot derive an instance for type 'ImportedOpaque'
   │
   │   derive instance Eq1 ImportedOpaque
   │   ╰─────────────────────────────────
@@ -49,7 +49,7 @@ Error! · [CannotDeriveForType] · Main.purs:13:1
 Error! · [CannotDeriveForType] · Main.purs:14:1
   •
   │
-  • Cannot derive for type: ImportedOpaque
+  • Cannot derive an instance for type 'ImportedOpaque'
   │
   │   derive instance Ord1 ImportedOpaque
   │   ╰──────────────────────────────────

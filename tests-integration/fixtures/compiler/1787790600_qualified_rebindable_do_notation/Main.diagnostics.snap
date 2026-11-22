@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Control.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'action'
+  • No JavaScript FFI module found for foreign import 'action'
   │
   │   foreign import action :: forall value. Box value
   │   ╰───────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Control.purs:5:1
 Error! · [MissingFFIModule] · Control.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind ::
   │   ╰─────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Control.purs:7:1
 Error! · [MissingFFIModule] · Control.purs:13:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discard'
+  • No JavaScript FFI module found for foreign import 'discard'
   │
   │   foreign import discard ::
   │   ╰────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Control.purs:13:1
 Error! · [MissingFFIModule] · Control.purs:19:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'map'
+  • No JavaScript FFI module found for foreign import 'map'
   │
   │   foreign import map ::
   │   ╰────────────────────
@@ -40,7 +40,7 @@ Error! · [MissingFFIModule] · Control.purs:19:1
 Error! · [MissingFFIModule] · Control.purs:25:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'apply'
+  • No JavaScript FFI module found for foreign import 'apply'
   │
   │   foreign import apply ::
   │   ╰──────────────────────
@@ -49,7 +49,7 @@ Error! · [MissingFFIModule] · Control.purs:25:1
 Error! · [MissingFFIModule] · Control.purs:31:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall value. value -> Box value
   │   ╰──────────────────────────────────────────────────────

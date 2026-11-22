@@ -4,48 +4,48 @@ source: tests-integration/src/fixtures.rs
 Error! · [TypeHole] · Main.purs:14:19
   •
   │
-  • Type hole '?type' has inferred type: ?3 :: Type
+  • Type hole '?type' has inferred type '?3 :: Type'
   │
   │   type TypeHole a = ?type :: Type
   │                     ╰────
-  • while
   │
-  │   a :: t0 is in scope
+  • In scope:
+  │   a :: t0
   •
 
 Error! · [TermHole] · Main.purs:12:5
   •
   │
-  • Hole '?term' has inferred type: Int
+  • Hole '?term' has inferred type 'Int'
   │
   │       ?term
   │       ╰────
-  • while
   │
-  │   argument :: Int is in scope
-  │   localInt :: Int is in scope
+  • In scope:
+  │   argument :: Int
+  │   localInt :: Int
   •
 
 Error! · [TermHole] · Main.purs:17:39
   •
   │
-  • Hole '?pun' has inferred type: Int
+  • Hole '?pun' has inferred type 'Int'
   │
   │   recordPunHole { punInt, punString } = ?pun
   │                                         ╰───
-  • while
   │
-  │   punInt :: Int is in scope
+  • In scope:
+  │   punInt :: Int
   •
 
 Error! · [TypeHole] · Main.purs:23:29
   •
   │
-  • Type hole '?implicit' has inferred type: implicit :: Type
+  • Type hole '?implicit' has inferred type 'implicit :: Type'
   │
   │     instanceTypeHoleMember :: ?implicit -> implicit
   │                               ╰────────
-  • while
   │
-  │   implicit :: Type is in scope
+  • In scope:
+  │   implicit :: Type
   •

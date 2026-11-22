@@ -4,33 +4,35 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:6:1
   •
   │
-  • No instance found for: Functor (Compose @Type @Type (f :: Type -> Type) (g :: Type -> Type))
+  • No type class instance found for 'Functor (Compose @Type @Type (f :: Type -> Type) (g :: Type
+  │ -> Type))'
   │
   │   derive instance (Traversable f, Traversable g) => Traversable (Compose f g)
   │   ╰──────────────────────────────────────────────────────────────────────────
-  • while
   │
-  │   Traversable (f :: Type -> Type) is in scope
-  │   Traversable (g :: Type -> Type) is in scope
-  │   Functor (f :: Type -> Type) is in scope
-  │   Foldable (f :: Type -> Type) is in scope
-  │   Functor (g :: Type -> Type) is in scope
-  │   Foldable (g :: Type -> Type) is in scope
+  • Constraints in scope:
+  │   Traversable (f :: Type -> Type)
+  │   Traversable (g :: Type -> Type)
+  │   Functor (f :: Type -> Type)
+  │   Foldable (f :: Type -> Type)
+  │   Functor (g :: Type -> Type)
+  │   Foldable (g :: Type -> Type)
   •
 
 Error! · [NoInstanceFound] · Main.purs:6:1
   •
   │
-  • No instance found for: Foldable (Compose @Type @Type (f :: Type -> Type) (g :: Type -> Type))
+  • No type class instance found for 'Foldable (Compose @Type @Type (f :: Type -> Type) (g :: Type
+  │ -> Type))'
   │
   │   derive instance (Traversable f, Traversable g) => Traversable (Compose f g)
   │   ╰──────────────────────────────────────────────────────────────────────────
-  • while
   │
-  │   Traversable (f :: Type -> Type) is in scope
-  │   Traversable (g :: Type -> Type) is in scope
-  │   Functor (f :: Type -> Type) is in scope
-  │   Foldable (f :: Type -> Type) is in scope
-  │   Functor (g :: Type -> Type) is in scope
-  │   Foldable (g :: Type -> Type) is in scope
+  • Constraints in scope:
+  │   Traversable (f :: Type -> Type)
+  │   Traversable (g :: Type -> Type)
+  │   Functor (f :: Type -> Type)
+  │   Foldable (f :: Type -> Type)
+  │   Functor (g :: Type -> Type)
+  │   Foldable (g :: Type -> Type)
   •

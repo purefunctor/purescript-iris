@@ -4,15 +4,15 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:46:3
   •
   │
-  • No instance found for: Discard (m :: Type -> Type)
+  • No type class instance found for 'Discard (m :: Type -> Type)'
   │
   │     pure "ignored"
   │     ╰─────────────
-  • while
   │
-  │   Monad (m :: Type -> Type) is in scope
-  │   Bind (m :: Type -> Type) is in scope
-  │   Applicative (m :: Type -> Type) is in scope
-  │   Apply (m :: Type -> Type) is in scope
-  │   Functor (m :: Type -> Type) is in scope
+  • Constraints in scope:
+  │   Monad (m :: Type -> Type)
+  │   Bind (m :: Type -> Type)
+  │   Applicative (m :: Type -> Type)
+  │   Apply (m :: Type -> Type)
+  │   Functor (m :: Type -> Type)
   •

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:6:11
   •
   │
-  • Cannot unify 'Type -> Type' with 'Type'
+  • Could not match 'Type -> Type' with 'Type'
   │
   │     derive (Eq)
   │             ╰─
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:6:11
 Error! · [NoInstanceFound] · Main.purs:6:11
   •
   │
-  • No instance found for: Eq t0
+  • No type class instance found for 'Eq t0'
   │
   │     derive (Eq)
   │             ╰─

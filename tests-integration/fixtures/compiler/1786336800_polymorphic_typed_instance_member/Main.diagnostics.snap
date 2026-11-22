@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:3:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'unsafeCoerce'
+  • No JavaScript FFI module found for foreign import 'unsafeCoerce'
   │
   │   foreign import unsafeCoerce :: forall a b. a -> b
   │   ╰────────────────────────────────────────────────

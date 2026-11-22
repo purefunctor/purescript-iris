@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CovariantOccurrence] · Main.purs:6:1
   •
   │
-  • Type variable occurs in covariant position: t0
+  • Type variable 't0' appears in a covariant position
   │
   │   derive instance Profunctor WrongFirst
   │   ╰────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CovariantOccurrence] · Main.purs:6:1
 Error! · [ContravariantOccurrence] · Main.purs:9:1
   •
   │
-  • Type variable occurs in contravariant position: t1
+  • Type variable 't1' appears in a contravariant position
   │
   │   derive instance Profunctor WrongSecond
   │   ╰─────────────────────────────────────
@@ -22,7 +22,7 @@ Error! · [ContravariantOccurrence] · Main.purs:9:1
 Error! · [CovariantOccurrence] · Main.purs:9:1
   •
   │
-  • Type variable occurs in covariant position: t2
+  • Type variable 't2' appears in a covariant position
   │
   │   derive instance Profunctor WrongSecond
   │   ╰─────────────────────────────────────

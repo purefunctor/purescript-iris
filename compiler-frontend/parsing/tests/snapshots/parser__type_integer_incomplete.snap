@@ -110,7 +110,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 1,
             },
-            message: "Expected INTEGER",
+            message: "Expected an integer literal",
         },
         ParseError {
             offset: 75,
@@ -118,7 +118,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 7,
                 column: 1,
             },
-            message: "Expected INTEGER",
+            message: "Expected an integer literal",
         },
     ],
 )

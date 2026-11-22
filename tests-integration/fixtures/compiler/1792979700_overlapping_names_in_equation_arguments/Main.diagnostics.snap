@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingBinderNames] · Main.purs:4:12
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   topLevel x x = x
   │              ╰
@@ -18,7 +18,7 @@ Error! · [OverlappingBinderNames] · Main.purs:4:12
 Error! · [OverlappingBinderNames] · Main.purs:9:8
   •
   │
-  • Name 'y' is bound more than once
+  • 'y' is bound more than once in this pattern
   │
   │     go y y = y
   │          ╰
@@ -32,7 +32,7 @@ Error! · [OverlappingBinderNames] · Main.purs:9:8
 Error! · [OverlappingBinderNames] · Main.purs:15:13
   •
   │
-  • Name 'z' is bound more than once
+  • 'z' is bound more than once in this pattern
   │
   │     combine z z = z
   │               ╰

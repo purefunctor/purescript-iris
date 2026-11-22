@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:10:1
   •
   │
-  • No instance found for: Foldable (f :: Type -> Type)
+  • No type class instance found for 'Foldable (f :: Type -> Type)'
   │
   │   derive instance Bifoldable (WrapBothNoConstraint f g)
   │   ╰────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [NoInstanceFound] · Main.purs:10:1
 Error! · [NoInstanceFound] · Main.purs:10:1
   •
   │
-  • No instance found for: Foldable (g :: Type -> Type)
+  • No type class instance found for 'Foldable (g :: Type -> Type)'
   │
   │   derive instance Bifoldable (WrapBothNoConstraint f g)
   │   ╰────────────────────────────────────────────────────

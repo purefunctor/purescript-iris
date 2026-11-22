@@ -51,7 +51,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 1,
                 column: 53,
             },
-            message: "Expected RIGHT_PARENTHESIS",
+            message: "Expected ')'",
         },
         ParseError {
             offset: 52,
@@ -59,7 +59,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 1,
                 column: 53,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 52,
@@ -67,7 +67,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 1,
                 column: 53,
             },
-            message: "Expected RIGHT_PARENTHESIS",
+            message: "Expected ')'",
         },
     ],
 )

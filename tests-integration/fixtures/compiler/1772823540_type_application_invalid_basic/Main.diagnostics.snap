@@ -4,8 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidTypeApplication] · Main.purs:3:12
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   type Bad = Int String
   │              ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •

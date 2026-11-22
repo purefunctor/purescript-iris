@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidFinalLet] · Main.purs:11:3
   •
   │
-  • Invalid final let statement in do expression
+  • A 'do' block cannot end with a 'let' statement
   │
   │     let _ = expectString record.field
   │     ╰────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [InvalidFinalLet] · Main.purs:11:3
 Error! · [CannotUnify] · Main.purs:11:24
   •
   │
-  • Cannot unify 'Int' with 'String'
+  • Could not match 'Int' with 'String'
   │
   │     let _ = expectString record.field
   │                          ╰───────────
@@ -22,7 +22,7 @@ Error! · [CannotUnify] · Main.purs:11:24
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind :: forall a b. Effect a -> (a -> Effect b) -> Effect b
   │   ╰─────────────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'before'
+  • No JavaScript FFI module found for foreign import 'before'
   │
   │   foreign import before :: Effect { field :: Int }
   │   ╰───────────────────────────────────────────────
@@ -40,7 +40,7 @@ Error! · [MissingFFIModule] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'expectString'
+  • No JavaScript FFI module found for foreign import 'expectString'
   │
   │   foreign import expectString :: String -> Int
   │   ╰───────────────────────────────────────────

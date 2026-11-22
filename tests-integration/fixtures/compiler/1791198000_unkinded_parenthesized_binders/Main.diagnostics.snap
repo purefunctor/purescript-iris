@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:3:14
   •
   │
-  • Expected DOUBLE_COLON
+  • Expected '::'
   │
   │   data Proxy (a) = Proxy
   │                ╰
@@ -13,7 +13,7 @@ Error! · [ParseError] · Main.purs:3:14
 Error! · [ParseError] · Main.purs:5:22
   •
   │
-  • Expected DOUBLE_COLON
+  • Expected '::'
   │
   │   identity :: forall (a). a -> a
   │                        ╰
