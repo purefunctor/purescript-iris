@@ -1,0 +1,94 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Unqualified Imports:
+
+Terms:
+  - library is Implicit
+
+Types:
+
+Classes:
+
+Qualified Imports:
+
+Exported Terms:
+  - value
+  - Second
+  - First
+  - library
+  - Pair
+
+Exported Types:
+  - Choice
+  - Pair
+
+Exported Classes:
+
+Local Terms:
+  - value
+  - Second
+  - First
+  - Pair
+
+Local Types:
+  - Choice
+  - Pair
+
+Local Classes:
+
+Class Members:
+
+Diagnostics
+Warning! · [DuplicateExport] · Main.purs:3:5
+  •
+  │
+  • Export list contains multiple references to 'value'
+  │
+  │     , value
+  │       ╰────
+  │
+  • First exported here
+  │
+  │     ( value
+  │       ╰────
+  •
+
+Warning! · [DuplicateExport] · Main.purs:5:5
+  •
+  │
+  • Export list contains multiple references to 'Choice(First)'
+  │
+  │     , Choice(First)
+  │       ╰────────────
+  │
+  • First exported here
+  │
+  │     , Choice(..)
+  │       ╰─────────
+  •
+
+Warning! · [DuplicateExport] · Main.purs:8:5
+  •
+  │
+  • Export list contains multiple references to 'module Library'
+  │
+  │     , module Library
+  │       ╰─────────────
+  │
+  • First exported here
+  │
+  │     , module Library
+  │       ╰─────────────
+  •
+
+Warning! · [DuplicateExport] · Main.purs:6:5
+  •
+  │
+  • Export list contains multiple references to 'Pair(Pair, Pair)'
+  │
+  │     , Pair(Pair, Pair)
+  │       ╰───────────────
+  •

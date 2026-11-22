@@ -81,11 +81,6 @@ Warning! · [DuplicateImport] · Main.purs:9:5
   │
   │     , Choice(First, First)
   │       ╰───────────────────
-  │
-  • First imported here
-  │
-  │     , Choice(First, First)
-  │       ╰───────────────────
   •
 
 Warning! · [DuplicateImport] · Main.purs:9:5

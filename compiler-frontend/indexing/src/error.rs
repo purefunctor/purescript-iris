@@ -40,14 +40,15 @@ pub enum IndexingError {
 impl IndexingError {
     pub fn severity(&self) -> Severity {
         match self {
-            IndexingError::DuplicateImport { .. } => Severity::Warning,
+            IndexingError::DuplicateImport { .. } | IndexingError::DuplicateExport { .. } => {
+                Severity::Warning
+            }
             IndexingError::DuplicateItem { .. }
             | IndexingError::MismatchedItem { .. }
             | IndexingError::OrphanRole { .. }
             | IndexingError::DuplicateRole { .. }
             | IndexingError::UnsupportedRole { .. }
-            | IndexingError::InvalidExport { .. }
-            | IndexingError::DuplicateExport { .. } => Severity::Error,
+            | IndexingError::InvalidExport { .. } => Severity::Error,
         }
     }
 }

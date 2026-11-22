@@ -874,6 +874,7 @@ fn extract_alias(source: &str, cst: &cst::ImportStatement) -> Option<SmolStr> {
 fn index_exports(state: &mut State, stabilized: &StabilizedModule, cst: &cst::ExportList) {
     let mut terms = FxHashMap::default();
     let mut types = FxHashMap::default();
+    let mut modules = FxHashMap::default();
 
     for cst in cst.children() {
         let id = stabilized.lookup_cst(&cst).expect_id();
@@ -907,7 +908,7 @@ fn index_exports(state: &mut State, stabilized: &StabilizedModule, cst: &cst::Ex
                 index_export_type(state, &mut types, name, id, None);
             }
             cst::ExportItem::ExportModule(cst) => {
-                index_module_export(state, id, &cst);
+                index_module_export(state, &mut modules, id, &cst);
             }
         }
     }
@@ -1057,9 +1058,23 @@ fn operator_name(name: &str) -> &str {
     name.trim_start_matches("(").trim_end_matches(")")
 }
 
-fn index_module_export(state: &mut State, id: ExportItemId, cst: &cst::ExportModule) {
+fn index_module_export(
+    state: &mut State,
+    modules: &mut FxHashMap<SmolStr, ExportItemId>,
+    id: ExportItemId,
+    cst: &cst::ExportModule,
+) {
     if let Some(n) = extracted_exported_module(state.source, cst) {
         state.exports.modules.push(IndexedModuleExport { id, name: SmolStr::clone(&n) });
+        match modules.entry(SmolStr::clone(&n)) {
+            Entry::Occupied(o) => {
+                let existing = *o.get();
+                state.errors.push(IndexingError::DuplicateExport { id, existing });
+            }
+            Entry::Vacant(v) => {
+                v.insert(id);
+            }
+        }
         if state.name.as_ref() == Some(&n) {
             state.kind = ExportKind::ExplicitSelf;
         } else {

@@ -25,3 +25,13 @@ Local Types:
 Local Classes:
 
 Class Members:
+
+Diagnostics
+Error! · [InvalidExportItem] · WrongExport.purs:1:21
+  •
+  │
+  • Cannot export item 'A(B)'
+  │
+  │   module WrongExport (A(B)) where
+  │                       ╰───
+  •
