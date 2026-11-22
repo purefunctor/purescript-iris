@@ -778,7 +778,8 @@ impl ToDiagnostics for IndexingError {
                 let mut diagnostic =
                     Diagnostic::new(self.severity(), "DuplicateImport", message, span, "indexing");
 
-                if let Some(existing_ptr) = context.stabilized.syntax_ptr(*existing)
+                if duplicate != existing
+                    && let Some(existing_ptr) = context.stabilized.syntax_ptr(*existing)
                     && let Some(existing_span) = context.span_from_syntax_ptr(&existing_ptr)
                 {
                     diagnostic = diagnostic.with_related(existing_span, "First imported here");
