@@ -13,7 +13,6 @@ Exported Types:
   - LocalData
 
 Exported Classes:
-  - LocalClass
 
 Local Terms:
   - Constructor
@@ -27,16 +26,38 @@ Local Classes:
 Class Members:
 
 Diagnostics
-Warning! · [DuplicateExport] · Mismatched.purs:1:49
+Error! · [InvalidExportItem] · Mismatched.purs:1:20
   •
   │
-  • Export list contains multiple references to 'LocalData(MissingConstructor)'
+  • Cannot export item 'LocalClass'
   │
   │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
-  │                                                   ╰────────────────────────────
+  │                      ╰─────────
+  •
+
+Error! · [InvalidExportItem] · Mismatched.purs:1:32
+  •
   │
-  • First exported here
+  • Cannot export item 'class LocalData'
   │
   │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
   │                                  ╰──────────────
+  •
+
+Error! · [InvalidExportItem] · Mismatched.purs:1:49
+  •
+  │
+  • Cannot export item 'LocalData(MissingConstructor)'
+  │
+  │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
+  │                                                   ╰────────────────────────────
+  •
+
+Error! · [InvalidExportItem] · Mismatched.purs:1:80
+  •
+  │
+  • Cannot export item 'Constructor'
+  │
+  │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
+  │                                                                                  ╰──────────
   •

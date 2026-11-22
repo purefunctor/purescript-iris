@@ -1,6 +1,20 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
+Error! · [InvalidExportItem] · Files.purs:1:15
+  •
+  │
+  • Cannot export imported item 'ByteCount(..)'; re-export 'module Size' instead
+  │
+  │   module Files (ByteCount(..), fileSize) where
+  │                 ╰────────────
+  │
+  • Imported here
+  │
+  │   import Size (ByteCount(..))
+  │                ╰────────────
+  •
+
 Error! · [NotInScope] · Main.purs:7:3
   •
   │

@@ -20,3 +20,58 @@ Local Types:
 Local Classes:
 
 Class Members:
+
+Diagnostics
+Error! · [InvalidExportItem] · Unknown.purs:1:17
+  •
+  │
+  • Cannot export item 'missingValue'
+  │
+  │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
+  │                   ╰───────────
+  •
+
+Error! · [InvalidExportItem] · Unknown.purs:1:31
+  •
+  │
+  • Cannot export item 'MissingType'
+  │
+  │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
+  │                                 ╰──────────
+  •
+
+Error! · [InvalidExportItem] · Unknown.purs:1:44
+  •
+  │
+  • Cannot export item 'class MissingClass'
+  │
+  │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
+  │                                              ╰─────────────────
+  •
+
+Error! · [InvalidExportItem] · Unknown.purs:1:64
+  •
+  │
+  • Cannot export item '(+++)'
+  │
+  │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
+  │                                                                  ╰────
+  •
+
+Error! · [InvalidExportItem] · Unknown.purs:1:71
+  •
+  │
+  • Cannot export item 'type (:+:)'
+  │
+  │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
+  │                                                                         ╰─────────
+  •
+
+Error! · [InvalidExportItem] · Unknown.purs:1:83
+  •
+  │
+  • Cannot export item 'module MissingModule'
+  │
+  │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
+  │                                                                                     ╰───────────────────
+  •

@@ -25,6 +25,12 @@ pub enum ExistingKind {
     Type(TypeItemId),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InvalidExportHint {
+    AliasedModule { import: ImportId },
+    ImportedItem { import: ImportId, item: ImportItemId },
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum IndexingError {
     DuplicateItem { kind: ItemKind, existing: ExistingKind },
@@ -32,7 +38,7 @@ pub enum IndexingError {
     OrphanRole { id: TypeRoleId },
     DuplicateRole { id: TypeRoleId, existing: TypeRoleId },
     UnsupportedRole { id: TypeRoleId },
-    InvalidExport { id: ExportItemId },
+    InvalidExport { id: ExportItemId, hint: Option<InvalidExportHint> },
     DuplicateExport { id: ExportItemId, existing: ExportItemId },
     DuplicateImport { duplicate: ImportItemId, existing: ImportItemId },
 }
