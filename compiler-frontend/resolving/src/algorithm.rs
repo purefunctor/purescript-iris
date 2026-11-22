@@ -2,7 +2,8 @@ use building_types::QueryResult;
 use files::FileId;
 use indexing::{
     ExportKind, ImplicitItems, ImportItemId, ImportKind, IndexedImport, IndexedModule,
-    IndexedTypeItemKind, InstanceSourceItemId, OrderedTermItemId, TermItemId, TypeItemId,
+    IndexedTypeItemKind, InstanceSourceItemId, NameIndex, OrderedTermItemId, TermItemId,
+    TypeItemId,
 };
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
@@ -259,98 +260,39 @@ fn export_class_members(state: &mut State, indexed: &IndexedModule, file: FileId
 
 fn add_local_terms<'k>(
     items: &mut ResolvedLocals,
-    errors: &mut Vec<ResolvingError>,
     iterator: impl Iterator<Item = (&'k SmolStr, FileId, TermItemId)>,
 ) {
-    let (additional, _) = iterator.size_hint();
-    items.terms.reserve(additional);
-    iterator.for_each(move |(name, file, id)| {
-        add_local_term(items, errors, name, file, id);
-    });
-}
-
-fn add_local_term(
-    items: &mut ResolvedLocals,
-    errors: &mut Vec<ResolvingError>,
-    name: &SmolStr,
-    file: FileId,
-    id: TermItemId,
-) {
-    if let Some(&existing) = items.terms.get(name) {
-        let duplicate = (file, id);
-        if existing != duplicate {
-            errors.push(ResolvingError::ExistingTerm { existing, duplicate });
-        }
-    } else {
-        let name = SmolStr::clone(name);
-        items.terms.insert(name, (file, id));
-    }
+    let iterator = iterator.map(|(name, file, id)| (SmolStr::clone(name), (file, id)));
+    items.terms.extend(iterator);
 }
 
 fn add_local_types<'k>(
     items: &mut ResolvedLocals,
-    errors: &mut Vec<ResolvingError>,
     iterator: impl Iterator<Item = (&'k SmolStr, FileId, TypeItemId)>,
 ) {
-    let (additional, _) = iterator.size_hint();
-    items.types.reserve(additional);
-    iterator.for_each(move |(name, file, id)| {
-        add_local_type(items, errors, name, file, id);
-    });
-}
-
-fn add_local_type(
-    items: &mut ResolvedLocals,
-    errors: &mut Vec<ResolvingError>,
-    name: &SmolStr,
-    file: FileId,
-    id: TypeItemId,
-) {
-    if let Some(&existing) = items.types.get(name) {
-        let duplicate = (file, id);
-        if existing != duplicate {
-            errors.push(ResolvingError::ExistingType { existing, duplicate });
-        }
-    } else {
-        let name = SmolStr::clone(name);
-        items.types.insert(name, (file, id));
-    }
+    let iterator = iterator.map(|(name, file, id)| (SmolStr::clone(name), (file, id)));
+    items.types.extend(iterator);
 }
 
 fn add_local_classes<'k>(
     items: &mut ResolvedLocals,
-    errors: &mut Vec<ResolvingError>,
     iterator: impl Iterator<Item = (&'k SmolStr, FileId, TypeItemId)>,
 ) {
-    let (additional, _) = iterator.size_hint();
-    items.classes.reserve(additional);
-    iterator.for_each(move |(name, file, id)| {
-        add_local_class(items, errors, name, file, id);
-    });
+    let iterator = iterator.map(|(name, file, id)| (SmolStr::clone(name), (file, id)));
+    items.classes.extend(iterator);
 }
 
-fn add_local_class(
-    items: &mut ResolvedLocals,
-    errors: &mut Vec<ResolvingError>,
-    name: &SmolStr,
-    file: FileId,
-    id: TypeItemId,
-) {
-    if let Some(&existing) = items.classes.get(name) {
-        let duplicate = (file, id);
-        if existing != duplicate {
-            errors.push(ResolvingError::ExistingType { existing, duplicate });
-        }
-    } else {
-        let name = SmolStr::clone(name);
-        items.classes.insert(name, (file, id));
-    }
+fn first_entries<ItemId>(names: &NameIndex<ItemId>) -> impl Iterator<Item = (&SmolStr, ItemId)>
+where
+    ItemId: Copy + Eq,
+{
+    names.iter().filter(|&(name, id)| names.lookup(name) == Some(id))
 }
 
 fn export_module_items(state: &mut State, indexed: &IndexedModule, file: FileId) {
-    let local_terms = indexed.names.terms.iter().map(|(name, id)| (name, file, id));
+    let local_terms = first_entries(&indexed.names.terms).map(|(name, id)| (name, file, id));
 
-    let local_types = indexed.names.types.iter().map(|(name, id)| {
+    let local_types = first_entries(&indexed.names.types).map(|(name, id)| {
         let item = &indexed.items[id];
         (name, file, id, &item.kind)
     });
@@ -361,11 +303,11 @@ fn export_module_items(state: &mut State, indexed: &IndexedModule, file: FileId)
     let local_types = local_type_items.into_iter().map(|(name, file, id, _)| (name, file, id));
     let local_classes = local_class_items.into_iter().map(|(name, file, id, _)| (name, file, id));
 
-    add_local_terms(&mut state.locals, &mut state.errors, local_terms);
-    add_local_types(&mut state.locals, &mut state.errors, local_types);
-    add_local_classes(&mut state.locals, &mut state.errors, local_classes);
+    add_local_terms(&mut state.locals, local_terms);
+    add_local_types(&mut state.locals, local_types);
+    add_local_classes(&mut state.locals, local_classes);
 
-    let exported_terms = indexed.names.terms.iter().filter_map(|(name, id)| {
+    let exported_terms = first_entries(&indexed.names.terms).filter_map(|(name, id)| {
         let item = &indexed.items[id];
         if matches!(indexed.kind, ExportKind::Explicit) && !item.exported {
             return None;
@@ -373,7 +315,7 @@ fn export_module_items(state: &mut State, indexed: &IndexedModule, file: FileId)
         Some((name, file, id, ExportSource::Local))
     });
 
-    let exported_types = indexed.names.types.iter().filter_map(|(name, id)| {
+    let exported_types = first_entries(&indexed.names.types).filter_map(|(name, id)| {
         let item = &indexed.items[id];
         if matches!(indexed.kind, ExportKind::Explicit) && !item.exported {
             return None;

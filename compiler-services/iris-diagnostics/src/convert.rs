@@ -7,7 +7,8 @@ use functional::{
     ModuleError as FunctionalModuleError, UnsupportedState as FunctionalUnsupportedState,
 };
 use indexing::{
-    IndexedTypeItemKind, IndexingError, InstanceSourceItemId, OrderedTermItemId, TypeRoleId,
+    ExistingKind, IndexedTypeItemKind, IndexingError, InstanceSourceItemId, ItemKind,
+    OrderedTermItemId, TypeRoleId,
 };
 use itertools::Itertools;
 use javascript::{
@@ -599,51 +600,34 @@ impl ToDiagnostics for ResolvingError {
                 Ok(vec![diagnostic])
             }
             ResolvingError::TermExportConflict { name, existing, duplicate } => {
-                let (_, _, duplicate_source) = *duplicate;
-                let (_, _, existing_source) = *existing;
                 let pointer = |(_, id, source)| match source {
                     ExportSource::Local => {
                         context.indexed.term_item_ptr(context.stabilized, id).next()
                     }
                     ExportSource::Import(import) => context.stabilized.syntax_ptr(import),
                 };
-                let duplicate_declaration = matches!(
-                    (existing_source, duplicate_source),
-                    (ExportSource::Local, ExportSource::Local)
-                );
                 Ok(export_conflict(
                     context,
                     self.severity(),
                     name,
                     pointer(*duplicate),
                     pointer(*existing),
-                    duplicate_declaration,
                 ))
             }
             ResolvingError::TypeExportConflict { name, existing, duplicate } => {
-                let (_, _, duplicate_source) = *duplicate;
-                let (_, _, existing_source) = *existing;
                 let pointer = |(_, id, source)| match source {
                     ExportSource::Local => {
                         context.indexed.type_item_ptr(context.stabilized, id).next()
                     }
                     ExportSource::Import(import) => context.stabilized.syntax_ptr(import),
                 };
-                let duplicate_declaration = matches!(
-                    (existing_source, duplicate_source),
-                    (ExportSource::Local, ExportSource::Local)
-                );
                 Ok(export_conflict(
                     context,
                     self.severity(),
                     name,
                     pointer(*duplicate),
                     pointer(*existing),
-                    duplicate_declaration,
                 ))
-            }
-            ResolvingError::ExistingTerm { .. } | ResolvingError::ExistingType { .. } => {
-                Ok(Vec::new())
             }
 
             ResolvingError::InvalidImportStatement { id } => {
@@ -695,7 +679,6 @@ fn export_conflict<Q>(
     name: &SmolStr,
     duplicate: Option<SyntaxNodePtr>,
     existing: Option<SyntaxNodePtr>,
-    duplicate_declaration: bool,
 ) -> Vec<Diagnostic>
 where
     Q: ExternalQueries,
@@ -703,21 +686,63 @@ where
     let span = |pointer: Option<SyntaxNodePtr>| {
         pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
     };
-    let (code, related, message) = if duplicate_declaration {
-        (
-            "DuplicateDeclaration",
-            "Previous declaration",
-            format!("'{name}' is declared more than once"),
-        )
-    } else {
-        ("ExportConflict", "Conflicting export", format!("Conflicting exports for '{name}'"))
-    };
+    let message = format!("Conflicting exports for '{name}'");
     let primary = span(duplicate)
         .or_else(|| context.module_name_span())
         .unwrap_or_else(|| context.module_span());
-    let mut diagnostic = Diagnostic::new(severity, code, message, primary, "resolving");
+    let mut diagnostic = Diagnostic::new(severity, "ExportConflict", message, primary, "resolving");
     if let Some(existing) = span(existing) {
-        diagnostic = diagnostic.with_related(existing, related);
+        diagnostic = diagnostic.with_related(existing, "Conflicting export");
+    }
+    vec![diagnostic]
+}
+
+fn declaration_conflict<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    severity: Severity,
+    code: &'static str,
+    description: &str,
+    kind: ItemKind,
+    existing: ExistingKind,
+) -> Vec<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    let span = |pointer: Option<SyntaxNodePtr>| {
+        pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
+    };
+    let (name, existing) = match existing {
+        ExistingKind::Term(id) => (
+            &context.indexed.items[id].name,
+            context.indexed.term_item_ptr(context.stabilized, id).next(),
+        ),
+        ExistingKind::Type(id) => (
+            &context.indexed.items[id].name,
+            context.indexed.type_item_ptr(context.stabilized, id).next(),
+        ),
+    };
+    let duplicate = match kind {
+        ItemKind::DataSignature(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::DataEquation(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::NewtypeSignature(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::NewtypeEquation(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::SynonymSignature(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::SynonymEquation(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::ClassSignature(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::ClassDeclaration(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::ValueSignature(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::ValueEquation(id) => context.stabilized.syntax_ptr(id),
+        ItemKind::Term(id) => context.indexed.term_item_ptr(context.stabilized, id).next(),
+        ItemKind::Type(id) => context.indexed.type_item_ptr(context.stabilized, id).next(),
+    };
+    let name = name.as_deref().unwrap_or("<ParseError>");
+    let message = format!("'{name}' {description}");
+    let primary = span(duplicate)
+        .or_else(|| context.module_name_span())
+        .unwrap_or_else(|| context.module_span());
+    let mut diagnostic = Diagnostic::new(severity, code, message, primary, "indexing");
+    if let Some(existing) = span(existing) {
+        diagnostic = diagnostic.with_related(existing, "Previous declaration");
     }
     vec![diagnostic]
 }
@@ -806,10 +831,25 @@ impl ToDiagnostics for IndexingError {
                     "indexing",
                 )])
             }
-            IndexingError::DuplicateItem { .. }
-            | IndexingError::MismatchedItem { .. }
-            | IndexingError::InvalidExport { .. }
-            | IndexingError::DuplicateExport { .. } => Ok(Vec::new()),
+            IndexingError::DuplicateItem { kind, existing } => Ok(declaration_conflict(
+                context,
+                self.severity(),
+                "DuplicateDeclaration",
+                "is declared more than once",
+                *kind,
+                *existing,
+            )),
+            IndexingError::MismatchedItem { kind, existing } => Ok(declaration_conflict(
+                context,
+                self.severity(),
+                "MismatchedDeclaration",
+                "does not match its previous declaration",
+                *kind,
+                *existing,
+            )),
+            IndexingError::InvalidExport { .. } | IndexingError::DuplicateExport { .. } => {
+                Ok(Vec::new())
+            }
         }
     }
 }

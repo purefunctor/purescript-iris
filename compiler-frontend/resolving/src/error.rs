@@ -30,15 +30,6 @@ pub enum ResolvingError {
         duplicate: (FileId, TypeItemId, ExportSource),
     },
 
-    ExistingTerm {
-        existing: (FileId, TermItemId),
-        duplicate: (FileId, TermItemId),
-    },
-    ExistingType {
-        existing: (FileId, TypeItemId),
-        duplicate: (FileId, TypeItemId),
-    },
-
     InvalidImportStatement {
         id: ImportId,
     },

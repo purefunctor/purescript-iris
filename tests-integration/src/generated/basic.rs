@@ -110,7 +110,7 @@ pub fn report_resolved(engine: &QueryEngine, id: FileId, name: &str, path: &str)
     let diagnostics = collected
         .checking_diagnostics()
         .iter()
-        .filter(|diagnostic| diagnostic.source == "resolving");
+        .filter(|diagnostic| matches!(diagnostic.source, "indexing" | "resolving"));
     let diagnostics: Vec<_> = diagnostics.cloned().collect();
     if !diagnostics.is_empty() {
         heading(&mut out, "Diagnostics");

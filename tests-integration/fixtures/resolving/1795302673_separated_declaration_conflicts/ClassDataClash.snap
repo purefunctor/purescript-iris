@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ClassDataClash
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - Shared
+
+Exported Types:
+  - Between
+
+Exported Classes:
+  - Shared
+
+Local Terms:
+  - Shared
+
+Local Types:
+  - Between
+
+Local Classes:
+  - Shared
+
+Class Members:
+
+Diagnostics
+Error! · [DuplicateDeclaration] · ClassDataClash.purs:7:1
+  •
+  │
+  • 'Shared' is declared more than once
+  │
+  │   data Shared = Shared
+  │   ╰───────────────────
+  │
+  • Previous declaration
+  │
+  │   class Shared a
+  │   ╰─────────────
+  •

@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module UnexportedDuplicate
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - exported
+
+Exported Types:
+
+Exported Classes:
+
+Local Terms:
+  - between
+  - exported
+  - hidden
+
+Local Types:
+
+Local Classes:
+
+Class Members:
+
+Diagnostics
+Error! · [DuplicateDeclaration] · UnexportedDuplicate.purs:12:1
+  •
+  │
+  • 'hidden' is declared more than once
+  │
+  │   hidden :: Int
+  │   ╰────────────
+  │
+  • Previous declaration
+  │
+  │   hidden :: Int
+  │   ╰────────────
+  •

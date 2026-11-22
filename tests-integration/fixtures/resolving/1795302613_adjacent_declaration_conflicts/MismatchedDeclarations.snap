@@ -1,0 +1,75 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module MismatchedDeclarations
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - Alias
+  - Circle
+  - external
+
+Exported Types:
+  - Alias
+
+Exported Classes:
+  - Shape
+
+Local Terms:
+  - Alias
+  - Circle
+  - external
+
+Local Types:
+  - Alias
+
+Local Classes:
+  - Shape
+
+Class Members:
+
+Diagnostics
+Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:4:1
+  •
+  │
+  • 'Alias' does not match its previous declaration
+  │
+  │   data Alias = Alias
+  │   ╰─────────────────
+  │
+  • Previous declaration
+  │
+  │   type Alias = Int
+  │   ╰───────────────
+  •
+
+Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:7:1
+  •
+  │
+  • 'external' does not match its previous declaration
+  │
+  │   external = 0
+  │   ╰───────────
+  │
+  • Previous declaration
+  │
+  │   foreign import external :: Int
+  │   ╰─────────────────────────────
+  •
+
+Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:10:1
+  •
+  │
+  • 'Shape' does not match its previous declaration
+  │
+  │   data Shape = Circle
+  │   ╰──────────────────
+  │
+  • Previous declaration
+  │
+  │   class Shape a
+  │   ╰────────────
+  •
