@@ -188,6 +188,10 @@ where
         self.span_from_syntax_node(name.syntax())
     }
 
+    pub fn fallback_span(&self) -> Span {
+        self.module_name_span().unwrap_or_else(|| self.module_span())
+    }
+
     pub fn span_from_error_crumb(&self, crumb: &ErrorCrumb) -> Option<Span> {
         let ptr = match crumb {
             ErrorCrumb::CapabilityBundle(_) => return None,

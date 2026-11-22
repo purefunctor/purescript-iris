@@ -24,32 +24,6 @@ struct DisplayPosition {
     column: u32,
 }
 
-pub fn format_text(diagnostics: &[Diagnostic]) -> String {
-    let mut output = String::new();
-
-    for diagnostic in diagnostics {
-        let severity = match diagnostic.severity {
-            Severity::Error => "error",
-            Severity::Warning => "warning",
-        };
-
-        let primary = diagnostic.span;
-        output.push_str(&format!(
-            "{severity}[{}] at {}..{}: {}\n",
-            diagnostic.code, primary.start, primary.end, diagnostic.message
-        ));
-
-        for related in &diagnostic.related {
-            output.push_str(&format!(
-                "  note at {}..{}: {}\n",
-                related.span.start, related.span.end, related.message
-            ));
-        }
-    }
-
-    output
-}
-
 fn line_text<'a>(line_index: &LineIndex, content: &'a str, line: u32) -> Option<&'a str> {
     let range = line_index.line(line)?;
     let text = &content[range];

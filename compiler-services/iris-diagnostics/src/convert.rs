@@ -19,6 +19,7 @@ use lowering::LoweringError;
 use parsing::ParseError;
 use resolving::{ExportSource, ResolvingError};
 use smol_str::SmolStr;
+use stabilizing::AstId;
 use syntax::ast::AstNode;
 use syntax::{SyntaxNodePtr, cst};
 
@@ -50,6 +51,22 @@ where
         GlobalId::Generated(_, _) => return None,
     };
     context.span_from_syntax_ptr(&pointer)
+}
+
+fn syntax_span<Q, N>(context: &DiagnosticsContext<'_, Q>, id: AstId<N>) -> Option<Span>
+where
+    Q: ExternalQueries,
+    N: AstNode,
+{
+    let pointer = context.stabilized.syntax_ptr(id)?;
+    context.span_from_syntax_ptr(&pointer)
+}
+
+fn span_text<'a, Q>(context: &DiagnosticsContext<'a, Q>, span: Option<Span>) -> &'a str
+where
+    Q: ExternalQueries,
+{
+    span.map_or("<ParseError>", |span| context.text_of(span).trim())
 }
 
 impl ToDiagnostics for FunctionalModuleError {
@@ -268,14 +285,12 @@ impl ToDiagnostics for ForeignError {
             | ForeignError::MissingImplementation { declaration, .. }
             | ForeignError::Parse { declaration, .. } => declaration,
         };
-        let Some(span) = context
+        let span = context
             .indexed
             .term_item_ptr(context.stabilized, *declaration)
             .next()
             .and_then(|pointer| context.span_from_syntax_ptr(&pointer))
-        else {
-            return Ok(Vec::new());
-        };
+            .unwrap_or_else(|| context.fallback_span());
 
         let diagnostic = match self {
             ForeignError::MissingModule { name, .. } => Diagnostic::new(
@@ -405,7 +420,6 @@ impl ToDiagnostics for LoweringError {
                     }
                 };
 
-                let Some(ptr) = ptr else { return Ok(Vec::new()) };
                 let span = match not_in_scope {
                     lowering::NotInScope::BinderConstructor { id } => {
                         context.stabilized.ast_ptr(*id).and_then(|ptr| {
@@ -423,16 +437,12 @@ impl ToDiagnostics for LoweringError {
                             context.span_from_ast_ptr_child(&ptr, cst::InfixDeclaration::qualified)
                         })
                     }
-                    _ => context.span_from_syntax_ptr(&ptr),
+                    _ => ptr.and_then(|ptr| context.span_from_syntax_ptr(&ptr)),
                 };
-                let Some(span) = span else { return Ok(Vec::new()) };
 
-                let message = if let Some(name) = name {
-                    format!("'{name}' is not in scope")
-                } else {
-                    let text = context.text_of(span).trim();
-                    format!("'{text}' is not in scope")
-                };
+                let name = name.unwrap_or_else(|| span_text(context, span));
+                let message = format!("'{name}' is not in scope");
+                let span = span.unwrap_or_else(|| context.fallback_span());
 
                 Ok(vec![Diagnostic::new(self.severity(), "NotInScope", message, span, "lowering")])
             }
@@ -445,8 +455,9 @@ impl ToDiagnostics for LoweringError {
                     lowering::StringLiteralSource::Binder(id) => context.stabilized.syntax_ptr(*id),
                     lowering::StringLiteralSource::Type(id) => context.stabilized.syntax_ptr(*id),
                 };
-                let Some(ptr) = ptr else { return Ok(Vec::new()) };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+                let span = ptr
+                    .and_then(|ptr| context.span_from_syntax_ptr(&ptr))
+                    .unwrap_or_else(|| context.fallback_span());
 
                 Ok(vec![Diagnostic::new(
                     self.severity(),
@@ -467,7 +478,7 @@ impl ToDiagnostics for LoweringError {
                     };
                     context.span_from_syntax_ptr(&ptr?)
                 };
-                let Some(duplicate) = span(*duplicate) else { return Ok(Vec::new()) };
+                let duplicate = span(*duplicate).unwrap_or_else(|| context.fallback_span());
 
                 let message = format!("Name '{name}' is bound more than once");
                 let mut diagnostic = Diagnostic::new(
@@ -513,30 +524,31 @@ fn convert_recursive_group<Q>(
 where
     Q: ExternalQueries,
 {
-    let spans = group.iter().filter_map(|id| {
-        let ptr = match context.indexed.items[*id].kind {
+    let spans = group.iter().filter_map(|&id| {
+        let equation = match context.indexed.items[id].kind {
             IndexedTypeItemKind::Synonym { equation, .. } => {
-                context.stabilized.syntax_ptr(equation?)?
+                equation.and_then(|equation| context.stabilized.syntax_ptr(equation))
             }
             IndexedTypeItemKind::Data { equation, .. } => {
-                context.stabilized.syntax_ptr(equation?)?
+                equation.and_then(|equation| context.stabilized.syntax_ptr(equation))
             }
             IndexedTypeItemKind::Newtype { equation, .. } => {
-                context.stabilized.syntax_ptr(equation?)?
+                equation.and_then(|equation| context.stabilized.syntax_ptr(equation))
             }
-            IndexedTypeItemKind::Foreign { id, .. } => context.stabilized.syntax_ptr(id)?,
-            _ => return None,
+            _ => None,
         };
+        let ptr =
+            equation.or_else(|| context.indexed.type_item_ptr(context.stabilized, id).next())?;
         context.span_from_syntax_ptr(&ptr)
     });
 
     let spans = spans.collect_vec();
 
-    let Some(&primary) = spans.first() else { return Vec::new() };
+    let primary = spans.first().copied().unwrap_or_else(|| context.fallback_span());
 
     let mut diagnostic = Diagnostic::new(severity, code, message, primary, "lowering");
 
-    for &span in &spans[1..] {
+    for &span in spans.iter().skip(1) {
         diagnostic = diagnostic.with_related(span, "Includes this type");
     }
 
@@ -550,7 +562,7 @@ impl ToDiagnostics for ResolvingError {
     {
         match self {
             ResolvingError::DuplicateModule { name } => {
-                let span = context.module_name_span().unwrap_or_else(|| context.module_span());
+                let span = context.fallback_span();
                 let message = format!("Module '{name}' has been defined multiple times");
                 Ok(vec![Diagnostic::new(
                     self.severity(),
@@ -569,10 +581,9 @@ impl ToDiagnostics for ResolvingError {
                         context.stabilized.syntax_ptr(context.indexed.items[*id].id)
                     }
                 };
-                let Some(span) = pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
-                else {
-                    return Ok(Vec::new());
-                };
+                let span = pointer
+                    .and_then(|pointer| context.span_from_syntax_ptr(&pointer))
+                    .unwrap_or_else(|| context.fallback_span());
                 let (code, message, pointer) = match existing {
                     OrderedTermItemId::Term(id) => (
                         "RedefinedIdent",
@@ -631,11 +642,11 @@ impl ToDiagnostics for ResolvingError {
             }
 
             ResolvingError::InvalidImportStatement { id } => {
-                let Some(ptr) = context.stabilized.ast_ptr(*id) else { return Ok(Vec::new()) };
+                let ptr = context.stabilized.ast_ptr(*id);
 
                 let message = {
-                    let cst = ptr.to_node(context.root);
-                    let name = cst.module_name().map(|cst| {
+                    let cst = ptr.as_ref().map(|ptr| ptr.to_node(context.root));
+                    let name = cst.and_then(|cst| cst.module_name()).map(|cst| {
                         let range = cst.syntax().text_range();
                         context.content[range].trim()
                     });
@@ -643,7 +654,9 @@ impl ToDiagnostics for ResolvingError {
                     format!("Cannot import module '{name}'")
                 };
 
-                let Some(span) = context.span_from_ast_ptr(&ptr) else { return Ok(Vec::new()) };
+                let span = ptr
+                    .and_then(|ptr| context.span_from_ast_ptr(&ptr))
+                    .unwrap_or_else(|| context.fallback_span());
 
                 Ok(vec![Diagnostic::new(
                     self.severity(),
@@ -655,11 +668,11 @@ impl ToDiagnostics for ResolvingError {
             }
 
             ResolvingError::InvalidImportItem { id } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+                let span = syntax_span(context, *id);
 
-                let text = context.text_of(span).trim();
+                let text = span_text(context, span);
                 let message = format!("Cannot import item '{text}'");
+                let span = span.unwrap_or_else(|| context.fallback_span());
 
                 Ok(vec![Diagnostic::new(
                     self.severity(),
@@ -687,9 +700,7 @@ where
         pointer.and_then(|pointer| context.span_from_syntax_ptr(&pointer))
     };
     let message = format!("Conflicting exports for '{name}'");
-    let primary = span(duplicate)
-        .or_else(|| context.module_name_span())
-        .unwrap_or_else(|| context.module_span());
+    let primary = span(duplicate).unwrap_or_else(|| context.fallback_span());
     let mut diagnostic = Diagnostic::new(severity, "ExportConflict", message, primary, "resolving");
     if let Some(existing) = span(existing) {
         diagnostic = diagnostic.with_related(existing, "Conflicting export");
@@ -737,9 +748,7 @@ where
     };
     let name = name.as_deref().unwrap_or("<ParseError>");
     let message = format!("'{name}' {description}");
-    let primary = span(duplicate)
-        .or_else(|| context.module_name_span())
-        .unwrap_or_else(|| context.module_span());
+    let primary = span(duplicate).unwrap_or_else(|| context.fallback_span());
     let mut diagnostic = Diagnostic::new(severity, code, message, primary, "indexing");
     if let Some(existing) = span(existing) {
         diagnostic = diagnostic.with_related(existing, "Previous declaration");
@@ -750,14 +759,15 @@ where
 fn role_declaration<'a, Q>(
     context: &DiagnosticsContext<'a, Q>,
     id: TypeRoleId,
-) -> Option<(Span, &'a str)>
+) -> (Option<Span>, &'a str)
 where
     Q: ExternalQueries,
 {
-    let ptr = context.stabilized.ast_ptr(id)?;
-    let span = context.span_from_ast_ptr(&ptr)?;
-    let name = ptr.to_node(context.root).name_token()?.text(context.content);
-    Some((span, name))
+    let ptr = context.stabilized.ast_ptr(id);
+    let span = ptr.as_ref().and_then(|ptr| context.span_from_ast_ptr(ptr));
+    let name = ptr.and_then(|ptr| ptr.to_node(context.root).name_token());
+    let name = name.map_or("<ParseError>", |name| name.text(context.content));
+    (span, name)
 }
 
 fn invalid_export_hint<Q>(
@@ -798,20 +808,17 @@ impl ToDiagnostics for IndexingError {
     {
         match self {
             IndexingError::DuplicateImport { duplicate, existing } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*duplicate) else {
-                    return Ok(Vec::new());
-                };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+                let span = syntax_span(context, *duplicate);
 
-                let text = context.text_of(span).trim();
+                let text = span_text(context, span);
                 let message = format!("Import list contains multiple references to '{text}'");
+                let span = span.unwrap_or_else(|| context.fallback_span());
 
                 let mut diagnostic =
                     Diagnostic::new(self.severity(), "DuplicateImport", message, span, "indexing");
 
                 if duplicate != existing
-                    && let Some(existing_ptr) = context.stabilized.syntax_ptr(*existing)
-                    && let Some(existing_span) = context.span_from_syntax_ptr(&existing_ptr)
+                    && let Some(existing_span) = syntax_span(context, *existing)
                 {
                     diagnostic = diagnostic.with_related(existing_span, "First imported here");
                 }
@@ -819,9 +826,8 @@ impl ToDiagnostics for IndexingError {
                 Ok(vec![diagnostic])
             }
             IndexingError::OrphanRole { id } => {
-                let Some((span, name)) = role_declaration(context, *id) else {
-                    return Ok(Vec::new());
-                };
+                let (span, name) = role_declaration(context, *id);
+                let span = span.unwrap_or_else(|| context.fallback_span());
                 let message =
                     format!("The role declaration for '{name}' should follow its definition");
                 Ok(vec![Diagnostic::new(
@@ -833,9 +839,8 @@ impl ToDiagnostics for IndexingError {
                 )])
             }
             IndexingError::DuplicateRole { id, existing } => {
-                let Some((span, name)) = role_declaration(context, *id) else {
-                    return Ok(Vec::new());
-                };
+                let (span, name) = role_declaration(context, *id);
+                let span = span.unwrap_or_else(|| context.fallback_span());
                 let message = format!("Duplicate role declaration for '{name}'");
                 let mut diagnostic = Diagnostic::new(
                     self.severity(),
@@ -844,16 +849,15 @@ impl ToDiagnostics for IndexingError {
                     span,
                     "indexing",
                 );
-                if let Some((existing_span, _)) = role_declaration(context, *existing) {
+                if let (Some(existing_span), _) = role_declaration(context, *existing) {
                     diagnostic =
                         diagnostic.with_related(existing_span, "Previous role declaration");
                 }
                 Ok(vec![diagnostic])
             }
             IndexingError::UnsupportedRole { id } => {
-                let Some((span, _)) = role_declaration(context, *id) else {
-                    return Ok(Vec::new());
-                };
+                let (span, _) = role_declaration(context, *id);
+                let span = span.unwrap_or_else(|| context.fallback_span());
                 let message = "Role declarations are only supported for data types, not for type synonyms nor type classes".to_string();
                 Ok(vec![Diagnostic::new(
                     self.severity(),
@@ -880,18 +884,17 @@ impl ToDiagnostics for IndexingError {
                 *existing,
             )),
             IndexingError::DuplicateExport { id, existing } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+                let span = syntax_span(context, *id);
 
-                let text = context.text_of(span).trim();
+                let text = span_text(context, span);
                 let message = format!("Export list contains multiple references to '{text}'");
+                let span = span.unwrap_or_else(|| context.fallback_span());
 
                 let mut diagnostic =
                     Diagnostic::new(self.severity(), "DuplicateExport", message, span, "indexing");
 
                 if id != existing
-                    && let Some(existing_ptr) = context.stabilized.syntax_ptr(*existing)
-                    && let Some(existing_span) = context.span_from_syntax_ptr(&existing_ptr)
+                    && let Some(existing_span) = syntax_span(context, *existing)
                 {
                     diagnostic = diagnostic.with_related(existing_span, "First exported here");
                 }
@@ -899,15 +902,15 @@ impl ToDiagnostics for IndexingError {
                 Ok(vec![diagnostic])
             }
             IndexingError::InvalidExport { id, hint } => {
-                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
-                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+                let span = syntax_span(context, *id);
 
-                let text = context.text_of(span).trim();
+                let text = span_text(context, span);
                 let hint = hint.and_then(|hint| invalid_export_hint(context, text, hint));
                 let (message, imported) = match hint {
                     Some((message, imported)) => (message, Some(imported)),
                     None => (format!("Cannot export item '{text}'"), None),
                 };
+                let span = span.unwrap_or_else(|| context.fallback_span());
 
                 let mut diagnostic = Diagnostic::new(
                     self.severity(),

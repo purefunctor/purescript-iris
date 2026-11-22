@@ -330,19 +330,13 @@ pub fn compiler(path: &Path) -> FixtureResult {
         let relative = source.strip_prefix(&fixture)?;
         let display_path = relative.to_string_lossy().replace('\\', "/");
         let line_index = LineIndex::new(&collection.content);
-        for diagnostics in [
-            collection.checking_diagnostics(),
-            collection.foreign_diagnostics(),
-            collection.backend_diagnostics(),
-        ] {
-            diagnostics_report.push_str(&format_rich_with_path(
-                diagnostics,
-                &collection.content,
-                &line_index,
-                &display_path,
-                false,
-            ));
-        }
+        diagnostics_report.push_str(&format_rich_with_path(
+            collection.diagnostics(),
+            &collection.content,
+            &line_index,
+            &display_path,
+            false,
+        ));
     }
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(&fixture);
