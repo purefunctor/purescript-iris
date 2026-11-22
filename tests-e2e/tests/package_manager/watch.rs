@@ -226,7 +226,10 @@ fn rebuilds_for_ffi_changes_and_records_the_foreign_module() {
 
     std::fs::remove_file(workspace.path().join("src/Main.js")).unwrap();
     workspace.write("src/Main.jsx", "export const value = 44;\n");
-    watch.wait_for("JSX FFI rebuild", |stdout, _| stdout.contains("Changed 1 input: Main"));
+    let foreign = workspace.path().join("output/Main/foreign.jsx");
+    watch.wait_for("JSX FFI rebuild", |stdout, _| {
+        stdout.contains("Changed 1 input: Main") && foreign.exists()
+    });
     insta::assert_snapshot!(workspace.read("output/Main/foreign.jsx"), @"export const value = 44;");
     insta::assert_snapshot!(workspace.module_metadata("Main").unwrap()["foreign"], @r#""foreign.jsx""#);
     insta::assert_snapshot!(workspace.read("output/Main/foreign.js"), @"export const value = 43;");
