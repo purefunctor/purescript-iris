@@ -866,7 +866,21 @@ impl ToDiagnostics for IndexingError {
 
                 Ok(vec![diagnostic])
             }
-            IndexingError::InvalidExport { .. } => Ok(Vec::new()),
+            IndexingError::InvalidExport { id } => {
+                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+
+                let text = context.text_of(span).trim();
+                let message = format!("Cannot export item '{text}'");
+
+                Ok(vec![Diagnostic::new(
+                    self.severity(),
+                    "InvalidExportItem",
+                    message,
+                    span,
+                    "indexing",
+                )])
+            }
         }
     }
 }
