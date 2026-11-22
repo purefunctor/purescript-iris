@@ -847,9 +847,26 @@ impl ToDiagnostics for IndexingError {
                 *kind,
                 *existing,
             )),
-            IndexingError::InvalidExport { .. } | IndexingError::DuplicateExport { .. } => {
-                Ok(Vec::new())
+            IndexingError::DuplicateExport { id, existing } => {
+                let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
+                let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
+
+                let text = context.text_of(span).trim();
+                let message = format!("Export list contains multiple references to '{text}'");
+
+                let mut diagnostic =
+                    Diagnostic::new(self.severity(), "DuplicateExport", message, span, "indexing");
+
+                if id != existing
+                    && let Some(existing_ptr) = context.stabilized.syntax_ptr(*existing)
+                    && let Some(existing_span) = context.span_from_syntax_ptr(&existing_ptr)
+                {
+                    diagnostic = diagnostic.with_related(existing_span, "First exported here");
+                }
+
+                Ok(vec![diagnostic])
             }
+            IndexingError::InvalidExport { .. } => Ok(Vec::new()),
         }
     }
 }
