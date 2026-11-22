@@ -1,8 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export instance newtypeAttached = { "Coercible0": \() -> <trivial evidence> }
-
-@export instance newtypeBetween = { "Coercible0": \() -> <trivial evidence> }
-
-@export instance newtypeStandalone = { "Coercible0": \() -> <trivial evidence> }
+Module Main rejected; see Main.diagnostics.snap

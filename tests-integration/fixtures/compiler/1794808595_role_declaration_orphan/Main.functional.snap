@@ -1,12 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor BeforeType/1
-
-@export constructor AfterValue/1
-
-@export value = 0
-
-@export constructor KindOnly/1
-
-@export constructor Adjacent/1
+Module Main rejected; see Main.diagnostics.snap

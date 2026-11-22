@@ -283,9 +283,7 @@ where
         if !visited.insert(file_id) {
             continue;
         }
-        if has_checking_errors(context.queries, file_id)?
-            || has_source_errors(context.queries, file_id)?
-        {
+        if has_frontend_errors(context.queries, file_id)? {
             return Ok(());
         }
         let resolved = context.queries.resolved(file_id)?;
@@ -296,20 +294,71 @@ where
     Ok(())
 }
 
-pub fn has_checking_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SourceErrorCounts {
+    pub parse: usize,
+    pub indexing: usize,
+    pub resolving: usize,
+    pub lowering: usize,
+    pub cycle: usize,
+}
+
+impl SourceErrorCounts {
+    pub fn has_errors(self) -> bool {
+        self.parse > 0
+            || self.indexing > 0
+            || self.resolving > 0
+            || self.lowering > 0
+            || self.cycle > 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FrontendErrorCounts {
+    pub source: SourceErrorCounts,
+    pub checking: usize,
+}
+
+impl FrontendErrorCounts {
+    pub fn has_errors(self) -> bool {
+        self.source.has_errors() || self.checking > 0
+    }
+}
+
+pub fn count_source_errors(
+    queries: &impl ExternalQueries,
+    file_id: FileId,
+) -> QueryResult<SourceErrorCounts> {
+    let (_, parse_errors) = queries.parsed(file_id)?;
+    let indexed = queries.indexed(file_id)?;
+    let resolved = queries.resolved(file_id)?;
+    let lowered = queries.lowered(file_id)?;
+    let grouped = queries.grouped(file_id)?;
+    Ok(SourceErrorCounts {
+        parse: parse_errors.iter().filter(|error| error.severity().is_error()).count(),
+        indexing: indexed.errors.iter().filter(|error| error.severity().is_error()).count(),
+        resolving: resolved.errors.iter().filter(|error| error.severity().is_error()).count(),
+        lowering: lowered.errors.iter().filter(|error| error.severity().is_error()).count(),
+        cycle: grouped.cycle_errors.iter().filter(|error| error.severity().is_error()).count(),
+    })
+}
+
+pub fn count_frontend_errors(
+    queries: &impl ExternalQueries,
+    file_id: FileId,
+) -> QueryResult<FrontendErrorCounts> {
+    let source = count_source_errors(queries, file_id)?;
     let checked = queries.checked(file_id)?;
-    Ok(checked.errors.iter().any(|error| error.severity().is_error()))
+    let checking = checked.errors.iter().filter(|error| error.severity().is_error()).count();
+    Ok(FrontendErrorCounts { source, checking })
 }
 
 pub fn has_source_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
-    let (_, parse_errors) = queries.parsed(file_id)?;
-    let lowered = queries.lowered(file_id)?;
-    let grouped = queries.grouped(file_id)?;
-    let resolved = queries.resolved(file_id)?;
-    Ok(!parse_errors.is_empty()
-        || !lowered.errors.is_empty()
-        || !grouped.cycle_errors.is_empty()
-        || !resolved.errors.is_empty())
+    Ok(count_source_errors(queries, file_id)?.has_errors())
+}
+
+pub fn has_frontend_errors(queries: &impl ExternalQueries, file_id: FileId) -> QueryResult<bool> {
+    Ok(count_frontend_errors(queries, file_id)?.has_errors())
 }
 
 fn imported_files(resolved: &ResolvedModule) -> impl Iterator<Item = FileId> + '_ {
