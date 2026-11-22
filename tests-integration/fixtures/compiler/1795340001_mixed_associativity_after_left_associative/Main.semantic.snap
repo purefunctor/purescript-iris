@@ -8,7 +8,7 @@ plus :: forall t0 t1. t0 -> t1 -> t0
 plus = \left -> \right -> left
 
 leftThenNonAssociative :: Prim.Int
-leftThenNonAssociative = equal (plus 1 2) 3
+leftThenNonAssociative = <error>
 
 nonAssociativeThenLeft :: Prim.Int
 nonAssociativeThenLeft = <error>

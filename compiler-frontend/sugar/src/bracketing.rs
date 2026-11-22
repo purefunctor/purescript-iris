@@ -190,26 +190,25 @@ where
 
         let operator = OperatorInfo { id, associativity, precedence };
 
+        if let Some(previous) = previous_operator
+            && previous.precedence == precedence
+        {
+            let kind = if previous.associativity != associativity {
+                Some(AssociativityErrorKind::MixedAssociativity)
+            } else if associativity == Associativity::None {
+                Some(AssociativityErrorKind::NonAssociative)
+            } else {
+                None
+            };
+            if let Some(kind) = kind {
+                let error = AssociativityError { kind, previous, operator };
+                return Ok(Err(BracketingError::Associativity(error)));
+            }
+        }
+
         let (left_binding_power, right_binding_power) = binding_power(associativity, precedence);
         if left_binding_power < minimum_binding_power {
             break;
-        }
-
-        if let Some(previous) = previous_operator
-            && associativity == Associativity::None
-            && previous.associativity == Associativity::None
-            && previous.precedence == precedence
-        {
-            let kind = AssociativityErrorKind::NonAssociative;
-            let error = AssociativityError { kind, previous, operator };
-            return Ok(Err(BracketingError::Associativity(error)));
-        } else if let Some(previous) = previous_operator
-            && previous.associativity != associativity
-            && previous.precedence == precedence
-        {
-            let kind = AssociativityErrorKind::MixedAssociativity;
-            let error = AssociativityError { kind, previous, operator };
-            return Ok(Err(BracketingError::Associativity(error)));
         }
 
         items.next();
