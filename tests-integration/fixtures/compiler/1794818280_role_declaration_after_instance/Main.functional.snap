@@ -1,6 +1,4 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-@export constructor Box/1
-
-@export instance markerTypeBoxInt = {  }
+Module Main rejected; see Main.diagnostics.snap

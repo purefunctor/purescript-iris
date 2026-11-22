@@ -188,22 +188,12 @@ fn collect_file(
         Ok(indexed) => {
             with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
                 for error in &indexed.errors {
-                    match error.to_diagnostics(&ctx) {
-                        Ok(diagnostics) if diagnostics.is_empty() => {
-                            report.diagnostics.push(debug_diagnostic(
-                                metadata,
-                                CompilationStage::Indexing,
-                                "IndexingError",
-                                error,
-                            ));
-                        }
-                        diagnostics => push_diagnostics(
-                            report,
-                            metadata,
-                            CompilationStage::Indexing,
-                            diagnostics,
-                        ),
-                    }
+                    push_diagnostics(
+                        report,
+                        metadata,
+                        CompilationStage::Indexing,
+                        error.to_diagnostics(&ctx),
+                    );
                 }
             });
         }
@@ -283,40 +273,38 @@ fn collect_file(
                     );
                 }
             });
-            if checked.errors.is_empty() {
-                match engine.javascript(file_id) {
-                    Ok(Ok(module)) => {
-                        with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
-                            for diagnostic in module.diagnostics() {
-                                push_diagnostics(
-                                    report,
-                                    metadata,
-                                    CompilationStage::JavaScript,
-                                    diagnostic.to_diagnostics(&ctx),
-                                );
-                            }
-                        });
-                    }
-                    Ok(Err(error)) => {
-                        let diagnostic = Diagnostic::error(
-                            "JavaScriptError",
-                            error.to_string(),
-                            Span::new(0, metadata.content.len() as u32),
-                            CompilationStage::JavaScript.as_str(),
-                        );
-                        report.diagnostics.push(compiler_diagnostic(
-                            metadata,
-                            CompilationStage::JavaScript,
-                            diagnostic,
-                        ));
-                    }
-                    Err(error) => {
-                        push_query_error(report, metadata, CompilationStage::JavaScript, error)
-                    }
-                }
-            }
         }
         Err(error) => push_query_error(report, metadata, CompilationStage::Checking, error),
+    }
+
+    match checking::has_frontend_errors(engine, file_id) {
+        Ok(true) => {}
+        Ok(false) => match engine.javascript(file_id) {
+            Ok(Ok(module)) => {
+                with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
+                    for diagnostic in module.diagnostics() {
+                        push_diagnostics(
+                            report,
+                            metadata,
+                            CompilationStage::JavaScript,
+                            diagnostic.to_diagnostics(&ctx),
+                        );
+                    }
+                });
+            }
+            Ok(Err(error)) => {
+                with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
+                    push_diagnostics(
+                        report,
+                        metadata,
+                        CompilationStage::JavaScript,
+                        error.to_diagnostics(&ctx),
+                    );
+                });
+            }
+            Err(error) => push_query_error(report, metadata, CompilationStage::JavaScript, error),
+        },
+        Err(error) => push_query_error(report, metadata, CompilationStage::JavaScript, error),
     }
 
     match engine.foreign_validation(file_id) {
@@ -383,21 +371,6 @@ fn parse_diagnostics(
         compiler_diagnostic(metadata, CompilationStage::Parse, diagnostic)
     });
     diagnostics.collect()
-}
-
-fn debug_diagnostic(
-    metadata: &FileMetadata,
-    stage: CompilationStage,
-    code: &'static str,
-    error: &impl std::fmt::Debug,
-) -> CompilerDiagnostic {
-    let diagnostic = Diagnostic::error(
-        code,
-        format!("{error:?}"),
-        Span::new(0, metadata.content.len() as u32),
-        stage.as_str(),
-    );
-    compiler_diagnostic(metadata, stage, diagnostic)
 }
 
 fn push_diagnostics(
@@ -590,6 +563,43 @@ mod tests {
 
         assert_eq!(diagnostic.code, "JavaScriptInitializerCycle");
         assert_eq!(diagnostic.message, "This declaration is cyclic with other declarations");
+    }
+
+    #[test]
+    fn gates_javascript_generation_on_frontend_errors() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        let warned = dir.path().join("src/Warned.purs");
+        let broken = dir.path().join("src/Broken.purs");
+        fs::write(
+            &warned,
+            "module Warned where\n\npick :: Boolean -> Int\npick true = 1\npick true = 2\npick false = 3\n\nfirst :: Int\nfirst = second\n\nsecond :: Int\nsecond = first\n",
+        )
+        .unwrap();
+        fs::write(&broken, "module Broken where\n\nimport Missing\n\nvalue :: Int\nvalue = 1\n")
+            .unwrap();
+
+        let report = compile_sources(&[
+            source("fixture", "1.0.0", &warned),
+            source("fixture", "1.0.0", &broken),
+        ])
+        .unwrap();
+        let codes = |file: &str, stage: CompilationStage| {
+            let diagnostics = report
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file == file && diagnostic.stage == stage);
+            diagnostics.map(|diagnostic| diagnostic.code.as_str()).collect::<Vec<_>>()
+        };
+
+        assert!(report.verifier_errors.is_empty(), "{:#?}", report.verifier_errors);
+        assert_eq!(codes("src/Warned.purs", CompilationStage::Checking), ["RedundantPattern"]);
+        assert_eq!(
+            codes("src/Warned.purs", CompilationStage::JavaScript),
+            ["JavaScriptInitializerCycle"]
+        );
+        assert!(!codes("src/Broken.purs", CompilationStage::Resolving).is_empty());
+        assert!(codes("src/Broken.purs", CompilationStage::JavaScript).is_empty());
     }
 
     #[test]

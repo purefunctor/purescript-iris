@@ -608,35 +608,11 @@ pub fn refactor(path: &Path) -> FixtureResult {
         report.push_str(&unified.to_string());
 
         loaded.engine.set_content(id, modified);
-        let (_, parse_errors) =
-            loaded.engine.parsed(id).map_err(|error| invalid_data(error.to_string()))?;
-        let indexed = loaded.engine.indexed(id).map_err(|error| invalid_data(error.to_string()))?;
-        let resolved =
-            loaded.engine.resolved(id).map_err(|error| invalid_data(error.to_string()))?;
-        let lowered = loaded.engine.lowered(id).map_err(|error| invalid_data(error.to_string()))?;
-        let grouped = loaded.engine.grouped(id).map_err(|error| invalid_data(error.to_string()))?;
-        let checked = loaded.engine.checked(id).map_err(|error| invalid_data(error.to_string()))?;
-
-        let indexed_errors =
-            indexed.errors.iter().filter(|error| error.severity().is_error()).collect::<Vec<_>>();
-        let checking_errors =
-            checked.errors.iter().filter(|error| error.severity().is_error()).collect::<Vec<_>>();
-
-        if !parse_errors.is_empty()
-            || !indexed_errors.is_empty()
-            || !resolved.errors.is_empty()
-            || !lowered.errors.is_empty()
-            || !grouped.cycle_errors.is_empty()
-            || !checking_errors.is_empty()
-        {
+        let error_counts = checking::count_frontend_errors(&loaded.engine, id)
+            .map_err(|error| invalid_data(error.to_string()))?;
+        if error_counts.has_errors() {
             return Err(invalid_data(format!(
-                "refactored module failed re-check: parse={:?} indexed={:?} resolved={:?} lowered={:?} grouped={:?} checking={:?}",
-                parse_errors,
-                indexed_errors,
-                resolved.errors,
-                lowered.errors,
-                grouped.cycle_errors,
-                checking_errors,
+                "refactored module failed re-check: {error_counts:?}"
             ))
             .into());
         }
