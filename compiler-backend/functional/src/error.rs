@@ -65,7 +65,12 @@ pub enum UnsupportedState {
     #[error("{function} must be used as a direct, saturated intrinsic call")]
     InvalidStyleXUse { function: String, declaration: GlobalId },
     #[error("{function} {requirement}")]
-    InvalidStyleXContext { function: String, requirement: String, declaration: GlobalId },
+    InvalidStyleXContext {
+        function: String,
+        requirement: String,
+        hint: Option<String>,
+        declaration: GlobalId,
+    },
     #[error("service evidence does not match the declared service constraints")]
     ServiceEvidenceMismatch,
     #[error("virtual module declaration {module_name}.{item_name} cannot be used at runtime")]
