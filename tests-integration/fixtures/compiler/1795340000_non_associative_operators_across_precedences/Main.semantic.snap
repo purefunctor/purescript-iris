@@ -8,7 +8,7 @@ tilde :: forall t0 t1. t0 -> t1 -> t0
 tilde = \left -> \right -> left
 
 lowerThenHigher :: Prim.Int
-lowerThenHigher = <error>
+lowerThenHigher = equal 1 (tilde 2 3)
 
 higherThenLower :: Prim.Int
 higherThenLower = equal (tilde 1 2) 3

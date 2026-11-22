@@ -198,6 +198,7 @@ where
         if let Some(previous) = previous_operator
             && associativity == Associativity::None
             && previous.associativity == Associativity::None
+            && previous.precedence == precedence
         {
             let kind = AssociativityErrorKind::NonAssociative;
             let error = AssociativityError { kind, previous, operator };
