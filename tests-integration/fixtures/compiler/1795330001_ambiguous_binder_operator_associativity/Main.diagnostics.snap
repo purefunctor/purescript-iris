@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [UnreportedUnknownType] · Main.purs:14:25
+  •
+  │
+  • The unknown type '?[invalid operator chain]' was accepted without an error that explains it.
+  │
+  │ This is an unsupported internal compiler state.
+  │
+  │   ambiguousNonAssociative (left <=> _ <=> _) = left
+  │                           ╰─────────────────
+  •

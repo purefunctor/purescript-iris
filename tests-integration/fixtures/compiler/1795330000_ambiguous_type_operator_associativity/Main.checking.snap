@@ -1,0 +1,17 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Pair :: forall @left @right. left -> right -> Main.Pair left right
+validNonAssociative :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+ambiguousNonAssociative :: ?[invalid operator chain] -> Prim.Int
+ambiguousMixedAssociativity :: ?[invalid operator chain] -> Prim.Int
+
+Types
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+<=> :: Prim.Type -> Prim.Type -> Prim.Type
+<+> :: Prim.Type -> Prim.Type -> Prim.Type
+<*> :: Prim.Type -> Prim.Type -> Prim.Type
+
+Roles
+Pair = [Representational, Representational]
