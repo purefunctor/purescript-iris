@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [OrphanRoleDeclaration] · Main.purs:7:1
   •
   │
-  • The role declaration for 'Box' should follow its definition
+  • Role declaration for 'Box' must immediately follow its type definition
   │
   │   type role Box representational
   │   ╰─────────────────────────────

@@ -34,7 +34,7 @@ Error! · [DuplicateDeclaration] · DuplicateLocal.purs:8:1
   │   value :: String
   │   ╰──────────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   value :: Int
   │   ╰───────────
@@ -48,7 +48,7 @@ Error! · [DuplicateDeclaration] · DuplicateLocal.purs:11:1
   │   data Data
   │   ╰────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   data Data
   │   ╰────────

@@ -4,27 +4,31 @@ source: tests-integration/src/fixtures.rs
 Error! · [MixedAssociativity] · Main.purs:10:33
   •
   │
-  • Cannot mix '+.' (infixl 4) and '==' (infix 4) without parentheses
+  • Cannot mix '+.' ('infixl 4') with '==' ('infix 4')
   │
   │   leftThenNonAssociative = 1 +. 2 == 3
   │                                   ╰─
   │
-  • Previous operator
+  • Previous operator here
   │
   │   leftThenNonAssociative = 1 +. 2 == 3
   │                              ╰─
+  │
+  • Hint: Add parentheses to clarify the grouping.
   •
 
 Error! · [MixedAssociativity] · Main.purs:13:33
   •
   │
-  • Cannot mix '==' (infix 4) and '+.' (infixl 4) without parentheses
+  • Cannot mix '==' ('infix 4') with '+.' ('infixl 4')
   │
   │   nonAssociativeThenLeft = 1 == 2 +. 3
   │                                   ╰─
   │
-  • Previous operator
+  • Previous operator here
   │
   │   nonAssociativeThenLeft = 1 == 2 +. 3
   │                              ╰─
+  │
+  • Hint: Add parentheses to clarify the grouping.
   •

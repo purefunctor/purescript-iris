@@ -4,42 +4,42 @@ source: tests-integration/src/fixtures.rs
 Error! · [TermHole] · Main.purs:11:10
   •
   │
-  • Hole '?help' has inferred type: Option
+  • Hole '?help' has inferred type 'Option'
   │
   │   option = ?help
   │            ╰────
-  • while
   │
-  │   No :: Option is in scope
-  │   Yes :: Option is in scope
-  │   localOption :: Option is in scope
-  │   option :: Option is in scope
+  • In scope:
+  │   No :: Option
+  │   Yes :: Option
+  │   localOption :: Option
+  │   option :: Option
   •
 
 Error! · [TermHole] · Main.purs:14:12
   •
   │
-  • Hole '?imported' has inferred type: ImportedOption
+  • Hole '?imported' has inferred type 'ImportedOption'
   │
   │   imported = ?imported
   │              ╰────────
-  • while
   │
-  │   ImportedNo :: ImportedOption is in scope
-  │   ImportedYes :: ImportedOption is in scope
-  │   imported :: ImportedOption is in scope
-  │   importedOption :: ImportedOption is in scope
+  • In scope:
+  │   ImportedNo :: ImportedOption
+  │   ImportedYes :: ImportedOption
+  │   imported :: ImportedOption
+  │   importedOption :: ImportedOption
   •
 
 Error! · [TermHole] · Main.purs:20:10
   •
   │
-  • Hole '?method' has inferred type: a -> Option
+  • Hole '?method' has inferred type 'a -> Option'
   │
   │   method = ?method
   │            ╰──────
-  • while
   │
-  │   method :: forall a1. Select a1 => a1 -> Option is in scope
-  │   select :: forall @a2. Select a2 => a2 -> Option is in scope
+  • In scope:
+  │   method :: forall a1. Select a1 => a1 -> Option
+  │   select :: forall @a2. Select a2 => a2 -> Option
   •

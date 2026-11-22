@@ -4,27 +4,27 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:17:1
   •
   │
-  • Overlapping type class instances found for: Convert value value
+  • Overlapping type class instances found for 'Convert value value'
   │
   │   instance Convert value value where
   │   ╰─────────────────────────────────
-  • while
   │
-  │   Convert Int String is matching
-  │   Convert (Pair Int String) Boolean is matching
-  │   forall value. Convert value value is matching
-  │   forall value1. Convert value1 (Pair value1 value1) is matching
+  • Matching instances:
+  │   Convert Int String
+  │   Convert (Pair Int String) Boolean
+  │   forall value. Convert value value
+  │   forall value1. Convert value1 (Pair value1 value1)
   •
 
 Error! · [OverlappingInstances] · Main.purs:20:1
   •
   │
-  • Overlapping type class instances found for: Convert value1 (Pair value1 value1)
+  • Overlapping type class instances found for 'Convert value1 (Pair value1 value1)'
   │
   │   instance Convert value (value :+: value) where
   │   ╰─────────────────────────────────────────────
-  • while
   │
-  │   forall value. Convert value value is matching
-  │   forall value1. Convert value1 (Pair value1 value1) is matching
+  • Matching instances:
+  │   forall value. Convert value value
+  │   forall value1. Convert value1 (Pair value1 value1)
   •

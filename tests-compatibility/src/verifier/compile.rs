@@ -551,7 +551,7 @@ mod tests {
         assert_eq!(diagnostic.stage, CompilationStage::JavaScript);
         assert_eq!(diagnostic.severity, DiagnosticSeverity::Warning);
         assert_eq!(diagnostic.code, "UnparseableFFIModule");
-        assert!(diagnostic.message.contains("Oxc could not parse"));
+        assert!(diagnostic.message.contains("Could not parse the JavaScript FFI module"));
         assert!(!diagnostic.message.contains("does not export"));
     }
 
@@ -574,7 +574,7 @@ mod tests {
             .expect("JavaScript generation diagnostic");
 
         assert_eq!(diagnostic.code, "JavaScriptInitializerCycle");
-        assert_eq!(diagnostic.message, "This declaration is cyclic with other declarations");
+        assert_eq!(diagnostic.message, "Declaration is part of a value initialisation cycle");
     }
 
     #[test]

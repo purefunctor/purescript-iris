@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:27:15
   •
   │
-  • Cannot unify 'Int' with 'String'
+  • Could not match 'Int' with 'String'
   │
   │     let f = a + 123
   │                 ╰──
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:27:15
 Error! · [NoInstanceFound] · Main.purs:27:11
   •
   │
-  • No instance found for: Semiring String
+  • No type class instance found for 'Semiring String'
   │
   │     let f = a + 123
   │             ╰──────
@@ -22,7 +22,7 @@ Error! · [NoInstanceFound] · Main.purs:27:11
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'unit'
+  • No JavaScript FFI module found for foreign import 'unit'
   │
   │   foreign import unit :: Unit
   │   ╰──────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall a. a -> Effect a
   │   ╰─────────────────────────────────────────────
@@ -40,7 +40,7 @@ Error! · [MissingFFIModule] · Main.purs:7:1
 Error! · [MissingFFIModule] · Main.purs:8:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind :: forall a b. Effect a -> (a -> Effect b) -> Effect b
   │   ╰─────────────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ Error! · [MissingFFIModule] · Main.purs:8:1
 Error! · [MissingFFIModule] · Main.purs:9:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discard'
+  • No JavaScript FFI module found for foreign import 'discard'
   │
   │   foreign import discard :: forall a. Effect a -> Effect Unit -> Effect Unit
   │   ╰─────────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ Error! · [MissingFFIModule] · Main.purs:9:1
 Error! · [MissingFFIModule] · Main.purs:17:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'addImpl'
+  • No JavaScript FFI module found for foreign import 'addImpl'
   │
   │   foreign import addImpl :: Int -> Int -> Int
   │   ╰──────────────────────────────────────────

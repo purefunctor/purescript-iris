@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Cannot derive for type: (f :: Type -> Type) t0
+  • Cannot derive an instance for type '(f :: Type -> Type) t0'
   │
   │   derive instance Bifunctor (WrapBoth f g)
   │   ╰───────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:6:1
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Cannot derive for type: (g :: Type -> Type) t1
+  • Cannot derive an instance for type '(g :: Type -> Type) t1'
   │
   │   derive instance Bifunctor (WrapBoth f g)
   │   ╰───────────────────────────────────────

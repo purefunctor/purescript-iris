@@ -35,12 +35,12 @@ Diagnostics
 Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:4:1
   •
   │
-  • 'Alias' does not match its previous declaration
+  • 'Alias' conflicts with an earlier declaration of a different kind
   │
   │   data Alias = Alias
   │   ╰─────────────────
   │
-  • Previous declaration
+  • Previously declared here
   │
   │   type Alias = Int
   │   ╰───────────────
@@ -49,12 +49,12 @@ Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:4:1
 Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:7:1
   •
   │
-  • 'external' does not match its previous declaration
+  • 'external' conflicts with an earlier declaration of a different kind
   │
   │   external = 0
   │   ╰───────────
   │
-  • Previous declaration
+  • Previously declared here
   │
   │   foreign import external :: Int
   │   ╰─────────────────────────────
@@ -63,12 +63,12 @@ Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:7:1
 Error! · [MismatchedDeclaration] · MismatchedDeclarations.purs:10:1
   •
   │
-  • 'Shape' does not match its previous declaration
+  • 'Shape' conflicts with an earlier declaration of a different kind
   │
   │   data Shape = Circle
   │   ╰──────────────────
   │
-  • Previous declaration
+  • Previously declared here
   │
   │   class Shape a
   │   ╰────────────

@@ -4,9 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:1:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ A checked value declaration has no defining equations.
+  • Value declaration has no defining equations
   │
   │   module Main where
   │   ╰────────────────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveClass] · Main.purs:7:1
   •
   │
-  • Cannot derive this class
+  • Cannot derive instances for class 'Generic'
   │
   │   derive instance Generic Box _
   │   ╰────────────────────────────

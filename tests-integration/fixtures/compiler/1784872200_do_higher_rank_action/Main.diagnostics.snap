@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'polymorphic'
+  • No JavaScript FFI module found for foreign import 'polymorphic'
   │
   │   foreign import polymorphic :: forall value. Box value
   │   ╰────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind ::
   │   ╰─────────────────────

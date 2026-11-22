@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:15:1
   •
   │
-  • Cannot unify 'Type' with 'Int'
+  • Could not match 'Type' with 'Int'
   │
   │   x = choose (Proxy @Int) (Proxy @Int)
   │   ╰───────────────────────────────────

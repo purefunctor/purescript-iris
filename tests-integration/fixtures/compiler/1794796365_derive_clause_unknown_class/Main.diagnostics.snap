@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:6:15
   •
   │
-  • 'Missing' is not in scope
+  • Unknown type class 'Missing'
   │
   │     derive (Eq, Missing)
   │                 ╰──────

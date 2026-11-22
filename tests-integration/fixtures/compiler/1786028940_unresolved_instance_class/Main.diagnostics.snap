@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:5:1
   •
   │
-  • Expected LAYOUT_START
+  • Expected an indented block
   │
   │   instance Missing.Functor Array where
   │   ╰
@@ -13,7 +13,7 @@ Error! · [ParseError] · Main.purs:5:1
 Error! · [ParseError] · Main.purs:5:1
   •
   │
-  • Expected LAYOUT_END
+  • Expected the end of this block
   │
   │   instance Missing.Functor Array where
   │   ╰
@@ -22,7 +22,7 @@ Error! · [ParseError] · Main.purs:5:1
 Error! · [ParseError] · Main.purs:6:1
   •
   │
-  • Expected LAYOUT_START
+  • Expected an indented block
   │
   │
   │   ╰
@@ -31,7 +31,7 @@ Error! · [ParseError] · Main.purs:6:1
 Error! · [ParseError] · Main.purs:6:1
   •
   │
-  • Expected LAYOUT_SEPARATOR
+  • Expected a new line or ';' at this indentation
   │
   │
   │   ╰
@@ -40,7 +40,7 @@ Error! · [ParseError] · Main.purs:6:1
 Error! · [ParseError] · Main.purs:6:1
   •
   │
-  • Expected LAYOUT_END
+  • Expected the end of this block
   │
   │
   │   ╰
@@ -49,7 +49,7 @@ Error! · [ParseError] · Main.purs:6:1
 Error! · [NotInScope] · Main.purs:3:10
   •
   │
-  • 'Functor' is not in scope
+  • Unknown type class 'Functor'
   │
   │   instance Functor Array where
   │            ╰──────
@@ -58,7 +58,7 @@ Error! · [NotInScope] · Main.purs:3:10
 Error! · [NotInScope] · Main.purs:5:10
   •
   │
-  • 'Missing.Functor' is not in scope
+  • Unknown type class 'Missing.Functor'
   │
   │   instance Missing.Functor Array where
   │            ╰──────────────

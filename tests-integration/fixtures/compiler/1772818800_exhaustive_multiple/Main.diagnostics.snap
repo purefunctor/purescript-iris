@@ -4,35 +4,47 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:11:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Just _, Just _
+  • Pattern match is not exhaustive
   │
   │   incomplete1 = case _, _ of
   │                 ╰───────────
+  │
+  • Missing pattern:
+  │   Just _, Just _
   •
 
 Warning! · [MissingPatterns] · Main.purs:16:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Just _, Nothing
+  • Pattern match is not exhaustive
   │
   │   incomplete2 = case _, _ of
   │                 ╰───────────
+  │
+  • Missing pattern:
+  │   Just _, Nothing
   •
 
 Warning! · [MissingPatterns] · Main.purs:21:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Nothing, Just _
+  • Pattern match is not exhaustive
   │
   │   incomplete3 = case _, _ of
   │                 ╰───────────
+  │
+  • Missing pattern:
+  │   Nothing, Just _
   •
 
 Warning! · [MissingPatterns] · Main.purs:26:15
   •
   │
-  • Pattern match is not exhaustive. Missing: Nothing, Nothing
+  • Pattern match is not exhaustive
   │
   │   incomplete4 = case _, _ of
   │                 ╰───────────
+  │
+  • Missing pattern:
+  │   Nothing, Nothing
   •

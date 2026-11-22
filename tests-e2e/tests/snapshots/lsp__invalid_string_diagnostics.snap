@@ -4,7 +4,7 @@ source: tests-e2e/tests/lsp.rs
 [
   {
     "code": "CannotUnify",
-    "message": "Cannot unify 'String' with 'Int'",
+    "message": "Could not match 'String' with 'Int'",
     "range": {
       "end": {
         "character": 17,

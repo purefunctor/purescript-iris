@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:26:3
   •
   │
-  • Pattern match is not exhaustive. Missing: Empty
+  • Pattern match is not exhaustive
   │
   │     case choice of
   │     ╰─────────────
+  │
+  • Missing pattern:
+  │   Empty
   •

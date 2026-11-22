@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:13:1
   •
   │
-  • Overlapping type class instances found for: ShowP @k (a :: k)
+  • Overlapping type class instances found for 'ShowP @k (a :: k)'
   │
   │   instance showPSecond :: ShowP a where
   │   ╰────────────────────────────────────
-  • while
   │
-  │   forall k1 (a1 :: k1). ShowP @k1 (a1 :: k1) is matching
-  │   forall k (a :: k). ShowP @k (a :: k) is matching
+  • Matching instances:
+  │   forall k1 (a1 :: k1). ShowP @k1 (a1 :: k1)
+  │   forall k (a :: k). ShowP @k (a :: k)
   •

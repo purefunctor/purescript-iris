@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:4:19
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │   missingVariable = absent
   │                     ╰─────
@@ -13,7 +13,7 @@ Error! · [NotInScope] · Main.purs:4:19
 Error! · [NotInScope] · Main.purs:5:22
   •
   │
-  • 'Missing' is not in scope
+  • Unknown data constructor 'Missing'
   │
   │   missingConstructor = Missing
   │                        ╰──────
@@ -22,7 +22,7 @@ Error! · [NotInScope] · Main.purs:5:22
 Error! · [NotInScope] · Main.purs:6:21
   •
   │
-  • '+' is not in scope
+  • Unknown operator '+'
   │
   │   missingOperator = 1 + 2
   │                       ╰
@@ -31,7 +31,7 @@ Error! · [NotInScope] · Main.purs:6:21
 Error! · [NotInScope] · Main.purs:7:17
   •
   │
-  • 'negate' is not in scope
+  • Unknown value 'negate', required by numeric negation
   │
   │   missingNegate = -1
   │                   ╰─
@@ -40,7 +40,7 @@ Error! · [NotInScope] · Main.purs:7:17
 Error! · [NotInScope] · Main.purs:9:13
   •
   │
-  • 'bind' is not in scope
+  • Unknown value 'bind', required by this 'do' block
   │
   │   missingDo = do
   │               ╰─
@@ -49,7 +49,7 @@ Error! · [NotInScope] · Main.purs:9:13
 Error! · [NotInScope] · Main.purs:10:12
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │     value <- absent
   │              ╰─────
@@ -58,7 +58,7 @@ Error! · [NotInScope] · Main.purs:10:12
 Error! · [NotInScope] · Main.purs:13:18
   •
   │
-  • 'discard' is not in scope
+  • Unknown value 'discard', required by this 'do' block
   │
   │   missingDiscard = do
   │                    ╰─
@@ -67,7 +67,7 @@ Error! · [NotInScope] · Main.purs:13:18
 Error! · [NotInScope] · Main.purs:14:3
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │     absent
   │     ╰─────
@@ -76,7 +76,7 @@ Error! · [NotInScope] · Main.purs:14:3
 Error! · [NotInScope] · Main.purs:15:3
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │     absent
   │     ╰─────
@@ -85,7 +85,7 @@ Error! · [NotInScope] · Main.purs:15:3
 Error! · [NotInScope] · Main.purs:17:14
   •
   │
-  • 'map' is not in scope
+  • Unknown value 'map', required by this 'ado' block
   │
   │   missingAdo = ado
   │                ╰──
@@ -94,7 +94,7 @@ Error! · [NotInScope] · Main.purs:17:14
 Error! · [NotInScope] · Main.purs:17:14
   •
   │
-  • 'apply' is not in scope
+  • Unknown value 'apply', required by this 'ado' block
   │
   │   missingAdo = ado
   │                ╰──
@@ -103,7 +103,7 @@ Error! · [NotInScope] · Main.purs:17:14
 Error! · [NotInScope] · Main.purs:18:12
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │     value <- absent
   │              ╰─────
@@ -112,7 +112,7 @@ Error! · [NotInScope] · Main.purs:18:12
 Error! · [NotInScope] · Main.purs:19:13
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │     second <- absent
   │               ╰─────
@@ -121,7 +121,7 @@ Error! · [NotInScope] · Main.purs:19:13
 Error! · [NotInScope] · Main.purs:22:15
   •
   │
-  • 'pure' is not in scope
+  • Unknown value 'pure', required by this 'ado' block
   │
   │   missingPure = ado
   │                 ╰──
@@ -130,7 +130,7 @@ Error! · [NotInScope] · Main.purs:22:15
 Error! · [NotInScope] · Main.purs:25:16
   •
   │
-  • 'MissingType' is not in scope
+  • Unknown type 'MissingType'
   │
   │   missingType :: MissingType
   │                  ╰──────────
@@ -139,7 +139,7 @@ Error! · [NotInScope] · Main.purs:25:16
 Error! · [NotInScope] · Main.purs:26:15
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │   missingType = absent
   │                 ╰─────
@@ -148,7 +148,7 @@ Error! · [NotInScope] · Main.purs:26:15
 Error! · [NotInScope] · Main.purs:28:16
   •
   │
-  • 'absent' is not in scope
+  • Unknown value 'absent'
   │
   │   missingPun = { absent }
   │                  ╰─────
@@ -157,7 +157,7 @@ Error! · [NotInScope] · Main.purs:28:16
 Error! · [NotInScope] · Main.purs:32:9
   •
   │
-  • 'missingOperatorName' is not in scope
+  • Unknown value or constructor 'missingOperatorName'
   │
   │   infix 5 missingOperatorName as <+>
   │           ╰──────────────────
@@ -166,7 +166,7 @@ Error! · [NotInScope] · Main.purs:32:9
 Error! · [NotInScope] · Main.purs:33:14
   •
   │
-  • 'MissingTypeOperatorName' is not in scope
+  • Unknown type 'MissingTypeOperatorName'
   │
   │   infix 5 type MissingTypeOperatorName as +
   │                ╰──────────────────────

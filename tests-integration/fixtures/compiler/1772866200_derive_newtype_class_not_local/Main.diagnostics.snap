@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Cannot derive for type: Wrapper
+  • Cannot derive an instance for type 'Wrapper'
   │
   │   derive instance Newtype Wrapper _
   │   ╰────────────────────────────────

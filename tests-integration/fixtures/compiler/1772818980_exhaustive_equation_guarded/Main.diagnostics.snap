@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:3:1
   •
   │
-  • Pattern match is not exhaustive. Missing: true
+  • Pattern match is not exhaustive
   │
   │   testGuarded :: Boolean -> Int
   │   ╰────────────────────────────
+  │
+  • Missing pattern:
+  │   true
   •

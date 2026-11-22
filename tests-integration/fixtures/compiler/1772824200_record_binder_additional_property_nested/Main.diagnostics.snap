@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [AdditionalProperty] · Main.purs:4:15
   •
   │
-  • Additional properties not allowed: y
+  • Unexpected property 'y'
   │
   │   test { outer: { x, y } } = x
   │                 ╰───────

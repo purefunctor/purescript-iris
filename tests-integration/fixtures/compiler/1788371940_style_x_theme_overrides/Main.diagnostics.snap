@@ -4,20 +4,19 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:14:1
   •
   │
-  • Cannot unify 'Color' with 'Length'
+  • Could not match 'Color' with 'Length'
   │
   │   wrongType = StyleX.createTheme variables
   │   ╰───────────────────────────────────────
-  • while
   │
-  │   matching '( accent :: Variable (TypedValue Color String), spacing :: Variable (TypedValue
-  │   Length String) )' with '( accent :: Variable (TypedValue Length String) | ?44 )'
+  • While matching '( accent :: Variable (TypedValue Color String), spacing :: Variable (TypedValue
+  │ Length String) )' with '( accent :: Variable (TypedValue Length String) | ?44 )'
   •
 
 Error! · [CannotUnify] · Main.purs:17:1
   •
   │
-  • Cannot unify '( accent :: Variable (TypedValue Color String), spacing :: Variable (TypedValue
+  • Could not match '( accent :: Variable (TypedValue Color String), spacing :: Variable (TypedValue
   │ Length String) )' with '( missing :: Variable (TypedValue Color String) | ?58 )'
   │
   │   unknown = StyleX.createTheme variables
@@ -27,7 +26,7 @@ Error! · [CannotUnify] · Main.purs:17:1
 Error! · [NoInstanceFound] · Main.purs:20:45
   •
   │
-  • No instance found for: NumberValue Boolean
+  • No type class instance found for 'NumberValue Boolean'
   │
   │   invalidInteger = StyleX.defineVars { value: Types.integer true }
   │                                               ╰─────────────────
@@ -36,7 +35,7 @@ Error! · [NoInstanceFound] · Main.purs:20:45
 Error! · [NoInstanceFound] · Main.purs:22:44
   •
   │
-  • No instance found for: NumberValue String
+  • No type class instance found for 'NumberValue String'
   │
   │   invalidNumber = StyleX.defineVars { value: Types.number "1" }
   │                                              ╰───────────────
@@ -45,7 +44,7 @@ Error! · [NoInstanceFound] · Main.purs:22:44
 Error! · [NoInstanceFound] · Main.purs:24:43
   •
   │
-  • No instance found for: StringValue Int
+  • No type class instance found for 'StringValue Int'
   │
   │   invalidColor = StyleX.defineVars { value: Types.color 42 }
   │                                             ╰─────────────

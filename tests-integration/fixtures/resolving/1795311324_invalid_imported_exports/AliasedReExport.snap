@@ -32,7 +32,7 @@ Diagnostics
 Error! · [InvalidExportItem] · AliasedReExport.purs:1:25
   •
   │
-  • Cannot export imported item 'ByteCount'; re-export 'module Lib' instead
+  • Cannot export imported item 'ByteCount' directly
   │
   │   module AliasedReExport (ByteCount, module Library) where
   │                           ╰────────
@@ -41,12 +41,14 @@ Error! · [InvalidExportItem] · AliasedReExport.purs:1:25
   │
   │   import Library (ByteCount) as Lib
   │                   ╰────────
+  │
+  • Hint: Re-export 'module Lib' instead.
   •
 
 Error! · [InvalidExportItem] · AliasedReExport.purs:1:36
   •
   │
-  • Cannot export 'module Library' because it is imported as 'Lib'; use 'module Lib' instead
+  • Cannot re-export 'module Library' because it is imported under the alias 'Lib'
   │
   │   module AliasedReExport (ByteCount, module Library) where
   │                                      ╰─────────────
@@ -55,4 +57,6 @@ Error! · [InvalidExportItem] · AliasedReExport.purs:1:36
   │
   │   import Library (ByteCount) as Lib
   │   ╰────────────────────────────────
+  │
+  • Hint: Re-export 'module Lib' instead.
   •

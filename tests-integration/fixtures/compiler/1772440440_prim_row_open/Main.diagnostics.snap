@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [AmbiguousConstraint] · Main.purs:33:1
   •
   │
-  • Ambiguous constraint: Lacks @Type "missing" ?79
+  • Ambiguous type class constraint 'Lacks @Type "missing" ?79'
   │
   │   forceSolve =
   │   ╰───────────
@@ -13,7 +13,7 @@ Error! · [AmbiguousConstraint] · Main.purs:33:1
 Error! · [AmbiguousConstraint] · Main.purs:33:1
   •
   │
-  • Ambiguous constraint: Lacks @Type "a" ( a :: Int | ?82 )
+  • Ambiguous type class constraint 'Lacks @Type "a" ( a :: Int | ?82 )'
   │
   │   forceSolve =
   │   ╰───────────

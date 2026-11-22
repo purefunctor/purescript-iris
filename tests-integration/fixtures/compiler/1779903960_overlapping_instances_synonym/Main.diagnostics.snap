@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:11:1
   •
   │
-  • Overlapping type class instances found for: Convert String String
+  • Overlapping type class instances found for 'Convert String String'
   │
   │   instance convertSS :: Convert String String where
   │   ╰────────────────────────────────────────────────
-  • while
   │
-  │   Convert String Bar is matching
-  │   Convert String String is matching
+  • Matching instances:
+  │   Convert String Bar
+  │   Convert String String
   •

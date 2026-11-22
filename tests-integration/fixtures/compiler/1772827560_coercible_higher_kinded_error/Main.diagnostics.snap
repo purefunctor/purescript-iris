@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:12:28
   •
   │
-  • No instance found for: Coercible @Type (Maybe t0) (List t0)
+  • No type class instance found for 'Coercible @Type (Maybe t0) (List t0)'
   │
   │   coerceContainerDifferent = coerce
   │                              ╰─────

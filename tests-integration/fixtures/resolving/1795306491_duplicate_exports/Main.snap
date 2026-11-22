@@ -51,7 +51,7 @@ Diagnostics
 Warning! · [DuplicateExport] · Main.purs:3:5
   •
   │
-  • Export list contains multiple references to 'value'
+  • 'value' is exported more than once
   │
   │     , value
   │       ╰────
@@ -65,7 +65,7 @@ Warning! · [DuplicateExport] · Main.purs:3:5
 Warning! · [DuplicateExport] · Main.purs:5:5
   •
   │
-  • Export list contains multiple references to 'Choice(First)'
+  • 'Choice(First)' is exported more than once
   │
   │     , Choice(First)
   │       ╰────────────
@@ -79,7 +79,7 @@ Warning! · [DuplicateExport] · Main.purs:5:5
 Warning! · [DuplicateExport] · Main.purs:6:5
   •
   │
-  • Export list contains multiple references to 'Pair(Pair, Pair)'
+  • 'Pair(Pair, Pair)' is exported more than once
   │
   │     , Pair(Pair, Pair)
   │       ╰───────────────
@@ -88,7 +88,7 @@ Warning! · [DuplicateExport] · Main.purs:6:5
 Warning! · [DuplicateExport] · Main.purs:8:5
   •
   │
-  • Export list contains multiple references to 'Split(Right)'
+  • 'Split(Right)' is exported more than once
   │
   │     , Split(Right)
   │       ╰───────────
@@ -102,7 +102,7 @@ Warning! · [DuplicateExport] · Main.purs:8:5
 Warning! · [DuplicateExport] · Main.purs:10:5
   •
   │
-  • Export list contains multiple references to 'module Library'
+  • 'module Library' is exported more than once
   │
   │     , module Library
   │       ╰─────────────

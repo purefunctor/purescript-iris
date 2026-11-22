@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:9:1
   •
   │
-  • Overlapping type class instances found for: Eq Box
+  • Overlapping type class instances found for 'Eq Box'
   │
   │   instance eqBox :: Eq Box where
   │   ╰─────────────────────────────
-  • while
   │
-  │   Eq Box is matching
-  │   Eq Box is matching
+  • Matching instances:
+  │   Eq Box
+  │   Eq Box
   •

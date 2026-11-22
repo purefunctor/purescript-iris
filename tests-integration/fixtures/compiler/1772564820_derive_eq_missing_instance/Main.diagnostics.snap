@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:9:1
   •
   │
-  • No instance found for: Eq NoEq
+  • No type class instance found for 'Eq NoEq'
   │
   │   derive instance Eq Box
   │   ╰─────────────────────

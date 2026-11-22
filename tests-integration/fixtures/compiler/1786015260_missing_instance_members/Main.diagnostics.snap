@@ -8,20 +8,20 @@ Warning! · [MissingInstanceMembers] · Main.purs:9:1
   │
   │   instance Render Int
   │   ╰──────────────────
-  • while
   │
-  │   render is not implemented
-  │   renderWithIndent is not implemented
+  • Missing members:
+  │   render
+  │   renderWithIndent
   •
 
 Warning! · [MissingInstanceMembers] · Main.purs:13:1
   •
   │
-  • Instance is missing class members
+  • Instance is missing a class member
   │
   │   instance Fail (Text "partial") => Render String where
   │   ╰────────────────────────────────────────────────────
-  • while
   │
-  │   renderWithIndent is not implemented
+  • Missing member:
+  │   renderWithIndent
   •

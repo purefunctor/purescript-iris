@@ -3,5 +3,5 @@ source: tests-integration/src/fixtures.rs
 ---
 Diagnostics
 
-4:0..4:30 analyzer/indexing [OrphanRoleDeclaration] The role declaration for 'Box' should follow its definition
-2:23..2:28 analyzer/indexing [DuplicateImport] Import list contains multiple references to 'value'
+4:0..4:30 analyzer/indexing [OrphanRoleDeclaration] Role declaration for 'Box' must immediately follow its type definition
+2:23..2:28 analyzer/indexing [DuplicateImport] 'value' is imported more than once

@@ -4,19 +4,18 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:15:1
   •
   │
-  • Cannot unify 'String' with 'Int'
+  • Could not match 'String' with 'Int'
   │
   │   forceSolve =
   │   ╰───────────
-  • while
   │
-  │   matching '( b :: String )' with '( b :: Int )'
+  • While matching '( b :: String )' with '( b :: Int )'
   •
 
 Error! · [CannotUnify] · Main.purs:15:1
   •
   │
-  • Cannot unify '( a :: Int, b :: String )' with '( missing :: Int | (t0 :: Row Type) )'
+  • Could not match '( a :: Int, b :: String )' with '( missing :: Int | (t0 :: Row Type) )'
   │
   │   forceSolve =
   │   ╰───────────
@@ -25,7 +24,7 @@ Error! · [CannotUnify] · Main.purs:15:1
 Error! · [NoInstanceFound] · Main.purs:18:5
   •
   │
-  • No instance found for: Lacks @Type "b" ( a :: Int, b :: String )
+  • No type class instance found for 'Lacks @Type "b" ( a :: Int, b :: String )'
   │
   │     , lacksPresent
   │       ╰───────────

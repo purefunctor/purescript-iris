@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:7:1
   •
   │
-  • No instance found for: Show a
+  • No type class instance found for 'Show a'
   │
   │   derive newtype instance Show (Identity a)
   │   ╰────────────────────────────────────────

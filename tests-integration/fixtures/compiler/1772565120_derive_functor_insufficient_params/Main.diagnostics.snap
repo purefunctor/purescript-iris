@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:6:25
   •
   │
-  • Cannot unify 'Type' with 'Type -> Type'
+  • Could not match 'Type' with 'Type -> Type'
   │
   │   derive instance Functor (Pair Int String)
   │                           ╰────────────────
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:6:25
 Error! · [CannotUnify] · Main.purs:9:25
   •
   │
-  • Cannot unify 'Type' with 'Type -> Type'
+  • Could not match 'Type' with 'Type -> Type'
   │
   │   derive instance Functor Unit
   │                           ╰───
@@ -22,7 +22,7 @@ Error! · [CannotUnify] · Main.purs:9:25
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Cannot derive for type: Pair Int String
+  • Cannot derive an instance for type 'Pair Int String'
   │
   │   derive instance Functor (Pair Int String)
   │   ╰────────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [CannotDeriveForType] · Main.purs:6:1
 Error! · [CannotDeriveForType] · Main.purs:9:1
   •
   │
-  • Cannot derive for type: Unit
+  • Cannot derive an instance for type 'Unit'
   │
   │   derive instance Functor Unit
   │   ╰───────────────────────────

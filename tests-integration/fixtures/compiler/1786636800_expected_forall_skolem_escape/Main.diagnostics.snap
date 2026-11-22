@@ -4,66 +4,74 @@ source: tests-integration/src/fixtures.rs
 Error! · [EscapedSkolem] · Main.purs:99:1
   •
   │
-  • Type variable '(scope :: t0)' has escaped its scope, appearing in type 'forall t0. Token @t0
-  │ (scope :: t0)'
+  • Rigid type variable '(scope :: t0)' escaped its scope
   │
   │   escapedResult = leak modify
   │   ╰──────────────────────────
+  │
+  • Appears in type 'forall t0. Token @t0 (scope :: t0)'
   •
 
 Error! · [EscapedSkolem] · Main.purs:101:1
   •
   │
-  • Type variable 'value' has escaped its scope, appearing in type '(value -> value) -> Unit'
+  • Rigid type variable 'value' escaped its scope
   │
   │   escapedBinder = \callback -> consumeIdentity callback
   │   ╰────────────────────────────────────────────────────
+  │
+  • Appears in type '(value -> value) -> Unit'
   •
 
 Error! · [EscapedSkolem] · Main.purs:103:1
   •
   │
-  • Type variable '(scope1 :: t1)' has escaped its scope, appearing in type 'forall t1. Token @t1
-  │ (scope1 :: t1)'
+  • Rigid type variable '(scope1 :: t1)' escaped its scope
   │
   │   escapedNestedUse = identity (leak modify)
   │   ╰────────────────────────────────────────
+  │
+  • Appears in type 'forall t1. Token @t1 (scope1 :: t1)'
   •
 
 Error! · [EscapedSkolem] · Main.purs:105:1
   •
   │
-  • Type variable '(scope2 :: t2)' has escaped its scope, appearing in type 'forall t3 t2. t3 ->
-  │ Token @t2 (scope2 :: t2)'
+  • Rigid type variable '(scope2 :: t2)' escaped its scope
   │
   │   escapedDiscardedOuterArgument _ = leak modify
   │   ╰────────────────────────────────────────────
+  │
+  • Appears in type 'forall t3 t2. t3 -> Token @t2 (scope2 :: t2)'
   •
 
 Error! · [EscapedSkolem] · Main.purs:107:1
   •
   │
-  • Type variable '(scope3 :: ?111)' has escaped its scope, appearing in type 'Token @?111
-  │ (scope3 :: ?111)'
+  • Rigid type variable '(scope3 :: ?111)' escaped its scope
   │
   │   escapedDiscardedArgument :: Unit
   │   ╰───────────────────────────────
+  │
+  • Appears in type 'Token @?111 (scope3 :: ?111)'
   •
 
 Error! · [EscapedSkolem] · Main.purs:110:1
   •
   │
-  • Type variable '(scope4 :: t4)' has escaped its scope, appearing in type 'forall t4 t5 (t6 ::
-  │ t5). EscapingEvidence @t4 @t5 (scope4 :: t4) (t6 :: t5) => Proxy @t5 (t6 :: t5)'
+  • Rigid type variable '(scope4 :: t4)' escaped its scope
   │
   │   escapedEvidenceOnly = leak pokeWithoutWitness
   │   ╰────────────────────────────────────────────
+  │
+  • Appears in type 'forall t4 t5 (t6 :: t5). EscapingEvidence @t4 @t5 (scope4 :: t4) (t6 :: t5) =>
+  │ Proxy @t5 (t6 :: t5)'
   •
 
 Error! · [MissingFFIModule] · Main.purs:23:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'consumeIdentity'
+  • No JavaScript FFI module found for foreign import 'consumeIdentity'
   │
   │   foreign import consumeIdentity :: (forall value. value -> value) -> Unit
   │   ╰───────────────────────────────────────────────────────────────────────
@@ -72,7 +80,7 @@ Error! · [MissingFFIModule] · Main.purs:23:1
 Error! · [MissingFFIModule] · Main.purs:25:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discardValue'
+  • No JavaScript FFI module found for foreign import 'discardValue'
   │
   │   foreign import discardValue :: forall value. value -> Unit
   │   ╰─────────────────────────────────────────────────────────
@@ -81,7 +89,7 @@ Error! · [MissingFFIModule] · Main.purs:25:1
 Error! · [MissingFFIModule] · Main.purs:27:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'leak'
+  • No JavaScript FFI module found for foreign import 'leak'
   │
   │   foreign import leak
   │   ╰──────────────────
@@ -90,7 +98,7 @@ Error! · [MissingFFIModule] · Main.purs:27:1
 Error! · [MissingFFIModule] · Main.purs:32:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'mutate'
+  • No JavaScript FFI module found for foreign import 'mutate'
   │
   │   foreign import mutate
   │   ╰────────────────────
@@ -99,7 +107,7 @@ Error! · [MissingFFIModule] · Main.purs:32:1
 Error! · [MissingFFIModule] · Main.purs:37:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'mutateConstrained'
+  • No JavaScript FFI module found for foreign import 'mutateConstrained'
   │
   │   foreign import mutateConstrained
   │   ╰───────────────────────────────
@@ -108,7 +116,7 @@ Error! · [MissingFFIModule] · Main.purs:37:1
 Error! · [MissingFFIModule] · Main.purs:41:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'poke'
+  • No JavaScript FFI module found for foreign import 'poke'
   │
   │   foreign import poke :: forall scope. Token scope -> Effect Unit
   │   ╰──────────────────────────────────────────────────────────────
@@ -117,7 +125,7 @@ Error! · [MissingFFIModule] · Main.purs:41:1
 Error! · [MissingFFIModule] · Main.purs:43:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pokeReturningToken'
+  • No JavaScript FFI module found for foreign import 'pokeReturningToken'
   │
   │   foreign import pokeReturningToken
   │   ╰────────────────────────────────
@@ -126,7 +134,7 @@ Error! · [MissingFFIModule] · Main.purs:43:1
 Error! · [MissingFFIModule] · Main.purs:48:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pokeConstrained'
+  • No JavaScript FFI module found for foreign import 'pokeConstrained'
   │
   │   foreign import pokeConstrained
   │   ╰─────────────────────────────
@@ -135,7 +143,7 @@ Error! · [MissingFFIModule] · Main.purs:48:1
 Error! · [MissingFFIModule] · Main.purs:54:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pokeWithoutWitness'
+  • No JavaScript FFI module found for foreign import 'pokeWithoutWitness'
   │
   │   foreign import pokeWithoutWitness
   │   ╰────────────────────────────────
@@ -144,7 +152,7 @@ Error! · [MissingFFIModule] · Main.purs:54:1
 Error! · [MissingFFIModule] · Main.purs:60:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'mutateMap'
+  • No JavaScript FFI module found for foreign import 'mutateMap'
   │
   │   foreign import mutateMap
   │   ╰───────────────────────
@@ -153,7 +161,7 @@ Error! · [MissingFFIModule] · Main.purs:60:1
 Error! · [MissingFFIModule] · Main.purs:67:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pokeMap'
+  • No JavaScript FFI module found for foreign import 'pokeMap'
   │
   │   foreign import pokeMap
   │   ╰─────────────────────

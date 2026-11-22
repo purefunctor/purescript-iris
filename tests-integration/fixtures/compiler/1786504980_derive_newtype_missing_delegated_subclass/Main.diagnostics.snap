@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:15:1
   •
   │
-  • No instance found for: Child @Type Representation
+  • No type class instance found for 'Child @Type Representation'
   │
   │   derive newtype instance Child Wrapper
   │   ╰────────────────────────────────────

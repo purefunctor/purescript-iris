@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingBinderNames] · Main.purs:6:23
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │   letIn t = let Tuple x x = t in x
   │                         ╰
@@ -18,7 +18,7 @@ Error! · [OverlappingBinderNames] · Main.purs:6:23
 Error! · [OverlappingBinderNames] · Main.purs:11:11
   •
   │
-  • Name 'x' is bound more than once
+  • 'x' is bound more than once in this pattern
   │
   │     Tuple x x = t
   │             ╰

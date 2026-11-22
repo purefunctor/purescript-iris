@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:9:1
   •
   │
-  • No instance found for: Show Unshowable
+  • No type class instance found for 'Show Unshowable'
   │
   │   derive newtype instance Show (Identity Unshowable)
   │   ╰─────────────────────────────────────────────────

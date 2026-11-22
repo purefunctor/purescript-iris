@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:8:18
   •
   │
-  • Cannot unify 'Symbol' with 'Type'
+  • Could not match 'Symbol' with 'Type'
   │
   │   type Bad = Int + "hello"
   │                    ╰──────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:9:1
   •
   │
-  • Expected expression
+  • Expected an expression
   │
   │
   │   ╰

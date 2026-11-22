@@ -4,24 +4,24 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:34:1
   •
   │
-  • No instance found for: Eq ((g :: Type -> Type) t0)
+  • No type class instance found for 'Eq ((g :: Type -> Type) t0)'
   │
   │   derive instance Eq1 f => Eq1 (Compose f g)
   │   ╰─────────────────────────────────────────
-  • while
   │
-  │   Eq1 (f :: Type -> Type) is in scope
-  │   Eq t0 is in scope
+  • Constraints in scope:
+  │   Eq1 (f :: Type -> Type)
+  │   Eq t0
   •
 
 Error! · [NoInstanceFound] · Main.purs:43:1
   •
   │
-  • No instance found for: Eq (NoEq t1)
+  • No type class instance found for 'Eq (NoEq t1)'
   │
   │   derive instance Eq1 NoEq
   │   ╰───────────────────────
-  • while
   │
-  │   Eq t1 is in scope
+  • Constraints in scope:
+  │   Eq t1
   •

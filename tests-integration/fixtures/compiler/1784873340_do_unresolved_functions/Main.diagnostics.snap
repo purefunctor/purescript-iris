@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:3:18
   •
   │
-  • 'bind' is not in scope
+  • Unknown value 'bind', required by this 'do' block
   │
   │   unresolvedBind = do
   │                    ╰─
@@ -13,7 +13,7 @@ Error! · [NotInScope] · Main.purs:3:18
 Error! · [NotInScope] · Main.purs:7:21
   •
   │
-  • 'discard' is not in scope
+  • Unknown value 'discard', required by this 'do' block
   │
   │   unresolvedDiscard = do
   │                       ╰─
@@ -22,7 +22,7 @@ Error! · [NotInScope] · Main.purs:7:21
 Error! · [CannotUnify] · Main.purs:4:3
   •
   │
-  • Cannot unify 'Int' with '(t0 :: Type -> Type) ((t0 :: Type -> Type) t1)'
+  • Could not match 'Int' with '(t0 :: Type -> Type) ((t0 :: Type -> Type) t1)'
   │
   │     value <- 1
   │     ╰─────────
@@ -31,7 +31,7 @@ Error! · [CannotUnify] · Main.purs:4:3
 Error! · [CannotUnify] · Main.purs:8:3
   •
   │
-  • Cannot unify 'Int' with '(t2 :: Type -> Type) ?15'
+  • Could not match 'Int' with '(t2 :: Type -> Type) ?15'
   │
   │     1
   │     ╰
@@ -40,7 +40,7 @@ Error! · [CannotUnify] · Main.purs:8:3
 Error! · [CannotUnify] · Main.purs:9:3
   •
   │
-  • Cannot unify 'Int' with '(t2 :: Type -> Type) t3'
+  • Could not match 'Int' with '(t2 :: Type -> Type) t3'
   │
   │     2
   │     ╰

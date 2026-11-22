@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveClass] · Main.purs:6:11
   •
   │
-  • Cannot derive this class
+  • Cannot derive instances for class 'MyClass'
   │
   │     derive (MyClass)
   │             ╰──────

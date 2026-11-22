@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [RecursiveSynonym] · Main.purs:10:1
   •
   │
-  • Invalid type synonym cycle
+  • Cycle in type synonym declarations
   │
   │   type Loop = Array Loop
   │   ╰─────────────────────
@@ -13,16 +13,18 @@ Error! · [RecursiveSynonym] · Main.purs:10:1
 Error! · [InvalidTypeApplication] · Main.purs:6:16
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   type Invalid = Int String
   │                  ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •
 
 Error! · [RecursiveSynonymExpansion] · Main.purs:24:26
   •
   │
-  • Recursive type synonym expansion
+  • Type synonym 'Loop' expands recursively
   │
   │   needsLoop :: Constrained Loop => Int
   │                            ╰───
@@ -31,7 +33,7 @@ Error! · [RecursiveSynonymExpansion] · Main.purs:24:26
 Error! · [NoInstanceFound] · Main.purs:28:12
   •
   │
-  • No instance found for: Constrained Loop
+  • No type class instance found for 'Constrained Loop'
   │
   │   usesLoop = needsLoop
   │              ╰────────

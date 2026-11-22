@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:14:5
   •
   │
-  • Pattern match is not exhaustive. Missing: Just _
+  • Pattern match is not exhaustive
   │
   │       loud :: Maybe a -> Int
   │       ╰─────────────────────
+  │
+  • Missing pattern:
+  │   Just _
   •

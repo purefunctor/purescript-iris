@@ -34,7 +34,7 @@ Error! · [DuplicateDeclaration] · UnexportedDuplicate.purs:12:1
   │   hidden :: Int
   │   ╰────────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   hidden :: Int
   │   ╰────────────

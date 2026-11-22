@@ -25,7 +25,7 @@ Diagnostics
 Error! · [InvalidExportItem] · Unknown.purs:1:17
   •
   │
-  • Cannot export item 'missingValue'
+  • Cannot export 'missingValue'
   │
   │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
   │                   ╰───────────
@@ -34,7 +34,7 @@ Error! · [InvalidExportItem] · Unknown.purs:1:17
 Error! · [InvalidExportItem] · Unknown.purs:1:31
   •
   │
-  • Cannot export item 'MissingType'
+  • Cannot export 'MissingType'
   │
   │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
   │                                 ╰──────────
@@ -43,7 +43,7 @@ Error! · [InvalidExportItem] · Unknown.purs:1:31
 Error! · [InvalidExportItem] · Unknown.purs:1:44
   •
   │
-  • Cannot export item 'class MissingClass'
+  • Cannot export 'class MissingClass'
   │
   │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
   │                                              ╰─────────────────
@@ -52,7 +52,7 @@ Error! · [InvalidExportItem] · Unknown.purs:1:44
 Error! · [InvalidExportItem] · Unknown.purs:1:64
   •
   │
-  • Cannot export item '(+++)'
+  • Cannot export '(+++)'
   │
   │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
   │                                                                  ╰────
@@ -61,7 +61,7 @@ Error! · [InvalidExportItem] · Unknown.purs:1:64
 Error! · [InvalidExportItem] · Unknown.purs:1:71
   •
   │
-  • Cannot export item 'type (:+:)'
+  • Cannot export 'type (:+:)'
   │
   │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
   │                                                                         ╰─────────
@@ -70,7 +70,7 @@ Error! · [InvalidExportItem] · Unknown.purs:1:71
 Error! · [InvalidExportItem] · Unknown.purs:1:83
   •
   │
-  • Cannot export item 'module MissingModule'
+  • Cannot export 'module MissingModule'
   │
   │   module Unknown (missingValue, MissingType, class MissingClass, (+++), type (:+:), module MissingModule) where
   │                                                                                     ╰───────────────────

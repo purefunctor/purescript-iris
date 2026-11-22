@@ -9,7 +9,7 @@ Error! · [DuplicateRoleDeclaration] · Main.purs:5:1
   │   type role Duplicate nominal
   │   ╰──────────────────────────
   │
-  • Previous role declaration
+  • First declared here
   │
   │   type role Duplicate representational
   │   ╰───────────────────────────────────

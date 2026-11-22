@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [DeriveInvalidArity] · Main.purs:16:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Eq' requires 1 type argument, but found 2
   │
   │   derive instance Eq Pair Int
   │   ╰──────────────────────────
@@ -13,7 +13,7 @@ Error! · [DeriveInvalidArity] · Main.purs:16:1
 Error! · [DeriveInvalidArity] · Main.purs:17:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Ord' requires 1 type argument, but found 2
   │
   │   derive instance Ord Pair Int
   │   ╰───────────────────────────
@@ -22,7 +22,7 @@ Error! · [DeriveInvalidArity] · Main.purs:17:1
 Error! · [DeriveInvalidArity] · Main.purs:18:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Functor' requires 1 type argument, but found 2
   │
   │   derive instance Functor Pair Int
   │   ╰───────────────────────────────
@@ -31,7 +31,7 @@ Error! · [DeriveInvalidArity] · Main.purs:18:1
 Error! · [DeriveInvalidArity] · Main.purs:19:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Bifunctor' requires 1 type argument, but found 2
   │
   │   derive instance Bifunctor Pair Int
   │   ╰─────────────────────────────────
@@ -40,7 +40,7 @@ Error! · [DeriveInvalidArity] · Main.purs:19:1
 Error! · [DeriveInvalidArity] · Main.purs:20:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Foldable' requires 1 type argument, but found 2
   │
   │   derive instance Foldable Pair Int
   │   ╰────────────────────────────────
@@ -49,7 +49,7 @@ Error! · [DeriveInvalidArity] · Main.purs:20:1
 Error! · [DeriveInvalidArity] · Main.purs:21:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Bifoldable' requires 1 type argument, but found 2
   │
   │   derive instance Bifoldable Pair Int
   │   ╰──────────────────────────────────
@@ -58,7 +58,7 @@ Error! · [DeriveInvalidArity] · Main.purs:21:1
 Error! · [DeriveInvalidArity] · Main.purs:22:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Traversable' requires 1 type argument, but found 2
   │
   │   derive instance Traversable Pair Int
   │   ╰───────────────────────────────────
@@ -67,7 +67,7 @@ Error! · [DeriveInvalidArity] · Main.purs:22:1
 Error! · [DeriveInvalidArity] · Main.purs:23:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Bitraversable' requires 1 type argument, but found 2
   │
   │   derive instance Bitraversable Pair Int
   │   ╰─────────────────────────────────────
@@ -76,7 +76,7 @@ Error! · [DeriveInvalidArity] · Main.purs:23:1
 Error! · [DeriveInvalidArity] · Main.purs:24:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Contravariant' requires 1 type argument, but found 2
   │
   │   derive instance Contravariant Pair Int
   │   ╰─────────────────────────────────────
@@ -85,7 +85,7 @@ Error! · [DeriveInvalidArity] · Main.purs:24:1
 Error! · [DeriveInvalidArity] · Main.purs:25:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Profunctor' requires 1 type argument, but found 2
   │
   │   derive instance Profunctor Pair Int
   │   ╰──────────────────────────────────
@@ -94,7 +94,7 @@ Error! · [DeriveInvalidArity] · Main.purs:25:1
 Error! · [DeriveInvalidArity] · Main.purs:26:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Eq1' requires 1 type argument, but found 2
   │
   │   derive instance Eq1 Pair Int
   │   ╰───────────────────────────
@@ -103,7 +103,7 @@ Error! · [DeriveInvalidArity] · Main.purs:26:1
 Error! · [DeriveInvalidArity] · Main.purs:27:1
   •
   │
-  • Invalid arity for derive: expected 1, got 2
+  • Deriving 'Ord1' requires 1 type argument, but found 2
   │
   │   derive instance Ord1 Pair Int
   │   ╰────────────────────────────

@@ -4,12 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:5:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.conditional' must be called directly with all of its arguments.
-  │
-  │ It cannot be passed around as a function or partially applied.
+  • 'Iris.StyleX.conditional' must be called directly with all of its arguments
   │
   │   partialConditional :: Style -> Style
   │   ╰───────────────────────────────────
+  │
+  • It cannot be passed as a value or partially applied
   •

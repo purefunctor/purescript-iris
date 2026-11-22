@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:11:1
   •
   │
-  • Expected LAYOUT_START
+  • Expected an indented block
   │
   │   finalBind = do
   │   ╰
@@ -13,7 +13,7 @@ Error! · [ParseError] · Main.purs:11:1
 Error! · [ParseError] · Main.purs:11:1
   •
   │
-  • Expected LAYOUT_END
+  • Expected the end of this block
   │
   │   finalBind = do
   │   ╰
@@ -22,7 +22,7 @@ Error! · [ParseError] · Main.purs:11:1
 Error! · [ParseError] · Main.purs:26:1
   •
   │
-  • Expected RIGHT_PARENTHESIS
+  • Expected ')'
   │
   │
   │   ╰
@@ -31,7 +31,7 @@ Error! · [ParseError] · Main.purs:26:1
 Error! · [EmptyDoBlock] · Main.purs:9:11
   •
   │
-  • Empty do block
+  • A 'do' block cannot be empty
   │
   │   emptyDo = do
   │             ╰─
@@ -40,7 +40,7 @@ Error! · [EmptyDoBlock] · Main.purs:9:11
 Warning! · [InvalidFinalBind] · Main.purs:12:3
   •
   │
-  • Invalid final bind statement in do expression
+  • The final statement in a 'do' block should not be a bind
   │
   │     value <- pure 1
   │     ╰──────────────
@@ -49,7 +49,7 @@ Warning! · [InvalidFinalBind] · Main.purs:12:3
 Error! · [InvalidFinalLet] · Main.purs:15:3
   •
   │
-  • Invalid final let statement in do expression
+  • A 'do' block cannot end with a 'let' statement
   │
   │     let value = 1
   │     ╰────────────
@@ -58,7 +58,7 @@ Error! · [InvalidFinalLet] · Main.purs:15:3
 Warning! · [InvalidFinalBind] · Main.purs:22:3
   •
   │
-  • Invalid final bind statement in do expression
+  • The final statement in a 'do' block should not be a bind
   │
   │     value <-
   │     ╰───────
@@ -67,7 +67,7 @@ Warning! · [InvalidFinalBind] · Main.purs:22:3
 Error! · [EmptyDoBlock] · Main.purs:21:26
   •
   │
-  • Empty do block
+  • A 'do' block cannot be empty
   │
   │   missingFinalBindAction = do
   │                            ╰─
@@ -76,7 +76,7 @@ Error! · [EmptyDoBlock] · Main.purs:21:26
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall value. value -> Effect value
   │   ╰─────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind :: forall value result. Effect value -> (value -> Effect result) -> Effect result
   │   ╰────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ Error! · [MissingFFIModule] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discard'
+  • No JavaScript FFI module found for foreign import 'discard'
   │
   │   foreign import discard :: forall value result. Effect value -> (value -> Effect result) -> Effect result
   │   ╰───────────────────────────────────────────────────────────────────────────────────────────────────────

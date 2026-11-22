@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:8:1
   •
   │
-  • Cannot derive for type: Opaque (t0 -> Int)
+  • Cannot derive an instance for type 'Opaque (t0 -> Int)'
   │
   │   derive instance Contravariant Wrapped
   │   ╰────────────────────────────────────

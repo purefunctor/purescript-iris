@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:8:24
   •
   │
-  • 'Missing' is not in scope
+  • Unknown type 'Missing'
   │
   │   unresolvedSignature :: Missing
   │                          ╰──────
@@ -13,7 +13,7 @@ Error! · [NotInScope] · Main.purs:8:24
 Error! · [NotInScope] · Main.purs:20:19
   •
   │
-  • 'missing' is not in scope
+  • Unknown value 'missing'
   │
   │   unresolvedValue = missing
   │                     ╰──────
@@ -22,7 +22,7 @@ Error! · [NotInScope] · Main.purs:20:19
 Error! · [NotInScope] · Main.purs:23:29
   •
   │
-  • 'missing' is not in scope
+  • Unknown value 'missing'
   │
   │   showsUnresolvedValue = show missing
   │                               ╰──────
@@ -31,8 +31,10 @@ Error! · [NotInScope] · Main.purs:23:29
 Error! · [InvalidTypeApplication] · Main.purs:14:21
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   invalidSignature :: Int String
   │                       ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •

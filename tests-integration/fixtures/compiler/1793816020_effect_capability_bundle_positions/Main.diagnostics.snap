@@ -4,49 +4,59 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidCapabilityBundlePosition] · Main.purs:20:34
   •
   │
-  • Capability bundle 'Shop' is only allowed as the first argument of 'Has', or in a bundle type
-  │ synonym. It is not a service type.
+  • Capability bundle 'Shop' cannot be used as a service type
   │
   │   data InvalidField = InvalidField (Array Shop)
   │                                    ╰───────────
+  │
+  • Hint: Use a capability bundle only as the first argument to 'Has' or inside another bundle
+  │ synonym.
   •
 
 Error! · [InvalidCapabilityBundlePosition] · Main.purs:14:17
   •
   │
-  • Capability bundle 'Shop' is only allowed as the first argument of 'Has', or in a bundle type
-  │ synonym. It is not a service type.
+  • Capability bundle 'Shop' cannot be used as a service type
   │
   │   invalidValue :: Shop -> Shop
   │                   ╰───────────
+  │
+  • Hint: Use a capability bundle only as the first argument to 'Has' or inside another bundle
+  │ synonym.
   •
 
 Error! · [InvalidCapabilityBundlePosition] · Main.purs:17:19
   •
   │
-  • Capability bundle 'Shop' is only allowed as the first argument of 'Has', or in a bundle type
-  │ synonym. It is not a service type.
+  • Capability bundle 'Shop' cannot be used as a service type
   │
   │   invalidService :: Record (first :: First, second :: Second) -> Shop
   │                     ╰────────────────────────────────────────────────
+  │
+  • Hint: Use a capability bundle only as the first argument to 'Has' or inside another bundle
+  │ synonym.
   •
 
 Error! · [InvalidCapabilityBundlePosition] · Main.purs:22:18
   •
   │
-  • Capability bundle 'First & Second' is only allowed as the first argument of 'Has', or in a
-  │ bundle type synonym. It is not a service type.
+  • Capability bundle 'First & Second' cannot be used as a service type
   │
   │   invalidErased :: Ignore (First & Second)
   │                    ╰──────────────────────
+  │
+  • Hint: Use a capability bundle only as the first argument to 'Has' or inside another bundle
+  │ synonym.
   •
 
 Error! · [InvalidCapabilityBundlePosition] · Main.purs:29:44
   •
   │
-  • Capability bundle 'Shop' is only allowed as the first argument of 'Has', or in a bundle type
-  │ synonym. It is not a service type.
+  • Capability bundle 'Shop' cannot be used as a service type
   │
   │   invalidApplication services = case lookup @Shop services of
   │                                              ╰───
+  │
+  • Hint: Use a capability bundle only as the first argument to 'Has' or inside another bundle
+  │ synonym.
   •

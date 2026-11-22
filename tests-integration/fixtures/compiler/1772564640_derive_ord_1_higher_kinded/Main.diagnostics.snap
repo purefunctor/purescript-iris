@@ -4,25 +4,25 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:14:1
   •
   │
-  • No instance found for: Ord1 (f :: Type -> Type)
+  • No type class instance found for 'Ord1 (f :: Type -> Type)'
   │
   │   derive instance Ord a => Ord (WrapNoOrd1 f a)
   │   ╰────────────────────────────────────────────
-  • while
   │
-  │   Ord a is in scope
-  │   Eq a is in scope
+  • Constraints in scope:
+  │   Ord a
+  │   Eq a
   •
 
 Error! · [NoInstanceFound] · Main.purs:14:1
   •
   │
-  • No instance found for: Eq1 (f :: Type -> Type)
+  • No type class instance found for 'Eq1 (f :: Type -> Type)'
   │
   │   derive instance Ord a => Ord (WrapNoOrd1 f a)
   │   ╰────────────────────────────────────────────
-  • while
   │
-  │   Ord a is in scope
-  │   Eq a is in scope
+  • Constraints in scope:
+  │   Ord a
+  │   Eq a
   •

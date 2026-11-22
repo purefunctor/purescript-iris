@@ -38,7 +38,7 @@ Error! · [DuplicateDeclaration] · DuplicateDeclarations.purs:4:1
   │   value :: String
   │   ╰──────────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   value :: Int
   │   ╰───────────
@@ -52,7 +52,7 @@ Error! · [DuplicateDeclaration] · DuplicateDeclarations.purs:8:1
   │   data Choice = Second
   │   ╰───────────────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   data Choice = First
   │   ╰──────────────────

@@ -4,11 +4,11 @@ source: tests-integration/src/fixtures.rs
 Error! · [TermHole] · Main.purs:3:8
   •
   │
-  • Hole '?hole' has inferred type: t0
+  • Hole '?hole' has inferred type 't0'
   │
   │   hole = ?hole
   │          ╰────
-  • while
   │
-  │   hole :: t0 is in scope
+  • In scope:
+  │   hole :: t0
   •

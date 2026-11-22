@@ -4,9 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:4:3
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ A pattern binding in a let expression contains an error.
+  • Pattern binding in 'let' could not be lowered to JavaScript
   │
   │     { x } =
   │     ╰──────

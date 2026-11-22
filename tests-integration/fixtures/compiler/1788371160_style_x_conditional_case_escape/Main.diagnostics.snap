@@ -4,9 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [FunctionalCodegen] · Main.purs:5:1
   •
   │
-  • Cannot generate JavaScript for module 'Main'.
-  │
-  │ 'Iris.StyleX.When.ancestor' must be used directly in a conditionalValue case array.
+  • 'Iris.StyleX.When.ancestor' must be used directly in a 'conditionalValue' case array
   │
   │   escaped = When.ancestor ":hover" "red"
   │   ╰─────────────────────────────────────

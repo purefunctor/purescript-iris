@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [JavaScriptInitializerCycle] · Main.purs:6:1
   •
   │
-  • This declaration is cyclic with other declarations
+  • Declaration is part of a value initialisation cycle
   │
   │   second :: Int
   │   ╰────────────
   │
-  • This declaration is a member of the same cycle
+  • Also part of this cycle
   │
   │   first :: Int
   │   ╰───────────

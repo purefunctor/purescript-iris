@@ -29,12 +29,12 @@ Diagnostics
 Error! · [RedefinedIdent] · Hidden.purs:6:1
   •
   │
-  • Instance name 'classInt' conflicts with a local value declaration
+  • Instance name 'classInt' conflicts with a value declaration in this module
   │
   │   instance classInt :: Class Int
   │   ╰─────────────────────────────
   │
-  • Conflicting declaration
+  • Value declared here
   │
   │   foreign import classInt :: Int
   │   ╰─────────────────────────────

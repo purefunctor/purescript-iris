@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:108:1
   •
   │
-  • Pattern match is not exhaustive. Missing: None
+  • Pattern match is not exhaustive
   │
   │   partialPattern :: Choice -> Int
   │   ╰──────────────────────────────
+  │
+  • Missing pattern:
+  │   None
   •

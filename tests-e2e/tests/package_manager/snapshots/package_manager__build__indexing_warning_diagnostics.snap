@@ -7,7 +7,7 @@ status: 0
 Warning! · [DuplicateImport] · src/Main.purs:3:24
   •
   │
-  • Import list contains multiple references to 'value'
+  • 'value' is imported more than once
   │
   │   import Library (value, value)
   │                          ╰────

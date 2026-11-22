@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NotInScope] · Main.purs:3:17
   •
   │
-  • 'map' is not in scope
+  • Unknown value 'map', required by this 'ado' block
   │
   │   unresolvedMap = ado
   │                   ╰──
@@ -13,7 +13,7 @@ Error! · [NotInScope] · Main.purs:3:17
 Error! · [NotInScope] · Main.purs:7:19
   •
   │
-  • 'map' is not in scope
+  • Unknown value 'map', required by this 'ado' block
   │
   │   unresolvedApply = ado
   │                     ╰──
@@ -22,7 +22,7 @@ Error! · [NotInScope] · Main.purs:7:19
 Error! · [NotInScope] · Main.purs:7:19
   •
   │
-  • 'apply' is not in scope
+  • Unknown value 'apply', required by this 'ado' block
   │
   │   unresolvedApply = ado
   │                     ╰──
@@ -31,7 +31,7 @@ Error! · [NotInScope] · Main.purs:7:19
 Error! · [NotInScope] · Main.purs:12:18
   •
   │
-  • 'pure' is not in scope
+  • Unknown value 'pure', required by this 'ado' block
   │
   │   unresolvedPure = ado
   │                    ╰──
@@ -40,7 +40,7 @@ Error! · [NotInScope] · Main.purs:12:18
 Error! · [CannotUnify] · Main.purs:4:3
   •
   │
-  • Cannot unify 'Int' with '(t0 :: Type -> Type) t1'
+  • Could not match 'Int' with '(t0 :: Type -> Type) t1'
   │
   │     value <- 1
   │     ╰─────────
@@ -49,7 +49,7 @@ Error! · [CannotUnify] · Main.purs:4:3
 Error! · [CannotUnify] · Main.purs:8:3
   •
   │
-  • Cannot unify 'Int' with '(t2 :: Type -> Type) t3'
+  • Could not match 'Int' with '(t2 :: Type -> Type) t3'
   │
   │     first <- 1
   │     ╰─────────
@@ -58,7 +58,7 @@ Error! · [CannotUnify] · Main.purs:8:3
 Error! · [CannotUnify] · Main.purs:9:3
   •
   │
-  • Cannot unify 'Int' with '(t2 :: Type -> Type) ?16'
+  • Could not match 'Int' with '(t2 :: Type -> Type) ?16'
   │
   │     second <- 2
   │     ╰──────────

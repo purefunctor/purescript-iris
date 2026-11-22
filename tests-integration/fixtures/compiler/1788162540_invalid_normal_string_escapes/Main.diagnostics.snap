@@ -31,8 +31,11 @@ Error! · [InvalidStringEscape] · Main.purs:10:20
 Warning! · [RedundantPattern] · Main.purs:6:1
   •
   │
-  • Pattern match has redundant patterns: _
+  • Pattern match contains an unreachable pattern
   │
   │   invalidBinder :: String -> Boolean
   │   ╰─────────────────────────────────
+  │
+  • Redundant pattern:
+  │   _
   •

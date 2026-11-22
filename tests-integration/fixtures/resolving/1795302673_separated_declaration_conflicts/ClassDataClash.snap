@@ -36,7 +36,7 @@ Error! · [DuplicateDeclaration] · ClassDataClash.purs:7:1
   │   data Shared = Shared
   │   ╰───────────────────
   │
-  • Previous declaration
+  • First declared here
   │
   │   class Shared a
   │   ╰─────────────

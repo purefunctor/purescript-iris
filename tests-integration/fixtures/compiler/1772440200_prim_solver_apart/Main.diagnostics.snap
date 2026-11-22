@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:21:5
   •
   │
-  • No instance found for: Add 2 3 10
+  • No type class instance found for 'Add 2 3 10'
   │
   │     { invalidAdd
   │       ╰─────────
@@ -13,7 +13,7 @@ Error! · [NoInstanceFound] · Main.purs:21:5
 Error! · [NoInstanceFound] · Main.purs:22:5
   •
   │
-  • No instance found for: Compare 5 1 LT
+  • No type class instance found for 'Compare 5 1 LT'
   │
   │     , invalidCompare
   │       ╰─────────────
@@ -22,7 +22,7 @@ Error! · [NoInstanceFound] · Main.purs:22:5
 Error! · [NoInstanceFound] · Main.purs:23:5
   •
   │
-  • No instance found for: Append "hello" "world" "xyz"
+  • No type class instance found for 'Append "hello" "world" "xyz"'
   │
   │     , invalidAppend
   │       ╰────────────
@@ -31,7 +31,7 @@ Error! · [NoInstanceFound] · Main.purs:23:5
 Error! · [NoInstanceFound] · Main.purs:24:5
   •
   │
-  • No instance found for: Cons "hello" "world" "helloworld"
+  • No type class instance found for 'Cons "hello" "world" "helloworld"'
   │
   │     , invalidCons
   │       ╰──────────
@@ -40,7 +40,7 @@ Error! · [NoInstanceFound] · Main.purs:24:5
 Error! · [NoInstanceFound] · Main.purs:29:5
   •
   │
-  • No instance found for: Compare 5 1 LT
+  • No type class instance found for 'Compare 5 1 LT'
   │
   │     { invalidCompare
   │       ╰─────────────
@@ -49,7 +49,7 @@ Error! · [NoInstanceFound] · Main.purs:29:5
 Error! · [NoInstanceFound] · Main.purs:30:5
   •
   │
-  • No instance found for: Cons "hello" "world" "helloworld"
+  • No type class instance found for 'Cons "hello" "world" "helloworld"'
   │
   │     , invalidCons
   │       ╰──────────

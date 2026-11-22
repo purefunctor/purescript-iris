@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:15:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall hooks a. a -> Render hooks hooks a
   │   ╰───────────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:15:1
 Error! · [MissingFFIModule] · Main.purs:17:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discard'
+  • No JavaScript FFI module found for foreign import 'discard'
   │
   │   foreign import discard ::
   │   ╰────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:17:1
 Error! · [MissingFFIModule] · Main.purs:23:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'use1'
+  • No JavaScript FFI module found for foreign import 'use1'
   │
   │   foreign import use1 :: forall hooks. Render hooks (Use1 hooks) Unit
   │   ╰──────────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ Error! · [MissingFFIModule] · Main.purs:23:1
 Error! · [MissingFFIModule] · Main.purs:25:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'use2'
+  • No JavaScript FFI module found for foreign import 'use2'
   │
   │   foreign import use2 :: forall hooks. Render hooks (Use2 hooks) Unit
   │   ╰──────────────────────────────────────────────────────────────────

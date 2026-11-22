@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall value. value -> Effect value
   │   ╰─────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:7:1
 Error! · [MissingFFIModule] · Main.purs:9:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'map'
+  • No JavaScript FFI module found for foreign import 'map'
   │
   │   foreign import map ::
   │   ╰────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:9:1
 Error! · [MissingFFIModule] · Main.purs:15:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'apply'
+  • No JavaScript FFI module found for foreign import 'apply'
   │
   │   foreign import apply ::
   │   ╰──────────────────────

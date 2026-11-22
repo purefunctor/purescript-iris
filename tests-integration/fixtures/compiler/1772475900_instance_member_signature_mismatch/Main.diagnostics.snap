@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [InstanceMemberTypeMismatch] · Main.purs:7:1
   •
   │
-  • Instance member type mismatch: expected 'Int -> String', got 'Int -> Int'
+  • Instance member has type 'Int -> Int', but the class requires 'Int -> String'
   │
   │   instance Show Int where
   │   ╰──────────────────────

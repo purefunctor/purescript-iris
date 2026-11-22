@@ -32,7 +32,7 @@ Diagnostics
 Error! · [InvalidImportItem] · WrongImport.purs:3:17
   •
   │
-  • Cannot import item 'A(B)'
+  • Cannot import 'A(B)'
   │
   │   import Library (A(B))
   │                   ╰───

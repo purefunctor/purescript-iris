@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:9:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'useBottom'
+  • No JavaScript FFI module found for foreign import 'useBottom'
   │
   │   foreign import useBottom :: forall a. Bottom a => a -> Int
   │   ╰─────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:9:1
 Error! · [MissingFFIModule] · Main.purs:11:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'useMiddle'
+  • No JavaScript FFI module found for foreign import 'useMiddle'
   │
   │   foreign import useMiddle :: forall a. Middle a => a -> Int
   │   ╰─────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:11:1
 Error! · [MissingFFIModule] · Main.purs:13:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'useTop'
+  • No JavaScript FFI module found for foreign import 'useTop'
   │
   │   foreign import useTop :: forall a. Top a => a -> Int
   │   ╰───────────────────────────────────────────────────

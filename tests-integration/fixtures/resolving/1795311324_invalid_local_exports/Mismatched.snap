@@ -29,7 +29,7 @@ Diagnostics
 Error! · [InvalidExportItem] · Mismatched.purs:1:20
   •
   │
-  • Cannot export item 'LocalClass'
+  • Cannot export 'LocalClass'
   │
   │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
   │                      ╰─────────
@@ -38,7 +38,7 @@ Error! · [InvalidExportItem] · Mismatched.purs:1:20
 Error! · [InvalidExportItem] · Mismatched.purs:1:32
   •
   │
-  • Cannot export item 'class LocalData'
+  • Cannot export 'class LocalData'
   │
   │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
   │                                  ╰──────────────
@@ -47,7 +47,7 @@ Error! · [InvalidExportItem] · Mismatched.purs:1:32
 Error! · [InvalidExportItem] · Mismatched.purs:1:49
   •
   │
-  • Cannot export item 'LocalData(MissingConstructor)'
+  • Cannot export 'LocalData(MissingConstructor)'
   │
   │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
   │                                                   ╰────────────────────────────
@@ -56,7 +56,7 @@ Error! · [InvalidExportItem] · Mismatched.purs:1:49
 Error! · [InvalidExportItem] · Mismatched.purs:1:80
   •
   │
-  • Cannot export item 'Constructor'
+  • Cannot export 'Constructor'
   │
   │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
   │                                                                                  ╰──────────

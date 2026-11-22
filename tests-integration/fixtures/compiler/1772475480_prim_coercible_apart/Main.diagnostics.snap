@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:10:19
   •
   │
-  • No instance found for: Coercible @Type (Maybe Int) (Either Int String)
+  • No type class instance found for 'Coercible @Type (Maybe Int) (Either Int String)'
   │
   │   coerceDifferent = coerce
   │                     ╰─────

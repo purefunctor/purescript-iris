@@ -4,16 +4,19 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:14:13
   •
   │
-  • Pattern match is not exhaustive. Missing: _
+  • Pattern match is not exhaustive
   │
   │   refutable = case _ of
   │               ╰────────
+  │
+  • Missing pattern:
+  │   _
   •
 
 Error! · [NoInstanceFound] · Main.purs:14:13
   •
   │
-  • No instance found for: Partial
+  • No type class instance found for 'Partial'
   │
   │   refutable = case _ of
   │               ╰────────
@@ -22,7 +25,7 @@ Error! · [NoInstanceFound] · Main.purs:14:13
 Error! · [MissingFFIModule] · Main.purs:18:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'arrayLength'
+  • No JavaScript FFI module found for foreign import 'arrayLength'
   │
   │   foreign import arrayLength :: forall a. Array a -> Int
   │   ╰─────────────────────────────────────────────────────

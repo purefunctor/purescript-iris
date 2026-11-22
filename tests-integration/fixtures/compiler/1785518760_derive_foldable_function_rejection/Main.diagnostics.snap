@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:6:1
   •
   │
-  • Cannot derive for type: Int -> t0
+  • Cannot derive an instance for type 'Int -> t0'
   │
   │   derive instance Foldable Reader
   │   ╰──────────────────────────────

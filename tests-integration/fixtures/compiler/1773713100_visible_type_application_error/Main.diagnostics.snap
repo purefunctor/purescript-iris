@@ -4,8 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoVisibleTypeVariable] · Main.purs:6:8
   •
   │
-  • No visible type variable for type application in: forall a. a -> a
+  • Cannot apply a visible type argument to 'forall a. a -> a'
   │
   │   test = identity @Int
   │          ╰────────────
+  │
+  • This type has no remaining visible 'forall' binder
   •

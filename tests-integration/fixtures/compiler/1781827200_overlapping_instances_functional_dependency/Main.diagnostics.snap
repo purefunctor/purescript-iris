@@ -4,12 +4,12 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:9:1
   •
   │
-  • Overlapping type class instances found for: Convert String Boolean
+  • Overlapping type class instances found for 'Convert String Boolean'
   │
   │   instance convertSB :: Convert String Boolean where
   │   ╰─────────────────────────────────────────────────
-  • while
   │
-  │   Convert String Int is matching
-  │   Convert String Boolean is matching
+  • Matching instances:
+  │   Convert String Int
+  │   Convert String Boolean
   •

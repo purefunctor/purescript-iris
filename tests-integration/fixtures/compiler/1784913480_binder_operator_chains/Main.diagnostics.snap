@@ -4,35 +4,47 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:7:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Nil
+  • Pattern match is not exhaustive
   │
   │   first :: forall a. List a -> a
   │   ╰─────────────────────────────
+  │
+  • Missing pattern:
+  │   Nil
   •
 
 Warning! · [MissingPatterns] · Main.purs:10:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Nil
+  • Pattern match is not exhaustive
   │
   │   second :: forall a. List a -> a
   │   ╰──────────────────────────────
+  │
+  • Missing pattern:
+  │   Nil
   •
 
 Warning! · [MissingPatterns] · Main.purs:13:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Nil
+  • Pattern match is not exhaustive
   │
   │   inferred (value : _) = value
   │   ╰───────────────────────────
+  │
+  • Missing pattern:
+  │   Nil
   •
 
 Warning! · [MissingPatterns] · Main.purs:19:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Empty
+  • Pattern match is not exhaustive
   │
   │   second' :: forall a. Snoc a -> a
   │   ╰───────────────────────────────
+  │
+  • Missing pattern:
+  │   Empty
   •

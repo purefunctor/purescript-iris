@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:17:58
   •
   │
-  • No instance found for: Lacks @Type "a" ( a :: Int )
+  • No type class instance found for 'Lacks @Type "a" ( a :: Int )'
   │
   │   forceSolve = { lacksOpen: lacksOpen empty, lacksPresent: lacksPresent empty }
   │                                                            ╰─────────────────

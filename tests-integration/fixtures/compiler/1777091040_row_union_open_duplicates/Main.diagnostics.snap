@@ -4,11 +4,10 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:17:1
   •
   │
-  • Cannot unify 'String' with 'Int'
+  • Could not match 'String' with 'Int'
   │
   │   forceSolve =
   │   ╰───────────
-  • while
   │
-  │   matching '( a :: String )' with '( a :: Int )'
+  • While matching '( a :: String )' with '( a :: Int )'
   •

@@ -39,12 +39,12 @@ Diagnostics
 Error! · [DuplicateInstance] · DuplicateInstances.purs:7:1
   •
   │
-  • Instance name 'duplicate' has been defined multiple times
+  • Instance name 'duplicate' is defined more than once
   │
   │   instance duplicate :: Class String
   │   ╰─────────────────────────────────
   │
-  • Conflicting declaration
+  • First defined here
   │
   │   instance duplicate :: Class Int
   │   ╰──────────────────────────────
@@ -53,12 +53,12 @@ Error! · [DuplicateInstance] · DuplicateInstances.purs:7:1
 Error! · [DuplicateInstance] · DuplicateInstances.purs:13:1
   •
   │
-  • Instance name 'duplicate' has been defined multiple times
+  • Instance name 'duplicate' is defined more than once
   │
   │   derive newtype instance duplicate :: Class First
   │   ╰───────────────────────────────────────────────
   │
-  • Conflicting declaration
+  • First defined here
   │
   │   instance duplicate :: Class Int
   │   ╰──────────────────────────────
@@ -67,12 +67,12 @@ Error! · [DuplicateInstance] · DuplicateInstances.purs:13:1
 Error! · [DuplicateInstance] · DuplicateInstances.purs:15:1
   •
   │
-  • Instance name 'derived' has been defined multiple times
+  • Instance name 'derived' is defined more than once
   │
   │   instance derived :: Class Boolean
   │   ╰────────────────────────────────
   │
-  • Conflicting declaration
+  • First defined here
   │
   │   derive newtype instance derived :: Class Second
   │   ╰──────────────────────────────────────────────
@@ -81,12 +81,12 @@ Error! · [DuplicateInstance] · DuplicateInstances.purs:15:1
 Error! · [DuplicateInstance] · DuplicateInstances.purs:16:1
   •
   │
-  • Instance name 'derived' has been defined multiple times
+  • Instance name 'derived' is defined more than once
   │
   │   derive newtype instance derived :: Class Third
   │   ╰─────────────────────────────────────────────
   │
-  • Conflicting declaration
+  • First defined here
   │
   │   derive newtype instance derived :: Class Second
   │   ╰──────────────────────────────────────────────

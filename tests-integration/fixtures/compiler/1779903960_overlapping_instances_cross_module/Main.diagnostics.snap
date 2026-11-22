@@ -4,24 +4,24 @@ source: tests-integration/src/fixtures.rs
 Error! · [OverlappingInstances] · Main.purs:7:1
   •
   │
-  • Overlapping type class instances found for: C X Y
+  • Overlapping type class instances found for 'C X Y'
   │
   │   instance cxy :: C X Y
   │   ╰────────────────────
-  • while
   │
-  │   forall t0. C X t0 is matching
-  │   C X Y is matching
+  • Matching instances:
+  │   forall t0. C X t0
+  │   C X Y
   •
 
 Warning! · [MissingInstanceMembers] · Main.purs:7:1
   •
   │
-  • Instance is missing class members
+  • Instance is missing a class member
   │
   │   instance cxy :: C X Y
   │   ╰────────────────────
-  • while
   │
-  │   test is not implemented
+  • Missing member:
+  │   test
   •

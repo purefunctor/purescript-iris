@@ -4,8 +4,11 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:7:1
   •
   │
-  • Pattern match is not exhaustive. Missing: Nil
+  • Pattern match is not exhaustive
   │
   │   head :: forall a. List a -> a
   │   ╰────────────────────────────
+  │
+  • Missing pattern:
+  │   Nil
   •

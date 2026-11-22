@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Warning! · [DuplicateImport] · Main.purs:5:5
   •
   │
-  • Import list contains multiple references to 'value'
+  • 'value' is imported more than once
   │
   │     , value
   │       ╰────
@@ -18,7 +18,7 @@ Warning! · [DuplicateImport] · Main.purs:5:5
 Error! · [InvalidImportStatement] · Main.purs:8:1
   •
   │
-  • Cannot import module 'Missing'
+  • Could not find module 'Missing'
   │
   │   import Missing
   │   ╰─────────────
@@ -27,7 +27,7 @@ Error! · [InvalidImportStatement] · Main.purs:8:1
 Error! · [InvalidImportItem] · Main.purs:6:5
   •
   │
-  • Cannot import item 'missing'
+  • Cannot import 'missing'
   │
   │     , missing
   │       ╰──────

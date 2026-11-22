@@ -4,25 +4,29 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidTypeApplication] · Main.purs:9:28
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   else instance Pick (Array (Int String)) where
   │                              ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •
 
 Error! · [InvalidTypeApplication] · Main.purs:27:18
   •
   │
-  • Cannot apply type 'Int' to 'String'. 'Int' has kind 'Type', which is not a function kind.
+  • Cannot apply type 'Int' to 'String'
   │
   │   instance Single (Int String) where
   │                    ╰─────────
+  │
+  • 'Int' has kind 'Type' and does not take type arguments
   •
 
 Error! · [NoInstanceFound] · Main.purs:15:16
   •
   │
-  • No instance found for: Pick Boolean
+  • No type class instance found for 'Pick Boolean'
   │
   │   picksBoolean = pick true
   │                  ╰────────
@@ -31,7 +35,7 @@ Error! · [NoInstanceFound] · Main.purs:15:16
 Error! · [NoInstanceFound] · Main.purs:18:15
   •
   │
-  • No instance found for: Pick String
+  • No type class instance found for 'Pick String'
   │
   │   picksString = pick "string"
   │                 ╰────────────
@@ -40,7 +44,7 @@ Error! · [NoInstanceFound] · Main.purs:18:15
 Error! · [NoInstanceFound] · Main.purs:21:14
   •
   │
-  • No instance found for: Pick (Array Int)
+  • No type class instance found for 'Pick (Array Int)'
   │
   │   picksArray = pick [1]
   │                ╰───────
@@ -49,7 +53,7 @@ Error! · [NoInstanceFound] · Main.purs:21:14
 Error! · [NoInstanceFound] · Main.purs:34:13
   •
   │
-  • No instance found for: Single Int
+  • No type class instance found for 'Single Int'
   │
   │   singleInt = single 1
   │               ╰───────

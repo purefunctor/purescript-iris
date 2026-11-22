@@ -40,7 +40,7 @@ Diagnostics
 Error! · [InvalidImportStatement] · InvalidImport.purs:4:1
   •
   │
-  • Cannot import module ''
+  • Invalid import statement
   │
   │   import invalidSyntax
   │   ╰─────
@@ -49,7 +49,7 @@ Error! · [InvalidImportStatement] · InvalidImport.purs:4:1
 Error! · [InvalidImportStatement] · InvalidImport.purs:3:1
   •
   │
-  • Cannot import module 'MissingLibrary'
+  • Could not find module 'MissingLibrary'
   │
   │   import MissingLibrary
   │   ╰────────────────────
@@ -58,7 +58,7 @@ Error! · [InvalidImportStatement] · InvalidImport.purs:3:1
 Error! · [InvalidImportItem] · InvalidImport.purs:5:18
   •
   │
-  • Cannot import item 'missing'
+  • Cannot import 'missing'
   │
   │   import LibraryA (missing, Missing, Css(Css), Html(..))
   │                    ╰──────
@@ -67,7 +67,7 @@ Error! · [InvalidImportItem] · InvalidImport.purs:5:18
 Error! · [InvalidImportItem] · InvalidImport.purs:5:36
   •
   │
-  • Cannot import item 'Css(Css)'
+  • Cannot import 'Css(Css)'
   │
   │   import LibraryA (missing, Missing, Css(Css), Html(..))
   │                                      ╰───────
@@ -76,7 +76,7 @@ Error! · [InvalidImportItem] · InvalidImport.purs:5:36
 Error! · [InvalidImportItem] · InvalidImport.purs:5:27
   •
   │
-  • Cannot import item 'Missing'
+  • Cannot import 'Missing'
   │
   │   import LibraryA (missing, Missing, Css(Css), Html(..))
   │                             ╰──────

@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:18:21
   •
   │
-  • No instance found for: IsEq x Unit Output
+  • No type class instance found for 'IsEq x Unit Output'
   │
   │   testSkolemRight x = isEq x Unit
   │                       ╰──────────
@@ -13,7 +13,7 @@ Error! · [NoInstanceFound] · Main.purs:18:21
 Error! · [NoInstanceFound] · Main.purs:21:20
   •
   │
-  • No instance found for: IsEq Unit x1 Output
+  • No type class instance found for 'IsEq Unit x1 Output'
   │
   │   testSkolemLeft x = isEq Unit x
   │                      ╰──────────
@@ -22,7 +22,7 @@ Error! · [NoInstanceFound] · Main.purs:21:20
 Error! · [NoInstanceFound] · Main.purs:24:22
   •
   │
-  • No instance found for: IsEq y x2 Output
+  • No type class instance found for 'IsEq y x2 Output'
   │
   │   testSkolemIsEq x y = isEq y x
   │                        ╰───────
@@ -31,7 +31,8 @@ Error! · [NoInstanceFound] · Main.purs:24:22
 Error! · [NoInstanceFound] · Main.purs:45:20
   •
   │
-  • No instance found for: RowSame @Type { params :: Unit | ?47 } { query :: Unit | ?50 }
+  • No type class instance found for 'RowSame @Type { params :: Unit | ?47 } { query :: Unit | ?
+  │ 50 }'
   │
   │   testOpenRowsNoFd = rowSame @{ params :: Unit | _ } @{ query :: Unit | _ }
   │                      ╰─────────────────────────────────────────────────────

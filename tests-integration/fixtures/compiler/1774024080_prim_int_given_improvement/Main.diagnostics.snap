@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NoInstanceFound] · Main.purs:14:5
   •
   │
-  • No instance found for: Add 1 2 4
+  • No type class instance found for 'Add 1 2 4'
   │
   │     , addContradiction
   │       ╰───────────────

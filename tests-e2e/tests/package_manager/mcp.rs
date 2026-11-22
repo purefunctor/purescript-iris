@@ -305,7 +305,7 @@ main = "oops"
             "line": 4,
             "path": "src/Main.purs"
           },
-          "message": "Cannot unify 'String' with 'Int'",
+          "message": "Could not match 'String' with 'Int'",
           "severity": "error"
         }
       ]

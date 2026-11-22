@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotDeriveForType] · Main.purs:16:1
   •
   │
-  • Cannot derive for type: Opaque
+  • Cannot derive an instance for type 'Opaque'
   │
   │   derive instance Functor Opaque
   │   ╰─────────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotDeriveForType] · Main.purs:16:1
 Error! · [CannotDeriveForType] · Main.purs:18:1
   •
   │
-  • Cannot derive for type: Opaque
+  • Cannot derive an instance for type 'Opaque'
   │
   │   derive instance Foldable Opaque
   │   ╰──────────────────────────────
@@ -22,7 +22,7 @@ Error! · [CannotDeriveForType] · Main.purs:18:1
 Error! · [CannotDeriveForType] · Main.purs:20:1
   •
   │
-  • Cannot derive for type: OpaquePair
+  • Cannot derive an instance for type 'OpaquePair'
   │
   │   derive instance Bifunctor OpaquePair
   │   ╰───────────────────────────────────

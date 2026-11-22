@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'negate'
+  • No JavaScript FFI module found for foreign import 'negate'
   │
   │   foreign import negate :: forall a. Negative a => a -> a
   │   ╰──────────────────────────────────────────────────────

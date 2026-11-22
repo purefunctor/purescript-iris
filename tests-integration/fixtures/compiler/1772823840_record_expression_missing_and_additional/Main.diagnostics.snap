@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [PropertyIsMissing] · Main.purs:4:8
   •
   │
-  • Missing required properties: b
+  • Missing required property 'b'
   │
   │   test = { a: 1, c: 3 }
   │          ╰─────────────
@@ -13,7 +13,7 @@ Error! · [PropertyIsMissing] · Main.purs:4:8
 Error! · [AdditionalProperty] · Main.purs:4:8
   •
   │
-  • Additional properties not allowed: c
+  • Unexpected property 'c'
   │
   │   test = { a: 1, c: 3 }
   │          ╰─────────────

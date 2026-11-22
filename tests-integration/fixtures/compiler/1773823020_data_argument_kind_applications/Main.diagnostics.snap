@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:4:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'force'
+  • No JavaScript FFI module found for foreign import 'force'
   │
   │   foreign import force :: forall a. Lazy a -> a
   │   ╰────────────────────────────────────────────

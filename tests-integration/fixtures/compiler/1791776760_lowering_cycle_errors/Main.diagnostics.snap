@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [RecursiveKinds] · Main.purs:4:1
   •
   │
-  • Invalid kind cycle
+  • Cycle in kind declarations
   │
   │   data Recursive a = Recursive
   │   ╰───────────────────────────
@@ -13,12 +13,12 @@ Error! · [RecursiveKinds] · Main.purs:4:1
 Error! · [RecursiveSynonym] · Main.purs:7:1
   •
   │
-  • Invalid type synonym cycle
+  • Cycle in type synonym declarations
   │
   │   type Right = Left
   │   ╰────────────────
   │
-  • Includes this type
+  • Also part of this cycle
   │
   │   type Left = Right
   │   ╰────────────────

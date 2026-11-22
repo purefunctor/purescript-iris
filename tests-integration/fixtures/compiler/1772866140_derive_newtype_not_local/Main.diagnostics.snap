@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [NonLocalNewtype] · Main.purs:6:1
   •
   │
-  • Expected a local newtype, got: Wrapper
+  • Cannot derive a newtype instance for 'Wrapper' because it is defined in another module
   │
   │   derive newtype instance Show Wrapper
   │   ╰───────────────────────────────────
@@ -13,8 +13,10 @@ Error! · [NonLocalNewtype] · Main.purs:6:1
 Error! · [OrphanInstance] · Main.purs:6:1
   •
   │
-  • Orphan instance found for: Show Wrapper
+  • Orphan instance for 'Show Wrapper'
   │
   │   derive newtype instance Show Wrapper
   │   ╰───────────────────────────────────
+  │
+  • Instances must be defined in the same module as either the class or one of its head types
   •

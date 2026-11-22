@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [CannotUnify] · Main.purs:7:8
   •
   │
-  • Cannot unify 'Int' with '?0 -> ?1'
+  • Could not match 'Int' with '?0 -> ?1'
   │
   │   test = identityInt integer integer
   │          ╰──────────────────────────
@@ -13,7 +13,7 @@ Error! · [CannotUnify] · Main.purs:7:8
 Error! · [MissingFFIModule] · Main.purs:3:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'identityInt'
+  • No JavaScript FFI module found for foreign import 'identityInt'
   │
   │   foreign import identityInt :: Int -> Int
   │   ╰───────────────────────────────────────
@@ -22,7 +22,7 @@ Error! · [MissingFFIModule] · Main.purs:3:1
 Error! · [MissingFFIModule] · Main.purs:4:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'integer'
+  • No JavaScript FFI module found for foreign import 'integer'
   │
   │   foreign import integer :: Int
   │   ╰────────────────────────────

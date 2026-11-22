@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [TooManyBinders] · Main.purs:7:1
   •
   │
-  • Too many binders: expected 1, got 2
+  • Expected at most 1 pattern, but found 2
   │
   │   instance Show Int where
   │   ╰──────────────────────

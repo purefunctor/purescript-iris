@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'consume'
+  • No JavaScript FFI module found for foreign import 'consume'
   │
   │   foreign import consume :: (Unit -> Partial => Int -> Int) -> Unit
   │   ╰────────────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'use'
+  • No JavaScript FFI module found for foreign import 'use'
   │
   │   foreign import use :: Unit -> Int -> Int
   │   ╰───────────────────────────────────────

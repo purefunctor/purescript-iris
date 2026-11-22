@@ -9,7 +9,7 @@ Error! · [ExportConflict] · Main.purs:3:1
   │   import First
   │   ╰───────────
   │
-  • Conflicting export
+  • Also exported here
   │
   │   import Second
   │   ╰────────────
@@ -23,7 +23,7 @@ Error! · [ExportConflict] · Main.purs:3:1
   │   import First
   │   ╰───────────
   │
-  • Conflicting export
+  • Also exported here
   │
   │   data Shape = Circle
   │   ╰──────────────────

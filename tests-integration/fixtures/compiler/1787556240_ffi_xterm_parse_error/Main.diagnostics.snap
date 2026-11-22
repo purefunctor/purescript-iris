@@ -4,21 +4,30 @@ source: tests-integration/src/fixtures.rs
 Warning! · [UnparseableFFIModule] · Main.purs:3:1
   •
   │
-  • Oxc could not parse the JavaScript FFI module. Fix the invalid or unsupported JavaScript syntax;
-  │ Iris treated the module as opaque and skipped export-name validation: Missing initializer in
-  │ const declaration
+  • Could not parse the JavaScript FFI module
   │
   │   foreign import registerVersionProvider :: Int
   │   ╰────────────────────────────────────────────
+  │
+  • JavaScript parser error: Missing initializer in const declaration
+  │
+  • Iris treated the module as opaque and skipped export validation
+  │
+  • Hint: Fix the JavaScript syntax error so exports can be checked.
   •
 
 Warning! · [UnparseableFFIModule] · Main.purs:3:1
   •
   │
-  • Oxc could not parse the JavaScript FFI module. Fix the invalid or unsupported JavaScript syntax;
-  │ Iris treated the module as opaque and skipped export-name validation: Expected a semicolon or an
-  │ implicit semicolon after a statement, but found none
+  • Could not parse the JavaScript FFI module
   │
   │   foreign import registerVersionProvider :: Int
   │   ╰────────────────────────────────────────────
+  │
+  • JavaScript parser error: Expected a semicolon or an implicit semicolon after a statement, but
+  │ found none
+  │
+  • Iris treated the module as opaque and skipped export validation
+  │
+  • Hint: Fix the JavaScript syntax error so exports can be checked.
   •

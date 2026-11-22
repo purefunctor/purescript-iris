@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [ParseError] · Main.purs:10:1
   •
   │
-  • Expected LAYOUT_START
+  • Expected an indented block
   │
   │
   │   ╰
@@ -13,7 +13,7 @@ Error! · [ParseError] · Main.purs:10:1
 Error! · [ParseError] · Main.purs:10:1
   •
   │
-  • Expected LAYOUT_SEPARATOR
+  • Expected a new line or ';' at this indentation
   │
   │
   │   ╰
@@ -22,7 +22,7 @@ Error! · [ParseError] · Main.purs:10:1
 Error! · [ParseError] · Main.purs:10:1
   •
   │
-  • Expected LAYOUT_END
+  • Expected the end of this block
   │
   │
   │   ╰
@@ -31,7 +31,7 @@ Error! · [ParseError] · Main.purs:10:1
 Error! · [EmptyDoBlock] · Main.purs:9:8
   •
   │
-  • Empty do block
+  • A 'do' block cannot be empty
   │
   │   test = do
   │          ╰─
@@ -40,7 +40,7 @@ Error! · [EmptyDoBlock] · Main.purs:9:8
 Error! · [MissingFFIModule] · Main.purs:5:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'pure'
+  • No JavaScript FFI module found for foreign import 'pure'
   │
   │   foreign import pure :: forall a. a -> Effect a
   │   ╰─────────────────────────────────────────────
@@ -49,7 +49,7 @@ Error! · [MissingFFIModule] · Main.purs:5:1
 Error! · [MissingFFIModule] · Main.purs:6:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'bind'
+  • No JavaScript FFI module found for foreign import 'bind'
   │
   │   foreign import bind :: forall a b. Effect a -> (a -> Effect b) -> Effect b
   │   ╰─────────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ Error! · [MissingFFIModule] · Main.purs:6:1
 Error! · [MissingFFIModule] · Main.purs:7:1
   •
   │
-  • No JavaScript FFI module was found for foreign import 'discard'
+  • No JavaScript FFI module found for foreign import 'discard'
   │
   │   foreign import discard :: forall a b. Effect a -> (a -> Effect b) -> Effect b
   │   ╰────────────────────────────────────────────────────────────────────────────

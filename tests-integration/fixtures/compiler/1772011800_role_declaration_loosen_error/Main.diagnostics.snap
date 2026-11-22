@@ -4,7 +4,7 @@ source: tests-integration/src/fixtures.rs
 Error! · [InvalidRoleDeclaration] · Main.purs:3:1
   •
   │
-  • Invalid role declaration: declared Phantom, inferred Nominal
+  • Role for parameter 2 cannot be 'phantom' because it was inferred as 'nominal'
   │
   │   data F f a = F (f a)
   │   ╰───────────────────

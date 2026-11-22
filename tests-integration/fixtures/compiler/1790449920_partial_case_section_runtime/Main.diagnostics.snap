@@ -4,17 +4,23 @@ source: tests-integration/src/fixtures.rs
 Warning! · [MissingPatterns] · Main.purs:15:15
   •
   │
-  • Pattern match is not exhaustive. Missing: _
+  • Pattern match is not exhaustive
   │
   │   test' value = case value of
   │                 ╰────────────
+  │
+  • Missing pattern:
+  │   _
   •
 
 Warning! · [MissingPatterns] · Main.purs:19:9
   •
   │
-  • Pattern match is not exhaustive. Missing: ArrayBuffer
+  • Pattern match is not exhaustive
   │
   │   test2 = \Blob -> 17
   │           ╰──────────
+  │
+  • Missing pattern:
+  │   ArrayBuffer
   •
