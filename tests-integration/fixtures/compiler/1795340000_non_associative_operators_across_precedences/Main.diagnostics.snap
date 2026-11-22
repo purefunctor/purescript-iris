@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [NonAssociative] · Main.purs:10:26
+  •
+  │
+  • Cannot chain non-associative operators '==' and '~' without parentheses
+  │
+  │   lowerThenHigher = 1 == 2 ~ 3
+  │                            ╰
+  │
+  • Previous operator
+  │
+  │   lowerThenHigher = 1 == 2 ~ 3
+  │                       ╰─
+  •
