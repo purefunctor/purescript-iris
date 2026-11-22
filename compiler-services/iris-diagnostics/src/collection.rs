@@ -78,7 +78,7 @@ impl DiagnosticCollection {
         &self.diagnostics
     }
 
-    pub fn checking_diagnostics(&self) -> &[Diagnostic] {
+    pub fn frontend_diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics[..self.foreign_start]
     }
 
