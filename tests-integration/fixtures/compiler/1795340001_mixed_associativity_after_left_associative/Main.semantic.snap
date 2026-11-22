@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+equal :: forall t0 t1. t0 -> t1 -> t0
+equal = \left -> \right -> left
+
+plus :: forall t0 t1. t0 -> t1 -> t0
+plus = \left -> \right -> left
+
+leftThenNonAssociative :: Prim.Int
+leftThenNonAssociative = <error>
+
+nonAssociativeThenLeft :: Prim.Int
+nonAssociativeThenLeft = <error>

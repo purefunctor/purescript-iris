@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @left @right
+  | Pair :: left -> right -> Main.Pair left right
+
+validNonAssociative :: Main.Pair Prim.Int Prim.Int -> Prim.Int
+validNonAssociative = \(Pair left _) -> left
+
+ambiguousNonAssociative :: Main.Pair (Main.Pair Prim.Int Prim.Int) Prim.Int -> Prim.Int
+ambiguousNonAssociative = \<error> -> left
+
+ambiguousMixedAssociativity :: Main.Pair (Main.Pair Prim.Int Prim.Int) Prim.Int -> Prim.Int
+ambiguousMixedAssociativity = \<error> -> left

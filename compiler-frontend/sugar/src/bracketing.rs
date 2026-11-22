@@ -23,7 +23,7 @@ use std::collections::hash_map::Entry;
 use std::iter::Peekable;
 use std::sync::Arc;
 
-use building_types::QueryResult;
+use building_types::{QueryResult, Severity};
 use files::FileId;
 use indexing::{TermItemId, TypeItemId};
 use lowering::{
@@ -190,21 +190,25 @@ where
 
         let operator = OperatorInfo { id, associativity, precedence };
 
+        if let Some(previous) = previous_operator
+            && previous.precedence == precedence
+        {
+            let kind = if previous.associativity != associativity {
+                Some(AssociativityErrorKind::MixedAssociativity)
+            } else if associativity == Associativity::None {
+                Some(AssociativityErrorKind::NonAssociative)
+            } else {
+                None
+            };
+            if let Some(kind) = kind {
+                let error = AssociativityError { kind, previous, operator };
+                return Ok(Err(BracketingError::Associativity(error)));
+            }
+        }
+
         let (left_binding_power, right_binding_power) = binding_power(associativity, precedence);
         if left_binding_power < minimum_binding_power {
             break;
-        }
-
-        if let Some(previous) = previous_operator
-            && associativity == Associativity::None
-            && previous.associativity == Associativity::None
-        {
-            return Ok(Err(BracketingError::NonAssociative { previous, operator }));
-        } else if let Some(previous) = previous_operator
-            && previous.associativity != associativity
-            && previous.precedence == precedence
-        {
-            return Ok(Err(BracketingError::MixedAssociativity { previous, operator }));
         }
 
         items.next();
@@ -237,10 +241,22 @@ pub enum BracketingError<T> {
     InvalidOperator,
     /// The operator does not exist.
     FailedToResolve(T),
+    Associativity(AssociativityError<T>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AssociativityError<T> {
+    pub kind: AssociativityErrorKind,
+    pub previous: OperatorInfo<T>,
+    pub operator: OperatorInfo<T>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssociativityErrorKind {
     /// Non-associative operators used consecutively.
-    NonAssociative { previous: OperatorInfo<T>, operator: OperatorInfo<T> },
+    NonAssociative,
     /// Operators with the same precedence but different associativities.
-    MixedAssociativity { previous: OperatorInfo<T>, operator: OperatorInfo<T> },
+    MixedAssociativity,
 }
 
 /// Utility structure for bundling operator information.
@@ -264,6 +280,37 @@ pub struct Bracketed {
     pub binders: BracketingMap<BinderId>,
     pub expressions: BracketingMap<ExpressionId>,
     pub types: BracketingMap<TypeId>,
+}
+
+impl Bracketed {
+    pub fn errors(&self) -> impl Iterator<Item = OperatorChainError> + '_ {
+        let binders = self.binders.values().filter_map(associativity_error);
+        let expressions = self.expressions.values().filter_map(associativity_error);
+        let types = self.types.values().filter_map(associativity_error);
+        let terms = binders.chain(expressions).map(OperatorChainError::Term);
+        terms.chain(types.map(OperatorChainError::Type))
+    }
+}
+
+fn associativity_error<Id: IsElement>(
+    result: &BracketingResult<Id>,
+) -> Option<AssociativityError<Id::OperatorId>> {
+    match result {
+        Err(BracketingError::Associativity(error)) => Some(*error),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatorChainError {
+    Term(AssociativityError<TermOperatorId>),
+    Type(AssociativityError<TypeOperatorId>),
+}
+
+impl OperatorChainError {
+    pub fn severity(&self) -> Severity {
+        Severity::Error
+    }
 }
 
 /// Performs bracketing across all operator chains in a module.

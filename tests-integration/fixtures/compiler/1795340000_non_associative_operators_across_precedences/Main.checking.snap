@@ -1,0 +1,12 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+equal :: forall t0 t1. t0 -> t1 -> t0
+tilde :: forall t0 t1. t0 -> t1 -> t0
+== :: forall t0 t1. t0 -> t1 -> t0
+~ :: forall t0 t1. t0 -> t1 -> t0
+lowerThenHigher :: Prim.Int
+higherThenLower :: Prim.Int
+
+Types

@@ -253,8 +253,20 @@ fn collect_file(
         Err(error) => push_query_error(report, metadata, CompilationStage::Grouping, error),
     }
 
-    if let Err(error) = engine.bracketed(file_id) {
-        push_query_error(report, metadata, CompilationStage::Bracketing, error);
+    match engine.bracketed(file_id) {
+        Ok(bracketed) => {
+            with_diagnostics_context(engine, file_id, &root, metadata, |ctx| {
+                for error in bracketed.errors() {
+                    push_diagnostics(
+                        report,
+                        metadata,
+                        CompilationStage::Bracketing,
+                        error.to_diagnostics(&ctx),
+                    );
+                }
+            });
+        }
+        Err(error) => push_query_error(report, metadata, CompilationStage::Bracketing, error),
     }
 
     if let Err(error) = engine.sectioned(file_id) {

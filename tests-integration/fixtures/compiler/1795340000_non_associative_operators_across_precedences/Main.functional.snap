@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export equal = \left%0 right%1 -> left%0
+
+@export tilde = \left%2 right%3 -> left%2
+
+@export lowerThenHigher = equal 1 (tilde 2 3)
+
+@export higherThenLower = equal (tilde 1 2) 3
