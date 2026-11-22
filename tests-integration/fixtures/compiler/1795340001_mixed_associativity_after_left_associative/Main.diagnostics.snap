@@ -1,0 +1,16 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [MixedAssociativity] · Main.purs:13:33
+  •
+  │
+  • Cannot mix '==' (infix 4) and '+.' (infixl 4) without parentheses
+  │
+  │   nonAssociativeThenLeft = 1 == 2 +. 3
+  │                                   ╰─
+  │
+  • Previous operator
+  │
+  │   nonAssociativeThenLeft = 1 == 2 +. 3
+  │                              ╰─
+  •
