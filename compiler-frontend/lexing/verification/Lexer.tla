@@ -272,7 +272,7 @@ TakeNormalString(lexer) ==
     LET body == NormalStringBody(lexer) IN
     IF First(body) = "\""
     THEN Push(Take(body), "STRING", "None")
-    ELSE Push(body, "STRING", "Unterminated single quoted string literal")
+    ELSE Push(body, "STRING", "Unterminated string literal")
 
 RECURSIVE TakeRawString(_)
 TakeRawString(lexer) ==
@@ -280,7 +280,7 @@ TakeRawString(lexer) ==
         quoted == TakeWhileMaximum(text, {"\""}, 5)
         quotes == Consumed(quoted) - Consumed(text)
     IN
-    CASE quotes = 0 -> Push(quoted, "RAW_STRING", "Unterminated triple quoted string literal")
+    CASE quotes = 0 -> Push(quoted, "RAW_STRING", "Unterminated triple-quoted string literal")
       [] quotes \in 1..2 -> TakeRawString(quoted)
       [] quotes \in 3..5 -> Push(quoted, "RAW_STRING", "None")
       [] OTHER -> Fail(quoted, "take_raw_string reaches unreachable!()")

@@ -138,7 +138,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 6,
             },
-            message: "Expected OPERATOR_NAME",
+            message: "Expected a parenthesised operator",
         },
         ParseError {
             offset: 58,
@@ -146,7 +146,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 6,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 60,
@@ -154,7 +154,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 8,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 60,
@@ -170,7 +170,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 7,
                 column: 1,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 70,
@@ -178,7 +178,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 7,
                 column: 3,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 72,
@@ -186,7 +186,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 7,
                 column: 5,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 74,
@@ -194,7 +194,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 7,
                 column: 7,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 80,
@@ -202,7 +202,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 8,
                 column: 3,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 90,
@@ -210,7 +210,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 9,
                 column: 5,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 94,
@@ -218,7 +218,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 9,
                 column: 9,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 99,
@@ -226,7 +226,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 11,
                 column: 1,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 106,
@@ -234,7 +234,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 11,
                 column: 8,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 110,
@@ -242,7 +242,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 11,
                 column: 12,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 114,
@@ -250,7 +250,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 12,
                 column: 1,
             },
-            message: "Expected COMMA",
+            message: "Expected ','",
         },
         ParseError {
             offset: 114,
@@ -258,7 +258,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 12,
                 column: 1,
             },
-            message: "Expected RIGHT_PARENTHESIS",
+            message: "Expected ')'",
         },
         ParseError {
             offset: 114,
@@ -266,7 +266,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 12,
                 column: 1,
             },
-            message: "Expected LAYOUT_SEPARATOR",
+            message: "Expected a new line or ';' at this indentation",
         },
         ParseError {
             offset: 114,
@@ -274,7 +274,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 12,
                 column: 1,
             },
-            message: "Expected LAYOUT_END",
+            message: "Expected the end of this block",
         },
     ],
 )

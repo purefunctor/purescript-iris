@@ -6,11 +6,11 @@ pub(super) fn record_item(p: &mut Parser, k: impl Fn(&mut Parser)) {
     let mut m = p.start();
 
     if (p.at(SyntaxKind::STRING) || p.at(SyntaxKind::RAW_STRING)) && !p.at_next(SyntaxKind::COLON) {
-        p.error("Invalid string label in record pun");
+        p.error("String literals cannot be used in record puns");
     }
 
     if p.at_in(names::KEYWORD) && !p.at_next(SyntaxKind::COLON) {
-        p.error("Invalid reserved keyword in record pun");
+        p.error("Reserved keywords cannot be used in record puns");
     }
 
     names::label(p);
@@ -41,7 +41,7 @@ pub(super) fn signature_or_equation(p: &mut Parser, s: SyntaxKind, e: SyntaxKind
 /// Parses the name and binders that begin [`signature_or_equation`],
 /// returning whether it continues as a signature.
 pub(super) fn signature_or_equation_head(p: &mut Parser) -> bool {
-    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected LOWER");
+    p.expect_in(names::LOWER, SyntaxKind::LOWER, "Expected a lowercase identifier");
     if p.eat(SyntaxKind::DOUBLE_COLON) {
         return true;
     }
@@ -61,7 +61,7 @@ pub(super) fn function_binders(p: &mut Parser, s: TokenSet) {
             if p.at_in(FUNCTION_BINDERS_RECOVERY) {
                 break;
             }
-            p.error_recover("Unexpected token in function binders");
+            p.error_recover("Unexpected token in function patterns");
         }
     }
     m.end_non_empty(p, SyntaxKind::FunctionBinders);
@@ -108,7 +108,7 @@ fn pattern_guards(p: &mut Parser, s: SyntaxKind) {
         if p.at_in(PATTERN_GUARD_START) {
             pattern_guard(p);
             if p.at(SyntaxKind::COMMA) && p.at_next(s) {
-                p.error_recover("Trailing comma");
+                p.error_recover("Unexpected trailing comma");
             } else if !p.at(s) {
                 p.expect(SyntaxKind::COMMA);
             }

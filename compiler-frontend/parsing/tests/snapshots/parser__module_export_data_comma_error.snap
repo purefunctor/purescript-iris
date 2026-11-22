@@ -52,7 +52,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 1,
                 column: 54,
             },
-            message: "Trailing comma",
+            message: "Unexpected trailing comma",
         },
     ],
 )

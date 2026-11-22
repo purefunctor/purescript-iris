@@ -77,7 +77,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 5,
                 column: 1,
             },
-            message: "Expected LOWER",
+            message: "Expected a lowercase identifier",
         },
         ParseError {
             offset: 98,
@@ -85,7 +85,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 6,
                 column: 1,
             },
-            message: "Expected LOWER",
+            message: "Expected a lowercase identifier",
         },
     ],
 )

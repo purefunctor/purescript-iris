@@ -3,8 +3,8 @@ source: tests-integration/src/fixtures.rs
 ---
 Diagnostics
 
-1:0..1:0 analyzer/parsing [ParseError] Expected MODULE
-1:0..1:0 analyzer/parsing [ParseError] Expected UPPER
-1:0..1:0 analyzer/parsing [ParseError] Expected WHERE
-1:0..1:0 analyzer/parsing [ParseError] Expected LAYOUT_START
-1:0..1:0 analyzer/parsing [ParseError] Expected LAYOUT_END
+1:0..1:0 analyzer/parsing [ParseError] Expected 'module'
+1:0..1:0 analyzer/parsing [ParseError] Expected an uppercase identifier
+1:0..1:0 analyzer/parsing [ParseError] Expected 'where'
+1:0..1:0 analyzer/parsing [ParseError] Expected an indented block
+1:0..1:0 analyzer/parsing [ParseError] Expected the end of this block

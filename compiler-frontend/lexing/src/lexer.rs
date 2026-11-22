@@ -461,7 +461,7 @@ impl Lexer<'_> {
             self.take();
             self.push(SyntaxKind::STRING, None);
         } else {
-            self.push(SyntaxKind::STRING, Some("Unterminated single quoted string literal"));
+            self.push(SyntaxKind::STRING, Some("Unterminated string literal"));
         };
     }
 
@@ -473,7 +473,7 @@ impl Lexer<'_> {
             let quotes = self.consumed() - string;
             match quotes {
                 0 => {
-                    break Some("Unterminated triple quoted string literal");
+                    break Some("Unterminated triple-quoted string literal");
                 }
                 1 | 2 => {
                     continue;

@@ -33,7 +33,7 @@ source: compiler-frontend/parsing/tests/parser.rs
                 line: 1,
                 column: 46,
             },
-            message: "Expected OPERATOR_NAME",
+            message: "Expected a parenthesised operator",
         },
     ],
 )
