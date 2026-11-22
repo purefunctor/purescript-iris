@@ -7,8 +7,8 @@ use functional::{
     ModuleError as FunctionalModuleError, UnsupportedState as FunctionalUnsupportedState,
 };
 use indexing::{
-    ExistingKind, IndexedTypeItemKind, IndexingError, InstanceSourceItemId, ItemKind,
-    OrderedTermItemId, TypeRoleId,
+    ExistingKind, IndexedTypeItemKind, IndexingError, InstanceSourceItemId, InvalidExportHint,
+    ItemKind, OrderedTermItemId, TypeRoleId,
 };
 use itertools::Itertools;
 use javascript::{
@@ -760,6 +760,37 @@ where
     Some((span, name))
 }
 
+fn invalid_export_hint<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    text: &str,
+    hint: InvalidExportHint,
+) -> Option<(String, Span)>
+where
+    Q: ExternalQueries,
+{
+    match hint {
+        InvalidExportHint::AliasedModule { import } => {
+            let alias = context.indexed.imports.get(&import)?.alias.as_ref()?;
+            let pointer = context.stabilized.syntax_ptr(import)?;
+            let span = context.span_from_syntax_ptr(&pointer)?;
+            let message = format!(
+                "Cannot export '{text}' because it is imported as '{alias}'; use 'module {alias}' instead"
+            );
+            Some((message, span))
+        }
+        InvalidExportHint::ImportedItem { import, item } => {
+            let indexed = context.indexed.imports.get(&import)?;
+            let module = indexed.alias.as_ref().or(indexed.name.as_ref())?;
+            let pointer = context.stabilized.syntax_ptr(item)?;
+            let span = context.span_from_syntax_ptr(&pointer)?;
+            let message = format!(
+                "Cannot export imported item '{text}'; re-export 'module {module}' instead"
+            );
+            Some((message, span))
+        }
+    }
+}
+
 impl ToDiagnostics for IndexingError {
     fn to_diagnostics<Q>(&self, context: &DiagnosticsContext<'_, Q>) -> QueryResult<Vec<Diagnostic>>
     where
@@ -867,20 +898,30 @@ impl ToDiagnostics for IndexingError {
 
                 Ok(vec![diagnostic])
             }
-            IndexingError::InvalidExport { id } => {
+            IndexingError::InvalidExport { id, hint } => {
                 let Some(ptr) = context.stabilized.syntax_ptr(*id) else { return Ok(Vec::new()) };
                 let Some(span) = context.span_from_syntax_ptr(&ptr) else { return Ok(Vec::new()) };
 
                 let text = context.text_of(span).trim();
-                let message = format!("Cannot export item '{text}'");
+                let hint = hint.and_then(|hint| invalid_export_hint(context, text, hint));
+                let (message, imported) = match hint {
+                    Some((message, imported)) => (message, Some(imported)),
+                    None => (format!("Cannot export item '{text}'"), None),
+                };
 
-                Ok(vec![Diagnostic::new(
+                let mut diagnostic = Diagnostic::new(
                     self.severity(),
                     "InvalidExportItem",
                     message,
                     span,
                     "indexing",
-                )])
+                );
+
+                if let Some(imported) = imported {
+                    diagnostic = diagnostic.with_related(imported, "Imported here");
+                }
+
+                Ok(vec![diagnostic])
             }
         }
     }

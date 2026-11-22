@@ -1,0 +1,58 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AliasedReExport
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Lib Terms:
+
+Lib Types:
+  - ByteCount is Explicit
+
+Lib Classes:
+
+Exported Terms:
+
+Exported Types:
+
+Exported Classes:
+
+Local Terms:
+
+Local Types:
+
+Local Classes:
+
+Class Members:
+
+Diagnostics
+Error! · [InvalidExportItem] · AliasedReExport.purs:1:25
+  •
+  │
+  • Cannot export imported item 'ByteCount'; re-export 'module Lib' instead
+  │
+  │   module AliasedReExport (ByteCount, module Library) where
+  │                           ╰────────
+  │
+  • Imported here
+  │
+  │   import Library (ByteCount) as Lib
+  │                   ╰────────
+  •
+
+Error! · [InvalidExportItem] · AliasedReExport.purs:1:36
+  •
+  │
+  • Cannot export 'module Library' because it is imported as 'Lib'; use 'module Lib' instead
+  │
+  │   module AliasedReExport (ByteCount, module Library) where
+  │                                      ╰─────────────
+  │
+  • Imported here
+  │
+  │   import Library (ByteCount) as Lib
+  │   ╰────────────────────────────────
+  •
