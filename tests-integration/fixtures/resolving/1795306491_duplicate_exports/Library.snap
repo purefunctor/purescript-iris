@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Library
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - library
+
+Exported Types:
+
+Exported Classes:
+
+Local Terms:
+  - library
+
+Local Types:
+
+Local Classes:
+
+Class Members:

@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Main
+
+Unqualified Imports:
+
+Terms:
+  - library is Implicit
+
+Types:
+
+Classes:
+
+Qualified Imports:
+
+Exported Terms:
+  - value
+  - Second
+  - First
+  - library
+  - Pair
+
+Exported Types:
+  - Choice
+  - Pair
+
+Exported Classes:
+
+Local Terms:
+  - value
+  - Second
+  - First
+  - Pair
+
+Local Types:
+  - Choice
+  - Pair
+
+Local Classes:
+
+Class Members:
