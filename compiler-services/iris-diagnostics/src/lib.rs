@@ -9,4 +9,4 @@ pub use collection::{DiagnosticCollection, ErrorCounts, collect_diagnostics, cou
 pub use context::{DiagnosticsContext, ExternalQueries};
 pub use convert::ToDiagnostics;
 pub use model::{Diagnostic, DiagnosticCode, RelatedSpan, Span};
-pub use render::{format_rich_with_path, format_text, to_lsp_diagnostic};
+pub use render::{format_rich_with_path, to_lsp_diagnostic};
