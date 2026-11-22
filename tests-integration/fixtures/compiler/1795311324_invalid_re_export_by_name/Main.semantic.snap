@@ -1,0 +1,7 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+size :: Prim.Number
+size =
+  case fileSize of
+    <error> -> n

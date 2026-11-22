@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Library
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+  - +
+  - ByteCount
+  - helper
+
+Exported Types:
+  - ByteCount
+  - :+
+
+Exported Classes:
+  - Helper
+
+Local Terms:
+  - +
+  - ByteCount
+  - helper
+
+Local Types:
+  - :+
+  - ByteCount
+  - Pair
+
+Local Classes:
+  - Helper
+
+Class Members:

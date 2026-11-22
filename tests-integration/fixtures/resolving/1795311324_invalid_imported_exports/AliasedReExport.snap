@@ -1,0 +1,29 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module AliasedReExport
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Lib Terms:
+
+Lib Types:
+  - ByteCount is Explicit
+
+Lib Classes:
+
+Exported Terms:
+
+Exported Types:
+
+Exported Classes:
+
+Local Terms:
+
+Local Types:
+
+Local Classes:
+
+Class Members:

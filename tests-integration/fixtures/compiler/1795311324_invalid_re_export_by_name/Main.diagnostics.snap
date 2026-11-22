@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [NotInScope] · Main.purs:7:3
+  •
+  │
+  • 'ByteCount' is not in scope
+  │
+  │     ByteCount n -> n
+  │     ╰────────
+  •
+
+Error! · [InvalidImportItem] · Main.purs:3:15
+  •
+  │
+  • Cannot import item 'ByteCount(..)'
+  │
+  │   import Files (ByteCount(..), fileSize)
+  │                 ╰────────────
+  •

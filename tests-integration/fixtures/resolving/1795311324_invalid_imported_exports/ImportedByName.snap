@@ -1,0 +1,34 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module ImportedByName
+
+Unqualified Imports:
+
+Terms:
+  - + is Explicit
+  - ByteCount is Explicit
+  - helper is Explicit
+
+Types:
+  - ByteCount is Explicit
+  - :+ is Explicit
+
+Classes:
+  - Helper is Explicit
+
+Qualified Imports:
+
+Exported Terms:
+
+Exported Types:
+
+Exported Classes:
+
+Local Terms:
+
+Local Types:
+
+Local Classes:
+
+Class Members:

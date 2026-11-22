@@ -1,0 +1,42 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+module Mismatched
+
+Unqualified Imports:
+
+Qualified Imports:
+
+Exported Terms:
+
+Exported Types:
+  - LocalData
+
+Exported Classes:
+  - LocalClass
+
+Local Terms:
+  - Constructor
+
+Local Types:
+  - LocalData
+
+Local Classes:
+  - LocalClass
+
+Class Members:
+
+Diagnostics
+Warning! · [DuplicateExport] · Mismatched.purs:1:49
+  •
+  │
+  • Export list contains multiple references to 'LocalData(MissingConstructor)'
+  │
+  │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
+  │                                                   ╰────────────────────────────
+  │
+  • First exported here
+  │
+  │   module Mismatched (LocalClass, class LocalData, LocalData(MissingConstructor), Constructor) where
+  │                                  ╰──────────────
+  •

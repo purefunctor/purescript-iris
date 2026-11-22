@@ -18,11 +18,13 @@ Exported Terms:
   - value
   - Second
   - First
+  - Left
   - library
   - Pair
 
 Exported Types:
   - Choice
+  - Split
   - Pair
 
 Exported Classes:
@@ -31,10 +33,13 @@ Local Terms:
   - value
   - Second
   - First
+  - Left
+  - Right
   - Pair
 
 Local Types:
   - Choice
+  - Split
   - Pair
 
 Local Classes:
@@ -71,6 +76,20 @@ Warning! · [DuplicateExport] · Main.purs:5:5
   •
 
 Warning! · [DuplicateExport] · Main.purs:8:5
+  •
+  │
+  • Export list contains multiple references to 'Split(Right)'
+  │
+  │     , Split(Right)
+  │       ╰───────────
+  │
+  • First exported here
+  │
+  │     , Split(Left)
+  │       ╰──────────
+  •
+
+Warning! · [DuplicateExport] · Main.purs:10:5
   •
   │
   • Export list contains multiple references to 'module Library'
