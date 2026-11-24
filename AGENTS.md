@@ -1,58 +1,22 @@
-## Ethos
+## Design and scope
 
-### Correctness
-
-- Investigate architectural root faults.
-- Avoid escape hatches and temporary fixes.
-- Use the type system to encode correctness.
-
-### Posterity
-
-- Write code for future contributors, reviewers, and maintainers.
-- Write code that you will understand 10 years later.
-- Write code that you will not hate 10 years later.
-
-### Clarity
-
-- Code should be self-documenting. Comments should say 'why', not 'what'.
-- Never write narrative inline comments unless they are used to clarify intent.
-- Never use abbreviated names for functions, variables, types, modules, etc.
-
-### Simplicity
-
-- Avoid abstractions for their own sake.
-- Write abstractions if they improve clarity or reduce real complexity.
-- Write abstractions if they make repeated work easier for humans.
-
-## In context of work
-
-Assume in good faith that maintainers will continue to read through and review the code. Unlike a
-frontend project, where you can verify irrefutable proof via the end product, e.g., a working
-feature, compilers are deeply tied to the code that they generate and the code contributors write
-for the compiler itself. Recall the ethos above when writing code that humans will review.
-
-Remember that compilers are both horizontal and vertical: frontend, backend, services that build on
-top of them, and ultimately the command line interface, which is what humans and agents interact
-with daily.
-
-Posterity is the act of authoring code for future readers, human and agent alike. It’s not a
-requirement to anticipate every failure mode and to address them all at once. Humans and agents
-strongly rely on working memory and local understanding of a large system. Overload is fatigue.
-
-For new features, thoughtfully consider the proportionality between complexity and benefit.
-Following through to correctness and posterity does not authorise fixing unrelated discoveries on a
-whim without first informing the user about these discoveries.
-
-When addressing a bug, investigate the underlying systems instead of stopping at the point where the
-bug is visible. Thoughtfully consider whether fixing the bug constitutes a larger refactoring that
-you should raise with the user for a discussion.
+- Fix root causes in the underlying subsystem instead of patching symptoms or adding escape hatches.
+- Refactor freely within the files you are changing.
+- Discuss changes that cross crates or alter shared interfaces with the user before implementing them.
+- Encode invariants in the type system where practical.
+- Keep code locally understandable with explicit responsibilities so a reader can follow them without global context.
+- Consolidate repeated logic within the code you touch when it clarifies a responsibility, and avoid speculative abstractions.
+- Keep new features scoped to the requested use case without speculative failure handling or extra complexity.
+- Trace changes across affected compiler layers (frontend, backend, services, and CLI) instead of stopping at the local crate.
+- Report unrelated bugs or issues you discover instead of fixing them without asking.
 
 ## Code style
 
-In addition to the ethos, follow the project's existing conventions for variable names, argument
-ordering, module organisation, and formatting.
+- Follow the existing conventions for variable names, argument ordering, module organization, and formatting.
+- Use full, descriptive names for functions, variables, types, and modules instead of ad-hoc abbreviations; established domain acronyms and existing identifiers such as `id`, `uri`, or `lsp` are fine.
+- Agents must not write new comments in any form: `//` and `/* */` comments, `///` and `/** */` item documentation, or `//!` and `/*! */` module documentation. Comments and documentation in Iris are written by humans.
 
-For example:
+Formatting and binding conventions:
 
 ```rust
 // Yes: Keep collecting fluent when each call fits on one line.
@@ -111,41 +75,27 @@ let content = content.clone();
 let file_id = files.insert(uri, content);
 ```
 
-### Comments
-
-Agents must not write new comments in any form: `//` and `/* */` comments, `///` and `/** */` item
-documentation, or `//!` and `/*! */` module documentation. Comments and documentation in Iris are
-written by humans.
-
 ## Tests and verification
 
-Thoughtfully create tests by the behaviour under test, not by how easy it is to add a Rust
-`#[test]`. Aligned with our warning about correctness and posterity, do not blindly chase test
-coverage to the point that you write tautologies or change detector tests for constants.
-
-Unit tests belong beside small algorithms and data structures within a subsystem. Construct fixture
-data directly when the invariant can be tested without driving the full compiler engine. You can see
-this in the functional dependency closure computation and exhaustiveness checker algorithms.
-
-Testing internal behaviour such as the compiler belongs in the `tests-integration` crate. Testing
-external behaviour such as the command line belongs in the `tests-e2e` crate.
+- Place each test where its behavior belongs, not where adding a `#[test]` is easiest:
+  - Unit tests beside small algorithms and data structures, constructing fixture data directly when invariants do not need the full compiler engine (for example, functional dependency closure and exhaustiveness checking).
+  - Compiler and internal pipeline tests in `tests-integration`.
+  - CLI and external behavior tests in `tests-e2e`.
+- Test behavior and invariants; do not write tautologies or change-detector tests for constants to raise coverage.
 
 ### Preflight checks
 
-Before shipping a change, perform a preflight check. You can push to a remote branch to build and
-test the project against other supported platforms using CI. You may skip preflight checks if you
-are confident that the change does not need cross-platform verification; tell the user if you chose
-not to and why. Delete the remote branches you create once the changes ship.
+- Before shipping, push a temporary remote branch to run cross-platform CI, then delete the remote branch once the change ships.
+- Skip preflight CI when cross-platform behavior cannot be affected (such as documentation or agent-config edits), and tell the user why.
 
 ## Commits
 
-Commits must be atomic units of work. Branches land on `main` through merge commits. Thoughtfully
-curate branches into reviewable stories before publishing them. Always run `just format` and
-`just licenses` before merging a branch, and squash any resulting changes into the relevant commits.
+- Keep commits atomic and reviewable. Land branches on `main` through merge commits.
+- Run `just format` and `just licenses` before merging a branch, and squash any resulting changes into the relevant commits.
 
 ### Commit format
 
-Commit titles are short, imperative, and sentence-cased:
+Use short, imperative, sentence-cased titles:
 
 ```text
 Add failing test case for overlapping instances
@@ -155,12 +105,9 @@ Implement local name completions
 
 ### Merge commit format
 
-Merge commit titles use `[category] description`. Thoughtfully choose from established categories,
-consulting recent merge commits on `main` where necessary. Use crate names when changes are local to
-the crates themselves; `agents` for agent configuration; `meta` for repository-wide maintenance; and
-`ci` for changes. Do not use conventional commit qualifiers such as `fix` or `feat`.
+Use `[category] description` with one established category (check recent merge commits on `main` when unsure): a crate name for crate-local changes, `agents` for agent configuration, `meta` for repository-wide maintenance, or `ci` for CI changes. Do not use conventional commit qualifiers such as `fix` or `feat`.
 
-Good merge commit subjects:
+Good:
 
 ```text
 [checking] Preserve type variable names in instance members
@@ -169,7 +116,7 @@ Good merge commit subjects:
 [ci] Test installers on supported platforms
 ```
 
-Bad merge commit subjects:
+Bad:
 
 ```text
 Preserve type variable names in instance members       # Missing category
