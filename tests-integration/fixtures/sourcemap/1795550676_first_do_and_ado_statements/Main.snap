@@ -1,0 +1,67 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+ 1 | import * as Control_Applicative from "../Control.Applicative/index.js";
+   | ^ 3:1 import Prelude
+ 2 | import * as Control_Apply from "../Control.Apply/index.js";
+   | ^ 3:1 import Prelude
+ 3 | import * as Control_Bind from "../Control.Bind/index.js";
+   | ^ 3:1 import Prelude
+ 4 | import * as Data_Functor from "../Data.Functor/index.js";
+   | ^ 3:1 import Prelude
+ 5 | export function firstBind(monadMDict) {
+   | ^ 6:1 firstBind ask record = do
+   |        ^ (firstBind) 6:1 firstBind ask record = do
+   |                                       ^ 6:1 firstBind ask record = do
+ 6 |   return (ask) => (record) => /* @__PURE__ */ Control_Bind.bind(/* @__PURE__ */ monadMDict.Bind1())(ask)((value) => /* @__PURE__ */ discardUnitDictDiscard(/* @__PURE__ */ monadMDict.Bind1())(record(value))(($unit) => /* @__PURE__ */ Control_Applicative.pure(/* @__PURE__ */ monadMDict.Applicative0())(value)));
+   |   ^ (firstBind) 6:1 firstBind ask record = do
+   |                               ^ 6:24 do
+   |                                                                                                     ^ 7:12 ask
+   |                                                                                                        ^ 6:24 do
+   |                                                                                                           ^ 7:3 value <- ask
+   |                                                                                                                     ^ 8:3 record value
+   |                                                                                                                                                                                                       ^ 8:10 value
+   |                                                                                                                                                                                                            ^ 8:3 record value
+   |                                                                                                                                                                                                                          ^ 9:3 pure value
+   |                                                                                                                                                                                                                                                                                                              ^ 9:8 value
+   |                                                                                                                                                                                                                                                                                                                   ^ 9:3 pure value
+   |                                                                                                                                                                                                                                                                                                                    ^ 8:3 record value
+   |                                                                                                                                                                                                                                                                                                                     ^ 6:24 do
+ 7 | }
+   | ^ 6:1 firstBind ask record = do
+ 8 | export function firstDiscard(monadMDict) {
+   | ^ 12:1 firstDiscard announce ask = do
+   |        ^ (firstDiscard) 12:1 firstDiscard announce ask = do
+   |                                          ^ 12:1 firstDiscard announce ask = do
+ 9 |   return (announce) => (ask) => /* @__PURE__ */ discardUnitDictDiscard(/* @__PURE__ */ monadMDict.Bind1())(announce)(($unit) => ask);
+   |   ^ (firstDiscard) 12:1 firstDiscard announce ask = do
+   |                                 ^ 12:29 do
+   |                                                                                                            ^ 13:3 announce
+   |                                                                                                                    ^ 12:29 do
+   |                                                                                                                       ^ 13:3 announce
+   |                                                                                                                                 ^ 14:3 ask
+   |                                                                                                                                    ^ 12:29 do
+10 | }
+   | ^ 12:1 firstDiscard announce ask = do
+11 | export function firstAdoAction(applyFDict) {
+   | ^ 17:1 firstAdoAction left right = ado
+   |        ^ (firstAdoAction) 17:1 firstAdoAction left right = ado
+   |                                            ^ 17:1 firstAdoAction left right = ado
+12 |   return (left) => (right) => /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())((a) => (b) => a + b | 0)(left))(right);
+   |   ^ (firstAdoAction) 17:1 firstAdoAction left right = ado
+   |                               ^ 17:29 ado
+   |                                                                               ^ 18:3 a <- left
+   |                                                                                                                                                               ^ 19:3 b <- right
+   |                                                                                                                                                                     ^ 20:6 a + b
+   |                                                                                                                                                                         ^ 20:10 b
+   |                                                                                                                                                                             ^ 20:6 a + b
+   |                                                                                                                                                                              ^ 18:3 a <- left
+   |                                                                                                                                                                                ^ 18:8 left
+   |                                                                                                                                                                                    ^ 18:3 a <- left
+   |                                                                                                                                                                                     ^ 17:29 ado
+   |                                                                                                                                                                                       ^ 19:8 right
+   |                                                                                                                                                                                            ^ 17:29 ado
+13 | }
+   | ^ 17:1 firstAdoAction left right = ado
+14 | const discardUnitDictDiscard = /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit);
+   | ^ 8:3 record value
