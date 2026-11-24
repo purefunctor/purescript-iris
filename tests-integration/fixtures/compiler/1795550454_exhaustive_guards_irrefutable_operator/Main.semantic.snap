@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Maybe :: Prim.Type -> Prim.Type
+data Maybe @a
+  | Just :: a -> Main.Maybe a
+  | Nothing :: Main.Maybe a
+
+newtype Box :: Prim.Type -> Prim.Type
+newtype Box @a
+  | Box :: a -> Main.Box a
+
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+operatorGuard :: Main.Maybe Prim.Int -> Prim.Int
+operatorGuard = \v32 ->
+  (\{partialDict} ->
+    case v32 of
+      (Just n)
+        | (Pair a _) <- Pair n n -> a
+      Nothing -> 0) {error}
+
+operatorChainGuard :: Main.Maybe Prim.Int -> Main.Pair Prim.Int Prim.Int
+operatorChainGuard = \v73 ->
+  (\{partialDict} ->
+    case v73 of
+      (Just n)
+        | (Pair a (Pair b _)) <- Pair n (Pair n n) -> Pair a b
+      Nothing -> Pair 0 0) {error}
+
+nestedOperatorGuard :: Main.Maybe Prim.Int -> Prim.Int
+nestedOperatorGuard = \v125 ->
+  (\{partialDict} ->
+    case v125 of
+      (Just n)
+        | (Box (Pair a _)) <- Box (Pair n n) -> a
+      Nothing -> 0) {error}
+
+refutableOperatorGuard :: Prim.Partial => Main.Maybe Prim.Int -> Prim.Int
+refutableOperatorGuard = \{partialDict} ->
+  \v163 ->
+    (\{partialDict1} ->
+      case v163 of
+        (Just n)
+          | (Pair _ (Just b)) <- Pair n (Just n) -> b
+        Nothing -> 0) {partialDict}

@@ -1,0 +1,25 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Maybe :: Prim.Type -> Prim.Type
+data Maybe @a
+  | Just :: a -> Main.Maybe a
+  | Nothing :: Main.Maybe a
+
+unresolvedConstructorGuard :: forall t0. Prim.Partial => Main.Maybe t0 -> ?[unresolved binder]
+unresolvedConstructorGuard = \{partialDict} ->
+  \v15 ->
+    (\{partialDict1} ->
+      case v15 of
+        (Just n)
+          | <error> <- n -> m
+        Nothing -> 0) {partialDict}
+
+unresolvedOperatorGuard :: Prim.Partial => Main.Maybe ?[invalid operator chain] -> ?[unresolved binder]
+unresolvedOperatorGuard = \{partialDict} ->
+  \v40 ->
+    (\{partialDict1} ->
+      case v40 of
+        (Just n)
+          | <error> <- n -> a
+        Nothing -> 0) {partialDict}

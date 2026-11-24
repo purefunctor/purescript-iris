@@ -1,0 +1,23 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Just :: forall @a. a -> Main.Maybe a
+Nothing :: forall @a. Main.Maybe a
+Box :: forall @a. a -> Main.Box a
+Pair :: forall @a @b. a -> b -> Main.Pair a b
+/\ :: forall @a @b. a -> b -> Main.Pair a b
+operatorGuard :: Main.Maybe Prim.Int -> Prim.Int
+operatorChainGuard :: Main.Maybe Prim.Int -> Main.Pair Prim.Int Prim.Int
+nestedOperatorGuard :: Main.Maybe Prim.Int -> Prim.Int
+refutableOperatorGuard :: Prim.Partial => Main.Maybe Prim.Int -> Prim.Int
+
+Types
+Maybe :: Prim.Type -> Prim.Type
+Box :: Prim.Type -> Prim.Type
+Pair :: Prim.Type -> Prim.Type -> Prim.Type
+
+Roles
+Maybe = [Representational]
+Box = [Representational]
+Pair = [Representational, Representational]

@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Just/1
+
+@export constructor Nothing/0
+
+@export shadowedBranch = \section25%0 ->
+  case section25%0 of
+    Just n%1 ->
+      | m%2 <- n%1 -> m%2
+    Just n%3 ->
+      n%3
+    Nothing ->
+      0

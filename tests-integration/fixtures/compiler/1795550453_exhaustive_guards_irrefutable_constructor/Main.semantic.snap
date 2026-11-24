@@ -1,0 +1,56 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Maybe :: Prim.Type -> Prim.Type
+data Maybe @a
+  | Just :: a -> Main.Maybe a
+  | Nothing :: Main.Maybe a
+
+newtype Box :: Prim.Type -> Prim.Type
+newtype Box @a
+  | Box :: a -> Main.Box a
+
+data Pair :: Prim.Type -> Prim.Type -> Prim.Type
+data Pair @a @b
+  | Pair :: a -> b -> Main.Pair a b
+
+newtypeGuard :: Main.Maybe Prim.Int -> Prim.Int
+newtypeGuard = \v31 ->
+  (\{partialDict} ->
+    case v31 of
+      (Just n)
+        | (Box m) <- Box n -> m
+      Nothing -> 0) {error}
+
+singleConstructorGuard :: Main.Maybe Prim.Int -> Prim.Int
+singleConstructorGuard = \v65 ->
+  (\{partialDict} ->
+    case v65 of
+      (Just n)
+        | (Pair a _) <- Pair n n -> a
+      Nothing -> 0) {error}
+
+recordGuard :: Main.Maybe Prim.Int -> Prim.Int
+recordGuard = \v102 ->
+  (\{partialDict} ->
+    case v102 of
+      (Just n)
+        | { value } <- { value: n } -> value
+      Nothing -> 0) {error}
+
+nestedGuard :: Main.Maybe Prim.Int -> Main.Pair Prim.Int Prim.Int
+nestedGuard = \v138 ->
+  (\{partialDict} ->
+    case v138 of
+      (Just n)
+        | (Box (Pair a { value })) <- Box (Pair n { value: n }) -> Pair a value
+      Nothing -> Pair 0 0) {error}
+
+refutableGuard :: Prim.Partial => Main.Maybe Prim.Int -> Prim.Int
+refutableGuard = \{partialDict} ->
+  \v188 ->
+    (\{partialDict1} ->
+      case v188 of
+        (Just n)
+          | (Box (Just m)) <- Box (Just n) -> m
+        Nothing -> 0) {partialDict}

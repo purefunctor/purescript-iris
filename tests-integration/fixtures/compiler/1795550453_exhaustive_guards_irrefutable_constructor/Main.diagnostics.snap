@@ -1,0 +1,98 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Warning! · [MissingPatterns] · Main.purs:10:16
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   newtypeGuard = case _ of
+  │                  ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Error! · [NoInstanceFound] · Main.purs:10:16
+  •
+  │
+  • No type class instance found for 'Partial'
+  │
+  │   newtypeGuard = case _ of
+  │                  ╰────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:15:26
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   singleConstructorGuard = case _ of
+  │                            ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Error! · [NoInstanceFound] · Main.purs:15:26
+  •
+  │
+  • No type class instance found for 'Partial'
+  │
+  │   singleConstructorGuard = case _ of
+  │                            ╰────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:20:15
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   recordGuard = case _ of
+  │                 ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Error! · [NoInstanceFound] · Main.purs:20:15
+  •
+  │
+  • No type class instance found for 'Partial'
+  │
+  │   recordGuard = case _ of
+  │                 ╰────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:25:15
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   nestedGuard = case _ of
+  │                 ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Error! · [NoInstanceFound] · Main.purs:25:15
+  •
+  │
+  • No type class instance found for 'Partial'
+  │
+  │   nestedGuard = case _ of
+  │                 ╰────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:29:18
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   refutableGuard = case _ of
+  │                    ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
