@@ -6,6 +6,7 @@ pub mod compilation;
 pub mod compile;
 pub mod packages;
 
+mod fetch;
 mod output;
 mod ownership;
 mod project;
