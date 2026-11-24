@@ -16,27 +16,24 @@ data Pair @a @b
 
 operatorGuard :: Main.Maybe Prim.Int -> Prim.Int
 operatorGuard = \v32 ->
-  (\{partialDict} ->
-    case v32 of
-      (Just n)
-        | (Pair a _) <- Pair n n -> a
-      Nothing -> 0) {error}
+  case v32 of
+    (Just n)
+      | (Pair a _) <- Pair n n -> a
+    Nothing -> 0
 
 operatorChainGuard :: Main.Maybe Prim.Int -> Main.Pair Prim.Int Prim.Int
 operatorChainGuard = \v73 ->
-  (\{partialDict} ->
-    case v73 of
-      (Just n)
-        | (Pair a (Pair b _)) <- Pair n (Pair n n) -> Pair a b
-      Nothing -> Pair 0 0) {error}
+  case v73 of
+    (Just n)
+      | (Pair a (Pair b _)) <- Pair n (Pair n n) -> Pair a b
+    Nothing -> Pair 0 0
 
 nestedOperatorGuard :: Main.Maybe Prim.Int -> Prim.Int
 nestedOperatorGuard = \v125 ->
-  (\{partialDict} ->
-    case v125 of
-      (Just n)
-        | (Box (Pair a _)) <- Box (Pair n n) -> a
-      Nothing -> 0) {error}
+  case v125 of
+    (Just n)
+      | (Box (Pair a _)) <- Box (Pair n n) -> a
+    Nothing -> 0
 
 refutableOperatorGuard :: Prim.Partial => Main.Maybe Prim.Int -> Prim.Int
 refutableOperatorGuard = \{partialDict} ->

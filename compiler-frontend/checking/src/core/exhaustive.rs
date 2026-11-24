@@ -1264,30 +1264,56 @@ where
 
 /// Returns `true` if any alternative in a conditional guard set is trivially true.
 fn has_trivially_true_alternative<Q>(
+    state: &mut CheckState,
     context: &CheckContext<Q>,
     pattern_guarded: &[lowering::PatternGuarded],
-) -> bool
+) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    pattern_guarded.iter().any(|pg| {
-        !pg.pattern_guards.is_empty()
-            && pg.pattern_guards.iter().all(|g| is_trivially_true_guard(context, g))
-    })
+    for alternative in pattern_guarded {
+        if alternative.pattern_guards.is_empty() {
+            continue;
+        }
+        if are_trivially_true_guards(state, context, &alternative.pattern_guards)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn are_trivially_true_guards<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    pattern_guards: &[lowering::PatternGuard],
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    for guard in pattern_guards {
+        if !is_trivially_true_guard(state, context, guard)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// Returns `true` if the guard is `true` or `otherwise` from `Data.Boolean`.
-fn is_trivially_true_guard<Q>(context: &CheckContext<Q>, guard: &lowering::PatternGuard) -> bool
+fn is_trivially_true_guard<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    guard: &lowering::PatternGuard,
+) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
     if let Some(binder_id) = guard.binder {
-        return is_irrefutable_binder(context, binder_id);
+        return is_total_binder(state, context, binder_id);
     }
     let Some(expression_id) = guard.expression else {
-        return false;
+        return Ok(false);
     };
-    is_trivially_true_expression(context, expression_id)
+    Ok(is_trivially_true_expression(context, expression_id))
 }
 
 fn is_trivially_true_expression<Q>(
@@ -1313,22 +1339,26 @@ where
     }
 }
 
-fn is_irrefutable_binder<Q>(context: &CheckContext<Q>, binder_id: lowering::BinderId) -> bool
+fn is_total_binder<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    binder_id: lowering::BinderId,
+) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
-    let Some(kind) = context.lowered.tree.get_binder_kind(binder_id) else {
-        return false;
-    };
-    match kind {
-        lowering::BinderKind::Variable { .. } | lowering::BinderKind::Wildcard => true,
-        lowering::BinderKind::Named { binder, .. }
-        | lowering::BinderKind::Parenthesized { parenthesized: binder }
-        | lowering::BinderKind::Typed { binder, .. } => {
-            binder.is_some_and(|binder| is_irrefutable_binder(context, binder))
-        }
-        _ => false,
+    if !convert::is_resolved_binder(state, context, binder_id)? {
+        return Ok(false);
     }
+
+    let pattern = convert::convert_binder(state, context, binder_id)?;
+    let wildcard = state.allocate_wildcard(state.patterns[pattern].t);
+
+    let mut matrix = PatternMatrix::new(1);
+    matrix.push(&[pattern]);
+
+    let useful = algorithm_u(state, context, &matrix, &[wildcard])?;
+    Ok(!useful)
 }
 
 fn collect_unconditional_rows<Q, T, F>(
@@ -1349,7 +1379,7 @@ where
         match guarded {
             Some(lowering::GuardedExpression::Unconditional { .. }) | None => {}
             Some(lowering::GuardedExpression::Conditionals { pattern_guarded }) => {
-                if !has_trivially_true_alternative(context, pattern_guarded) {
+                if !has_trivially_true_alternative(state, context, pattern_guarded)? {
                     continue;
                 }
             }

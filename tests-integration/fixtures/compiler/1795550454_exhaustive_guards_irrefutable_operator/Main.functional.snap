@@ -1,4 +1,40 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Module Main rejected; see Main.diagnostics.snap
+@export constructor Just/1
+
+@export constructor Nothing/0
+
+@export constructor Pair/2
+
+@export operatorGuard = \section32%0 ->
+  case section32%0 of
+    Just n%1 ->
+      | Pair a%2 _ <- { tag: "Pair", _1: n%1, _2: n%1 } -> a%2
+    Nothing ->
+      0
+
+@export operatorChainGuard = \section73%3 ->
+  case section73%3 of
+    Just n%4 ->
+      | Pair a%5 (Pair b%6 _) <- { tag: "Pair", _1: n%4, _2: { tag: "Pair", _1: n%4, _2: n%4 } } ->
+        { tag: "Pair", _1: a%5, _2: b%6 }
+    Nothing ->
+      { tag: "Pair", _1: 0, _2: 0 }
+
+@export nestedOperatorGuard = \section125%7 ->
+  case section125%7 of
+    Just n%8 ->
+      | Pair a%9 _ <- { tag: "Pair", _1: n%8, _2: n%8 } -> a%9
+    Nothing ->
+      0
+
+@export refutableOperatorGuard = \partialDict%11 ->
+  \section163%10 ->
+    (\partialDict%12 ->
+      case section163%10 of
+        Just n%13 ->
+          | Pair _ (Just b%14) <- { tag: "Pair", _1: n%13, _2: { tag: "Just", _1: n%13 } } -> b%14
+        Nothing ->
+          0)
+      partialDict%11
