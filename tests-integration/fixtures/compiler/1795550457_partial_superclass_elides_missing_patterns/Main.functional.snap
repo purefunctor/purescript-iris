@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Just/1
+
+@export constructor Nothing/0
+
+@export direct = \partialDict%2 -> \$maybe%1@(Just n%0) -> n%0
+
+@export viaSuperclass = \unsafeDict%5 -> \$maybe%4@(Just n%3) -> n%3
+
+@export viaTransitiveSuperclass = \veryUnsafeDict%8 -> \$maybe%7@(Just n%6) -> n%6
+
+@export withoutPartial = \unrelatedDict%11 -> \$maybe%10@(Just n%9) -> n%9
