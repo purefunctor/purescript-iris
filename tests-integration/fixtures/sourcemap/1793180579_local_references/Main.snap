@@ -6,10 +6,10 @@ source: tests-integration/src/fixtures.rs
    |        ^ (doubled) 9:1 doubled value = do
    |                                ^ 9:1 doubled value = do
  2 |   return () => {
-   |   ^ (doubled) 9:17 do
-   |                ^ 9:17 do
+   |   ^ (doubled) 10:3 counter <- Ref.new value
+   |                ^ 10:3 counter <- Ref.new value
  3 |     let counter = value;
-   |     ^ 9:17 do
+   |     ^ 10:3 counter <- Ref.new value
    |                   ^ 10:22 value
  4 |     let $int;
    |     ^ 11:3 _ <- Ref.modify (_ * 2) counter
@@ -27,6 +27,6 @@ source: tests-integration/src/fixtures.rs
    |     ^ 12:3 Ref.read counter
    |            ^ 12:12 counter
  9 |   };
-   |   ^ 9:17 do
+   |   ^ 10:3 counter <- Ref.new value
 10 | }
    | ^ 9:1 doubled value = do

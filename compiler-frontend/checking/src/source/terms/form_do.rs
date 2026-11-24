@@ -506,7 +506,7 @@ where
     };
     let mut continuation = ElaboratedExpression { type_id: final_continuation, ..final_expression };
 
-    for (position, step) in checked_steps.into_iter().rev().with_position() {
+    for step in checked_steps.into_iter().rev() {
         let statement = match step {
             CheckedDoStep::Application { statement, application, binder } => {
                 state.checked.tree.insert_binder_statement(binder, statement);
@@ -551,10 +551,7 @@ where
                 statement
             }
         };
-        let is_outermost = position.is_last();
-        if !is_outermost {
-            attribute_do_statement(state, continuation.expression, statement);
-        }
+        attribute_do_statement(state, continuation.expression, statement);
     }
 
     Ok(ElaboratedExpression { type_id: first_continuation, ..continuation })

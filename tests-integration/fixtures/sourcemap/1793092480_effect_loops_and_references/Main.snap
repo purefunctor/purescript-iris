@@ -6,10 +6,10 @@ source: tests-integration/src/fixtures.rs
    |        ^ (total) 9:1 total values = do
    |                               ^ 9:1 total values = do
  2 |   return () => {
-   |   ^ (total) 9:16 do
-   |                ^ 9:16 do
+   |   ^ (total) 10:3 sum <- Ref.new 0
+   |                ^ 10:3 sum <- Ref.new 0
  3 |     let sum = 0 | 0;
-   |     ^ 9:16 do
+   |     ^ 10:3 sum <- Ref.new 0
    |               ^ 10:18 0
  4 |     for (let index = 0 | 0; index < (3 | 0); index++) {
    |     ^ 11:3 forE 0 3 \index ->
@@ -78,6 +78,6 @@ source: tests-integration/src/fixtures.rs
    |     ^ 17:3 Ref.read sum
    |            ^ 17:12 sum
 26 |   };
-   |   ^ 9:16 do
+   |   ^ 10:3 sum <- Ref.new 0
 27 | }
    | ^ 9:1 total values = do

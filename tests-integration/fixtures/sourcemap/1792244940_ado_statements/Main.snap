@@ -11,7 +11,7 @@ source: tests-integration/src/fixtures.rs
    |                                     ^ 6:1 combine left right effect = ado
  4 |   return (left) => (right) => (effect) => /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())((a) => (b) => ($unit) => a + b | 0)(left))(right))(effect);
    |   ^ (combine) 6:1 combine left right effect = ado
-   |                                           ^ 6:29 ado
+   |                                           ^ 9:3 effect
    |                                                                                           ^ 8:3 b <- right
    |                                                                                                                                           ^ 7:3 a <- left
    |                                                                                                                                                                                                                           ^ 8:3 b <- right
@@ -25,9 +25,7 @@ source: tests-integration/src/fixtures.rs
    |                                                                                                                                                                                                                                                            ^ 8:3 b <- right
    |                                                                                                                                                                                                                                                              ^ 8:8 right
    |                                                                                                                                                                                                                                                                   ^ 8:3 b <- right
-   |                                                                                                                                                                                                                                                                    ^ 6:29 ado
-   |                                                                                                                                                                                                                                                                      ^ 9:3 effect
-   |                                                                                                                                                                                                                                                                            ^ 6:29 ado
+   |                                                                                                                                                                                                                                                                    ^ 9:3 effect
  5 | }
    | ^ 6:1 combine left right effect = ado
  6 | export function records(applyFDict) {
@@ -42,7 +40,7 @@ source: tests-integration/src/fixtures.rs
    |     ^ (records) 13:1 records left right = ado
    |                       ^ 13:1 records left right = ado
  9 |       return /* @__PURE__ */ Control_Apply.apply(applyFDict)(/* @__PURE__ */ Data_Functor.map(/* @__PURE__ */ applyFDict.Functor0())(($record) => {
-   |       ^ 13:22 ado
+   |       ^ 15:3 { y } <- right
    |                                                              ^ 14:3 { x } <- left
 10 |         const x = $record.x;
    |         ^ 14:3 { x } <- left
@@ -60,9 +58,9 @@ source: tests-integration/src/fixtures.rs
    |       ^ 14:3 { x } <- left
    |          ^ 14:12 left
    |              ^ 14:3 { x } <- left
-   |               ^ 13:22 ado
+   |               ^ 15:3 { y } <- right
    |                 ^ 15:12 right
-   |                      ^ 13:22 ado
+   |                      ^ 15:3 { y } <- right
 16 |     };
    |     ^ 13:1 records left right = ado
 17 |   };

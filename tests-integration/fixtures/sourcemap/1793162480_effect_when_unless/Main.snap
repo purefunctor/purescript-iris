@@ -6,10 +6,10 @@ source: tests-integration/src/fixtures.rs
    |        ^ (counter) 9:1 counter flag = do
    |                               ^ 9:1 counter flag = do
  2 |   return () => {
-   |   ^ (counter) 9:16 do
-   |                ^ 9:16 do
+   |   ^ (counter) 10:3 count <- Ref.new 0
+   |                ^ 10:3 count <- Ref.new 0
  3 |     let count = 0 | 0;
-   |     ^ 9:16 do
+   |     ^ 10:3 count <- Ref.new 0
    |                 ^ 10:20 0
  4 |     if (flag) {
    |     ^ 11:3 when flag do
@@ -41,6 +41,6 @@ source: tests-integration/src/fixtures.rs
    |     ^ 14:3 Ref.read count
    |            ^ 14:12 count
 14 |   };
-   |   ^ 9:16 do
+   |   ^ 10:3 count <- Ref.new 0
 15 | }
    | ^ 9:1 counter flag = do
