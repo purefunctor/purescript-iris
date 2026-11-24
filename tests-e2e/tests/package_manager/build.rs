@@ -598,3 +598,89 @@ foreign import value :: Int
     reader.read_to_string(&mut read).unwrap();
     assert_eq!(read, previous, "a build rewrote the metadata of Main in place");
 }
+
+#[test]
+fn skips_spago_when_nothing_changed_since_the_last_fetch() {
+    let workspace = fetched_registry_workspace();
+
+    assert_success(&workspace.command(&["build", "--quiet"]));
+
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "application""#);
+    assert!(workspace.path().join("output/Main/index.js").is_file());
+}
+
+#[test]
+fn fetches_again_when_the_manifest_changes() {
+    let workspace = fetched_registry_workspace();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace:
+  packageSet:
+    registry: 64.10.0
+package:
+  name: application
+  dependencies:
+    - prelude
+"#,
+    );
+
+    assert_success(&workspace.command(&["build", "--quiet"]));
+
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"
+    .: spago "fetch" "-p" "application"
+    .: spago "fetch" "-p" "application"
+    "#);
+}
+
+#[test]
+fn fetches_again_when_the_lock_file_changes() {
+    let workspace = fetched_registry_workspace();
+    let lock = workspace.read("spago.lock");
+    workspace.write("spago.lock", &format!("{lock}\n"));
+
+    assert_success(&workspace.command(&["build", "--quiet"]));
+
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"
+    .: spago "fetch" "-p" "application"
+    .: spago "fetch" "-p" "application"
+    "#);
+}
+
+#[test]
+fn fetches_again_when_the_installed_packages_are_deleted() {
+    let workspace = fetched_registry_workspace();
+    fs::remove_dir_all(workspace.path().join(".spago")).unwrap();
+
+    assert_success(&workspace.command(&["build", "--quiet"]));
+
+    insta::assert_snapshot!(workspace.spago_calls(), @r#"
+    .: spago "fetch" "-p" "application"
+    .: spago "fetch" "-p" "application"
+    "#);
+    assert!(workspace.path().join(".spago/p").is_dir());
+}
+
+fn fetched_registry_workspace() -> TestWorkspace {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace:
+  packageSet:
+    registry: 64.10.0
+package:
+  name: application
+  dependencies: [prelude]
+"#,
+    );
+    workspace.write(
+        "src/Main.purs",
+        r#"module Main where
+
+import Prelude
+
+value = unit
+"#,
+    );
+    assert_success(&workspace.command(&["build", "--quiet"]));
+    workspace
+}
