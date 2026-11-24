@@ -641,8 +641,12 @@ where
             evidence_in_scope.assign_scope(implication_id);
         }
 
-        let elide_missing_patterns =
-            partial.is_some_and(|partial| evidence_in_scope.contains(partial));
+        let elide_missing_patterns = match partial {
+            Some(partial) if !patterns.is_empty() => {
+                entails_constraint(state, context, &evidence_in_scope, partial)?
+            }
+            _ => false,
+        };
 
         if !elide_missing_patterns {
             for Patterns { patterns, crumbs } in patterns {
@@ -713,4 +717,24 @@ where
     }
 
     Ok(constraints)
+}
+
+fn entails_constraint<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    evidence_in_scope: &EvidenceInScope,
+    constraint: CanonicalConstraintId,
+) -> QueryResult<bool>
+where
+    Q: ExternalQueries,
+{
+    if evidence_in_scope.contains(constraint) {
+        return Ok(true);
+    }
+
+    let given = evidence_in_scope.constraints.iter().map(|&(given, _)| given);
+    let given: Vec<_> = given.collect();
+
+    let entailed = elaborate::elaborate_superclasses(state, context, &given)?;
+    Ok(entailed.contains(&constraint))
 }
