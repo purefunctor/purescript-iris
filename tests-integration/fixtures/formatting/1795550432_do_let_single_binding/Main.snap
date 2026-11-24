@@ -5,13 +5,11 @@ source: tests-integration/tests/formatting.rs
 module Main where
 
 singleBinding = do
-  let
-    value = 1
+  let value = 1
   pure value
 
 fitsExactly = do
-  let
-    result = combine firstArgument secondArgument thirdArgument fourthArgument
+  let result = combine firstArgument secondArgument thirdArgument fourthArgument
   pure result
 
 exceedsByOne = do
@@ -40,26 +38,22 @@ multilineBinding = do
 
 adoBinding = ado
   value <- action
-  let
-    doubled = value + value
+  let doubled = value + value
   in doubled
 
 === width 100, indent 4, unicode ===
 module Main where
 
 singleBinding = do
-    let
-        value = 1
+    let value = 1
     pure value
 
 fitsExactly = do
-    let
-        result = combine firstArgument secondArgument thirdArgument fourthArgument
+    let result = combine firstArgument secondArgument thirdArgument fourthArgument
     pure result
 
 exceedsByOne = do
-    let
-        result = combine firstArgument secondArgument thirdArgument fourthArguments
+    let result = combine firstArgument secondArgument thirdArgument fourthArguments
     pure result
 
 twoBindings = do
@@ -83,6 +77,5 @@ multilineBinding = do
 
 adoBinding = ado
     value ← action
-    let
-        doubled = value + value
+    let doubled = value + value
     in doubled

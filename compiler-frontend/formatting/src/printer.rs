@@ -641,6 +641,24 @@ impl Printer<'_> {
         Ok(document.starts_line())
     }
 
+    fn do_let_statement(&self, elements: &[&Tree]) -> Result<Document, FormatError> {
+        let block = self.spaced(elements)?;
+        let [let_keyword, bindings] = elements[..] else {
+            return Ok(block);
+        };
+        let statements = bindings.elements();
+        let mut statements = statements.iter().filter(|statement| !statement.is_empty());
+        let (Some(binding), None) = (statements.next(), statements.next()) else {
+            return Ok(block);
+        };
+        let inline = Document::concat([
+            self.tree(let_keyword)?,
+            self.boundary(binding.start, Gap::Space)?,
+            self.tree(binding)?,
+        ]);
+        Ok(Document::select(Choice::FirstFitting, vec![inline.flat(), block]))
+    }
+
     fn ado_expression(&self, elements: &[&Tree]) -> Result<Document, FormatError> {
         let [ado_keyword, statements, in_keyword, result] = elements[..] else {
             unreachable!("invariant violated: validated ado expression has four elements");
@@ -810,6 +828,7 @@ impl Printer<'_> {
             ExpressionCaseOf => self.case_expression(&elements),
             ExpressionLambda => self.lambda(&elements),
             ExpressionLetIn => self.let_expression(&elements),
+            DoStatementLet => self.do_let_statement(&elements),
             ExpressionAdo => self.ado_expression(&elements),
             ValueEquation
             | LetBindingEquation
