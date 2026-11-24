@@ -1,0 +1,24 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Just :: forall @a. a -> Main.Maybe a
+Nothing :: forall @a. Main.Maybe a
+direct :: Prim.Partial => Main.Maybe Prim.Int -> Prim.Int
+viaSuperclass :: Main.Unsafe => Main.Maybe Prim.Int -> Prim.Int
+viaTransitiveSuperclass :: Main.VeryUnsafe => Main.Maybe Prim.Int -> Prim.Int
+withoutPartial :: Main.Unrelated => Main.Maybe Prim.Int -> Prim.Int
+
+Types
+Maybe :: Prim.Type -> Prim.Type
+Unsafe :: Prim.Constraint
+VeryUnsafe :: Prim.Constraint
+Unrelated :: Prim.Constraint
+
+Classes
+class Prim.Partial <= Main.Unsafe
+class Main.Unsafe <= Main.VeryUnsafe
+class Main.Unrelated
+
+Roles
+Maybe = [Representational]

@@ -1,0 +1,38 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Warning! · [MissingPatterns] · Main.purs:14:1
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   viaSuperclass :: Unsafe => Maybe Int -> Int
+  │   ╰──────────────────────────────────────────
+  │
+  • Missing pattern:
+  │   Nothing
+  •
+
+Warning! · [MissingPatterns] · Main.purs:17:1
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   viaTransitiveSuperclass :: VeryUnsafe => Maybe Int -> Int
+  │   ╰────────────────────────────────────────────────────────
+  │
+  • Missing pattern:
+  │   Nothing
+  •
+
+Warning! · [MissingPatterns] · Main.purs:20:1
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   withoutPartial :: Unrelated => Maybe Int -> Int
+  │   ╰──────────────────────────────────────────────
+  │
+  • Missing pattern:
+  │   Nothing
+  •

@@ -1,0 +1,30 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Maybe :: Prim.Type -> Prim.Type
+data Maybe @a
+  | Just :: a -> Main.Maybe a
+  | Nothing :: Main.Maybe a
+
+interface Unsafe :: Prim.Constraint
+interface Unsafe where
+  superclass partialDict :: Prim.Partial
+
+interface VeryUnsafe :: Prim.Constraint
+interface VeryUnsafe where
+  superclass unsafeDict :: Main.Unsafe
+
+interface Unrelated :: Prim.Constraint
+interface Unrelated where
+
+direct :: Prim.Partial => Main.Maybe Prim.Int -> Prim.Int
+direct = \{partialDict} -> \(Just n) -> n
+
+viaSuperclass :: Main.Unsafe => Main.Maybe Prim.Int -> Prim.Int
+viaSuperclass = \{unsafeDict} -> \(Just n) -> n
+
+viaTransitiveSuperclass :: Main.VeryUnsafe => Main.Maybe Prim.Int -> Prim.Int
+viaTransitiveSuperclass = \{veryUnsafeDict} -> \(Just n) -> n
+
+withoutPartial :: Main.Unrelated => Main.Maybe Prim.Int -> Prim.Int
+withoutPartial = \{unrelatedDict} -> \(Just n) -> n
