@@ -1,4 +1,15 @@
 ---
 source: tests-integration/src/fixtures.rs
 ---
-Module Main rejected; see Main.diagnostics.snap
+@export instance t = \cRDict%0 -> {  }
+
+@export instance pickTypeStringRow = {  }
+
+@export instance pickTypeInt = \consIntR'RDict%1 pickStringR'Dict%2 -> {  }
+
+@export constructor P/0
+
+@export elim = \pickAPickedDict%5 unionPickedRestAllDict%6 tRestDict%7 -> \$a%3@(_) $p%4@(_) -> 0
+
+@export test = \tRDict%8 ->
+  elim (pickTypeInt <trivial evidence> pickTypeStringRow) <trivial evidence> tRDict%8 1

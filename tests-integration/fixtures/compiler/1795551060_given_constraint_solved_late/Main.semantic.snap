@@ -32,4 +32,4 @@ elim :: forall a picked rest all.
 elim = \{pickDict} -> \{unionDict} -> \{tDict} -> \_ -> \_ -> 0
 
 test :: forall r. Main.T r => Main.P ( x :: Prim.Int | r ) -> Prim.Int
-test = \{tDict} -> elim {pickTypeInt {trivial} {pickTypeStringRow}} {trivial} {t {error}} 1
+test = \{tDict} -> elim {pickTypeInt {trivial} {pickTypeStringRow}} {trivial} {tDict} 1
