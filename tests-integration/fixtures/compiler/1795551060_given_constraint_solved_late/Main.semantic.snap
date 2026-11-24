@@ -1,0 +1,35 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+interface C :: Prim.Row Prim.Type -> Prim.Constraint
+interface C r where
+
+interface T :: Prim.Row Prim.Type -> Prim.Constraint
+interface T r where
+
+interface Pick :: forall k0. k0 -> Prim.Row Prim.Type -> Prim.Constraint
+interface Pick a r where
+
+data P :: Prim.Row Prim.Type -> Prim.Type
+data P @r
+  | P :: Main.P r
+
+dictionary t :: forall r. { cDict :: Main.C r } => Main.T r
+
+dictionary pickTypeStringRow :: Main.Pick @Prim.Type Prim.String ()
+
+dictionary pickTypeInt ::
+  forall r' r.
+  { consDict :: Prim.Row.Cons @Prim.Type "x" Prim.Int r' r } =>
+  { pickDict :: Main.Pick @Prim.Type Prim.String r' } =>
+  Main.Pick @Prim.Type Prim.Int r
+
+elim :: forall a picked rest all.
+  Main.Pick @Prim.Type a picked =>
+  Prim.Row.Union @Prim.Type picked rest all =>
+  Main.T rest =>
+  a -> Main.P all -> Prim.Int
+elim = \{pickDict} -> \{unionDict} -> \{tDict} -> \_ -> \_ -> 0
+
+test :: forall r. Main.T r => Main.P ( x :: Prim.Int | r ) -> Prim.Int
+test = \{tDict} -> elim {pickTypeInt {trivial} {pickTypeStringRow}} {trivial} {t {error}} 1

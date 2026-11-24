@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [NoInstanceFound] · Main.purs:23:8
+  •
+  │
+  • No type class instance found for 'C (r :: Row Type)'
+  │
+  │   test = elim 1
+  │          ╰─────
+  │
+  • Constraints in scope:
+  │   T (r :: Row Type)
+  •
