@@ -11,7 +11,7 @@ use sugar::OperatorTree;
 
 use crate::context::CheckContext;
 use crate::core::exhaustive::{PatternConstructor, PatternId};
-use crate::core::{Type, TypeId, normalise};
+use crate::core::{RowField, Type, TypeId, normalise};
 use crate::state::CheckState;
 use crate::{ExternalQueries, OperatorBranchTypes, safe_loop};
 
@@ -94,7 +94,7 @@ where
 }
 
 pub fn is_resolved_binder<Q>(
-    state: &CheckState,
+    state: &mut CheckState,
     context: &CheckContext<Q>,
     id: BinderId,
 ) -> QueryResult<bool>
@@ -123,7 +123,7 @@ where
         }
         lowering::BinderKind::Array { array } => are_resolved_binders(state, context, array),
         lowering::BinderKind::Record { record } => {
-            is_resolved_record_binder(state, context, record)
+            is_resolved_record_binder(state, context, id, record)
         }
         lowering::BinderKind::Integer { value } => Ok(value.is_some()),
         lowering::BinderKind::Number { value, .. } => Ok(value.is_some()),
@@ -136,7 +136,7 @@ where
 }
 
 fn are_resolved_binders<Q>(
-    state: &CheckState,
+    state: &mut CheckState,
     context: &CheckContext<Q>,
     binders: &[BinderId],
 ) -> QueryResult<bool>
@@ -152,20 +152,32 @@ where
 }
 
 fn is_resolved_record_binder<Q>(
-    state: &CheckState,
+    state: &mut CheckState,
     context: &CheckContext<Q>,
+    id: BinderId,
     record: &[lowering::BinderRecordItem],
 ) -> QueryResult<bool>
 where
     Q: ExternalQueries,
 {
+    let Some(t) = state.checked.node_types.lookup_binder(id) else {
+        return Ok(false);
+    };
+    let Some(row_fields) = record_row_fields(state, context, t)? else {
+        return Ok(false);
+    };
+
+    let has_label = |name: &Option<SmolStr>| {
+        name.as_ref().is_some_and(|name| row_fields.iter().any(|field| field.label == *name))
+    };
+
     for element in record {
         let resolved = match element {
             lowering::BinderRecordItem::RecordField { name, value, .. } => match value {
-                Some(value) => name.is_some() && is_resolved_binder(state, context, *value)?,
+                Some(value) => has_label(name) && is_resolved_binder(state, context, *value)?,
                 None => false,
             },
-            lowering::BinderRecordItem::RecordPun { name, .. } => name.is_some(),
+            lowering::BinderRecordItem::RecordPun { name, .. } => has_label(name),
         };
         if !resolved {
             return Ok(false);
@@ -175,7 +187,7 @@ where
 }
 
 fn is_resolved_operator_chain_binder<Q>(
-    state: &CheckState,
+    state: &mut CheckState,
     context: &CheckContext<Q>,
     id: BinderId,
 ) -> QueryResult<bool>
@@ -189,7 +201,7 @@ where
 }
 
 fn is_resolved_operator_tree<Q>(
-    state: &CheckState,
+    state: &mut CheckState,
     context: &CheckContext<Q>,
     tree: &OperatorTree<BinderId>,
 ) -> QueryResult<bool>
@@ -264,23 +276,7 @@ fn try_build_record_constructor<Q>(
 where
     Q: ExternalQueries,
 {
-    let expanded_t = normalise_expand_type(state, context, t)?;
-
-    let (constructor, arguments) = extract_type_application(state, context, expanded_t)?;
-
-    if constructor != context.prim.record {
-        return Ok(None);
-    }
-
-    let Some(row_type_id) = arguments.first() else {
-        return Ok(None);
-    };
-
-    let row_type_id = normalise::expand(state, context, *row_type_id)?;
-
-    let row_fields = if let Type::Row(row_type_id) = *context.lookup_type(row_type_id) {
-        Arc::clone(&context.lookup_row_type(row_type_id).fields)
-    } else {
+    let Some(row_fields) = record_row_fields(state, context, t)? else {
         return Ok(None);
     };
 
@@ -335,6 +331,35 @@ where
     }
 
     Ok(Some((labels, fields)))
+}
+
+fn record_row_fields<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    t: TypeId,
+) -> QueryResult<Option<Arc<[RowField]>>>
+where
+    Q: ExternalQueries,
+{
+    let expanded_t = normalise_expand_type(state, context, t)?;
+
+    let (constructor, arguments) = extract_type_application(state, context, expanded_t)?;
+
+    if constructor != context.prim.record {
+        return Ok(None);
+    }
+
+    let Some(row_type_id) = arguments.first() else {
+        return Ok(None);
+    };
+
+    let row_type_id = normalise::expand(state, context, *row_type_id)?;
+
+    let Type::Row(row_type_id) = *context.lookup_type(row_type_id) else {
+        return Ok(None);
+    };
+
+    Ok(Some(Arc::clone(&context.lookup_row_type(row_type_id).fields)))
 }
 
 fn convert_constructor_binder<Q>(

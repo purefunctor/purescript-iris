@@ -8,14 +8,16 @@ data Maybe @a
 
 nonRecordGuard :: Main.Maybe Prim.Int -> Prim.Int
 nonRecordGuard = \v21 ->
-  case v21 of
-    (Just n)
-      | { value: (Just v) } <- n -> v
-    Nothing -> 0
+  (\{partialDict} ->
+    case v21 of
+      (Just n)
+        | { value: (Just v) } <- n -> v
+      Nothing -> 0) {error}
 
 unexpectedLabelGuard :: Main.Maybe { other :: Prim.Int } -> Prim.Int
 unexpectedLabelGuard = \v56 ->
-  case v56 of
-    (Just r)
-      | { value: (Just v) } <- r -> v
-    Nothing -> 0
+  (\{partialDict} ->
+    case v56 of
+      (Just r)
+        | { value: (Just v) } <- r -> v
+      Nothing -> 0) {error}
