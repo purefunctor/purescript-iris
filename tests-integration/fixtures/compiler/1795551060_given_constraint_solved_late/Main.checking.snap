@@ -1,0 +1,41 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+P :: forall (@r :: Prim.Row Prim.Type). Main.P (r :: Prim.Row Prim.Type)
+elim ::
+  forall a (picked :: Prim.Row Prim.Type) (rest :: Prim.Row Prim.Type) (all :: Prim.Row Prim.Type).
+    Main.Pick @Prim.Type a (picked :: Prim.Row Prim.Type) =>
+    Prim.Row.Union @Prim.Type
+      (picked :: Prim.Row Prim.Type)
+      (rest :: Prim.Row Prim.Type)
+      (all :: Prim.Row Prim.Type) =>
+    Main.T (rest :: Prim.Row Prim.Type) =>
+    a -> Main.P (all :: Prim.Row Prim.Type) -> Prim.Int
+test ::
+  forall (r :: Prim.Row Prim.Type).
+    Main.T (r :: Prim.Row Prim.Type) =>
+    Main.P ( x :: Prim.Int | (r :: Prim.Row Prim.Type) ) -> Prim.Int
+
+Types
+C :: Prim.Row Prim.Type -> Prim.Constraint
+T :: Prim.Row Prim.Type -> Prim.Constraint
+Pick :: forall t0. t0 -> Prim.Row Prim.Type -> Prim.Constraint
+P :: Prim.Row Prim.Type -> Prim.Type
+
+Classes
+class forall (r :: Prim.Row Prim.Type). Main.C (r :: Prim.Row Prim.Type)
+class forall (r :: Prim.Row Prim.Type). Main.T (r :: Prim.Row Prim.Type)
+class forall (t0 :: Prim.Type) (a :: t0) (r :: Prim.Row Prim.Type). Main.Pick @t0 (a :: t0) (r :: Prim.Row Prim.Type)
+
+Instances
+instance forall (r :: Prim.Row Prim.Type).
+  Main.C (r :: Prim.Row Prim.Type) => Main.T (r :: Prim.Row Prim.Type)
+instance Main.Pick @Prim.Type Prim.String ()
+instance forall (r' :: Prim.Row Prim.Type) (r :: Prim.Row Prim.Type).
+  Prim.Row.Cons @Prim.Type "x" Prim.Int (r' :: Prim.Row Prim.Type) (r :: Prim.Row Prim.Type) =>
+  Main.Pick @Prim.Type Prim.String (r' :: Prim.Row Prim.Type) =>
+  Main.Pick @Prim.Type Prim.Int (r :: Prim.Row Prim.Type)
+
+Roles
+P = [Phantom]

@@ -265,6 +265,8 @@ where
     let mut stuck = Stuck::default();
     let mut skolem = Skolem::default();
     let mut residuals = Vec::new();
+    let mut waiting_for_given = Vec::new();
+    let mut instances_allowed = FxHashSet::default();
 
     'work: loop {
         let mut has_unification = false;
@@ -275,10 +277,18 @@ where
         if has_unification {
             wake_constraints(&mut work, &mut stuck, state);
             work.extend_constraints(mem::take(&mut skolem));
+            work.extend_constraints(mem::take(&mut waiting_for_given));
         }
 
         let Some(constraint) = work.pop_next(state, context)? else {
-            break 'work;
+            if waiting_for_given.is_empty() {
+                break 'work;
+            }
+            for constraint in mem::take(&mut waiting_for_given) {
+                instances_allowed.insert(constraint.evidence.wanted);
+                work.extend_constraints([constraint]);
+            }
+            continue 'work;
         };
 
         if ignore_unknown_wanted(state, context, &mut work, &constraint)? {
@@ -305,6 +315,9 @@ where
                 matching::MatchInstance::Apart => (),
             }
         }
+
+        let given_may_match =
+            !blocked.is_empty() && !is_improving_constraint(state, context, constraint.key.wanted)?;
 
         let given = constraint.key.given.iter().copied();
         match compiler::match_compiler_instance(state, context, constraint.key.wanted, given)? {
@@ -348,6 +361,11 @@ where
                 blocked_on_skolem |= skolem;
             }
             Some(compiler::CompilerMatch::Apart) | None => (),
+        }
+
+        if given_may_match && !instances_allowed.contains(&constraint.evidence.wanted) {
+            waiting_for_given.push(constraint);
+            continue 'work;
         }
 
         let search = instances::collect_instance_chains(state, context, constraint.key.wanted)?;
