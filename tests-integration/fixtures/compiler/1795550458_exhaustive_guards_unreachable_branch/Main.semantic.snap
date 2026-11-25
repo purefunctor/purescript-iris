@@ -1,0 +1,44 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Maybe :: Prim.Type -> Prim.Type
+data Maybe @a
+  | Just :: a -> Main.Maybe a
+  | Nothing :: Main.Maybe a
+
+newtype Box :: Prim.Type -> Prim.Type
+newtype Box @a
+  | Box :: a -> Main.Box a
+
+totalGuardAfterCatchAll :: Main.Maybe Prim.Int -> Prim.Int
+totalGuardAfterCatchAll = \v25 ->
+  case v25 of
+    _ -> 0
+    (Just n)
+      | (Box m) <- Box n -> m
+
+conditionGuardAfterCatchAll :: Main.Maybe Prim.Boolean -> Prim.Int
+conditionGuardAfterCatchAll = \v59 ->
+  case v59 of
+    _ -> 0
+    (Just b)
+      | b -> 1
+
+refutableGuardAfterCatchAll :: Main.Maybe (Main.Maybe Prim.Int) -> Prim.Int
+refutableGuardAfterCatchAll = \v91 ->
+  case v91 of
+    _ -> 0
+    (Just m)
+      | (Just n) <- m -> n
+
+conditionGuardAfterSamePattern :: Main.Maybe Prim.Boolean -> Prim.Int
+conditionGuardAfterSamePattern = \v122 ->
+  case v122 of
+    (Just _) -> 0
+    (Just b)
+      | b -> 1
+    Nothing -> 2
+
+conditionGuardEquation :: Main.Maybe Prim.Boolean -> Prim.Int
+conditionGuardEquation = \_ -> 0
+conditionGuardEquation = \(Just b) -> | b -> 1

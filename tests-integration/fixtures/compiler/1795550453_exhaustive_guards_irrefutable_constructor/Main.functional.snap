@@ -1,0 +1,47 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Just/1
+
+@export constructor Nothing/0
+
+@export constructor Pair/2
+
+@export newtypeGuard = \section31%0 ->
+  case section31%0 of
+    Just n%1 ->
+      | m%2 <- n%1 -> m%2
+    Nothing ->
+      0
+
+@export singleConstructorGuard = \section65%3 ->
+  case section65%3 of
+    Just n%4 ->
+      | Pair a%5 _ <- { tag: "Pair", _1: n%4, _2: n%4 } -> a%5
+    Nothing ->
+      0
+
+@export recordGuard = \section102%6 ->
+  case section102%6 of
+    Just n%7 ->
+      | { value: value%8 } <- { value: n%7 } -> value%8
+    Nothing ->
+      0
+
+@export nestedGuard = \section138%9 ->
+  case section138%9 of
+    Just n%10 ->
+      | Pair a%11 { value: value%12 } <- { tag: "Pair", _1: n%10, _2: { value: n%10 } } ->
+        { tag: "Pair", _1: a%11, _2: value%12 }
+    Nothing ->
+      { tag: "Pair", _1: 0, _2: 0 }
+
+@export refutableGuard = \partialDict%14 ->
+  \section188%13 ->
+    (\partialDict%15 ->
+      case section188%13 of
+        Just n%16 ->
+          | Just m%17 <- { tag: "Just", _1: n%16 } -> m%17
+        Nothing ->
+          0)
+      partialDict%14

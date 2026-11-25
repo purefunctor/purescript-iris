@@ -1,0 +1,62 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotUnify] · Main.purs:7:12
+  •
+  │
+  • Could not match '{ value :: Maybe Int | ?4 }' with 'Int'
+  │
+  │     Just n | { value: Just v } <- n -> v
+  │              ╰────────────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:6:18
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   nonRecordGuard = case _ of
+  │                    ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Error! · [NoInstanceFound] · Main.purs:6:18
+  •
+  │
+  • No type class instance found for 'Partial'
+  │
+  │   nonRecordGuard = case _ of
+  │                    ╰────────
+  •
+
+Error! · [AdditionalProperty] · Main.purs:12:12
+  •
+  │
+  • Unexpected property 'value'
+  │
+  │     Just r | { value: Just v } <- r -> v
+  │              ╰────────────────
+  •
+
+Warning! · [MissingPatterns] · Main.purs:11:24
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   unexpectedLabelGuard = case _ of
+  │                          ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Error! · [NoInstanceFound] · Main.purs:11:24
+  •
+  │
+  • No type class instance found for 'Partial'
+  │
+  │   unexpectedLabelGuard = case _ of
+  │                          ╰────────
+  •

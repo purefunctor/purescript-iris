@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Warning! · [MissingPatterns] · Main.purs:26:26
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   refutableOperatorGuard = case _ of
+  │                            ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •

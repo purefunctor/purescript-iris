@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Just :: forall @a. a -> Main.Maybe a
+Nothing :: forall @a. Main.Maybe a
+unresolvedConstructorGuard :: forall t0. Prim.Partial => Main.Maybe t0 -> ?[unresolved binder]
+unresolvedOperatorGuard ::
+  Prim.Partial => Main.Maybe ?[invalid operator chain] -> ?[unresolved binder]
+
+Types
+Maybe :: Prim.Type -> Prim.Type
+
+Roles
+Maybe = [Representational]

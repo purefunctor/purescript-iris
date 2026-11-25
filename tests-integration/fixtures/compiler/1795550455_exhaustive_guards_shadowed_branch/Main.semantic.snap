@@ -1,0 +1,19 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Maybe :: Prim.Type -> Prim.Type
+data Maybe @a
+  | Just :: a -> Main.Maybe a
+  | Nothing :: Main.Maybe a
+
+newtype Box :: Prim.Type -> Prim.Type
+newtype Box @a
+  | Box :: a -> Main.Box a
+
+shadowedBranch :: Main.Maybe Prim.Int -> Prim.Int
+shadowedBranch = \v25 ->
+  case v25 of
+    (Just n)
+      | (Box m) <- Box n -> m
+    (Just n) -> n
+    Nothing -> 0

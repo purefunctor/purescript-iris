@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Warning! · [RedundantPattern] · Main.purs:8:18
+  •
+  │
+  • Pattern match contains an unreachable pattern
+  │
+  │   shadowedBranch = case _ of
+  │                    ╰────────
+  │
+  • Redundant pattern:
+  │   Just _
+  •

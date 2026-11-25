@@ -1,0 +1,44 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [NotInScope] · Main.purs:6:12
+  •
+  │
+  • Unknown data constructor 'Unknown'
+  │
+  │     Just n | Unknown m <- n -> m
+  │              ╰──────
+  •
+
+Error! · [NotInScope] · Main.purs:10:14
+  •
+  │
+  • Unknown operator '<+>'
+  │
+  │     Just n | a <+> _ <- n -> a
+  │                ╰──
+  •
+
+Warning! · [MissingPatterns] · Main.purs:5:30
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   unresolvedConstructorGuard = case _ of
+  │                                ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
+
+Warning! · [MissingPatterns] · Main.purs:9:27
+  •
+  │
+  • Pattern match is not exhaustive
+  │
+  │   unresolvedOperatorGuard = case _ of
+  │                             ╰────────
+  │
+  • Missing pattern:
+  │   Just _
+  •
