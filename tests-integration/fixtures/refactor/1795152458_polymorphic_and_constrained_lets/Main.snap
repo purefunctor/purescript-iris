@@ -1,0 +1,61 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -1,6 +1,6 @@
+ module Main where
+ 
+-import Helper (Box(..), boxMap, pickFirst)
++import Helper (Box(..), boxMap, pickFirst, class BoxLike)
+ 
+ applyTo :: forall a. a -> (forall b. (a -> b) -> b)
+ applyTo x f = f x
+@@ -11,8 +11,10 @@
+ bodyCapture :: forall a. a -> Int
+ bodyCapture x =
+   let
++    pick :: forall pick_a b. pick_a -> b -> pick_a
+     pick = pickFirst
+       where
++      keep :: a
+       keep = x
+       _ = keep
+   in
+@@ -21,6 +23,7 @@
+ directCapture :: forall b. b -> b
+ directCapture x =
+   let
++    apply :: forall apply_b. (b -> apply_b) -> apply_b
+     apply = applyTo x
+   in
+     apply \y -> y
+@@ -28,6 +31,7 @@
+ constrainedAlias :: Box Int -> Box Int
+ constrainedAlias x =
+   let
++    localMap :: forall (@f :: Type -> Type). BoxLike f => (forall a b. (a -> b) -> f a -> f b)
+     localMap = boxMap
+   in
+     localMap (\n -> n) x
+@@ -38,7 +42,12 @@
+ constrainedShadowing :: forall f a. LocalLike f => f a -> f a
+ constrainedShadowing x =
+   let
++    localMap ::
++      forall (@localMap_f :: Type -> Type).
++        LocalLike localMap_f =>
++        (forall localMap_a b. (localMap_a -> b) -> localMap_f localMap_a -> localMap_f b)
+     localMap = localLikeMap
++    mapped :: f a
+     mapped = localMap (\y -> y) x
+   in
+     mapped
+@@ -46,6 +55,7 @@
+ visibleAlias :: forall a. a -> a
+ visibleAlias x =
+   let
++    localVis :: forall @localVis_a. localVis_a -> localVis_a
+     localVis = visibleIdentity
+   in
+     localVis @a x

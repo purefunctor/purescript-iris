@@ -305,6 +305,7 @@ pub struct PrettyConfig {
     width: usize,
     show_rigid_kinds: bool,
     show_forall_kinds: bool,
+    show_kind_applications: bool,
     fully_qualified_names: bool,
     quote_record_labels: bool,
 }
@@ -315,6 +316,7 @@ impl PrettyConfig {
             width: DEFAULT_WIDTH,
             show_rigid_kinds: true,
             show_forall_kinds: true,
+            show_kind_applications: true,
             fully_qualified_names: false,
             quote_record_labels: false,
         }
@@ -335,6 +337,12 @@ impl PrettyConfig {
     #[must_use]
     pub const fn without_forall_kinds(mut self) -> PrettyConfig {
         self.show_forall_kinds = false;
+        self
+    }
+
+    #[must_use]
+    pub const fn without_kind_applications(mut self) -> PrettyConfig {
+        self.show_kind_applications = false;
         self
     }
 
@@ -447,7 +455,7 @@ where
         self.names.display_name(self.queries, &self.checked.names, name)
     }
 
-    pub(crate) fn assign_display_name(&mut self, name: Name, display: SmolStr) {
+    pub fn assign_display_name(&mut self, name: Name, display: SmolStr) {
         self.names.assign_display_name(name, display);
     }
 
@@ -536,6 +544,7 @@ where
             &mut self.names,
             self.config.show_rigid_kinds,
             self.config.show_forall_kinds,
+            self.config.show_kind_applications,
             self.config.fully_qualified_names,
             self.config.quote_record_labels,
             resolver,
@@ -580,6 +589,7 @@ where
     pretty_names: &'names mut PrettyNames,
     show_rigid_kinds: bool,
     show_forall_kinds: bool,
+    show_kind_applications: bool,
     fully_qualified_names: bool,
     quote_record_labels: bool,
     resolver: Option<&'resolver mut dyn TypeNameResolver>,
@@ -599,6 +609,7 @@ where
         pretty_names: &'names mut PrettyNames,
         show_rigid_kinds: bool,
         show_forall_kinds: bool,
+        show_kind_applications: bool,
         fully_qualified_names: bool,
         quote_record_labels: bool,
         resolver: Option<&'resolver mut dyn TypeNameResolver>,
@@ -611,6 +622,7 @@ where
             pretty_names,
             show_rigid_kinds,
             show_forall_kinds,
+            show_kind_applications,
             fully_qualified_names,
             quote_record_labels,
             resolver,
@@ -731,7 +743,11 @@ where
             }
 
             &Type::KindApplication(function, argument) => {
-                self.traverse_kind_application(precedence, function, argument)?
+                if self.show_kind_applications {
+                    self.traverse_kind_application(precedence, function, argument)?
+                } else {
+                    self.traverse(precedence, function)?
+                }
             }
 
             &Type::Forall(binder_id, inner) => {

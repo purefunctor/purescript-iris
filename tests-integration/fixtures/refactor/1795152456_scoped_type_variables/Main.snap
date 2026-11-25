@@ -1,0 +1,78 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+--- a/Main.purs
++++ b/Main.purs
+@@ -7,11 +7,13 @@
+ identity :: forall a. a -> a
+ identity = go
+   where
++  go :: a -> a
+   go a = a
+ 
+ visibleOuter :: forall @a. a -> a
+ visibleOuter = go
+   where
++  go :: a -> a
+   go x = x
+ 
+ class BoxLike f where
+@@ -20,6 +22,7 @@
+ mapScoped :: forall f a. BoxLike f => (a -> a) -> f a -> f a
+ mapScoped g x = go x
+   where
++  go :: f a -> f a
+   go y = boxMap g y
+ 
+ nestedForall :: forall a. a -> a
+@@ -28,6 +31,7 @@
+   inner :: forall b. b -> b
+   inner innerValue = go innerValue
+     where
++    go :: b -> b
+     go z = z
+ 
+ shadowedOuter :: forall a. a -> Int
+@@ -37,6 +41,7 @@
+   inner innerValue =
+     let
+       fromOuter = outerValue
++      fromInner :: a
+       fromInner = innerValue
+       _ = fromOuter
+       _ = fromInner
+@@ -49,6 +54,7 @@
+ instance Wrap (Pair elem) where
+   wrapIt value =
+     let
++      same :: Box elem
+       same = value
+     in
+       same
+@@ -68,6 +74,7 @@
+   withPoly :: forall b. String -> b -> String
+   withPoly x y =
+     let
++      keepY :: b
+       keepY = y
+       _ = keepY
+     in
+@@ -85,6 +92,7 @@
+ afterConstraint :: forall a. Wrap a => forall b. a -> b -> a
+ afterConstraint x y =
+   let
++    keepA :: a
+     keepA = x
+     keepB = y
+     _ = keepB
+
+Skipped:
+Main.purs:39:7: fromOuter (scoped_type_variable: a (shadowed))
+Main.purs:62:7: keepY (scoped_type_variable: b (not in lexical scope))
+Main.purs:78:3: go (scoped_type_variable: t0 (not in lexical scope))
+Main.purs:83:3: go (scoped_type_variable: a (not in lexical scope))
+Main.purs:89:5: keepB (scoped_type_variable: b (not in lexical scope))
+Main.purs:99:3: go (scoped_type_variable: a (not in lexical scope))
+Main.purs:108:7: y (scoped_type_variable: a (not in lexical scope))
+Main.purs:115:5: unused (polymorphic_or_unsolved)
+Main.purs:128:5: shadowedKind (scoped_type_variable: k (shadowed))

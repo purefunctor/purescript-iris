@@ -88,7 +88,7 @@ verifies file digests before writing edits back to disk.
 
 | Command | Effect |
 |---|---|
-| `iris watch refactor let-signatures [Main]` | Add explicit type signatures to strictly monomorphic `let`, `where`, and multi-line `do`/`ado` `let` bindings across project modules (or one named module), auto-importing missing types as needed |
+| `iris watch refactor let-signatures [Main]` | Add explicit type signatures to `let`, `where`, and multi-line `do`/`ado` `let` bindings across project modules (or one named module), respecting enclosing scoped type variables and auto-importing missing types and classes as needed |
 
 - Writes modified files by default and prints a summary of signatures added, imports added or
   updated, and skipped bindings or modules.
