@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [CannotUnify] · Main.purs:7:12
+  •
+  │
+  • Could not match '{ value :: Maybe Int | ?4 }' with 'Int'
+  │
+  │     Just n | { value: Just v } <- n -> v
+  │              ╰────────────────
+  •
+
+Error! · [AdditionalProperty] · Main.purs:12:12
+  •
+  │
+  • Unexpected property 'value'
+  │
+  │     Just r | { value: Just v } <- r -> v
+  │              ╰────────────────
+  •
