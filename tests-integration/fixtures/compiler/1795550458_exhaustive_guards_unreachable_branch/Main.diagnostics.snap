@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Warning! · [RedundantPattern] · Main.purs:8:27
+  •
+  │
+  • Pattern match contains an unreachable pattern
+  │
+  │   totalGuardAfterCatchAll = case _ of
+  │                             ╰────────
+  │
+  • Redundant pattern:
+  │   Just _
+  •

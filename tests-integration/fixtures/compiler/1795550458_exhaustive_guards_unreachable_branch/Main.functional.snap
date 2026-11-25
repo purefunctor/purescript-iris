@@ -1,0 +1,43 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export constructor Just/1
+
+@export constructor Nothing/0
+
+@export totalGuardAfterCatchAll = \section25%0 ->
+  case section25%0 of
+    _ ->
+      0
+    Just n%1 ->
+      | m%2 <- n%1 -> m%2
+
+@export conditionGuardAfterCatchAll = \section59%3 ->
+  case section59%3 of
+    _ ->
+      0
+    Just b%4 ->
+      | b%4 -> 1
+
+@export refutableGuardAfterCatchAll = \section91%5 ->
+  case section91%5 of
+    _ ->
+      0
+    Just m%6 ->
+      | Just n%7 <- m%6 -> n%7
+
+@export conditionGuardAfterSamePattern = \section122%8 ->
+  case section122%8 of
+    Just _ ->
+      0
+    Just b%9 ->
+      | b%9 -> 1
+    Nothing ->
+      2
+
+@export conditionGuardEquation = \$maybe%10 ->
+  case $maybe%10 of
+    _ ->
+      0
+    Just b%11 ->
+      | b%11 -> 1
