@@ -17,10 +17,9 @@ source: tests-integration/src/fixtures.rs
    |     ^ (lookup) 6:1 lookup ask record = do
    |                        ^ 6:1 lookup ask record = do
  6 |       return /* @__PURE__ */ Control_Bind.bind(/* @__PURE__ */ monadMDict.Bind1())(ask)(($record) => {
-   |       ^ 6:21 do
+   |       ^ 7:3 { value } <- ask
    |                                                                                    ^ 7:16 ask
-   |                                                                                       ^ 6:21 do
-   |                                                                                          ^ 7:3 { value } <- ask
+   |                                                                                       ^ 7:3 { value } <- ask
  7 |         const value = $record.value;
    |         ^ 7:3 { value } <- ask
  8 |         return /* @__PURE__ */ Control_Bind.discard(Control_Bind.discardUnit)(/* @__PURE__ */ monadMDict.Bind1())(record(value))(($unit) => /* @__PURE__ */ Control_Applicative.pure(/* @__PURE__ */ monadMDict.Applicative0())(value));
@@ -33,7 +32,6 @@ source: tests-integration/src/fixtures.rs
    |                                                                                                                                                                                                                                       ^ 8:3 record value
  9 |       });
    |       ^ 7:3 { value } <- ask
-   |        ^ 6:21 do
 10 |     };
    |     ^ 6:1 lookup ask record = do
 11 |   };

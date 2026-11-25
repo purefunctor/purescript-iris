@@ -344,10 +344,7 @@ where
             form_do::attribute_do_statement(state, lambda.expression, statement);
         }
         expression = action.materialize(state, expression);
-        let is_outermost = position.is_last();
-        if !is_outermost {
-            form_do::attribute_do_statement(state, expression.expression, statement);
-        }
+        form_do::attribute_do_statement(state, expression.expression, statement);
     }
 
     let Some(continuation_type) = continuation_type else {
