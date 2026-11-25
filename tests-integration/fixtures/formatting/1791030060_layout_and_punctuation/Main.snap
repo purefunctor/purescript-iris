@@ -18,8 +18,7 @@ access record = record.field
 
 run x = Control.do
   y <- pure x
-  let
-    next = y
+  let next = y
   pure { one: next, two: [ 1, 2 ] }
 
 empty = ado in 1

@@ -13,8 +13,7 @@ doValue = do
 doEndingInBind = do
   value <- action
 doEndingInLet = do
-  let
-    value = 1
+  let value = 1
 adoValue = ado
   value <- action
   in value
@@ -31,8 +30,7 @@ doValue = do
 doEndingInBind = do
     value ← action
 doEndingInLet = do
-    let
-        value = 1
+    let value = 1
 adoValue = ado
     value ← action
     in value
