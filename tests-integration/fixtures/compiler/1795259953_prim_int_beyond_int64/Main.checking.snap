@@ -1,0 +1,49 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+addBeyondInt64 ::
+  forall (sum :: Prim.Int).
+    Prim.Int.Add 99999999999999999999 1 (sum :: Prim.Int) =>
+    Type.Proxy.Proxy @Prim.Int (sum :: Prim.Int)
+subtractBeyondInt64 ::
+  forall (right :: Prim.Int).
+    Prim.Int.Add 1 (right :: Prim.Int) 99999999999999999999 =>
+    Type.Proxy.Proxy @Prim.Int (right :: Prim.Int)
+mulBeyondInt64 ::
+  forall (product :: Prim.Int).
+    Prim.Int.Mul 10000000000 10000000000 (product :: Prim.Int) =>
+    Type.Proxy.Proxy @Prim.Int (product :: Prim.Int)
+negativeBeyondInt64 ::
+  forall (product :: Prim.Int).
+    Prim.Int.Mul (-99999999999999999999) 2 (product :: Prim.Int) =>
+    Type.Proxy.Proxy @Prim.Int (product :: Prim.Int)
+hexadecimalBeyondInt64 ::
+  forall (string :: Prim.Symbol).
+    Prim.Int.ToString 18446744073709551615 (string :: Prim.Symbol) =>
+    Type.Proxy.Proxy @Prim.Symbol (string :: Prim.Symbol)
+compareBeyondInt64 ::
+  Prim.Int.Compare 99999999999999999999 9223372036854775807 Prim.Ordering.GT =>
+  Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+compareBelowInt64 ::
+  Prim.Int.Compare (-99999999999999999999) (-9223372036854775808) Prim.Ordering.LT =>
+  Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+digits ::
+  forall (@n :: Prim.Int) (string :: Prim.Symbol).
+    Prim.Int.ToString (n :: Prim.Int) (string :: Prim.Symbol) =>
+    Data.Symbol.IsSymbol (string :: Prim.Symbol) =>
+    Prim.String
+reflectedBeyondInt64 :: Prim.String
+reflectedMaximum :: Prim.String
+reflectedMinimum :: Prim.String
+forceSolve ::
+  { addBeyondInt64 :: Type.Proxy.Proxy @Prim.Int 100000000000000000000
+  , compareBelowInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+  , compareBeyondInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+  , hexadecimalBeyondInt64 :: Type.Proxy.Proxy @Prim.Symbol "18446744073709551615"
+  , mulBeyondInt64 :: Type.Proxy.Proxy @Prim.Int 100000000000000000000
+  , negativeBeyondInt64 :: Type.Proxy.Proxy @Prim.Int (-199999999999999999998)
+  , subtractBeyondInt64 :: Type.Proxy.Proxy @Prim.Int 99999999999999999998
+  }
+
+Types

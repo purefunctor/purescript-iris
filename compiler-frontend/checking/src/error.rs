@@ -5,7 +5,7 @@ use std::sync::Arc;
 use building_types::Severity;
 use smol_str::SmolStr;
 
-use crate::core::{SmolStrId, TypeId};
+use crate::core::{IntegerId, SmolStrId, TypeId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCrumb {
@@ -186,6 +186,9 @@ pub enum ErrorKind {
     },
     CustomFailure {
         message_id: SmolStrId,
+    },
+    ReflectedIntegerOutOfRange {
+        integer: IntegerId,
     },
     PropertyIsMissing {
         labels: Arc<[SmolStr]>,

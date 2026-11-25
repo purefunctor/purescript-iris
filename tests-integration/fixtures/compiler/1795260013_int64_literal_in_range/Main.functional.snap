@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export tenBillion = int64Digits (int64Range <trivial evidence> <trivial evidence> inRange)
+  <trivial evidence>
+  (symbol "10000000000")
+
+@export maximum = int64Digits (int64Range <trivial evidence> <trivial evidence> inRange)
+  <trivial evidence>
+  (symbol "9223372036854775807")
+
+@export minimum = int64Digits (int64Range <trivial evidence> <trivial evidence> inRange)
+  <trivial evidence>
+  (symbol "-9223372036854775808")

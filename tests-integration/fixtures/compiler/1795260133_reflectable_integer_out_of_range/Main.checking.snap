@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+maximum :: Prim.Int
+minimum :: Prim.Int
+aboveMaximum :: Prim.Int
+beyondInt64 :: Prim.Int
+
+Types

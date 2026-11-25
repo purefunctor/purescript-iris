@@ -8,6 +8,7 @@ use std::sync::Arc;
 use files::FileId;
 use indexing::{DeriveItemId, EquationSourceId, InstanceItemId, TermItemId, TypeItemId};
 use la_arena::{Arena, ArenaMap, Idx};
+use num_bigint::BigInt;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 use stabilizing::{AstIdMap, StabilizedModule};
@@ -211,7 +212,7 @@ pub enum TypeKind {
     Constructor { resolution: Option<(FileId, TypeItemId)> },
     Forall { bindings: Arc<[TypeVariableBinding]>, inner: Option<TypeId> },
     Hole,
-    Integer { value: Option<i32> },
+    Integer { value: Option<BigInt> },
     Kinded { type_: Option<TypeId>, kind: Option<TypeId> },
     Operator { resolution: Option<(FileId, TypeItemId)> },
     OperatorChain { head: Option<TypeId>, tail: Arc<[OperatorPair<TypeId>]> },

@@ -1432,7 +1432,7 @@ mod tests {
     fn identical_record_labels_preserve_original_fields() {
         let file = Files::default().insert("Main.purs", "");
         let mut state = CheckState::new(file);
-        let t = CoreInterners::default().intern_type(Type::Integer(0));
+        let t = CoreInterners::default().intern_type(Type::Unification(0));
         let original = PatternConstructor::Record {
             labels: vec!["a".into(), "b".into()],
             fields: vec![pattern_id(10), pattern_id(20)],
@@ -1452,7 +1452,7 @@ mod tests {
     fn differing_record_labels_preserve_first_fields_and_sorted_union() {
         let file = Files::default().insert("Main.purs", "");
         let mut state = CheckState::new(file);
-        let t = CoreInterners::default().intern_type(Type::Integer(0));
+        let t = CoreInterners::default().intern_type(Type::Unification(0));
         let original = PatternConstructor::Record {
             labels: vec!["b".into(), "d".into()],
             fields: vec![pattern_id(10), pattern_id(20)],

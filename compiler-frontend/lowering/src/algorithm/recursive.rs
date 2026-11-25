@@ -2,6 +2,7 @@ use std::mem;
 use std::sync::Arc;
 
 use itertools::Itertools;
+use num_bigint::BigInt;
 use petgraph::algo::tarjan_scc;
 use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, StrExt};
@@ -67,6 +68,16 @@ fn integer_literal(text: &str, negative: bool) -> Option<i64> {
     };
 
     if negative { Some(-integer) } else { Some(integer) }
+}
+
+fn type_integer_literal(text: &str, negative: bool) -> Option<BigInt> {
+    let (digits, radix) = match text.strip_prefix("0x") {
+        Some(hex) => (hex, 16),
+        None => (text, 10),
+    };
+    let digits = digits.replace_smolstr("_", "");
+    let magnitude = BigInt::parse_bytes(digits.as_bytes(), radix)?;
+    if negative { Some(-magnitude) } else { Some(magnitude) }
 }
 
 fn number_literal(text: &str) -> SmolStr {
@@ -1082,8 +1093,7 @@ fn lower_type_kind(
         cst::Type::TypeHole(_) => TypeKind::Hole,
         cst::Type::TypeInteger(cst) => {
             let value = cst.integer_token().and_then(|token| {
-                integer_literal(token.text(context.source), cst.minus_token().is_some())
-                    .and_then(|value| i32::try_from(value).ok())
+                type_integer_literal(token.text(context.source), cst.minus_token().is_some())
             });
             TypeKind::Integer { value }
         }

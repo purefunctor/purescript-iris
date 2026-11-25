@@ -23,6 +23,7 @@ use building_types::{QueryProxy, QueryResult};
 use files::FileId;
 use indexing::{DeriveId, InstanceId, TermItemId, TypeItemId};
 use itertools::Itertools;
+use num_bigint::BigInt;
 use resolving::ResolvedModule;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
@@ -56,6 +57,8 @@ pub trait ExternalQueries:
     fn intern_forall_binder(&self, b: ForallBinder) -> ForallBinderId;
 
     fn intern_row_type(&self, r: RowType) -> RowTypeId;
+
+    fn intern_integer(&self, integer: BigInt) -> core::IntegerId;
 
     fn intern_smol_str(&self, s: SmolStr) -> core::SmolStrId;
 

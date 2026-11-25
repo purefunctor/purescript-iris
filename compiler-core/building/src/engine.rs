@@ -1657,6 +1657,11 @@ impl checking::PrettyQueries for QueryEngine {
     }
 
     #[inline]
+    fn lookup_integer(&self, id: checking::core::IntegerId) -> &num_bigint::BigInt {
+        self.interned.checking.lookup_integer(id)
+    }
+
+    #[inline]
     fn lookup_smol_str(&self, id: checking::core::SmolStrId) -> &smol_str::SmolStr {
         self.interned.checking.lookup_smol_str(id)
     }
@@ -1689,6 +1694,10 @@ impl checking::ExternalQueries for QueryEngine {
 
     fn intern_row_type(&self, row: checking::core::RowType) -> checking::core::RowTypeId {
         self.interned.checking.intern_row_type(row)
+    }
+
+    fn intern_integer(&self, integer: num_bigint::BigInt) -> checking::core::IntegerId {
+        self.interned.checking.intern_integer(integer)
     }
 
     fn intern_smol_str(&self, s: smol_str::SmolStr) -> checking::core::SmolStrId {

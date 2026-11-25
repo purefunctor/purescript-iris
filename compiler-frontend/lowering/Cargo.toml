@@ -11,6 +11,7 @@ indexing = { version = "0.1.0", path = "../indexing" }
 indexmap = "2.14.2"
 itertools = "0.15.0"
 la-arena = "0.3.1"
+num-bigint = "0.5.1"
 petgraph = "0.8.3"
 resolving = { version = "0.1.0", path = "../resolving" }
 rustc-hash = "2.1.3"

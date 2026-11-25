@@ -1,0 +1,8 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+aboveMaximum :: Prim.String
+belowMinimum :: Prim.String
+
+Types

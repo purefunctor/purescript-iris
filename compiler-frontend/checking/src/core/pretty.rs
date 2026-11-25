@@ -7,14 +7,15 @@ use building_types::{QueryProxy, QueryResult};
 use files::FileId;
 use indexing::{IndexedTypeItemKind, TypeItemId};
 use lowering::StringKind;
+use num_bigint::{BigInt, Sign};
 use pretty::{Arena, DocAllocator, DocBuilder};
 use resolving::{ResolvedModule, ScopeSpelling, TypeNamespace};
 use rustc_hash::FxHashMap;
 use smol_str::{SmolStr, SmolStrBuilder, format_smolstr};
 
 use crate::core::{
-    ForallBinder, ForallBinderId, Name, RowField, RowType, RowTypeId, SmolStrId, StringLiteralId,
-    Type, TypeId,
+    ForallBinder, ForallBinderId, IntegerId, Name, RowField, RowType, RowTypeId, SmolStrId,
+    StringLiteralId, Type, TypeId,
 };
 use crate::{CheckedCore, CheckedModule, safe_loop};
 
@@ -44,6 +45,8 @@ pub trait PrettyQueries:
     fn lookup_forall_binder(&self, id: ForallBinderId) -> ForallBinder;
 
     fn lookup_row_type(&self, id: RowTypeId) -> &RowType;
+
+    fn lookup_integer(&self, id: IntegerId) -> &BigInt;
 
     fn lookup_smol_str(&self, id: SmolStrId) -> &SmolStr;
 
@@ -761,8 +764,9 @@ where
                 self.arena.text(name)
             }
 
-            Type::Integer(integer) => {
-                let negative = integer.is_negative();
+            &Type::Integer(integer) => {
+                let integer = queries.lookup_integer(integer);
+                let negative = integer.sign() == Sign::Minus;
                 let integer = self.arena.text(format!("{integer}"));
                 self.parens_if(negative, integer)
             }

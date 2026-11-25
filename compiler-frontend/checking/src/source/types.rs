@@ -214,7 +214,8 @@ where
 
         lowering::TypeKind::Integer { value } => {
             let t = if let Some(value) = value {
-                context.queries.intern_type(Type::Integer(*value))
+                let value = context.queries.intern_integer(value.clone());
+                context.queries.intern_type(Type::Integer(value))
             } else {
                 context.unknown("missing integer value")
             };

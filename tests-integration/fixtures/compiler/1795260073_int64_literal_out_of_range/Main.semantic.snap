@@ -1,0 +1,10 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+aboveMaximum :: Prim.String
+aboveMaximum =
+  int64Digits {int64Range {trivial} {trivial} {inRangeGT {error}}} {trivial} {isSymbol("9223372036854775808")}
+
+belowMinimum :: Prim.String
+belowMinimum =
+  int64Digits {int64Range {trivial} {trivial} {inRangeLT {error}}} {trivial} {isSymbol("-9223372036854775809")}

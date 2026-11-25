@@ -1,0 +1,13 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+@export literalBeyondInt128 = "Proxy"
+
+@export addBeyondInt128 = \addSumDict%0 -> "Proxy"
+
+@export mulBeyondInt128 = \mulProductDict%1 -> "Proxy"
+
+@export forceSolve = {
+  addBeyondInt128: addBeyondInt128 <trivial evidence>,
+  mulBeyondInt128: mulBeyondInt128 <trivial evidence>
+}

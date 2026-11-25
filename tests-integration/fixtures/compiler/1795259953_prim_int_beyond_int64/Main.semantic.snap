@@ -1,0 +1,48 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+addBeyondInt64 :: forall sum. Prim.Int.Add 99999999999999999999 1 sum => Type.Proxy.Proxy @Prim.Int sum
+addBeyondInt64 = \{addDict} -> Proxy
+
+subtractBeyondInt64 :: forall right. Prim.Int.Add 1 right 99999999999999999999 => Type.Proxy.Proxy @Prim.Int right
+subtractBeyondInt64 = \{addDict} -> Proxy
+
+mulBeyondInt64 :: forall product. Prim.Int.Mul 10000000000 10000000000 product => Type.Proxy.Proxy @Prim.Int product
+mulBeyondInt64 = \{mulDict} -> Proxy
+
+negativeBeyondInt64 :: forall product. Prim.Int.Mul (-99999999999999999999) 2 product => Type.Proxy.Proxy @Prim.Int product
+negativeBeyondInt64 = \{mulDict} -> Proxy
+
+hexadecimalBeyondInt64 :: forall string. Prim.Int.ToString 18446744073709551615 string => Type.Proxy.Proxy @Prim.Symbol string
+hexadecimalBeyondInt64 = \{toStringDict} -> Proxy
+
+compareBeyondInt64 :: Prim.Int.Compare 99999999999999999999 9223372036854775807 Prim.Ordering.GT =>
+Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+compareBeyondInt64 = \{compareDict} -> Proxy
+
+compareBelowInt64 :: Prim.Int.Compare (-99999999999999999999) (-9223372036854775808) Prim.Ordering.LT =>
+Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+compareBelowInt64 = \{compareDict} -> Proxy
+
+digits :: forall @n string. Prim.Int.ToString n string => Data.Symbol.IsSymbol string => Prim.String
+digits = \{toStringDict} -> \{isSymbolDict} -> reflectSymbol {isSymbolDict} Proxy
+
+reflectedBeyondInt64 :: Prim.String
+reflectedBeyondInt64 = digits {trivial} {isSymbol("99999999999999999999")}
+
+reflectedMaximum :: Prim.String
+reflectedMaximum = digits {trivial} {isSymbol("170141183460469231731687303715884105727")}
+
+reflectedMinimum :: Prim.String
+reflectedMinimum = digits {trivial} {isSymbol("-170141183460469231731687303715884105728")}
+
+forceSolve :: { addBeyondInt64 :: Type.Proxy.Proxy @Prim.Int 100000000000000000000
+, compareBelowInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.LT
+, compareBeyondInt64 :: Type.Proxy.Proxy @Prim.Ordering.Ordering Prim.Ordering.GT
+, hexadecimalBeyondInt64 :: Type.Proxy.Proxy @Prim.Symbol "18446744073709551615"
+, mulBeyondInt64 :: Type.Proxy.Proxy @Prim.Int 100000000000000000000
+, negativeBeyondInt64 :: Type.Proxy.Proxy @Prim.Int (-199999999999999999998)
+, subtractBeyondInt64 :: Type.Proxy.Proxy @Prim.Int 99999999999999999998
+}
+forceSolve =
+  { addBeyondInt64: addBeyondInt64 {trivial}, subtractBeyondInt64: subtractBeyondInt64 {trivial}, mulBeyondInt64: mulBeyondInt64 {trivial}, negativeBeyondInt64: negativeBeyondInt64 {trivial}, hexadecimalBeyondInt64: hexadecimalBeyondInt64 {trivial}, compareBeyondInt64: compareBeyondInt64 {trivial}, compareBelowInt64: compareBelowInt64 {trivial} }
