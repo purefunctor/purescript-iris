@@ -1206,12 +1206,10 @@ where
         return Ok(ExhaustivenessReport { missing: None, redundant: Vec::new() });
     }
 
-    let unconditional =
-        collect_unconditional_rows(state, context, &[binders], pattern_types, |binders| {
-            (binders, &None)
-        })?;
+    let branch_rows =
+        collect_branch_rows(state, context, &[binders], pattern_types, |binders| (binders, &None))?;
 
-    check_exhaustiveness_core(state, context, pattern_types, unconditional)
+    check_exhaustiveness_core(state, context, pattern_types, branch_rows)
 }
 
 pub fn check_case_patterns<Q>(
@@ -1227,7 +1225,7 @@ where
         return Ok(ExhaustivenessReport { missing: None, redundant: Vec::new() });
     }
 
-    let unconditional = collect_unconditional_rows(
+    let branch_rows = collect_branch_rows(
         state,
         context,
         branches,
@@ -1235,7 +1233,7 @@ where
         |branch: &lowering::CaseBranch| (&branch.binders, &branch.guarded_expression),
     )?;
 
-    check_exhaustiveness_core(state, context, pattern_types, unconditional)
+    check_exhaustiveness_core(state, context, pattern_types, branch_rows)
 }
 
 pub fn check_equation_patterns<Q>(
@@ -1251,7 +1249,7 @@ where
         return Ok(ExhaustivenessReport { missing: None, redundant: Vec::new() });
     }
 
-    let unconditional = collect_unconditional_rows(
+    let branch_rows = collect_branch_rows(
         state,
         context,
         equations,
@@ -1259,7 +1257,7 @@ where
         |equation: &lowering::Equation| (&equation.binders, &equation.guarded),
     )?;
 
-    check_exhaustiveness_core(state, context, pattern_types, unconditional)
+    check_exhaustiveness_core(state, context, pattern_types, branch_rows)
 }
 
 /// Returns `true` if any alternative in a conditional guard set is trivially true.
@@ -1361,29 +1359,33 @@ where
     Ok(!useful)
 }
 
-fn collect_unconditional_rows<Q, T, F>(
+struct BranchRows {
+    rows: PatternMatrix,
+    is_unconditional: Vec<bool>,
+}
+
+fn collect_branch_rows<Q, T, F>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     items: &[T],
     pattern_types: &[TypeId],
     to_binders: F,
-) -> QueryResult<PatternMatrix>
+) -> QueryResult<BranchRows>
 where
     Q: ExternalQueries,
     F: Fn(&T) -> (&[lowering::BinderId], &Option<lowering::GuardedExpression>),
 {
     let mut pattern_rows = PatternMatrix::new(pattern_types.len());
+    let mut is_unconditional = Vec::new();
     for item in items {
         let (binders, guarded) = to_binders(item);
 
-        match guarded {
-            Some(lowering::GuardedExpression::Unconditional { .. }) | None => {}
+        let unconditional = match guarded {
+            Some(lowering::GuardedExpression::Unconditional { .. }) | None => true,
             Some(lowering::GuardedExpression::Conditionals { pattern_guarded }) => {
-                if !has_trivially_true_alternative(state, context, pattern_guarded)? {
-                    continue;
-                }
+                has_trivially_true_alternative(state, context, pattern_guarded)?
             }
-        }
+        };
 
         let mut pattern_row = Vec::new();
         for &binder_id in binders {
@@ -1396,39 +1398,40 @@ where
 
         if !pattern_row.is_empty() {
             pattern_rows.push(&pattern_row);
+            is_unconditional.push(unconditional);
         }
     }
-    Ok(pattern_rows)
+    Ok(BranchRows { rows: pattern_rows, is_unconditional })
 }
 
 fn check_exhaustiveness_core<Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
     pattern_types: &[TypeId],
-    unconditional: PatternMatrix,
+    branch_rows: BranchRows,
 ) -> QueryResult<ExhaustivenessReport>
 where
     Q: ExternalQueries,
 {
     let mut redundant = Vec::new();
-    let mut matrix = PatternMatrix::new(unconditional.columns);
+    let mut matrix = PatternMatrix::new(branch_rows.rows.columns);
     let mut covered = false;
-    for vector in &unconditional {
+    for (vector, &unconditional) in branch_rows.rows.iter().zip(&branch_rows.is_unconditional) {
         let useful = !covered && algorithm_u(state, context, &matrix, vector)?;
-        if useful {
+        if !useful {
+            redundant.push(pretty::pretty_witness(context, state, vector)?);
+        } else if unconditional {
             matrix.push(vector);
             covered = is_irrefutable_vector(state, vector);
-        } else {
-            redundant.push(pretty::pretty_witness(context, state, vector)?);
         }
     }
 
-    if unconditional.iter().any(|vector| is_irrefutable_vector(state, vector)) {
+    if covered {
         return Ok(ExhaustivenessReport { missing: None, redundant });
     }
 
     let query: PatternVector = pattern_types.iter().map(|&t| state.allocate_wildcard(t)).collect();
-    let witnesses = algorithm_m(state, context, &unconditional, &query)?;
+    let witnesses = algorithm_m(state, context, &matrix, &query)?;
     let missing = witnesses.map(|witnesses| {
         let witnesses = witnesses.iter().take(5);
         let witnesses = witnesses.map(|witness| pretty::pretty_witness(context, state, witness));

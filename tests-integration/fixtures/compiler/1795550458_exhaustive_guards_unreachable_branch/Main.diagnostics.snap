@@ -12,3 +12,51 @@ Warning! · [RedundantPattern] · Main.purs:8:27
   • Redundant pattern:
   │   Just _
   •
+
+Warning! · [RedundantPattern] · Main.purs:13:31
+  •
+  │
+  • Pattern match contains an unreachable pattern
+  │
+  │   conditionGuardAfterCatchAll = case _ of
+  │                                 ╰────────
+  │
+  • Redundant pattern:
+  │   Just _
+  •
+
+Warning! · [RedundantPattern] · Main.purs:18:31
+  •
+  │
+  • Pattern match contains an unreachable pattern
+  │
+  │   refutableGuardAfterCatchAll = case _ of
+  │                                 ╰────────
+  │
+  • Redundant pattern:
+  │   Just _
+  •
+
+Warning! · [RedundantPattern] · Main.purs:23:34
+  •
+  │
+  • Pattern match contains an unreachable pattern
+  │
+  │   conditionGuardAfterSamePattern = case _ of
+  │                                    ╰────────
+  │
+  • Redundant pattern:
+  │   Just _
+  •
+
+Warning! · [RedundantPattern] · Main.purs:28:1
+  •
+  │
+  • Pattern match contains an unreachable pattern
+  │
+  │   conditionGuardEquation :: Maybe Boolean -> Int
+  │   ╰─────────────────────────────────────────────
+  │
+  • Redundant pattern:
+  │   Just _
+  •
