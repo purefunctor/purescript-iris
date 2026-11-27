@@ -55,9 +55,9 @@ where
         Type::Unification(unification_id) => {
             let argument = state.fresh_unification(context.queries, context.prim.t);
             let result = state.fresh_unification(context.queries, context.prim.t);
-            let function = context.intern_function(argument, result);
+            let solution = context.intern_function(argument, result);
 
-            unification::solve(state, context, function, unification_id, function)?;
+            unification::solve(state, context, function, unification_id, solution)?;
 
             Ok(CallableAnalysis::Function { argument, result })
         }
