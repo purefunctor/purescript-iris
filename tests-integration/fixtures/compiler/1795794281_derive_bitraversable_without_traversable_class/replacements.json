@@ -1,0 +1,4 @@
+{
+  "Data.Bitraversable": "Declare Bitraversable without importing the omitted Traversable class.",
+  "Data.Traversable": "Omit the Traversable class to test deriving Bitraversable for a field that needs Traversable."
+}
