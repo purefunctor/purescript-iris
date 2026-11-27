@@ -17,7 +17,6 @@ use self::traversal::TraversalKind;
 use super::variance::VarianceRecipe;
 use super::{DeriveDispatch, DeriveHeadResult, DeriveStrategy, derive_dispatch};
 
-mod contravariant;
 mod eq_ord;
 mod foldable;
 mod functor;
@@ -180,35 +179,19 @@ where
                 context.known_terms.compare,
             )?
             .map(|member| vec![member]),
-            DeriveDispatch::Functor | DeriveDispatch::Bifunctor => {
+            DeriveDispatch::Functor
+            | DeriveDispatch::Bifunctor
+            | DeriveDispatch::Contravariant
+            | DeriveDispatch::Profunctor => {
                 let Some(recipe) = recipe else {
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Functor => TraversalKind::Unary,
-                    DeriveDispatch::Bifunctor => TraversalKind::Binary,
+                    DeriveDispatch::Functor | DeriveDispatch::Contravariant => TraversalKind::Unary,
+                    DeriveDispatch::Bifunctor | DeriveDispatch::Profunctor => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 functor::generate_traversal_member(
-                    state,
-                    context,
-                    result,
-                    &freshened.arguments,
-                    recipe,
-                    traversal,
-                )?
-                .map(|member| vec![member])
-            }
-            DeriveDispatch::Contravariant | DeriveDispatch::Profunctor => {
-                let Some(recipe) = recipe else {
-                    return Ok(None);
-                };
-                let traversal = match dispatch {
-                    DeriveDispatch::Contravariant => contravariant::TraversalKind::Contravariant,
-                    DeriveDispatch::Profunctor => contravariant::TraversalKind::Profunctor,
-                    _ => unreachable!(),
-                };
-                contravariant::generate_traversal_member(
                     state,
                     context,
                     result,
