@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use std::{fs, io, iter};
+use std::{fs, io, iter, slice};
 
 use building::{
     DiskObservation, ForeignEvent, LifecycleEvent, QueryError, SourceEvent, SourceUnitKey,
@@ -384,8 +384,13 @@ where
     Version: Clone + Ord,
     Metadata: Clone,
 {
-    let engine = compilation.snapshot();
-    let diagnostics = iris_diagnostics::collect_diagnostics(&engine, sources)?;
+    let engine = compilation.query_engine();
+    let diagnostics = sources.par_iter().map_init(
+        || engine.snapshot(),
+        |engine, file_id| iris_diagnostics::collect_diagnostics(engine, slice::from_ref(file_id)),
+    );
+    let diagnostics = diagnostics.collect::<Vec<_>>();
+    let diagnostics = diagnostics.into_iter().flatten_ok().collect::<Result<Vec<_>, _>>()?;
     let has_errors = diagnostics
         .iter()
         .flat_map(iris_diagnostics::DiagnosticCollection::diagnostics)
