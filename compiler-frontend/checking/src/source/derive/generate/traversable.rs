@@ -6,47 +6,20 @@ use smol_str::format_smolstr;
 
 use crate::context::CheckContext;
 use crate::core::substitute::RigidRenaming;
-use crate::core::{ApplicationArgument, RowType, Type, TypeId, normalise, signature, toolkit};
+use crate::core::{ApplicationArgument, TypeId, signature, toolkit};
 use crate::source::derive::builder::DerivedTreeBuilder;
 use crate::source::derive::field;
 use crate::source::derive::variance::{
-    ConstructorRecipe, RecordFieldRecipe, TraversalOperation, TraversalParameter, VarianceRecipe,
+    ConstructorRecipe, RecordFieldRecipe, TraversalOperation, VarianceRecipe,
 };
 use crate::source::terms::{ElaboratedExpression, equations};
 use crate::state::CheckState;
 use crate::{ExternalQueries, tree};
 
+use super::traversal::{InstantiatedDataType, Mappings, TraversalKind, extract_record_row};
 use super::{
     DeriveHeadResult, DeriveStrategy, ResolvedMember, generated_member, resolve_known_member,
 };
-
-struct InstantiatedDataType {
-    type_id: TypeId,
-    constructor_arguments: Vec<ApplicationArgument>,
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum TraversalKind {
-    Traversable,
-    Bitraversable,
-}
-
-#[derive(Clone, Copy)]
-enum Mappings<T> {
-    Traversable(T),
-    Bitraversable { first: T, second: T },
-}
-
-impl Mappings<ElaboratedExpression> {
-    fn mapping_for(self, parameter: TraversalParameter) -> Option<ElaboratedExpression> {
-        match (self, parameter) {
-            (Mappings::Traversable(function), TraversalParameter::First) => Some(function),
-            (Mappings::Bitraversable { first, .. }, TraversalParameter::First) => Some(first),
-            (Mappings::Bitraversable { second, .. }, TraversalParameter::Second) => Some(second),
-            (Mappings::Traversable(_), TraversalParameter::Second) => None,
-        }
-    }
-}
 
 struct DecodedTraversalMember {
     member: ResolvedMember,
@@ -88,10 +61,7 @@ impl DecodedTraversalMember {
         //
         //   bitraverse ::
         //     (a -> m c) -> (b -> m d) -> Pair a b -> m (Pair c d)
-        let argument_count = match traversal {
-            TraversalKind::Traversable => 2,
-            TraversalKind::Bitraversable => 3,
-        };
+        let argument_count = traversal.mapping_count() + 1;
         let signature = signature::expect_term_signature(
             state,
             context,
@@ -105,21 +75,15 @@ impl DecodedTraversalMember {
         //
         // List
         //
-        //   mappings = Traversable (a -> m b)
+        //   mappings = Unary (a -> m b)
         //   sourceType = List a
         //
         // Pair
         //
-        //   mappings = Bitraversable (a -> m c) (b -> m d)
+        //   mappings = Binary (a -> m c) (b -> m d)
         //   sourceType = Pair a b
-        let (source_type, mappings) = match (traversal, arguments.as_slice()) {
-            (TraversalKind::Traversable, [mapping, source]) => {
-                (*source, Mappings::Traversable(*mapping))
-            }
-            (TraversalKind::Bitraversable, [first, second, source]) => {
-                (*source, Mappings::Bitraversable { first: *first, second: *second })
-            }
-            _ => return Ok(None),
+        let Some((mappings, &[source_type])) = Mappings::split(traversal, &arguments) else {
+            return Ok(None);
         };
 
         // Separate the applicative constructor from the structural target. Instantiate
@@ -153,8 +117,8 @@ impl DecodedTraversalMember {
         //
         //   sourceArguments = [a, b]
         //   targetArguments = [c, d]
-        let (_, source_arguments) = toolkit::extract_all_applications(state, context, source_type)?;
-        let (_, target_arguments) = toolkit::extract_all_applications(state, context, target_type)?;
+        let source = InstantiatedDataType::new(state, context, source_type)?;
+        let target = InstantiatedDataType::new(state, context, target_type)?;
         let function_arguments = arguments.iter().copied();
         let function_type = context.intern_function_iter(function_arguments, result);
 
@@ -167,14 +131,8 @@ impl DecodedTraversalMember {
             mappings,
             effect,
             data_file,
-            source: InstantiatedDataType {
-                type_id: source_type,
-                constructor_arguments: source_arguments,
-            },
-            target: InstantiatedDataType {
-                type_id: target_type,
-                constructor_arguments: target_arguments,
-            },
+            source,
+            target,
             result_type: result,
         }))
     }
@@ -195,10 +153,8 @@ where
         return Ok(None);
     };
     let (operation, sequence) = match traversal {
-        TraversalKind::Traversable => (context.known_terms.traverse, context.known_terms.sequence),
-        TraversalKind::Bitraversable => {
-            (context.known_terms.bitraverse, context.known_terms.bisequence)
-        }
+        TraversalKind::Unary => (context.known_terms.traverse, context.known_terms.sequence),
+        TraversalKind::Binary => (context.known_terms.bitraverse, context.known_terms.bisequence),
     };
     let (Some(operation), Some(sequence)) = (operation, sequence) else {
         return Ok(None);
@@ -261,8 +217,8 @@ where
         return Ok(None);
     };
     let resolution = match traversal {
-        TraversalKind::Traversable => context.known_terms.traverse,
-        TraversalKind::Bitraversable => context.known_terms.bitraverse,
+        TraversalKind::Unary => context.known_terms.traverse,
+        TraversalKind::Binary => context.known_terms.bitraverse,
     };
     let Some(resolution) = resolution else { return Ok(None) };
 
@@ -306,10 +262,8 @@ where
     Q: ExternalQueries,
 {
     let (operation, resolution) = match traversal {
-        TraversalKind::Traversable => (context.known_terms.traverse, context.known_terms.sequence),
-        TraversalKind::Bitraversable => {
-            (context.known_terms.bitraverse, context.known_terms.bisequence)
-        }
+        TraversalKind::Unary => (context.known_terms.traverse, context.known_terms.sequence),
+        TraversalKind::Binary => (context.known_terms.bitraverse, context.known_terms.bisequence),
     };
     let (Some(operation), Some(resolution)) = (operation, resolution) else {
         return Ok(None);
@@ -360,9 +314,9 @@ where
         let (_, source_arguments) =
             toolkit::extract_all_applications(state, context, *source_type)?;
         let identity_types = match (traversal, source_arguments.as_slice()) {
-            (TraversalKind::Traversable, [.., ApplicationArgument::Type(effect)]) => vec![*effect],
+            (TraversalKind::Unary, [.., ApplicationArgument::Type(effect)]) => vec![*effect],
             (
-                TraversalKind::Bitraversable,
+                TraversalKind::Binary,
                 [.., ApplicationArgument::Type(first), ApplicationArgument::Type(second)],
             ) => vec![*first, *second],
             _ => return Ok(None),
@@ -430,22 +384,7 @@ where
 {
     let mut builder = DerivedTreeBuilder::new(state, context, derive_id);
 
-    let (mapping_binders, mapping_expressions) = match member.mappings {
-        Mappings::Traversable(mapping) => {
-            let function = builder.variable_binder("function", mapping);
-            let expression = builder.variable(function);
-            (vec![function], Mappings::Traversable(expression))
-        }
-        Mappings::Bitraversable { first, second } => {
-            let first = builder.variable_binder("firstFunction", first);
-            let second = builder.variable_binder("secondFunction", second);
-            let expressions = Mappings::Bitraversable {
-                first: builder.variable(first),
-                second: builder.variable(second),
-            };
-            (vec![first, second], expressions)
-        }
-    };
+    let (mapping_binders, mapping_expressions) = member.mappings.bind(&mut builder);
     let value = builder.variable_binder("value", member.source.type_id);
     let value_expression = builder.variable(value);
 
@@ -1088,22 +1027,4 @@ where
     fn effect_type(&self, target_type: TypeId) -> TypeId {
         self.builder.context.intern_application(self.effect, target_type)
     }
-}
-
-fn extract_record_row<'q, Q>(
-    state: &mut CheckState,
-    context: &CheckContext<'q, Q>,
-    type_id: TypeId,
-) -> QueryResult<Option<&'q RowType>>
-where
-    Q: ExternalQueries,
-{
-    let Some((_, row)) = toolkit::decompose_type_application(state, context, type_id)? else {
-        return Ok(None);
-    };
-    let row = normalise::expand(state, context, row)?;
-    let Type::Row(row) = *context.lookup_type(row) else {
-        return Ok(None);
-    };
-    Ok(Some(context.lookup_row_type(row)))
 }

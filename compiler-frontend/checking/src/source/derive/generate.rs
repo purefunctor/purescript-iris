@@ -13,6 +13,7 @@ use crate::source::terms::{ElaboratedExpression, equations};
 use crate::state::CheckState;
 use crate::{ExternalQueries, tree};
 
+use self::traversal::TraversalKind;
 use super::variance::VarianceRecipe;
 use super::{DeriveDispatch, DeriveHeadResult, DeriveStrategy, derive_dispatch};
 
@@ -22,6 +23,7 @@ mod foldable;
 mod functor;
 mod generic;
 mod traversable;
+mod traversal;
 
 pub(super) fn generate_instance<Q>(
     state: &mut CheckState,
@@ -183,8 +185,8 @@ where
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Functor => functor::TraversalKind::Functor,
-                    DeriveDispatch::Bifunctor => functor::TraversalKind::Bifunctor,
+                    DeriveDispatch::Functor => TraversalKind::Unary,
+                    DeriveDispatch::Bifunctor => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 functor::generate_traversal_member(
@@ -221,8 +223,8 @@ where
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Foldable => foldable::TraversalKind::Foldable,
-                    DeriveDispatch::Bifoldable => foldable::TraversalKind::Bifoldable,
+                    DeriveDispatch::Foldable => TraversalKind::Unary,
+                    DeriveDispatch::Bifoldable => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 foldable::generate_fold_members(
@@ -239,8 +241,8 @@ where
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Traversable => traversable::TraversalKind::Traversable,
-                    DeriveDispatch::Bitraversable => traversable::TraversalKind::Bitraversable,
+                    DeriveDispatch::Traversable => TraversalKind::Unary,
+                    DeriveDispatch::Bitraversable => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 traversable::generate_traversal_members(
