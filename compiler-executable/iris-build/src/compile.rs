@@ -326,7 +326,7 @@ pub(crate) fn rebuild(
 
 pub(crate) fn finish_initial(
     compilation: &ProjectCompilation,
-    report: &mut InitialBuildReport,
+    report: InitialBuildReport,
     root: &Path,
     color: bool,
     diagnostics: bool,
@@ -334,12 +334,11 @@ pub(crate) fn finish_initial(
     if report.no_inputs {
         return Ok(Compiled::NoInputs);
     }
-    if let Some(error) = report.failure.take() {
+    if let Some(error) = report.failure {
         return Err(error);
     }
     if diagnostics {
-        let diagnostics = std::mem::take(&mut report.diagnostics);
-        report_diagnostics(compilation, diagnostics, root, color);
+        report_diagnostics(compilation, report.diagnostics, root, color);
     }
     if report.has_errors {
         return Ok(Compiled::Diagnostics);

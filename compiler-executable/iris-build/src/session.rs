@@ -261,16 +261,14 @@ impl BuildSession {
     }
 
     fn rebuild_inputs(&mut self) -> Result<RebuildOutcome, SessionFailure> {
-        let compiled = if let Some(report) = &mut self.initial_report {
-            let compiled = compile::finish_initial(
+        let compiled = if let Some(report) = self.initial_report.take() {
+            compile::finish_initial(
                 &self.compilation,
                 report,
                 &self.root,
                 self.color,
                 self.diagnostics,
-            )?;
-            self.initial_report = None;
-            compiled
+            )?
         } else if self.compilation.source_ids().next().is_none() {
             Compiled::NoInputs
         } else {

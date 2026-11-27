@@ -524,6 +524,44 @@ fn reports_output_failures_separately_and_recovers_on_a_later_change() {
     assert!(generated_module_contains(&foreign_output, "44"));
 }
 
+#[test]
+fn keeps_reporting_an_import_cycle_that_failed_the_initial_build() {
+    let workspace = TestWorkspace::empty();
+    workspace
+        .write("spago.yaml", "workspace: {}\npackage:\n  name: application\n  dependencies: []\n");
+    workspace.write(
+        "src/First.purs",
+        r#"module First where
+
+import Second (second)
+
+first :: Int
+first = second
+"#,
+    );
+    workspace.write(
+        "src/Second.purs",
+        r#"module Second where
+
+import First (first)
+
+second :: Int
+second = first
+"#,
+    );
+
+    let mut watch = WatchProcess::new(workspace.spawn(&["watch"]));
+    watch.wait_for("initial failure", |_, stderr| {
+        stderr.contains("Watch build failed: Cycle detected")
+    });
+
+    let settled = run_query(&workspace, "wait");
+    insta::assert_snapshot!(workspace.normalize_output(settled.as_bytes()), @"
+    $ iris watch query wait
+    [0] Build failed: Cycle detected
+    ");
+}
+
 fn generated_module_contains(path: &Path, expected: &str) -> bool {
     std::fs::read_to_string(path).is_ok_and(|source| source.contains(expected))
 }
