@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use globset::{Glob, GlobSet, GlobSetBuilder};
+use itertools::Itertools;
 use path_absolutize::Absolutize;
+use rayon::prelude::*;
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -43,23 +45,28 @@ pub fn walk_filtered(
 
     let excludes = build_excludes(root, excludes)?;
     files.retain(|path| !excludes.is_match(path));
-    let mut files_from_glob = BTreeSet::default();
-
-    for (root, root_globs) in &roots {
+    let files_from_glob = roots.par_iter().map(|(root, root_globs)| {
+        let mut files = Vec::new();
         if !root.exists() {
-            continue;
+            return Ok(files);
         }
 
         let root_globs = root_globs.build()?;
-        let entries =
-            WalkDir::new(root).into_iter().filter_entry(|entry| !excludes.is_match(entry.path()));
+        let entries = WalkDir::new(root)
+            .max_open(1)
+            .into_iter()
+            .filter_entry(|entry| !excludes.is_match(entry.path()));
         for entry in entries {
             let path = entry?.into_path();
             if root_globs.is_match(&path) {
-                files_from_glob.insert(path);
+                files.push(path);
             }
         }
-    }
+        Ok(files)
+    });
+    let files_from_glob = files_from_glob.collect::<Vec<Result<Vec<_>, Error>>>();
+    let files_from_glob = files_from_glob.into_iter().flatten_ok();
+    let files_from_glob = files_from_glob.collect::<Result<BTreeSet<_>, Error>>()?;
 
     files.extend(files_from_glob);
 
@@ -110,7 +117,6 @@ fn glob_syntax_character(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use itertools::Itertools;
     use std::fs;
 
     fn touch(path: &Path) {

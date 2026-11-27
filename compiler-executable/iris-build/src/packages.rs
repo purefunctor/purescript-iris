@@ -11,6 +11,7 @@ use std::path::{Component, Path, PathBuf};
 use std::{fs, io};
 
 use itertools::Itertools;
+use rayon::prelude::*;
 use serde::Deserialize;
 use smol_str::SmolStr;
 use thiserror::Error;
@@ -123,18 +124,24 @@ pub fn discover_packages(workspace: &Workspace) -> Result<DiscoveredPackages, Pa
         discovered.insert(SmolStr::clone(&name), resolved);
     }
 
-    let mut source_globs = Vec::new();
-    let mut package_globs: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
-    let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
-    let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
-    for resolved in discovered.values() {
+    let walked = discovered.par_iter().map(|(_, resolved)| {
         let globs = resolved.source_directories.iter().map(|directory| {
             let relative = directory.strip_prefix(&workspace.root).unwrap_or(directory);
             relative.join(iris_spago::PURS_GLOB)
         });
         let globs = globs.collect_vec();
+        let walked = super::walk::walk_filtered(&workspace.root, &globs, Vec::<PathBuf>::new());
+        (resolved, globs, walked)
+    });
+    let walked = walked.collect::<Vec<_>>();
+
+    let mut source_globs = Vec::new();
+    let mut package_globs: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
+    let mut owners: BTreeMap<PathBuf, SmolStr> = BTreeMap::new();
+    let mut files: BTreeMap<SmolStr, Vec<PathBuf>> = BTreeMap::new();
+    for (resolved, globs, walked) in walked {
+        let walked = walked?;
         source_globs.extend(globs.iter().cloned());
-        let walked = super::walk::walk_filtered(&workspace.root, &globs, Vec::<PathBuf>::new())?;
         package_globs.insert(SmolStr::clone(&resolved.name), globs);
         for file in walked.files {
             if let Some(owner) =
