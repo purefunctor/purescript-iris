@@ -24,6 +24,12 @@ use super::{
     RenderedExpression, TailCallWrapper, binding_source_name, global_file,
 };
 
+#[derive(Clone, Copy)]
+enum SequenceItem<'a> {
+    Expression(FunctionalExpressionId),
+    Field(&'a RecordField),
+}
+
 impl Generator<'_> {
     pub(super) fn render_expression<'t>(
         &self,
@@ -218,81 +224,28 @@ impl Generator<'_> {
                 unreachable!("invariant violated: Async program was not lowered to steps")
             }
             ExpressionKind::Array { elements } => {
-                let mut values = Vec::with_capacity(elements.len());
-                for element in elements.iter() {
-                    let value =
-                        if let Some(value) = self.try_inline_expression(tree, *element, context)? {
-                            RenderedExpression { value, pending_evaluation: true }
-                        } else {
-                            if self.expression_rendering_is_eager(*element, context) {
-                                self.materialize_rendered_expressions(
-                                    tree,
-                                    writer,
-                                    &mut values,
-                                    "$element",
-                                    context,
-                                );
-                            }
-                            self.render_non_inline_expression(tree, writer, *element, context)?
-                        };
-                    values.push(value);
-                }
-                let values = values.into_iter().map(|value| value.value).collect_vec();
+                let items = elements.iter().copied().map(SequenceItem::Expression);
+                let values = self.render_sequence(tree, writer, items, "$element", context)?;
                 let value = tree.array(values);
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::ArrayConcatenation { elements } => {
-                let mut values = Vec::with_capacity(elements.len());
-                for element in elements.iter() {
-                    let expression = element.expression();
-                    let value = if let Some(value) =
-                        self.try_inline_expression(tree, expression, context)?
-                    {
-                        RenderedExpression { value, pending_evaluation: true }
-                    } else {
-                        if self.expression_rendering_is_eager(expression, context) {
-                            self.materialize_rendered_expressions(
-                                tree,
-                                writer,
-                                &mut values,
-                                "$element",
-                                context,
-                            );
-                        }
-                        self.render_non_inline_expression(tree, writer, expression, context)?
-                    };
-                    values.push(value);
-                }
+                let items =
+                    elements.iter().map(|element| SequenceItem::Expression(element.expression()));
+                let values = self.render_sequence(tree, writer, items, "$element", context)?;
                 let values = elements.iter().zip(values).map(|(element, value)| match element {
-                    FunctionalArrayElement::Value(_) => ArrayElement::Value(value.value),
-                    FunctionalArrayElement::Spread(_) => ArrayElement::Spread(value.value),
+                    FunctionalArrayElement::Value(_) => ArrayElement::Value(value),
+                    FunctionalArrayElement::Spread(_) => ArrayElement::Spread(value),
                 });
                 let value = tree.spread_array(values.collect_vec());
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
             ExpressionKind::Record { fields } => {
-                let mut rendered_fields = Vec::with_capacity(fields.len());
-                for field in fields.iter() {
-                    let value = if let Some(value) =
-                        self.try_inline_expression(tree, field.expression, context)?
-                    {
-                        RenderedExpression { value, pending_evaluation: true }
-                    } else {
-                        if self.expression_rendering_is_eager(field.expression, context) {
-                            let values = rendered_fields.iter_mut().map(|(_, value)| value);
-                            for value in values {
-                                self.materialize_rendered_expression(
-                                    tree, writer, value, "$field", context,
-                                );
-                            }
-                        }
-                        self.render_field_value(tree, writer, field, context)?
-                    };
-                    rendered_fields.push((field.field.name.clone(), value));
-                }
-                let properties = rendered_fields
-                    .into_iter()
-                    .map(|(name, value)| ObjectProperty::Field { name, value: value.value });
+                let items = fields.iter().map(SequenceItem::Field);
+                let values = self.render_sequence(tree, writer, items, "$field", context)?;
+                let properties = fields.iter().zip(values).map(|(field, value)| {
+                    ObjectProperty::Field { name: field.field.name.clone(), value }
+                });
                 let value = tree.object(properties.collect_vec());
                 Ok(RenderedExpression { value, pending_evaluation: true })
             }
@@ -495,6 +448,47 @@ impl Generator<'_> {
                 unreachable!("invariant violated: atomic functional expression was not inlineable")
             }
         }
+    }
+
+    fn render_sequence<'a, 't>(
+        &self,
+        tree: &mut Tree<'t>,
+        writer: &mut Writer<'t>,
+        items: impl ExactSizeIterator<Item = SequenceItem<'a>>,
+        preferred: &str,
+        context: &mut FunctionContext,
+    ) -> ModuleResult<Vec<ExpressionId>> {
+        let mut values = Vec::with_capacity(items.len());
+        for item in items {
+            let expression = match item {
+                SequenceItem::Expression(expression) => expression,
+                SequenceItem::Field(field) => field.expression,
+            };
+            let value =
+                if let Some(value) = self.try_inline_expression(tree, expression, context)? {
+                    RenderedExpression { value, pending_evaluation: true }
+                } else {
+                    if self.expression_rendering_is_eager(expression, context) {
+                        self.materialize_rendered_expressions(
+                            tree,
+                            writer,
+                            &mut values,
+                            preferred,
+                            context,
+                        );
+                    }
+                    match item {
+                        SequenceItem::Expression(expression) => {
+                            self.render_non_inline_expression(tree, writer, expression, context)?
+                        }
+                        SequenceItem::Field(field) => {
+                            self.render_field_value(tree, writer, field, context)?
+                        }
+                    }
+                };
+            values.push(value);
+        }
+        Ok(values.into_iter().map(|value| value.value).collect())
     }
 
     fn render_field_value<'t>(
