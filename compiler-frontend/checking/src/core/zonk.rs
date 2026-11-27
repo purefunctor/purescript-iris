@@ -464,7 +464,7 @@ where
         }
         kind @ (DeriveErrorKind::CannotDeriveClass { .. }
         | DeriveErrorKind::DeriveInvalidArity { .. }
-        | DeriveErrorKind::DeriveMissingFunctor
+        | DeriveErrorKind::DeriveMissingClass { .. }
         | DeriveErrorKind::InvalidNewtypeDeriveSkolemArguments) => kind,
     })
 }

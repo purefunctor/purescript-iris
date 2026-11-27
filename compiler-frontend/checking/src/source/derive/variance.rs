@@ -30,6 +30,25 @@ impl Variance {
 type ClassReference = (FileId, TypeItemId);
 
 #[derive(Clone, Copy)]
+pub(in crate::source) enum UnaryClass {
+    Found(ClassReference),
+    Missing { module_name: &'static str, class_name: &'static str },
+}
+
+impl UnaryClass {
+    pub fn known(
+        class: Option<ClassReference>,
+        module_name: &'static str,
+        class_name: &'static str,
+    ) -> UnaryClass {
+        match class {
+            Some(class) => UnaryClass::Found(class),
+            None => UnaryClass::Missing { module_name, class_name },
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub(in crate::source) enum FunctionPolicy {
     Allow,
     Reject,
@@ -38,7 +57,7 @@ pub(in crate::source) enum FunctionPolicy {
 #[derive(Clone, Copy)]
 pub(in crate::source) struct ParameterConfig {
     pub variance: Variance,
-    pub unary_class: Option<ClassReference>,
+    pub unary_class: UnaryClass,
     pub function_policy: FunctionPolicy,
 }
 
@@ -98,7 +117,7 @@ struct DerivedParameter {
     name: Name,
     traversal_parameter: TraversalParameter,
     expected: Variance,
-    unary_class: Option<ClassReference>,
+    unary_class: UnaryClass,
     function_policy: FunctionPolicy,
 }
 
@@ -545,7 +564,7 @@ where
                 continue;
             }
 
-            let Some(class) = parameter.unary_class else {
+            let UnaryClass::Found(class) = parameter.unary_class else {
                 return Ok(false);
             };
             if !self.has_instance_head(class, function)? {
@@ -560,11 +579,15 @@ where
     }
 
     fn emit_unary_constraint(&mut self, parameter: &DerivedParameter, function: TypeId) {
-        if let Some(class) = parameter.unary_class {
-            tools::emit_constraint(self.context, self.state, class, function);
-        } else {
-            self.state.insert_error(DeriveErrorKind::DeriveMissingFunctor);
-            *self.valid = false;
+        match parameter.unary_class {
+            UnaryClass::Found(class) => {
+                tools::emit_constraint(self.context, self.state, class, function);
+            }
+            UnaryClass::Missing { module_name, class_name } => {
+                self.state
+                    .insert_error(DeriveErrorKind::DeriveMissingClass { module_name, class_name });
+                *self.valid = false;
+            }
         }
     }
 }

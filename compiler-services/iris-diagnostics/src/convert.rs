@@ -1473,9 +1473,11 @@ where
             };
             checking_diagnostic(context, error, span, "DeriveInvalidArity", message)
         }
-        DeriveErrorKind::DeriveMissingFunctor => {
-            let message = "Deriving 'Functor' requires 'Data.Functor' to be imported";
-            checking_diagnostic(context, error, span, "DeriveMissingFunctor", message)
+        DeriveErrorKind::DeriveMissingClass { module_name, class_name } => {
+            let message = format!(
+                "Deriving this instance requires class '{class_name}' from '{module_name}'"
+            );
+            checking_diagnostic(context, error, span, "DeriveMissingClass", message)
         }
         DeriveErrorKind::ExpectedNewtype { type_id } => {
             let rendered = context.render_type(*type_id)?;

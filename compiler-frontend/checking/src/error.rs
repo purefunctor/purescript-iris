@@ -121,7 +121,10 @@ pub enum DeriveErrorKind {
         expected: usize,
         actual: usize,
     },
-    DeriveMissingFunctor,
+    DeriveMissingClass {
+        module_name: &'static str,
+        class_name: &'static str,
+    },
     ExpectedNewtype {
         type_id: TypeId,
     },
