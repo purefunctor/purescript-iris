@@ -321,11 +321,13 @@ where
     }
 
     fn register_pending_modules(&self, engine: &QueryEngine, pending: Vec<PendingModule>) {
-        pending.par_iter().for_each(|module| {
-            let _ = engine.snapshot().parsed(module.id);
-        });
-        for module in pending {
-            update_module_name(engine, module.id, module.previous_name);
+        let current_names = pending.par_iter().map_init(
+            || engine.snapshot(),
+            |engine, module| current_module_name(engine, module.id),
+        );
+        let current_names = current_names.collect::<Vec<_>>();
+        for (module, current_name) in pending.into_iter().zip(current_names) {
+            set_module_name(engine, module.id, module.previous_name, current_name);
         }
     }
 
@@ -378,13 +380,26 @@ struct PendingModule {
 }
 
 fn update_module_name(engine: &QueryEngine, id: FileId, previous_name: Option<SmolStr>) {
+    let current_name = current_module_name(engine, id);
+    set_module_name(engine, id, previous_name, current_name);
+}
+
+fn current_module_name(engine: &QueryEngine, id: FileId) -> Option<SmolStr> {
     let content = engine
         .content(id)
         .expect("invariant violated: source lifecycle requires exclusive engine mutation");
     let (parsed, _) = engine
         .parsed(id)
         .expect("invariant violated: source lifecycle requires exclusive engine mutation");
-    let current_name = parsed.module_name(&content);
+    parsed.module_name(&content)
+}
+
+fn set_module_name(
+    engine: &QueryEngine,
+    id: FileId,
+    previous_name: Option<SmolStr>,
+    current_name: Option<SmolStr>,
+) {
     if previous_name != current_name
         && let Some(previous_name) = previous_name
     {
