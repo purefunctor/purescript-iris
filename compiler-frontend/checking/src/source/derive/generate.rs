@@ -13,15 +13,16 @@ use crate::source::terms::{ElaboratedExpression, equations};
 use crate::state::CheckState;
 use crate::{ExternalQueries, tree};
 
+use self::traversal::TraversalKind;
 use super::variance::VarianceRecipe;
 use super::{DeriveDispatch, DeriveHeadResult, DeriveStrategy, derive_dispatch};
 
-mod contravariant;
 mod eq_ord;
 mod foldable;
 mod functor;
 mod generic;
 mod traversable;
+mod traversal;
 
 pub(super) fn generate_instance<Q>(
     state: &mut CheckState,
@@ -178,35 +179,19 @@ where
                 context.known_terms.compare,
             )?
             .map(|member| vec![member]),
-            DeriveDispatch::Functor | DeriveDispatch::Bifunctor => {
+            DeriveDispatch::Functor
+            | DeriveDispatch::Bifunctor
+            | DeriveDispatch::Contravariant
+            | DeriveDispatch::Profunctor => {
                 let Some(recipe) = recipe else {
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Functor => functor::TraversalKind::Functor,
-                    DeriveDispatch::Bifunctor => functor::TraversalKind::Bifunctor,
+                    DeriveDispatch::Functor | DeriveDispatch::Contravariant => TraversalKind::Unary,
+                    DeriveDispatch::Bifunctor | DeriveDispatch::Profunctor => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 functor::generate_traversal_member(
-                    state,
-                    context,
-                    result,
-                    &freshened.arguments,
-                    recipe,
-                    traversal,
-                )?
-                .map(|member| vec![member])
-            }
-            DeriveDispatch::Contravariant | DeriveDispatch::Profunctor => {
-                let Some(recipe) = recipe else {
-                    return Ok(None);
-                };
-                let traversal = match dispatch {
-                    DeriveDispatch::Contravariant => contravariant::TraversalKind::Contravariant,
-                    DeriveDispatch::Profunctor => contravariant::TraversalKind::Profunctor,
-                    _ => unreachable!(),
-                };
-                contravariant::generate_traversal_member(
                     state,
                     context,
                     result,
@@ -221,8 +206,8 @@ where
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Foldable => foldable::TraversalKind::Foldable,
-                    DeriveDispatch::Bifoldable => foldable::TraversalKind::Bifoldable,
+                    DeriveDispatch::Foldable => TraversalKind::Unary,
+                    DeriveDispatch::Bifoldable => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 foldable::generate_fold_members(
@@ -239,8 +224,8 @@ where
                     return Ok(None);
                 };
                 let traversal = match dispatch {
-                    DeriveDispatch::Traversable => traversable::TraversalKind::Traversable,
-                    DeriveDispatch::Bitraversable => traversable::TraversalKind::Bitraversable,
+                    DeriveDispatch::Traversable => TraversalKind::Unary,
+                    DeriveDispatch::Bitraversable => TraversalKind::Binary,
                     _ => unreachable!(),
                 };
                 traversable::generate_traversal_members(

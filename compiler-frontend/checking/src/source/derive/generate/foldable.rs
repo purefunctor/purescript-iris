@@ -6,53 +6,26 @@ use smol_str::format_smolstr;
 
 use crate::context::CheckContext;
 use crate::core::substitute::RigidRenaming;
-use crate::core::{ApplicationArgument, RowType, Type, TypeId, normalise, signature, toolkit};
+use crate::core::{ApplicationArgument, TypeId, signature, toolkit};
 use crate::source::derive::builder::DerivedTreeBuilder;
 use crate::source::derive::field;
 use crate::source::derive::variance::{
-    ConstructorRecipe, RecordFieldRecipe, TraversalOperation, TraversalParameter, VarianceRecipe,
+    ConstructorRecipe, RecordFieldRecipe, TraversalOperation, VarianceRecipe,
 };
 use crate::source::terms::{ElaboratedExpression, equations};
 use crate::state::CheckState;
 use crate::{ExternalQueries, tree};
 
+use super::traversal::{InstantiatedDataType, Mappings, TraversalKind, extract_record_row};
 use super::{
     DeriveHeadResult, DeriveStrategy, ResolvedMember, generated_member, resolve_known_member,
 };
-
-struct InstantiatedDataType {
-    type_id: TypeId,
-    constructor_arguments: Vec<ApplicationArgument>,
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum TraversalKind {
-    Foldable,
-    Bifoldable,
-}
 
 #[derive(Clone, Copy)]
 enum FoldOperation {
     Right,
     Left,
     Map,
-}
-
-#[derive(Clone, Copy)]
-enum Mappings<T> {
-    Foldable(T),
-    Bifoldable { first: T, second: T },
-}
-
-impl Mappings<ElaboratedExpression> {
-    fn mapping_for(self, parameter: TraversalParameter) -> Option<ElaboratedExpression> {
-        match (self, parameter) {
-            (Mappings::Foldable(function), TraversalParameter::First) => Some(function),
-            (Mappings::Bifoldable { first, .. }, TraversalParameter::First) => Some(first),
-            (Mappings::Bifoldable { second, .. }, TraversalParameter::Second) => Some(second),
-            (Mappings::Foldable(_), TraversalParameter::Second) => None,
-        }
-    }
 }
 
 struct DecodedFoldMember {
@@ -94,11 +67,9 @@ impl DecodedFoldMember {
         //     (a -> c -> c) -> (b -> c -> c) -> c -> Pair a b -> c
         //
         //   bifoldMap :: Monoid m => (a -> m) -> (b -> m) -> Pair a b -> m
-        let argument_count = match (traversal, operation) {
-            (TraversalKind::Foldable, FoldOperation::Right | FoldOperation::Left) => 3,
-            (TraversalKind::Bifoldable, FoldOperation::Right | FoldOperation::Left) => 4,
-            (TraversalKind::Foldable, FoldOperation::Map) => 2,
-            (TraversalKind::Bifoldable, FoldOperation::Map) => 3,
+        let argument_count = match operation {
+            FoldOperation::Right | FoldOperation::Left => traversal.mapping_count() + 2,
+            FoldOperation::Map => traversal.mapping_count() + 1,
         };
         let signature = signature::expect_term_signature(
             state,
@@ -109,28 +80,18 @@ impl DecodedFoldMember {
         let arguments = signature.arguments().collect_vec();
         let signature::SkolemisedSignature { renaming, abstractions, result } = signature;
 
-        let decoded = (traversal, operation, arguments.as_slice());
-        let (source_type, accumulator_type, mappings) = match decoded {
-            (
-                TraversalKind::Foldable,
-                FoldOperation::Right | FoldOperation::Left,
-                [mapping, accumulator, source],
-            ) => (*source, *accumulator, Mappings::Foldable(*mapping)),
-            (
-                TraversalKind::Bifoldable,
-                FoldOperation::Right | FoldOperation::Left,
-                [first, second, accumulator, source],
-            ) => (*source, *accumulator, Mappings::Bifoldable { first: *first, second: *second }),
-            (TraversalKind::Foldable, FoldOperation::Map, [mapping, source]) => {
-                (*source, result, Mappings::Foldable(*mapping))
+        let Some((mappings, remaining)) = Mappings::split(traversal, &arguments) else {
+            return Ok(None);
+        };
+        let (source_type, accumulator_type) = match (operation, remaining) {
+            (FoldOperation::Right | FoldOperation::Left, &[accumulator, source]) => {
+                (source, accumulator)
             }
-            (TraversalKind::Bifoldable, FoldOperation::Map, [first, second, source]) => {
-                (*source, result, Mappings::Bifoldable { first: *first, second: *second })
-            }
+            (FoldOperation::Map, &[source]) => (source, result),
             _ => return Ok(None),
         };
 
-        let (_, source_arguments) = toolkit::extract_all_applications(state, context, source_type)?;
+        let source = InstantiatedDataType::new(state, context, source_type)?;
         let function_arguments = arguments.iter().copied();
         let function_type = context.intern_function_iter(function_arguments, result);
 
@@ -143,10 +104,7 @@ impl DecodedFoldMember {
             mappings,
             accumulator_type,
             data_file,
-            source: InstantiatedDataType {
-                type_id: source_type,
-                constructor_arguments: source_arguments,
-            },
+            source,
             result_type: result,
         }))
     }
@@ -167,10 +125,10 @@ where
         return Ok(None);
     };
     let operations = match traversal {
-        TraversalKind::Foldable => {
+        TraversalKind::Unary => {
             (context.known_terms.foldr, context.known_terms.foldl, context.known_terms.fold_map)
         }
-        TraversalKind::Bifoldable => (
+        TraversalKind::Binary => (
             context.known_terms.bifoldr,
             context.known_terms.bifoldl,
             context.known_terms.bifold_map,
@@ -259,12 +217,12 @@ where
         return Ok(None);
     };
     let resolution = match (traversal, operation) {
-        (TraversalKind::Foldable, FoldOperation::Right) => context.known_terms.foldr,
-        (TraversalKind::Foldable, FoldOperation::Left) => context.known_terms.foldl,
-        (TraversalKind::Foldable, FoldOperation::Map) => context.known_terms.fold_map,
-        (TraversalKind::Bifoldable, FoldOperation::Right) => context.known_terms.bifoldr,
-        (TraversalKind::Bifoldable, FoldOperation::Left) => context.known_terms.bifoldl,
-        (TraversalKind::Bifoldable, FoldOperation::Map) => context.known_terms.bifold_map,
+        (TraversalKind::Unary, FoldOperation::Right) => context.known_terms.foldr,
+        (TraversalKind::Unary, FoldOperation::Left) => context.known_terms.foldl,
+        (TraversalKind::Unary, FoldOperation::Map) => context.known_terms.fold_map,
+        (TraversalKind::Binary, FoldOperation::Right) => context.known_terms.bifoldr,
+        (TraversalKind::Binary, FoldOperation::Left) => context.known_terms.bifoldl,
+        (TraversalKind::Binary, FoldOperation::Map) => context.known_terms.bifold_map,
     };
     let Some(resolution) = resolution else { return Ok(None) };
 
@@ -310,22 +268,7 @@ where
 {
     let mut builder = DerivedTreeBuilder::new(state, context, derive_id);
 
-    let (mapping_binders, mapping_expressions) = match member.mappings {
-        Mappings::Foldable(mapping) => {
-            let function = builder.variable_binder("function", mapping);
-            let expression = builder.variable(function);
-            (vec![function], Mappings::Foldable(expression))
-        }
-        Mappings::Bifoldable { first, second } => {
-            let first = builder.variable_binder("firstFunction", first);
-            let second = builder.variable_binder("secondFunction", second);
-            let expressions = Mappings::Bifoldable {
-                first: builder.variable(first),
-                second: builder.variable(second),
-            };
-            (vec![first, second], expressions)
-        }
-    };
+    let (mapping_binders, mapping_expressions) = member.mappings.bind(&mut builder);
     let (accumulator, initial) = match operation {
         FoldOperation::Right | FoldOperation::Left => {
             let accumulator = builder.variable_binder("accumulator", member.accumulator_type);
@@ -901,22 +844,4 @@ where
         let mempty = self.builder.term_reference(mempty)?;
         Ok(Some(self.builder.subtype(mempty, self.accumulator_type)?))
     }
-}
-
-fn extract_record_row<'q, Q>(
-    state: &mut CheckState,
-    context: &CheckContext<'q, Q>,
-    type_id: TypeId,
-) -> QueryResult<Option<&'q RowType>>
-where
-    Q: ExternalQueries,
-{
-    let Some((_, row)) = toolkit::decompose_type_application(state, context, type_id)? else {
-        return Ok(None);
-    };
-    let row = normalise::expand(state, context, row)?;
-    let Type::Row(row) = *context.lookup_type(row) else {
-        return Ok(None);
-    };
-    Ok(Some(context.lookup_row_type(row)))
 }

@@ -6,46 +6,18 @@ use smol_str::format_smolstr;
 
 use crate::context::CheckContext;
 use crate::core::substitute::RigidRenaming;
-use crate::core::{ApplicationArgument, RowType, Type, TypeId, normalise, signature, toolkit};
+use crate::core::{ApplicationArgument, TypeId, signature, toolkit};
 use crate::source::derive::builder::DerivedTreeBuilder;
 use crate::source::derive::field;
 use crate::source::derive::variance::{
-    ConstructorRecipe, RecordFieldRecipe, TraversalOperation, TraversalParameter, Variance,
-    VarianceRecipe,
+    ConstructorRecipe, RecordFieldRecipe, TraversalOperation, Variance, VarianceRecipe,
 };
 use crate::source::terms::{ElaboratedExpression, equations};
 use crate::state::CheckState;
 use crate::{ExternalQueries, tree};
 
+use super::traversal::{InstantiatedDataType, Mappings, TraversalKind, extract_record_row};
 use super::{DeriveHeadResult, DeriveStrategy, ResolvedMember, generated_member, resolve_member};
-
-struct InstantiatedDataType {
-    type_id: TypeId,
-    constructor_arguments: Vec<ApplicationArgument>,
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum TraversalKind {
-    Functor,
-    Bifunctor,
-}
-
-#[derive(Clone, Copy)]
-enum Mappings<T> {
-    Functor(T),
-    Bifunctor { first: T, second: T },
-}
-
-impl Mappings<ElaboratedExpression> {
-    fn mapping_for(self, parameter: TraversalParameter) -> Option<ElaboratedExpression> {
-        match (self, parameter) {
-            (Mappings::Functor(function), TraversalParameter::First) => Some(function),
-            (Mappings::Bifunctor { first, .. }, TraversalParameter::First) => Some(first),
-            (Mappings::Bifunctor { second, .. }, TraversalParameter::Second) => Some(second),
-            (Mappings::Functor(_), TraversalParameter::Second) => None,
-        }
-    }
-}
 
 struct DecodedTraversalMember {
     member: ResolvedMember,
@@ -70,10 +42,7 @@ impl DecodedTraversalMember {
     where
         Q: ExternalQueries,
     {
-        let argument_count = match traversal {
-            TraversalKind::Functor => 2,
-            TraversalKind::Bifunctor => 3,
-        };
+        let argument_count = traversal.mapping_count() + 1;
         let signature = signature::expect_term_signature(
             state,
             context,
@@ -83,16 +52,12 @@ impl DecodedTraversalMember {
         let arguments = signature.arguments().collect_vec();
         let signature::SkolemisedSignature { renaming, abstractions, result } = signature;
 
-        let (source_type, mappings) = match (traversal, arguments.as_slice()) {
-            (TraversalKind::Functor, [mapping, source]) => (*source, Mappings::Functor(*mapping)),
-            (TraversalKind::Bifunctor, [first, second, source]) => {
-                (*source, Mappings::Bifunctor { first: *first, second: *second })
-            }
-            _ => return Ok(None),
+        let Some((mappings, &[source_type])) = Mappings::split(traversal, &arguments) else {
+            return Ok(None);
         };
 
-        let (_, source_arguments) = toolkit::extract_all_applications(state, context, source_type)?;
-        let (_, target_arguments) = toolkit::extract_all_applications(state, context, result)?;
+        let source = InstantiatedDataType::new(state, context, source_type)?;
+        let target = InstantiatedDataType::new(state, context, result)?;
         let function_arguments = arguments.iter().copied();
         let function_type = context.intern_function_iter(function_arguments, result);
 
@@ -104,14 +69,8 @@ impl DecodedTraversalMember {
             function_type,
             mappings,
             data_file,
-            source: InstantiatedDataType {
-                type_id: source_type,
-                constructor_arguments: source_arguments,
-            },
-            target: InstantiatedDataType {
-                type_id: result,
-                constructor_arguments: target_arguments,
-            },
+            source,
+            target,
         }))
     }
 }
@@ -170,22 +129,7 @@ where
 {
     let mut builder = DerivedTreeBuilder::new(state, context, derive_id);
 
-    let (mapping_binders, mapping_expressions) = match member.mappings {
-        Mappings::Functor(mapping) => {
-            let function = builder.variable_binder("function", mapping);
-            let expression = builder.variable(function);
-            (vec![function], Mappings::Functor(expression))
-        }
-        Mappings::Bifunctor { first, second } => {
-            let first = builder.variable_binder("firstFunction", first);
-            let second = builder.variable_binder("secondFunction", second);
-            let expressions = Mappings::Bifunctor {
-                first: builder.variable(first),
-                second: builder.variable(second),
-            };
-            (vec![first, second], expressions)
-        }
-    };
+    let (mapping_binders, mapping_expressions) = member.mappings.bind(&mut builder);
     let value = builder.variable_binder("value", member.source.type_id);
 
     let value_expression = builder.variable(value);
@@ -968,20 +912,4 @@ where
         //         })
         Ok(Some(self.builder.record_update(value, updates, traversal.target_type)))
     }
-}
-
-fn extract_record_row<'q, Q>(
-    state: &mut CheckState,
-    context: &CheckContext<'q, Q>,
-    type_id: TypeId,
-) -> QueryResult<Option<&'q RowType>>
-where
-    Q: ExternalQueries,
-{
-    let Some((_, row)) = toolkit::decompose_type_application(state, context, type_id)? else {
-        return Ok(None);
-    };
-    let row = normalise::expand(state, context, row)?;
-    let Type::Row(row) = *context.lookup_type(row) else { return Ok(None) };
-    Ok(Some(context.lookup_row_type(row)))
 }
