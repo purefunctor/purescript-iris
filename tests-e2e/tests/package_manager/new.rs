@@ -90,10 +90,7 @@ fn builds_a_new_project_with_local_spago() {
         assert!(workspace.path().join("output/Main/index.js").is_file());
         fs::remove_dir_all(workspace.path().join("output")).unwrap();
     }
-    insta::assert_snapshot!(workspace.spago_calls(), @r#"
-    .: spago "fetch" "-p" "example"
-    src: spago "fetch" "-p" "example"
-    "#);
+    insta::assert_snapshot!(workspace.spago_calls(), @r#".: spago "fetch" "-p" "example""#);
 }
 
 #[test]
