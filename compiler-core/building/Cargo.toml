@@ -16,10 +16,9 @@ interner = { version = "0.1.0", path = "../interner" }
 javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
 lexing = { version = "0.1.0", path = "../../compiler-frontend/lexing" }
 line-index = "0.1.2"
-lock_api = "0.4.14"
 lowering = { version = "0.1.0", path = "../../compiler-frontend/lowering" }
 num-bigint = "0.5.1"
-parking_lot = "0.12.5"
+parking_lot = { version = "0.12.5", features = ["arc_lock", "send_guard"] }
 parsing = { version = "0.1.0", path = "../../compiler-frontend/parsing" }
 prim-constants = { version = "0.1.0", path = "../prim-constants" }
 rayon = "1.12.0"
