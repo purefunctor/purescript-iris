@@ -2,10 +2,11 @@ use functional::tree::{
     EffectLoop, ExpressionId as FunctionalExpressionId, ExpressionKind, Parameter, PatternKind,
 };
 
-use super::{
-    CapturedEffectAction, Destination, FunctionRenderer, capture_effect_action,
-    capture_effect_value, execute_effect_action_destination, execute_effect_action_value,
+use super::effect::{
+    CapturedEffectAction, capture_effect_action, capture_effect_value,
+    execute_effect_action_destination, execute_effect_action_value,
 };
+use super::{Destination, FunctionRenderer};
 use crate::error::ModuleResult;
 use crate::tree::{ExpressionId, UnaryOperator};
 
