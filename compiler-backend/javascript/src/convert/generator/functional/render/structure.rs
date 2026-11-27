@@ -5,9 +5,9 @@ use functional::tree::{BinaryOperator, DeclarationKind, ExpressionKind, Global, 
 use itertools::Itertools;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{
-    collect_expression_globals, collect_expression_references, global_file, is_abstraction,
-};
+use super::global_file;
+use super::inline::is_abstraction;
+use super::references::{collect_expression_globals, collect_expression_references};
 
 pub(super) fn collect_module_references(module: &Module) -> Vec<Global> {
     let mut seen = FxHashSet::default();

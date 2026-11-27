@@ -109,7 +109,7 @@ pub(super) fn collect_stylex_theme(module: &Module) -> Option<StyleXTheme> {
             .get(&id)
             .expect("invariant violated: StyleX theme definition reads a non-value declaration");
         let mut globals = FxHashSet::default();
-        super::collect_expression_globals(module, *expression, true, &mut globals);
+        super::references::collect_expression_globals(module, *expression, true, &mut globals);
         for global in globals {
             if global_file(global) == module.file_id {
                 pending.push(global);
