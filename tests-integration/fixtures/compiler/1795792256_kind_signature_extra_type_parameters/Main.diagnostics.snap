@@ -1,0 +1,20 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [TypeSignatureVariableMismatch] · Main.purs:3:1
+  •
+  │
+  • Expected 0 type parameters to match the kind signature, but found 1
+  │
+  │   data Box :: Type
+  │   ╰───────────────
+  •
+
+Error! · [TypeSignatureVariableMismatch] · Main.purs:6:1
+  •
+  │
+  • Expected 1 type parameter to match the kind signature, but found 2
+  │
+  │   type Pair :: Type -> Type
+  │   ╰────────────────────────
+  •
