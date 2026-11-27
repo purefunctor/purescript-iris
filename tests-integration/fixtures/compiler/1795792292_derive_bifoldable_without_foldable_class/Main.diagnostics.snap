@@ -1,0 +1,11 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Error! · [DeriveMissingFunctor] · Main.purs:7:1
+  •
+  │
+  • Deriving 'Functor' requires 'Data.Functor' to be imported
+  │
+  │   derive instance Bifoldable Wrap
+  │   ╰──────────────────────────────
+  •
