@@ -1,3 +1,3 @@
 fn main() {
-    std::process::exit(iris_cli::run());
+    iris_cli::run()
 }

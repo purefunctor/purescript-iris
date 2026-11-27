@@ -14,7 +14,12 @@ use iris_watch_server::protocol::Response;
 pub(crate) const PACKAGE_NAME: &str = env!("CARGO_PKG_NAME");
 pub(crate) const VERSION: &str = env!("IRIS_VERSION");
 
-pub fn run() -> i32 {
+pub fn run() -> ! {
+    let status = run_program();
+    std::process::exit(status)
+}
+
+fn run_program() -> i32 {
     let program = cli::Program::parse_with_diagnostics();
     match program.command {
         cli::Command::Format(options) => format::run(options),

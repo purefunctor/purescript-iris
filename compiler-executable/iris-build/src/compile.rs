@@ -30,7 +30,14 @@ pub(crate) struct BuildConfig<'a> {
     pub packages: Vec<DiscoveredPackage>,
     pub color: bool,
     pub diagnostics: bool,
+    pub teardown: Teardown,
     pub events: &'a dyn BuildEventSink,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Teardown {
+    Release,
+    Forget,
 }
 
 #[derive(Debug, Error)]
@@ -248,10 +255,34 @@ pub(crate) fn build_initial_packages(
 
 pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, CompileError> {
     let started = Instant::now();
-    let BuildConfig { root, output, source_globs, packages, color, diagnostics, events } = config;
+    let BuildConfig { root, output, source_globs, packages, color, diagnostics, teardown, events } =
+        config;
     let initial =
         build_initial_packages(&root, &source_globs, output.directory(), &packages, events)?;
     let InitialBuildParts { compilation, source_paths: _, mut report } = initial.into_parts();
+    let finished = Finish { started, root: &root, output: &output, color, diagnostics, events };
+    let built = finish_build(&compilation, &mut report, finished);
+    if teardown == Teardown::Forget {
+        compilation.forget();
+    }
+    built
+}
+
+struct Finish<'a> {
+    started: Instant,
+    root: &'a Path,
+    output: &'a BuildOutput,
+    color: bool,
+    diagnostics: bool,
+    events: &'a dyn BuildEventSink,
+}
+
+fn finish_build(
+    compilation: &ProjectCompilation,
+    report: &mut InitialBuildReport,
+    finish: Finish<'_>,
+) -> Result<BTreeSet<String>, CompileError> {
+    let Finish { started, root, output, color, diagnostics, events } = finish;
     if report.no_inputs {
         return Err(CompileError::NoInputs);
     }
@@ -262,14 +293,14 @@ pub(crate) fn build(config: BuildConfig<'_>) -> Result<BTreeSet<String>, Compile
     let compiled = if has_errors {
         None
     } else {
-        let modules = collect_modules(&compilation, &report.sources)?;
-        output.write(&compilation, &modules)?;
+        let modules = collect_modules(compilation, &report.sources)?;
+        output.write(compilation, &modules)?;
         Some(modules.iter().map(|module| module.javascript.name().to_owned()).collect())
     };
     let outcome = if has_errors { BuildOutcome::Diagnostics } else { BuildOutcome::Succeeded };
     events.send(BuildEvent::Finished { duration: started.elapsed(), outcome });
     if diagnostics {
-        report_diagnostics(&compilation, std::mem::take(&mut report.diagnostics), &root, color);
+        report_diagnostics(compilation, std::mem::take(&mut report.diagnostics), root, color);
     }
     compiled.ok_or(CompileError::Diagnostics { reported: diagnostics })
 }

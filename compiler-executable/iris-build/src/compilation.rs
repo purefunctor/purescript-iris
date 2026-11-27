@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use std::{fs, io};
+use std::{fs, io, mem};
 
 use building::{
     DiskObservation, FileLifecycle, ForeignEvent, LifecycleChange, LifecycleEvent, QueryEngine,
@@ -137,6 +137,13 @@ impl<Version: Clone + Ord, Metadata: Clone> CompilationState<Version, Metadata> 
 
     pub fn source_ids(&self) -> impl Iterator<Item = FileId> + '_ {
         self.sources.iter().copied()
+    }
+
+    pub(crate) fn forget(self) {
+        let CompilationParts { engine, files, prim } = self.into_parts();
+        mem::forget(engine);
+        mem::forget(files);
+        drop(prim);
     }
 
     pub fn into_parts(self) -> CompilationParts<Version, Metadata> {

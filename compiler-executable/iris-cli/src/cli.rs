@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use std::io::{self, IsTerminal};
 use std::path::PathBuf;
 
-use iris_build::{BuildConfig, ProjectConfig, RunConfig, TestConfig};
+use iris_build::{BuildConfig, ProjectConfig, RunConfig, Teardown, TestConfig};
 use iris_package::{AddConfig, NewConfig};
 use iris_self_update::{Channel, SelfUpdateConfig};
 use iris_watch_server::protocol::{InstanceSearch, Namespace, Query, RefactorKind};
@@ -180,6 +180,7 @@ impl BuildOptions {
             color: use_color(self.project.color),
             diagnostics: !self.no_diagnostics,
             version: crate::VERSION.to_string(),
+            teardown: Teardown::Forget,
         }
     }
 }

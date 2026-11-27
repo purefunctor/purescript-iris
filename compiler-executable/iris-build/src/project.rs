@@ -9,7 +9,7 @@ use path_absolutize::Absolutize;
 use thiserror::Error;
 use url::Url;
 
-use super::compile::{self, CompileError};
+use super::compile::{self, CompileError, Teardown};
 use super::events::{BuildEvent, BuildEventSink, ProgressEventSink, SilentBuildEvents};
 use super::output::BuildOutput;
 use super::ownership::SourceOwner;
@@ -25,6 +25,7 @@ pub struct BuildConfig {
     pub color: bool,
     pub diagnostics: bool,
     pub version: String,
+    pub teardown: Teardown,
 }
 
 pub struct ProjectConfig {
@@ -189,6 +190,7 @@ fn compile_project(
         packages: project.packages,
         color: config.color,
         diagnostics: config.diagnostics,
+        teardown: config.teardown,
         events: &events,
     })?;
     Ok(compiled)
@@ -275,6 +277,7 @@ fn execution_build_config(project: ProjectConfig, color: bool, version: String) 
         color,
         diagnostics: true,
         version,
+        teardown: Teardown::Release,
     }
 }
 

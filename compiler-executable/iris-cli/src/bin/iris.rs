@@ -3,5 +3,5 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
-    std::process::exit(iris_cli::run());
+    iris_cli::run()
 }
