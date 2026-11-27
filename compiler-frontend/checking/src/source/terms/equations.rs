@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use crate::context::CheckContext;
 use crate::core::{TypeId, signature, toolkit, unification};
-use crate::error::ErrorKind;
+use crate::error::TermErrorKind;
 use crate::source::binder;
 use crate::source::terms::guarded;
 use crate::state::CheckState;
@@ -182,7 +182,7 @@ where
         let equation_arity = equation.binders.len();
 
         if equation_arity > expected_arity {
-            state.insert_error(ErrorKind::TooManyBinders {
+            state.insert_error(TermErrorKind::TooManyBinders {
                 signature: match origin {
                     EquationTypeOrigin::Explicit(signature_id) => Some(signature_id),
                     EquationTypeOrigin::Implicit => None,

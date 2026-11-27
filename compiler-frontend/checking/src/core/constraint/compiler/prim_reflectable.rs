@@ -5,7 +5,7 @@ use crate::context::CheckContext;
 use crate::core::constraint::matching::MatchInstance;
 use crate::core::unification::{CanUnify, can_unify};
 use crate::core::{Type, TypeId, normalise};
-use crate::error::ErrorKind;
+use crate::error::ConstraintErrorKind;
 use crate::state::CheckState;
 
 use super::{CompilerMatch, CompilerResolution, extract_integer, extract_symbol};
@@ -26,8 +26,9 @@ where
         && i32::try_from(context.queries.lookup_integer(integer)).is_err()
     {
         let instance = match_expected(state, context, t, context.prim.int)?;
-        let resolution =
-            CompilerResolution::Failure(ErrorKind::ReflectedIntegerOutOfRange { integer });
+        let resolution = CompilerResolution::Failure(
+            ConstraintErrorKind::ReflectedIntegerOutOfRange { integer }.into(),
+        );
         return Ok(Some(CompilerMatch::from_instance(instance, resolution)));
     }
 

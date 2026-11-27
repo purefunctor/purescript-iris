@@ -20,7 +20,7 @@ use smol_str::SmolStr;
 use crate::context::CheckContext;
 use crate::core::substitute::SubstituteName;
 use crate::core::{Type, TypeId, normalise, toolkit, unification};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{ErrorCrumb, HoleErrorKind};
 use crate::holes::{HoleBinding, TermHole};
 use crate::source::{operator, types};
 use crate::state::CheckState;
@@ -545,7 +545,7 @@ where
 
             let bindings = term_hole_bindings(state, context, expression)?;
             state.checked.holes.terms.insert(expression, TermHole { type_id, bindings });
-            state.insert_error(ErrorKind::TermHole { source_term: expression });
+            state.insert_error(HoleErrorKind::TermHole { source_term: expression });
 
             Ok(allocate_error_expression(state, type_id))
         }

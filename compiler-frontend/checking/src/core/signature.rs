@@ -6,7 +6,7 @@ use lowering::TypeVariableBinding;
 use crate::context::CheckContext;
 use crate::core::substitute::RigidRenaming;
 use crate::core::{ForallBinderId, Type, TypeId, normalise, toolkit, unification};
-use crate::error::ErrorKind;
+use crate::error::TypeErrorKind;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
@@ -144,7 +144,7 @@ where
     let expected = signature.arguments().count() as u32;
 
     if actual > expected {
-        state.insert_error(ErrorKind::TypeSignatureVariableMismatch {
+        state.insert_error(TypeErrorKind::TypeSignatureVariableMismatch {
             id: signature_id,
             expected,
             actual,

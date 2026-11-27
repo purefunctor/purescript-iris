@@ -14,7 +14,7 @@ use crate::context::CheckContext;
 use crate::core::constraint::bundles;
 use crate::core::substitute::SubstituteName;
 use crate::core::{ForallBinder, RowField, Type, TypeId, normalise, toolkit, unification};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{ErrorCrumb, HoleErrorKind};
 use crate::holes::{HoleBinding, TypeHole};
 use crate::source::{operator, synonym};
 use crate::state::{CheckState, SourceTypeVariableKey};
@@ -207,7 +207,7 @@ where
 
             let bindings = type_hole_bindings(state, context, id);
             state.checked.holes.types.insert(id, TypeHole { type_id, kind_id, bindings });
-            state.insert_error(ErrorKind::TypeHole { source_type: id });
+            state.insert_error(HoleErrorKind::TypeHole { source_type: id });
 
             Ok((type_id, kind_id))
         }

@@ -3,7 +3,7 @@ use itertools::Itertools;
 
 use crate::context::CheckContext;
 use crate::core::{TypeId, unification};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{ErrorCrumb, TermErrorKind};
 use crate::source::binder;
 use crate::source::terms::{ElaboratedExpression, application, form_do, form_let};
 use crate::state::CheckState;
@@ -199,7 +199,7 @@ where
                 application::materialize_application(state, function, implicit, result, argument);
             Ok(wrap_ado_lets(state, checked_lets, expression))
         } else {
-            state.insert_error(ErrorKind::EmptyAdoBlock);
+            state.insert_error(TermErrorKind::EmptyAdoBlock);
             let type_id = context.unknown("empty ado block");
             let expression = super::allocate_error_expression(state, type_id);
             Ok(wrap_ado_lets(state, checked_lets, expression))

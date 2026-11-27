@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::context::CheckContext;
 use crate::core::{SkolemScope, Type, TypeId};
-use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
+use crate::error::{CheckingError, ErrorCrumb, ErrorKind, UnificationErrorKind};
 use crate::state::CheckState;
 use crate::tree::{
     BinderId, BinderKind, CaseAlternative, DeclarationAbstraction, Equation, ExpressionId,
@@ -161,7 +161,10 @@ where
     tasks.reverse();
 
     let reported = checked.errors.iter().filter_map(|error| {
-        let ErrorKind::EscapedSkolem { skolem, .. } = error.kind else { return None };
+        let ErrorKind::Unification(UnificationErrorKind::EscapedSkolem { skolem, .. }) = error.kind
+        else {
+            return None;
+        };
         let Type::Rigid(name, _, _) = *context.lookup_type(skolem) else { return None };
         name.scope()
     });
@@ -642,7 +645,8 @@ fn inspect_type<Q>(
                     && checker.reported.insert(scope)
                 {
                     let skolem = type_id;
-                    let kind = ErrorKind::EscapedSkolem { skolem, type_id: annotation };
+                    let kind =
+                        UnificationErrorKind::EscapedSkolem { skolem, type_id: annotation }.into();
                     let crumbs = checker.enclosing.iter().copied().chain([crumb]).dedup().collect();
                     checker.errors.push(CheckingError { kind, crumbs });
                 }

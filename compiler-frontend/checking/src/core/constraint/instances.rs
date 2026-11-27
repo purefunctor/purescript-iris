@@ -18,7 +18,7 @@ use crate::core::{
     ApplicationArgument, CheckedInstance, InstanceHead, Type, TypeId, constraint, normalise,
     toolkit,
 };
-use crate::error::ErrorKind;
+use crate::error::{ConstraintErrorKind, InstanceErrorKind};
 use crate::state::CheckState;
 use crate::{CheckedModule, ExternalQueries};
 
@@ -136,7 +136,7 @@ where
 
     if !derives_from_data && is_orphan_instance(state, context, instance.resolution, head)? {
         if let Some(constraint) = signature_head_constraint(state, context, &instance)? {
-            state.insert_error(ErrorKind::OrphanInstance { constraint });
+            state.insert_error(InstanceErrorKind::OrphanInstance { constraint });
         }
         return Ok(());
     }
@@ -161,7 +161,7 @@ where
         return Ok(());
     };
     let instances = matches.iter().map(|candidate| candidate.instance.signature).collect();
-    state.insert_error(ErrorKind::OverlappingInstances { constraint, instances });
+    state.insert_error(ConstraintErrorKind::OverlappingInstances { constraint, instances });
 
     Ok(())
 }
@@ -533,7 +533,7 @@ where
 
         if HasLabeledRole::contains(state, context, argument_type)? {
             let type_id = argument_type;
-            state.insert_error(ErrorKind::InstanceHeadLabeledRow {
+            state.insert_error(InstanceErrorKind::InstanceHeadLabeledRow {
                 class_file,
                 class_item,
                 position,

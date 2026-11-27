@@ -29,7 +29,9 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use crate::context::CheckContext;
 use crate::core::fd::{Positions, compute_closure, get_functional_dependencies};
 use crate::core::{TypeId, generalise, toolkit, unification};
-use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
+use crate::error::{
+    CapabilityErrorKind, CheckingError, ConstraintErrorKind, ErrorCrumb, ErrorKind, TermErrorKind,
+};
 use crate::evidence::{Evidence, EvidenceId, EvidenceVarId};
 use crate::implication::{GivenConstraint, ImplicationId, Patterns, WantedConstraint};
 use crate::state::{CheckState, UnificationState};
@@ -327,7 +329,7 @@ where
                         solve_with_evidence(state, Evidence::Synthesized(evidence));
                     }
                     compiler::CompilerResolution::Warning { message_id } => {
-                        let kind = ErrorKind::CustomWarning { message_id };
+                        let kind = ConstraintErrorKind::CustomWarning { message_id }.into();
                         let crumbs = Arc::clone(&constraint.evidence.crumbs);
                         state.checked.errors.push(CheckingError { kind, crumbs });
                         solve_with_evidence(state, Evidence::Trivial);
@@ -572,13 +574,13 @@ impl ConstraintInScope {
             == (context.iris_effect.file_id, context.iris_effect.has)
             && let Some([service, services]) = canonical.expect_type_arguments::<2>()
         {
-            return ErrorKind::UnresolvedCapability { service, services };
+            return CapabilityErrorKind::UnresolvedCapability { service, services }.into();
         }
 
         let given = self.key.given.iter().map(|&given| state.canonicals.type_id(context, given));
         let given = given.collect();
         let constraint = self.canonical(state, context);
-        ErrorKind::NoInstanceFound { given, constraint }
+        ConstraintErrorKind::NoInstanceFound { given, constraint }.into()
     }
 
     pub fn is_partial<Q>(&self, state: &CheckState, context: &CheckContext<Q>) -> bool
@@ -646,7 +648,7 @@ where
 
         if !elide_missing_patterns {
             for Patterns { patterns, crumbs } in patterns {
-                let kind = ErrorKind::MissingPatterns { patterns };
+                let kind = TermErrorKind::MissingPatterns { patterns }.into();
                 state.checked.errors.push(CheckingError { kind, crumbs });
             }
         }

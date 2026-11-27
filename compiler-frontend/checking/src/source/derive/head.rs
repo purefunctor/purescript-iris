@@ -7,7 +7,7 @@ use smol_str::SmolStr;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::{Type, TypeId, constraint, generalise, signature, toolkit, unification, zonk};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{DeriveErrorKind, ErrorCrumb};
 use crate::source::types;
 use crate::source::types::application;
 use crate::state::CheckState;
@@ -74,13 +74,13 @@ where
 
     let dispatch = derive_dispatch(context, class_file, class_id);
     let Some(expected) = dispatch.arity() else {
-        state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
+        state.insert_error(DeriveErrorKind::CannotDeriveClass { class_file, class_id });
         return Ok(None);
     };
 
     if arguments.len() != expected {
         if class_arity_matches {
-            state.insert_error(ErrorKind::DeriveInvalidArity {
+            state.insert_error(DeriveErrorKind::DeriveInvalidArity {
                 class_file,
                 class_id,
                 expected,
@@ -98,7 +98,7 @@ where
     };
 
     let Some((data_file, data_id)) = local_type else {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: derived_type });
+        state.insert_error(DeriveErrorKind::CannotDeriveForType { type_id: derived_type });
         return Ok(None);
     };
 
@@ -193,7 +193,7 @@ where
 
     let class_arity_matches = expected_kinds.len() == arguments.len();
     if !class_arity_matches {
-        state.insert_error(ErrorKind::DeriveInvalidArity {
+        state.insert_error(DeriveErrorKind::DeriveInvalidArity {
             class_file,
             class_id,
             expected: expected_kinds.len(),

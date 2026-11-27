@@ -8,7 +8,7 @@ use smol_str::SmolStr;
 
 use crate::context::CheckContext;
 use crate::core::{RowField, RowType, Type, TypeId, normalise, toolkit, unification};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{ErrorCrumb, UnificationErrorKind};
 use crate::source::terms::application;
 use crate::source::{operator, types};
 use crate::state::CheckState;
@@ -707,7 +707,9 @@ where
             unification::unify(state, context, tail, row_type)?;
         } else {
             let labels = extra_fields.into_iter().map(|field| field.label);
-            state.insert_error(ErrorKind::AdditionalProperty { labels: Arc::from_iter(labels) });
+            state.insert_error(UnificationErrorKind::AdditionalProperty {
+                labels: Arc::from_iter(labels),
+            });
         }
     }
 

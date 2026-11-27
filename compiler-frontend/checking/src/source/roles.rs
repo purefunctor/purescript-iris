@@ -9,7 +9,7 @@ use rustc_hash::FxHashMap;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::{ForallBinder, Name, Role, Type, TypeId, normalise, signature};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{ErrorCrumb, TypeErrorKind};
 use crate::state::CheckState;
 
 pub fn infer_data_roles<Q>(
@@ -68,7 +68,7 @@ pub fn check_declared_roles(
             validated[index] = declared_role;
         } else {
             state.with_error_crumb(ErrorCrumb::TypeDeclaration(item_id), |state| {
-                state.insert_error(ErrorKind::InvalidRoleDeclaration {
+                state.insert_error(TypeErrorKind::InvalidRoleDeclaration {
                     index,
                     declared: declared_role,
                     inferred: inferred_role,

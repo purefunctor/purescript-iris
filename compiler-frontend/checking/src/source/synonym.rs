@@ -9,7 +9,7 @@ use itertools::Itertools;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::{CheckedSynonym, Type, TypeId, toolkit};
-use crate::error::ErrorKind;
+use crate::error::TypeErrorKind;
 use crate::source::types::application;
 use crate::state::CheckState;
 
@@ -66,13 +66,13 @@ where
             return Ok((synonym_type, kind));
         }
 
-        state.insert_error(ErrorKind::PartialSynonymApplication { id });
+        state.insert_error(TypeErrorKind::PartialSynonymApplication { id });
         let unknown = context.unknown("partial synonym application");
         return Ok((unknown, unknown));
     }
 
     if is_recursive_synonym(context, file_id, type_id)? {
-        state.insert_error(ErrorKind::RecursiveSynonymExpansion { file_id, type_id });
+        state.insert_error(TypeErrorKind::RecursiveSynonymExpansion { file_id, type_id });
     }
 
     let synonym_type = context.queries.intern_type(Type::Synonym(file_id, type_id));
@@ -103,7 +103,7 @@ where
             );
         }
 
-        state.insert_error(ErrorKind::PartialSynonymApplication { id });
+        state.insert_error(TypeErrorKind::PartialSynonymApplication { id });
         let unknown = context.unknown("partial synonym application");
         return Ok((unknown, unknown));
     }
@@ -169,7 +169,7 @@ where
     debug_assert!(arguments.len() >= arity);
 
     if is_recursive_synonym(context, file_id, type_id)? {
-        state.insert_error(ErrorKind::RecursiveSynonymExpansion { file_id, type_id });
+        state.insert_error(TypeErrorKind::RecursiveSynonymExpansion { file_id, type_id });
     }
 
     let function_type = context.queries.intern_type(Type::Synonym(file_id, type_id));

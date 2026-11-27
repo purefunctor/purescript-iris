@@ -3,7 +3,7 @@ use building_types::QueryResult;
 use crate::context::CheckContext;
 use crate::core::substitute::SubstituteName;
 use crate::core::{Type, TypeId, normalise, unification};
-use crate::error::ErrorKind;
+use crate::error::TypeErrorKind;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
@@ -111,7 +111,7 @@ where
                 // type variables as checking them also binds them.
                 let argument_type = infer_invalid_application_argument(state, context, argument)?;
 
-                state.insert_error(ErrorKind::InvalidTypeApplication {
+                state.insert_error(TypeErrorKind::InvalidTypeApplication {
                     function_type,
                     function_kind,
                     argument_type,
