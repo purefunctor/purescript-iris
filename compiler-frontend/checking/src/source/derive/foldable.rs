@@ -4,7 +4,7 @@ use indexing::TypeItemId;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 
-use super::variance::{FunctionPolicy, ParameterConfig, Variance, VarianceConfig};
+use super::variance::{FunctionPolicy, ParameterConfig, UnaryClass, Variance, VarianceConfig};
 use super::{DeriveStrategy, DerivedData};
 
 pub fn check_derive_foldable<Q>(
@@ -18,7 +18,7 @@ where
 {
     let parameter = ParameterConfig {
         variance: Variance::Covariant,
-        unary_class: Some((class_file, class_id)),
+        unary_class: UnaryClass::Found((class_file, class_id)),
         function_policy: FunctionPolicy::Reject,
     };
     let config = VarianceConfig::Single { parameter, binary_class: context.known_types.bifoldable };
@@ -42,7 +42,7 @@ where
 {
     let parameter = ParameterConfig {
         variance: Variance::Covariant,
-        unary_class: context.known_types.foldable,
+        unary_class: UnaryClass::known(context.known_types.foldable, "Data.Foldable", "Foldable"),
         function_policy: FunctionPolicy::Reject,
     };
     let config = VarianceConfig::Pair {

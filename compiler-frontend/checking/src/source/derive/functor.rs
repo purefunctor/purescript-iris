@@ -4,7 +4,7 @@ use indexing::TypeItemId;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 
-use super::variance::{FunctionPolicy, ParameterConfig, Variance, VarianceConfig};
+use super::variance::{FunctionPolicy, ParameterConfig, UnaryClass, Variance, VarianceConfig};
 use super::{DeriveStrategy, DerivedData};
 
 pub fn check_derive_functor(
@@ -14,7 +14,7 @@ pub fn check_derive_functor(
 ) -> DeriveStrategy {
     let parameter = ParameterConfig {
         variance: Variance::Covariant,
-        unary_class: Some((class_file, class_id)),
+        unary_class: UnaryClass::Found((class_file, class_id)),
         function_policy: FunctionPolicy::Allow,
     };
     let config = VarianceConfig::Single { parameter, binary_class: None };
@@ -38,7 +38,7 @@ where
 {
     let parameter = ParameterConfig {
         variance: Variance::Covariant,
-        unary_class: context.known_types.functor,
+        unary_class: UnaryClass::known(context.known_types.functor, "Data.Functor", "Functor"),
         function_policy: FunctionPolicy::Allow,
     };
     let config = VarianceConfig::Pair {

@@ -8,7 +8,7 @@ use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
 use crate::core::walk::{TypeWalker, WalkAction, walk_type};
 use crate::core::{Type, TypeId, normalise, toolkit};
-use crate::error::ErrorKind;
+use crate::error::CapabilityBundleErrorKind;
 use crate::source::synonym;
 use crate::state::CheckState;
 
@@ -149,7 +149,9 @@ where
         }
 
         if is_variable(context, expanded) {
-            state.insert_error(ErrorKind::InvalidCapabilityBundleMember { member: service });
+            state.insert_error(CapabilityBundleErrorKind::InvalidCapabilityBundleMember {
+                member: service,
+            });
         }
 
         if seen.insert(expanded) {
@@ -213,13 +215,17 @@ impl Validation {
 
         if let Some(members) = bundle_members(context, expanded) {
             if !allow_bundle {
-                state.insert_error(ErrorKind::InvalidCapabilityBundlePosition { bundle: id });
+                state.insert_error(CapabilityBundleErrorKind::InvalidCapabilityBundlePosition {
+                    bundle: id,
+                });
                 self.invalid.insert(id);
                 return Ok(());
             }
             for member in members {
                 if is_variable(context, expand(state, context, member)?) {
-                    state.insert_error(ErrorKind::InvalidCapabilityBundleMember { member });
+                    state.insert_error(CapabilityBundleErrorKind::InvalidCapabilityBundleMember {
+                        member,
+                    });
                 } else {
                     self.validate(state, context, member, true)?;
                 }
@@ -228,7 +234,9 @@ impl Validation {
         }
 
         if constructor == context.iris_effect.bundle {
-            state.insert_error(ErrorKind::InvalidCapabilityBundlePosition { bundle: id });
+            state.insert_error(CapabilityBundleErrorKind::InvalidCapabilityBundlePosition {
+                bundle: id,
+            });
             self.invalid.insert(id);
             return Ok(());
         }

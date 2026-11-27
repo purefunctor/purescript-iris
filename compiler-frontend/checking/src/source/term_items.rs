@@ -15,7 +15,9 @@ use crate::core::{
     ApplicationArgument, Type, TypeId, constraint, exhaustive, generalise, normalise, signature,
     toolkit, unification, zonk,
 };
-use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
+use crate::error::{
+    CheckingError, ConstraintErrorKind, ErrorCrumb, InstanceErrorKind, UnificationErrorKind,
+};
 use crate::evidence::{Evidence, SuperclassId};
 use crate::source::terms::equations;
 use crate::source::{derive, types};
@@ -129,7 +131,7 @@ where
     };
 
     if expected_kinds.len() != arguments.len() {
-        state.insert_error(ErrorKind::InstanceHeadMismatch {
+        state.insert_error(InstanceErrorKind::InstanceHeadMismatch {
             class_file,
             class_item: class_id,
             expected: expected_kinds.len(),
@@ -371,7 +373,7 @@ where
                     });
                     let missing_members = missing_members.collect::<Arc<[_]>>();
                     if !missing_members.is_empty() && !suppress_missing_member_warning {
-                        state.insert_error(ErrorKind::MissingInstanceMembers {
+                        state.insert_error(InstanceErrorKind::MissingInstanceMembers {
                             members: missing_members,
                         });
                     }
@@ -450,7 +452,10 @@ where
             if !unified {
                 let expected = class_member_type;
                 let actual = signature_member_type;
-                state.insert_error(ErrorKind::InstanceMemberTypeMismatch { expected, actual });
+                state.insert_error(InstanceErrorKind::InstanceMemberTypeMismatch {
+                    expected,
+                    actual,
+                });
             }
         }
 
@@ -937,7 +942,8 @@ where
             // Keep constraint evidence consistent with the candidate type used for error recovery.
             // The diagnostic prevents the invalid recursive dictionary abstraction from proceeding.
             state.with_error_crumb(ErrorCrumb::TermDeclaration(item_id), |state| {
-                let error = ErrorKind::CannotGeneraliseRecursiveFunction { type_id: marker };
+                let error =
+                    UnificationErrorKind::CannotGeneraliseRecursiveFunction { type_id: marker };
                 state.insert_error(error);
             });
         }
@@ -947,7 +953,7 @@ where
         for error in errors.ambiguous {
             let constraint = state.canonicals.type_id(context, error);
             state.with_error_crumb(ErrorCrumb::TermDeclaration(item_id), |state| {
-                state.insert_error(ErrorKind::AmbiguousConstraint { constraint });
+                state.insert_error(ConstraintErrorKind::AmbiguousConstraint { constraint });
             });
         }
         for error in errors.unsatisfied {

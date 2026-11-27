@@ -5,7 +5,7 @@ use indexing::TypeItemId;
 use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::{Type, TypeId, normalise, toolkit, unification};
-use crate::error::ErrorKind;
+use crate::error::DeriveErrorKind;
 use crate::source::types;
 use crate::source::types::application::{self, Argument, Options};
 use crate::state::CheckState;
@@ -29,26 +29,26 @@ where
     let Some((newtype_file, newtype_id)) =
         toolkit::extract_type_constructor(state, context, *newtype_type)?
     else {
-        state.insert_error(ErrorKind::CannotDeriveForType { type_id: *newtype_type });
+        state.insert_error(DeriveErrorKind::CannotDeriveForType { type_id: *newtype_type });
         return Ok(None);
     };
 
     if newtype_file != context.id {
-        state.insert_error(ErrorKind::NonLocalNewtype { type_id: *newtype_type });
+        state.insert_error(DeriveErrorKind::NonLocalNewtype { type_id: *newtype_type });
         return Ok(None);
     }
 
     let Some(toolkit::NewtypeInner { inner, rigids }) =
         toolkit::get_newtype_inner(state, context, newtype_file, newtype_id, *newtype_type)?
     else {
-        state.insert_error(ErrorKind::ExpectedNewtype { type_id: *newtype_type });
+        state.insert_error(DeriveErrorKind::ExpectedNewtype { type_id: *newtype_type });
         return Ok(None);
     };
 
     let inner = if let Some(inner) = try_peel_trailing_rigids(state, context, inner, &rigids)? {
         inner
     } else {
-        state.insert_error(ErrorKind::InvalidNewtypeDeriveSkolemArguments);
+        state.insert_error(DeriveErrorKind::InvalidNewtypeDeriveSkolemArguments);
         return Ok(None);
     };
 
@@ -88,7 +88,7 @@ where
     let Some(newtype_inner) =
         toolkit::get_newtype_inner(state, context, data_file, data_id, derived_type)?
     else {
-        state.insert_error(ErrorKind::ExpectedNewtype { type_id: derived_type });
+        state.insert_error(DeriveErrorKind::ExpectedNewtype { type_id: derived_type });
         return Ok(None);
     };
 

@@ -3,7 +3,7 @@ use building_types::QueryResult;
 use crate::context::CheckContext;
 use crate::core::substitute::{NameToType, SubstituteName};
 use crate::core::{ForallBinder, Type, TypeId, normalise, unification};
-use crate::error::ErrorKind;
+use crate::error::TypeErrorKind;
 use crate::evidence::EvidenceVarId;
 use crate::source::types;
 use crate::state::CheckState;
@@ -438,7 +438,7 @@ where
                 function = super::allocate_expression(state, result, kind);
             }
             _ => {
-                state.insert_error(ErrorKind::NoVisibleTypeVariable { function_type });
+                state.insert_error(TypeErrorKind::NoVisibleTypeVariable { function_type });
                 let type_id = context.unknown("invalid visible type application");
                 break Ok(ApplicationStep::Error(type_id));
             }

@@ -1,0 +1,15 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Box :: forall (@a :: ?[invalid kind]). a -> Main.Box (a :: ?[invalid kind])
+
+Types
+Box :: Prim.Type
+Pair :: Prim.Type -> Prim.Type
+
+Synonyms
+type Pair a b = { first :: a, second :: b }
+
+Roles
+Box = [Representational]

@@ -7,7 +7,10 @@ use smol_str::SmolStr;
 use crate::context::CheckContext;
 use crate::core::fold::{FoldAction, TypeFold, fold_type};
 use crate::core::{Type, TypeFlags, TypeId};
-use crate::error::{CheckingError, ErrorKind};
+use crate::error::{
+    CapabilityBundleErrorKind, CapabilityErrorKind, CheckingError, ConstraintErrorKind,
+    DeriveErrorKind, ErrorKind, InstanceErrorKind, TypeErrorKind, UnificationErrorKind,
+};
 use crate::holes::{HoleBinding, TermHole, TypeHole};
 use crate::state::CheckState;
 use crate::tree::{
@@ -313,128 +316,213 @@ where
     Q: ExternalQueries,
 {
     Ok(match kind {
-        ErrorKind::AmbiguousConstraint { constraint } => {
+        ErrorKind::Constraint(kind) => zonk_constraint_error(state, context, kind)?.into(),
+        ErrorKind::Capability(kind) => zonk_capability_error(state, context, kind)?.into(),
+        ErrorKind::CapabilityBundle(kind) => {
+            zonk_capability_bundle_error(state, context, kind)?.into()
+        }
+        ErrorKind::Instance(kind) => zonk_instance_error(state, context, kind)?.into(),
+        ErrorKind::Derive(kind) => zonk_derive_error(state, context, kind)?.into(),
+        ErrorKind::Unification(kind) => zonk_unification_error(state, context, kind)?.into(),
+        ErrorKind::Type(kind) => zonk_type_error(state, context, kind)?.into(),
+        kind @ (ErrorKind::Term(_) | ErrorKind::Hole(_)) => kind,
+    })
+}
+
+fn zonk_constraint_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: ConstraintErrorKind,
+) -> QueryResult<ConstraintErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        ConstraintErrorKind::AmbiguousConstraint { constraint } => {
             let constraint = zonk(state, context, constraint)?;
-            ErrorKind::AmbiguousConstraint { constraint }
+            ConstraintErrorKind::AmbiguousConstraint { constraint }
         }
-        ErrorKind::AmbiguousCapability { service, services, roles } => {
+        ConstraintErrorKind::NoInstanceFound { given, constraint } => {
+            let constraint = zonk(state, context, constraint)?;
+            let given = zonk_types(state, context, &given)?.unwrap_or(given);
+            ConstraintErrorKind::NoInstanceFound { given, constraint }
+        }
+        ConstraintErrorKind::OverlappingInstances { constraint, instances } => {
+            let constraint = zonk(state, context, constraint)?;
+            let instances = zonk_types(state, context, &instances)?.unwrap_or(instances);
+            ConstraintErrorKind::OverlappingInstances { constraint, instances }
+        }
+        kind @ (ConstraintErrorKind::CoercibleConstructorNotInScope { .. }
+        | ConstraintErrorKind::CustomWarning { .. }
+        | ConstraintErrorKind::CustomFailure { .. }
+        | ConstraintErrorKind::ReflectedIntegerOutOfRange { .. }) => kind,
+    })
+}
+
+fn zonk_capability_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: CapabilityErrorKind,
+) -> QueryResult<CapabilityErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        CapabilityErrorKind::AmbiguousCapability { service, services, roles } => {
             let service = zonk(state, context, service)?;
             let services = zonk(state, context, services)?;
-            ErrorKind::AmbiguousCapability { service, services, roles }
+            CapabilityErrorKind::AmbiguousCapability { service, services, roles }
         }
-        ErrorKind::CapabilityNotDeclared { service, services } => {
+        CapabilityErrorKind::CapabilityNotDeclared { service, services } => {
             let service = zonk(state, context, service)?;
             let services = zonk(state, context, services)?;
-            ErrorKind::CapabilityNotDeclared { service, services }
+            CapabilityErrorKind::CapabilityNotDeclared { service, services }
         }
-        ErrorKind::UnresolvedCapability { service, services } => {
+        CapabilityErrorKind::UnresolvedCapability { service, services } => {
             let service = zonk(state, context, service)?;
             let services = zonk(state, context, services)?;
-            ErrorKind::UnresolvedCapability { service, services }
+            CapabilityErrorKind::UnresolvedCapability { service, services }
         }
-        ErrorKind::InvalidCapabilityBundleMember { member } => {
+    })
+}
+
+fn zonk_capability_bundle_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: CapabilityBundleErrorKind,
+) -> QueryResult<CapabilityBundleErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        CapabilityBundleErrorKind::InvalidCapabilityBundleMember { member } => {
             let member = zonk(state, context, member)?;
-            ErrorKind::InvalidCapabilityBundleMember { member }
+            CapabilityBundleErrorKind::InvalidCapabilityBundleMember { member }
         }
-        ErrorKind::InvalidCapabilityBundlePosition { bundle } => {
+        CapabilityBundleErrorKind::InvalidCapabilityBundlePosition { bundle } => {
             let bundle = zonk(state, context, bundle)?;
-            ErrorKind::InvalidCapabilityBundlePosition { bundle }
+            CapabilityBundleErrorKind::InvalidCapabilityBundlePosition { bundle }
         }
-        ErrorKind::CannotDeriveForType { type_id } => {
+    })
+}
+
+fn zonk_instance_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: InstanceErrorKind,
+) -> QueryResult<InstanceErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        InstanceErrorKind::InstanceHeadLabeledRow { class_file, class_item, position, type_id } => {
             let type_id = zonk(state, context, type_id)?;
-            ErrorKind::CannotDeriveForType { type_id }
+            InstanceErrorKind::InstanceHeadLabeledRow { class_file, class_item, position, type_id }
         }
-        ErrorKind::CannotGeneraliseRecursiveFunction { type_id } => {
+        InstanceErrorKind::InstanceMemberTypeMismatch { expected, actual } => {
+            let expected = zonk(state, context, expected)?;
+            let actual = zonk(state, context, actual)?;
+            InstanceErrorKind::InstanceMemberTypeMismatch { expected, actual }
+        }
+        InstanceErrorKind::OrphanInstance { constraint } => {
+            let constraint = zonk(state, context, constraint)?;
+            InstanceErrorKind::OrphanInstance { constraint }
+        }
+        kind @ (InstanceErrorKind::InstanceHeadMismatch { .. }
+        | InstanceErrorKind::MissingInstanceMembers { .. }) => kind,
+    })
+}
+
+fn zonk_derive_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: DeriveErrorKind,
+) -> QueryResult<DeriveErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        DeriveErrorKind::CannotDeriveForType { type_id } => {
             let type_id = zonk(state, context, type_id)?;
-            ErrorKind::CannotGeneraliseRecursiveFunction { type_id }
+            DeriveErrorKind::CannotDeriveForType { type_id }
         }
-        ErrorKind::ContravariantOccurrence { type_id } => {
+        DeriveErrorKind::ContravariantOccurrence { type_id } => {
             let type_id = zonk(state, context, type_id)?;
-            ErrorKind::ContravariantOccurrence { type_id }
+            DeriveErrorKind::ContravariantOccurrence { type_id }
         }
-        ErrorKind::CovariantOccurrence { type_id } => {
+        DeriveErrorKind::CovariantOccurrence { type_id } => {
             let type_id = zonk(state, context, type_id)?;
-            ErrorKind::CovariantOccurrence { type_id }
+            DeriveErrorKind::CovariantOccurrence { type_id }
         }
-        ErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) } => {
+        DeriveErrorKind::ExpectedNewtype { type_id } => {
+            let type_id = zonk(state, context, type_id)?;
+            DeriveErrorKind::ExpectedNewtype { type_id }
+        }
+        DeriveErrorKind::NonLocalNewtype { type_id } => {
+            let type_id = zonk(state, context, type_id)?;
+            DeriveErrorKind::NonLocalNewtype { type_id }
+        }
+        kind @ (DeriveErrorKind::CannotDeriveClass { .. }
+        | DeriveErrorKind::DeriveInvalidArity { .. }
+        | DeriveErrorKind::DeriveMissingClass { .. }
+        | DeriveErrorKind::InvalidNewtypeDeriveSkolemArguments) => kind,
+    })
+}
+
+fn zonk_unification_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: UnificationErrorKind,
+) -> QueryResult<UnificationErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        UnificationErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) } => {
             let t1 = zonk(state, context, t1)?;
             let t2 = zonk(state, context, t2)?;
             let outer_t1 = zonk(state, context, outer_t1)?;
             let outer_t2 = zonk(state, context, outer_t2)?;
-            ErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) }
+            UnificationErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) }
         }
-        ErrorKind::EscapedSkolem { skolem, type_id } => {
+        UnificationErrorKind::EscapedSkolem { skolem, type_id } => {
             let skolem = zonk(state, context, skolem)?;
             let type_id = zonk(state, context, type_id)?;
-            ErrorKind::EscapedSkolem { skolem, type_id }
+            UnificationErrorKind::EscapedSkolem { skolem, type_id }
         }
-        ErrorKind::InstanceHeadLabeledRow { class_file, class_item, position, type_id } => {
+        UnificationErrorKind::CannotGeneraliseRecursiveFunction { type_id } => {
             let type_id = zonk(state, context, type_id)?;
-            ErrorKind::InstanceHeadLabeledRow { class_file, class_item, position, type_id }
+            UnificationErrorKind::CannotGeneraliseRecursiveFunction { type_id }
         }
-        ErrorKind::InstanceMemberTypeMismatch { expected, actual } => {
-            let expected = zonk(state, context, expected)?;
-            let actual = zonk(state, context, actual)?;
-            ErrorKind::InstanceMemberTypeMismatch { expected, actual }
-        }
-        ErrorKind::InvalidTypeApplication { function_type, function_kind, argument_type } => {
+        kind @ (UnificationErrorKind::PropertyIsMissing { .. }
+        | UnificationErrorKind::AdditionalProperty { .. }
+        | UnificationErrorKind::UnreportedUnknownType { .. }) => kind,
+    })
+}
+
+fn zonk_type_error<Q>(
+    state: &mut CheckState,
+    context: &CheckContext<Q>,
+    kind: TypeErrorKind,
+) -> QueryResult<TypeErrorKind>
+where
+    Q: ExternalQueries,
+{
+    Ok(match kind {
+        TypeErrorKind::InvalidTypeApplication { function_type, function_kind, argument_type } => {
             let function_type = zonk(state, context, function_type)?;
             let function_kind = zonk(state, context, function_kind)?;
             let argument_type = zonk(state, context, argument_type)?;
-            ErrorKind::InvalidTypeApplication { function_type, function_kind, argument_type }
+            TypeErrorKind::InvalidTypeApplication { function_type, function_kind, argument_type }
         }
-        ErrorKind::ExpectedNewtype { type_id } => {
-            let type_id = zonk(state, context, type_id)?;
-            ErrorKind::ExpectedNewtype { type_id }
-        }
-        ErrorKind::NonLocalNewtype { type_id } => {
-            let type_id = zonk(state, context, type_id)?;
-            ErrorKind::NonLocalNewtype { type_id }
-        }
-        ErrorKind::NoInstanceFound { given, constraint } => {
-            let constraint = zonk(state, context, constraint)?;
-            let given = zonk_types(state, context, &given)?.unwrap_or(given);
-            ErrorKind::NoInstanceFound { given, constraint }
-        }
-        ErrorKind::OrphanInstance { constraint } => {
-            let constraint = zonk(state, context, constraint)?;
-            ErrorKind::OrphanInstance { constraint }
-        }
-        ErrorKind::OverlappingInstances { constraint, instances } => {
-            let constraint = zonk(state, context, constraint)?;
-            let instances = zonk_types(state, context, &instances)?.unwrap_or(instances);
-            ErrorKind::OverlappingInstances { constraint, instances }
-        }
-        ErrorKind::NoVisibleTypeVariable { function_type } => {
+        TypeErrorKind::NoVisibleTypeVariable { function_type } => {
             let function_type = zonk(state, context, function_type)?;
-            ErrorKind::NoVisibleTypeVariable { function_type }
+            TypeErrorKind::NoVisibleTypeVariable { function_type }
         }
-        kind @ (ErrorKind::CannotDeriveClass { .. }
-        | ErrorKind::DeriveInvalidArity { .. }
-        | ErrorKind::DeriveMissingFunctor
-        | ErrorKind::EmptyAdoBlock
-        | ErrorKind::EmptyDoBlock
-        | ErrorKind::TermHole { .. }
-        | ErrorKind::TypeHole { .. }
-        | ErrorKind::InvalidFinalBind
-        | ErrorKind::InvalidFinalLet
-        | ErrorKind::InstanceHeadMismatch { .. }
-        | ErrorKind::MissingInstanceMembers { .. }
-        | ErrorKind::InvalidNewtypeDeriveSkolemArguments
-        | ErrorKind::PartialSynonymApplication { .. }
-        | ErrorKind::RecursiveSynonymExpansion { .. }
-        | ErrorKind::TooManyBinders { .. }
-        | ErrorKind::TypeSignatureVariableMismatch { .. }
-        | ErrorKind::InvalidRoleDeclaration { .. }
-        | ErrorKind::CoercibleConstructorNotInScope { .. }
-        | ErrorKind::CustomWarning { .. }
-        | ErrorKind::RedundantPatterns { .. }
-        | ErrorKind::MissingPatterns { .. }
-        | ErrorKind::CustomFailure { .. }
-        | ErrorKind::ReflectedIntegerOutOfRange { .. }
-        | ErrorKind::PropertyIsMissing { .. }
-        | ErrorKind::AdditionalProperty { .. }
-        | ErrorKind::UnreportedUnknownType { .. }) => kind,
+        kind @ (TypeErrorKind::PartialSynonymApplication { .. }
+        | TypeErrorKind::RecursiveSynonymExpansion { .. }
+        | TypeErrorKind::TypeSignatureVariableMismatch { .. }
+        | TypeErrorKind::InvalidRoleDeclaration { .. }) => kind,
     })
 }
 

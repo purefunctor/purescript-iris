@@ -7,7 +7,7 @@ use smol_str::SmolStr;
 use crate::context::{CheckContext, KnownGeneric};
 use crate::core::substitute::SubstituteName;
 use crate::core::{Type, TypeId, normalise, toolkit, unification};
-use crate::error::ErrorKind;
+use crate::error::DeriveErrorKind;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
 
@@ -27,7 +27,7 @@ where
     let DerivedData { derived_type, data_file, data_id } = derived;
 
     let Some(ref known_generic) = context.known_generic else {
-        state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
+        state.insert_error(DeriveErrorKind::CannotDeriveClass { class_file, class_id });
         return Ok(None);
     };
 

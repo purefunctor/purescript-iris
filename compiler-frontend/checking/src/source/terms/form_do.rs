@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use crate::context::CheckContext;
 use crate::core::{TypeId, toolkit, unification};
-use crate::error::{ErrorCrumb, ErrorKind};
+use crate::error::{ErrorCrumb, TermErrorKind};
 use crate::source::binder;
 use crate::source::terms::{ElaboratedExpression, application, form_let};
 use crate::state::CheckState;
@@ -283,7 +283,7 @@ where
 
     let final_expression = match final_step {
         DoBlockFinalStep::Empty => {
-            state.insert_error(ErrorKind::EmptyDoBlock);
+            state.insert_error(TermErrorKind::EmptyDoBlock);
             let type_id = context.unknown("empty do block");
             return Ok(super::allocate_error_expression(state, type_id));
         }
@@ -292,10 +292,10 @@ where
         // warning to nudge the user that `bind` is prohibited.
         DoBlockFinalStep::InvalidBind { statement, expression } => {
             state.with_error_crumb(ErrorCrumb::InferringDoBind(statement), |state| {
-                state.insert_error(ErrorKind::InvalidFinalBind);
+                state.insert_error(TermErrorKind::InvalidFinalBind);
             });
             let Some(expression) = expression else {
-                state.insert_error(ErrorKind::EmptyDoBlock);
+                state.insert_error(TermErrorKind::EmptyDoBlock);
                 let type_id = context.unknown("empty do block");
                 return Ok(super::allocate_error_expression(state, type_id));
             };
@@ -303,7 +303,7 @@ where
         }
         DoBlockFinalStep::Discard { expression } => {
             let Some(expression) = expression else {
-                state.insert_error(ErrorKind::EmptyDoBlock);
+                state.insert_error(TermErrorKind::EmptyDoBlock);
                 let type_id = context.unknown("empty do block");
                 return Ok(super::allocate_error_expression(state, type_id));
             };
@@ -311,7 +311,7 @@ where
         }
         DoBlockFinalStep::InvalidLet { statement } => {
             state.with_error_crumb(ErrorCrumb::CheckingDoLet(statement), |state| {
-                state.insert_error(ErrorKind::InvalidFinalLet);
+                state.insert_error(TermErrorKind::InvalidFinalLet);
             });
             None
         }

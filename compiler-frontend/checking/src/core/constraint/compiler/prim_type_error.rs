@@ -7,7 +7,7 @@ use crate::context::CheckContext;
 use crate::core::constraint::matching;
 use crate::core::pretty::Pretty;
 use crate::core::{Type, TypeId, normalise, toolkit, zonk};
-use crate::error::ErrorKind;
+use crate::error::ConstraintErrorKind;
 use crate::state::CheckState;
 
 use super::{CompilerMatch, CompilerResolution};
@@ -209,6 +209,7 @@ where
     };
 
     let message_id = context.queries.intern_smol_str(message);
-    let resolution = CompilerResolution::Failure(ErrorKind::CustomFailure { message_id });
+    let resolution =
+        CompilerResolution::Failure(ConstraintErrorKind::CustomFailure { message_id }.into());
     Ok(Some(CompilerMatch::resolved(resolution)))
 }

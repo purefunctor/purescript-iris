@@ -7,7 +7,7 @@ use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::substitute::SubstituteName;
 use crate::core::{ApplicationArgument, Name, Type, TypeId, constraint, normalise, toolkit};
-use crate::error::ErrorKind;
+use crate::error::DeriveErrorKind;
 use crate::state::CheckState;
 
 use super::tools;
@@ -30,6 +30,25 @@ impl Variance {
 type ClassReference = (FileId, TypeItemId);
 
 #[derive(Clone, Copy)]
+pub(in crate::source) enum UnaryClass {
+    Found(ClassReference),
+    Missing { module_name: &'static str, class_name: &'static str },
+}
+
+impl UnaryClass {
+    pub fn known(
+        class: Option<ClassReference>,
+        module_name: &'static str,
+        class_name: &'static str,
+    ) -> UnaryClass {
+        match class {
+            Some(class) => UnaryClass::Found(class),
+            None => UnaryClass::Missing { module_name, class_name },
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub(in crate::source) enum FunctionPolicy {
     Allow,
     Reject,
@@ -38,7 +57,7 @@ pub(in crate::source) enum FunctionPolicy {
 #[derive(Clone, Copy)]
 pub(in crate::source) struct ParameterConfig {
     pub variance: Variance,
-    pub unary_class: Option<ClassReference>,
+    pub unary_class: UnaryClass,
     pub function_policy: FunctionPolicy,
 }
 
@@ -98,7 +117,7 @@ struct DerivedParameter {
     name: Name,
     traversal_parameter: TraversalParameter,
     expected: Variance,
-    unary_class: Option<ClassReference>,
+    unary_class: UnaryClass,
     function_policy: FunctionPolicy,
 }
 
@@ -247,7 +266,7 @@ where
             binary_class,
         },
         _ => {
-            state.insert_error(ErrorKind::CannotDeriveForType { type_id: derived_type });
+            state.insert_error(DeriveErrorKind::CannotDeriveForType { type_id: derived_type });
             DerivedRigids::Invalid
         }
     };
@@ -315,7 +334,7 @@ where
             }
             *self.valid &= allowed;
             if !allowed {
-                self.state.insert_error(ErrorKind::CannotDeriveForType { type_id });
+                self.state.insert_error(DeriveErrorKind::CannotDeriveForType { type_id });
                 return Ok(None);
             }
 
@@ -430,8 +449,9 @@ where
         let mut head_is_fixed = true;
         for parameter in self.rigids.iter() {
             if toolkit::contains_rigid(self.state, self.context, binary_head, parameter.name)? {
-                self.state
-                    .insert_error(ErrorKind::CannotDeriveForType { type_id: application.type_id });
+                self.state.insert_error(DeriveErrorKind::CannotDeriveForType {
+                    type_id: application.type_id,
+                });
                 *self.valid = false;
                 head_is_fixed = false;
                 break;
@@ -544,7 +564,7 @@ where
                 continue;
             }
 
-            let Some(class) = parameter.unary_class else {
+            let UnaryClass::Found(class) = parameter.unary_class else {
                 return Ok(false);
             };
             if !self.has_instance_head(class, function)? {
@@ -559,11 +579,15 @@ where
     }
 
     fn emit_unary_constraint(&mut self, parameter: &DerivedParameter, function: TypeId) {
-        if let Some(class) = parameter.unary_class {
-            tools::emit_constraint(self.context, self.state, class, function);
-        } else {
-            self.state.insert_error(ErrorKind::DeriveMissingFunctor);
-            *self.valid = false;
+        match parameter.unary_class {
+            UnaryClass::Found(class) => {
+                tools::emit_constraint(self.context, self.state, class, function);
+            }
+            UnaryClass::Missing { module_name, class_name } => {
+                self.state
+                    .insert_error(DeriveErrorKind::DeriveMissingClass { module_name, class_name });
+                *self.valid = false;
+            }
         }
     }
 }
@@ -772,7 +796,7 @@ where
     }
 
     fn reject(&mut self, type_id: TypeId) {
-        self.state.insert_error(ErrorKind::CannotDeriveForType { type_id });
+        self.state.insert_error(DeriveErrorKind::CannotDeriveForType { type_id });
         *self.valid = false;
     }
 }
@@ -876,9 +900,9 @@ fn emit_variance_error(
     }
 
     match actual {
-        Variance::Covariant => state.insert_error(ErrorKind::CovariantOccurrence { type_id }),
+        Variance::Covariant => state.insert_error(DeriveErrorKind::CovariantOccurrence { type_id }),
         Variance::Contravariant => {
-            state.insert_error(ErrorKind::ContravariantOccurrence { type_id })
+            state.insert_error(DeriveErrorKind::ContravariantOccurrence { type_id })
         }
     }
     false

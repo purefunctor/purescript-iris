@@ -3,7 +3,7 @@ use indexing::TypeItemId;
 
 use crate::ExternalQueries;
 use crate::context::CheckContext;
-use crate::error::ErrorKind;
+use crate::error::DeriveErrorKind;
 use crate::state::CheckState;
 
 use super::{DeriveStrategy, DerivedData};
@@ -19,7 +19,7 @@ where
     Q: ExternalQueries,
 {
     let Some(eq) = context.known_types.eq else {
-        state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
+        state.insert_error(DeriveErrorKind::CannotDeriveClass { class_file, class_id });
         return None;
     };
 
@@ -37,7 +37,7 @@ where
     Q: ExternalQueries,
 {
     let Some(ord) = context.known_types.ord else {
-        state.insert_error(ErrorKind::CannotDeriveClass { class_file, class_id });
+        state.insert_error(DeriveErrorKind::CannotDeriveClass { class_file, class_id });
         return None;
     };
 

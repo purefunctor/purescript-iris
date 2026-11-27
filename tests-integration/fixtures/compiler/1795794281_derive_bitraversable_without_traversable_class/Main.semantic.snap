@@ -1,0 +1,6 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+data Wrap :: Prim.Type -> Prim.Type -> Prim.Type
+data Wrap @a @b
+  | Wrap :: Prim.Array a -> b -> Main.Wrap a b

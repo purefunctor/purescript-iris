@@ -11,7 +11,7 @@ use crate::core::constraint::matching::MatchInstance;
 use crate::core::substitute::SubstituteName;
 use crate::core::unification::{CanUnify, can_unify, unify};
 use crate::core::{Role, Type, TypeId, normalise, toolkit};
-use crate::error::ErrorKind;
+use crate::error::ConstraintErrorKind;
 use crate::source::types;
 use crate::state::CheckState;
 use crate::{ExternalQueries, safe_loop};
@@ -76,8 +76,8 @@ where
     }
 
     if let NewtypeCoercionResult::ConstructorNotInScope { file_id, item_id } = newtype_result {
-        let error = ErrorKind::CoercibleConstructorNotInScope { file_id, item_id };
-        state.canonical_errors.entry(wanted).or_default().push(error);
+        let error = ConstraintErrorKind::CoercibleConstructorNotInScope { file_id, item_id };
+        state.canonical_errors.entry(wanted).or_default().push(error.into());
     }
 
     Ok(Some(MatchInstance::Apart))

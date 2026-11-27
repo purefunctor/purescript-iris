@@ -1,0 +1,14 @@
+---
+source: tests-integration/src/fixtures.rs
+---
+Terms
+Wrap :: forall @a @b. Prim.Array a -> b -> Main.Wrap a b
+
+Types
+Wrap :: Prim.Type -> Prim.Type -> Prim.Type
+
+Derived
+derive Data.Bitraversable.Bitraversable Main.Wrap
+
+Roles
+Wrap = [Representational, Representational]

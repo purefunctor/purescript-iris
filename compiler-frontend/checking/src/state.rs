@@ -15,7 +15,7 @@ use crate::core::exhaustive::{
 };
 use crate::core::substitute::RigidRenaming;
 use crate::core::{Depth, Name, SmolStrId, Type, TypeId, constraint};
-use crate::error::{CheckingError, ErrorCrumb, ErrorKind};
+use crate::error::{CheckingError, ErrorCrumb, ErrorKind, TermErrorKind, UnificationErrorKind};
 use crate::evidence::{EvidenceBinderId, EvidenceVarId};
 use crate::implication::{GivenConstraint, Implications, Patterns, WantedConstraint};
 use crate::{CheckedModule, ExternalQueries, tree};
@@ -297,7 +297,8 @@ impl CheckState {
         (rigid, name)
     }
 
-    pub fn insert_error(&mut self, kind: ErrorKind) {
+    pub fn insert_error(&mut self, kind: impl Into<ErrorKind>) {
+        let kind = kind.into();
         let crumbs = self.crumbs.iter().copied().collect();
         self.checked.errors.push(CheckingError { kind, crumbs });
     }
@@ -306,7 +307,7 @@ impl CheckState {
     pub(crate) fn absorb_unknown(&mut self, type_id: TypeId) {
         if self.absorbed_unknown.is_none() {
             let crumbs = self.crumbs.iter().copied().collect();
-            let kind = ErrorKind::UnreportedUnknownType { type_id };
+            let kind = UnificationErrorKind::UnreportedUnknownType { type_id }.into();
             self.absorbed_unknown = Some(CheckingError { kind, crumbs });
         }
     }
@@ -472,7 +473,7 @@ impl CheckState {
 
         if !exhaustiveness.redundant.is_empty() {
             let patterns = Arc::from(exhaustiveness.redundant);
-            self.insert_error(ErrorKind::RedundantPatterns { patterns });
+            self.insert_error(TermErrorKind::RedundantPatterns { patterns });
         }
     }
 

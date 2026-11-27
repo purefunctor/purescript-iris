@@ -5,7 +5,7 @@ use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::constraint::matching::{self, MatchType};
 use crate::core::{Type, TypeId, normalise};
-use crate::error::ErrorKind;
+use crate::error::CapabilityErrorKind;
 use crate::state::CheckState;
 
 use super::{CompilerMatch, CompilerResolution, extract_row};
@@ -84,12 +84,14 @@ where
 
     let resolution = match selection {
         ServiceSelection::Unique(_) => CompilerResolution::Synthesized,
-        ServiceSelection::Missing => {
-            CompilerResolution::Failure(ErrorKind::CapabilityNotDeclared { service, services })
-        }
+        ServiceSelection::Missing => CompilerResolution::Failure(
+            CapabilityErrorKind::CapabilityNotDeclared { service, services }.into(),
+        ),
         ServiceSelection::Ambiguous(roles) => {
             let roles = roles.into();
-            CompilerResolution::Failure(ErrorKind::AmbiguousCapability { service, services, roles })
+            CompilerResolution::Failure(
+                CapabilityErrorKind::AmbiguousCapability { service, services, roles }.into(),
+            )
         }
         ServiceSelection::Stuck { stuck, skolem } => {
             return Ok(Some(CompilerMatch::Stuck { stuck, skolem }));

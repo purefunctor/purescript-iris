@@ -1,0 +1,4 @@
+{
+  "Data.Bifoldable": "Declare Bifoldable without importing the omitted Foldable class.",
+  "Data.Foldable": "Omit the Foldable class to test deriving Bifoldable for a field that needs Foldable."
+}

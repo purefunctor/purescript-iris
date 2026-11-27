@@ -10,7 +10,7 @@ use crate::ExternalQueries;
 use crate::context::CheckContext;
 use crate::core::substitute::SubstituteName;
 use crate::core::{Depth, Name, RowField, RowType, RowTypeId, Type, TypeId, normalise, toolkit};
-use crate::error::ErrorKind;
+use crate::error::UnificationErrorKind;
 use crate::evidence::EvidenceVarId;
 use crate::source::types;
 use crate::state::{CheckState, UnificationEntry};
@@ -407,15 +407,19 @@ fn report(state: &mut CheckState, unified: Unified, t1: TypeId, t2: TypeId) -> b
         Unified::Success => true,
         Unified::Mismatch { t1: mismatch_t1, t2: mismatch_t2 } => {
             let outer = (t1, t2);
-            state.insert_error(ErrorKind::CannotUnify { t1: mismatch_t1, t2: mismatch_t2, outer });
+            state.insert_error(UnificationErrorKind::CannotUnify {
+                t1: mismatch_t1,
+                t2: mismatch_t2,
+                outer,
+            });
             false
         }
         Unified::Labels { missing, additional } => {
             if !missing.is_empty() {
-                state.insert_error(ErrorKind::PropertyIsMissing { labels: missing });
+                state.insert_error(UnificationErrorKind::PropertyIsMissing { labels: missing });
             }
             if !additional.is_empty() {
-                state.insert_error(ErrorKind::AdditionalProperty { labels: additional });
+                state.insert_error(UnificationErrorKind::AdditionalProperty { labels: additional });
             }
             false
         }
@@ -956,8 +960,8 @@ where
 /// - if `t2` is closed, labels exclusive to `t1` are [`AdditionalProperty`].
 /// - finally, [`unify_row_tails`] handles the remaining cases
 ///
-/// [`PropertyIsMissing`]: ErrorKind::PropertyIsMissing
-/// [`AdditionalProperty`]: ErrorKind::AdditionalProperty
+/// [`PropertyIsMissing`]: UnificationErrorKind::PropertyIsMissing
+/// [`AdditionalProperty`]: UnificationErrorKind::AdditionalProperty
 fn subtype_rows<P, Q>(
     state: &mut CheckState,
     context: &CheckContext<Q>,
