@@ -279,6 +279,67 @@ value = if true then 1
 }
 
 #[test]
+fn reports_import_cycles_as_build_failures() {
+    let workspace = TestWorkspace::empty();
+    workspace.write(
+        "spago.yaml",
+        r#"workspace: {}
+package:
+  name: application
+  dependencies: []
+"#,
+    );
+    workspace.write(
+        "src/First.purs",
+        r#"module First where
+
+import Second (second)
+
+first :: Int
+first = second
+"#,
+    );
+    workspace.write(
+        "src/Second.purs",
+        r#"module Second where
+
+import First (first)
+
+second :: Int
+second = first
+"#,
+    );
+    workspace.write(
+        "src/Downstream.purs",
+        r#"module Downstream where
+
+import First (first)
+
+downstream :: Int
+downstream = first
+"#,
+    );
+    workspace.write(
+        "src/Independent.purs",
+        r#"module Independent where
+
+independent :: Int
+independent = 42
+"#,
+    );
+
+    let output = workspace.command(&["build", "--quiet"]);
+
+    insta::assert_snapshot!(workspace.report(&output), @"
+    status: 1
+    --- stdout
+    --- stderr
+    Cycle detected
+    ");
+    assert!(!workspace.path().join("output/Independent/index.js").exists());
+}
+
+#[test]
 fn reports_indexing_errors_as_build_failures() {
     let workspace = TestWorkspace::empty();
     workspace.write(
