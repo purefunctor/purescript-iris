@@ -21,7 +21,7 @@ use super::output::{BuildOutput, GeneratedModule, OutputError};
 use super::ownership::{SourceOwner, SourcePackage};
 use super::packages::DiscoveredPackage;
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
-use super::{executor, walk};
+use super::{executor, modules, walk};
 
 pub(crate) struct BuildConfig<'a> {
     pub root: PathBuf,
@@ -185,14 +185,16 @@ where
     let sources = sources.collect::<HashMap<_, _>>();
 
     let engine = compilation.query_engine();
-    let execute = |package: &super::plan::PlannedPackage| {
-        let package_sources = package.source_paths.iter().map(|path| sources[path]);
-        let package_sources = package_sources.collect_vec();
-        query_package(engine, &package_sources)
-    };
     let execution = match execution {
-        PackageExecution::Serial => executor::execute_serial(&plan, events, &execute),
-        PackageExecution::Parallel => executor::execute_parallel(&plan, events, &execute),
+        PackageExecution::Serial => {
+            let execute = |package: &super::plan::PlannedPackage| {
+                let package_sources = package.source_paths.iter().map(|path| sources[path]);
+                let package_sources = package_sources.collect_vec();
+                query_package(engine, &package_sources)
+            };
+            executor::execute_serial(&plan, events, &execute)
+        }
+        PackageExecution::Parallel => modules::execute(engine, &plan, &sources, events),
     };
 
     let duration = started.elapsed();

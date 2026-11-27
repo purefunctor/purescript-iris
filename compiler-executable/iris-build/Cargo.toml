@@ -19,6 +19,7 @@ ignore = "0.4.33"
 itertools = "0.15.0"
 javascript = { version = "0.1.0", path = "../../compiler-backend/javascript" }
 line-index = "0.1.2"
+parking_lot = "0.12.5"
 path-absolutize = "4.0.1"
 petgraph = "0.8.3"
 prim-constants = { version = "0.1.0", path = "../../compiler-core/prim-constants" }

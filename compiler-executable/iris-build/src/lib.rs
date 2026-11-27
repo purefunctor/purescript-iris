@@ -6,9 +6,11 @@ pub mod compilation;
 pub mod compile;
 pub mod packages;
 
+mod modules;
 mod output;
 mod ownership;
 mod project;
+mod schedule;
 mod session;
 mod walk;
 mod workspace;
