@@ -453,8 +453,8 @@ impl ProgressSink {
 
 impl BuildEventSink for ProgressSink {
     fn send(&self, event: BuildEvent) {
-        let report = self.build.lock().apply(event);
-        if let Some((message, percentage)) = report {
+        let mut build = self.build.lock();
+        if let Some((message, percentage)) = build.apply(event) {
             ProgressSink::send(self, message, percentage);
         }
     }
