@@ -26,7 +26,6 @@ mod graph;
 mod promise;
 
 use std::cell::RefCell;
-use std::collections::hash_map::Entry;
 use std::hash::{BuildHasher, Hash};
 use std::panic::{self, AssertUnwindSafe};
 use std::sync::Arc;
@@ -138,6 +137,104 @@ where
 }
 
 #[derive(Default)]
+struct Slot<V> {
+    inner: RwLock<V>,
+}
+
+impl<V> Slot<V>
+where
+    V: Default + Send + 'static,
+{
+    fn drop_in(&mut self, scope: &rayon::Scope<'_>) {
+        let value = std::mem::take(self.inner.get_mut());
+        scope.spawn(move |_| drop(value));
+    }
+}
+
+trait DerivedTable<K, V> {
+    type Entries: DerivedEntries<K, V>;
+
+    fn entries(&self, key: &K) -> &RwLock<Self::Entries>;
+}
+
+trait DerivedEntries<K, V> {
+    fn get(&self, key: &K) -> Option<&DerivedState<V>>;
+
+    fn get_mut(&mut self, key: &K) -> Option<&mut DerivedState<V>>;
+
+    fn insert(&mut self, key: K, state: DerivedState<V>);
+
+    fn remove(&mut self, key: &K) -> Option<DerivedState<V>>;
+}
+
+impl<K, V> DerivedTable<K, V> for Shards<K, DerivedState<V>>
+where
+    K: Hash + Eq,
+{
+    type Entries = FxHashMap<K, DerivedState<V>>;
+
+    fn entries(&self, key: &K) -> &RwLock<FxHashMap<K, DerivedState<V>>> {
+        self.shard(key)
+    }
+}
+
+impl<K, V> DerivedEntries<K, V> for FxHashMap<K, DerivedState<V>>
+where
+    K: Hash + Eq,
+{
+    fn get(&self, key: &K) -> Option<&DerivedState<V>> {
+        FxHashMap::get(self, key)
+    }
+
+    fn get_mut(&mut self, key: &K) -> Option<&mut DerivedState<V>> {
+        FxHashMap::get_mut(self, key)
+    }
+
+    fn insert(&mut self, key: K, state: DerivedState<V>) {
+        FxHashMap::insert(self, key, state);
+    }
+
+    fn remove(&mut self, key: &K) -> Option<DerivedState<V>> {
+        FxHashMap::remove(self, key)
+    }
+}
+
+impl<V> DerivedTable<(), V> for Slot<DerivedState<V>> {
+    type Entries = DerivedState<V>;
+
+    fn entries(&self, _: &()) -> &RwLock<DerivedState<V>> {
+        &self.inner
+    }
+}
+
+impl<V> DerivedEntries<(), V> for DerivedState<V> {
+    fn get(&self, _: &()) -> Option<&DerivedState<V>> {
+        match self {
+            DerivedState::NotComputed => None,
+            state => Some(state),
+        }
+    }
+
+    fn get_mut(&mut self, _: &()) -> Option<&mut DerivedState<V>> {
+        match self {
+            DerivedState::NotComputed => None,
+            state => Some(state),
+        }
+    }
+
+    fn insert(&mut self, _: (), state: DerivedState<V>) {
+        *self = state;
+    }
+
+    fn remove(&mut self, _: &()) -> Option<DerivedState<V>> {
+        match std::mem::take(self) {
+            DerivedState::NotComputed => None,
+            state => Some(state),
+        }
+    }
+}
+
+#[derive(Default)]
 struct InputStorage {
     content: Shards<FileId, InputState<Arc<str>>>,
     foreign: Shards<FileId, InputState<ForeignFileCandidates>>,
@@ -159,10 +256,10 @@ struct DerivedStorage {
     exported: Shards<FileId, DerivedState<Arc<ExportedModule>>>,
     bracketed: Shards<FileId, DerivedState<Arc<sugar::Bracketed>>>,
     sectioned: Shards<FileId, DerivedState<Arc<sugar::Sectioned>>>,
-    checked_core: Shards<(), DerivedState<Arc<checking::CheckedCore>>>,
+    checked_core: Slot<DerivedState<Arc<checking::CheckedCore>>>,
     checked: Shards<FileId, DerivedState<Arc<CheckedModule>>>,
     documented: Shards<FileId, DerivedState<Arc<DocumentedModule>>>,
-    functional_core: Shards<(), DerivedState<Arc<functional::FunctionalCore>>>,
+    functional_core: Slot<DerivedState<Arc<functional::FunctionalCore>>>,
     functional:
         Shards<FileId, DerivedState<functional::ModuleResult<Arc<functional::tree::Module>>>>,
     javascript: Shards<FileId, DerivedState<javascript::ModuleResult<Arc<javascript::Module>>>>,
@@ -252,12 +349,12 @@ fn query_references_file(query: QueryKey, file_id: FileId) -> bool {
     }
 }
 
-fn computed_trace<K, V>(shards: &Shards<K, DerivedState<V>>, key: &K) -> Option<Trace>
+fn computed_trace<K, V, Table>(table: &Table, key: &K) -> Option<Trace>
 where
-    K: Hash + Eq,
+    Table: DerivedTable<K, V>,
 {
-    let shard = shards.shard(key).read();
-    match shard.get(key) {
+    let entries = table.entries(key).read();
+    match entries.get(key) {
         Some(DerivedState::Computed { trace, .. }) => Some(*trace),
         _ => None,
     }
@@ -534,29 +631,30 @@ impl QueryEngine {
 }
 
 impl QueryEngine {
-    fn query<K, V, ShardsFn, ComputeFn>(
+    fn query<K, V, Table, TableFn, ComputeFn>(
         &self,
         query: QueryKey,
         key: K,
-        shards: ShardsFn,
+        table: TableFn,
         compute: ComputeFn,
     ) -> QueryResult<V>
     where
-        K: Hash + Eq + Copy,
-        ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
+        K: Copy,
+        TableFn: Fn(&DerivedStorage) -> &Table,
+        Table: DerivedTable<K, V>,
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
         let result = self.control.local.with_query(query, |local| {
             let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                self.query_core(key, &shards, &compute, local)
+                self.query_core(key, &table, &compute, local)
             }));
             // If query execution fails at any given point, clean up the state.
             if !matches!(result, Ok(Ok(_))) && LocalState::is_in_progress(local) {
-                let shard = shards(&self.derived).shard(&key);
-                let mut guard = shard.write();
-                if let Entry::Occupied(o) = guard.entry(key) {
-                    if let DerivedState::InProgress { id, waiters } = o.remove() {
+                let entries = table(&self.derived).entries(&key);
+                let mut guard = entries.write();
+                if let Some(state) = guard.remove(&key) {
+                    if let DerivedState::InProgress { id, waiters } = state {
                         let mut waiters = waiters.into_inner();
                         if let Some(heir) = waiters.pop() {
                             self.hand_off_waiter_edges(id, heir.id, &waiters);
@@ -580,22 +678,23 @@ impl QueryEngine {
 
     /// Fulfills the promises of an [`DerivedState::InProgress`] query and
     /// replaces it with a [`DerivedState::Computed`] result in the store.
-    fn fulfill_and_store<K, V, ShardsFn>(
+    fn fulfill_and_store<K, V, Table, TableFn>(
         &self,
         key: K,
-        shards: &ShardsFn,
+        table: &TableFn,
         computed: V,
         trace: Trace,
         dependencies: Arc<[QueryKey]>,
     ) where
-        K: Hash + Eq + Copy,
-        ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
+        K: Copy,
+        TableFn: Fn(&DerivedStorage) -> &Table,
+        Table: DerivedTable<K, V>,
         V: Clone,
     {
-        let shard = shards(&self.derived).shard(&key);
-        let mut guard = shard.write();
-        if let Entry::Occupied(o) = guard.entry(key) {
-            if let DerivedState::InProgress { id, waiters } = o.remove() {
+        let entries = table(&self.derived).entries(&key);
+        let mut guard = entries.write();
+        if let Some(state) = guard.remove(&key) {
+            if let DerivedState::InProgress { id, waiters } = state {
                 let waiters = waiters.into_inner();
                 self.remove_waiter_edges(id, &waiters);
                 waiters.into_iter().for_each(|waiter| {
@@ -637,18 +736,19 @@ impl QueryEngine {
         }
     }
 
-    fn compute_core<K, V, ShardsFn, ComputeFn>(
+    fn compute_core<K, V, Table, TableFn, ComputeFn>(
         &self,
         key: K,
-        shards: &ShardsFn,
+        table: &TableFn,
         compute: &ComputeFn,
         revision: usize,
         previous: Option<(V, Trace)>,
         local: &RefCell<LocalStateInner>,
     ) -> QueryResult<V>
     where
-        K: Hash + Eq + Copy,
-        ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
+        K: Copy,
+        TableFn: Fn(&DerivedStorage) -> &Table,
+        Table: DerivedTable<K, V>,
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
@@ -671,13 +771,13 @@ impl QueryEngine {
             Some((previous, trace)) if computed == previous => {
                 let trace = Trace { built: revision, changed: trace.changed };
                 let dependencies = LocalState::dependencies(local);
-                self.fulfill_and_store(key, shards, V::clone(&previous), trace, dependencies);
+                self.fulfill_and_store(key, table, V::clone(&previous), trace, dependencies);
                 Ok(previous)
             }
             _ => {
                 let trace = Trace { built: revision, changed: revision };
                 let dependencies = LocalState::dependencies(local);
-                self.fulfill_and_store(key, shards, V::clone(&computed), trace, dependencies);
+                self.fulfill_and_store(key, table, V::clone(&computed), trace, dependencies);
                 Ok(computed)
             }
         }
@@ -774,18 +874,19 @@ impl QueryEngine {
         Ok(future)
     }
 
-    fn wait_core<K, V, ShardsFn, ComputeFn>(
+    fn wait_core<K, V, Table, TableFn, ComputeFn>(
         &self,
         key: K,
-        shards: &ShardsFn,
+        table: &TableFn,
         compute: &ComputeFn,
         revision: usize,
         future: Future<V>,
         local: &RefCell<LocalStateInner>,
     ) -> QueryResult<V>
     where
-        K: Hash + Eq + Copy,
-        ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
+        K: Copy,
+        TableFn: Fn(&DerivedStorage) -> &Table,
+        Table: DerivedTable<K, V>,
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
@@ -793,22 +894,23 @@ impl QueryEngine {
             Resolution::Fulfilled(computed) => Ok(computed),
             Resolution::Transferred => {
                 LocalState::mark_in_progress(local);
-                self.compute_core(key, shards, compute, revision, None, local)
+                self.compute_core(key, table, compute, revision, None, local)
             }
             Resolution::Abandoned => Err(QueryError::Cancelled),
         }
     }
 
-    fn query_core<K, V, ShardsFn, ComputeFn>(
+    fn query_core<K, V, Table, TableFn, ComputeFn>(
         &self,
         key: K,
-        shards: &ShardsFn,
+        table: &TableFn,
         compute: &ComputeFn,
         local: &RefCell<LocalStateInner>,
     ) -> QueryResult<V>
     where
-        K: Hash + Eq + Copy,
-        ShardsFn: Fn(&DerivedStorage) -> &Shards<K, DerivedState<V>>,
+        K: Copy,
+        TableFn: Fn(&DerivedStorage) -> &Table,
+        Table: DerivedTable<K, V>,
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
@@ -817,7 +919,7 @@ impl QueryEngine {
         }
 
         let revision = self.control.global.revision.load(Ordering::Relaxed);
-        let shard = shards(&self.derived).shard(&key);
+        let entries = table(&self.derived).entries(&key);
 
         // Certain query states can be checked with only a read lock, and this
         // is an extremely useful optimisation because it allows threads to
@@ -829,7 +931,7 @@ impl QueryEngine {
         // For in-progress queries, we can simply push to the internally mutable
         // vector of waiters and then wait on the future.
         let stale = {
-            let guard = shard.read();
+            let guard = entries.read();
             match guard.get(&key).unwrap_or(&DerivedState::NotComputed) {
                 DerivedState::Computed { computed, trace, .. } if trace.built == revision => {
                     return Ok(V::clone(computed));
@@ -840,7 +942,7 @@ impl QueryEngine {
                     // Remember that Future::wait blocks the current thread!
                     drop(guard);
 
-                    return self.wait_core(key, shards, compute, revision, future, local);
+                    return self.wait_core(key, table, compute, revision, future, local);
                 }
                 DerivedState::Computed { trace, dependencies, .. } => {
                     Some((trace.built, Arc::clone(dependencies)))
@@ -866,7 +968,7 @@ impl QueryEngine {
         // state for any given query while allowing read locks to be acquired for
         // the optimisation above.
         {
-            let guard = shard.upgradable_read();
+            let guard = entries.upgradable_read();
             match guard.get(&key).unwrap_or(&DerivedState::NotComputed) {
                 DerivedState::NotComputed => {
                     // At the end of this block, threads waiting to acquire the
@@ -877,7 +979,7 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
-                    self.compute_core(key, shards, compute, revision, None, local)
+                    self.compute_core(key, table, compute, revision, None, local)
                 }
                 DerivedState::InProgress { id, waiters } => {
                     let future = self.create_future(*id, waiters, local)?;
@@ -885,7 +987,7 @@ impl QueryEngine {
                     // Remember that Future::wait blocks the current thread!
                     drop(guard);
 
-                    self.wait_core(key, shards, compute, revision, future, local)
+                    self.wait_core(key, table, compute, revision, future, local)
                 }
                 DerivedState::Computed { computed, trace, .. } => {
                     let computed = V::clone(computed);
@@ -921,14 +1023,7 @@ impl QueryEngine {
                         LocalState::mark_in_progress(local);
                     }
 
-                    self.compute_core(
-                        key,
-                        shards,
-                        compute,
-                        revision,
-                        Some((computed, trace)),
-                        local,
-                    )
+                    self.compute_core(key, table, compute, revision, Some((computed, trace)), local)
                 }
             }
         }
@@ -1053,20 +1148,14 @@ impl QueryEngine {
         &self,
         file_id: FileId,
         removed_modules: &FxHashSet<ModuleNameId>,
-        queries: &Shards<(), DerivedState<T>>,
+        query: &Slot<DerivedState<T>>,
     ) {
-        for shard in &queries.inner {
-            let mut queries = shard.write();
-            let remove = queries.get(&()).is_some_and(|state| {
-                matches!(state, DerivedState::InProgress { .. })
-                    || state_references_removed_file(state, file_id, removed_modules)
-            });
-            if remove {
-                let state = queries
-                    .remove(&())
-                    .expect("invariant violated: expected removable core query state");
-                self.discard_query_state(state);
-            }
+        let mut state = query.inner.write();
+        let remove = matches!(*state, DerivedState::InProgress { .. })
+            || state_references_removed_file(&state, file_id, removed_modules);
+        if remove {
+            let state = std::mem::take(&mut *state);
+            self.discard_query_state(state);
         }
     }
 
@@ -2455,8 +2544,8 @@ mod tests {
         {
             let data_eq_name = engine.interned.module.lookup("Data.Eq").unwrap();
             let unrelated_name = engine.interned.module.lookup("Unrelated").unwrap();
-            let shard = engine.derived.checked_core.shard(&()).read();
-            let DerivedState::Computed { dependencies, .. } = shard.get(&()).unwrap() else {
+            let state = engine.derived.checked_core.inner.read();
+            let DerivedState::Computed { dependencies, .. } = &*state else {
                 unreachable!("invariant violated: expected computed query");
             };
             assert!(dependencies.contains(&QueryKey::Module(data_eq_name)));
@@ -2499,8 +2588,8 @@ mod tests {
 
         let checked_with_eq1 = engine.checked(main).unwrap();
         let (core_with_eq1, core_trace_with_eq1) = {
-            let shard = engine.derived.checked_core.shard(&()).read();
-            let DerivedState::Computed { computed, trace, .. } = shard.get(&()).unwrap() else {
+            let state = engine.derived.checked_core.inner.read();
+            let DerivedState::Computed { computed, trace, .. } = &*state else {
                 unreachable!("invariant violated: expected computed query");
             };
             (Arc::clone(computed), *trace)
