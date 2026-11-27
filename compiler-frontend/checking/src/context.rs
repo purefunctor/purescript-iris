@@ -707,14 +707,14 @@ impl PrimTypeErrorCore {
 
 fn fetch_known_term(
     queries: &impl ExternalQueries,
-    m: &str,
-    n: &str,
+    module_name: &str,
+    name: &str,
 ) -> QueryResult<Option<(FileId, TermItemId)>> {
-    let Some(file_id) = queries.module_file(m) else {
+    let Some(file_id) = queries.module_file(module_name) else {
         return Ok(None);
     };
     let resolved = queries.resolved(file_id)?;
-    let Some((file_id, term_id)) = resolved.exports.lookup_term(n) else {
+    let Some((file_id, term_id)) = resolved.exports.lookup_term(name) else {
         return Ok(None);
     };
     Ok(Some((file_id, term_id)))
@@ -722,14 +722,14 @@ fn fetch_known_term(
 
 fn fetch_known_class(
     queries: &impl ExternalQueries,
-    m: &str,
-    n: &str,
+    module_name: &str,
+    name: &str,
 ) -> QueryResult<Option<(FileId, TypeItemId)>> {
-    let Some(file_id) = queries.module_file(m) else {
+    let Some(file_id) = queries.module_file(module_name) else {
         return Ok(None);
     };
     let resolved = queries.resolved(file_id)?;
-    let Some((file_id, type_id)) = resolved.exports.lookup_class(n) else {
+    let Some((file_id, type_id)) = resolved.exports.lookup_class(name) else {
         return Ok(None);
     };
     Ok(Some((file_id, type_id)))
@@ -737,14 +737,14 @@ fn fetch_known_class(
 
 fn fetch_known_constructor(
     queries: &impl ExternalQueries,
-    m: &str,
-    n: &str,
+    module_name: &str,
+    name: &str,
 ) -> QueryResult<Option<TypeId>> {
-    let Some(file_id) = queries.module_file(m) else {
+    let Some(file_id) = queries.module_file(module_name) else {
         return Ok(None);
     };
     let resolved = queries.resolved(file_id)?;
-    let Some((file_id, type_id)) = resolved.exports.lookup_type(n) else {
+    let Some((file_id, type_id)) = resolved.exports.lookup_type(name) else {
         return Ok(None);
     };
     Ok(Some(queries.intern_type(Type::Constructor(file_id, type_id))))
