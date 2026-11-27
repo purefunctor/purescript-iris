@@ -41,9 +41,8 @@ use foreign_javascript::{ForeignModule, ForeignValidation};
 use graph::SnapshotGraph;
 use indexing::IndexedModule;
 use line_index::LineIndex;
-use lock_api::{RawRwLock, RawRwLockRecursive};
 use lowering::{GroupedModule, LoweredModule};
-use parking_lot::{Mutex, RwLock, RwLockUpgradableReadGuard};
+use parking_lot::{ArcRwLockReadGuard, Mutex, RawRwLock, RwLock, RwLockUpgradableReadGuard};
 use parsing::FullParsedModule;
 use promise::{Future, Promise, Resolution};
 use resolving::{ExportedModule, ResolvedModule};
@@ -383,7 +382,7 @@ struct GlobalState {
     /// An atomic token that determines if query execution had been cancelled.
     cancelled: AtomicBool,
     /// A global read-write lock for enforcing the order of reads and writes.
-    query_lock: RwLock<()>,
+    query_lock: Arc<RwLock<()>>,
     /// A counter that tracks the current revision of the query engine.
     revision: AtomicUsize,
     /// A counter that tracks the next [`SnapshotId`],
@@ -541,30 +540,8 @@ impl QueryFrame {
     }
 }
 
-/// Custom guard that acquires a read lock from the [`GlobalState::query_lock`]
-/// and releases it when dropped, effectively tying it to the lifetime of the
-/// [`QueryControl`] it belongs to.
-struct QueryControlGuard {
-    global: Arc<GlobalState>,
-}
-
-impl QueryControlGuard {
-    fn new(global: &Arc<GlobalState>) -> QueryControlGuard {
-        // SAFETY: QueryControlGuard::drop
-        unsafe { global.query_lock.raw().lock_shared_recursive() };
-        QueryControlGuard { global: Arc::clone(global) }
-    }
-}
-
-impl Drop for QueryControlGuard {
-    fn drop(&mut self) {
-        // SAFETY: QueryControlGuard::new
-        unsafe { self.global.query_lock.raw().unlock_shared() }
-    }
-}
-
 struct QueryControl {
-    _guard: Option<QueryControlGuard>,
+    _guard: Option<ArcRwLockReadGuard<RawRwLock, ()>>,
     id: SnapshotId,
     local: Arc<LocalState>,
     global: Arc<GlobalState>,
@@ -572,7 +549,7 @@ struct QueryControl {
 
 impl QueryControl {
     fn snapshot(&self) -> QueryControl {
-        let _guard = Some(QueryControlGuard::new(&self.global));
+        let _guard = Some(self.global.query_lock.read_arc_recursive());
         let local = Arc::new(LocalState::default());
         let global = Arc::clone(&self.global);
         let id = global.next_snapshot();
