@@ -45,6 +45,8 @@ pub enum QueryError {
     MissingContent { file_id: FileId },
     #[error("Dependency cannot be verified while another snapshot computes it")]
     Unverifiable,
+    #[error("Query is deferred to a shallower stack")]
+    Deferred,
 }
 
 pub type QueryResult<T> = Result<T, QueryError>;

@@ -8,13 +8,19 @@ CONSTANTS
     NoSnapshot,
     MaxWrites,
     MaxPanics,
+    MaxDepth,
     Mutation
 
 ASSUME Mutation \in {"None", "TwoOwners", "CleanupIgnoresOwnership", "EdgeAlwaysAdded",
                      "AddEdgeChecksOneHop", "EagerCycle", "EdgeNotRemoved", "WaitersNotWoken",
                      "ChangedAlwaysPrevious", "VerifyIgnoresInputs", "PanicSkipsCleanup",
                      "UnverifiablePropagates", "VerifyingDemandBlocks", "CleanupDropsWaiters",
-                     "UnavailableResultsCached", "AcceptUnverifiable", "MarkBuiltWhileCancelled"}
+                     "UnavailableResultsCached", "AcceptUnverifiable", "MarkBuiltWhileCancelled",
+                     "DeferredResultsCached", "DeferralsForgetVerifying",
+                     "UnverifiableDeferredAgain", "VerifyingRevisitDeferred",
+                     "HeirIgnoresDepth", "DemandDeferralReturned", "DemandCycleReturned"}
+
+ASSUME MaxDepth \in Nat \ {0}
 
 VARIABLES
     content,
@@ -32,10 +38,16 @@ VARIABLES
     alive,
     retired,
     cancelSeen,
-    outcome
+    outcome,
+    root,
+    pending,
+    unverifiable,
+    deferred
 
 engine == <<state, graph, promise>>
-threads == <<stack, ret, alive, retired, cancelSeen, outcome>>
+driver == <<root, pending, unverifiable, deferred>>
+returned == <<ret, alive, outcome, driver>>
+threads == <<stack, ret, alive, retired, cancelSeen, outcome, driver>>
 inputs == <<content, inputChanged, revision, cancelled, writer, writes, panics>>
 vars == <<inputs, engine, threads>>
 
@@ -53,7 +65,7 @@ DerivedKey(q) == [kind |-> "derived", q |-> q]
 Ok(value) == [ok |-> TRUE, value |-> value, error |-> "none"]
 Err(error) == [ok |-> FALSE, value |-> {}, error |-> error]
 
-UnavailableErrors == {"Unverifiable", "Cancelled"}
+UnavailableErrors == {"Unverifiable", "Cancelled", "Deferred"}
 
 RECURSIVE Eval(_, _, _)
 Eval(inputContent, q, visiting) ==
@@ -93,6 +105,8 @@ NoOutcome ==
     [q |-> NoSnapshot, result |-> Err("none"),
      expected |-> [cycle |-> FALSE, value |-> {}], cancelSeen |-> FALSE]
 
+NoDeferral == [q |-> NoSnapshot, verifying |-> FALSE]
+
 Top(s) == stack[s][Len(stack[s])]
 
 Record(frame, key) ==
@@ -104,21 +118,60 @@ Call(s, parent, q) ==
     LET recorded == [parent EXCEPT !.deps = Record(parent, DerivedKey(q))]
     IN stack' = [stack EXCEPT ![s] = Append([@ EXCEPT ![Len(stack[s])] = recorded], NewFrame(q))]
 
-ReturnOn(base, s, result) ==
+Pending(s, q) == \E i \in DOMAIN pending[s] : pending[s][i].q = q
+
+Finish(base, s, result) ==
+    /\ stack' = [base EXCEPT ![s] = <<>>]
+    /\ alive' = [alive EXCEPT ![s] = FALSE]
+    /\ outcome' = [outcome EXCEPT ![s] =
+           [q |-> root[s], result |-> result, expected |-> Eval(content, root[s], {}),
+            cancelSeen |-> cancelSeen[s]]]
+    /\ pending' = [pending EXCEPT ![s] = <<>>]
+    /\ unverifiable' = [unverifiable EXCEPT ![s] = {}]
+    /\ deferred' = [deferred EXCEPT ![s] = NoDeferral]
+    /\ UNCHANGED <<ret, root>>
+
+Restart(base, s, queue, unverified) ==
+    LET q == IF queue = <<>> THEN root[s] ELSE queue[Len(queue)].q
+    IN /\ stack' = [base EXCEPT ![s] = <<NewFrame(q)>>]
+       /\ pending' = [pending EXCEPT ![s] = queue]
+       /\ unverifiable' = [unverifiable EXCEPT ![s] = unverified]
+       /\ deferred' = [deferred EXCEPT ![s] = NoDeferral]
+       /\ UNCHANGED <<ret, alive, outcome, root>>
+
+AbandonPending(base, s) ==
+    LET tentative == {i \in DOMAIN pending[s] : pending[s][i].verifying}
+    IN IF tentative = {}
+       THEN Finish(base, s, Err("Cycle"))
+       ELSE LET newest == CHOOSE i \in tentative : \A j \in tentative : j <= i
+            IN Restart(base, s, SubSeq(pending[s], 1, newest - 1),
+                       unverifiable[s] \cup {pending[s][newest].q})
+
+Drive(base, s, result) ==
+    IF /\ ~result.ok
+       /\ result.error = "Deferred"
+       /\ pending[s] = <<>> \/ Mutation # "DemandDeferralReturned"
+    THEN IF Pending(s, deferred[s].q)
+         THEN AbandonPending(base, s)
+         ELSE Restart(base, s, Append(pending[s], deferred[s]), unverifiable[s])
+    ELSE IF pending[s] = <<>>
+    THEN Finish(base, s, result)
+    ELSE IF result.ok
+    THEN Restart(base, s, SubSeq(pending[s], 1, Len(pending[s]) - 1), unverifiable[s])
+    ELSE IF result.error = "Cycle" /\ Mutation # "DemandCycleReturned"
+    THEN AbandonPending(base, s)
+    ELSE Finish(base, s, result)
+
+ReturnOn(base, s, result, deferral) ==
     LET rest == SubSeq(stack[s], 1, Len(stack[s]) - 1)
-        q == Top(s).q
     IN IF rest = <<>>
-       THEN /\ stack' = [base EXCEPT ![s] = <<>>]
-            /\ alive' = [alive EXCEPT ![s] = FALSE]
-            /\ outcome' = [outcome EXCEPT ![s] =
-                   [q |-> q, result |-> result, expected |-> Eval(content, q, {}),
-                    cancelSeen |-> cancelSeen[s]]]
-            /\ UNCHANGED ret
+       THEN Drive(base, s, result)
        ELSE /\ stack' = [base EXCEPT ![s] = rest]
             /\ ret' = [ret EXCEPT ![s] = result]
-            /\ UNCHANGED <<alive, outcome>>
+            /\ deferred' = [deferred EXCEPT ![s] = deferral]
+            /\ UNCHANGED <<alive, outcome, root, pending, unverifiable>>
 
-Return(s, result) == ReturnOn(stack, s, result)
+Return(s, result) == ReturnOn(stack, s, result, deferred[s])
 
 RECURSIVE Reaches(_, _, _)
 Reaches(from, target, fuel) ==
@@ -161,7 +214,7 @@ HandOff(q, heir, self) ==
 
 MarkOwner(heir) == [stack EXCEPT ![heir][Len(stack[heir])].owner = TRUE]
 
-Fail(s, error) ==
+FailWith(s, error, deferral) ==
     LET frame == Top(s)
         q == frame.q
         heirs == state[q].waiters \ {s}
@@ -170,15 +223,29 @@ Fail(s, error) ==
        THEN IF heirs = {} \/ Mutation \in {"WaitersNotWoken", "CleanupDropsWaiters"}
             THEN /\ Release(q, IF Mutation = "WaitersNotWoken" THEN EmptyPromise ELSE DeadPromise, s)
                  /\ state' = [state EXCEPT ![q] = NotComputed]
-                 /\ Return(s, Err(error))
+                 /\ ReturnOn(stack, s, Err(error), deferral)
             ELSE \E heir \in heirs :
                    /\ HandOff(q, heir, s)
-                   /\ ReturnOn(MarkOwner(heir), s, Err(error))
+                   /\ ReturnOn(MarkOwner(heir), s, Err(error), deferral)
        ELSE /\ promise' = [promise EXCEPT ![s] = NoPromise]
             /\ UNCHANGED <<state, graph>>
-            /\ Return(s, Err(error))
+            /\ ReturnOn(stack, s, Err(error), deferral)
+
+Fail(s, error) == FailWith(s, error, deferred[s])
 
 Verifying(s) == \E i \in DOMAIN stack[s] : stack[s][i].verifying
+
+TooDeep(s) == Len(stack[s]) > MaxDepth
+
+Defer(s, frame) ==
+    LET verifying == Verifying(s)
+        revisited == \/ Pending(s, frame.q) /\ Mutation # "VerifyingRevisitDeferred"
+                     \/ frame.q \in unverifiable[s] /\ Mutation # "UnverifiableDeferredAgain"
+        recorded == [q |-> frame.q,
+                     verifying |-> verifying /\ Mutation # "DeferralsForgetVerifying"]
+    IN IF verifying /\ revisited
+       THEN Fail(s, "Unverifiable")
+       ELSE FailWith(s, "Deferred", IF deferred[s] = NoDeferral THEN recorded ELSE deferred[s])
 
 CreateFuture(s, frame, owner) ==
     IF Verifying(s) /\ Mutation # "VerifyingDemandBlocks"
@@ -189,7 +256,7 @@ CreateFuture(s, frame, owner) ==
          /\ state' = [state EXCEPT ![frame.q].waiters = @ \cup {s}]
          /\ promise' = [promise EXCEPT ![s] = EmptyPromise]
          /\ SetTop(s, [frame EXCEPT !.pc = "wait"])
-         /\ UNCHANGED <<ret, alive, outcome>>
+         /\ UNCHANGED returned
 
 Claim(s, frame) == state' = [state EXCEPT ![frame.q] = InProgress(s)]
 
@@ -205,13 +272,17 @@ QueryCoreReadPath(s) ==
                  [] current.kind = "InProgress" ->
                         CreateFuture(s, frame, current.owner)
                  [] current.kind = "Computed" /\ current.built # revision ->
-                        /\ SetTop(s, [frame EXCEPT
-                              !.pc = "verify", !.verifying = TRUE,
-                              !.previousBuilt = current.built, !.todo = current.deps])
-                        /\ UNCHANGED <<engine, ret, alive, outcome>>
+                        IF TooDeep(s)
+                        THEN Defer(s, frame)
+                        ELSE /\ SetTop(s, [frame EXCEPT
+                                   !.pc = "verify", !.verifying = TRUE,
+                                   !.previousBuilt = current.built, !.todo = current.deps])
+                             /\ UNCHANGED <<engine, returned>>
                  [] OTHER ->
-                        /\ SetTop(s, [frame EXCEPT !.pc = "upgrade"])
-                        /\ UNCHANGED <<engine, ret, alive, outcome>>
+                        IF TooDeep(s)
+                        THEN Defer(s, frame)
+                        ELSE /\ SetTop(s, [frame EXCEPT !.pc = "upgrade"])
+                             /\ UNCHANGED <<engine, returned>>
 
 QueryCoreUpgradablePath(s) ==
     LET frame == Top(s)
@@ -221,7 +292,7 @@ QueryCoreUpgradablePath(s) ==
                \/ (Mutation = "TwoOwners" /\ current.kind = "InProgress") ->
                    /\ Claim(s, frame)
                    /\ SetTop(s, [frame EXCEPT !.owner = TRUE, !.pc = "compute"])
-                   /\ UNCHANGED <<graph, promise, ret, alive, outcome>>
+                   /\ UNCHANGED <<graph, promise, returned>>
             [] current.kind = "InProgress" ->
                    CreateFuture(s, frame, current.owner)
             [] current.kind = "Computed" /\ current.built = revision ->
@@ -239,7 +310,7 @@ QueryCoreUpgradablePath(s) ==
                           !.owner = TRUE, !.pc = "compute", !.hasPrevious = TRUE,
                           !.previousValue = current.value,
                           !.previousChanged = current.changed])
-                   /\ UNCHANGED <<graph, promise, ret, alive, outcome>>
+                   /\ UNCHANGED <<graph, promise, returned>>
 
 FutureWait(s) ==
     LET frame == Top(s)
@@ -250,9 +321,11 @@ FutureWait(s) ==
                  /\ Return(s, Ok(promise[s].value))
                  /\ UNCHANGED <<state, graph>>
             [] promise[s].kind = "Owned" ->
-                 /\ promise' = [promise EXCEPT ![s] = NoPromise]
-                 /\ SetTop(s, [frame EXCEPT !.pc = "compute"])
-                 /\ UNCHANGED <<state, graph, ret, alive, outcome>>
+                 IF TooDeep(s) /\ Mutation # "HeirIgnoresDepth"
+                 THEN Defer(s, frame)
+                 ELSE /\ promise' = [promise EXCEPT ![s] = NoPromise]
+                      /\ SetTop(s, [frame EXCEPT !.pc = "compute"])
+                      /\ UNCHANGED <<state, graph, returned>>
             [] OTHER -> Fail(s, "Cancelled")
 
 Observe(frame, changed, todo) ==
@@ -260,7 +333,7 @@ Observe(frame, changed, todo) ==
 
 FinishVerification(s, frame, unchanged) ==
     /\ SetTop(s, [frame EXCEPT !.pc = "upgrade", !.verifying = FALSE, !.unchanged = unchanged])
-    /\ UNCHANGED <<engine, ret, alive, outcome>>
+    /\ UNCHANGED <<engine, returned>>
 
 VerifyCore(s) ==
     LET frame == Top(s)
@@ -271,7 +344,7 @@ VerifyCore(s) ==
                  LET dependency == frame.todo[i]
                      rest == RemoveAt(frame.todo, i)
                      traced == state[dependency.q]
-                 IN /\ UNCHANGED <<engine, ret, alive, outcome>>
+                 IN /\ UNCHANGED <<engine, returned>>
                     /\ IF dependency.kind = "input"
                        THEN SetTop(s, Observe(frame,
                                 IF Mutation = "VerifyIgnoresInputs" THEN 0
@@ -291,7 +364,7 @@ VerifyCoreReturn(s) ==
           THEN Fail(s, ret[s].error)
           ELSE /\ SetTop(s, [Observe(frame, IF traced.kind = "Computed" THEN traced.changed ELSE 0,
                                      frame.todo) EXCEPT !.pc = "verify"])
-               /\ UNCHANGED <<engine, ret, alive, outcome>>
+               /\ UNCHANGED <<engine, returned>>
 
 ComputeCore(s) ==
     LET frame == Top(s)
@@ -305,7 +378,7 @@ ComputeCore(s) ==
                      !.payload = content[frame.q].payload,
                      !.todo = [i \in DOMAIN imports |-> DerivedKey(imports[i])],
                      !.acc = {}])
-               /\ UNCHANGED <<engine, ret, alive, outcome>>
+               /\ UNCHANGED <<engine, returned>>
 
 ComputeChildren(s) ==
     LET frame == Top(s)
@@ -325,7 +398,7 @@ ComputeChildren(s) ==
                     /\ Return(s, Ok(computed))
           ELSE /\ Call(s, [frame EXCEPT !.pc = "compute_return", !.current = Head(frame.todo)],
                        Head(frame.todo).q)
-               /\ UNCHANGED <<engine, ret, alive, outcome>>
+               /\ UNCHANGED <<engine, returned>>
 
 ComputeChildrenReturn(s) ==
     LET frame == Top(s)
@@ -335,12 +408,16 @@ ComputeChildrenReturn(s) ==
                \/ /\ ret[s].error \in UnavailableErrors
                   /\ SetTop(s, [frame EXCEPT !.pc = "compute_children",
                                              !.todo = Tail(@),
-                                             !.unavailable = IF @ = "none" THEN ret[s].error ELSE @])
-                  /\ UNCHANGED <<engine, ret, alive, outcome>>
+                                             !.unavailable =
+                                                 IF /\ @ = "none"
+                                                    /\ \/ ret[s].error # "Deferred"
+                                                       \/ Mutation # "DeferredResultsCached"
+                                                 THEN ret[s].error ELSE @])
+                  /\ UNCHANGED <<engine, returned>>
           ELSE /\ SetTop(s, [frame EXCEPT !.pc = "compute_children",
                                           !.acc = @ \cup ret[s].value,
                                           !.todo = Tail(@)])
-               /\ UNCHANGED <<engine, ret, alive, outcome>>
+               /\ UNCHANGED <<engine, returned>>
 
 ThreadStep(s) ==
     /\ alive[s]
@@ -391,7 +468,11 @@ ComputePanics(s) ==
             /\ UNCHANGED engine
        ELSE /\ UnwindCleanup(s)
             /\ UNCHANGED retired
-    /\ UNCHANGED <<content, inputChanged, revision, cancelled, writer, writes, ret, cancelSeen>>
+    /\ pending' = [pending EXCEPT ![s] = <<>>]
+    /\ unverifiable' = [unverifiable EXCEPT ![s] = {}]
+    /\ deferred' = [deferred EXCEPT ![s] = NoDeferral]
+    /\ UNCHANGED <<content, inputChanged, revision, cancelled, writer, writes, ret, cancelSeen,
+                   root>>
 
 TakeSnapshot(s) ==
     /\ ~alive[s]
@@ -401,7 +482,8 @@ TakeSnapshot(s) ==
          /\ alive' = [alive EXCEPT ![s] = TRUE]
          /\ cancelSeen' = [cancelSeen EXCEPT ![s] = cancelled]
          /\ outcome' = [outcome EXCEPT ![s] = NoOutcome]
-    /\ UNCHANGED <<inputs, engine, ret, retired>>
+         /\ root' = [root EXCEPT ![s] = q]
+    /\ UNCHANGED <<inputs, engine, ret, retired, pending, unverifiable, deferred>>
 
 RequestWrite ==
     /\ writer = "idle"
@@ -410,7 +492,7 @@ RequestWrite ==
     /\ writer' = "waiting"
     /\ cancelSeen' = [s \in Snapshots |-> cancelSeen[s] \/ alive[s]]
     /\ UNCHANGED <<content, inputChanged, revision, writes, panics,
-                   engine, stack, ret, alive, retired, outcome>>
+                   engine, stack, ret, alive, retired, outcome, driver>>
 
 CommitWrite ==
     /\ writer = "waiting"
@@ -451,6 +533,10 @@ Init ==
     /\ retired = [s \in Snapshots |-> FALSE]
     /\ cancelSeen = [s \in Snapshots |-> FALSE]
     /\ outcome = [s \in Snapshots |-> NoOutcome]
+    /\ root = [s \in Snapshots |-> NoSnapshot]
+    /\ pending = [s \in Snapshots |-> <<>>]
+    /\ unverifiable = [s \in Snapshots |-> {}]
+    /\ deferred = [s \in Snapshots |-> NoDeferral]
 
 Next ==
     \/ \E s \in Snapshots : TakeSnapshot(s) \/ ThreadStep(s) \/ ComputePanics(s)
@@ -524,6 +610,12 @@ CancellationsAreExplained ==
 
 UnverifiableStaysInternal ==
     \A s \in Snapshots : outcome[s].result.error # "Unverifiable"
+
+DeferredStaysInternal ==
+    \A s \in Snapshots : outcome[s].result.error # "Deferred"
+
+StackStaysShallow ==
+    \A s \in Snapshots : Len(stack[s]) <= MaxDepth + 1
 
 StaleEntriesStayStaleWhileCancelled ==
     [][\A q \in Queries :

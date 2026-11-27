@@ -91,6 +91,8 @@ struct InputState<T> {
     changed: usize,
 }
 
+const QUERY_DEPTH_LIMIT: usize = 64;
+
 const SHARDS: usize = 16;
 const SHARD_MASK: usize = SHARDS - 1;
 
@@ -421,6 +423,76 @@ impl LocalState {
         result
     }
 
+    fn start_driving(&self) -> bool {
+        let mut inner = self.inner.get_or_default().borrow_mut();
+        if inner.driving || !inner.frames.is_empty() {
+            return false;
+        }
+        inner.driving = true;
+        true
+    }
+
+    fn stop_driving(&self) {
+        let mut inner = self.inner.get_or_default().borrow_mut();
+        inner.driving = false;
+        inner.pending.clear();
+        inner.unverifiable.clear();
+        inner.deferred = None;
+    }
+
+    fn pending(&self) -> Option<QueryKey> {
+        let inner = self.inner.get_or_default().borrow();
+        inner.pending.last().map(|pending| pending.query)
+    }
+
+    fn finish_pending(&self) {
+        let mut inner = self.inner.get_or_default().borrow_mut();
+        inner.pending.pop();
+        inner.deferred = None;
+    }
+
+    fn defer_pending(&self) -> QueryResult<()> {
+        let mut inner = self.inner.get_or_default().borrow_mut();
+        let deferred = inner.deferred.take().expect("invariant violated: expected deferred query");
+        if !inner.pending.iter().any(|pending| pending.query == deferred.query) {
+            inner.pending.push(deferred);
+            return Ok(());
+        }
+        let stack = inner.pending.iter().map(|pending| pending.query).chain([deferred.query]);
+        let stack = stack.collect();
+        drop(inner);
+        self.abandon_pending(stack)
+    }
+
+    fn abandon_pending(&self, stack: Arc<[QueryKey]>) -> QueryResult<()> {
+        let mut inner = self.inner.get_or_default().borrow_mut();
+        inner.deferred = None;
+        let Some(index) = inner.pending.iter().rposition(|pending| pending.verifying) else {
+            return Err(QueryError::Cycle { stack });
+        };
+        let unverifiable = inner.pending[index].query;
+        inner.pending.truncate(index);
+        inner.unverifiable.insert(unverifiable);
+        Ok(())
+    }
+
+    fn defer(local: &RefCell<LocalStateInner>) -> Option<QueryError> {
+        let mut inner = local.borrow_mut();
+        if inner.frames.len() <= QUERY_DEPTH_LIMIT {
+            return None;
+        }
+        let frame = inner.frames.last().expect("invariant violated: expected query frame");
+        let query = frame.query;
+        let verifying = inner.frames.iter().any(|frame| frame.verifying);
+        let revisited = inner.unverifiable.contains(&query)
+            || inner.pending.iter().any(|pending| pending.query == query);
+        if verifying && revisited {
+            return Some(QueryError::Unverifiable);
+        }
+        inner.deferred.get_or_insert(DeferredQuery { query, verifying });
+        Some(QueryError::Deferred)
+    }
+
     fn with_dependency(&self, dependency: QueryKey) {
         let mut inner = self.inner.get_or_default().borrow_mut();
         if let Some(frame) = inner.frames.last_mut() {
@@ -499,6 +571,26 @@ impl LocalState {
 #[derive(Debug, Default)]
 struct LocalStateInner {
     frames: Vec<QueryFrame>,
+    driving: bool,
+    pending: Vec<DeferredQuery>,
+    unverifiable: FxHashSet<QueryKey>,
+    deferred: Option<DeferredQuery>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DeferredQuery {
+    query: QueryKey,
+    verifying: bool,
+}
+
+struct DrivingGuard<'a> {
+    local: &'a LocalState,
+}
+
+impl Drop for DrivingGuard<'_> {
+    fn drop(&mut self) {
+        self.local.stop_driving();
+    }
 }
 
 #[derive(Debug)]
@@ -535,6 +627,7 @@ impl QueryFrame {
         self.unavailable_dependency = match error {
             QueryError::Unverifiable => Some(QueryError::Unverifiable),
             QueryError::Cancelled => Some(QueryError::Cancelled),
+            QueryError::Deferred => Some(QueryError::Deferred),
             _ => None,
         };
     }
@@ -622,9 +715,75 @@ impl QueryEngine {
         ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
         V: Eq + Clone,
     {
+        let local = &*self.control.local;
+        if !local.start_driving() {
+            return self.query_frame(query, key, &table, &compute);
+        }
+        let _driving = DrivingGuard { local };
+        loop {
+            let demanded = match local.pending() {
+                Some(pending) => self.demand(pending),
+                None => match self.query_frame(query, key, &table, &compute) {
+                    Err(QueryError::Deferred) => Err(QueryError::Deferred),
+                    result => return result,
+                },
+            };
+            match demanded {
+                Ok(()) => local.finish_pending(),
+                Err(QueryError::Deferred) => local.defer_pending()?,
+                Err(QueryError::Cycle { stack }) => local.abandon_pending(stack)?,
+                Err(error) => return Err(error),
+            }
+        }
+    }
+
+    fn demand(&self, query: QueryKey) -> QueryResult<()> {
+        match query {
+            QueryKey::Content(_)
+            | QueryKey::Foreign(_)
+            | QueryKey::ForeignContent(_)
+            | QueryKey::Module(_) => {
+                unreachable!("invariant violated: only derived queries are deferred")
+            }
+            QueryKey::LineIndex(k) => self.line_index(k).map(|_| ()),
+            QueryKey::ForeignModule(k) => self.foreign_module(k).map(|_| ()),
+            QueryKey::ForeignValidation(k) => self.foreign_validation(k).map(|_| ()),
+            QueryKey::Parsed(k) => self.parsed(k).map(|_| ()),
+            QueryKey::Stabilized(k) => self.stabilized(k).map(|_| ()),
+            QueryKey::Indexed(k) => self.indexed(k).map(|_| ()),
+            QueryKey::Lowered(k) => self.lowered(k).map(|_| ()),
+            QueryKey::Grouped(k) => self.grouped(k).map(|_| ()),
+            QueryKey::Resolved(k) => self.resolved(k).map(|_| ()),
+            QueryKey::Exported(k) => self.exported(k).map(|_| ()),
+            QueryKey::Bracketed(k) => self.bracketed(k).map(|_| ()),
+            QueryKey::Sectioned(k) => self.sectioned(k).map(|_| ()),
+            QueryKey::CheckedCore => self.checked_core().map(|_| ()),
+            QueryKey::Checked(k) => self.checked(k).map(|_| ()),
+            QueryKey::Documented(k) => self.documented(k).map(|_| ()),
+            QueryKey::FunctionalCore => self.functional_core().map(|_| ()),
+            QueryKey::Functional(k) => self.functional(k).map(|_| ()),
+            QueryKey::JavaScript(k) => self.javascript(k).map(|_| ()),
+            QueryKey::SourceMap(k) => self.source_map(k).map(|_| ()),
+        }
+    }
+
+    fn query_frame<K, V, Table, TableFn, ComputeFn>(
+        &self,
+        query: QueryKey,
+        key: K,
+        table: &TableFn,
+        compute: &ComputeFn,
+    ) -> QueryResult<V>
+    where
+        K: Copy,
+        TableFn: Fn(&DerivedStorage) -> &Table,
+        Table: DerivedTable<K, V>,
+        ComputeFn: Fn(&QueryEngine) -> QueryResult<V>,
+        V: Eq + Clone,
+    {
         let result = self.control.local.with_query(query, |local| {
             let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                self.query_core(key, &table, &compute, local)
+                self.query_core(key, table, compute, local)
             }));
             // If query execution fails at any given point, clean up the state.
             if !matches!(result, Ok(Ok(_))) && LocalState::is_in_progress(local) {
@@ -871,6 +1030,9 @@ impl QueryEngine {
             Resolution::Fulfilled(computed) => Ok(computed),
             Resolution::Transferred => {
                 LocalState::mark_in_progress(local);
+                if let Some(error) = LocalState::defer(local) {
+                    return Err(error);
+                }
                 self.compute_core(key, table, compute, revision, None, local)
             }
             Resolution::Abandoned => Err(QueryError::Cancelled),
@@ -927,6 +1089,10 @@ impl QueryEngine {
                 DerivedState::NotComputed => None,
             }
         };
+
+        if let Some(error) = LocalState::defer(local) {
+            return Err(error);
+        }
 
         let unchanged = match stale {
             Some((built, dependencies)) => {

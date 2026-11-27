@@ -21,7 +21,10 @@ configurations=(Serial Parallel)
 if ! $quick; then
   configurations+=(ParallelWrites ParallelChain)
 fi
-configurations+=(SpuriousCycle SpuriousCancel PanicHang)
+configurations+=(SpuriousCycle SpuriousCancel PanicHang Deferred DeferredFlip DeferredChain)
+if ! $quick; then
+  configurations+=(DeferredDeep DeferredParallel DeferredWrites)
+fi
 for config in "${configurations[@]}"; do
   expect_pass "$config" "$verification_directory/$config.cfg"
 done
@@ -45,6 +48,13 @@ if ! $quick; then
   mutant PanicSkipsCleanup PanicHang "Invariant (BlockedWaitersCanBeWoken|InProgressHasLiveOwner) is violated"
   mutant AcceptUnverifiable Serial "Invariant (FreshCacheIsCorrect|OkResultsAreCorrect) is violated"
   mutant MarkBuiltWhileCancelled Serial "Action property StaleEntriesStayStaleWhileCancelled is violated"
+  mutant DeferredResultsCached Deferred "Invariant (FreshCacheIsCorrect|OkResultsAreCorrect) is violated"
+  mutant DeferralsForgetVerifying Deferred "Invariant CyclesAreReal is violated"
+  mutant UnverifiableDeferredAgain Deferred "Temporal properties were violated"
+  mutant VerifyingRevisitDeferred DeferredFlip "Invariant CyclesAreReal is violated"
+  mutant HeirIgnoresDepth DeferredChain "Invariant StackStaysShallow is violated"
+  mutant DemandDeferralReturned DeferredChain "Invariant DeferredStaysInternal is violated"
+  mutant DemandCycleReturned DeferredDeep "Invariant CyclesAreReal is violated"
 fi
 
 finish_checks
