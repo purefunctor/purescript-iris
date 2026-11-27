@@ -1170,538 +1170,555 @@ impl ToDiagnostics for CheckingError {
         Q: ExternalQueries,
     {
         let span = context.primary_span_from_crumbs(&self.crumbs);
-        let lookup_message = |id| context.queries.lookup_checking_smol_str(id);
-        let render_type = |id| context.render_type(id);
-
-        let (code, message) = match &self.kind {
-            ErrorKind::Constraint(ConstraintErrorKind::AmbiguousConstraint { constraint }) => {
-                let constraint = render_type(*constraint)?;
-                ("AmbiguousConstraint", format!("Ambiguous type class constraint '{constraint}'"))
+        let diagnostic = match &self.kind {
+            ErrorKind::Constraint(kind) => constraint_diagnostic(context, self, kind, span)?,
+            ErrorKind::Capability(kind) => capability_diagnostic(context, self, kind, span)?,
+            ErrorKind::CapabilityBundle(kind) => {
+                capability_bundle_diagnostic(context, self, kind, span)?
             }
-            ErrorKind::Capability(CapabilityErrorKind::AmbiguousCapability {
-                service,
-                roles,
-                ..
-            }) => {
-                let service = render_type(*service)?;
-                let roles = roles.iter().map(|role| format!("'{role}'")).join(", ");
-                (
-                    "AmbiguousCapability",
-                    format!("Capability '{service}' is declared under multiple roles: {roles}"),
-                )
-            }
-            ErrorKind::Capability(CapabilityErrorKind::CapabilityNotDeclared {
-                service,
-                services,
-            }) => {
-                let service = render_type(*service)?;
-                let services = render_type(*services)?;
-                (
-                    "CapabilityNotDeclared",
-                    format!("Capability '{service}' is not declared in '{services}'"),
-                )
-            }
-            ErrorKind::Capability(CapabilityErrorKind::UnresolvedCapability {
-                service,
-                services,
-            }) => {
-                let service = render_type(*service)?;
-                let services = render_type(*services)?;
-                (
-                    "UnresolvedCapability",
-                    format!(
-                        "Cannot resolve capability '{service}' from open capability set '{services}'"
-                    ),
-                )
-            }
-            ErrorKind::CapabilityBundle(
-                CapabilityBundleErrorKind::InvalidCapabilityBundleMember { member },
-            ) => {
-                let member = Pretty::new(context.queries, context.checked).render(*member)?;
-                (
-                    "InvalidCapabilityBundleMember",
-                    format!("Capability bundle member '{member}' cannot be a type variable"),
-                )
-            }
-            ErrorKind::CapabilityBundle(
-                CapabilityBundleErrorKind::InvalidCapabilityBundlePosition { bundle },
-            ) => {
-                let bundle = render_type(*bundle)?;
-                (
-                    "InvalidCapabilityBundlePosition",
-                    format!("Capability bundle '{bundle}' cannot be used as a service type"),
-                )
-            }
-            ErrorKind::Derive(DeriveErrorKind::CannotDeriveClass { class_file, class_id }) => {
-                let message = match type_item_name(context, *class_file, *class_id)? {
-                    Some(name) => format!("Cannot derive instances for class '{name}'"),
-                    None => "Cannot derive instances for this class".to_owned(),
-                };
-                ("CannotDeriveClass", message)
-            }
-            ErrorKind::Derive(DeriveErrorKind::CannotDeriveForType { type_id }) => {
-                let rendered = render_type(*type_id)?;
-                ("CannotDeriveForType", format!("Cannot derive an instance for type '{rendered}'"))
-            }
-            ErrorKind::Unification(UnificationErrorKind::CannotGeneraliseRecursiveFunction {
-                ..
-            }) => (
-                "CannotGeneraliseRecursiveFunction",
-                "Could not generalise the type of this recursive function".to_owned(),
-            ),
-            ErrorKind::Derive(DeriveErrorKind::ContravariantOccurrence { type_id }) => {
-                let rendered = render_type(*type_id)?;
-                (
-                    "ContravariantOccurrence",
-                    format!("Type variable '{rendered}' appears in a contravariant position"),
-                )
-            }
-            ErrorKind::Derive(DeriveErrorKind::CovariantOccurrence { type_id }) => {
-                let rendered = render_type(*type_id)?;
-                (
-                    "CovariantOccurrence",
-                    format!("Type variable '{rendered}' appears in a covariant position"),
-                )
-            }
-            ErrorKind::Unification(UnificationErrorKind::CannotUnify { t1, t2, .. }) => {
-                let t1 = render_type(*t1)?;
-                let t2 = render_type(*t2)?;
-                ("CannotUnify", format!("Could not match '{t1}' with '{t2}'"))
-            }
-            ErrorKind::Derive(DeriveErrorKind::DeriveInvalidArity {
-                class_file,
-                class_id,
-                expected,
-                actual,
-            }) => {
-                let noun = if *expected == 1 { "type argument" } else { "type arguments" };
-                let message = match type_item_name(context, *class_file, *class_id)? {
-                    Some(name) => {
-                        format!("Deriving '{name}' requires {expected} {noun}, but found {actual}")
-                    }
-                    None => format!(
-                        "Deriving this class requires {expected} {noun}, but found {actual}"
-                    ),
-                };
-                ("DeriveInvalidArity", message)
-            }
-            ErrorKind::Derive(DeriveErrorKind::DeriveMissingFunctor) => (
-                "DeriveMissingFunctor",
-                "Deriving 'Functor' requires 'Data.Functor' to be imported".to_owned(),
-            ),
-            ErrorKind::Term(TermErrorKind::EmptyAdoBlock) => {
-                ("EmptyAdoBlock", "An 'ado' block cannot be empty".to_owned())
-            }
-            ErrorKind::Term(TermErrorKind::EmptyDoBlock) => {
-                ("EmptyDoBlock", "A 'do' block cannot be empty".to_owned())
-            }
-            ErrorKind::Unification(UnificationErrorKind::EscapedSkolem { skolem, .. }) => {
-                let skolem = render_type(*skolem)?;
-                ("EscapedSkolem", format!("Rigid type variable '{skolem}' escaped its scope"))
-            }
-            ErrorKind::Hole(HoleErrorKind::TermHole { source_term }) => {
-                let name = context.text_of(span).trim();
-                if let Some(hole) = context.checked.lookup_term_hole(*source_term) {
-                    let type_id = render_type(hole.type_id)?;
-                    ("TermHole", format!("Hole '{name}' has inferred type '{type_id}'"))
-                } else {
-                    ("TermHole", format!("Hole '{name}' has an unknown type"))
-                }
-            }
-            ErrorKind::Hole(HoleErrorKind::TypeHole { source_type }) => {
-                let name = context.text_of(span).trim();
-                if let Some(hole) = context.checked.lookup_type_hole(*source_type) {
-                    let type_id = render_type(hole.type_id)?;
-                    let kind = render_type(hole.kind_id)?;
-                    (
-                        "TypeHole",
-                        format!("Type hole '{name}' has inferred type '{type_id} :: {kind}'"),
-                    )
-                } else {
-                    ("TypeHole", format!("Type hole '{name}' has an unknown kind"))
-                }
-            }
-            ErrorKind::Term(TermErrorKind::InvalidFinalBind) => (
-                "InvalidFinalBind",
-                "The final statement in a 'do' block should not be a bind".to_owned(),
-            ),
-            ErrorKind::Term(TermErrorKind::InvalidFinalLet) => {
-                ("InvalidFinalLet", "A 'do' block cannot end with a 'let' statement".to_owned())
-            }
-            ErrorKind::Instance(InstanceErrorKind::InstanceHeadMismatch {
-                class_file,
-                class_item,
-                expected,
-                actual,
-            }) => {
-                let noun = if *expected == 1 { "type argument" } else { "type arguments" };
-                let message = match type_item_name(context, *class_file, *class_item)? {
-                    Some(name) => format!(
-                        "Class '{name}' expects {expected} {noun}, but this instance provides {actual}"
-                    ),
-                    None => format!(
-                        "Class expects {expected} {noun}, but this instance provides {actual}"
-                    ),
-                };
-                ("InstanceHeadMismatch", message)
-            }
-            ErrorKind::Instance(InstanceErrorKind::InstanceHeadLabeledRow {
-                class_file,
-                class_item,
-                position,
-                type_id,
-            }) => {
-                let position = position + 1;
-                let rendered = render_type(*type_id)?;
-                let message = match type_item_name(context, *class_file, *class_item)? {
-                    Some(name) => format!(
-                        "Instance argument {position} of '{name}' cannot contain labelled row '{rendered}'"
-                    ),
-                    None => {
-                        format!(
-                            "Instance argument {position} cannot contain labelled row '{rendered}'"
-                        )
-                    }
-                };
-                ("InstanceHeadLabeledRow", message)
-            }
-            ErrorKind::Instance(InstanceErrorKind::InstanceMemberTypeMismatch {
-                expected,
-                actual,
-            }) => {
-                let expected = render_type(*expected)?;
-                let actual = render_type(*actual)?;
-                (
-                    "InstanceMemberTypeMismatch",
-                    format!(
-                        "Instance member has type '{actual}', but the class requires '{expected}'"
-                    ),
-                )
-            }
-            ErrorKind::Instance(InstanceErrorKind::MissingInstanceMembers { members }) => {
-                let message = if members.len() == 1 {
-                    "Instance is missing a class member"
-                } else {
-                    "Instance is missing class members"
-                };
-                ("MissingInstanceMembers", message.to_owned())
-            }
-            ErrorKind::Type(TypeErrorKind::InvalidTypeApplication {
-                function_type,
-                argument_type,
-                ..
-            }) => {
-                let function_type = render_type(*function_type)?;
-                let argument_type = render_type(*argument_type)?;
-                (
-                    "InvalidTypeApplication",
-                    format!("Cannot apply type '{function_type}' to '{argument_type}'"),
-                )
-            }
-            ErrorKind::Derive(DeriveErrorKind::ExpectedNewtype { type_id }) => {
-                let rendered = render_type(*type_id)?;
-                ("ExpectedNewtype", format!("Expected a newtype, but found '{rendered}'"))
-            }
-            ErrorKind::Derive(DeriveErrorKind::InvalidNewtypeDeriveSkolemArguments) => (
-                "InvalidNewtypeDeriveSkolemArguments",
-                "Cannot derive a newtype instance for this type".to_owned(),
-            ),
-            ErrorKind::Derive(DeriveErrorKind::NonLocalNewtype { type_id }) => {
-                let rendered = render_type(*type_id)?;
-                (
-                    "NonLocalNewtype",
-                    format!(
-                        "Cannot derive a newtype instance for '{rendered}' because it is defined in another module"
-                    ),
-                )
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::NoInstanceFound { constraint, .. }) => {
-                let constraint = render_type(*constraint)?;
-                ("NoInstanceFound", format!("No type class instance found for '{constraint}'"))
-            }
-            ErrorKind::Instance(InstanceErrorKind::OrphanInstance { constraint }) => {
-                let constraint = render_type(*constraint)?;
-                ("OrphanInstance", format!("Orphan instance for '{constraint}'"))
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::OverlappingInstances {
-                constraint, ..
-            }) => {
-                let constraint = render_type(*constraint)?;
-                (
-                    "OverlappingInstances",
-                    format!("Overlapping type class instances found for '{constraint}'"),
-                )
-            }
-            ErrorKind::Type(TypeErrorKind::NoVisibleTypeVariable { function_type }) => {
-                let rendered = render_type(*function_type)?;
-                (
-                    "NoVisibleTypeVariable",
-                    format!("Cannot apply a visible type argument to '{rendered}'"),
-                )
-            }
-            ErrorKind::Type(TypeErrorKind::PartialSynonymApplication { id }) => {
-                let message = match partial_synonym_name(context, *id)? {
-                    Some(name) => format!("Type synonym '{name}' is partially applied"),
-                    None => "Type synonym is partially applied".to_owned(),
-                };
-                ("PartialSynonymApplication", message)
-            }
-            ErrorKind::Type(TypeErrorKind::RecursiveSynonymExpansion { file_id, type_id }) => {
-                let message = match type_item_name(context, *file_id, *type_id)? {
-                    Some(name) => format!("Type synonym '{name}' expands recursively"),
-                    None => "Type synonym expands recursively".to_owned(),
-                };
-                ("RecursiveSynonymExpansion", message)
-            }
-            ErrorKind::Term(TermErrorKind::TooManyBinders { expected, actual, .. }) => {
-                let noun = if *expected == 1 { "pattern" } else { "patterns" };
-                (
-                    "TooManyBinders",
-                    format!("Expected at most {expected} {noun}, but found {actual}"),
-                )
-            }
-            ErrorKind::Type(TypeErrorKind::TypeSignatureVariableMismatch {
-                expected,
-                actual,
-                ..
-            }) => {
-                let noun = if *expected == 1 { "type parameter" } else { "type parameters" };
-                (
-                    "TypeSignatureVariableMismatch",
-                    format!(
-                        "Expected {expected} {noun} to match the kind signature, but found {actual}"
-                    ),
-                )
-            }
-            ErrorKind::Type(TypeErrorKind::InvalidRoleDeclaration {
-                index,
-                declared,
-                inferred,
-            }) => {
-                let parameter = index + 1;
-                (
-                    "InvalidRoleDeclaration",
-                    format!(
-                        "Role for parameter {parameter} cannot be '{}' because it was inferred as '{}'",
-                        role_name(*declared),
-                        role_name(*inferred),
-                    ),
-                )
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::CoercibleConstructorNotInScope {
-                file_id,
-                item_id,
-            }) => {
-                let message = match type_item_name(context, *file_id, *item_id)? {
-                    Some(name) => {
-                        format!("Constructor for '{name}' must be in scope to derive 'Coercible'")
-                    }
-                    None => "Constructor must be in scope to derive 'Coercible'".to_owned(),
-                };
-                ("CoercibleConstructorNotInScope", message)
-            }
-            ErrorKind::Term(TermErrorKind::RedundantPatterns { patterns }) => {
-                let message = if patterns.len() == 1 {
-                    "Pattern match contains an unreachable pattern"
-                } else {
-                    "Pattern match contains unreachable patterns"
-                };
-                ("RedundantPattern", message.to_owned())
-            }
-            ErrorKind::Term(TermErrorKind::MissingPatterns { .. }) => {
-                ("MissingPatterns", "Pattern match is not exhaustive".to_owned())
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::CustomWarning { message_id }) => {
-                let message = lookup_message(*message_id);
-                ("CustomWarning", message.to_string())
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::CustomFailure { message_id }) => {
-                let message = lookup_message(*message_id);
-                ("CustomFailure", message.to_string())
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::ReflectedIntegerOutOfRange { integer }) => {
-                let integer = context.queries.lookup_integer(*integer);
-                (
-                    "ReflectedIntegerOutOfRange",
-                    format!(
-                        "Type-level integer '{integer}' cannot be reflected as an 'Int' because it is \
-                     outside the range -2147483648 to 2147483647"
-                    ),
-                )
-            }
-            ErrorKind::Unification(UnificationErrorKind::PropertyIsMissing { labels }) => {
-                let noun = if labels.len() == 1 { "property" } else { "properties" };
-                let labels = labels.iter().map(|label| format!("'{label}'")).join(", ");
-                ("PropertyIsMissing", format!("Missing required {noun} {labels}"))
-            }
-            ErrorKind::Unification(UnificationErrorKind::UnreportedUnknownType { type_id }) => {
-                let type_id = render_type(*type_id)?;
-                (
-                    "UnreportedUnknownType",
-                    format!(
-                        "Unknown type '{type_id}' remained unresolved without a reported error"
-                    ),
-                )
-            }
-            ErrorKind::Unification(UnificationErrorKind::AdditionalProperty { labels }) => {
-                let noun = if labels.len() == 1 { "property" } else { "properties" };
-                let labels = labels.iter().map(|label| format!("'{label}'")).join(", ");
-                ("AdditionalProperty", format!("Unexpected {noun} {labels}"))
-            }
+            ErrorKind::Instance(kind) => instance_diagnostic(context, self, kind, span)?,
+            ErrorKind::Derive(kind) => derive_diagnostic(context, self, kind, span)?,
+            ErrorKind::Unification(kind) => unification_diagnostic(context, self, kind, span)?,
+            ErrorKind::Type(kind) => type_diagnostic(context, self, kind, span)?,
+            ErrorKind::Term(kind) => term_diagnostic(context, self, kind, span)?,
+            ErrorKind::Hole(kind) => hole_diagnostic(context, self, kind, span)?,
         };
+        Ok(vec![diagnostic])
+    }
+}
 
-        let mut diagnostic = Diagnostic::new(self.severity(), code, message, span, "checking");
-
-        if let ErrorKind::Capability(CapabilityErrorKind::AmbiguousCapability { services, .. })
-        | ErrorKind::Capability(CapabilityErrorKind::CapabilityNotDeclared {
-            services, ..
-        })
-        | ErrorKind::Capability(CapabilityErrorKind::UnresolvedCapability { services, .. }) =
-            self.kind
-            && let Some(declared) = context.written_type_span(&self.crumbs, services)?
-        {
-            diagnostic = diagnostic.with_related(span, "Required by this expression");
-            diagnostic.span = declared;
+fn checking_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    span: Span,
+    code: &'static str,
+    message: impl Into<String>,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    let mut diagnostic = Diagnostic::new(error.severity(), code, message, span, "checking");
+    for crumb in error.crumbs.iter() {
+        if let ErrorCrumb::CapabilityBundle(origin) = *crumb {
+            let origin = context.render_type(origin)?;
+            diagnostic =
+                diagnostic.with_context(format!("Required via capability bundle '{origin}'"));
         }
+    }
+    Ok(diagnostic)
+}
 
-        for crumb in self.crumbs.iter() {
-            if let ErrorCrumb::CapabilityBundle(origin) = *crumb {
-                let origin = render_type(origin)?;
-                diagnostic =
-                    diagnostic.with_context(format!("Required via capability bundle '{origin}'"));
+fn constraint_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &ConstraintErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        ConstraintErrorKind::AmbiguousConstraint { constraint } => {
+            let constraint = context.render_type(*constraint)?;
+            let message = format!("Ambiguous type class constraint '{constraint}'");
+            checking_diagnostic(context, error, span, "AmbiguousConstraint", message)
+        }
+        ConstraintErrorKind::NoInstanceFound { given, constraint } => {
+            let constraint = context.render_type(*constraint)?;
+            let message = format!("No type class instance found for '{constraint}'");
+            let diagnostic = checking_diagnostic(context, error, span, "NoInstanceFound", message)?;
+            let mut items = Vec::with_capacity(given.len());
+            for &given in given.iter() {
+                items.push(context.render_type(given)?.to_string());
             }
+            Ok(diagnostic.with_list("Constraints in scope:", items))
         }
+        ConstraintErrorKind::OverlappingInstances { constraint, instances } => {
+            let constraint = context.render_type(*constraint)?;
+            let message = format!("Overlapping type class instances found for '{constraint}'");
+            let diagnostic =
+                checking_diagnostic(context, error, span, "OverlappingInstances", message)?;
+            let mut items = Vec::with_capacity(instances.len());
+            for &instance in instances.iter() {
+                items.push(context.render_type(instance)?.to_string());
+            }
+            Ok(diagnostic.with_list("Matching instances:", items))
+        }
+        ConstraintErrorKind::CoercibleConstructorNotInScope { file_id, item_id } => {
+            let message = match type_item_name(context, *file_id, *item_id)? {
+                Some(name) => {
+                    format!("Constructor for '{name}' must be in scope to derive 'Coercible'")
+                }
+                None => "Constructor must be in scope to derive 'Coercible'".to_owned(),
+            };
+            checking_diagnostic(context, error, span, "CoercibleConstructorNotInScope", message)
+        }
+        ConstraintErrorKind::CustomWarning { message_id } => {
+            let message = context.queries.lookup_checking_smol_str(*message_id);
+            checking_diagnostic(context, error, span, "CustomWarning", message.as_str())
+        }
+        ConstraintErrorKind::CustomFailure { message_id } => {
+            let message = context.queries.lookup_checking_smol_str(*message_id);
+            checking_diagnostic(context, error, span, "CustomFailure", message.as_str())
+        }
+        ConstraintErrorKind::ReflectedIntegerOutOfRange { integer } => {
+            let integer = context.queries.lookup_integer(*integer);
+            let message = format!(
+                "Type-level integer '{integer}' cannot be reflected as an 'Int' because it is \
+                 outside the range -2147483648 to 2147483647"
+            );
+            checking_diagnostic(context, error, span, "ReflectedIntegerOutOfRange", message)
+        }
+    }
+}
 
-        match &self.kind {
+fn capability_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &CapabilityErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    let (services, mut diagnostic) = match kind {
+        CapabilityErrorKind::AmbiguousCapability { service, services, roles } => {
+            let service = context.render_type(*service)?;
+            let roles = roles.iter().map(|role| format!("'{role}'")).join(", ");
+            let message =
+                format!("Capability '{service}' is declared under multiple roles: {roles}");
+            let diagnostic =
+                checking_diagnostic(context, error, span, "AmbiguousCapability", message)?;
+            (services, diagnostic.with_hint("Use a distinct service type for each role."))
+        }
+        CapabilityErrorKind::CapabilityNotDeclared { service, services } => {
+            let service = context.render_type(*service)?;
+            let rendered_services = context.render_type(*services)?;
+            let message =
+                format!("Capability '{service}' is not declared in '{rendered_services}'");
+            let diagnostic =
+                checking_diagnostic(context, error, span, "CapabilityNotDeclared", message)?;
+            (services, diagnostic)
+        }
+        CapabilityErrorKind::UnresolvedCapability { service, services } => {
+            let service = context.render_type(*service)?;
+            let rendered_services = context.render_type(*services)?;
+            let message = format!(
+                "Cannot resolve capability '{service}' from open capability set '{rendered_services}'"
+            );
+            let diagnostic =
+                checking_diagnostic(context, error, span, "UnresolvedCapability", message)?;
+            let hint =
+                format!("Close the capability set or add a 'Has' constraint for '{service}'.");
+            (services, diagnostic.with_hint(hint))
+        }
+    };
+    if let Some(declared) = context.written_type_span(&error.crumbs, *services)? {
+        diagnostic = diagnostic.with_related(span, "Required by this expression");
+        diagnostic.span = declared;
+    }
+    Ok(diagnostic)
+}
+
+fn capability_bundle_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &CapabilityBundleErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        CapabilityBundleErrorKind::InvalidCapabilityBundleMember { member } => {
+            let member = Pretty::new(context.queries, context.checked).render(*member)?;
+            let message = format!("Capability bundle member '{member}' cannot be a type variable");
+            let diagnostic = checking_diagnostic(
+                context,
+                error,
+                span,
+                "InvalidCapabilityBundleMember",
+                message,
+            )?;
+            Ok(diagnostic.with_hint(
+                "Name each service explicitly instead of using a type synonym parameter.",
+            ))
+        }
+        CapabilityBundleErrorKind::InvalidCapabilityBundlePosition { bundle } => {
+            let bundle = context.render_type(*bundle)?;
+            let message = format!("Capability bundle '{bundle}' cannot be used as a service type");
+            let diagnostic = checking_diagnostic(
+                context,
+                error,
+                span,
+                "InvalidCapabilityBundlePosition",
+                message,
+            )?;
+            Ok(diagnostic.with_hint(
+                "Use a capability bundle only as the first argument to 'Has' or inside another bundle synonym.",
+            ))
+        }
+    }
+}
+
+fn instance_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &InstanceErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        InstanceErrorKind::InstanceHeadMismatch { class_file, class_item, expected, actual } => {
+            let noun = if *expected == 1 { "type argument" } else { "type arguments" };
+            let message = match type_item_name(context, *class_file, *class_item)? {
+                Some(name) => format!(
+                    "Class '{name}' expects {expected} {noun}, but this instance provides {actual}"
+                ),
+                None => {
+                    format!("Class expects {expected} {noun}, but this instance provides {actual}")
+                }
+            };
+            checking_diagnostic(context, error, span, "InstanceHeadMismatch", message)
+        }
+        InstanceErrorKind::InstanceHeadLabeledRow { class_file, class_item, position, type_id } => {
+            let position = position + 1;
+            let rendered = context.render_type(*type_id)?;
+            let message = match type_item_name(context, *class_file, *class_item)? {
+                Some(name) => format!(
+                    "Instance argument {position} of '{name}' cannot contain labelled row '{rendered}'"
+                ),
+                None => {
+                    format!("Instance argument {position} cannot contain labelled row '{rendered}'")
+                }
+            };
+            let diagnostic =
+                checking_diagnostic(context, error, span, "InstanceHeadLabeledRow", message)?;
+            Ok(diagnostic.with_context(
+                "This parameter is not determined by a functional dependency, so only a row variable like '( | r )' is allowed",
+            ))
+        }
+        InstanceErrorKind::InstanceMemberTypeMismatch { expected, actual } => {
+            let expected = context.render_type(*expected)?;
+            let actual = context.render_type(*actual)?;
+            let message =
+                format!("Instance member has type '{actual}', but the class requires '{expected}'");
+            checking_diagnostic(context, error, span, "InstanceMemberTypeMismatch", message)
+        }
+        InstanceErrorKind::MissingInstanceMembers { members } => {
+            let (message, heading) = if members.len() == 1 {
+                ("Instance is missing a class member", "Missing member:")
+            } else {
+                ("Instance is missing class members", "Missing members:")
+            };
+            let diagnostic =
+                checking_diagnostic(context, error, span, "MissingInstanceMembers", message)?;
+            let items = members.iter().map(SmolStr::to_string).collect();
+            Ok(diagnostic.with_list(heading, items))
+        }
+        InstanceErrorKind::OrphanInstance { constraint } => {
+            let constraint = context.render_type(*constraint)?;
+            let message = format!("Orphan instance for '{constraint}'");
+            let diagnostic = checking_diagnostic(context, error, span, "OrphanInstance", message)?;
+            Ok(diagnostic.with_context(
+                "Instances must be defined in the same module as either the class or one of its head types",
+            ))
+        }
+    }
+}
+
+fn derive_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &DeriveErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        DeriveErrorKind::CannotDeriveClass { class_file, class_id } => {
+            let message = match type_item_name(context, *class_file, *class_id)? {
+                Some(name) => format!("Cannot derive instances for class '{name}'"),
+                None => "Cannot derive instances for this class".to_owned(),
+            };
+            checking_diagnostic(context, error, span, "CannotDeriveClass", message)
+        }
+        DeriveErrorKind::CannotDeriveForType { type_id } => {
+            let rendered = context.render_type(*type_id)?;
+            let message = format!("Cannot derive an instance for type '{rendered}'");
+            checking_diagnostic(context, error, span, "CannotDeriveForType", message)
+        }
+        DeriveErrorKind::ContravariantOccurrence { type_id } => {
+            let rendered = context.render_type(*type_id)?;
+            let message = format!("Type variable '{rendered}' appears in a contravariant position");
+            checking_diagnostic(context, error, span, "ContravariantOccurrence", message)
+        }
+        DeriveErrorKind::CovariantOccurrence { type_id } => {
+            let rendered = context.render_type(*type_id)?;
+            let message = format!("Type variable '{rendered}' appears in a covariant position");
+            checking_diagnostic(context, error, span, "CovariantOccurrence", message)
+        }
+        DeriveErrorKind::DeriveInvalidArity { class_file, class_id, expected, actual } => {
+            let noun = if *expected == 1 { "type argument" } else { "type arguments" };
+            let message = match type_item_name(context, *class_file, *class_id)? {
+                Some(name) => {
+                    format!("Deriving '{name}' requires {expected} {noun}, but found {actual}")
+                }
+                None => {
+                    format!("Deriving this class requires {expected} {noun}, but found {actual}")
+                }
+            };
+            checking_diagnostic(context, error, span, "DeriveInvalidArity", message)
+        }
+        DeriveErrorKind::DeriveMissingFunctor => {
+            let message = "Deriving 'Functor' requires 'Data.Functor' to be imported";
+            checking_diagnostic(context, error, span, "DeriveMissingFunctor", message)
+        }
+        DeriveErrorKind::ExpectedNewtype { type_id } => {
+            let rendered = context.render_type(*type_id)?;
+            let message = format!("Expected a newtype, but found '{rendered}'");
+            checking_diagnostic(context, error, span, "ExpectedNewtype", message)
+        }
+        DeriveErrorKind::InvalidNewtypeDeriveSkolemArguments => {
+            let message = "Cannot derive a newtype instance for this type";
+            let diagnostic = checking_diagnostic(
+                context,
+                error,
+                span,
+                "InvalidNewtypeDeriveSkolemArguments",
+                message,
+            )?;
+            Ok(diagnostic.with_context(
+                "Type arguments left out of the instance head must appear last in the wrapped type and nowhere else",
+            ))
+        }
+        DeriveErrorKind::NonLocalNewtype { type_id } => {
+            let rendered = context.render_type(*type_id)?;
+            let message = format!(
+                "Cannot derive a newtype instance for '{rendered}' because it is defined in another module"
+            );
+            checking_diagnostic(context, error, span, "NonLocalNewtype", message)
+        }
+    }
+}
+
+fn unification_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &UnificationErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        &UnificationErrorKind::CannotUnify { t1, t2, outer: (outer_t1, outer_t2) } => {
+            let rendered_t1 = context.render_type(t1)?;
+            let rendered_t2 = context.render_type(t2)?;
+            let message = format!("Could not match '{rendered_t1}' with '{rendered_t2}'");
+            let mut diagnostic = checking_diagnostic(context, error, span, "CannotUnify", message)?;
             // Types are zonked by now, so equal types share an identifier.
-            &ErrorKind::Unification(UnificationErrorKind::CannotUnify {
-                t1,
-                t2,
-                outer: (outer_t1, outer_t2),
-            }) if (t1, t2) != (outer_t1, outer_t2) => {
-                let outer_t1 = render_type(outer_t1)?;
-                let outer_t2 = render_type(outer_t2)?;
+            if (t1, t2) != (outer_t1, outer_t2) {
+                let outer_t1 = context.render_type(outer_t1)?;
+                let outer_t2 = context.render_type(outer_t2)?;
                 diagnostic = diagnostic
                     .with_context(format!("While matching '{outer_t1}' with '{outer_t2}'"));
             }
-            ErrorKind::Type(TypeErrorKind::InvalidTypeApplication {
-                function_type,
-                function_kind,
-                ..
-            }) => {
-                let function_type = render_type(*function_type)?;
-                let function_kind = render_type(*function_kind)?;
-                diagnostic = diagnostic.with_context(format!(
-                    "'{function_type}' has kind '{function_kind}' and does not take type arguments"
-                ));
-            }
-            ErrorKind::Unification(UnificationErrorKind::EscapedSkolem { type_id, .. }) => {
-                let rendered = render_type(*type_id)?;
-                diagnostic = diagnostic.with_context(format!("Appears in type '{rendered}'"));
-            }
-            ErrorKind::Type(TypeErrorKind::NoVisibleTypeVariable { .. }) => {
-                diagnostic =
-                    diagnostic.with_context("This type has no remaining visible 'forall' binder");
-            }
-            ErrorKind::Instance(InstanceErrorKind::InstanceHeadLabeledRow { .. }) => {
-                diagnostic = diagnostic.with_context(
-                    "This parameter is not determined by a functional dependency, so only a row variable like '( | r )' is allowed",
-                );
-            }
-            ErrorKind::Derive(DeriveErrorKind::InvalidNewtypeDeriveSkolemArguments) => {
-                diagnostic = diagnostic.with_context(
-                    "Type arguments left out of the instance head must appear last in the wrapped type and nowhere else",
-                );
-            }
-            ErrorKind::Instance(InstanceErrorKind::OrphanInstance { .. }) => {
-                diagnostic = diagnostic.with_context(
-                    "Instances must be defined in the same module as either the class or one of its head types",
-                );
-            }
-            ErrorKind::Unification(UnificationErrorKind::UnreportedUnknownType { .. }) => {
-                diagnostic = diagnostic.with_context(INTERNAL_COMPILER_ERROR);
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::NoInstanceFound { given, .. }) => {
-                let mut items = Vec::with_capacity(given.len());
-                for &given in given.iter() {
-                    items.push(render_type(given)?.to_string());
-                }
-                diagnostic = diagnostic.with_list("Constraints in scope:", items);
-            }
-            ErrorKind::Constraint(ConstraintErrorKind::OverlappingInstances {
-                instances, ..
-            }) => {
-                let mut items = Vec::with_capacity(instances.len());
-                for &instance in instances.iter() {
-                    items.push(render_type(instance)?.to_string());
-                }
-                diagnostic = diagnostic.with_list("Matching instances:", items);
-            }
-            ErrorKind::Hole(HoleErrorKind::TermHole { source_term }) => {
-                if let Some(hole) = context.checked.lookup_term_hole(*source_term) {
-                    diagnostic = attach_hole_binding_section(diagnostic, context, &hole.bindings)?;
-                }
-            }
-            ErrorKind::Hole(HoleErrorKind::TypeHole { source_type }) => {
-                if let Some(hole) = context.checked.lookup_type_hole(*source_type) {
-                    diagnostic = attach_hole_binding_section(diagnostic, context, &hole.bindings)?;
-                }
-            }
-            ErrorKind::Unification(UnificationErrorKind::CannotGeneraliseRecursiveFunction {
-                type_id,
-            }) => {
-                let inferred = render_type(*type_id)?;
-                diagnostic = diagnostic
-                    .with_context(format!("Inferred type: '{inferred}'"))
-                    .with_hint("Add an explicit type signature.");
-            }
-            ErrorKind::Instance(InstanceErrorKind::MissingInstanceMembers { members }) => {
-                let heading =
-                    if members.len() == 1 { "Missing member:" } else { "Missing members:" };
-                let items = members.iter().map(SmolStr::to_string).collect();
-                diagnostic = diagnostic.with_list(heading, items);
-            }
-            ErrorKind::Term(TermErrorKind::MissingPatterns { patterns }) => {
-                let heading =
-                    if patterns.len() == 1 { "Missing pattern:" } else { "Missing patterns:" };
-                let items = patterns.iter().map(SmolStr::to_string).collect();
-                diagnostic = diagnostic.with_list(heading, items);
-            }
-            ErrorKind::Term(TermErrorKind::RedundantPatterns { patterns }) => {
-                let heading =
-                    if patterns.len() == 1 { "Redundant pattern:" } else { "Redundant patterns:" };
-                let items = patterns.iter().map(SmolStr::to_string).collect();
-                diagnostic = diagnostic.with_list(heading, items);
-            }
-            ErrorKind::Capability(CapabilityErrorKind::AmbiguousCapability { .. }) => {
-                diagnostic = diagnostic.with_hint("Use a distinct service type for each role.");
-            }
-            ErrorKind::Capability(CapabilityErrorKind::UnresolvedCapability {
-                service, ..
-            }) => {
-                let service = render_type(*service)?;
-                diagnostic = diagnostic.with_hint(format!(
-                    "Close the capability set or add a 'Has' constraint for '{service}'."
-                ));
-            }
-            ErrorKind::CapabilityBundle(
-                CapabilityBundleErrorKind::InvalidCapabilityBundleMember { .. },
-            ) => {
-                diagnostic = diagnostic.with_hint(
-                    "Name each service explicitly instead of using a type synonym parameter.",
-                );
-            }
-            ErrorKind::CapabilityBundle(
-                CapabilityBundleErrorKind::InvalidCapabilityBundlePosition { .. },
-            ) => {
-                diagnostic = diagnostic.with_hint(
-                    "Use a capability bundle only as the first argument to 'Has' or inside another bundle synonym.",
-                );
-            }
-            _ => {}
+            Ok(diagnostic)
         }
+        UnificationErrorKind::EscapedSkolem { skolem, type_id } => {
+            let skolem = context.render_type(*skolem)?;
+            let message = format!("Rigid type variable '{skolem}' escaped its scope");
+            let diagnostic = checking_diagnostic(context, error, span, "EscapedSkolem", message)?;
+            let rendered = context.render_type(*type_id)?;
+            Ok(diagnostic.with_context(format!("Appears in type '{rendered}'")))
+        }
+        UnificationErrorKind::PropertyIsMissing { labels } => {
+            let noun = if labels.len() == 1 { "property" } else { "properties" };
+            let labels = labels.iter().map(|label| format!("'{label}'")).join(", ");
+            let message = format!("Missing required {noun} {labels}");
+            checking_diagnostic(context, error, span, "PropertyIsMissing", message)
+        }
+        UnificationErrorKind::AdditionalProperty { labels } => {
+            let noun = if labels.len() == 1 { "property" } else { "properties" };
+            let labels = labels.iter().map(|label| format!("'{label}'")).join(", ");
+            let message = format!("Unexpected {noun} {labels}");
+            checking_diagnostic(context, error, span, "AdditionalProperty", message)
+        }
+        UnificationErrorKind::CannotGeneraliseRecursiveFunction { type_id } => {
+            let message = "Could not generalise the type of this recursive function";
+            let diagnostic = checking_diagnostic(
+                context,
+                error,
+                span,
+                "CannotGeneraliseRecursiveFunction",
+                message,
+            )?;
+            let inferred = context.render_type(*type_id)?;
+            Ok(diagnostic
+                .with_context(format!("Inferred type: '{inferred}'"))
+                .with_hint("Add an explicit type signature."))
+        }
+        UnificationErrorKind::UnreportedUnknownType { type_id } => {
+            let type_id = context.render_type(*type_id)?;
+            let message =
+                format!("Unknown type '{type_id}' remained unresolved without a reported error");
+            let diagnostic =
+                checking_diagnostic(context, error, span, "UnreportedUnknownType", message)?;
+            Ok(diagnostic.with_context(INTERNAL_COMPILER_ERROR))
+        }
+    }
+}
 
-        Ok(vec![diagnostic])
+fn type_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &TypeErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        TypeErrorKind::InvalidTypeApplication { function_type, function_kind, argument_type } => {
+            let function_type = context.render_type(*function_type)?;
+            let argument_type = context.render_type(*argument_type)?;
+            let message = format!("Cannot apply type '{function_type}' to '{argument_type}'");
+            let diagnostic =
+                checking_diagnostic(context, error, span, "InvalidTypeApplication", message)?;
+            let function_kind = context.render_type(*function_kind)?;
+            Ok(diagnostic.with_context(format!(
+                "'{function_type}' has kind '{function_kind}' and does not take type arguments"
+            )))
+        }
+        TypeErrorKind::NoVisibleTypeVariable { function_type } => {
+            let rendered = context.render_type(*function_type)?;
+            let message = format!("Cannot apply a visible type argument to '{rendered}'");
+            let diagnostic =
+                checking_diagnostic(context, error, span, "NoVisibleTypeVariable", message)?;
+            Ok(diagnostic.with_context("This type has no remaining visible 'forall' binder"))
+        }
+        TypeErrorKind::PartialSynonymApplication { id } => {
+            let message = match partial_synonym_name(context, *id)? {
+                Some(name) => format!("Type synonym '{name}' is partially applied"),
+                None => "Type synonym is partially applied".to_owned(),
+            };
+            checking_diagnostic(context, error, span, "PartialSynonymApplication", message)
+        }
+        TypeErrorKind::RecursiveSynonymExpansion { file_id, type_id } => {
+            let message = match type_item_name(context, *file_id, *type_id)? {
+                Some(name) => format!("Type synonym '{name}' expands recursively"),
+                None => "Type synonym expands recursively".to_owned(),
+            };
+            checking_diagnostic(context, error, span, "RecursiveSynonymExpansion", message)
+        }
+        TypeErrorKind::TypeSignatureVariableMismatch { expected, actual, .. } => {
+            let noun = if *expected == 1 { "type parameter" } else { "type parameters" };
+            let message = format!(
+                "Expected {expected} {noun} to match the kind signature, but found {actual}"
+            );
+            checking_diagnostic(context, error, span, "TypeSignatureVariableMismatch", message)
+        }
+        TypeErrorKind::InvalidRoleDeclaration { index, declared, inferred } => {
+            let parameter = index + 1;
+            let message = format!(
+                "Role for parameter {parameter} cannot be '{}' because it was inferred as '{}'",
+                role_name(*declared),
+                role_name(*inferred),
+            );
+            checking_diagnostic(context, error, span, "InvalidRoleDeclaration", message)
+        }
+    }
+}
+
+fn term_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &TermErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    match kind {
+        TermErrorKind::EmptyAdoBlock => {
+            let message = "An 'ado' block cannot be empty";
+            checking_diagnostic(context, error, span, "EmptyAdoBlock", message)
+        }
+        TermErrorKind::EmptyDoBlock => {
+            let message = "A 'do' block cannot be empty";
+            checking_diagnostic(context, error, span, "EmptyDoBlock", message)
+        }
+        TermErrorKind::InvalidFinalBind => {
+            let message = "The final statement in a 'do' block should not be a bind";
+            checking_diagnostic(context, error, span, "InvalidFinalBind", message)
+        }
+        TermErrorKind::InvalidFinalLet => {
+            let message = "A 'do' block cannot end with a 'let' statement";
+            checking_diagnostic(context, error, span, "InvalidFinalLet", message)
+        }
+        TermErrorKind::TooManyBinders { expected, actual, .. } => {
+            let noun = if *expected == 1 { "pattern" } else { "patterns" };
+            let message = format!("Expected at most {expected} {noun}, but found {actual}");
+            checking_diagnostic(context, error, span, "TooManyBinders", message)
+        }
+        TermErrorKind::RedundantPatterns { patterns } => {
+            let (message, heading) = if patterns.len() == 1 {
+                ("Pattern match contains an unreachable pattern", "Redundant pattern:")
+            } else {
+                ("Pattern match contains unreachable patterns", "Redundant patterns:")
+            };
+            let diagnostic =
+                checking_diagnostic(context, error, span, "RedundantPattern", message)?;
+            let items = patterns.iter().map(SmolStr::to_string).collect();
+            Ok(diagnostic.with_list(heading, items))
+        }
+        TermErrorKind::MissingPatterns { patterns } => {
+            let message = "Pattern match is not exhaustive";
+            let diagnostic = checking_diagnostic(context, error, span, "MissingPatterns", message)?;
+            let heading =
+                if patterns.len() == 1 { "Missing pattern:" } else { "Missing patterns:" };
+            let items = patterns.iter().map(SmolStr::to_string).collect();
+            Ok(diagnostic.with_list(heading, items))
+        }
+    }
+}
+
+fn hole_diagnostic<Q>(
+    context: &DiagnosticsContext<'_, Q>,
+    error: &CheckingError,
+    kind: &HoleErrorKind,
+    span: Span,
+) -> QueryResult<Diagnostic>
+where
+    Q: ExternalQueries,
+{
+    let name = context.text_of(span).trim();
+    match kind {
+        HoleErrorKind::TermHole { source_term } => {
+            let Some(hole) = context.checked.lookup_term_hole(*source_term) else {
+                let message = format!("Hole '{name}' has an unknown type");
+                return checking_diagnostic(context, error, span, "TermHole", message);
+            };
+            let type_id = context.render_type(hole.type_id)?;
+            let message = format!("Hole '{name}' has inferred type '{type_id}'");
+            let diagnostic = checking_diagnostic(context, error, span, "TermHole", message)?;
+            attach_hole_binding_section(diagnostic, context, &hole.bindings)
+        }
+        HoleErrorKind::TypeHole { source_type } => {
+            let Some(hole) = context.checked.lookup_type_hole(*source_type) else {
+                let message = format!("Type hole '{name}' has an unknown kind");
+                return checking_diagnostic(context, error, span, "TypeHole", message);
+            };
+            let type_id = context.render_type(hole.type_id)?;
+            let kind = context.render_type(hole.kind_id)?;
+            let message = format!("Type hole '{name}' has inferred type '{type_id} :: {kind}'");
+            let diagnostic = checking_diagnostic(context, error, span, "TypeHole", message)?;
+            attach_hole_binding_section(diagnostic, context, &hole.bindings)
+        }
     }
 }
 
