@@ -542,11 +542,7 @@ where
             &core,
             &self.checked.names,
             &mut self.names,
-            self.config.show_rigid_kinds,
-            self.config.show_forall_kinds,
-            self.config.show_kind_applications,
-            self.config.fully_qualified_names,
-            self.config.quote_record_labels,
+            self.config,
             resolver,
         );
 
@@ -587,11 +583,7 @@ where
     core: &'context CheckedCore,
     names: &'context FxHashMap<Name, SmolStrId>,
     pretty_names: &'names mut PrettyNames,
-    show_rigid_kinds: bool,
-    show_forall_kinds: bool,
-    show_kind_applications: bool,
-    fully_qualified_names: bool,
-    quote_record_labels: bool,
+    pretty_config: PrettyConfig,
     resolver: Option<&'resolver mut dyn TypeNameResolver>,
     had_unresolved: bool,
 }
@@ -600,18 +592,13 @@ impl<'arena, 'context, 'names, 'resolver, Q> Printer<'arena, 'context, 'names, '
 where
     Q: PrettyQueries + ?Sized,
 {
-    #[allow(clippy::too_many_arguments)]
     fn new(
         arena: &'arena Arena<'arena>,
         queries: &'context Q,
         core: &'context CheckedCore,
         names: &'context FxHashMap<Name, SmolStrId>,
         pretty_names: &'names mut PrettyNames,
-        show_rigid_kinds: bool,
-        show_forall_kinds: bool,
-        show_kind_applications: bool,
-        fully_qualified_names: bool,
-        quote_record_labels: bool,
+        pretty_config: PrettyConfig,
         resolver: Option<&'resolver mut dyn TypeNameResolver>,
     ) -> Printer<'arena, 'context, 'names, 'resolver, Q> {
         Printer {
@@ -620,11 +607,7 @@ where
             core,
             names,
             pretty_names,
-            show_rigid_kinds,
-            show_forall_kinds,
-            show_kind_applications,
-            fully_qualified_names,
-            quote_record_labels,
+            pretty_config,
             resolver,
             had_unresolved: false,
         }
@@ -691,7 +674,7 @@ where
             };
         }
 
-        if !self.fully_qualified_names {
+        if !self.pretty_config.fully_qualified_names {
             return Ok(Some(name));
         }
 
@@ -743,7 +726,7 @@ where
             }
 
             &Type::KindApplication(function, argument) => {
-                if self.show_kind_applications {
+                if self.pretty_config.show_kind_applications {
                     self.traverse_kind_application(precedence, function, argument)?
                 } else {
                     self.traverse(precedence, function)?
@@ -811,7 +794,7 @@ where
 
             &Type::Rigid(name, _, kind) => {
                 let text = self.pretty_names.display_name(self.queries, self.names, name);
-                if self.show_rigid_kinds && kind != self.core.prim.t {
+                if self.pretty_config.show_rigid_kinds && kind != self.core.prim.t {
                     let kind = self.traverse(Precedence::Top, kind)?;
                     self.arena
                         .text(format!("({text} :: "))
@@ -946,7 +929,7 @@ where
         let binders = binders.iter().map(|binder| {
             let name = self.pretty_names.display_name(self.queries, self.names, binder.name);
             let text = if binder.visible { format!("@{name}") } else { name.to_string() };
-            if self.show_forall_kinds && binder.kind != self.core.prim.t {
+            if self.pretty_config.show_forall_kinds && binder.kind != self.core.prim.t {
                 let kind = self.traverse(Precedence::Top, binder.kind)?;
                 Ok(self
                     .arena
@@ -1086,9 +1069,10 @@ where
             };
         }
 
+        let quote_record_labels = self.pretty_config.quote_record_labels;
         let fields = fields.iter().map(|field| {
             let field_type = self.traverse(Precedence::Top, field.id)?;
-            let label = if self.quote_record_labels && !is_unquoted_record_label(&field.label) {
+            let label = if quote_record_labels && !is_unquoted_record_label(&field.label) {
                 lowering::literal::encode_normal_string(&lowering::StringLiteral::from(
                     field.label.as_str(),
                 ))
