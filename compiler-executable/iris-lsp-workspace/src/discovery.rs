@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use iris_build::compile::{InitialBuildConfig, PackageExecution, build_initial};
+use iris_build::compile::{InitialBuildConfig, build_initial};
 use iris_build::events::BuildEventSink;
 use iris_build::plan::PackageInput;
 use itertools::Itertools;
@@ -31,7 +31,6 @@ fn discover_workspace(
     let packages = discovered.packages.iter().map(|package| PackageInput {
         name: SmolStr::clone(&package.name),
         source_identities: Vec::clone(&package.files),
-        dependencies: Vec::clone(&package.dependencies),
     });
 
     let packages = packages.collect_vec();
@@ -89,7 +88,6 @@ pub(crate) fn build_prepared_workspace(
                 .cloned()
                 .expect("invariant violated: discovered source has no LSP metadata")
         },
-        execution: PackageExecution::Parallel,
         events,
     })?;
 

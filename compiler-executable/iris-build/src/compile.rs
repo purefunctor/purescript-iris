@@ -21,7 +21,7 @@ use super::output::{BuildOutput, GeneratedModule, OutputError};
 use super::ownership::{SourceOwner, SourcePackage};
 use super::packages::DiscoveredPackage;
 use super::plan::{BuildPlan, BuildPlanError, PackageInput, SelectedSource};
-use super::{executor, modules, walk};
+use super::{modules, walk};
 
 pub(crate) struct BuildConfig<'a> {
     pub root: PathBuf,
@@ -68,12 +68,6 @@ pub(crate) enum Compiled {
     Succeeded(Vec<GeneratedModule>),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PackageExecution {
-    Serial,
-    Parallel,
-}
-
 pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
     pub root: &'a Path,
     pub source_globs: &'a [PathBuf],
@@ -81,7 +75,6 @@ pub struct InitialBuildConfig<'a, Metadata, SourceMetadata> {
     pub packages: Vec<PackageInput>,
     pub prim_metadata: Metadata,
     pub source_metadata: SourceMetadata,
-    pub execution: PackageExecution,
     pub events: &'a dyn BuildEventSink,
 }
 
@@ -151,7 +144,6 @@ where
         packages,
         prim_metadata,
         source_metadata,
-        execution,
         events,
     } = config;
     let started = Instant::now();
@@ -192,17 +184,7 @@ where
     let sources = sources.collect::<HashMap<_, _>>();
 
     let engine = compilation.query_engine();
-    let execution = match execution {
-        PackageExecution::Serial => {
-            let execute = |package: &super::plan::PlannedPackage| {
-                let package_sources = package.source_paths.iter().map(|path| sources[path]);
-                let package_sources = package_sources.collect_vec();
-                query_package(engine, &package_sources)
-            };
-            executor::execute_serial(&plan, events, &execute)
-        }
-        PackageExecution::Parallel => modules::execute(engine, &plan, &sources, events),
-    };
+    let execution = modules::execute(engine, &plan, &sources, events);
 
     let duration = started.elapsed();
     events.send(BuildEvent::Finalizing { duration });
@@ -234,7 +216,6 @@ pub(crate) fn build_initial_packages(
     let inputs = packages.iter().map(|package| PackageInput {
         name: SmolStr::clone(&package.name),
         source_identities: Vec::clone(&package.files),
-        dependencies: Vec::clone(&package.dependencies),
     });
     let excluded = [output.to_path_buf()];
     build_initial(InitialBuildConfig {
@@ -248,7 +229,6 @@ pub(crate) fn build_initial_packages(
             let package = package.expect("invariant violated: a planned source was not discovered");
             SourceOwner::Package(SourcePackage::new(package))
         },
-        execution: PackageExecution::Parallel,
         events,
     })
 }

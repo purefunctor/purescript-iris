@@ -1,5 +1,4 @@
 pub mod events;
-pub mod executor;
 pub mod plan;
 
 pub mod compilation;
